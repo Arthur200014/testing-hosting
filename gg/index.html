@@ -13,6 +13,7 @@
         textarea { height: 80px; }
         button { background: #6b7a3a; color: #fff; border: none; padding: 12px 30px; font-size: 18px; border-radius: 8px; cursor: pointer; }
         button:hover { background: #5a6a2a; }
+        button:disabled { opacity: 0.65; cursor: wait; }
         .success { display: none; background: #8fa14a; color: #fff; padding: 15px; border-radius: 10px; margin-top: 20px; }
         .error-box { display: none; background: #b5471f; color: #fff; padding: 15px; border-radius: 10px; margin-top: 20px; border: 3px solid #160f09; }
         .error-box strong { display: block; margin-bottom: 8px; font-size: 18px; }
@@ -39,7 +40,7 @@
         <div class="field">
             <label>3. Как вы оцениваете сложность урока?</label>
             <div class="radio-group">
-                <label><input type="radio" name="Сложность" value="Слишком легко"> Слишком легко</label>
+                <label><input type="radio" name="Сложность" value="Слишком легко" required> Слишком легко</label>
                 <label><input type="radio" name="Сложность" value="В самый раз"> В самый раз</label>
                 <label><input type="radio" name="Сложность" value="Слишком сложно"> Слишком сложно</label>
             </div>
@@ -55,7 +56,7 @@
             <textarea name="Что улучшить" placeholder="Ваши идеи и пожелания..."></textarea>
         </div>
 
-        <button type="submit">📤 Отправить</button>
+        <button type="submit" id="submitButton">📤 Отправить</button>
     </form>
 
     <div class="success" id="successMessage">✅ Спасибо! Ваши ответы отправлены.</div>
@@ -67,51 +68,38 @@
     <script>
         const form = document.getElementById('surveyForm');
         const scriptURL = 'https://script.google.com/macros/s/AKfycbyLYA3n1BhdnnofZ0EuncPCPXdEzExB_fWTxIMePxOZYeFblKTMYWK0IHy7zSu0PObk/exec';
+        const submitButton = document.getElementById('submitButton');
         const successDiv = document.getElementById('successMessage');
         const errorDiv = document.getElementById('errorBox');
         const errorText = document.getElementById('errorText');
 
-        form.addEventListener('submit', e => {
-            e.preventDefault();
-            
-            // Скрываем старые сообщения
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+
             successDiv.style.display = 'none';
             errorDiv.style.display = 'none';
+            submitButton.disabled = true;
+            submitButton.textContent = '⏳ Отправка...';
 
-            const formData = new FormData(form);
-
-            fetch(scriptURL, { method: 'POST', body: formData })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP ошибка: ${response.status} ${response.statusText}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.result === 'success') {
-                        successDiv.style.display = 'block';
-                        form.reset();
-                        console.log('✅ Успешно:', data);
-                    } else {
-                        // Показываем ошибку, которую вернул скрипт
-                        errorText.innerHTML = `
-                            <div><strong>Сообщение:</strong> ${data.error || 'Неизвестная ошибка'}</div>
-                            <div class="details">${data.received ? '📦 Полученные данные: ' + JSON.stringify(data.received, null, 2) : ''}</div>
-                        `;
-                        errorDiv.style.display = 'block';
-                        console.error('❌ Ошибка от скрипта:', data);
-                    }
-                })
-                .catch(error => {
-                    // Ошибка сети или другие проблемы
-                    errorText.innerHTML = `
-                        <div><strong>Тип ошибки:</strong> ${error.name}</div>
-                        <div><strong>Сообщение:</strong> ${error.message}</div>
-                        <div class="details">${error.stack || ''}</div>
-                    `;
-                    errorDiv.style.display = 'block';
-                    console.error('❌ Ошибка запроса:', error);
+            try {
+                await fetch(scriptURL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: new FormData(form)
                 });
+
+                successDiv.style.display = 'block';
+                form.reset();
+            } catch (error) {
+                errorText.textContent =
+                    'Не удалось связаться с Google Apps Script. Проверьте интернет и настройки публикации веб-приложения. ' +
+                    error.message;
+                errorDiv.style.display = 'block';
+                console.error('❌ Ошибка запроса:', error);
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = '📤 Отправить';
+            }
         });
     </script>
 </body>
