@@ -14,7 +14,10 @@
         button { background: #6b7a3a; color: #fff; border: none; padding: 12px 30px; font-size: 18px; border-radius: 8px; cursor: pointer; }
         button:hover { background: #5a6a2a; }
         .success { display: none; background: #8fa14a; color: #fff; padding: 15px; border-radius: 10px; margin-top: 20px; }
-        .radio-group { display: flex; gap: 20px; margin-top: 8px; }
+        .error-box { display: none; background: #b5471f; color: #fff; padding: 15px; border-radius: 10px; margin-top: 20px; border: 3px solid #160f09; }
+        .error-box strong { display: block; margin-bottom: 8px; font-size: 18px; }
+        .error-box .details { background: #160f09; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 14px; margin-top: 8px; word-break: break-all; }
+        .radio-group { display: flex; gap: 20px; margin-top: 8px; flex-wrap: wrap; }
         .radio-group label { display: flex; align-items: center; gap: 6px; font-weight: normal; }
     </style>
 </head>
@@ -56,24 +59,59 @@
     </form>
 
     <div class="success" id="successMessage">✅ Спасибо! Ваши ответы отправлены.</div>
+    <div class="error-box" id="errorBox">
+        <strong>❌ Ошибка при отправке</strong>
+        <div id="errorText"></div>
+    </div>
 
     <script>
         const form = document.getElementById('surveyForm');
         const scriptURL = 'https://script.google.com/macros/s/AKfycbyLYA3n1BhdnnofZ0EuncPCPXdEzExB_fWTxIMePxOZYeFblKTMYWK0IHy7zSu0PObk/exec';
+        const successDiv = document.getElementById('successMessage');
+        const errorDiv = document.getElementById('errorBox');
+        const errorText = document.getElementById('errorText');
 
         form.addEventListener('submit', e => {
             e.preventDefault();
-            fetch(scriptURL, { method: 'POST', body: new FormData(form) })
-                .then(response => response.json())
+            
+            // Скрываем старые сообщения
+            successDiv.style.display = 'none';
+            errorDiv.style.display = 'none';
+
+            const formData = new FormData(form);
+
+            fetch(scriptURL, { method: 'POST', body: formData })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ошибка: ${response.status} ${response.statusText}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.result === 'success') {
-                        document.getElementById('successMessage').style.display = 'block';
+                        successDiv.style.display = 'block';
                         form.reset();
+                        console.log('✅ Успешно:', data);
                     } else {
-                        alert('Ошибка при отправке. Проверьте консоль (F12) для подробностей.');
+                        // Показываем ошибку, которую вернул скрипт
+                        errorText.innerHTML = `
+                            <div><strong>Сообщение:</strong> ${data.error || 'Неизвестная ошибка'}</div>
+                            <div class="details">${data.received ? '📦 Полученные данные: ' + JSON.stringify(data.received, null, 2) : ''}</div>
+                        `;
+                        errorDiv.style.display = 'block';
+                        console.error('❌ Ошибка от скрипта:', data);
                     }
                 })
-                .catch(error => console.error('Ошибка:', error));
+                .catch(error => {
+                    // Ошибка сети или другие проблемы
+                    errorText.innerHTML = `
+                        <div><strong>Тип ошибки:</strong> ${error.name}</div>
+                        <div><strong>Сообщение:</strong> ${error.message}</div>
+                        <div class="details">${error.stack || ''}</div>
+                    `;
+                    errorDiv.style.display = 'block';
+                    console.error('❌ Ошибка запроса:', error);
+                });
         });
     </script>
 </body>
