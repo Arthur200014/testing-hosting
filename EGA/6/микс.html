@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Карта Дневника · Задание 6 ЕГЭ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=EB+Garamond:ital@0;1&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+/* ═══════════ ПАЛИТРА: ночной лес + старинная карта ═══════════ */
+:root{
+  --night:#0a1512; --night2:#102420; --pine:#173229;
+  --map:#e9d6a8; --map2:#dcc48a; --map-line:#b58e4e; --map-ink:#5a3b1c;
+  --gold:#e0a83f; --gold-br:#ffcf6b; --gold-d:#a9761f;
+  --crim:#c0392b; --crim-d:#7a1e12; --cyan:#5fc7b8;
+  --safe:#3f8a52; --safe-lt:#79cf86;
+  --edge:rgba(224,168,63,.32);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;font-family:'EB Garamond',Georgia,serif;color:#f0e6cf;
+  background:#0a1512;user-select:none;overflow-x:hidden}
+
+/* ─────────── ЗАГАДОЧНЫЙ ФОН ─────────── */
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+  background:radial-gradient(130% 100% at 50% -20%,#1a3b33 0%,#102420 42%,#0a1512 100%)}
+#stars{position:absolute;inset:0}
+.moon{position:absolute;top:6%;right:8%;width:120px;height:120px;border-radius:50%;
+  background:radial-gradient(circle at 38% 36%,#fff7e0,#f0dfa8 55%,#cdb87e 100%);
+  box-shadow:0 0 60px rgba(255,240,200,.35),inset -14px -10px 26px rgba(120,100,60,.4);opacity:.8}
+.moon::after{content:"";position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle at 62% 30%,rgba(150,130,90,.5) 0 6%,transparent 7%),
+   radial-gradient(circle at 40% 62%,rgba(150,130,90,.45) 0 8%,transparent 9%),
+   radial-gradient(circle at 68% 66%,rgba(150,130,90,.4) 0 5%,transparent 6%)}
+.fog{position:absolute;inset:-20%;background:
+   radial-gradient(50% 40% at 20% 80%,rgba(31,74,64,.5),transparent 60%),
+   radial-gradient(45% 35% at 85% 70%,rgba(20,50,44,.5),transparent 60%);filter:blur(10px);
+   animation:fog 26s ease-in-out infinite alternate}
+@keyframes fog{from{transform:translateX(-3%)}to{transform:translateX(4%)}}
+.trees{position:absolute;bottom:0;left:0;width:100%;height:28vh;opacity:.75;
+  background:linear-gradient(transparent,rgba(5,13,11,.92)),
+   url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='300' viewBox='0 0 240 300'><g fill='%23081511'><path d='M60 300 L60 120 L36 170 L52 170 L28 210 L45 210 L20 250 L40 250 L40 300Z M60 120 L84 170 L68 170 L92 210 L75 210 L100 250 L80 250 L80 300 L60 300Z'/><path d='M176 300 L176 96 L148 148 L166 148 L138 195 L156 195 L128 240 L150 240 L150 300Z M176 96 L204 148 L186 148 L214 195 L196 195 L224 240 L202 240 L202 300 L176 300Z'/></g></svg>") repeat-x bottom/260px auto}
+.ember{position:absolute;bottom:-10px;border-radius:50%;background:radial-gradient(var(--gold-br),transparent 70%);animation:rise linear infinite}
+@keyframes rise{0%{transform:translateY(0);opacity:0}10%{opacity:.9}90%{opacity:.6}100%{transform:translateY(-108vh) translateX(40px);opacity:0}}
+.sym{position:absolute;font-family:'Cinzel';color:var(--gold);opacity:.09;text-shadow:0 0 14px rgba(224,168,63,.4);animation:drift linear infinite}
+@keyframes drift{0%{transform:translateY(8vh) rotate(0);opacity:0}15%{opacity:.14}85%{opacity:.11}100%{transform:translateY(-112vh) rotate(220deg);opacity:0}}
+
+/* ─────────── ШАПКА ─────────── */
+.wrap{position:relative;z-index:10;max-width:1180px;margin:0 auto;padding:14px 14px 40px}
+header{text-align:center;margin:4px 0 8px}
+.kicker{font-family:'Special Elite';letter-spacing:.26em;text-transform:uppercase;color:var(--cyan);font-size:12px}
+h1{font-family:'Cinzel';font-weight:900;font-size:clamp(26px,5vw,48px);margin:.08em 0;color:#f4e8cd;
+  text-shadow:0 2px 0 #000,0 0 34px rgba(224,168,63,.22)}
+.subtitle{font-family:'Special Elite';color:#c9ba96;font-size:14px}
+
+.stats{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:10px 0}
+.stat{background:rgba(12,26,23,.6);border:1px solid var(--edge);border-radius:999px;padding:7px 16px;
+  font-family:'Special Elite';font-size:13px;display:flex;align-items:center;gap:8px;backdrop-filter:blur(3px)}
+.stat b{color:var(--gold-br);font-family:'Cinzel'}
+.stat.btn{cursor:pointer;transition:.2s}.stat.btn:hover{border-color:var(--gold);color:var(--gold-br)}
+
+/* ─────────── РАСКЛАДКА ─────────── */
+.game{display:flex;gap:24px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+
+/* ─────────── КАРТА-ПОЛЕ 8×8 ─────────── */
+.boardWrap{flex:0 0 auto}
+.board{position:relative;display:grid;grid-template-columns:repeat(9,1fr);gap:4px;
+  width:min(94vw,640px);aspect-ratio:9/8;padding:16px;border-radius:12px;
+  background:
+   radial-gradient(120% 120% at 15% 10%,rgba(255,255,255,.15),transparent 40%),
+   radial-gradient(60% 60% at 85% 90%,rgba(120,80,30,.25),transparent 60%),
+   linear-gradient(160deg,var(--map),var(--map2));
+  border:12px solid #b98a4a;outline:3px solid #8a5c28;
+  box-shadow:0 20px 50px rgba(0,0,0,.6),inset 0 0 60px rgba(120,80,30,.35)}
+/* лёгкая «истёртость» карты по краям */
+.board::before{content:"";position:absolute;inset:0;border-radius:6px;pointer-events:none;
+  box-shadow:inset 0 0 26px rgba(90,59,28,.5);z-index:1}
+/* компас-роза в углу карты */
+.compassRose{position:absolute;right:16px;bottom:14px;width:64px;height:64px;opacity:.5;z-index:1;
+  animation:spinC 40s linear infinite}
+@keyframes spinC{to{transform:rotate(360deg)}}
+.mapdoodle{position:absolute;opacity:.28;z-index:1;pointer-events:none}
+
+.cell{position:relative;border-radius:6px;background:rgba(255,248,225,.28);
+  border:1px dashed rgba(120,80,30,.4);display:grid;place-items:center;z-index:2;
+  font-family:'Cinzel';color:rgba(74,48,22,.8);transition:background .35s,box-shadow .35s,border-color .35s}
+.cell .rune{opacity:.7;font-size:14px}
+.cell.safe{background:rgba(95,191,122,.34);border:1px solid var(--safe-lt);border-style:solid;
+  box-shadow:inset 0 0 10px rgba(63,138,82,.5)}
+.cell.safe .rune{content:"";}
+.cell.safe::after{content:"•";position:absolute;color:#2f6d40;font-size:20px;font-weight:900}
+.cell.start{background:rgba(63,138,82,.5);border:2px solid var(--safe-lt)}
+.cell.start .rune{font-size:20px;color:#123d1c;opacity:1}
+.cell.finish{background:radial-gradient(circle,#ffe6a0,#e0a83f);border:2px solid var(--crim);
+  box-shadow:0 0 22px rgba(224,168,63,.6);animation:finishPulse 1.8s ease-in-out infinite}
+@keyframes finishPulse{50%{box-shadow:0 0 34px rgba(255,207,107,.95)}}
+.cell.finish .rune{font-size:24px;color:var(--crim-d);opacity:1;font-weight:900}
+.cell.current{border-color:var(--gold-br);box-shadow:0 0 0 2px var(--gold-br),0 0 18px rgba(255,207,107,.7);animation:cur 1.2s infinite}
+@keyframes cur{50%{box-shadow:0 0 0 2px var(--gold-br),0 0 28px rgba(255,207,107,.95)}}
+.cell.boom{animation:boomFlash .6s}
+@keyframes boomFlash{0%,100%{background:rgba(255,248,225,.28)}20%{background:#ff5b3a}50%{background:#7a1e12}}
+.cell .bomb{position:absolute;font-size:24px;animation:pop .4s ease-out;z-index:6}
+@keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+
+/* фишка — красная булавка на карте */
+.token{position:absolute;width:30px;height:36px;left:0;top:0;transform:translate(-50%,-72%);
+  transition:left .45s cubic-bezier(.5,1.4,.5,1),top .45s cubic-bezier(.5,1.4,.5,1);z-index:7;
+  filter:drop-shadow(0 4px 4px rgba(0,0,0,.5))}
+.token.hurt{animation:hurt .5s}
+@keyframes hurt{0%,100%{transform:translate(-50%,-72%)}25%{transform:translate(-60%,-72%) rotate(-14deg)}75%{transform:translate(-40%,-72%) rotate(14deg)}}
+
+/* ─────────── ПУЛЬТ: КРУПНЫЙ пример + стрелки ─────────── */
+.panel{flex:1 1 400px;max-width:480px;min-width:300px}
+.quest{background:linear-gradient(180deg,rgba(18,36,32,.94),rgba(10,21,18,.96));color:#f0e6cf;border-radius:16px;
+  padding:20px 22px;box-shadow:0 14px 34px rgba(0,0,0,.5);border:3px solid var(--gold-d);position:relative;
+  background-image:repeating-linear-gradient(rgba(224,168,63,.05) 0 31px,rgba(224,168,63,.09) 31px 32px)}
+.quest .qtag{font-family:'Special Elite';font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
+.quest .qtxt{font-size:clamp(22px,3.4vw,32px);font-weight:700;line-height:1.35;font-family:'EB Garamond';color:#f6ecd2;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+.quest .qtxt sup{font-size:.7em}
+.quest .frac{display:inline-flex;vertical-align:middle;flex-direction:column;text-align:center;line-height:1.05;margin:0 .12em;font-size:.9em}
+.quest .frac span:first-child{border-bottom:1.5px solid currentColor;padding:0 .16em .05em}
+.quest .frac span:last-child{padding:.05em .16em 0}
+.quest .qask{margin-top:8px;font-family:'Special Elite';font-size:13px;color:#c9ba96}
+
+.dpad{margin-top:16px;display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:auto auto auto;gap:10px;align-items:center;justify-items:center}
+.arrow{width:100%;min-height:66px;background:linear-gradient(180deg,rgba(23,50,41,.9),rgba(10,21,18,.95));
+  border:2px solid var(--edge);border-radius:12px;color:#f0e6cf;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:.15s;font-family:'Cinzel'}
+.arrow:hover{border-color:var(--gold);box-shadow:0 0 18px rgba(224,168,63,.35);transform:translateY(-2px)}
+.arrow:active{transform:translateY(0)}
+.arrow .dir{font-size:20px;color:var(--gold-br);line-height:1}
+.arrow .val{font-size:26px;font-weight:700}
+.arrow.up{grid-column:2;grid-row:1}.arrow.left{grid-column:1;grid-row:2}
+.arrow.right{grid-column:3;grid-row:2}.arrow.down{grid-column:2;grid-row:3}
+.mini{grid-column:2;grid-row:2;width:66px;height:66px;border-radius:50%;
+  background:radial-gradient(circle,rgba(224,168,63,.15),transparent 70%);border:1px dashed var(--edge);
+  display:grid;place-items:center;font-size:26px;animation:spinC 22s linear infinite}
+.arrow.correct{border-color:var(--safe-lt);box-shadow:0 0 20px rgba(121,207,134,.6);background:linear-gradient(180deg,#2f7d4c,#1d5533)}
+.arrow.wrong{border-color:var(--crim);box-shadow:0 0 20px rgba(192,57,43,.7);animation:shake .4s}
+@keyframes shake{25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+.hint{font-family:'Special Elite';font-size:12px;color:#c9ba96;text-align:center;margin-top:12px}
+kbd{background:rgba(236,217,181,.15);border:1px solid var(--edge);border-radius:5px;padding:1px 6px;font-family:'Special Elite';font-size:11px}
+
+/* ─────────── ОВЕРЛЕИ ─────────── */
+.overlay{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;
+  background:radial-gradient(circle at 50% 35%,rgba(12,40,32,.55),rgba(4,12,10,.92));backdrop-filter:blur(4px)}
+.overlay.hidden{display:none}
+.modal{background:linear-gradient(180deg,rgba(233,214,168,.98),rgba(220,196,138,.98));color:#3a2410;
+  border:3px solid var(--gold-d);border-radius:22px;padding:30px 30px;max-width:540px;width:100%;text-align:center;
+  box-shadow:0 22px 50px rgba(0,0,0,.6);
+  background-image:repeating-linear-gradient(rgba(120,80,30,.05) 0 30px,rgba(120,80,30,.09) 30px 31px)}
+.modal h2{font-family:'Cinzel';font-weight:900;font-size:clamp(26px,5vw,42px);margin:0 0 8px;color:#7a3f1a}
+.modal h2.boom{color:var(--crim-d)}
+.modal p{font-size:17px;color:#5a3b1c;line-height:1.55;margin:6px 0}
+.modal .rules{text-align:left;background:rgba(120,80,30,.1);border-radius:12px;padding:14px 18px;font-size:15px;line-height:1.7;margin:14px 0;color:#4a3016}
+.modal .rules b{color:#a9531c}
+.statwin{display:flex;gap:14px;justify-content:center;margin:14px 0;flex-wrap:wrap}
+.statwin div{background:rgba(120,80,30,.1);border:1px solid var(--gold-d);border-radius:12px;padding:10px 18px;min-width:92px}
+.statwin .n{font-family:'Cinzel';font-weight:900;font-size:26px;color:#7a3f1a}
+.statwin .l{font-family:'Special Elite';font-size:11px;color:#8a5a2c;text-transform:uppercase}
+.btn{cursor:pointer;border:none;font-family:'Cinzel';font-weight:700;font-size:18px;letter-spacing:.04em;color:#20140a;
+  background:linear-gradient(180deg,var(--gold),var(--gold-d));border-radius:12px;padding:13px 34px;
+  box-shadow:0 8px 22px rgba(224,168,63,.4);transition:.12s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(224,168,63,.55)}
+.btn:active{transform:translateY(1px)}
+.studentLine{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:10px 0 2px;
+  font-family:'Special Elite';font-size:13px;color:#5a3b1c}
+.studentLine strong{color:#7a3f1a;font-family:'Cinzel'}
+.studentSwitch{cursor:pointer;border:1px dashed var(--gold-d);border-radius:8px;padding:5px 9px;
+  background:rgba(120,80,30,.08);color:#7a3f1a;font-family:'Special Elite'}
+.studentSwitch:disabled{opacity:.4;cursor:not-allowed}
+.codeOverlay{z-index:220}
+.codeInput{width:min(320px,92%);padding:11px 13px;margin:8px 0 2px;text-align:center;text-transform:uppercase;
+  border:2px solid var(--gold-d);border-radius:10px;background:#fff8e7;color:#3a2410;
+  font:700 21px 'Special Elite'}
+.codeMsg{min-height:26px;margin:7px 0;font-size:16px;font-weight:700;color:var(--crim-d)}
+.codeMsg.ok{color:var(--safe)}
+.saveStatus{min-height:25px;margin:8px 0 2px;font-family:'Special Elite';font-size:13px;color:#5a3b1c}
+.saveStatus.ok{color:#216b39}.saveStatus.offline{color:#8a5a2c}
+
+@media (prefers-reduced-motion:reduce){*{animation-duration:.001s!important}}
+@media(max-width:520px){.arrow{min-height:56px}.arrow .val{font-size:22px}}
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true">
+  <canvas id="stars"></canvas>
+  <div class="moon"></div>
+  <div class="fog"></div>
+  <div id="embers"></div>
+  <div id="symbols"></div>
+  <div class="trees"></div>
+</div>
+
+<div class="wrap">
+  <header>
+    <div class="kicker">Тайная карта · дневник исследователя</div>
+    <h1>КАРТА ДНЕВНИКА</h1>
+    <div class="subtitle">Веди метку по карте: верный ответ — шаг к сокровищу. Ошибка — ловушка.</div>
+  </header>
+
+  <div class="stats">
+    <div class="stat">🧭 Пройдено: <b id="scoreTxt">0</b>/<span id="totalTxt">15</span></div>
+    <div class="stat">⏱ Время: <b id="timeTxt">0:00</b></div>
+    <div class="stat">💥 Попыток: <b id="triesTxt">1</b></div>
+    <div class="stat btn" id="soundBtn">🔊 Звук</div>
+  </div>
+
+  <div class="game">
+    <div class="boardWrap">
+      <div class="board" id="board">
+        <svg class="compassRose" viewBox="0 0 100 100">
+          <g fill="none" stroke="#7a4a1c" stroke-width="2">
+            <circle cx="50" cy="50" r="40"/><circle cx="50" cy="50" r="30" stroke-dasharray="2 5"/></g>
+          <polygon points="50,6 58,50 50,44 42,50" fill="#c0392b"/>
+          <polygon points="50,94 42,50 50,56 58,50" fill="#7a4a1c"/>
+          <polygon points="6,50 50,42 44,50 50,58" fill="#7a4a1c"/>
+          <polygon points="94,50 50,58 56,50 50,42" fill="#7a4a1c"/>
+          <text x="50" y="20" font-size="10" fill="#7a4a1c" text-anchor="middle" font-family="Cinzel" font-weight="700">С</text>
+        </svg>
+        <svg class="mapdoodle" style="left:20px;top:24px" width="60" height="34" viewBox="0 0 60 34"><path d="M2 32 L16 8 L26 24 L34 12 L48 32Z" fill="none" stroke="#7a4a1c" stroke-width="2"/></svg>
+        <svg class="mapdoodle" style="right:80px;top:60px" width="30" height="42" viewBox="0 0 30 42"><path d="M15 42 V22" stroke="#5a7a2c" stroke-width="3"/><path d="M15 4 L26 24 H4Z M15 14 L24 30 H6Z" fill="#5a7a2c"/></svg>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="quest">
+        <div class="qtag" id="qTag">Задача 1</div>
+        <div class="qtxt" id="qTxt">…</div>
+        <div class="qask">выбери стрелку с верным ответом ↓</div>
+      </div>
+      <div class="dpad" id="dpad">
+        <button class="arrow up"    data-dir="up"><span class="dir">▲</span><span class="val">?</span></button>
+        <button class="arrow left"  data-dir="left"><span class="dir">◀</span><span class="val">?</span></button>
+        <div class="mini">🗺️</div>
+        <button class="arrow right" data-dir="right"><span class="dir">▶</span><span class="val">?</span></button>
+        <button class="arrow down"  data-dir="down"><span class="dir">▼</span><span class="val">?</span></button>
+      </div>
+      <div class="hint">Клик по стрелке · или клавиши <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></div>
+    </div>
+  </div>
+</div>
+
+<!-- идентификация ученика -->
+<div class="overlay codeOverlay" id="codeScr">
+  <form class="modal" id="codeForm">
+    <h2>🧭 Доступ к карте</h2>
+    <p>Введи личный код ученика, чтобы результат сохранился в журнале.</p>
+    <input class="codeInput" id="studentCodeInput" type="text" placeholder="ЛИЧНЫЙ КОД" autocomplete="one-time-code" required>
+    <div class="codeMsg" id="codeMsg" aria-live="polite"></div>
+    <button class="btn" id="codeBtn" type="submit">Открыть карту</button>
+  </form>
+</div>
+
+<!-- старт -->
+<div class="overlay" id="startScr">
+  <div class="modal">
+    <h2>🗺️ Карта Дневника</h2>
+    <p>Задание №6 профильного ЕГЭ — как поход по тайной карте.</p>
+    <div class="studentLine">
+      <span>Ученик: <strong id="studentName">—</strong></span>
+      <button class="studentSwitch" id="switchStudent" type="button">Сменить ученика</button>
+    </div>
+    <div class="rules">
+      🧭 На каждой клетке — <b>задача</b>. Вокруг четыре стрелки с числами.<br>
+      ✅ Верный ответ спрятан на стрелке, ведущей к <b>сокровищу</b> ✗ (вправо-вверх). Нажми её — сделаешь шаг по тропе.<br>
+      💥 Ошибёшься — <b>ловушка взрывается</b>, карта тасуется заново.<br>
+      🔢 При новой попытке числа изменятся, а порядок прототипов останется прежним.<br>
+      🏴‍☠️ Пройди все <b>15 задач</b> и доберись до клада!
+    </div>
+    <button class="btn" id="startBtn">В путь по карте →</button>
+  </div>
+</div>
+
+<!-- взрыв -->
+<div class="overlay hidden" id="boomScr">
+  <div class="modal">
+    <h2 class="boom">💥 Ловушка!</h2>
+    <p>Ответ неверный — тропа обрушилась. Карта перетасовала маршрут.</p>
+    <p id="boomWhich" style="font-family:'Special Elite';font-size:14px"></p>
+    <button class="btn" id="boomBtn">Начать заново</button>
+  </div>
+</div>
+
+<!-- победа -->
+<div class="overlay hidden" id="winScr">
+  <div class="modal">
+    <h2>🏴‍☠️ Клад найден!</h2>
+    <p>Ты прошёл всю карту и добрался до сокровища. Тайна дневника раскрыта!</p>
+    <div class="statwin">
+      <div><div class="n" id="winScore">0%</div><div class="l">с первой попытки</div></div>
+      <div><div class="n" id="winTime">0:00</div><div class="l">время</div></div>
+      <div><div class="n" id="winTries">1</div><div class="l">попыток</div></div>
+    </div>
+    <div class="saveStatus" id="saveStatus" aria-live="polite"></div>
+    <button class="btn" id="winBtn">Пройти снова</button>
+  </div>
+</div>
+
+<script>
+/* ═══════════ КАРТА ДНЕВНИКА — «сапёр-бродилка» по заданию 6 ЕГЭ ═══════════ */
+const $=(s,c=document)=>c.querySelector(s),$$=(s,c=document)=>[...c.querySelectorAll(s)];
+const rnd=(a,b)=>a+Math.random()*(b-a),pick=a=>a[Math.floor(Math.random()*a.length)];
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+/* ─── СИСТЕМА УЧЁТА РЕЗУЛЬТАТОВ ─── */
+const API_URL="https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
+const TEST_META={
+  testId:"EGE-06-KARTA-DNEVNIKA-PROTOTYPES-MIX",
+  topicId:"task-06",
+  topicName:"Простейшие уравнения · микс прототипов",
+  taskNumber:6,
+  schemaVersion:1
+};
+const PENDING_RESULTS_KEY="egePendingTestResults";
+let currentStudent=null,gameActive=false,resultFinalized=false,displayedEventId=null;
+
+function loadStoredStudent(){
+  const id=localStorage.getItem("egeStudentId"),name=localStorage.getItem("egeStudentName"),code=localStorage.getItem("egeStudentCode");
+  return id&&name&&code?{id,name,code}:null;
+}
+function saveStudent(student){
+  localStorage.setItem("egeStudentId",student.id);
+  localStorage.setItem("egeStudentName",student.name);
+  localStorage.setItem("egeStudentCode",student.code);
+}
+function extractStudent(data,code){
+  const source=data&&(data.student||data.data)||data||{};
+  const id=source.studentId||source.id||(data&&data.studentId);
+  const name=source.studentName||source.name||(data&&data.studentName);
+  const ok=data&&(data.success===true||data.valid===true||data.ok===true||data.status==="success"||id);
+  return ok&&id&&name?{id:String(id),name:String(name),code}:null;
+}
+function validateStudentCode(code){
+  return new Promise((resolve,reject)=>{
+    const callbackName="egeValidate_"+Date.now()+"_"+Math.random().toString(36).slice(2);
+    const script=document.createElement("script");
+    const cleanup=()=>{delete window[callbackName];script.remove();clearTimeout(timeout);};
+    const timeout=setTimeout(()=>{cleanup();reject(new Error("timeout"));},12000);
+    window[callbackName]=data=>{cleanup();resolve(data);};
+    script.onerror=()=>{cleanup();reject(new Error("network"));};
+    script.src=API_URL+"?action=validateStudent&code="+encodeURIComponent(code)+"&callback="+encodeURIComponent(callbackName);
+    document.head.appendChild(script);
+  });
+}
+function setCodeMessage(text,ok=false){
+  $("#codeMsg").textContent=text;
+  $("#codeMsg").className="codeMsg"+(ok?" ok":"");
+}
+function showStudent(){
+  $("#studentName").textContent=currentStudent?currentStudent.name:"—";
+  $("#switchStudent").disabled=gameActive;
+}
+async function acceptStudentCode(rawCode){
+  const code=String(rawCode||"").trim();
+  if(!code){setCodeMessage("Введите личный код.");return;}
+  $("#codeBtn").disabled=true;setCodeMessage("Проверяем код…");
+  try{
+    const data=await validateStudentCode(code),student=extractStudent(data,code);
+    if(!student){setCodeMessage((data&&data.message)||"Код не найден. Проверьте и попробуйте снова.");return;}
+    currentStudent=student;saveStudent(student);showStudent();
+    setCodeMessage("Код принят.",true);$("#codeScr").classList.add("hidden");flushPendingResults();
+  }catch(error){setCodeMessage("Нет связи. Проверьте интернет и попробуйте снова.");}
+  finally{$("#codeBtn").disabled=false;}
+}
+$("#codeForm").addEventListener("submit",event=>{event.preventDefault();acceptStudentCode($("#studentCodeInput").value);});
+$("#switchStudent").addEventListener("click",()=>{
+  if(gameActive)return;
+  currentStudent=null;
+  localStorage.removeItem("egeStudentId");localStorage.removeItem("egeStudentName");localStorage.removeItem("egeStudentCode");
+  showStudent();$("#studentCodeInput").value="";setCodeMessage("");$("#codeScr").classList.remove("hidden");$("#studentCodeInput").focus();
+});
+function makeEventId(){
+  if(typeof crypto!=="undefined"&&typeof crypto.randomUUID==="function")return crypto.randomUUID();
+  return "evt-"+Date.now()+"-"+Math.random().toString(16).slice(2)+"-"+Math.random().toString(16).slice(2);
+}
+function localDateString(){
+  const now=new Date();
+  return [now.getFullYear(),String(now.getMonth()+1).padStart(2,"0"),String(now.getDate()).padStart(2,"0")].join("-");
+}
+function readPendingResults(){
+  try{const parsed=JSON.parse(localStorage.getItem(PENDING_RESULTS_KEY)||"[]");return Array.isArray(parsed)?parsed:[];}
+  catch(error){return [];}
+}
+function writePendingResults(items){localStorage.setItem(PENDING_RESULTS_KEY,JSON.stringify(items));}
+function queueResult(payload){
+  const queue=readPendingResults();
+  if(!queue.some(item=>item&&item.eventId===payload.eventId))queue.push(payload);
+  writePendingResults(queue);
+}
+async function postResult(payload){
+  const response=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
+    body:JSON.stringify(payload),redirect:"follow"});
+  if(!response.ok)throw new Error("HTTP "+response.status);
+}
+function setSaveStatus(text,type="",eventId=null){
+  if(eventId&&displayedEventId!==eventId)return;
+  $("#saveStatus").textContent=text;$("#saveStatus").className="saveStatus"+(type?" "+type:"");
+}
+async function submitResult(payload){
+  setSaveStatus("Сохраняем результат…","",payload.eventId);
+  try{
+    await postResult(payload);
+    writePendingResults(readPendingResults().filter(item=>item&&item.eventId!==payload.eventId));
+    setSaveStatus("✓ Результат сохранён","ok",payload.eventId);
+  }catch(error){
+    queueResult(payload);
+    setSaveStatus("Нет связи: результат сохранён на устройстве и отправится позже","offline",payload.eventId);
+  }
+}
+async function flushPendingResults(){
+  const queue=readPendingResults();if(!queue.length)return;
+  const failed=[];
+  for(const payload of queue){try{await postResult(payload);}catch(error){failed.push(payload);}}
+  writePendingResults(failed);
+}
+addEventListener("online",flushPendingResults);
+
+/* ─── 15 ГЕНЕРАТОРОВ: ПОРЯДОК ПРОТОТИПОВ НЕ МЕНЯЕТСЯ ─── */
+const ri=(a,b)=>Math.floor(rnd(a,b+1));
+const nz=(a,b)=>{let n=0;while(n===0)n=ri(a,b);return n;};
+const sign=(n,space=true)=>n<0?`− ${Math.abs(n)}`:`+ ${n}`;
+const fmt=n=>Number.isInteger(n)?String(n):String(Number(n.toFixed(2))).replace(".",",");
+function makeQuestion(tag,text,answer){
+  const correct=fmt(answer),pool=[answer+1,answer-1,-answer,answer+2,answer-2,answer*2,0],seen=new Set([correct]),distractors=[];
+  for(const value of pool){const shown=fmt(value);if(!seen.has(shown)){seen.add(shown);distractors.push(shown);}if(distractors.length===3)break;}
+  return{tag,text,correct,distractors};
+}
+function linearQuestion(){
+  const a=ri(2,9),x=nz(-9,12),b=nz(-12,12),c=a*x+b;
+  return makeQuestion("1. Линейное уравнение",`Решите уравнение ${a}x ${sign(b)} = ${c}`,x);
+}
+function fractionNumberQuestion(){
+  const a=ri(2,8),x=nz(-8,10),den=ri(2,9),k=ri(2,6),b=den-a*x,num=k*den;
+  return makeQuestion("2. Дробь равна числу",`Решите уравнение <span class="frac"><span>${num}</span><span>${a}x ${sign(b)}</span></span> = ${k}`,x);
+}
+function fractionFractionQuestion(){
+  const a=ri(2,8),x=nz(-8,10),b=nz(-10,10),den=a*x+b;
+  if(den===0)return fractionFractionQuestion();
+  return makeQuestion("3. Дробь равна дроби",`Решите уравнение <span class="frac"><span>1</span><span>${a}x ${sign(b)}</span></span> = <span class="frac"><span>1</span><span>${den}</span></span>`,x);
+}
+function oddPowerQuestion(){
+  const p=pick([3,5]),root=nz(-5,5),shift=nz(-7,7),x=root-shift,rhs=root**p;
+  return makeQuestion("4. Нечётная степень",`Решите уравнение (x ${sign(shift)})<sup>${p}</sup> = ${rhs}`,x);
+}
+function equalSquaresQuestion(){
+  const a=ri(1,5),x=nz(-7,8),b=nz(-9,9),c=-2*a*x-b;
+  if(b===c)return equalSquaresQuestion();
+  return makeQuestion("5. Равенство квадратов",`Решите уравнение (${a}x ${sign(b)})<sup>2</sup> = (${a}x ${sign(c)})<sup>2</sup>`,x);
+}
+function squareRootQuestion(){
+  const a=ri(2,7),x=ri(-5,10),k=ri(2,10),b=k*k-a*x;
+  return makeQuestion("6. Квадратный корень",`Решите уравнение √(${a}x ${sign(b)}) = ${k}`,x);
+}
+function cubeRootQuestion(){
+  const a=ri(2,7),x=nz(-7,9),k=nz(-4,4),b=k**3-a*x;
+  return makeQuestion("7. Кубический корень",`Решите уравнение ∛(${a}x ${sign(b)}) = ${k}`,x);
+}
+function exponentialSameBaseQuestion(){
+  const base=pick([2,3,5,7]),a=ri(1,4),x=nz(-5,8),b=nz(-7,7),e=a*x+b;
+  return makeQuestion("8. Показательное · одинаковые основания",`Решите уравнение ${base}<sup>${a}x ${sign(b)}</sup> = ${base}<sup>${e}</sup>`,x);
+}
+function exponentialFractionQuestion(){
+  const base=pick([2,3,4,5]),a=ri(1,3),x=nz(-5,8),b=nz(-6,6),e=a*x+b;
+  return makeQuestion("9. Показательное · дробное основание",`Решите уравнение (<span class="frac"><span>1</span><span>${base}</span></span>)<sup>${a}x ${sign(b)}</sup> = (<span class="frac"><span>1</span><span>${base}</span></span>)<sup>${e}</sup>`,x);
+}
+function exponentialBothSidesQuestion(){
+  const base=pick([2,3]),m=pick([2,3]),a=ri(1,5),d=ri(1,3),x=nz(-5,7),e=nz(-3,3),c=m*(d*x+e)-a*x;
+  if(a===m*d)return exponentialBothSidesQuestion();
+  return makeQuestion("10. Показательное · x в обеих степенях",`Решите уравнение ${base}<sup>${a}x ${sign(c)}</sup> = ${base**m}<sup>${d}x ${sign(e)}</sup>`,x);
+}
+function equalLogsQuestion(){
+  const base=pick([2,3,5,7]),a=ri(1,6),x=nz(-6,9),b=nz(-9,9),arg=a*x+b;
+  if(arg<=0)return equalLogsQuestion();
+  return makeQuestion("11. Одинаковые логарифмы",`Решите уравнение log<sub>${base}</sub>(${a}x ${sign(b)}) = log<sub>${base}</sub>${arg}`,x);
+}
+function logDefinitionQuestion(){
+  const base=pick([2,3,4,5]),power=ri(2,4),a=ri(1,6),x=nz(-5,9),b=base**power-a*x;
+  return makeQuestion("12. По определению логарифма",`Решите уравнение log<sub>${base}</sub>(${a}x ${sign(b)}) = ${power}`,x);
+}
+function logNegativeCoefficientQuestion(){
+  const base=pick([2,3,5]),power=ri(2,4),a=ri(1,6),x=nz(-6,8),b=base**power+a*x;
+  return makeQuestion("13. Логарифм · отрицательный коэффициент",`Решите уравнение log<sub>${base}</sub>(${b} − ${a}x) = ${power}`,x);
+}
+function trigBasicQuestion(){
+  const d=ri(2,10);
+  return makeQuestion("14. Тригонометрическое · синус",`Найдите наименьший положительный корень: sin(<span class="frac"><span>πx</span><span>${d}</span></span>) = 0`,d);
+}
+function trigDoubleAngleQuestion(){
+  const d=ri(2,10),answer=d/2,den=2*d;
+  return makeQuestion("15. Тригонометрическое · двойной угол",`Найдите наименьший положительный корень: 2sin(<span class="frac"><span>πx</span><span>${den}</span></span>)cos(<span class="frac"><span>πx</span><span>${den}</span></span>) = 1`,answer);
+}
+const GENERATORS=[linearQuestion,fractionNumberQuestion,fractionFractionQuestion,oddPowerQuestion,equalSquaresQuestion,squareRootQuestion,cubeRootQuestion,exponentialSameBaseQuestion,exponentialFractionQuestion,exponentialBothSidesQuestion,equalLogsQuestion,logDefinitionQuestion,logNegativeCoefficientQuestion,trigBasicQuestion,trigDoubleAngleQuestion];
+const N=GENERATORS.length;
+let QUESTIONS=[];
+function generateQuestions(){return GENERATORS.map(make=>make());}
+$("#totalTxt").textContent=N;
+
+/* ─── ФОН: звёзды, угольки, шифры ─── */
+(function stars(){const cv=$("#stars"),ctx=cv.getContext("2d");let W,H,pts=[];
+  function rs(){W=cv.width=innerWidth;H=cv.height=innerHeight;
+    pts=Array.from({length:Math.min(150,W/9)},()=>({x:Math.random()*W,y:Math.random()*H*.8,r:Math.random()*1.5+.3,p:Math.random()*6.28,s:.5+Math.random()}));}
+  rs();addEventListener("resize",rs);
+  (function loop(t){ctx.clearRect(0,0,W,H);pts.forEach(p=>{const a=.3+.6*Math.abs(Math.sin(t/1000*p.s+p.p));
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fillStyle=`rgba(255,230,170,${a})`;ctx.fill();});requestAnimationFrame(loop);})(0);})();
+(function(){const em=$("#embers");for(let i=0;i<22;i++){const e=document.createElement("div");e.className="ember";
+    e.style.left=rnd(0,100)+"%";const s=3+Math.random()*4;e.style.width=e.style.height=s+"px";
+    e.style.animationDuration=(9+Math.random()*11)+"s";e.style.animationDelay=(-Math.random()*14)+"s";em.appendChild(e);}
+  const sy=$("#symbols"),syms=["△","✦","✧","∴","⚸","☾","⬡","※","∷","♆","☉","⋔"];
+  for(let i=0;i<12;i++){const s=document.createElement("div");s.className="sym";s.textContent=pick(syms);
+    s.style.left=rnd(0,100)+"%";s.style.fontSize=(20+Math.random()*40)+"px";
+    s.style.animationDuration=(16+Math.random()*18)+"s";s.style.animationDelay=(-Math.random()*20)+"s";sy.appendChild(s);}})();
+
+/* ─── ЗВУК: игривая музыка + эффекты (Web Audio API) ─── */
+const AU=(function(){
+  let ctx,master,mg,sched,muted=false,step=0,nextT=0;
+  const BPM=132,eighth=60/BPM/2; // бодрый темп
+  const CH={C:[261.63,329.63,392,523.25],G:[196,246.94,293.66,392],Am:[220,261.63,329.63,440],F:[174.61,220,261.63,349.23]};
+  const PROG=["C","G","Am","F"],ROOT={C:130.81,G:98,Am:110,F:87.31},FIFTH={C:196,G:146.83,Am:164.81,F:130.81};
+  function ensure(){if(ctx)return;ctx=new (window.AudioContext||window.webkitAudioContext)();
+    master=ctx.createGain();master.gain.value=.9;master.connect(ctx.destination);
+    mg=ctx.createGain();mg.gain.value=.5;mg.connect(master);}
+  function tone(f,t,dur,type,vol,dest,glide){const o=ctx.createOscillator(),g=ctx.createGain();o.type=type;
+    o.frequency.setValueAtTime(f,t);if(glide)o.frequency.exponentialRampToValueAtTime(glide,t+dur);
+    o.connect(g);g.connect(dest||master);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.008);
+    g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.start(t);o.stop(t+dur+.03);}
+  function noise(t,dur,vol,lp){const b=ctx.createBuffer(1,ctx.sampleRate*dur,ctx.sampleRate),d=b.getChannelData(0);
+    for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;const s=ctx.createBufferSource();s.buffer=b;
+    const g=ctx.createGain(),f=ctx.createBiquadFilter();f.type="lowpass";f.frequency.value=lp||1200;
+    s.connect(f);f.connect(g);g.connect(master);g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);s.start(t);s.stop(t+dur+.02);}
+  // игривый луп: «ом-па» бас + стаккато-плюшки + деревянный клик
+  function schedule(){while(nextT<ctx.currentTime+.15){const t=nextT,bar=Math.floor(step/8)%4,ch=PROG[bar],pos=step%8;
+    tone(CH[ch][pos%4],t,.16,"triangle",.14,mg);          // мелодия-плюшки (стаккато)
+    if(pos===0)tone(CH[ch][3],t,.2,"square",.05,mg);       // акцент сверху
+    if(pos%4===0)tone(ROOT[ch],t,.18,"sine",.2,mg);        // «ом» (бас-нота)
+    if(pos%4===2)tone(FIFTH[ch],t,.16,"sine",.16,mg);      // «па» (квинта)
+    if(pos%2===1)tone(1500,t,.03,"square",.02,mg);         // деревянный клик
+    step++;nextT+=eighth;}}
+  return{
+    init(){ensure();ctx.resume();},
+    startMusic(){ensure();if(sched)return;step=0;nextT=ctx.currentTime+.05;sched=setInterval(schedule,40);},
+    setMuted(m){muted=m;ensure();master.gain.setTargetAtTime(m?0:.9,ctx.currentTime,.05);},
+    correct(){if(!ctx||muted)return;const t=ctx.currentTime;[523.25,659.25,783.99,1046.5].forEach((f,i)=>tone(f,t+i*.05,.18,"triangle",.2));},
+    wrong(){if(!ctx||muted)return;const t=ctx.currentTime;noise(t,.5,.4,900);tone(120,t,.5,"sawtooth",.3,null,40);tone(70,t,.6,"square",.2);},
+    win(){if(!ctx||muted)return;const t=ctx.currentTime;[392,523.25,659.25,783.99,1046.5].forEach((f,i)=>tone(f,t+i*.12,.5,"triangle",.2));tone(1318.5,t+.66,.9,"sine",.14);}
+  };
+})();
+
+/* ─── ПОЛЕ 8×9: 15 шагов от старта до сокровища ─── */
+const ROWS=8,COLS=9,board=$("#board");
+const START={r:ROWS-1,c:0},FINISH={r:0,c:COLS-1};
+let cells=[], token;
+const RUNES=["✦","△","∴","☾","※","⚸","✧","⬡","☉","♆","∷","⋔"];
+function buildBoard(){
+  // очищаем только клетки/фишку, декор карты (компас, дудлы) оставляем
+  $$(".cell",board).forEach(c=>c.remove());const old=$(".token",board);if(old)old.remove();cells=[];
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const cell=document.createElement("div");cell.className="cell";cell.dataset.r=r;cell.dataset.c=c;
+    const rune=document.createElement("span");rune.className="rune";rune.textContent=pick(RUNES);cell.appendChild(rune);
+    if(r===START.r&&c===START.c){cell.classList.add("start");rune.textContent="⚑";}
+    if(r===FINISH.r&&c===FINISH.c){cell.classList.add("finish");rune.textContent="✗";}
+    board.appendChild(cell);cells.push(cell);
+  }
+  token=document.createElement("div");token.className="token";
+  token.innerHTML=`<svg viewBox="0 0 30 36" width="30" height="36"><path d="M15 35 C5 22 3 16 3 11 A12 12 0 0 1 27 11 C27 16 25 22 15 35Z" fill="#c0392b" stroke="#7a1e12" stroke-width="1.5"/><circle cx="15" cy="11" r="5" fill="#ffe1c0"/></svg>`;
+  board.appendChild(token);
+}
+const cellAt=(r,c)=>cells[r*COLS+c];
+function moveToken(cell,animate){if(!animate)token.style.transition="none";
+  token.style.left=(cell.offsetLeft+cell.offsetWidth/2)+"px";
+  token.style.top =(cell.offsetTop +cell.offsetHeight/2)+"px";
+  if(!animate){void token.offsetWidth;token.style.transition="";}}
+
+/* ─── СОСТОЯНИЕ ─── */
+const DIRS={up:{dr:-1,dc:0},down:{dr:1,dc:0},left:{dr:0,dc:-1},right:{dr:0,dc:1}};
+let moves=[],pathCells=[],order=[],step=0,score=0,tries=1,correctDir=null,locked=false,timerId=null,startTime=0;
+let questionAttempted=Array(N).fill(false),firstTryCorrect=0;
+
+function genLevel(){
+  // 15 шагов: маршрут меняется, но прототипы всегда идут №1 → №15
+  moves=shuffle([...Array(ROWS-1).fill("up"),...Array(COLS-1).fill("right")]);
+  pathCells=[];let r=START.r,c=START.c;pathCells.push({r,c});
+  moves.forEach(m=>{r+=DIRS[m].dr;c+=DIRS[m].dc;pathCells.push({r,c});});
+  order=[...Array(N).keys()];
+}
+function clearCells(){cells.forEach(cell=>{cell.classList.remove("safe","current","boom");const b=cell.querySelector(".bomb");if(b)b.remove();});}
+
+function render(){
+  cells.forEach(c=>c.classList.remove("current"));
+  const cur=cellAt(pathCells[step].r,pathCells[step].c);
+  if(!(pathCells[step].r===FINISH.r&&pathCells[step].c===FINISH.c))cur.classList.add("current");
+  const q=QUESTIONS[order[step]];
+  $("#qTag").innerHTML=`Задача ${step+1} из ${N} · <span style="color:#e0a83f">${q.tag}</span>`;
+  $("#qTxt").innerHTML=q.text;
+  correctDir=moves[step];
+  const others=Object.keys(DIRS).filter(d=>d!==correctDir),dis=shuffle(q.distractors);
+  const val={};val[correctDir]=q.correct;others.forEach((d,i)=>val[d]=dis[i]);
+  $$(".arrow",$("#dpad")).forEach(a=>{a.classList.remove("correct","wrong");a.querySelector(".val").textContent=val[a.dataset.dir];});
+}
+
+function answer(dir){
+  if(locked)return;
+  const arrow=$(`.arrow.${dir}`,$("#dpad"));
+  const questionId=order[step],isFirstAttempt=!questionAttempted[questionId];
+  questionAttempted[questionId]=true;
+  if(dir===correctDir){
+    if(isFirstAttempt)firstTryCorrect++;
+    locked=true;AU.correct();arrow.classList.add("correct");
+    step++;score=step;$("#scoreTxt").textContent=score;
+    const np=pathCells[step],nc=cellAt(np.r,np.c);moveToken(nc,true);
+    setTimeout(()=>{if(np.r===FINISH.r&&np.c===FINISH.c){win();return;}nc.classList.add("safe");locked=false;render();},470);
+  }else{
+    locked=true;AU.wrong();arrow.classList.add("wrong");token.classList.add("hurt");
+    const cur=cellAt(pathCells[step].r,pathCells[step].c);cur.classList.add("boom");
+    const bomb=document.createElement("div");bomb.className="bomb";bomb.textContent="💣";cur.appendChild(bomb);
+    setTimeout(()=>{token.classList.remove("hurt");$("#boomWhich").textContent=`Ты дошёл до задачи ${step+1} из ${N}. Маршрут тасуется заново!`;$("#boomScr").classList.remove("hidden");},950);
+  }
+}
+
+/* ─── СТАРТ / СБРОС / ПОБЕДА ─── */
+function layout(resetTimer){QUESTIONS=generateQuestions();genLevel();clearCells();step=0;score=0;$("#scoreTxt").textContent=0;locked=false;$("#triesTxt").textContent=tries;
+  moveToken(cellAt(START.r,START.c),false);render();if(resetTimer)startTime=Date.now();}
+function resetResultTracking(){
+  questionAttempted=Array(N).fill(false);firstTryCorrect=0;resultFinalized=false;displayedEventId=null;
+  $("#saveStatus").textContent="";
+}
+function startGame(){if(!currentStudent)return;AU.init();AU.startMusic();buildBoard();tries=1;resetResultTracking();gameActive=true;showStudent();layout(true);startTimer();
+  $("#startScr").classList.add("hidden");$("#boomScr").classList.add("hidden");$("#winScr").classList.add("hidden");}
+function restartAfterBoom(){tries++;layout(false);$("#boomScr").classList.add("hidden");}
+function restartFull(){tries=1;resetResultTracking();layout(true);startTimer();$("#winScr").classList.add("hidden");}
+function win(){
+  if(resultFinalized)return;
+  resultFinalized=true;stopTimer();AU.win();
+  const durationSeconds=Math.max(0,Math.floor((Date.now()-startTime)/1000));
+  const scorePercent=Math.round(firstTryCorrect/N*100);
+  const eventId=makeEventId();displayedEventId=eventId;
+  $("#winScore").textContent=scorePercent+"%";$("#winTime").textContent=fmtTime(durationSeconds*1000);
+  $("#winTries").textContent=tries;$("#winScr").classList.remove("hidden");
+  submitResult({
+    action:"submitTest",
+    eventId,
+    studentId:currentStudent.id,
+    testId:TEST_META.testId,
+    testDate:localDateString(),
+    topicId:TEST_META.topicId,
+    topicName:TEST_META.topicName,
+    taskNumber:TEST_META.taskNumber,
+    scorePercent,
+    durationSeconds,
+    schemaVersion:TEST_META.schemaVersion
+  });
+}
+
+function fmtTime(ms){const s=Math.floor(ms/1000);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
+function startTimer(){stopTimer();startTime=startTime||Date.now();timerId=setInterval(()=>{$("#timeTxt").textContent=fmtTime(Date.now()-startTime);},500);}
+function stopTimer(){if(timerId){clearInterval(timerId);timerId=null;}}
+
+/* ─── УПРАВЛЕНИЕ ─── */
+$$(".arrow",$("#dpad")).forEach(a=>a.addEventListener("click",()=>answer(a.dataset.dir)));
+addEventListener("keydown",e=>{const map={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right"};
+  if(map[e.key]&&$("#startScr").classList.contains("hidden")){e.preventDefault();answer(map[e.key]);}});
+addEventListener("resize",()=>{if(cells.length){const p=pathCells[step];moveToken(cellAt(p.r,p.c),false);}});
+$("#startBtn").onclick=startGame;$("#boomBtn").onclick=restartAfterBoom;$("#winBtn").onclick=restartFull;
+let muted=false;$("#soundBtn").onclick=function(){muted=!muted;AU.setMuted(muted);this.textContent=muted?"🔇 Звук":"🔊 Звук";};
+
+/* ─── ВХОД ПРИ ОТКРЫТИИ ─── */
+const codeFromUrl=new URLSearchParams(location.search).get("code");
+if(codeFromUrl){
+  $("#studentCodeInput").value=codeFromUrl;showStudent();acceptStudentCode(codeFromUrl);
+}else{
+  currentStudent=loadStoredStudent();showStudent();
+  if(currentStudent){$("#codeScr").classList.add("hidden");flushPendingResults();}
+  else setTimeout(()=>$("#studentCodeInput").focus(),0);
+}
+</script>
+</body>
+</html>
