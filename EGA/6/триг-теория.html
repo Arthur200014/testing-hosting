@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Дневник тригонометра — тренажёр</title>
+<!-- Шрифты в духе старого дневника (Gravity Falls). Есть системные запасные варианты. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=IM+Fell+English:ital@0;1&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* =====================================================================
+   ПАЛИТРА — светлый «журнал приключений» (Gravity Falls)
+   ===================================================================== */
+:root{
+  --paper:#efe3c6;      /* пергамент */
+  --paper2:#e6d4ac;     /* панель потемнее */
+  --paper3:#f6eed6;     /* светлая карточка */
+  --ink:#3a2b18;        /* коричневые чернила (текст) */
+  --ink2:#6d573a;       /* приглушённые чернила */
+  --gold:#b8860b;       /* окружность — тёмное золото */
+  --red:#b0392b;        /* сургучный красный — ошибка */
+  --green:#3f7a3a;      /* лесной зелёный — верно */
+  --teal:#1f7a7a;       /* акцент бирюза (точки) */
+  --hint:#9a6b12;       /* янтарная подсказка */
+  --edge:#a98a5c;       /* рамки */
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;min-height:100%;}
+body{
+  color:#3a2b18;
+  font-family:"IM Fell English","Georgia",serif;
+  /* пергамент: тёплые пятна + лёгкая виньетка */
+  background:
+    radial-gradient(circle at 18% 20%, rgba(184,134,11,.10), transparent 40%),
+    radial-gradient(circle at 85% 15%, rgba(160,60,40,.06), transparent 45%),
+    radial-gradient(circle at 50% 120%, rgba(58,43,24,.18), transparent 55%),
+    #efe3c6;
+  -webkit-tap-highlight-color:transparent;
+  overflow-x:hidden;
+}
+/* тонкая «сетка» старой бумаги */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;opacity:.05;z-index:0;
+  background-image:repeating-linear-gradient(0deg,transparent 0 27px,#3a2b18 27px 28px);
+}
+h1,h2,h3{margin:0 0 .3em;font-family:"Cinzel Decorative","Georgia",serif;font-weight:900;color:#3a2b18;}
+button{font-family:inherit;cursor:pointer;border:none;outline:none;}
+.hidden{display:none !important;}
+:focus-visible{outline:3px solid #1f7a7a;outline-offset:2px;}
+
+/* ---- Кнопки как ярлыки из дневника ---- */
+.btn{
+  background:linear-gradient(180deg,#f3e9cf,#e3d1a6);
+  color:#3a2b18;border:2px solid #3a2b18;border-radius:8px;
+  padding:12px 20px;font-size:18px;font-weight:700;font-family:"IM Fell English",serif;
+  box-shadow:2px 3px 0 rgba(58,43,24,.55);
+  transition:transform .1s, box-shadow .1s, background .2s;
+}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:3px 4px 0 rgba(58,43,24,.55);}
+.btn:active{transform:translate(1px,2px);box-shadow:1px 1px 0 rgba(58,43,24,.55);}
+.btn.gold{background:linear-gradient(180deg,#e7b84e,#cf9a1e);}
+.btn.ghost{background:transparent;box-shadow:none;border-style:dashed;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+
+/* ---- Поля ---- */
+input[type=text]{
+  background:#fbf5e3;border:2px solid #3a2b18;border-radius:6px;
+  color:#3a2b18;font-size:18px;font-family:"Caveat",cursive;font-weight:700;
+  padding:6px 10px;width:130px;text-align:center;
+}
+input[type=text]:focus{border-color:#1f7a7a;}
+
+/* =====================================================================
+   ЭКРАНЫ
+   ===================================================================== */
+.screen{position:relative;z-index:1;min-height:100vh;display:none;flex-direction:column;align-items:center;padding:24px 16px;}
+.screen.active{display:flex;animation:fade .4s ease;}
+@keyframes fade{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+
+/* ---- Главное меню ---- */
+#menu{justify-content:center;text-align:center;}
+#menu h1{font-size:clamp(30px,6.5vw,60px);letter-spacing:1px;text-shadow:2px 2px 0 rgba(184,134,11,.35);}
+#menu .sub{font-family:"Caveat",cursive;font-weight:700;color:#6d573a;font-size:clamp(18px,3.6vw,26px);margin-bottom:18px;max-width:540px;}
+.menu-circle{margin:6px 0 22px;}
+.menu-btns{display:flex;flex-direction:column;gap:14px;width:min(340px,90vw);}
+.credit{margin-top:24px;color:#6d573a;font-size:13px;font-family:"Caveat",cursive;}
+
+/* ---- Карточки уровней (как записи в дневнике) ---- */
+.levels-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:18px;width:min(740px,94vw);margin-top:10px;}
+.level-card{
+  background:#f6eed6;border:2px solid #3a2b18;border-radius:6px;padding:18px;text-align:left;
+  box-shadow:2px 3px 0 rgba(58,43,24,.4);transition:transform .15s;
+}
+.level-card:nth-child(odd){transform:rotate(-1.2deg);}
+.level-card:nth-child(even){transform:rotate(1deg);}
+.level-card:hover{transform:rotate(0) translateY(-3px);}
+.level-card .num{font-family:"Cinzel Decorative",serif;color:#b8860b;font-size:14px;font-weight:900;letter-spacing:1px;}
+.level-card h3{font-size:20px;margin:6px 0 4px;}
+.level-card p{color:#6d573a;font-size:15px;margin:0;}
+
+/* =====================================================================
+   ИГРОВОЙ ЭКРАН
+   ===================================================================== */
+#game{width:100%;max-width:1080px;padding-top:14px;}
+.topbar{width:100%;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.topbar .lvl-name{font-size:20px;font-family:"Cinzel Decorative",serif;font-weight:700;color:#b8860b;}
+.progress{flex:1;min-width:160px;}
+.progress .labels{display:flex;justify-content:space-between;font-size:14px;color:#6d573a;margin-bottom:4px;font-family:"Caveat",cursive;font-weight:700;}
+.bar{height:10px;background:#d8c69c;border:2px solid #3a2b18;border-radius:6px;overflow:hidden;}
+.bar > i{display:block;height:100%;width:0;background:repeating-linear-gradient(45deg,#b8860b 0 8px,#caa02b 8px 16px);transition:width .4s;}
+
+.game-body{display:flex;gap:22px;width:100%;align-items:flex-start;}
+.stage{flex:0 0 auto;}
+.panel{flex:1;min-width:0;background:#f6eed6;border:2px solid #3a2b18;border-radius:8px;padding:20px;box-shadow:3px 4px 0 rgba(58,43,24,.35);}
+.equation{font-size:clamp(26px,5vw,40px);font-weight:700;text-align:center;font-family:"Cinzel Decorative",serif;
+  background:#fbf5e3;border:2px solid #3a2b18;border-radius:8px;padding:12px;margin-bottom:16px;letter-spacing:1px;}
+.equation .var{color:#1f7a7a;}
+.step-title{font-size:16px;color:#b0392b;font-weight:700;font-family:"Cinzel Decorative",serif;letter-spacing:.5px;margin-bottom:8px;}
+.step-desc{color:#3a2b18;font-size:17px;line-height:1.5;margin-bottom:16px;}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px;}
+.angles-inputs{display:flex;flex-direction:column;gap:12px;margin-bottom:14px;}
+.angle-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.angle-row .dot{width:14px;height:14px;border-radius:50%;background:#1f7a7a;border:1px solid #3a2b18;}
+.angle-row label{min-width:80px;color:#6d573a;font-size:16px;}
+.angle-row input{width:120px;}
+
+.feedback{min-height:26px;font-size:17px;font-weight:700;margin-top:6px;font-family:"Caveat",cursive;}
+.feedback.ok{color:#3f7a3a;}
+.feedback.bad{color:#b0392b;}
+.hintbox{margin-top:12px;background:rgba(154,107,18,.12);border:2px dashed #9a6b12;border-radius:8px;padding:12px 14px;color:#9a6b12;font-size:16px;line-height:1.5;animation:fade .3s;}
+.solution{margin-top:14px;background:rgba(63,122,58,.12);border:2px solid #3f7a3a;border-radius:8px;padding:12px 14px;color:#2c5a29;font-size:17px;}
+.solution b{color:#3f7a3a;}
+
+/* ---- SVG окружность ---- */
+.circle-wrap{background:#f7efd8;border:2px solid #3a2b18;border-radius:12px;padding:8px;box-shadow:inset 0 0 30px rgba(184,134,11,.15);}
+svg.circle{display:block;touch-action:none;width:min(460px,88vw);height:auto;}
+#asvg{width:min(440px,88vw);height:auto;display:block;}
+.hit{cursor:pointer;}
+.axis-line{stroke:#3a2b18;stroke-width:2.5;}
+.axis-line.sel-ok{stroke:#3f7a3a;stroke-width:5;}
+.axis-line.sel-bad{stroke:#b0392b;stroke-width:5;}
+.tang-line{stroke:#b09a6a;stroke-width:1.5;stroke-dasharray:5 5;}
+.tang-line.sel-ok{stroke:#3f7a3a;stroke-width:3.5;stroke-dasharray:none;}
+.tang-line.sel-bad{stroke:#b0392b;stroke-width:3.5;}
+.perp{stroke:#b8860b;stroke-width:2.5;stroke-dasharray:7 5;}
+.reftick{stroke:#6d573a;stroke-width:2;}
+.refdash{stroke:#6d573a;stroke-width:2;}
+.refdash.glow{stroke:#b0392b;stroke-width:3.5;}
+.picktick{stroke:#3a2b18;stroke-width:2.5;}
+.picklabel{font-family:"Caveat",cursive;font-weight:700;fill:#3a2b18;font-size:19px;}
+.svglabel{font-family:"Cinzel Decorative",serif;font-weight:700;}
+.shake{animation:shake .4s;}
+@keyframes shake{0%,100%{transform:translateX(0);}20%{transform:translateX(-7px);}40%{transform:translateX(7px);}60%{transform:translateX(-5px);}80%{transform:translateX(5px);}}
+
+/* =====================================================================
+   БОНУС: СБОРКА
+   ===================================================================== */
+.tray{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:16px;max-width:720px;}
+.chip{
+  background:linear-gradient(180deg,#f3e9cf,#e3d1a6);border:2px solid #3a2b18;border-radius:8px;
+  padding:8px 12px;font-size:18px;font-weight:700;font-family:"Caveat",cursive;color:#3a2b18;
+  user-select:none;touch-action:none;box-shadow:2px 3px 0 rgba(58,43,24,.45);
+}
+.chip.kind-c{background:linear-gradient(180deg,#cfe6e0,#a9d3ca);} /* координаты — бирюзоватые */
+.chip.dragging{opacity:.9;box-shadow:4px 6px 0 rgba(31,122,122,.5);z-index:50;}
+.chip.locked{background:linear-gradient(180deg,#bfe0b8,#98c98e);border-color:#3f7a3a;}
+.chip.wrong{animation:shake .4s;border-color:#b0392b;}
+.legend{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin-top:8px;font-family:"Caveat",cursive;font-size:16px;color:#6d573a;}
+.legend b{color:#3a2b18;}
+
+/* =====================================================================
+   БОНУС: СОРТИРОВКА
+   ===================================================================== */
+.sort-row{display:flex;gap:10px;justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;
+  margin:20px 0;padding:6px 4px 12px;max-width:96vw;}
+.sort-card{
+  flex:0 0 auto;width:76px;height:88px;border-radius:10px;background:#f6eed6;border:2px solid #3a2b18;
+  display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;font-family:"Caveat",cursive;
+  box-shadow:2px 3px 0 rgba(58,43,24,.4);transition:transform .15s;user-select:none;
+}
+.sort-card:hover{transform:translateY(-3px);}
+.sort-card.picked{border-color:#b8860b;box-shadow:0 0 0 3px rgba(184,134,11,.4);transform:translateY(-6px);}
+.sort-card.ok{border-color:#3f7a3a;background:rgba(63,122,58,.14);}
+
+/* =====================================================================
+   РЕЗУЛЬТАТ
+   ===================================================================== */
+#result{justify-content:center;text-align:center;}
+.stars{font-size:46px;letter-spacing:6px;margin:14px 0;color:#b8860b;}
+.result-stats{background:#f6eed6;border:2px solid #3a2b18;border-radius:8px;padding:22px 28px;margin:10px 0 22px;min-width:min(360px,90vw);box-shadow:3px 4px 0 rgba(58,43,24,.35);}
+.result-stats .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #a98a5c;font-size:18px;}
+.result-stats .row:last-child{border-bottom:none;}
+.result-stats .row b{color:#b8860b;}
+.student-line{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:0 0 16px;
+  color:#6d573a;font-family:"Caveat",cursive;font-size:17px;}
+.student-line strong{color:#b8860b;font-family:"Cinzel Decorative",serif;font-size:14px;}
+.student-switch{background:transparent;border:1px dashed #a98a5c;border-radius:7px;padding:5px 9px;
+  color:#6d573a;font-family:"Caveat",cursive;font-size:15px;}
+.student-switch:disabled{opacity:.4;cursor:not-allowed;}
+.identity-overlay{position:fixed;inset:0;z-index:220;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:radial-gradient(circle at 50% 35%,rgba(246,238,214,.94),rgba(58,43,24,.88));backdrop-filter:blur(5px);}
+.identity-overlay.hidden{display:none;}
+.identity-card{width:min(470px,100%);padding:28px 24px;text-align:center;background:#f6eed6;border:3px solid #3a2b18;
+  border-radius:9px;box-shadow:6px 8px 0 rgba(58,43,24,.45);transform:rotate(-.5deg);}
+.identity-card h2{font-size:clamp(24px,6vw,36px);}
+.identity-card p{font-family:"Caveat",cursive;font-size:20px;color:#6d573a;}
+.identity-card input{width:min(300px,92%);padding:10px 12px;font-size:22px;text-transform:uppercase;}
+.identity-msg{min-height:27px;margin:8px 0;font-family:"Caveat",cursive;font-size:18px;font-weight:700;color:#b0392b;}
+.identity-msg.ok{color:#3f7a3a;}
+.save-status{min-height:26px;margin:-10px 0 14px;font-family:"Caveat",cursive;font-size:17px;color:#6d573a;}
+.save-status.ok{color:#3f7a3a}.save-status.offline{color:#9a6b12;}
+
+/* ---- Плавающая панель ---- */
+.floatbar{position:fixed;top:12px;right:12px;display:flex;gap:8px;z-index:100;}
+.iconbtn{width:46px;height:46px;border-radius:8px;background:#f6eed6;border:2px solid #3a2b18;
+  color:#3a2b18;font-size:18px;display:flex;align-items:center;justify-content:center;box-shadow:1px 2px 0 rgba(58,43,24,.5);}
+
+#particles{position:fixed;inset:0;pointer-events:none;z-index:90;}
+
+@media (max-width:820px){
+  .game-body{flex-direction:column;align-items:stretch;}
+  .stage{align-self:center;}
+  .panel{width:100%;}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none !important;}}
+</style>
+</head>
+<body>
+
+<div class="floatbar">
+  <button class="iconbtn" id="btnSound" title="Звук">🔊</button>
+  <button class="iconbtn hidden" id="btnHome" title="На главную">🏠</button>
+</div>
+<canvas id="particles"></canvas>
+
+<!-- ===================== ИДЕНТИФИКАЦИЯ УЧЕНИКА ===================== -->
+<div class="identity-overlay" id="identityOverlay">
+  <form class="identity-card" id="identityForm">
+    <h2>Запись в дневнике</h2>
+    <p>Введи личный код ученика, чтобы сохранить результат практики.</p>
+    <input id="studentCodeInput" type="text" placeholder="ЛИЧНЫЙ КОД" autocomplete="one-time-code" required>
+    <div class="identity-msg" id="identityMsg" aria-live="polite"></div>
+    <button class="btn gold" id="identityBtn" type="submit">Открыть дневник</button>
+  </form>
+</div>
+
+<!-- ===================== ГЛАВНОЕ МЕНЮ ===================== -->
+<section class="screen active" id="menu">
+  <h1>ДНЕВНИК ТРИГОНОМЕТРА</h1>
+  <div class="sub">Тайны единичной окружности. Всё узнаёшь сам — без готовых подписей!</div>
+  <div class="student-line">
+    <span>Ученик: <strong id="studentName">—</strong></span>
+    <button class="student-switch" id="switchStudent" type="button">Сменить ученика</button>
+  </div>
+  <div class="menu-circle">
+    <svg width="160" height="160" viewBox="0 0 160 160">
+      <circle cx="80" cy="80" r="62" fill="none" stroke="#b8860b" stroke-width="2.5"/>
+      <line x1="10" y1="80" x2="150" y2="80" stroke="#3a2b18" stroke-width="2"/>
+      <line x1="80" y1="10" x2="80" y2="150" stroke="#3a2b18" stroke-width="2"/>
+      <circle cx="80" cy="80" r="3" fill="#3a2b18"/>
+      <circle cx="134" cy="49" r="5" fill="#1f7a7a" stroke="#3a2b18"/>
+      <line x1="134" y1="49" x2="80" y2="80" stroke="#b8860b" stroke-width="1.5" stroke-dasharray="4 3"/>
+    </svg>
+  </div>
+  <div class="menu-btns">
+    <button class="btn gold" onclick="openLevels()">Начать обучение</button>
+    <button class="btn" onclick="startLevel(5)">Практика (полный цикл)</button>
+    <button class="btn ghost" onclick="startAssemble()">Собери окружность</button>
+    <button class="btn ghost" onclick="startSort()">Таблица значений</button>
+  </div>
+  <div class="credit">sin · cos · tg · ctg — 10 уравнений, 5 уровней и 2 тайны</div>
+</section>
+
+<!-- ===================== ВЫБОР УРОВНЯ ===================== -->
+<section class="screen" id="levels">
+  <h2>Выбери страницу дневника</h2>
+  <div class="levels-grid" id="levelsGrid"></div>
+  <div style="margin-top:22px;"><button class="btn ghost" onclick="goHome()">← На главную</button></div>
+</section>
+
+<!-- ===================== ИГРОВОЙ ЭКРАН ===================== -->
+<section class="screen" id="game">
+  <div class="topbar">
+    <div class="lvl-name" id="lvlName">Уровень</div>
+    <div class="progress">
+      <div class="labels"><span id="stepLabel">Шаг 1/4</span><span id="cardLabel">Уравнение 1/10</span></div>
+      <div class="bar"><i id="barFill"></i></div>
+    </div>
+  </div>
+  <div class="game-body">
+    <div class="stage">
+      <div class="circle-wrap">
+        <svg class="circle" id="svg" viewBox="0 0 500 500"></svg>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="equation" id="eq"></div>
+      <div class="step-title" id="stTitle"></div>
+      <div class="step-desc" id="stDesc"></div>
+      <div class="controls" id="controls"></div>
+      <div class="angles-inputs hidden" id="angleInputs"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn gold hidden" id="btnCheck" onclick="checkStep()">Проверить</button>
+        <button class="btn ghost" id="btnHint" onclick="showHint()">Подсказка 💡</button>
+        <button class="btn hidden" id="btnNext" onclick="nextStep()">Дальше →</button>
+      </div>
+      <div class="feedback" id="feedback"></div>
+      <div class="hintbox hidden" id="hintbox"></div>
+      <div class="solution hidden" id="solution"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== БОНУС: СБОРКА ===================== -->
+<section class="screen" id="assemble">
+  <h2>Собери окружность</h2>
+  <p style="font-family:'Caveat',cursive;font-size:19px;color:#6d573a;text-align:center;max-width:600px;">
+    Перетащи <b>углы</b> на точки окружности, а <b>координаты (cos; sin)</b> — на метки снаружи. Ошибка — фишка вернётся.</p>
+  <div class="circle-wrap">
+    <svg id="asvg" viewBox="0 0 500 500"></svg>
+  </div>
+  <div class="legend"><span>🟡 <b>углы</b> → на окружность</span><span>🔵 <b>координаты</b> → наружу</span></div>
+  <div class="tray" id="tray"></div>
+  <div class="feedback" id="aFeedback" style="text-align:center;"></div>
+  <div style="margin-top:14px;"><button class="btn ghost" onclick="goHome()">← На главную</button></div>
+</section>
+
+<!-- ===================== БОНУС: СОРТИРОВКА ===================== -->
+<section class="screen" id="sort">
+  <h2>Таблица значений</h2>
+  <p style="font-family:'Caveat',cursive;font-size:19px;color:#6d573a;text-align:center;max-width:600px;">
+    Расставь значения по возрастанию — от самого маленького (даже отрицательного!) к самому большому.
+    Кликни по двум карточкам, чтобы поменять их местами.</p>
+  <div class="sort-row" id="sortRow"></div>
+  <div style="display:flex;gap:10px;">
+    <button class="btn gold" onclick="checkSort()">Проверить</button>
+    <button class="btn ghost" onclick="shuffleSort()">Перемешать</button>
+  </div>
+  <div class="feedback" id="sortFeedback" style="text-align:center;"></div>
+  <div style="margin-top:14px;"><button class="btn ghost" onclick="goHome()">← На главную</button></div>
+</section>
+
+<!-- ===================== РЕЗУЛЬТАТ ===================== -->
+<section class="screen" id="result">
+  <h2 id="resTitle">Страница дописана!</h2>
+  <div class="stars" id="resStars"></div>
+  <div class="result-stats">
+    <div class="row"><span id="resCorrectLabel">Правильных ответов</span><b id="resCorrect">0 / 0</b></div>
+    <div class="row"><span>Время</span><b id="resTime">0:00</b></div>
+    <div class="row"><span>Использовано подсказок</span><b id="resHints">0</b></div>
+  </div>
+  <div class="save-status" id="saveStatus" aria-live="polite"></div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
+    <button class="btn gold" id="resRetry">Пройти заново</button>
+    <button class="btn ghost" onclick="goHome()">На главную</button>
+  </div>
+</section>
+
+<script>
+/* =======================================================================
+   СИСТЕМА УЧЁТА РЕЗУЛЬТАТОВ
+   ======================================================================= */
+const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+const TEST_META={
+  testId:'EGE-13-DNEVNIK-TRIGONOMETRA',
+  topicId:'task-13',
+  topicName:'Тригонометрические уравнения',
+  taskNumber:13,
+  schemaVersion:1
+};
+const PENDING_RESULTS_KEY='egePendingTestResults';
+let currentStudent=null,gameActive=false,displayedEventId=null;
+
+function loadStoredStudent(){
+  const id=localStorage.getItem('egeStudentId');
+  const name=localStorage.getItem('egeStudentName');
+  const code=localStorage.getItem('egeStudentCode');
+  return id&&name&&code?{id,name,code}:null;
+}
+function saveStudent(student){
+  localStorage.setItem('egeStudentId',student.id);
+  localStorage.setItem('egeStudentName',student.name);
+  localStorage.setItem('egeStudentCode',student.code);
+}
+function extractStudent(data,code){
+  const source=data&&(data.student||data.data)||data||{};
+  const id=source.studentId||source.id||(data&&data.studentId);
+  const name=source.studentName||source.name||(data&&data.studentName);
+  const ok=data&&(data.success===true||data.valid===true||data.ok===true||data.status==='success'||id);
+  return ok&&id&&name?{id:String(id),name:String(name),code}:null;
+}
+function validateStudentCode(code){
+  return new Promise((resolve,reject)=>{
+    const callbackName='egeValidate_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const script=document.createElement('script');
+    const cleanup=()=>{delete window[callbackName];script.remove();clearTimeout(timeout);};
+    const timeout=setTimeout(()=>{cleanup();reject(new Error('timeout'));},12000);
+    window[callbackName]=data=>{cleanup();resolve(data);};
+    script.onerror=()=>{cleanup();reject(new Error('network'));};
+    script.src=API_URL+'?action=validateStudent&code='+encodeURIComponent(code)+'&callback='+encodeURIComponent(callbackName);
+    document.head.appendChild(script);
+  });
+}
+function setIdentityMessage(text,ok=false){
+  const el=document.getElementById('identityMsg');
+  el.textContent=text;el.className='identity-msg'+(ok?' ok':'');
+}
+function showStudent(){
+  document.getElementById('studentName').textContent=currentStudent?currentStudent.name:'—';
+  document.getElementById('switchStudent').disabled=gameActive;
+}
+async function acceptStudentCode(rawCode){
+  const code=String(rawCode||'').trim();
+  if(!code){setIdentityMessage('Введите личный код.');return;}
+  const button=document.getElementById('identityBtn');
+  button.disabled=true;setIdentityMessage('Проверяем код…');
+  try{
+    const data=await validateStudentCode(code);
+    const student=extractStudent(data,code);
+    if(!student){setIdentityMessage((data&&data.message)||'Код не найден. Проверьте и попробуйте снова.');return;}
+    currentStudent=student;saveStudent(student);showStudent();
+    setIdentityMessage('Код принят.',true);
+    document.getElementById('identityOverlay').classList.add('hidden');
+    flushPendingResults();
+  }catch(error){setIdentityMessage('Нет связи. Проверьте интернет и попробуйте снова.');}
+  finally{button.disabled=false;}
+}
+document.getElementById('identityForm').addEventListener('submit',event=>{
+  event.preventDefault();acceptStudentCode(document.getElementById('studentCodeInput').value);
+});
+document.getElementById('switchStudent').addEventListener('click',()=>{
+  if(gameActive)return;
+  currentStudent=null;
+  localStorage.removeItem('egeStudentId');
+  localStorage.removeItem('egeStudentName');
+  localStorage.removeItem('egeStudentCode');
+  showStudent();document.getElementById('studentCodeInput').value='';setIdentityMessage('');
+  document.getElementById('identityOverlay').classList.remove('hidden');
+  document.getElementById('studentCodeInput').focus();
+});
+function makeEventId(){
+  if(typeof crypto!=='undefined'&&typeof crypto.randomUUID==='function')return crypto.randomUUID();
+  return 'evt-'+Date.now()+'-'+Math.random().toString(16).slice(2)+'-'+Math.random().toString(16).slice(2);
+}
+function localDateString(){
+  const now=new Date();
+  return [now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
+}
+function readPendingResults(){
+  try{const parsed=JSON.parse(localStorage.getItem(PENDING_RESULTS_KEY)||'[]');return Array.isArray(parsed)?parsed:[];}
+  catch(error){return [];}
+}
+function writePendingResults(items){localStorage.setItem(PENDING_RESULTS_KEY,JSON.stringify(items));}
+function queueResult(payload){
+  const queue=readPendingResults();
+  if(!queue.some(item=>item&&item.eventId===payload.eventId))queue.push(payload);
+  writePendingResults(queue);
+}
+async function postResult(payload){
+  const response=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(payload),redirect:'follow'});
+  if(!response.ok)throw new Error('HTTP '+response.status);
+}
+function setSaveStatus(text,type='',eventId=null){
+  if(eventId&&displayedEventId!==eventId)return;
+  const el=document.getElementById('saveStatus');
+  el.textContent=text;el.className='save-status'+(type?' '+type:'');
+}
+async function submitResult(payload){
+  setSaveStatus('Сохраняем результат…','',payload.eventId);
+  try{
+    await postResult(payload);
+    writePendingResults(readPendingResults().filter(item=>item&&item.eventId!==payload.eventId));
+    setSaveStatus('✓ Результат сохранён','ok',payload.eventId);
+  }catch(error){
+    queueResult(payload);
+    setSaveStatus('Нет связи: результат сохранён на устройстве и отправится позже','offline',payload.eventId);
+  }
+}
+async function flushPendingResults(){
+  const queue=readPendingResults();if(!queue.length)return;
+  const failed=[];
+  for(const payload of queue){try{await postResult(payload);}catch(error){failed.push(payload);}}
+  writePendingResults(failed);
+}
+addEventListener('online',flushPendingResults);
+
+/* =======================================================================
+   ДАННЫЕ: 10 уравнений (правильные ответы для проверки).
+   axis: 'X'(cos) | 'Y'(sin) | 'T'(линия тангенсов) | 'C'(линия котангенсов)
+   ======================================================================= */
+const EQUATIONS = [
+  {tex:'sin x = 1/2',   func:'sin', axis:'Y', value:0.5,            vlabel:'1/2',  angles:[30,150], rad:['π/6','5π/6'],  sol:'x = (−1)ⁿ · π/6 + πn',
+    h2:'sin 30° = 1/2. Ищи отметку 1/2 на оси Y — это середина между 0 и 1.',
+    h4:'У точек высота (sin) = 1/2. Симметрия относительно оси Y: 30° и 150°.'},
+  {tex:'cos x = √3/2',  func:'cos', axis:'X', value:Math.sqrt(3)/2, vlabel:'√3/2', angles:[30,330], rad:['π/6','−π/6'],  sol:'x = ± π/6 + 2πn',
+    h2:'cos — координата по оси X. √3/2 ≈ 0,87 — почти у самого края.',
+    h4:'Косинус одинаков в I и IV четвертях: 30° и −30° (330°).'},
+  {tex:'tg x = 1',      func:'tg',  axis:'T', value:1,              vlabel:'1',    angles:[45,225], rad:['π/4','5π/4'],  sol:'x = π/4 + πn',
+    h2:'Тангенс — на линии тангенсов (вертикаль справа). Отметка 1 — вровень с верхом окружности.',
+    h4:'tg = 1 значит sin = cos — биссектрисы I и III четвертей: 45° и 225°.'},
+  {tex:'sin x = √2/2',  func:'sin', axis:'Y', value:Math.SQRT1_2,  vlabel:'√2/2', angles:[45,135], rad:['π/4','3π/4'],  sol:'x = (−1)ⁿ · π/4 + πn',
+    h2:'sin 45° = √2/2 ≈ 0,71 — между 1/2 и √3/2.',
+    h4:'Одинаковая высота в I и II четвертях: 45° и 135°.'},
+  {tex:'cos x = 1/2',   func:'cos', axis:'X', value:0.5,            vlabel:'1/2',  angles:[60,300], rad:['π/3','−π/3'],  sol:'x = ± π/3 + 2πn',
+    h2:'cos 60° = 1/2. Отметка 1/2 на оси X — середина вправо.',
+    h4:'Косинус положителен в I и IV четвертях: 60° и −60° (300°).'},
+  {tex:'ctg x = 1',     func:'ctg', axis:'C', value:1,              vlabel:'1',    angles:[45,225], rad:['π/4','5π/4'],  sol:'x = π/4 + πn',
+    h2:'Котангенс — на линии котангенсов (горизонталь сверху). Отметка 1 — вровень с правым краем.',
+    h4:'ctg = 1 значит cos = sin — те же 45° и 225°.'},
+  {tex:'sin x = −1/2',  func:'sin', axis:'Y', value:-0.5,           vlabel:'−1/2', angles:[210,330], rad:['7π/6','11π/6'], sol:'x = (−1)ⁿ⁺¹ · π/6 + πn',
+    h2:'Значение отрицательное — отметка −1/2 ниже центра оси Y.',
+    h4:'Отрицательный синус — III и IV четверти: 210° и 330°.'},
+  {tex:'cos x = −√3/2', func:'cos', axis:'X', value:-Math.sqrt(3)/2,vlabel:'−√3/2',angles:[150,210], rad:['5π/6','7π/6'], sol:'x = ± 5π/6 + 2πn',
+    h2:'Отрицательный cos — отметка −√3/2 слева от центра.',
+    h4:'Отрицательный косинус — II и III четверти: 150° и 210°.'},
+  {tex:'tg x = −1',     func:'tg',  axis:'T', value:-1,             vlabel:'−1',   angles:[135,315], rad:['3π/4','7π/4'], sol:'x = −π/4 + πn',
+    h2:'Отрицательный тангенс — отметка −1 ниже точки (1;0).',
+    h4:'tg < 0 в II и IV четвертях: 135° и 315°.'},
+  {tex:'sin x = 0',     func:'sin', axis:'Y', value:0,             vlabel:'0',    angles:[0,180], rad:['0','π'],   sol:'x = πn',
+    h2:'sin = 0 — отметка 0 в самом центре оси (на уровне оси X).',
+    h4:'Синус равен нулю на оси X: 0° и 180°.'}
+];
+
+/* Уровни */
+const LEVELS = [
+  {n:1, name:'Выбери ось',       goal:'Определи ось/линию для sin, cos, tg, ctg.',        steps:[1]},
+  {n:2, name:'Найди координату', goal:'Выбери правильную отметку значения на оси.',       steps:[2]},
+  {n:3, name:'Проведи прямую',   goal:'Проведи перпендикуляр и найди точки пересечения.', steps:[3]},
+  {n:4, name:'Найди углы',       goal:'Определи углы (корни) по точкам окружности.',       steps:[4]},
+  {n:5, name:'Полный цикл',      goal:'Реши уравнение целиком — все 4 шага подряд.',       steps:[1,2,3,4]}
+];
+
+/* Геометрия */
+const CX=250, CY=250, R=200;
+const toX = v => ({x:CX+v*R, y:CY});
+const toY = v => ({x:CX,     y:CY-v*R});
+const toT = v => ({x:CX+R,   y:CY-v*R});
+const toC = v => ({x:CX+v*R, y:CY-R});
+const onCircle = deg => {const a=deg*Math.PI/180; return {x:CX+R*Math.cos(a), y:CY-R*Math.sin(a)};};
+
+/* Табличные значения для осей sin/cos */
+const TAB_LIN=[
+  {v:-1,label:'−1'},{v:-Math.sqrt(3)/2,label:'−√3/2'},{v:-Math.SQRT1_2,label:'−√2/2'},
+  {v:-0.5,label:'−1/2'},{v:0,label:'0'},{v:0.5,label:'1/2'},
+  {v:Math.SQRT1_2,label:'√2/2'},{v:Math.sqrt(3)/2,label:'√3/2'},{v:1,label:'1'}
+];
+/* Табличные значения для линий tg/ctg (в пределах окружности) */
+const TAB_TAN=[
+  {v:-1,label:'−1'},{v:-Math.sqrt(3)/3,label:'−√3/3'},{v:0,label:'0'},
+  {v:Math.sqrt(3)/3,label:'√3/3'},{v:1,label:'1'}
+];
+function valueTable(axis){ return (axis==='T'||axis==='C') ? TAB_TAN : TAB_LIN; }
+
+/* Стандартные углы для опорных засечек (не подписаны) */
+const REF_ANGLES=[0,30,45,60,90,120,135,150,180,210,225,240,270,300,315,330];
+
+/* =======================================================================
+   ЗВУК (Web Audio API)
+   ======================================================================= */
+let audioCtx=null, soundOn=true, bgTimer=null;
+function ac(){ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+function beep(freq,start,dur,type='sine',vol=0.16){
+  if(!soundOn) return;
+  const ctx=ac(),o=ctx.createOscillator(),g=ctx.createGain();
+  o.type=type; o.frequency.value=freq; o.connect(g); g.connect(ctx.destination);
+  const t=ctx.currentTime+start;
+  g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(vol,t+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.start(t); o.stop(t+dur+0.05);
+}
+const sCorrect =()=>{beep(660,0,.12,'sine',.18); beep(990,.1,.16,'sine',.18);};
+const sWrong   =()=>{beep(170,0,.3,'sawtooth',.14);};
+const sHint    =()=>{beep(1320,0,.25,'triangle',.11); beep(1760,.08,.2,'triangle',.07);};
+const sLevelUp =()=>{[523,659,784].forEach((f,i)=>beep(f,i*.1,.18,'sine',.16));};
+const sWin     =()=>{[523,587,659,784,1046].forEach((f,i)=>beep(f,i*.13,.22,'sine',.18));};
+const sError   =()=>{beep(140,0,.18,'square',.12);};
+const sPlace   =()=>{beep(440,0,.08,'sine',.11);};
+function startBgMusic(){
+  if(bgTimer) return;
+  const notes=[261.6,329.6,392.0,523.3,392.0,329.6]; let i=0;
+  const loop=()=>{ if(soundOn){beep(notes[i%notes.length],0,.9,'sine',.035); beep(notes[i%notes.length]/2,0,.9,'sine',.025);} i++; bgTimer=setTimeout(loop,700); };
+  loop();
+}
+function stopBgMusic(){ if(bgTimer){clearTimeout(bgTimer); bgTimer=null;} }
+document.getElementById('btnSound').addEventListener('click',()=>{
+  soundOn=!soundOn;
+  document.getElementById('btnSound').textContent=soundOn?'🔊':'🔇';
+  if(soundOn) startBgMusic(); else stopBgMusic();
+});
+
+/* =======================================================================
+   ПАРСЕР УГЛОВ (для шага 4)
+   ======================================================================= */
+function parseAngle(str){
+  if(str==null) return null;
+  let s=(''+str).trim().toLowerCase();
+  if(s==='') return null;
+  s=s.replace(/град\.?|°|degrees|deg/g,'').replace(/,/g,'.').replace(/−/g,'-');
+  if(/π|pi/.test(s)){
+    s=s.replace(/π/g,'(PI)').replace(/pi/g,'(PI)');
+    s=s.replace(/(\d)\s*\(/g,'$1*(').replace(/\)\s*\(/g,')*(').replace(/PI/g,'Math.PI');
+    if(!/^[-+*/(). \dMathPI]+$/.test(s)) return null;
+    try{ return Function('"use strict";return('+s+')')()*180/Math.PI; }catch(e){ return null; }
+  }
+  const v=parseFloat(s); return isNaN(v)?null:v;
+}
+const norm360=a=>((a%360)+360)%360;
+
+/* =======================================================================
+   СОСТОЯНИЕ
+   ======================================================================= */
+let G=null;
+function newSession(n){
+  return {level:n, lvl:LEVELS[n-1], cardIndex:0, total:EQUATIONS.length,
+    stepPtr:0, correct:0, hints:0, startTime:Date.now(), autoHint:null, solvedStep:false,
+    questionFailed:Array(EQUATIONS.length).fill(false),firstTryCorrect:0,resultFinalized:false};
+}
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('btnHome').classList.toggle('hidden', id==='menu');
+}
+function goHome(){ gameActive=false;showStudent();stopBgMusic();if(soundOn)startBgMusic();show('menu'); }
+document.getElementById('btnHome').addEventListener('click',goHome);
+
+function openLevels(){
+  const grid=document.getElementById('levelsGrid'); grid.innerHTML='';
+  LEVELS.forEach(l=>{
+    const d=document.createElement('div'); d.className='level-card';
+    d.innerHTML=`<div class="num">СТРАНИЦА ${l.n}</div><h3>«${l.name}»</h3><p>${l.goal}</p>`;
+    d.onclick=()=>startLevel(l.n); grid.appendChild(d);
+  });
+  show('levels');
+}
+
+/* =======================================================================
+   ЗАПУСК
+   ======================================================================= */
+function startLevel(n){
+  if(!currentStudent)return;
+  if(!audioCtx) ac();
+  if(soundOn) startBgMusic();
+  G=newSession(n);
+  gameActive=true;displayedEventId=null;showStudent();setSaveStatus('');
+  document.getElementById('lvlName').textContent=`Уровень ${n}: «${LEVELS[n-1].name}»`;
+  show('game'); loadCard();
+}
+function loadCard(){
+  G.stepPtr=0; G.solvedStep=false;
+  document.getElementById('cardLabel').textContent=`Уравнение ${G.cardIndex+1}/${G.total}`;
+  const eq=EQUATIONS[G.cardIndex];
+  document.getElementById('eq').innerHTML=eq.tex.replace('x','<span class="var">x</span>');
+  document.getElementById('solution').classList.add('hidden');
+  drawBaseCircle('svg');
+  loadStep();
+}
+function curStep(){ return G.lvl.steps[G.stepPtr]; }
+function updateProgress(){
+  const steps=G.lvl.steps;
+  document.getElementById('stepLabel').textContent = steps.length>1 ? `Шаг ${curStep()}/4` : `Задание ${G.cardIndex+1}/${G.total}`;
+  const per=(G.cardIndex+(G.stepPtr)/steps.length)/G.total*100;
+  document.getElementById('barFill').style.width=per+'%';
+}
+function resetControls(){
+  document.getElementById('controls').innerHTML='';
+  document.getElementById('angleInputs').innerHTML='';
+  document.getElementById('angleInputs').classList.add('hidden');
+  const f=document.getElementById('feedback'); f.textContent=''; f.className='feedback';
+  document.getElementById('hintbox').classList.add('hidden');
+  document.getElementById('btnCheck').classList.add('hidden');
+  document.getElementById('btnNext').classList.add('hidden');
+  G.solvedStep=false;
+}
+
+/* =======================================================================
+   ЗАГРУЗКА ШАГА
+   ======================================================================= */
+function loadStep(){
+  resetControls(); updateProgress();
+  const eq=EQUATIONS[G.cardIndex];
+  const step=curStep();
+  const stTitle=document.getElementById('stTitle');
+  const stDesc=document.getElementById('stDesc');
+
+  if(step===1){
+    stTitle.textContent='Шаг 1 — Определи ось';
+    stDesc.innerHTML=`Функция <b>${eq.func}</b>. Нажми на ось или линию, где откладывается её значение.`;
+  }
+  else if(step===2){
+    stTitle.textContent='Шаг 2 — Найди координату';
+    stDesc.innerHTML=`Значение <b>${eq.vlabel}</b>. Нажми на нужную <b>отметку</b> прямо на оси.`;
+    highlightAxis(eq.axis,'sel-ok');
+    renderValuePicker(eq.axis, eq.value);   // показываем табличные значения — выбери верное
+  }
+  else if(step===3){
+    stTitle.textContent='Шаг 3 — Проведи прямую';
+    stDesc.innerHTML=`Через отмеченную точку проведи перпендикуляр. Опорные засечки помогут увидеть, где он пересечёт окружность.`;
+    highlightAxis(eq.axis,'sel-ok');
+    drawValuePoint(eq.axis, eq.value, '#b0392b', eq.vlabel);
+    document.getElementById('controls').innerHTML=`<button class="btn gold" onclick="drawPerp()">Провести прямую</button>`;
+  }
+  else if(step===4){
+    stTitle.textContent='Шаг 4 — Определи углы';
+    stDesc.innerHTML=`Точки пересечения подсвечены. Считай по опорным засечкам и введи угол (градусы «30» или радианы «π/6»).`;
+    highlightAxis(eq.axis,'sel-ok');
+    drawValuePoint(eq.axis, eq.value, '#b0392b', eq.vlabel);
+    drawPerpSilent(true);
+    buildAngleInputs(eq);
+    document.getElementById('btnCheck').classList.remove('hidden');
+  }
+}
+
+function buildAngleInputs(eq){
+  const box=document.getElementById('angleInputs');
+  box.classList.remove('hidden'); box.innerHTML='';
+  eq.angles.forEach((a,i)=>{
+    const row=document.createElement('div'); row.className='angle-row';
+    row.innerHTML=`<span class="dot"></span><label>Точка ${i+1}:</label>
+      <input type="text" class="angInput" data-i="${i}" placeholder="напр. 30 или π/6">`;
+    box.appendChild(row);
+  });
+  box.querySelectorAll('.angInput').forEach(inp=>inp.addEventListener('keydown',e=>{if(e.key==='Enter')checkStep();}));
+}
+
+/* =======================================================================
+   ПРОВЕРКА / ПЕРЕХОДЫ
+   ======================================================================= */
+function feedback(msg,ok){ const f=document.getElementById('feedback'); f.textContent=msg; f.className='feedback '+(ok?'ok':'bad'); }
+function failCurrentQuestion(){
+  if(G&&G.level===5)G.questionFailed[G.cardIndex]=true;
+}
+function passStep(){
+  if(G.solvedStep)return;
+  G.solvedStep=true; sCorrect(); burstParticles();
+  document.getElementById('btnCheck').classList.add('hidden');
+  if(G.stepPtr < G.lvl.steps.length-1){
+    document.getElementById('btnNext').classList.remove('hidden');
+  } else {
+    G.correct++;
+    if(G.level===5&&!G.questionFailed[G.cardIndex])G.firstTryCorrect++;
+    const eq=EQUATIONS[G.cardIndex];
+    const sol=document.getElementById('solution'); sol.classList.remove('hidden');
+    sol.innerHTML=`<b>Готово!</b> Корни: ${eq.angles.map((a,i)=>`${a}° (${eq.rad[i]})`).join(', ')}.<br>Общее решение: <b>${eq.sol}</b>`;
+    document.getElementById('btnNext').classList.remove('hidden');
+  }
+}
+function checkStep(){
+  if(G.solvedStep)return;
+  const eq=EQUATIONS[G.cardIndex];
+  if(curStep()===4){
+    const inputs=[...document.querySelectorAll('.angInput')];
+    const vals=inputs.map(i=>parseAngle(i.value));
+    if(vals.some(v=>v===null)){failCurrentQuestion();feedback('Заполни оба угла: числом или через π.',false);sError();return;}
+    const expected=eq.angles.slice(); const used=expected.map(()=>false); let allGood=true;
+    vals.forEach(v=>{
+      let matched=false;
+      expected.forEach((e,idx)=>{
+        if(!used[idx]&&!matched){ const a=norm360(v),d=Math.abs(norm360(e)-a); if(Math.min(d,360-d)<=1.5){used[idx]=true;matched=true;} }
+      });
+      if(!matched) allGood=false;
+    });
+    if(allGood&&used.every(u=>u)){ feedback('Оба корня найдены. Превосходно!',true); passStep(); }
+    else {failCurrentQuestion();feedback('Пока не всё верно. Считай засечки по 30°.',false);sWrong();shakeStage();G.autoHint=eq.h4;}
+  }
+}
+function nextStep(){
+  if(G.stepPtr < G.lvl.steps.length-1){ G.stepPtr++; sLevelUp(); loadStep(); }
+  else { G.cardIndex++; if(G.cardIndex>=G.total) finishLevel(); else { sLevelUp(); loadCard(); } }
+}
+
+/* =======================================================================
+   ПОДСКАЗКИ
+   ======================================================================= */
+function showHint(){
+  if(G.solvedStep)return;
+  failCurrentQuestion();
+  const eq=EQUATIONS[G.cardIndex]; const step=curStep(); let text='';
+  if(step===1) text=eq.func==='sin'?'Синус — высота точки, ось Y.':eq.func==='cos'?'Косинус — горизонталь, ось X.':eq.func==='tg'?'Тангенс — линия тангенсов (вертикаль справа).':'Котангенс — линия котангенсов (горизонталь сверху).';
+  else if(step===2) text=eq.h2;
+  else if(step===3) text='Перпендикуляр к выбранной оси через отмеченную точку пересечёт окружность в двух точках — это будущие корни.';
+  else if(step===4) text=eq.h4;
+  if(G.autoHint){ text=G.autoHint; G.autoHint=null; }
+  const box=document.getElementById('hintbox'); box.textContent='💡 '+text; box.classList.remove('hidden');
+  G.hints++; sHint();
+}
+
+/* =======================================================================
+   SVG-ХЕЛПЕРЫ
+   ======================================================================= */
+const SVGNS='http://www.w3.org/2000/svg';
+function el(tag,attrs){ const e=document.createElementNS(SVGNS,tag); for(const k in attrs) e.setAttribute(k,attrs[k]); return e; }
+function addText(svg,t,x,y,color,size,cls){
+  const e=el('text',{x,y,fill:color,'font-size':size,'text-anchor':'middle'});
+  if(cls) e.setAttribute('class',cls); else e.setAttribute('font-family','IM Fell English, serif');
+  e.textContent=t; svg.appendChild(e);
+}
+
+/* Базовая окружность + ОПОРНЫЕ ЗАСЕЧКИ (углы и координаты, без подписей) */
+function drawBaseCircle(id){
+  const svg=document.getElementById(id); svg.innerHTML='';
+  svg.appendChild(el('circle',{cx:CX,cy:CY,r:R,fill:'none',stroke:'#b8860b','stroke-width':2.5}));
+
+  // опорные засечки углов по окружности (пункт 4 — видно расположение)
+  REF_ANGLES.forEach(deg=>{
+    const a=deg*Math.PI/180;
+    const p1={x:CX+(R-9)*Math.cos(a), y:CY-(R-9)*Math.sin(a)};
+    const p2={x:CX+(R+3)*Math.cos(a), y:CY-(R+3)*Math.sin(a)};
+    svg.appendChild(el('line',{x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y,class:'refdash','data-deg':deg}));
+  });
+  // опорные засечки координат на осях (без подписей)
+  TAB_LIN.forEach(t=>{
+    if(t.v===0) return;
+    const px=toX(t.v), py=toY(t.v);
+    svg.appendChild(el('line',{x1:px.x,y1:CY-5,x2:px.x,y2:CY+5,class:'reftick'}));
+    svg.appendChild(el('line',{x1:CX-5,y1:py.y,x2:CX+5,y2:py.y,class:'reftick'}));
+  });
+
+  // линии тангенсов и котангенсов
+  svg.appendChild(el('line',{x1:CX+R,y1:30,x2:CX+R,y2:470,class:'tang-line',id:'lineT'}));
+  svg.appendChild(el('line',{x1:30,y1:CY-R,x2:470,y2:CY-R,class:'tang-line',id:'lineC'}));
+  // оси
+  svg.appendChild(el('line',{x1:20,y1:CY,x2:480,y2:CY,class:'axis-line',id:'axisX'}));
+  svg.appendChild(el('line',{x1:CX,y1:480,x2:CX,y2:20,class:'axis-line',id:'axisY'}));
+  svg.appendChild(el('polygon',{points:`482,${CY} 470,${CY-6} 470,${CY+6}`,fill:'#3a2b18'}));
+  svg.appendChild(el('polygon',{points:`${CX},18 ${CX-6},30 ${CX+6},30`,fill:'#3a2b18'}));
+  addText(svg,'X',492,CY+6,'#3a2b18',18,'svglabel');
+  addText(svg,'Y',CX,20,'#3a2b18',18,'svglabel');
+  addText(svg,'0',CX-13,CY+18,'#6d573a',15);
+  addText(svg,'tg',CX+R,26,'#8a7448',14);
+  addText(svg,'ctg',36,CY-R-6,'#8a7448',14);
+  // кликабельные зоны выбора оси
+  makeHit(svg,'hitX',20,CY-14,462,28,()=>chooseAxis('X'));
+  makeHit(svg,'hitY',CX-14,20,28,462,()=>chooseAxis('Y'));
+  makeHit(svg,'hitT',CX+R-14,30,28,440,()=>chooseAxis('T'));
+  makeHit(svg,'hitC',30,CY-R-14,440,28,()=>chooseAxis('C'));
+  svg.appendChild(el('circle',{cx:CX,cy:CY,r:3.5,fill:'#3a2b18'}));
+}
+function makeHit(svg,id,x,y,w,h,cb){
+  const r=el('rect',{id,x,y,width:w,height:h,fill:'transparent',class:'hit'});
+  r.addEventListener('click',cb); svg.appendChild(r);
+}
+function highlightAxis(axis,cls){
+  ['axisX','axisY','lineT','lineC'].forEach(id=>{const e=document.getElementById(id); if(e)e.classList.remove('sel-ok','sel-bad');});
+  const map={X:'axisX',Y:'axisY',T:'lineT',C:'lineC'}; const e=document.getElementById(map[axis]); if(e)e.classList.add(cls);
+}
+
+/* Шаг 1: выбор оси */
+function chooseAxis(axis){
+  if(curStep()!==1||G.solvedStep)return;
+  const eq=EQUATIONS[G.cardIndex];
+  if(axis===eq.axis){
+    highlightAxis(axis,'sel-ok');
+    const names={X:'ось X (cos)',Y:'ось Y (sin)',T:'линия тангенсов',C:'линия котангенсов'};
+    feedback(`Верно — это ${names[axis]}!`,true); passStep();
+  } else {
+    failCurrentQuestion();
+    highlightAxis(axis,'sel-bad');
+    feedback('Не та ось. Где откладывается '+eq.func+'?',false); sWrong(); shakeStage();
+    setTimeout(()=>{const e=document.getElementById({X:'axisX',Y:'axisY',T:'lineT',C:'lineC'}[axis]); if(e)e.classList.remove('sel-bad');},600);
+  }
+}
+
+/* =======================================================================
+   ШАГ 2: ВЫБОР КООРДИНАТЫ ИЗ ТАБЛИЧНЫХ ОТМЕТОК (пункт 2)
+   Все табличные значения показаны на оси; игрок кликает по правильной.
+   ======================================================================= */
+function renderValuePicker(axis, target){
+  const svg=document.getElementById('svg');
+  svg.querySelectorAll('.picker').forEach(n=>n.remove());
+  const table=valueTable(axis);
+  table.forEach((t,idx)=>{
+    let p, tickA, tickB, lx, ly, anchor='middle';
+    if(axis==='Y'){ p=toY(t.v); tickA={x:CX-8,y:p.y}; tickB={x:CX+8,y:p.y}; lx=CX+16; ly=p.y+6; anchor='start'; }
+    else if(axis==='X'){ p=toX(t.v); tickA={x:p.x,y:CY-8}; tickB={x:p.x,y:CY+8}; lx=p.x; ly=(idx%2? CY+40:CY+24); }
+    else if(axis==='T'){ p=toT(t.v); tickA={x:CX+R-8,y:p.y}; tickB={x:CX+R+8,y:p.y}; lx=CX+R+14; ly=p.y+6; anchor='start'; }
+    else { p=toC(t.v); tickA={x:p.x,y:CY-R-8}; tickB={x:p.x,y:CY-R+8}; lx=p.x; ly=CY-R-14; }
+
+    const g=el('g',{class:'picker hit','data-v':t.v}); g.style.cursor='pointer';
+    g.appendChild(el('line',{x1:tickA.x,y1:tickA.y,x2:tickB.x,y2:tickB.y,class:'picktick'}));
+    const lbl=el('text',{x:lx,y:ly,class:'picklabel','text-anchor':anchor}); lbl.textContent=t.label; g.appendChild(lbl);
+    // невидимая крупная зона клика
+    g.appendChild(el('circle',{cx:p.x,cy:p.y,r:15,fill:'transparent'}));
+    g.addEventListener('click',()=>pickValue(g,t.v,target,axis,t.label));
+    svg.appendChild(g);
+  });
+}
+function pickValue(g,v,target,axis,label){
+  if(G.solvedStep)return;
+  if(Math.abs(v-target)<0.02){
+    g.querySelector('.picktick').setAttribute('stroke','#3f7a3a');
+    g.querySelector('.picktick').setAttribute('stroke-width','5');
+    g.querySelector('.picklabel').setAttribute('fill','#3f7a3a');
+    drawValuePoint(axis, target, '#3f7a3a', label);
+    feedback(`Верно! ${label} — на месте.`,true); passStep();
+  } else {
+    failCurrentQuestion();
+    g.querySelector('.picktick').setAttribute('stroke','#b0392b');
+    g.querySelector('.picklabel').setAttribute('fill','#b0392b');
+    feedback(Math.abs(v)>Math.abs(target)?'Слишком далеко от центра.':'Не та отметка — сравни с табличным значением.',false);
+    sWrong(); shakeStage();
+    G.autoHint=EQUATIONS[G.cardIndex].h2;
+    setTimeout(()=>{ g.querySelector('.picktick').setAttribute('stroke','#3a2b18'); g.querySelector('.picktick').setAttribute('stroke-width','2.5'); g.querySelector('.picklabel').setAttribute('fill','#3a2b18'); },700);
+  }
+}
+
+/* Красная/зелёная точка значения на оси + её подпись */
+let valuePointEl=null, valueLabelEl=null;
+function drawValuePoint(axis,v,color,label){
+  const svg=document.getElementById('svg');
+  if(valuePointEl){valuePointEl.remove();valuePointEl=null;}
+  if(valueLabelEl){valueLabelEl.remove();valueLabelEl=null;}
+  let p = axis==='X'?toX(v):axis==='Y'?toY(v):axis==='T'?toT(v):toC(v);
+  valuePointEl=el('circle',{cx:p.x,cy:p.y,r:7,fill:color,stroke:'#3a2b18','stroke-width':1.5});
+  valuePointEl.appendChild(el('animate',{attributeName:'r',values:'3;8;7',dur:'0.4s'}));
+  svg.appendChild(valuePointEl);
+}
+
+/* =======================================================================
+   ШАГ 3: ПЕРПЕНДИКУЛЯР + подсветка засечек (пункты 3,4)
+   ======================================================================= */
+function drawPerp(){if(G.solvedStep)return;drawPerpSilent(false);feedback('Прямая проведена — точки пересечения найдены!',true);passStep();}
+function drawPerpSilent(silent){
+  const eq=EQUATIONS[G.cardIndex];
+  const svg=document.getElementById('svg');
+  svg.querySelectorAll('.perp,.cross-pt').forEach(n=>n.remove());
+  let line;
+  if(eq.axis==='Y'){ const y=CY-eq.value*R; line=el('line',{x1:40,y1:y,x2:460,y2:y,class:'perp'}); }
+  else if(eq.axis==='X'){ const x=CX+eq.value*R; line=el('line',{x1:x,y1:40,x2:x,y2:460,class:'perp'}); }
+  else { const p=onCircle(eq.angles[0]); const dx=p.x-CX,dy=p.y-CY; line=el('line',{x1:CX-dx*1.3,y1:CY-dy*1.3,x2:CX+dx*1.3,y2:CY+dy*1.3,class:'perp'}); }
+  svg.appendChild(line);
+
+  // подсветить опорные засечки, совпадающие с корнями (пункт 3)
+  eq.angles.forEach(a=>{
+    svg.querySelectorAll('.refdash').forEach(d=>{ if(+d.getAttribute('data-deg')===norm360(a)) d.classList.add('glow'); });
+    const p=onCircle(a);
+    const c=el('circle',{cx:p.x,cy:p.y,r:8,fill:'#1f7a7a',stroke:'#3a2b18','stroke-width':1.5,class:'cross-pt'});
+    c.appendChild(el('animate',{attributeName:'r',values:'2;9;8',dur:'0.5s'}));
+    svg.appendChild(c);
+  });
+}
+function shakeStage(){ const s=document.querySelector('#game .stage'); s.classList.add('shake'); setTimeout(()=>s.classList.remove('shake'),450); }
+
+/* =======================================================================
+   РЕЗУЛЬТАТ
+   ======================================================================= */
+function finishLevel(){
+  sWin();
+  const secs=Math.max(0,Math.floor((Date.now()-G.startTime)/1000));
+  const mm=Math.floor(secs/60), ss=(secs%60).toString().padStart(2,'0');
+  const ratio=G.correct/G.total; let stars=1;
+  if(ratio>=0.5)stars=2; if(ratio>=0.7)stars=3; if(ratio>=0.9&&G.hints<=5)stars=4; if(ratio>=1&&G.hints<=2)stars=5;
+  document.getElementById('resTitle').textContent=`Уровень ${G.level} пройден!`;
+  document.getElementById('resStars').textContent='★'.repeat(stars)+'☆'.repeat(5-stars);
+  document.getElementById('resCorrectLabel').textContent=G.level===5?'Успешность с первой попытки':'Правильных ответов';
+  const scorePercent=G.level===5?Math.round(G.firstTryCorrect/G.total*100):null;
+  document.getElementById('resCorrect').textContent=G.level===5?scorePercent+'%':`${G.correct} / ${G.total}`;
+  document.getElementById('resTime').textContent=`${mm}:${ss}`;
+  document.getElementById('resHints').textContent=G.hints;
+  const lvl=G.level; document.getElementById('resRetry').onclick=()=>startLevel(lvl);
+  gameActive=false;showStudent();
+  show('result');
+  if(G.level===5&&!G.resultFinalized){
+    G.resultFinalized=true;
+    const eventId=makeEventId();displayedEventId=eventId;
+    submitResult({
+      action:'submitTest',
+      eventId,
+      studentId:currentStudent.id,
+      testId:TEST_META.testId,
+      testDate:localDateString(),
+      topicId:TEST_META.topicId,
+      topicName:TEST_META.topicName,
+      taskNumber:TEST_META.taskNumber,
+      scorePercent,
+      durationSeconds:secs,
+      schemaVersion:TEST_META.schemaVersion
+    });
+  }else if(G.level!==5){
+    setSaveStatus('Тренировочный уровень — результат не отправляется.');
+  }
+}
+
+/* =======================================================================
+   ЧАСТИЦЫ
+   ======================================================================= */
+const pcanvas=document.getElementById('particles'), pctx=pcanvas.getContext('2d');
+let particles=[];
+function resizeCanvas(){ pcanvas.width=innerWidth; pcanvas.height=innerHeight; }
+resizeCanvas(); addEventListener('resize',resizeCanvas);
+function burstParticles(){
+  const cx=innerWidth*0.35, cy=innerHeight*0.45;
+  for(let i=0;i<24;i++) particles.push({x:cx,y:cy,vx:(Math.random()-.5)*7,vy:(Math.random()-.5)*7-2,life:1,size:2+Math.random()*3,color:['#b8860b','#3f7a3a','#1f7a7a','#b0392b'][i%4]});
+}
+function loopParticles(){
+  pctx.clearRect(0,0,pcanvas.width,pcanvas.height);
+  particles=particles.filter(p=>p.life>0);
+  particles.forEach(p=>{ p.x+=p.vx;p.y+=p.vy;p.vy+=.15;p.life-=.02; pctx.globalAlpha=Math.max(p.life,0); pctx.fillStyle=p.color;
+    pctx.beginPath(); pctx.moveTo(p.x,p.y-p.size); pctx.lineTo(p.x+p.size,p.y); pctx.lineTo(p.x,p.y+p.size); pctx.lineTo(p.x-p.size,p.y); pctx.closePath(); pctx.fill(); });
+  pctx.globalAlpha=1; requestAnimationFrame(loopParticles);
+}
+loopParticles();
+
+/* =======================================================================
+   БОНУС 1: «СОБЕРИ ОКРУЖНОСТЬ» — углы И координаты (пункт 5)
+   ======================================================================= */
+const ASM=[
+  {deg:0,   a:'0°',   c:'(1; 0)'},
+  {deg:30,  a:'30°',  c:'(√3/2; 1/2)'},
+  {deg:45,  a:'45°',  c:'(√2/2; √2/2)'},
+  {deg:90,  a:'90°',  c:'(0; 1)'},
+  {deg:180, a:'180°', c:'(−1; 0)'},
+  {deg:270, a:'270°', c:'(0; −1)'}
+];
+const coordPos = deg => { const a=deg*Math.PI/180; return {x:CX+(R+40)*Math.cos(a), y:CY-(R+40)*Math.sin(a)}; };
+let aPlaced=0, aTotal=0;
+function startAssemble(){
+  if(!currentStudent)return;
+  gameActive=true;showStudent();
+  if(!audioCtx) ac(); if(soundOn) startBgMusic();
+  aPlaced=0; aTotal=ASM.length*2;
+  const svg=document.getElementById('asvg'); svg.innerHTML='';
+  svg.appendChild(el('circle',{cx:CX,cy:CY,r:R,fill:'none',stroke:'#b8860b','stroke-width':2.5}));
+  svg.appendChild(el('line',{x1:20,y1:CY,x2:480,y2:CY,stroke:'#3a2b18','stroke-width':2}));
+  svg.appendChild(el('line',{x1:CX,y1:480,x2:CX,y2:20,stroke:'#3a2b18','stroke-width':2}));
+  addText(svg,'X',492,CY+6,'#3a2b18',18,'svglabel');
+  addText(svg,'Y',CX,20,'#3a2b18',18,'svglabel');
+  // слоты для углов (на окружности) и координат (снаружи)
+  ASM.forEach(pt=>{
+    const p=onCircle(pt.deg);
+    svg.appendChild(el('circle',{cx:p.x,cy:p.y,r:11,fill:'#f7efd8',stroke:'#a98a5c','stroke-width':2,class:'slot','data-kind':'a','data-deg':pt.deg}));
+    const cp=coordPos(pt.deg);
+    svg.appendChild(el('circle',{cx:cp.x,cy:cp.y,r:13,fill:'#eaf3f0',stroke:'#8ab5ac','stroke-width':2,class:'slot','data-kind':'c','data-deg':pt.deg}));
+  });
+  // фишки в лоток
+  const tray=document.getElementById('tray'); tray.innerHTML='';
+  document.getElementById('aFeedback').textContent='';
+  const chips=[];
+  ASM.forEach(pt=>{ chips.push({kind:'a',deg:pt.deg,label:pt.a}); chips.push({kind:'c',deg:pt.deg,label:pt.c}); });
+  chips.sort(()=>Math.random()-0.5).forEach(cd=>{
+    const chip=document.createElement('div');
+    chip.className='chip'+(cd.kind==='c'?' kind-c':'');
+    chip.textContent=cd.label; chip.dataset.kind=cd.kind; chip.dataset.deg=cd.deg;
+    makeDraggable(chip); tray.appendChild(chip);
+  });
+  show('assemble');
+}
+function makeDraggable(chip){
+  let dragging=false, ox=0, oy=0;
+  chip.addEventListener('pointerdown',e=>{
+    if(chip.classList.contains('locked')) return;
+    dragging=true; chip.classList.add('dragging');
+    const r=chip.getBoundingClientRect(); ox=e.clientX-r.left; oy=e.clientY-r.top;
+    chip.style.position='fixed'; chip.style.left=r.left+'px'; chip.style.top=r.top+'px'; chip.style.width=r.width+'px';
+    chip.setPointerCapture(e.pointerId);
+  });
+  chip.addEventListener('pointermove',e=>{ if(!dragging)return; chip.style.left=(e.clientX-ox)+'px'; chip.style.top=(e.clientY-oy)+'px'; });
+  chip.addEventListener('pointerup',e=>{ if(!dragging)return; dragging=false; chip.classList.remove('dragging'); dropChip(chip,e.clientX,e.clientY); });
+}
+function dropChip(chip,px,py){
+  const svg=document.getElementById('asvg'); const rect=svg.getBoundingClientRect();
+  const slots=[...svg.querySelectorAll('.slot')]; let nearest=null, best=1e9;
+  slots.forEach(s=>{
+    const sx=rect.left+parseFloat(s.getAttribute('cx'))/500*rect.width;
+    const sy=rect.top +parseFloat(s.getAttribute('cy'))/500*rect.height;
+    const d=Math.hypot(px-sx,py-sy); if(d<best){best=d;nearest=s;}
+  });
+  const ok = nearest && best<42 && !nearest.classList.contains('filled')
+    && nearest.getAttribute('data-kind')===chip.dataset.kind
+    && nearest.getAttribute('data-deg')===chip.dataset.deg;
+  if(ok){
+    nearest.classList.add('filled');
+    nearest.setAttribute('fill', chip.dataset.kind==='c'?'#a9d3ca':'#98c98e');
+    nearest.setAttribute('stroke','#3f7a3a');
+    chip.classList.add('locked');
+    chip.style.position='';chip.style.left='';chip.style.top='';chip.style.width='';
+    sPlace(); sCorrect(); aPlaced++;
+    if(aPlaced===aTotal){ document.getElementById('aFeedback').innerHTML='<span style="color:#3f7a3a">🎉 Окружность собрана! Ты знаешь и углы, и координаты!</span>'; sWin(); for(let k=0;k<3;k++) setTimeout(burstParticles,k*200); }
+  } else {
+    chip.classList.add('wrong'); chip.style.position='';chip.style.left='';chip.style.top='';chip.style.width='';
+    sWrong(); setTimeout(()=>chip.classList.remove('wrong'),450);
+  }
+}
+
+/* =======================================================================
+   БОНУС 2: «ТАБЛИЦА ЗНАЧЕНИЙ» — с отрицательными (пункт 6)
+   ======================================================================= */
+const SORT_VALUES=[
+  {label:'−1',v:-1},{label:'−√3/2',v:-Math.sqrt(3)/2},{label:'−√2/2',v:-Math.SQRT1_2},
+  {label:'−1/2',v:-0.5},{label:'0',v:0},{label:'1/2',v:0.5},
+  {label:'√2/2',v:Math.SQRT1_2},{label:'√3/2',v:Math.sqrt(3)/2},{label:'1',v:1}
+];
+let sortOrder=[], pickedIndex=null;
+function startSort(){
+  if(!currentStudent)return;
+  gameActive=true;showStudent();
+  if(!audioCtx)ac();if(soundOn)startBgMusic();shuffleSort();show('sort');
+}
+function shuffleSort(){ sortOrder=[...SORT_VALUES].sort(()=>Math.random()-0.5); pickedIndex=null; document.getElementById('sortFeedback').textContent=''; renderSort(); }
+function renderSort(){
+  const row=document.getElementById('sortRow'); row.innerHTML='';
+  sortOrder.forEach((item,i)=>{
+    const c=document.createElement('div'); c.className='sort-card'+(pickedIndex===i?' picked':'');
+    c.textContent=item.label; c.onclick=()=>pickCard(i); row.appendChild(c);
+  });
+}
+function pickCard(i){
+  if(pickedIndex===null){ pickedIndex=i; sPlace(); }
+  else if(pickedIndex===i){ pickedIndex=null; }
+  else { [sortOrder[pickedIndex],sortOrder[i]]=[sortOrder[i],sortOrder[pickedIndex]]; pickedIndex=null; sPlace(); }
+  renderSort();
+}
+function checkSort(){
+  const ok=sortOrder.every((item,i)=> i===0 || sortOrder[i-1].v<=item.v);
+  const fb=document.getElementById('sortFeedback');
+  if(ok){ fb.innerHTML='<span style="color:#3f7a3a">✅ Верно! −1 → −√3/2 → … → 0 → … → 1</span>';
+    document.querySelectorAll('.sort-card').forEach(c=>c.classList.add('ok')); sWin(); burstParticles(); }
+  else { fb.innerHTML='<span style="color:#b0392b">❌ Порядок неверный. Помни: −√3/2 ≈ −0,87 меньше, чем −1/2.</span>';
+    sWrong(); document.querySelectorAll('.sort-card').forEach(c=>{c.classList.add('shake'); setTimeout(()=>c.classList.remove('shake'),450);}); }
+}
+
+/* разблокировка звука при первом касании */
+document.body.addEventListener('pointerdown',()=>{ if(!audioCtx) ac(); },{once:true});
+
+/* =======================================================================
+   ВХОД ПРИ ОТКРЫТИИ
+   ======================================================================= */
+const codeFromUrl=new URLSearchParams(location.search).get('code');
+if(codeFromUrl){
+  document.getElementById('studentCodeInput').value=codeFromUrl;
+  showStudent();acceptStudentCode(codeFromUrl);
+}else{
+  currentStudent=loadStoredStudent();showStudent();
+  if(currentStudent){document.getElementById('identityOverlay').classList.add('hidden');flushPendingResults();}
+  else setTimeout(()=>document.getElementById('studentCodeInput').focus(),0);
+}
+</script>
+</body>
+</html>
