@@ -1,0 +1,1518 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#152814">
+  <title>Болотное зелье — задание №7 ЕГЭ</title>
+  <style>
+    :root {
+      --ink: #241b12;
+      --paper: #ead7a5;
+      --paper-light: #fff0bd;
+      --moss: #637b2c;
+      --moss-dark: #203719;
+      --swamp: #172f26;
+      --lime: #b7d653;
+      --gold: #f1b941;
+      --danger: #a8422f;
+      --cream: #fff4ce;
+      --shadow: 0 22px 70px rgba(4, 12, 6, .46);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      color: var(--cream);
+      background: #102219;
+      font-family: Georgia, "Times New Roman", serif;
+    }
+
+    button, input { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+
+    body {
+      min-height: 100vh;
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at 20% 12%, rgba(176, 202, 77, .14), transparent 22rem),
+        linear-gradient(#182e26 0 48%, #142a20 48% 100%);
+    }
+
+    .world {
+      position: fixed;
+      inset: 0;
+      z-index: -3;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .moon {
+      position: absolute;
+      top: 5vh;
+      right: 8vw;
+      width: clamp(90px, 13vw, 180px);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: #f5e4a4;
+      box-shadow: 0 0 55px rgba(245, 228, 164, .32);
+      opacity: .8;
+    }
+
+    .moon::after {
+      content: "";
+      position: absolute;
+      inset: 11% 18% 20% 9%;
+      border-radius: 50%;
+      background: #192f26;
+    }
+
+    .castle {
+      position: absolute;
+      right: 5vw;
+      bottom: 28vh;
+      width: 110px;
+      height: 180px;
+      opacity: .52;
+      background: #07140d;
+      clip-path: polygon(14% 100%, 14% 37%, 4% 37%, 16% 22%, 27% 37%, 27% 55%, 46% 55%, 46% 23%, 36% 23%, 52% 0, 68% 23%, 59% 23%, 59% 64%, 75% 64%, 75% 34%, 67% 34%, 82% 17%, 96% 34%, 87% 34%, 87% 100%);
+    }
+
+    .hills {
+      position: absolute;
+      left: -10%;
+      right: -10%;
+      bottom: 23vh;
+      height: 42vh;
+      border-radius: 50% 50% 0 0;
+      background: #10241a;
+      transform: skewY(-3deg);
+      box-shadow: 40vw -10vh 0 #173021, 72vw -2vh 0 #0d2117;
+    }
+
+    .water {
+      position: absolute;
+      left: -5%;
+      right: -5%;
+      bottom: -15vh;
+      height: 44vh;
+      background:
+        repeating-radial-gradient(ellipse at 50% 0, transparent 0 22px, rgba(174, 198, 73, .09) 24px 26px, transparent 28px 55px),
+        linear-gradient(#375538, #142d24 70%);
+      transform: perspective(280px) rotateX(11deg);
+    }
+
+    .fog {
+      position: absolute;
+      width: 55vw;
+      height: 90px;
+      border-radius: 50%;
+      background: rgba(221, 226, 175, .1);
+      filter: blur(16px);
+      animation: drift 14s ease-in-out infinite alternate;
+    }
+    .fog.one { left: -10vw; bottom: 26vh; }
+    .fog.two { right: -18vw; bottom: 16vh; animation-delay: -7s; }
+
+    .firefly {
+      position: absolute;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #e7f68e;
+      box-shadow: 0 0 12px #e7f68e;
+      animation: firefly 6s ease-in-out infinite;
+    }
+
+    @keyframes drift { to { transform: translateX(24vw) scale(1.2); } }
+    @keyframes firefly {
+      0%, 100% { transform: translate(0, 0); opacity: .15; }
+      35% { transform: translate(45px, -50px); opacity: 1; }
+      70% { transform: translate(-25px, -95px); opacity: .4; }
+    }
+
+    .app {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: max(14px, env(safe-area-inset-top)) clamp(12px, 2vw, 28px) max(18px, env(safe-area-inset-bottom));
+    }
+
+    .topbar {
+      width: min(1180px, 100%);
+      margin: 0 auto 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      color: #f6e6b5;
+      font-weight: 800;
+      letter-spacing: .02em;
+      text-shadow: 0 2px #111;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border: 2px solid #222c14;
+      border-radius: 50% 50% 44% 44%;
+      background: radial-gradient(circle at 50% 35%, #a9c34c 0 32%, #657c2d 33% 100%);
+      box-shadow: inset 0 -5px 0 rgba(0,0,0,.16), 0 4px 0 #0a1309;
+      font-size: 21px;
+    }
+
+    .brand small {
+      display: block;
+      color: #a9bd7b;
+      font: 600 11px/1.2 Arial, sans-serif;
+      text-transform: uppercase;
+      letter-spacing: .16em;
+    }
+
+    .top-actions { display: flex; align-items: center; gap: 8px; }
+
+    .student-chip {
+      max-width: min(42vw, 260px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding: 9px 13px;
+      border: 1px solid rgba(231, 241, 166, .2);
+      border-radius: 999px;
+      background: rgba(9, 25, 15, .62);
+      color: #eaf2c8;
+      font: 700 13px Arial, sans-serif;
+      backdrop-filter: blur(10px);
+    }
+
+    .icon-btn {
+      width: 42px;
+      height: 42px;
+      border: 1px solid rgba(236, 245, 186, .24);
+      border-radius: 50%;
+      background: rgba(9, 25, 15, .65);
+      color: #f2eac8;
+      cursor: pointer;
+      box-shadow: 0 5px 0 rgba(3, 10, 5, .5);
+      transition: transform .15s, background .15s;
+    }
+    .icon-btn:hover { transform: translateY(-2px); background: #304b26; }
+    .icon-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(3, 10, 5, .5); }
+
+    .stage {
+      width: min(1180px, 100%);
+      flex: 1;
+      margin: 0 auto;
+      display: grid;
+      place-items: center;
+    }
+
+    .screen {
+      width: 100%;
+      display: none;
+      animation: enter .45s ease both;
+    }
+    .screen.active { display: block; }
+    @keyframes enter {
+      from { opacity: 0; transform: translateY(14px) scale(.985); }
+      to { opacity: 1; transform: none; }
+    }
+
+    .start-card, .finish-card {
+      width: min(840px, 100%);
+      margin: 0 auto;
+      position: relative;
+      padding: clamp(26px, 5vw, 60px);
+      text-align: center;
+      border: 5px solid #3e2c1c;
+      border-radius: 48% 52% 46% 54% / 8% 9% 7% 8%;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(255,255,255,.14), transparent),
+        repeating-linear-gradient(2deg, transparent 0 28px, rgba(86,57,22,.045) 29px 30px),
+        var(--paper);
+      box-shadow: var(--shadow), inset 0 0 45px rgba(103, 64, 21, .18);
+    }
+
+    .start-card::before, .finish-card::before {
+      content: "";
+      position: absolute;
+      inset: 9px;
+      border: 2px dashed rgba(77, 49, 20, .4);
+      border-radius: inherit;
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: #5b7229;
+      font: 900 12px Arial, sans-serif;
+      text-transform: uppercase;
+      letter-spacing: .2em;
+    }
+
+    h1, h2, p { margin-top: 0; }
+
+    h1 {
+      max-width: 700px;
+      margin: 0 auto 14px;
+      color: #273f20;
+      font-size: clamp(40px, 7vw, 76px);
+      line-height: .94;
+      letter-spacing: -.045em;
+      text-shadow: 0 3px 0 #a2b754;
+    }
+
+    .lead {
+      max-width: 600px;
+      margin: 0 auto 26px;
+      font-size: clamp(17px, 2.1vw, 22px);
+      line-height: 1.5;
+    }
+
+    .rule-strip {
+      width: min(620px, 100%);
+      margin: 0 auto 26px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .rule {
+      min-height: 88px;
+      padding: 12px 8px;
+      display: grid;
+      place-content: center;
+      gap: 4px;
+      border: 2px solid rgba(78, 62, 25, .22);
+      border-radius: 16px;
+      background: rgba(255, 247, 205, .38);
+      font: 700 13px/1.35 Arial, sans-serif;
+    }
+    .rule span { font-size: 26px; }
+
+    .wood-btn {
+      position: relative;
+      min-height: 56px;
+      padding: 13px 26px;
+      border: 3px solid #2d1e11;
+      border-radius: 17px 13px 18px 12px;
+      color: #fff6d2;
+      background:
+        linear-gradient(rgba(255,255,255,.12), transparent 42%),
+        repeating-linear-gradient(4deg, transparent 0 12px, rgba(36,20,8,.11) 13px 14px),
+        #6b4725;
+      box-shadow: 0 7px 0 #2b1b0e, 0 11px 20px rgba(0,0,0,.22);
+      font: 900 clamp(16px, 2vw, 20px) Arial, sans-serif;
+      cursor: pointer;
+      transition: transform .14s, filter .14s, box-shadow .14s;
+    }
+    .wood-btn:hover { transform: translateY(-2px) rotate(-.4deg); filter: brightness(1.1); }
+    .wood-btn:active { transform: translateY(5px); box-shadow: 0 2px 0 #2b1b0e; }
+    .wood-btn.green { background-color: #536d2c; }
+    .wood-btn:disabled { opacity: .48; cursor: not-allowed; transform: none; }
+
+    .switch-student {
+      display: block;
+      margin: 18px auto 0;
+      padding: 6px 12px;
+      border: 0;
+      color: #5d4728;
+      background: transparent;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    .switch-student:disabled { opacity: .45; cursor: not-allowed; }
+
+    .game-layout {
+      min-height: min(760px, calc(100vh - 85px));
+      display: grid;
+      grid-template-columns: minmax(270px, .88fr) minmax(390px, 1.45fr);
+      gap: clamp(14px, 2vw, 28px);
+      align-items: stretch;
+    }
+
+    .lab {
+      min-height: 620px;
+      position: relative;
+      overflow: hidden;
+      border: 4px solid #231a10;
+      border-radius: 30px 22px 34px 25px;
+      background:
+        linear-gradient(rgba(15, 31, 18, .08), rgba(5, 14, 7, .65)),
+        repeating-linear-gradient(90deg, #614526 0 4px, #52391f 5px 68px, #3d2917 69px 73px);
+      box-shadow: var(--shadow), inset 0 0 60px rgba(0,0,0,.48);
+    }
+
+    .shelf {
+      position: absolute;
+      left: 7%;
+      right: 7%;
+      top: 10%;
+      height: 8px;
+      border: 2px solid #24160b;
+      background: #7e592f;
+      box-shadow: 0 10px 0 #2d1d10;
+    }
+
+    .ingredients {
+      position: absolute;
+      left: 7%;
+      right: 7%;
+      top: 4.5%;
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 3px;
+      z-index: 2;
+    }
+
+    .ingredient {
+      min-width: 0;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      filter: grayscale(1) brightness(.42);
+      opacity: .38;
+      font-size: clamp(16px, 2vw, 24px);
+      transform: translateY(10px) rotate(-8deg);
+      transition: .4s cubic-bezier(.2,.9,.2,1.3);
+    }
+    .ingredient.found {
+      filter: none;
+      opacity: 1;
+      transform: translateY(0) rotate(0);
+      text-shadow: 0 4px 8px #000;
+      animation: pop .55s ease;
+    }
+    @keyframes pop { 45% { transform: translateY(-18px) scale(1.45) rotate(12deg); } }
+
+    .ogre {
+      position: absolute;
+      left: 7%;
+      bottom: 17%;
+      width: 105px;
+      height: 150px;
+      filter: drop-shadow(0 8px 7px rgba(0,0,0,.4));
+      transform-origin: 50% 100%;
+      animation: ogreIdle 3s ease-in-out infinite;
+    }
+    @keyframes ogreIdle { 50% { transform: translateY(-4px) rotate(1deg); } }
+
+    .ogre-head {
+      position: absolute;
+      top: 0;
+      left: 20px;
+      width: 65px;
+      height: 62px;
+      border: 3px solid #23300d;
+      border-radius: 48% 48% 45% 45%;
+      background: #89a83c;
+      box-shadow: inset 0 -8px 0 rgba(44,61,14,.18);
+    }
+    .ogre-head::before, .ogre-head::after {
+      content: "";
+      position: absolute;
+      top: 9px;
+      width: 28px;
+      height: 13px;
+      border: 3px solid #23300d;
+      border-radius: 60% 20% 20% 60%;
+      background: #89a83c;
+    }
+    .ogre-head::before { left: -25px; transform: rotate(12deg); }
+    .ogre-head::after { right: -25px; transform: scaleX(-1) rotate(12deg); }
+
+    .ogre-eyes {
+      position: absolute;
+      top: 20px;
+      left: 16px;
+      width: 32px;
+      height: 7px;
+      border-radius: 50%;
+      border-top: 3px solid #20240f;
+      border-bottom: 3px solid #20240f;
+    }
+
+    .ogre-body {
+      position: absolute;
+      left: 12px;
+      top: 56px;
+      width: 82px;
+      height: 92px;
+      border: 4px solid #241d13;
+      border-radius: 32% 32% 23% 23%;
+      background: linear-gradient(90deg, #6c4b2c 0 19%, #d5ccb0 20% 80%, #6c4b2c 81%);
+    }
+
+    .cauldron-wrap {
+      position: absolute;
+      left: 50%;
+      bottom: 8%;
+      width: min(70%, 280px);
+      transform: translateX(-38%);
+      text-align: center;
+    }
+
+    .steam {
+      height: 120px;
+      position: relative;
+      margin-bottom: -34px;
+      z-index: 3;
+    }
+    .steam i {
+      position: absolute;
+      bottom: 18px;
+      left: calc(20% + var(--x) * 15%);
+      width: 28px;
+      height: 28px;
+      border: 4px solid rgba(204, 235, 120, .38);
+      border-bottom-color: transparent;
+      border-radius: 50%;
+      animation: bubbleUp calc(2.1s + var(--x) * .24s) ease-in infinite;
+      animation-delay: calc(var(--x) * -.48s);
+    }
+    @keyframes bubbleUp {
+      0% { transform: translateY(35px) scale(.3); opacity: 0; }
+      30% { opacity: 1; }
+      100% { transform: translate(calc((var(--x) - 2) * 10px), -80px) scale(1.4); opacity: 0; }
+    }
+
+    .brew {
+      width: 86%;
+      height: 44px;
+      margin: 0 auto -12px;
+      position: relative;
+      z-index: 2;
+      overflow: hidden;
+      border: 5px solid #161b14;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 40%, #eff886 0 3%, transparent 4%), #96b33f;
+      box-shadow: 0 0 35px rgba(174, 217, 73, .48);
+      transition: background .3s;
+    }
+
+    .pot {
+      width: 100%;
+      height: 112px;
+      position: relative;
+      z-index: 1;
+      border: 6px solid #131713;
+      border-radius: 12% 12% 48% 48%;
+      background: linear-gradient(110deg, #1b211e, #4a514a 44%, #181e1b 78%);
+      box-shadow: inset 20px 0 24px rgba(255,255,255,.06), 0 17px 0 -9px #080b08, 0 25px 25px rgba(0,0,0,.55);
+    }
+    .pot::before, .pot::after {
+      content: "";
+      position: absolute;
+      top: 17px;
+      width: 48px;
+      height: 28px;
+      border: 7px solid #171c18;
+      border-radius: 50%;
+    }
+    .pot::before { left: -42px; }
+    .pot::after { right: -42px; }
+
+    .flames {
+      margin-top: 8px;
+      letter-spacing: -8px;
+      font-size: 35px;
+      filter: drop-shadow(0 0 9px #f0a12e);
+      animation: flames .5s ease-in-out infinite alternate;
+    }
+    @keyframes flames { to { transform: scaleY(.82) translateY(4px); filter: drop-shadow(0 0 16px #e96d2d); } }
+
+    .lab.shake { animation: shake .48s ease; }
+    .lab.success .brew { background: #d8ee62; box-shadow: 0 0 60px #c8ee51; }
+    @keyframes shake {
+      20% { transform: translateX(-8px) rotate(-.5deg); }
+      40% { transform: translateX(7px) rotate(.5deg); }
+      60% { transform: translateX(-5px); }
+      80% { transform: translateX(3px); }
+    }
+
+    .question-panel {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 620px;
+      padding: clamp(20px, 3vw, 36px);
+      color: var(--ink);
+      border: 5px solid #3c2b1c;
+      border-radius: 26px 37px 25px 35px;
+      background:
+        repeating-linear-gradient(1deg, transparent 0 30px, rgba(73,45,18,.04) 31px 32px),
+        var(--paper);
+      box-shadow: var(--shadow), inset 0 0 50px rgba(103, 64, 21, .12);
+    }
+
+    .game-meta {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .progress-line {
+      height: 15px;
+      overflow: hidden;
+      border: 3px solid #3c2a17;
+      border-radius: 999px;
+      background: #b89b5e;
+      box-shadow: inset 0 3px 7px rgba(0,0,0,.25);
+    }
+    .progress-line span {
+      display: block;
+      height: 100%;
+      width: 5%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #6c8b2d, #bddf4a);
+      transition: width .55s cubic-bezier(.2,.8,.2,1);
+    }
+
+    .timer {
+      min-width: 75px;
+      color: #31451e;
+      font: 900 16px Arial, sans-serif;
+    }
+
+    .question-number {
+      margin: 0 0 12px;
+      color: #64772f;
+      font: 900 13px Arial, sans-serif;
+      text-transform: uppercase;
+      letter-spacing: .16em;
+    }
+
+    .prompt {
+      margin: 0 0 12px;
+      color: #5a482b;
+      font-size: 16px;
+    }
+
+    .expression {
+      min-height: 118px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 20px;
+      padding: 18px 12px;
+      border: 2px solid rgba(69, 50, 24, .22);
+      border-radius: 21px;
+      background: rgba(255, 246, 205, .54);
+      color: #1d2817;
+      font-size: clamp(34px, 5vw, 56px);
+      font-weight: 700;
+      text-align: center;
+      line-height: 1.2;
+    }
+    .expression sup { font-size: .55em; }
+    .fraction {
+      display: inline-grid;
+      grid-template-rows: auto auto;
+      vertical-align: middle;
+      line-height: 1.1;
+    }
+    .fraction > span:first-child { padding: 0 .2em .12em; border-bottom: .08em solid currentColor; }
+    .fraction > span:last-child { padding-top: .12em; }
+
+    .answers {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: auto;
+    }
+
+    .answer {
+      min-height: 72px;
+      position: relative;
+      border: 3px solid #4a351f;
+      border-radius: 16px 12px 18px 13px;
+      color: #2c2318;
+      background: #f6e7b9;
+      box-shadow: 0 6px 0 #80623b;
+      font-size: clamp(22px, 3vw, 30px);
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform .13s, background .13s, box-shadow .13s;
+    }
+    .answer:hover:not(:disabled) { transform: translateY(-2px) rotate(-.35deg); background: #fff3c9; }
+    .answer:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 2px 0 #80623b; }
+    .answer.wrong {
+      color: #fff4d8;
+      border-color: #5d241a;
+      background: #a44332;
+      box-shadow: 0 5px 0 #57241d;
+      animation: wrong .36s ease;
+    }
+    .answer.correct {
+      color: #15210f;
+      border-color: #314513;
+      background: #afcf4c;
+      box-shadow: 0 5px 0 #536922;
+      animation: correct .5s ease;
+    }
+    @keyframes wrong { 50% { transform: rotate(2deg) scale(.97); } }
+    @keyframes correct { 50% { transform: scale(1.035); } }
+
+    .feedback {
+      min-height: 44px;
+      margin: 14px 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #5b2d22;
+      font: 800 15px/1.35 Arial, sans-serif;
+      text-align: center;
+    }
+    .feedback.good { color: #3d5921; }
+
+    .finish-card h2 {
+      margin-bottom: 8px;
+      color: #2e461f;
+      font-size: clamp(38px, 6vw, 68px);
+      line-height: 1;
+    }
+
+    .score-orb {
+      width: clamp(150px, 25vw, 210px);
+      aspect-ratio: 1;
+      margin: 20px auto;
+      display: grid;
+      place-items: center;
+      border: 8px solid #405420;
+      border-radius: 50%;
+      color: #172213;
+      background: radial-gradient(circle at 35% 28%, #f4ff9c 0 8%, #b4d94e 35%, #78972e 100%);
+      box-shadow: inset 0 -13px 18px rgba(37,60,12,.28), 0 12px 0 #2c3918, 0 20px 40px rgba(0,0,0,.25);
+      font: 900 clamp(42px, 8vw, 68px) Arial, sans-serif;
+    }
+
+    .result-grid {
+      width: min(560px, 100%);
+      margin: 0 auto 20px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    .result-box {
+      padding: 14px;
+      border: 2px solid rgba(72,50,23,.22);
+      border-radius: 16px;
+      background: rgba(255,246,205,.45);
+    }
+    .result-box small {
+      display: block;
+      margin-bottom: 4px;
+      color: #685636;
+      font: 700 11px Arial, sans-serif;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+    }
+    .result-box strong { font: 900 22px Arial, sans-serif; }
+
+    .save-status {
+      min-height: 24px;
+      margin: 0 0 18px;
+      color: #425d25;
+      font: 800 14px Arial, sans-serif;
+    }
+    .save-status.offline { color: #7a3b27; }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      place-items: center;
+      padding: 20px;
+      background: rgba(4, 12, 6, .8);
+      backdrop-filter: blur(10px);
+    }
+    .modal.open { display: grid; }
+
+    .login-card {
+      width: min(500px, 100%);
+      position: relative;
+      padding: clamp(28px, 5vw, 48px);
+      color: var(--ink);
+      text-align: center;
+      border: 5px solid #3e2b1a;
+      border-radius: 27px 38px 29px 35px;
+      background: var(--paper);
+      box-shadow: 0 30px 100px rgba(0,0,0,.65);
+    }
+    .login-card::after {
+      content: "🔐";
+      position: absolute;
+      top: -30px;
+      left: 50%;
+      width: 62px;
+      height: 62px;
+      display: grid;
+      place-items: center;
+      border: 4px solid #312315;
+      border-radius: 50%;
+      background: #6c8535;
+      transform: translateX(-50%);
+      font-size: 26px;
+    }
+    .login-card h2 { margin: 8px 0 9px; color: #30461f; font-size: 34px; }
+    .login-card p { color: #58462d; line-height: 1.45; }
+    .code-input {
+      width: 100%;
+      height: 58px;
+      margin: 8px 0 13px;
+      padding: 0 17px;
+      border: 3px solid #4f3a22;
+      border-radius: 14px;
+      outline: 0;
+      color: #2d2418;
+      background: #fff4c9;
+      font: 900 22px Arial, sans-serif;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: .13em;
+      box-shadow: inset 0 4px 10px rgba(86,53,19,.1);
+    }
+    .code-input:focus { border-color: #708b32; box-shadow: 0 0 0 4px rgba(112,139,50,.18); }
+    .login-error { min-height: 21px; margin: 0 0 10px; color: #9a3e2d; font: 800 13px Arial, sans-serif; }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      z-index: 40;
+      max-width: min(520px, calc(100vw - 28px));
+      padding: 13px 18px;
+      border: 2px solid #809735;
+      border-radius: 999px;
+      color: #eff7d2;
+      background: rgba(18, 39, 20, .96);
+      box-shadow: 0 12px 40px rgba(0,0,0,.42);
+      font: 800 13px Arial, sans-serif;
+      text-align: center;
+      transform: translate(-50%, 30px);
+      opacity: 0;
+      pointer-events: none;
+      transition: .28s;
+    }
+    .toast.show { transform: translate(-50%, 0); opacity: 1; }
+
+    .confetti {
+      position: fixed;
+      inset: 0;
+      z-index: 15;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .confetti i {
+      position: absolute;
+      top: -40px;
+      left: var(--left);
+      font-style: normal;
+      font-size: var(--size);
+      animation: fall var(--duration) linear forwards;
+      animation-delay: var(--delay);
+    }
+    @keyframes fall {
+      to { transform: translate(var(--drift), 115vh) rotate(720deg); }
+    }
+
+    @media (max-width: 820px) {
+      .game-layout { grid-template-columns: 1fr; min-height: auto; }
+      .lab { min-height: 280px; }
+      .shelf { top: 17%; }
+      .ingredients { top: 7%; }
+      .ogre { left: 6%; bottom: 8%; transform: scale(.78); transform-origin: bottom left; }
+      .cauldron-wrap { width: 210px; bottom: 2%; transform: translateX(-28%) scale(.78); transform-origin: bottom center; }
+      .steam { height: 90px; }
+      .question-panel { min-height: 500px; }
+    }
+
+    @media (max-width: 560px) {
+      .brand-text { display: none; }
+      .student-chip { max-width: 48vw; font-size: 11px; }
+      .start-card, .finish-card { border-radius: 25px; padding: 30px 18px; }
+      .rule-strip { grid-template-columns: 1fr; }
+      .rule { min-height: 64px; grid-template-columns: auto 1fr; align-items: center; }
+      .lab { min-height: 245px; }
+      .ogre { transform: scale(.64); }
+      .cauldron-wrap { transform: translateX(-24%) scale(.65); }
+      .question-panel { min-height: 500px; padding: 18px 14px; }
+      .expression { min-height: 100px; font-size: 31px; }
+      .answers { gap: 9px; }
+      .answer { min-height: 62px; font-size: 22px; }
+      .result-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="world" aria-hidden="true">
+    <div class="moon"></div>
+    <div class="castle"></div>
+    <div class="hills"></div>
+    <div class="water"></div>
+    <div class="fog one"></div>
+    <div class="fog two"></div>
+    <i class="firefly" style="left:12%;top:32%;animation-delay:-1s"></i>
+    <i class="firefly" style="left:27%;top:42%;animation-delay:-4s"></i>
+    <i class="firefly" style="left:65%;top:27%;animation-delay:-2s"></i>
+    <i class="firefly" style="left:83%;top:46%;animation-delay:-5s"></i>
+  </div>
+
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">🧪</div>
+        <div class="brand-text">Болотное зелье<small>Задание №7 · профильный ЕГЭ</small></div>
+      </div>
+      <div class="top-actions">
+        <div class="student-chip" id="studentChip">Ученик не выбран</div>
+        <button class="icon-btn" id="soundButton" type="button" aria-label="Выключить звук" title="Звук">🔊</button>
+      </div>
+    </header>
+
+    <section class="stage">
+      <div class="screen active" id="startScreen">
+        <div class="start-card">
+          <p class="eyebrow">Математическая лаборатория</p>
+          <h1>Свари зелье силы</h1>
+          <p class="lead">Реши 20 выражений со степенями и корнями. Каждый верный ответ отправит ингредиент в котёл.</p>
+          <div class="rule-strip">
+            <div class="rule"><span>🧅</span>20 ингредиентов</div>
+            <div class="rule"><span>👆</span>Выбери ответ</div>
+            <div class="rule"><span>🎯</span>Важна первая попытка</div>
+          </div>
+          <button class="wood-btn green" id="startButton" type="button">Разжечь огонь</button>
+          <button class="switch-student" id="changeStudentButton" type="button">Сменить ученика</button>
+        </div>
+      </div>
+
+      <div class="screen" id="gameScreen">
+        <div class="game-layout">
+          <aside class="lab" id="lab" aria-label="Лаборатория зелья">
+            <div class="shelf"></div>
+            <div class="ingredients" id="ingredients"></div>
+            <div class="ogre" aria-hidden="true">
+              <div class="ogre-head"><div class="ogre-eyes"></div></div>
+              <div class="ogre-body"></div>
+            </div>
+            <div class="cauldron-wrap" aria-hidden="true">
+              <div class="steam"><i style="--x:0"></i><i style="--x:1"></i><i style="--x:2"></i><i style="--x:3"></i><i style="--x:4"></i></div>
+              <div class="brew"></div>
+              <div class="pot"></div>
+              <div class="flames">🔥🔥🔥</div>
+            </div>
+          </aside>
+
+          <section class="question-panel" aria-live="polite">
+            <div class="game-meta">
+              <div class="progress-line" aria-label="Прогресс"><span id="progressFill"></span></div>
+              <div class="timer" id="timer">00:00</div>
+            </div>
+            <p class="question-number" id="questionNumber">Ингредиент 1 из 20</p>
+            <p class="prompt">Найдите значение выражения:</p>
+            <div class="expression" id="expression"></div>
+            <div class="answers" id="answers"></div>
+            <p class="feedback" id="feedback"></p>
+          </section>
+        </div>
+      </div>
+
+      <div class="screen" id="finishScreen">
+        <div class="finish-card">
+          <p class="eyebrow">Зелье готово</p>
+          <h2 id="finishTitle">Котёл одобряет!</h2>
+          <p class="lead">Все 20 ингредиентов собраны. В результат вошли только ответы, данные правильно с первой попытки.</p>
+          <div class="score-orb" id="scoreOrb">0%</div>
+          <div class="result-grid">
+            <div class="result-box"><small>Успешность</small><strong id="scoreText">0%</strong></div>
+            <div class="result-box"><small>Время</small><strong id="timeText">00:00</strong></div>
+          </div>
+          <p class="save-status" id="saveStatus">Сохраняем результат…</p>
+          <button class="wood-btn green" id="retryButton" type="button">Сварить ещё раз</button>
+          <button class="switch-student" id="finishChangeStudentButton" type="button">Сменить ученика</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal" id="loginModal" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <form class="login-card" id="loginForm">
+      <h2 id="loginTitle">Личный код</h2>
+      <p>Назови код стражнику, чтобы результат попал в твою запись.</p>
+      <input class="code-input" id="studentCode" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ВВЕДИ КОД" aria-label="Личный код ученика">
+      <p class="login-error" id="loginError"></p>
+      <button class="wood-btn green" id="loginButton" type="submit">Проверить код</button>
+    </form>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+  <div class="confetti" id="confetti" aria-hidden="true"></div>
+
+  <script>
+    "use strict";
+
+    const API_URL = "https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
+    const TEST_META = Object.freeze({
+      testId: "EGE-07-BOLOTNOE-ZELYE-POWERS-ROOTS",
+      topicId: "task-07",
+      topicName: "Степени и корни. Вычисление выражений",
+      taskNumber: 7,
+      schemaVersion: 1
+    });
+
+    const TOTAL_QUESTIONS = 20;
+    const PENDING_KEY = "egePendingTestResults";
+    const INGREDIENTS = ["🧅","🍄","🌶️","🫐","🥚","🌿","🧄","🍎","🫘","🌰","🍋","🥕","🪶","🐚","🍯","🍀","🦴","🧀","💎","👑"];
+
+    // Фиксированный набор: задания и порядок вариантов не меняются между попытками.
+    const QUESTIONS = Object.freeze([
+      { e:'<span class="fraction"><span>2<sup>3</sup> · 2<sup>5</sup></span><span>2<sup>4</sup></span></span>', a:"16", c:["8","16","32","64"] },
+      { e:'<span class="fraction"><span>(3<sup>2</sup>)<sup>3</sup></span><span>3<sup>4</sup></span></span>', a:"9", c:["3","9","27","81"] },
+      { e:'5<sup>−2</sup> · 5<sup>5</sup>', a:"125", c:["25","125","625","1/125"] },
+      { e:'16<sup>3/4</sup>', a:"8", c:["6","8","12","64"] },
+      { e:'27<sup>2/3</sup>', a:"9", c:["3","6","9","18"] },
+      { e:'√(36 · 25)', a:"30", c:["15","30","60","900"] },
+      { e:'<span class="fraction"><span>√288</span><span>√2</span></span>', a:"12", c:["6","12","24","144"] },
+      { e:'∛(64 · 125)', a:"20", c:["10","20","40","8000"] },
+      { e:'(√37 − 5)(√37 + 5)', a:"12", c:["7","12","25","62"] },
+      { e:'(√12 − √3) · √3', a:"3", c:["1","3","6","9"] },
+      { e:'(√7 + √2)(√7 − √2)', a:"5", c:["3","5","7","9"] },
+      { e:'<span class="fraction"><span>√(3<sup>4</sup> · 5<sup>2</sup>)</span><span>3</span></span>', a:"15", c:["5","15","45","75"] },
+      { e:'<span class="fraction"><span>(√144)<sup>2</sup></span><span>12</span></span>', a:"12", c:["1","6","12","144"] },
+      { e:'8<sup>2/3</sup> · 4<sup>1/2</sup>', a:"8", c:["4","8","12","16"] },
+      { e:'32<sup>3/5</sup>', a:"8", c:["6","8","16","24"] },
+      { e:'<span class="fraction"><span>4<sup>5</sup></span><span>8<sup>2</sup></span></span>', a:"16", c:["4","8","16","32"] },
+      { e:'<span class="fraction"><span>2<sup>7</sup> · 4<sup>3</sup></span><span>8<sup>3</sup></span></span>', a:"16", c:["4","8","16","64"] },
+      { e:'<span class="fraction"><span>√75 − √12</span><span>√3</span></span>', a:"3", c:["1","3","7","21"] },
+      { e:'<span class="fraction"><span>√48 + √27</span><span>√3</span></span>', a:"7", c:["1","5","7","25"] },
+      { e:'(√50 − √8) · √2', a:"6", c:["3","6","9","14"] }
+    ]);
+
+    const els = {
+      startScreen: document.getElementById("startScreen"),
+      gameScreen: document.getElementById("gameScreen"),
+      finishScreen: document.getElementById("finishScreen"),
+      startButton: document.getElementById("startButton"),
+      retryButton: document.getElementById("retryButton"),
+      changeStudentButton: document.getElementById("changeStudentButton"),
+      finishChangeStudentButton: document.getElementById("finishChangeStudentButton"),
+      soundButton: document.getElementById("soundButton"),
+      studentChip: document.getElementById("studentChip"),
+      ingredients: document.getElementById("ingredients"),
+      lab: document.getElementById("lab"),
+      progressFill: document.getElementById("progressFill"),
+      timer: document.getElementById("timer"),
+      questionNumber: document.getElementById("questionNumber"),
+      expression: document.getElementById("expression"),
+      answers: document.getElementById("answers"),
+      feedback: document.getElementById("feedback"),
+      scoreOrb: document.getElementById("scoreOrb"),
+      scoreText: document.getElementById("scoreText"),
+      timeText: document.getElementById("timeText"),
+      finishTitle: document.getElementById("finishTitle"),
+      saveStatus: document.getElementById("saveStatus"),
+      loginModal: document.getElementById("loginModal"),
+      loginForm: document.getElementById("loginForm"),
+      studentCode: document.getElementById("studentCode"),
+      loginError: document.getElementById("loginError"),
+      loginButton: document.getElementById("loginButton"),
+      toast: document.getElementById("toast"),
+      confetti: document.getElementById("confetti")
+    };
+
+    let student = null;
+    let gameActive = false;
+    let currentQuestion = 0;
+    let questionAttempted = false;
+    let firstTryCorrect = 0;
+    let startTime = 0;
+    let elapsedSeconds = 0;
+    let timerId = null;
+    let questionLocked = false;
+    let resultSubmitted = false;
+    let toastTimer = null;
+    let isQaMode = false;
+
+    let audioContext = null;
+    let musicGain = null;
+    let masterGain = null;
+    let musicTimer = null;
+    let soundEnabled = true;
+
+    function showScreen(target) {
+      [els.startScreen, els.gameScreen, els.finishScreen].forEach(screen => screen.classList.toggle("active", screen === target));
+    }
+
+    function formatTime(seconds) {
+      const safe = Math.max(0, Math.floor(seconds));
+      return String(Math.floor(safe / 60)).padStart(2, "0") + ":" + String(safe % 60).padStart(2, "0");
+    }
+
+    function uuid() {
+      if (window.crypto && typeof window.crypto.randomUUID === "function") return window.crypto.randomUUID();
+      return "evt-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2) + "-" + Math.random().toString(36).slice(2);
+    }
+
+    function localDate() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return y + "-" + m + "-" + day;
+    }
+
+    function showToast(message) {
+      clearTimeout(toastTimer);
+      els.toast.textContent = message;
+      els.toast.classList.add("show");
+      toastTimer = setTimeout(() => els.toast.classList.remove("show"), 3600);
+    }
+
+    function setStudent(data) {
+      student = data;
+      localStorage.setItem("egeStudentId", data.id);
+      localStorage.setItem("egeStudentName", data.name);
+      localStorage.setItem("egeStudentCode", data.code);
+      els.studentChip.textContent = "👤 " + data.name;
+      closeLogin();
+      flushPendingResults();
+    }
+
+    function readSavedStudent() {
+      const id = localStorage.getItem("egeStudentId");
+      const name = localStorage.getItem("egeStudentName");
+      const code = localStorage.getItem("egeStudentCode");
+      if (id && name && code) {
+        student = { id, name, code };
+        els.studentChip.textContent = "👤 " + name;
+        return true;
+      }
+      return false;
+    }
+
+    function clearStudent() {
+      if (gameActive) return;
+      ["egeStudentId", "egeStudentName", "egeStudentCode"].forEach(key => localStorage.removeItem(key));
+      student = null;
+      els.studentChip.textContent = "Ученик не выбран";
+      openLogin();
+    }
+
+    function openLogin(prefill) {
+      if (gameActive) return;
+      els.loginModal.classList.add("open");
+      els.loginError.textContent = "";
+      if (typeof prefill === "string") els.studentCode.value = prefill;
+      setTimeout(() => els.studentCode.focus(), 60);
+    }
+
+    function closeLogin() {
+      els.loginModal.classList.remove("open");
+      els.loginButton.disabled = false;
+      els.loginButton.textContent = "Проверить код";
+    }
+
+    function normalizeStudentResponse(data, code) {
+      const source = data && typeof data.student === "object" ? data.student : (data || {});
+      const id = source.studentId || source.id || data.studentId || data.id;
+      const name = source.studentName || source.name || data.studentName || data.name;
+      const explicitlyRejected = data && (data.success === false || data.valid === false || data.ok === false);
+      if (explicitlyRejected || !id) throw new Error((data && (data.message || data.error)) || "Код не найден");
+      return { id: String(id), name: String(name || "Ученик"), code };
+    }
+
+    function validateStudent(code) {
+      return new Promise((resolve, reject) => {
+        const callbackName = "__egeStudent_" + Date.now() + "_" + Math.random().toString(36).slice(2);
+        const script = document.createElement("script");
+        const timeout = setTimeout(() => cleanup(new Error("Сервер долго не отвечает")), 12000);
+
+        function cleanup(error, value) {
+          clearTimeout(timeout);
+          delete window[callbackName];
+          script.remove();
+          error ? reject(error) : resolve(value);
+        }
+
+        window[callbackName] = data => {
+          try { cleanup(null, normalizeStudentResponse(data, code)); }
+          catch (error) { cleanup(error); }
+        };
+        script.onerror = () => cleanup(new Error("Не удалось связаться с сервером"));
+        script.src = API_URL + "?action=validateStudent&code=" + encodeURIComponent(code) + "&callback=" + encodeURIComponent(callbackName);
+        document.head.appendChild(script);
+      });
+    }
+
+    async function handleLogin(event) {
+      event.preventDefault();
+      const code = els.studentCode.value.trim();
+      if (!code) {
+        els.loginError.textContent = "Введите личный код";
+        return;
+      }
+      els.loginError.textContent = "";
+      els.loginButton.disabled = true;
+      els.loginButton.textContent = "Проверяем…";
+      try {
+        const found = await validateStudent(code);
+        setStudent(found);
+        showToast("Добро пожаловать, " + found.name + "!");
+      } catch (error) {
+        els.loginError.textContent = error && error.message ? error.message : "Неверный код";
+        els.loginButton.disabled = false;
+        els.loginButton.textContent = "Проверить код";
+      }
+    }
+
+    function initializeIngredients() {
+      els.ingredients.innerHTML = "";
+      INGREDIENTS.forEach((icon, index) => {
+        const item = document.createElement("div");
+        item.className = "ingredient";
+        item.textContent = icon;
+        item.title = "Ингредиент " + (index + 1);
+        els.ingredients.appendChild(item);
+      });
+    }
+
+    function startGame() {
+      if (!student) {
+        openLogin();
+        return;
+      }
+      startAudio();
+      gameActive = true;
+      currentQuestion = 0;
+      questionAttempted = false;
+      firstTryCorrect = 0;
+      elapsedSeconds = 0;
+      startTime = Date.now();
+      questionLocked = false;
+      resultSubmitted = false;
+      els.changeStudentButton.disabled = true;
+      els.finishChangeStudentButton.disabled = true;
+      els.lab.classList.remove("success", "shake");
+      initializeIngredients();
+      showScreen(els.gameScreen);
+      clearInterval(timerId);
+      timerId = setInterval(() => {
+        elapsedSeconds = Math.max(0, Math.floor((Date.now() - startTime) / 1000));
+        els.timer.textContent = formatTime(elapsedSeconds);
+      }, 250);
+      renderQuestion();
+    }
+
+    function renderQuestion() {
+      questionAttempted = false;
+      questionLocked = false;
+      const q = QUESTIONS[currentQuestion];
+      els.questionNumber.textContent = "Ингредиент " + (currentQuestion + 1) + " из " + TOTAL_QUESTIONS;
+      els.expression.innerHTML = q.e;
+      els.feedback.textContent = "";
+      els.feedback.className = "feedback";
+      els.progressFill.style.width = ((currentQuestion + 1) / TOTAL_QUESTIONS * 100) + "%";
+      els.answers.innerHTML = "";
+
+      q.c.forEach(choice => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "answer";
+        button.textContent = choice;
+        button.dataset.choice = choice;
+        button.addEventListener("click", () => chooseAnswer(button, choice));
+        els.answers.appendChild(button);
+      });
+    }
+
+    function chooseAnswer(button, choice) {
+      if (questionLocked || button.disabled) return;
+      const q = QUESTIONS[currentQuestion];
+      const isFirstClick = !questionAttempted;
+      questionAttempted = true;
+
+      if (choice === q.a) {
+        if (isFirstClick) firstTryCorrect += 1;
+        questionLocked = true;
+        button.classList.add("correct");
+        Array.from(els.answers.children).forEach(item => item.disabled = true);
+        els.feedback.textContent = isFirstClick ? "Точно! Ингредиент летит в котёл." : "Теперь верно. Ингредиент спасён, но первая попытка уже использована.";
+        els.feedback.className = "feedback good";
+        const item = els.ingredients.children[currentQuestion];
+        if (item) item.classList.add("found");
+        els.lab.classList.remove("shake");
+        els.lab.classList.add("success");
+        playCorrect();
+        setTimeout(() => {
+          els.lab.classList.remove("success");
+          currentQuestion += 1;
+          if (currentQuestion >= TOTAL_QUESTIONS) finishGame();
+          else renderQuestion();
+        }, 1150);
+      } else {
+        button.disabled = true;
+        button.classList.add("wrong");
+        els.feedback.textContent = isFirstClick ? "Ой! Котёл фыркнул. Попробуй другой ответ — пройти дальше можно." : "Пока не то. Выбирай ещё.";
+        els.lab.classList.remove("shake");
+        void els.lab.offsetWidth;
+        els.lab.classList.add("shake");
+        playWrong();
+      }
+    }
+
+    function finishGame() {
+      if (resultSubmitted) return;
+      gameActive = false;
+      resultSubmitted = true;
+      clearInterval(timerId);
+      elapsedSeconds = Math.max(1, Math.floor((Date.now() - startTime) / 1000));
+      const scorePercent = Math.round(firstTryCorrect / TOTAL_QUESTIONS * 100);
+      els.scoreOrb.textContent = scorePercent + "%";
+      els.scoreText.textContent = scorePercent + "%";
+      els.timeText.textContent = formatTime(elapsedSeconds);
+      els.finishTitle.textContent = scorePercent >= 90 ? "Идеальное зелье!" : scorePercent >= 70 ? "Котёл доволен!" : "Зелье получилось!";
+      els.changeStudentButton.disabled = false;
+      els.finishChangeStudentButton.disabled = false;
+      showScreen(els.finishScreen);
+      burstConfetti();
+      playFinish();
+
+      const payload = {
+        action: "submitTest",
+        eventId: uuid(),
+        studentId: student.id,
+        testId: TEST_META.testId,
+        testDate: localDate(),
+        topicId: TEST_META.topicId,
+        topicName: TEST_META.topicName,
+        taskNumber: TEST_META.taskNumber,
+        scorePercent,
+        durationSeconds: elapsedSeconds,
+        schemaVersion: TEST_META.schemaVersion
+      };
+      if (isQaMode) {
+        els.saveStatus.textContent = "✓ Тестовый результат проверен без отправки";
+      } else {
+        submitResult(payload);
+      }
+    }
+
+    function getPendingQueue() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(PENDING_KEY) || "[]");
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (_) {
+        return [];
+      }
+    }
+
+    function savePending(payload) {
+      const queue = getPendingQueue();
+      if (!queue.some(item => item && item.eventId === payload.eventId)) queue.push(payload);
+      localStorage.setItem(PENDING_KEY, JSON.stringify(queue));
+    }
+
+    function removePending(eventId) {
+      const queue = getPendingQueue();
+      const next = queue.filter(item => !item || item.eventId !== eventId);
+      localStorage.setItem(PENDING_KEY, JSON.stringify(next));
+    }
+
+    async function postResult(payload) {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload),
+        redirect: "follow"
+      });
+      if (!response.ok) throw new Error("Не удалось отправить результат");
+      return true;
+    }
+
+    async function submitResult(payload) {
+      els.saveStatus.className = "save-status";
+      els.saveStatus.textContent = "Сохраняем результат…";
+      try {
+        await postResult(payload);
+        removePending(payload.eventId);
+        els.saveStatus.textContent = "✓ Результат сохранён";
+      } catch (_) {
+        savePending(payload);
+        els.saveStatus.className = "save-status offline";
+        els.saveStatus.textContent = "Нет связи: результат сохранён на устройстве и отправится позже";
+      }
+    }
+
+    async function flushPendingResults() {
+      if (!navigator.onLine) return;
+      const queue = getPendingQueue().slice();
+      for (const payload of queue) {
+        if (!payload || !payload.eventId) continue;
+        try {
+          await postResult(payload);
+          removePending(payload.eventId);
+        } catch (_) {
+          break;
+        }
+      }
+    }
+
+    function burstConfetti() {
+      const pieces = ["🫧","✨","🍃","🧅","🍄","⭐"];
+      els.confetti.innerHTML = "";
+      for (let i = 0; i < 34; i += 1) {
+        const item = document.createElement("i");
+        item.textContent = pieces[i % pieces.length];
+        item.style.setProperty("--left", (Math.random() * 100) + "%");
+        item.style.setProperty("--size", (14 + Math.random() * 18) + "px");
+        item.style.setProperty("--duration", (2.8 + Math.random() * 2.2) + "s");
+        item.style.setProperty("--delay", (Math.random() * .9) + "s");
+        item.style.setProperty("--drift", ((Math.random() - .5) * 180) + "px");
+        els.confetti.appendChild(item);
+      }
+      setTimeout(() => { els.confetti.innerHTML = ""; }, 5800);
+    }
+
+    function ensureAudio() {
+      if (!soundEnabled) return false;
+      if (!audioContext) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return false;
+        audioContext = new AudioCtx();
+        masterGain = audioContext.createGain();
+        musicGain = audioContext.createGain();
+        masterGain.gain.value = .28;
+        musicGain.gain.value = .18;
+        musicGain.connect(masterGain);
+        masterGain.connect(audioContext.destination);
+      }
+      if (audioContext.state === "suspended") audioContext.resume();
+      return true;
+    }
+
+    function tone(frequency, start, duration, volume, type, destination) {
+      if (!audioContext) return;
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      osc.type = type || "sine";
+      osc.frequency.setValueAtTime(frequency, start);
+      gain.gain.setValueAtTime(.0001, start);
+      gain.gain.exponentialRampToValueAtTime(Math.max(.0002, volume), start + .025);
+      gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
+      osc.connect(gain);
+      gain.connect(destination || masterGain);
+      osc.start(start);
+      osc.stop(start + duration + .03);
+    }
+
+    function scheduleMelody() {
+      if (!ensureAudio()) return;
+      const now = audioContext.currentTime + .08;
+      const notes = [196, 246.94, 293.66, 246.94, 220, 196, 164.81, 196, 246.94, 329.63, 293.66, 220];
+      notes.forEach((note, index) => {
+        const start = now + index * .42;
+        tone(note, start, .32, .055, index % 3 === 0 ? "triangle" : "sine", musicGain);
+        if (index % 4 === 0) tone(note / 2, start, .7, .022, "triangle", musicGain);
+      });
+    }
+
+    function startAudio() {
+      if (!ensureAudio() || musicTimer) return;
+      scheduleMelody();
+      musicTimer = setInterval(scheduleMelody, 5400);
+    }
+
+    function playCorrect() {
+      if (!ensureAudio()) return;
+      const now = audioContext.currentTime;
+      [392, 493.88, 587.33, 783.99].forEach((n, i) => tone(n, now + i * .08, .23, .11, "triangle"));
+    }
+
+    function playWrong() {
+      if (!ensureAudio()) return;
+      const now = audioContext.currentTime;
+      tone(146.83, now, .35, .13, "sawtooth");
+      tone(123.47, now + .13, .42, .1, "square");
+    }
+
+    function playFinish() {
+      if (!ensureAudio()) return;
+      const now = audioContext.currentTime;
+      [261.63, 329.63, 392, 523.25, 659.25].forEach((n, i) => tone(n, now + i * .13, .55, .12, "triangle"));
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      els.soundButton.textContent = soundEnabled ? "🔊" : "🔇";
+      els.soundButton.setAttribute("aria-label", soundEnabled ? "Выключить звук" : "Включить звук");
+      if (masterGain && audioContext) masterGain.gain.setTargetAtTime(soundEnabled ? .28 : .0001, audioContext.currentTime, .03);
+      if (soundEnabled) startAudio();
+    }
+
+    els.loginForm.addEventListener("submit", handleLogin);
+    els.startButton.addEventListener("click", startGame);
+    els.retryButton.addEventListener("click", startGame);
+    els.changeStudentButton.addEventListener("click", clearStudent);
+    els.finishChangeStudentButton.addEventListener("click", clearStudent);
+    els.soundButton.addEventListener("click", toggleSound);
+    window.addEventListener("online", flushPendingResults);
+
+    document.addEventListener("visibilitychange", () => {
+      if (!audioContext) return;
+      if (document.hidden) audioContext.suspend();
+      else if (soundEnabled) audioContext.resume();
+    });
+
+    function init() {
+      initializeIngredients();
+      const query = new URLSearchParams(location.search);
+      const qaMode = location.hostname === "terminal.local" && query.get("qa") === "1";
+      isQaMode = qaMode;
+      const queryCode = query.get("code");
+      if (qaMode) {
+        setStudent({ id: "qa-student", name: "Тестовый ученик", code: "QA" });
+        return;
+      }
+      if (queryCode) {
+        openLogin(queryCode);
+        els.loginForm.requestSubmit();
+      } else if (!readSavedStudent()) {
+        openLogin();
+      } else {
+        flushPendingResults();
+      }
+    }
+
+    // Небольшие безопасные тестовые точки для автоматической проверки файла.
+    window.__EGE_GAME_TEST__ = {
+      TEST_META,
+      QUESTIONS,
+      getScore: correct => Math.round(correct / TOTAL_QUESTIONS * 100),
+      getState: () => ({ gameActive, currentQuestion, questionAttempted, firstTryCorrect, resultSubmitted }),
+      payloadKeys: ["action","eventId","studentId","testId","testDate","topicId","topicName","taskNumber","scorePercent","durationSeconds","schemaVersion"]
+    };
+
+    init();
+  </script>
+</body>
+</html>
