@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f7cf18">
+  <title>ЕГЭ №5 — Лаборатория ошибок</title>
+  <style>
+    :root{
+      --yellow:#f8d31d;--yellow2:#fff178;--blue:#1769aa;--blue2:#0c3f71;
+      --ink:#17202b;--paper:#fffdf0;--green:#2fb66d;--red:#ef4e4e;--muted:#667386;
+      --shadow:0 18px 45px rgba(2,18,38,.24);--radius:22px
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink)}
+    body{
+      background:
+        radial-gradient(circle at 12% 14%,rgba(255,232,69,.18),transparent 22rem),
+        radial-gradient(circle at 88% 88%,rgba(49,148,218,.23),transparent 28rem),
+        linear-gradient(145deg,#071a31,#0c3158 55%,#08213d);
+      overflow-x:hidden
+    }
+    button,input{font:inherit}
+    button{cursor:pointer}
+    button:disabled{cursor:default}
+    .hidden{display:none!important}
+    .screen{min-height:100vh;padding:18px}
+    .center-screen{display:grid;place-items:center}
+    .panel{
+      width:min(1080px,100%);background:var(--paper);border:4px solid var(--ink);
+      border-radius:var(--radius);box-shadow:10px 10px 0 rgba(0,0,0,.23),var(--shadow)
+    }
+    .auth-card,.start-card,.result-card{max-width:720px;padding:clamp(22px,4vw,44px);text-align:center;position:relative;overflow:hidden}
+    .hazard{
+      height:18px;margin:-44px -44px 28px;background:repeating-linear-gradient(135deg,var(--yellow) 0 22px,var(--ink) 22px 44px)
+    }
+    .eyebrow{font-size:12px;font-weight:950;letter-spacing:.16em;text-transform:uppercase;color:var(--blue)}
+    h1,h2,p{margin-top:0}
+    h1{margin-bottom:10px;font-size:clamp(34px,6vw,68px);line-height:.9;letter-spacing:-.055em}
+    h2{font-size:clamp(27px,4vw,46px);letter-spacing:-.04em}
+    .lead{max-width:610px;margin:12px auto 22px;color:#49566a;font-weight:650;line-height:1.5}
+    .code-input{
+      width:min(390px,100%);padding:15px 18px;border:3px solid var(--ink);border-radius:14px;
+      background:white;text-align:center;font-size:18px;font-weight:850;letter-spacing:.08em;outline:none
+    }
+    .code-input:focus{box-shadow:0 0 0 5px rgba(248,211,29,.55)}
+    .primary,.ghost,.small-btn{
+      border:3px solid var(--ink);border-radius:14px;font-weight:950;transition:transform .16s,box-shadow .16s
+    }
+    .primary{padding:14px 22px;background:var(--yellow);box-shadow:5px 5px 0 var(--ink);color:var(--ink)}
+    .ghost{padding:12px 18px;background:#fff;color:var(--ink)}
+    .small-btn{padding:7px 11px;background:#fff;font-size:12px}
+    .primary:hover:not(:disabled),.ghost:hover:not(:disabled),.small-btn:hover:not(:disabled){transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--ink)}
+    .auth-card .primary{display:block;margin:18px auto 0;min-width:190px}
+    .message{min-height:22px;margin:10px 0 0;font-size:13px;font-weight:800;color:var(--muted)}
+    .message.error{color:var(--red)}.message.ok{color:#168452}.message.pending{color:#a76700}
+    .mascot-row{display:flex;justify-content:center;align-items:flex-end;height:118px;margin-bottom:16px}
+    .helper{
+      position:relative;width:82px;height:106px;border:4px solid var(--ink);border-radius:42px 42px 28px 28px;
+      background:var(--yellow);box-shadow:inset -10px 0 rgba(190,137,0,.15);transform:rotate(-4deg)
+    }
+    .helper.second{height:94px;margin-left:-4px;transform:rotate(7deg) scale(.9)}
+    .helper:before{
+      content:"";position:absolute;left:8px;right:8px;top:50px;height:52px;background:var(--blue);
+      border:4px solid var(--ink);border-radius:8px 8px 22px 22px
+    }
+    .helper-eye{
+      position:absolute;z-index:2;top:17px;left:20px;width:36px;height:36px;border:7px solid #aeb9c6;
+      border-radius:50%;background:#fff;box-shadow:0 0 0 3px var(--ink)
+    }
+    .helper-eye:after{content:"";position:absolute;left:7px;top:7px;width:9px;height:9px;border-radius:50%;background:var(--ink)}
+    .helper-mouth{position:absolute;z-index:3;left:29px;top:58px;width:22px;height:10px;border-bottom:4px solid var(--ink);border-radius:50%}
+    .mission-list{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:22px 0}
+    .mission-list div{padding:12px 8px;border:2px solid #d6dae0;border-radius:14px;background:white;font-size:13px;font-weight:800}
+    .student-pill{display:inline-flex;gap:10px;align-items:center;margin:2px 0 18px;padding:8px 10px 8px 14px;border-radius:999px;background:#e8f3ff;font-size:13px}
+
+    #gameScreen{display:flex;justify-content:center}
+    .game-wrap{width:min(1280px,100%);margin:0 auto}
+    .topbar{display:flex;align-items:center;gap:14px;color:white;margin-bottom:12px}
+    .logo{display:flex;align-items:center;gap:11px;font-weight:950;letter-spacing:.03em}
+    .logo-badge{display:grid;place-items:center;width:46px;height:46px;border:3px solid var(--ink);border-radius:50%;background:var(--yellow);font-size:24px}
+    .logo small{display:block;color:#bcd7ee;font-size:10px;letter-spacing:.12em}
+    .spacer{flex:1}
+    .sound-btn{padding:8px 11px;border:2px solid rgba(255,255,255,.5);border-radius:11px;background:rgba(255,255,255,.08);color:white;font-size:12px;font-weight:850}
+    .hud{display:grid;grid-template-columns:auto minmax(170px,1fr) auto auto;align-items:center;gap:12px;margin-bottom:12px;color:white}
+    .hud-chip{padding:8px 12px;border-radius:12px;background:rgba(255,255,255,.1);font-size:12px;font-weight:900}
+    .progress{height:13px;border:2px solid rgba(255,255,255,.65);border-radius:999px;overflow:hidden;background:#06182c}
+    .progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--yellow),#ff8f24);transition:width .35s}
+    .lab{width:100%;margin:0 auto;padding:15px}
+    .task-head{display:flex;align-items:start;gap:12px;margin-bottom:10px}
+    .prototype-tag{padding:6px 10px;border-radius:10px;background:var(--blue);color:white;font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.06em}
+    .task-no{margin-left:auto;font-size:12px;font-weight:950;color:var(--muted)}
+    .condition{
+      display:grid;grid-template-columns:72px 1fr;align-items:center;gap:14px;padding:13px 16px;
+      border:3px solid var(--ink);border-radius:17px;background:linear-gradient(100deg,#fff8bd,#fff);
+      font-size:clamp(14px,1.4vw,18px);font-weight:750;line-height:1.35
+    }
+    .condition-icon{display:grid;place-items:center;width:58px;height:58px;border:3px solid var(--ink);border-radius:50%;background:var(--yellow);font-size:31px}
+    .prompt{margin:11px 2px 9px;font-size:13px;font-weight:950;color:white}
+    .steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+    .step-card{
+      position:relative;min-height:232px;padding:11px;border:3px solid var(--ink);border-radius:17px;background:white;
+      color:var(--ink);text-align:left;box-shadow:4px 4px 0 #aeb8c4;transition:transform .16s,box-shadow .16s,background .2s
+    }
+    .step-card:hover:not(:disabled){transform:translateY(-4px);box-shadow:4px 8px 0 #8895a4}
+    .step-card:focus-visible{outline:5px solid var(--yellow2);outline-offset:2px}
+    .step-card.right{background:#dff8e9;border-color:#126a43;box-shadow:4px 4px 0 #126a43}
+    .step-card.wrong{background:#ffe1df;border-color:#a61e28;box-shadow:4px 4px 0 #a61e28}
+    .step-card.reveal{background:#fff6a6;border-color:#9d7400;box-shadow:4px 4px 0 #9d7400}
+    .step-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .step-num{display:grid;place-items:center;width:32px;height:32px;border:3px solid var(--ink);border-radius:50%;background:var(--yellow);font-weight:950}
+    .step-label{font-size:10px;font-weight:950;letter-spacing:.09em;color:var(--muted)}
+    .step-art{
+      position:relative;display:grid;place-items:center;height:92px;margin:9px 0;border:2px solid #ccd3dc;border-radius:13px;
+      overflow:hidden;background:
+        radial-gradient(circle at 20% 25%,rgba(255,255,255,.9),transparent 22%),
+        repeating-linear-gradient(0deg,rgba(31,105,179,.06) 0 1px,transparent 1px 14px),#edf6ff;
+      font-size:43px
+    }
+    .step-art:after{content:"";position:absolute;left:8px;right:8px;bottom:7px;height:5px;border-radius:9px;background:linear-gradient(90deg,var(--blue),var(--yellow))}
+    .step-copy{font-size:13px;font-weight:720;line-height:1.36}
+    .formula{display:block;margin-top:6px;padding:6px 7px;border-radius:8px;background:#edf2f7;font-family:"Courier New",monospace;font-weight:900;color:#172b43}
+    .feedback{
+      display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;min-height:66px;margin-top:12px;
+      padding:10px 12px;border:3px solid var(--ink);border-radius:16px;background:#f4f7fa
+    }
+    .feedback.good{background:#dff8e9}.feedback.bad{background:#fff1c7}
+    .feedback-icon{font-size:30px}.feedback b{display:block;font-size:14px}.feedback span{font-size:12px;color:#475568;font-weight:700}
+    .next-btn{padding:10px 14px}
+    .result-card{max-width:790px}
+    .score-bubble{
+      display:grid;place-items:center;width:150px;height:150px;margin:10px auto 16px;border:5px solid var(--ink);
+      border-radius:50%;background:conic-gradient(var(--yellow) var(--score-angle,0deg),#e3e8ee 0);box-shadow:7px 7px 0 var(--ink)
+    }
+    .score-bubble div{display:grid;place-items:center;width:112px;height:112px;border:3px solid var(--ink);border-radius:50%;background:var(--paper)}
+    .score-bubble strong{font-size:38px;line-height:1}.score-bubble span{font-size:10px;font-weight:950}
+    .mission-map{display:grid;grid-template-columns:repeat(15,1fr);gap:5px;margin:16px 0}
+    .mission-dot{display:grid;place-items:center;aspect-ratio:1;border:2px solid var(--ink);border-radius:8px;background:#ffd8d8;font-size:11px;font-weight:950}
+    .mission-dot.ok{background:#bdf0d2}
+    .actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:16px}
+    .rank{display:inline-block;padding:7px 12px;border-radius:10px;background:var(--blue);color:white;font-weight:950}
+    .confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+    .confetti i{position:absolute;top:-20px;width:10px;height:18px;background:var(--yellow);animation:fall 2.4s linear forwards}
+    @keyframes fall{to{transform:translateY(110vh) rotate(760deg)}}
+    @media(max-width:950px){
+      .steps{grid-template-columns:repeat(2,1fr)}
+      .step-card{min-height:205px}.step-art{height:70px}
+    }
+    @media(max-width:620px){
+      .screen{padding:9px}.hazard{margin:-22px -22px 20px}.auth-card,.start-card,.result-card{padding:22px}
+      .mission-list{grid-template-columns:1fr}.hud{grid-template-columns:auto 1fr auto}.hud .streak{display:none}
+      .condition{grid-template-columns:48px 1fr;padding:10px}.condition-icon{width:44px;height:44px;font-size:24px}
+      .steps{grid-template-columns:1fr}.step-card{min-height:0;display:grid;grid-template-columns:34px 68px 1fr;gap:9px;align-items:center}
+      .step-top{display:block}.step-label{display:none}.step-art{height:62px;margin:0;font-size:30px}.step-copy{font-size:12px}
+      .feedback{grid-template-columns:auto 1fr}.feedback .next-btn{grid-column:1/-1}.mission-map{grid-template-columns:repeat(8,1fr)}
+    }
+  </style>
+</head>
+<body>
+  <section id="authScreen" class="screen center-screen">
+    <div class="panel auth-card">
+      <div class="hazard"></div>
+      <div class="mascot-row" aria-hidden="true">
+        <div class="helper"><i class="helper-eye"></i><i class="helper-mouth"></i></div>
+        <div class="helper second"><i class="helper-eye"></i><i class="helper-mouth"></i></div>
+      </div>
+      <div class="eyebrow">Секретный допуск · ЕГЭ №5</div>
+      <h1>ЛАБОРАТОРИЯ<br>ОШИБОК</h1>
+      <p class="lead">Введите личный код, чтобы результаты эксперимента сохранились.</p>
+      <input id="studentCode" class="code-input" type="text" autocomplete="off" spellcheck="false" placeholder="ЛИЧНЫЙ КОД">
+      <div id="authMessage" class="message"></div>
+      <button id="loginBtn" class="primary">Получить допуск</button>
+    </div>
+  </section>
+
+  <section id="startScreen" class="screen center-screen hidden">
+    <div class="panel start-card">
+      <div class="hazard"></div>
+      <div class="eyebrow">Злодейский экзамен по вероятности</div>
+      <h1>НАЙДИ<br>СБОЙ</h1>
+      <p class="lead">Помощники решили задачу по шагам, но в одном месте всё испортили. Найди <b>первый ошибочный шаг</b>, пока эксперимент не взорвался.</p>
+      <div class="mission-list">
+        <div>🧪 15 заданий</div>
+        <div>🕵️ 4 шага решения</div>
+        <div>🍌 Балл за первый выбор</div>
+      </div>
+      <div class="student-pill">Агент: <b id="startStudent">—</b><button id="changeStudentStart" class="small-btn">сменить</button></div><br>
+      <button id="startBtn" class="primary">▶ Запустить эксперимент</button>
+    </div>
+  </section>
+
+  <section id="gameScreen" class="screen hidden">
+    <div class="game-wrap">
+      <header class="topbar">
+        <div class="logo"><span class="logo-badge">🧪</span><span>ЛАБОРАТОРИЯ ОШИБОК<small>ПРОТОТИПЫ ЗАДАНИЯ №5</small></span></div>
+        <span class="spacer"></span>
+        <button class="sound-btn" data-sound>♫ ЗВУК</button>
+      </header>
+      <div class="hud">
+        <div class="hud-chip">ОПЫТ <b id="questionNum">1</b>/15</div>
+        <div class="progress"><i id="progressFill"></i></div>
+        <div class="hud-chip">🍌 <b id="scoreNow">0</b></div>
+        <div class="hud-chip streak">🔥 <b id="streakNow">0</b></div>
+      </div>
+      <article class="panel lab">
+        <div class="task-head">
+          <span id="prototypeTag" class="prototype-tag">Прототип</span>
+          <span id="taskNo" class="task-no">ЗАДАНИЕ 1</span>
+        </div>
+        <div class="condition">
+          <span id="conditionIcon" class="condition-icon">🎲</span>
+          <span id="conditionText"></span>
+        </div>
+        <div class="prompt">НАЖМИ НА ПЕРВЫЙ ШАГ, ГДЕ ПОЯВИЛАСЬ ОШИБКА:</div>
+        <div id="steps" class="steps"></div>
+        <div id="feedback" class="feedback">
+          <span id="feedbackIcon" class="feedback-icon">🔬</span>
+          <div><b id="feedbackTitle">Изучи решение помощников</b><span id="feedbackText">На первый выбор даётся один балл.</span></div>
+          <button id="nextBtn" class="primary next-btn hidden">Следующий опыт →</button>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section id="resultScreen" class="screen center-screen hidden">
+    <div class="panel result-card">
+      <div class="hazard"></div>
+      <div class="eyebrow">Эксперимент завершён</div>
+      <h2>ЛАБОРАТОРИЯ СПАСЕНА!</h2>
+      <div id="scoreBubble" class="score-bubble"><div><strong id="finalScore">0/15</strong><span>СБОЕВ НАЙДЕНО</span></div></div>
+      <div id="rank" class="rank">ЛАБОРАНТ</div>
+      <p id="resultMessage" class="lead"></p>
+      <div id="missionMap" class="mission-map" aria-label="Результаты по заданиям"></div>
+      <div id="saveStatus" class="message">Сохраняем результат…</div>
+      <div class="actions">
+        <button id="againBtn" class="primary">↻ Новый эксперимент</button>
+        <button id="changeStudentResult" class="ghost">Сменить ученика</button>
+      </div>
+    </div>
+  </section>
+  <div id="confetti" class="confetti" aria-hidden="true"></div>
+
+  <script>
+  "use strict";
+  const $=id=>document.getElementById(id);
+  const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+  const TEST_META={
+    testId:'EGE-5-VILLAIN-ERROR-LAB-15',
+    topicId:'task-5',
+    topicName:'Вероятность: найди ошибочный шаг решения',
+    taskNumber:5,
+    schemaVersion:1
+  };
+  const PENDING_KEY='egePendingTestResults';
+  const TASKS=[
+    {
+      type:'Сумма несовместных событий',icon:'📚',error:3,
+      condition:'Вероятность темы «Планиметрия» равна 0,3, а темы «Стереометрия» — 0,4. Общих вопросов нет. Найдите вероятность получить одну из этих тем.',
+      steps:[
+        {art:'📘 📐',text:'Обозначим события: A — планиметрия, B — стереометрия.'},
+        {art:'⭕  ⭕',text:'События несовместны, поэтому вероятности нужно сложить.',formula:'P(A∪B)=P(A)+P(B)'},
+        {art:'✖️',text:'Подставим данные и перемножим вероятности.',formula:'0,3·0,4=0,12'},
+        {art:'📌',text:'Получаем ответ 0,12.'}
+      ],
+      explain:'Несовместные события складывают: 0,3 + 0,4 = 0,7. Ошибка появилась при умножении на шаге 3.'
+    },
+    {
+      type:'Противоположное событие',icon:'💡',error:4,
+      condition:'Лампа прослужит не менее года с вероятностью 0,65. Найдите вероятность того, что она прослужит меньше года.',
+      steps:[
+        {art:'💡 ↔️',text:'События «не менее года» и «меньше года» противоположны.'},
+        {art:'🧩',text:'Используем дополнение до единицы.',formula:'P(Ā)=1−P(A)'},
+        {art:'🧮',text:'Вычисляем вероятность.',formula:'1−0,65=0,35'},
+        {art:'📌',text:'Записываем ответ 0,65.'}
+      ],
+      explain:'Расчёт на шаге 3 верный, но в ответ перенесено исходное число. Правильный ответ: 0,35.'
+    },
+    {
+      type:'Разность вложенных событий: ровно одно значение',icon:'🎯',error:3,
+      condition:'Вероятность решить больше 4 задач равна 0,8, а больше 5 задач — 0,62. Найдите вероятность решить ровно 5 задач.',
+      steps:[
+        {art:'⭕◉',text:'Событие «больше 5» вложено в событие «больше 4».'},
+        {art:'➖',text:'Для ровно 5 задач вычитаем вложенную часть.',formula:'P(X=5)=P(X>4)−P(X>5)'},
+        {art:'🧮',text:'Вычисляем разность.',formula:'0,8−0,62=0,28'},
+        {art:'📌',text:'Получаем ответ 0,28.'}
+      ],
+      explain:'На шаге 3 неверно выполнено вычитание: 0,8 − 0,62 = 0,18.'
+    },
+    {
+      type:'Разность вложенных событий: интервал',icon:'🔋',error:2,
+      condition:'Аккумулятор служит больше года с вероятностью 0,95, а больше двух лет — с вероятностью 0,86. Найдите вероятность срока от 1 до 2 лет.',
+      steps:[
+        {art:'🔋➡️',text:'Срок больше 2 лет входит в событие «больше 1 года».'},
+        {art:'➕',text:'Чтобы выделить промежуток, сложим вероятности.',formula:'P(1<T≤2)=0,95+0,86'},
+        {art:'🧮',text:'Получаем 1,81.'},
+        {art:'📌',text:'Ответ: 1,81.'}
+      ],
+      explain:'Вложенную часть нужно вычесть: 0,95 − 0,86 = 0,09. Ошибка возникла на шаге 2.'
+    },
+    {
+      type:'Разность вложенных событий: целые значения',icon:'🚌',error:4,
+      condition:'В вагоне меньше 30 пассажиров с вероятностью 0,75, а меньше 20 — с вероятностью 0,5. Найдите вероятность числа пассажиров от 20 до 29.',
+      steps:[
+        {art:'🚌 30',text:'Событие «меньше 20» вложено в событие «меньше 30».'},
+        {art:'➖',text:'Искомый диапазон находим вычитанием.',formula:'P(20≤X<30)=P(X<30)−P(X<20)'},
+        {art:'🧮',text:'Вычисляем.',formula:'0,75−0,5=0,25'},
+        {art:'📌',text:'Записываем ответ 0,2.'}
+      ],
+      explain:'Первые три шага верны. На шаге 4 искажён уже полученный результат. Ответ: 0,25.'
+    },
+    {
+      type:'Пересечение двух событий',icon:'📦',error:2,
+      condition:'Масса посылки меньше 2 кг с вероятностью 0,9 и больше 1 кг с вероятностью 0,75. Найдите вероятность массы от 1 до 2 кг.',
+      steps:[
+        {art:'◯◯',text:'События «меньше 2» и «больше 1» вместе покрывают все возможные массы.'},
+        {art:'✖️',text:'Будем считать события независимыми и перемножим.',formula:'P(A∩B)=P(A)·P(B)'},
+        {art:'🧮',text:'Вычисляем.',formula:'0,9·0,75=0,675'},
+        {art:'📌',text:'Ответ: 0,675.'}
+      ],
+      explain:'Независимость не дана. Здесь P(A∩B)=P(A)+P(B)−1=0,9+0,75−1=0,65.'
+    },
+    {
+      type:'Ни одно из двух событий',icon:'☕',error:3,
+      condition:'Вероятность сбоя каждого из двух терминалов равна 0,2, а сбоя обоих — 0,05. Найдите вероятность, что оба проработают без сбоя.',
+      steps:[
+        {art:'🖥️ 🖥️',text:'Сначала найдём вероятность сбоя хотя бы одного терминала.'},
+        {art:'⭕∪⭕',text:'Для объединения используем формулу.',formula:'P(A∪B)=P(A)+P(B)−P(A∩B)'},
+        {art:'🧮',text:'Подставляем числа.',formula:'0,2+0,2+0,05=0,45'},
+        {art:'📌',text:'Тогда вероятность без сбоев: 1−0,45=0,55.'}
+      ],
+      explain:'На шаге 3 пересечение нужно вычесть: 0,2+0,2−0,05=0,35. Ответ: 1−0,35=0,65.'
+    },
+    {
+      type:'Условная вероятность',icon:'🎲',error:1,
+      condition:'Кость бросили дважды. Известно, что шестёрка не выпала ни разу. Найдите вероятность суммы 7 при этом условии.',
+      steps:[
+        {art:'🎲 🎲',text:'После условия всё равно остаётся 36 равновероятных пар исходов.'},
+        {art:'2+5',text:'Сумму 7 дают четыре допустимые пары: (2;5), (3;4), (4;3), (5;2).'},
+        {art:'4️⃣/36',text:'Делим число благоприятных исходов на 36.',formula:'P=4/36'},
+        {art:'📌',text:'Ответ: 1/9.'}
+      ],
+      explain:'Условие исключает шестёрки: остаётся 5·5=25 пар. Благоприятных пар 4, поэтому P=4/25=0,16.'
+    },
+    {
+      type:'Произведение независимых событий',icon:'🎾',error:4,
+      condition:'Теннисист выигрывает первую партию с вероятностью 0,8, вторую — с вероятностью 0,5. Партии независимы. Найдите вероятность выиграть обе.',
+      steps:[
+        {art:'🎾 ①②',text:'Нужно одновременное наступление двух независимых побед.'},
+        {art:'✖️',text:'Вероятности независимых событий перемножаются.',formula:'P=P₁·P₂'},
+        {art:'🧮',text:'Вычисляем.',formula:'0,8·0,5=0,4'},
+        {art:'📌',text:'Записываем ответ 0,04.'}
+      ],
+      explain:'На шаге 4 потерян разряд после верного вычисления. Правильный ответ: 0,4.'
+    },
+    {
+      type:'Заданная цепочка успехов и неудач',icon:'🎯',error:2,
+      condition:'Стрелок делает 4 независимых выстрела с вероятностью попадания 0,5. Найдите вероятность попасть в две первые и промахнуться по двум последним.',
+      steps:[
+        {art:'🎯🎯💨💨',text:'Нужна конкретная цепочка: попадание, попадание, промах, промах.'},
+        {art:'6️⃣',text:'Выберем любые два попадания из четырёх, поэтому умножим на C₄²=6.'},
+        {art:'🧮',text:'Вычисляем.',formula:'6·0,5⁴=0,375'},
+        {art:'📌',text:'Ответ: 0,375.'}
+      ],
+      explain:'Порядок уже задан, выбирать места попаданий не нужно. P=0,5⁴=0,0625.'
+    },
+    {
+      type:'Хотя бы одно благоприятное событие',icon:'🚨',error:3,
+      condition:'Два сигнализатора работают независимо. Вероятность отказа каждого равна 0,2. Найдите вероятность, что хотя бы один не откажет.',
+      steps:[
+        {art:'🚨 🚨',text:'Противоположное событие — отказали оба сигнализатора.'},
+        {art:'✖️',text:'Вероятность двойного отказа.',formula:'0,2·0,2=0,04'},
+        {art:'🧮',text:'Переходим к противоположному событию.',formula:'1−0,04=0,94'},
+        {art:'📌',text:'Ответ: 0,94.'}
+      ],
+      explain:'На шаге 3 допущена арифметическая ошибка: 1−0,04=0,96.'
+    },
+    {
+      type:'Выбор без возвращения',icon:'✏️',error:3,
+      condition:'В коробке 3 синих и 6 красных карандашей. Выбирают два без возвращения. Найдите вероятность выбрать карандаши разных цветов.',
+      steps:[
+        {art:'🔵🔴',text:'Подходят два порядка: синий–красный и красный–синий.'},
+        {art:'↔️',text:'Их вероятности равны, поэтому достаточно посчитать один порядок и удвоить.'},
+        {art:'🧮',text:'После первого выбора в коробке всё ещё 9 карандашей.',formula:'P=2·(3/9)·(6/9)'},
+        {art:'📌',text:'Получаем P=4/9.'}
+      ],
+      explain:'Выбор без возвращения уменьшает знаменатель: P=2·(3/9)·(6/8)=0,5.'
+    },
+    {
+      type:'Перебор подходящих исходов',icon:'⚽',error:2,
+      condition:'Команде нужно хотя бы 4 очка за две игры. Победа — 3, ничья — 1, поражение — 0. Вероятности победы и поражения по 0,1, ничьей — 0,8.',
+      steps:[
+        {art:'⚽ 4+',text:'Подходят результаты, которые дают не менее четырёх очков.'},
+        {art:'🏆🤝',text:'Таких цепочек две: победа–победа и победа–ничья.'},
+        {art:'🧮',text:'Складываем их вероятности.',formula:'0,1·0,1+0,1·0,8=0,09'},
+        {art:'📌',text:'Ответ: 0,09.'}
+      ],
+      explain:'На шаге 2 пропущен порядок «ничья–победа». Ответ: 0,01+0,08+0,08=0,17.'
+    },
+    {
+      type:'Формула полной вероятности',icon:'🍎',error:3,
+      condition:'10% фруктов повреждены. Сортировщик бракует повреждённый фрукт с вероятностью 0,8, а исправный по ошибке — с вероятностью 0,1. Найдите вероятность брака.',
+      steps:[
+        {art:'🍎 ↙️↘️',text:'Есть две ветви: повреждённый фрукт и исправный фрукт.'},
+        {art:'🍂',text:'Вклад повреждённой ветви.',formula:'0,1·0,8=0,08'},
+        {art:'🍏',text:'Для исправной ветви снова берём долю 0,1.',formula:'0,1·0,1=0,01'},
+        {art:'📌',text:'Сумма: 0,08+0,01=0,09.'}
+      ],
+      explain:'Исправных фруктов 0,9, а не 0,1. Вероятность брака: 0,1·0,8+0,9·0,1=0,17.'
+    },
+    {
+      type:'Испытания до первого успеха',icon:'🔫',error:3,
+      condition:'Вероятность попадания при каждом выстреле равна 0,7. Какое наименьшее число патронов нужно, чтобы попасть хотя бы раз с вероятностью не меньше 0,9?',
+      steps:[
+        {art:'🎯❓',text:'Вероятность промаха равна 1−0,7=0,3.'},
+        {art:'🔁',text:'Для n выстрелов используем дополнение.',formula:'P(хотя бы 1)=1−0,3ⁿ'},
+        {art:'2️⃣',text:'Проверяем два выстрела.',formula:'1−0,3²=0,81'},
+        {art:'📌',text:'Двух мало, поэтому ответ: 3.'}
+      ],
+      explain:'На шаге 3 неверно вычислено: 1−0,09=0,91. Уже двух патронов достаточно.'
+    }
+  ];
+
+  let currentStudent=null;
+  const S={order:[],index:0,score:0,streak:0,locked:false,answers:[],startedAt:0,resultSubmitted:false,sound:true};
+
+  function makeEventId(){
+    if(window.crypto&&typeof window.crypto.randomUUID==='function')return window.crypto.randomUUID();
+    return'evt-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+  }
+  function localDateString(){
+    const d=new Date();return[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+  }
+  function readPendingResults(){try{const v=JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');return Array.isArray(v)?v:[]}catch(_){return[]}}
+  function writePendingResults(queue){localStorage.setItem(PENDING_KEY,JSON.stringify(queue))}
+  function queuePendingResult(payload){const q=readPendingResults();if(!q.some(x=>x&&x.eventId===payload.eventId))q.push(payload);writePendingResults(q)}
+  async function postResult(payload){
+    const response=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow'});
+    if(!response.ok)throw new Error('HTTP '+response.status);
+  }
+  async function flushPendingResults(){
+    const queue=readPendingResults();if(!queue.length||!navigator.onLine)return;
+    const sent=new Set();
+    for(const payload of queue){try{await postResult(payload);if(payload&&payload.eventId)sent.add(payload.eventId)}catch(_){}}
+    writePendingResults(readPendingResults().filter(x=>!x||!sent.has(x.eventId)));
+  }
+  function setSaveStatus(text,kind=''){$('saveStatus').textContent=text;$('saveStatus').className='message '+kind}
+  async function submitResult(payload){
+    try{await postResult(payload);setSaveStatus('✓ Результат сохранён','ok')}
+    catch(_){queuePendingResult(payload);setSaveStatus('Нет связи: результат сохранён на устройстве и отправится позже','pending')}
+  }
+  function savedStudent(){
+    const studentId=localStorage.getItem('egeStudentId'),name=localStorage.getItem('egeStudentName'),code=localStorage.getItem('egeStudentCode');
+    return studentId&&code?{studentId,name:name||'Ученик',code}:null;
+  }
+  function rememberStudent(student,code){
+    localStorage.setItem('egeStudentId',String(student.studentId));localStorage.setItem('egeStudentName',String(student.name||'Ученик'));localStorage.setItem('egeStudentCode',String(code));
+  }
+  function clearStudent(){
+    localStorage.removeItem('egeStudentId');localStorage.removeItem('egeStudentName');localStorage.removeItem('egeStudentCode');currentStudent=null;
+  }
+  function studentFromResponse(data){
+    if(!data||data.ok===false||data.success===false||data.valid===false)return null;
+    const source=data.student||data.data||data.result||data;
+    const studentId=source.studentId??source.id??data.studentId??data.id;
+    const name=source.studentName??source.name??data.studentName??data.name;
+    return studentId!==undefined&&studentId!==null&&studentId!==''?{studentId:String(studentId),name:String(name||'Ученик')}:null;
+  }
+  function validateStudentCode(code){
+    return new Promise((resolve,reject)=>{
+      const callback='__egeErrorLab_'+Date.now()+'_'+Math.random().toString(36).slice(2),script=document.createElement('script');let settled=false;
+      const timer=setTimeout(()=>finish(new Error('Сервер не ответил. Проверьте интернет')),15000);
+      function cleanup(){clearTimeout(timer);try{delete window[callback]}catch(_){window[callback]=undefined}script.remove()}
+      function finish(error,value){if(settled)return;settled=true;cleanup();error?reject(error):resolve(value)}
+      window[callback]=data=>{const student=studentFromResponse(data);student?finish(null,student):finish(new Error((data&&(data.error||data.message))||'Код ученика не найден'))};
+      script.onerror=()=>finish(new Error('Не удалось связаться с сервером'));
+      script.src=API_URL+'?'+new URLSearchParams({action:'validateStudent',code,callback}).toString();document.head.appendChild(script);
+    });
+  }
+  function showOnly(id){['authScreen','startScreen','gameScreen','resultScreen'].forEach(x=>$(x).classList.toggle('hidden',x!==id))}
+  function showLogin(prefill=''){showOnly('authScreen');$('studentCode').value=prefill;$('authMessage').textContent='';setTimeout(()=>$('studentCode').focus(),0)}
+  function showStart(){$('startStudent').textContent=currentStudent?currentStudent.name:'Ученик';showOnly('startScreen')}
+  function changeStudent(){clearStudent();showLogin('')}
+  async function loginStudent(){
+    const code=$('studentCode').value.trim();if(!code){$('authMessage').textContent='Введите личный код';$('authMessage').className='message error';return}
+    $('loginBtn').disabled=true;$('authMessage').textContent='Проверяем код…';$('authMessage').className='message';
+    try{currentStudent=await validateStudentCode(code);rememberStudent(currentStudent,code);showStart();flushPendingResults()}
+    catch(error){$('authMessage').textContent=error.message||'Не удалось проверить код';$('authMessage').className='message error'}
+    finally{$('loginBtn').disabled=false}
+  }
+
+  const Sound=(()=>{
+    let ac=null;
+    function tone(freq,dur=.1,type='square',gain=.05,delay=0){
+      if(!S.sound)return;if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();
+      const t=ac.currentTime+delay,o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=freq;
+      g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+dur);
+    }
+    return{
+      click(){tone(520,.05,'square',.035)},
+      good(){[523,659,784].forEach((f,i)=>tone(f,.18,'triangle',.08,i*.06))},
+      bad(){tone(170,.24,'sawtooth',.07);tone(120,.25,'square',.045,.08)}
+    };
+  })();
+  function toggleSound(){S.sound=!S.sound;document.querySelectorAll('[data-sound]').forEach(b=>b.textContent=S.sound?'♫ ЗВУК':'× БЕЗ ЗВУКА')}
+  function shuffle(array){for(let i=array.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[array[i],array[j]]=[array[j],array[i]]}return array}
+  function escapeHtml(value){return String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;')}
+
+  function startGame(){
+    if(!currentStudent){showLogin('');return}
+    S.order=shuffle(TASKS.map((_,i)=>i));S.index=0;S.score=0;S.streak=0;S.locked=false;S.answers=[];S.startedAt=Date.now();S.resultSubmitted=false;
+    showOnly('gameScreen');renderTask();
+  }
+  function renderTask(){
+    const task=TASKS[S.order[S.index]];S.locked=false;
+    $('questionNum').textContent=S.index+1;$('taskNo').textContent='ЗАДАНИЕ '+(S.index+1);$('prototypeTag').textContent=task.type;
+    $('conditionIcon').textContent=task.icon;$('conditionText').textContent=task.condition;
+    $('scoreNow').textContent=S.score;$('streakNow').textContent=S.streak;$('progressFill').style.width=(S.index/TASKS.length*100)+'%';
+    $('steps').innerHTML=task.steps.map((step,i)=>`
+      <button class="step-card" type="button" data-step="${i+1}" aria-label="Выбрать шаг ${i+1}">
+        <span class="step-top"><span class="step-num">${i+1}</span><span class="step-label">ШАГ РЕШЕНИЯ</span></span>
+        <span class="step-art" aria-hidden="true">${escapeHtml(step.art)}</span>
+        <span class="step-copy">${escapeHtml(step.text)}${step.formula?`<span class="formula">${escapeHtml(step.formula)}</span>`:''}</span>
+      </button>`).join('');
+    document.querySelectorAll('[data-step]').forEach(button=>button.addEventListener('click',()=>chooseStep(Number(button.dataset.step))));
+    $('feedback').className='feedback';$('feedbackIcon').textContent='🔬';$('feedbackTitle').textContent='Изучи решение помощников';
+    $('feedbackText').textContent='На первый выбор даётся один балл.';$('nextBtn').classList.add('hidden');
+  }
+  function chooseStep(choice){
+    if(S.locked)return;S.locked=true;Sound.click();
+    const task=TASKS[S.order[S.index]],correct=choice===task.error;
+    if(correct){S.score++;S.streak++;Sound.good()}else{S.streak=0;Sound.bad()}
+    S.answers.push({taskIndex:S.order[S.index],correct,choice,error:task.error});
+    document.querySelectorAll('[data-step]').forEach(button=>{
+      const step=Number(button.dataset.step);button.disabled=true;
+      if(step===task.error)button.classList.add(correct?'right':'reveal');
+      if(step===choice&&!correct)button.classList.add('wrong');
+    });
+    $('scoreNow').textContent=S.score;$('streakNow').textContent=S.streak;
+    $('feedback').className='feedback '+(correct?'good':'bad');$('feedbackIcon').textContent=correct?'🍌':'💥';
+    $('feedbackTitle').textContent=correct?'Точно! Сбой найден.':'Сбой был на шаге '+task.error;
+    $('feedbackText').textContent=task.explain;$('nextBtn').textContent=S.index===TASKS.length-1?'Показать результат →':'Следующий опыт →';
+    $('nextBtn').classList.remove('hidden');
+  }
+  function nextTask(){
+    if(!S.locked)return;
+    if(S.index<TASKS.length-1){S.index++;renderTask()}else finishGame();
+  }
+  function confetti(){
+    const box=$('confetti');box.innerHTML='';
+    for(let i=0;i<36;i++){const piece=document.createElement('i');piece.style.left=Math.random()*100+'%';piece.style.animationDelay=Math.random()*.6+'s';piece.style.background=i%3===0?'#2fb66d':i%3===1?'#f8d31d':'#2e8dd2';box.appendChild(piece)}
+    setTimeout(()=>box.innerHTML='',3300);
+  }
+  function finishGame(){
+    if(S.resultSubmitted)return;S.resultSubmitted=true;
+    const scorePercent=Math.round(S.score/TASKS.length*100),durationSeconds=Math.max(0,Math.floor((Date.now()-S.startedAt)/1000));
+    $('finalScore').textContent=S.score+'/'+TASKS.length;$('scoreBubble').style.setProperty('--score-angle',scorePercent*3.6+'deg');
+    let rank,message;
+    if(S.score===15){rank='ГЛАВНЫЙ ЗЛОДЕЙ МАТЕМАТИКИ';message='Все ошибки найдены с первой попытки. Лаборатория вероятностей под полным контролем!'}
+    else if(S.score>=12){rank='СУПЕРАГЕНТ ЛАБОРАТОРИИ';message='Очень точная работа. Осталось проверить лишь несколько коварных прототипов.'}
+    else if(S.score>=8){rank='ОХОТНИК ЗА ОШИБКАМИ';message='Основные схемы понятны. Повтори задания, отмеченные красным.'}
+    else{rank='МЛАДШИЙ ЛАБОРАНТ';message='Ошибки пока хорошо маскируются. Пройди эксперимент ещё раз и сравни формулы.'}
+    $('rank').textContent=rank;$('resultMessage').textContent=message;
+    $('missionMap').innerHTML=S.answers.map((answer,i)=>`<span class="mission-dot ${answer.correct?'ok':''}" title="Задание ${i+1}: ${answer.correct?'верно':'ошибка'}">${i+1}</span>`).join('');
+    setSaveStatus('Сохраняем результат…');showOnly('resultScreen');if(S.score>=12)confetti();
+    submitResult({
+      action:'submitTest',eventId:makeEventId(),studentId:currentStudent.studentId,testId:TEST_META.testId,testDate:localDateString(),
+      topicId:TEST_META.topicId,topicName:TEST_META.topicName,taskNumber:TEST_META.taskNumber,scorePercent,durationSeconds,
+      correctCount:S.score,totalQuestions:TASKS.length,schemaVersion:TEST_META.schemaVersion
+    });
+  }
+
+  $('loginBtn').onclick=loginStudent;$('studentCode').addEventListener('keydown',event=>{if(event.key==='Enter')loginStudent()});
+  $('changeStudentStart').onclick=changeStudent;$('changeStudentResult').onclick=changeStudent;
+  $('startBtn').onclick=startGame;$('againBtn').onclick=startGame;$('nextBtn').onclick=nextTask;
+  document.querySelectorAll('[data-sound]').forEach(button=>button.onclick=toggleSound);
+  addEventListener('online',flushPendingResults);
+  currentStudent=savedStudent();const codeFromUrl=new URLSearchParams(location.search).get('code');
+  if(codeFromUrl){clearStudent();showLogin(codeFromUrl);loginStudent()}
+  else if(currentStudent){showStart();flushPendingResults()}
+  else showLogin('');
+  </script>
+</body>
+</html>
