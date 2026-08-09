@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#182f1d">
+  <title>Болотное ралли — двойной угол</title>
+  <style>
+    :root{
+      --ink:#1d2617;--deep:#142919;--moss:#365e2c;--leaf:#78a94f;--lime:#b7d96d;
+      --mud:#6e472b;--mud2:#9b6a3e;--cream:#fff5cf;--gold:#f3c44f;--orange:#e78736;
+      --danger:#a93f31;--sky:#93c7aa;--paper:#f8edc3;--shadow:0 18px 50px rgba(5,17,9,.34);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;font-family:Trebuchet MS,Arial,sans-serif;color:var(--cream);background:#142919}
+    button,input{font:inherit}
+    button{cursor:pointer}
+    button:disabled{cursor:not-allowed;opacity:.48}
+    .app{min-height:100vh;position:relative;overflow-x:hidden;background:
+      radial-gradient(circle at 12% 10%,rgba(139,184,91,.23),transparent 24%),
+      radial-gradient(circle at 85% 18%,rgba(213,183,70,.12),transparent 20%),
+      linear-gradient(#23492c 0 33%,#1c3823 33% 61%,#132a1b 61% 100%)}
+    .app:before,.app:after{content:"";position:fixed;z-index:0;pointer-events:none}
+    .app:before{left:-5vw;right:-5vw;bottom:-80px;height:42vh;background:
+      radial-gradient(ellipse at 15% 62%,#304f28 0 13%,transparent 13.5%),
+      radial-gradient(ellipse at 42% 70%,#3c5d2a 0 12%,transparent 12.5%),
+      radial-gradient(ellipse at 76% 58%,#294b25 0 15%,transparent 15.5%),
+      radial-gradient(ellipse at 90% 78%,#45662f 0 10%,transparent 10.5%),
+      linear-gradient(transparent 0 35%,#172b1c 36% 100%)}
+    .app:after{inset:0;background-image:
+      radial-gradient(circle at 8% 36%,rgba(241,215,111,.7) 0 2px,transparent 3px),
+      radial-gradient(circle at 92% 28%,rgba(241,215,111,.6) 0 2px,transparent 3px),
+      radial-gradient(circle at 75% 55%,rgba(174,212,99,.28) 0 3px,transparent 4px);
+      background-size:170px 180px,220px 210px,270px 250px;animation:fireflies 7s ease-in-out infinite alternate}
+    @keyframes fireflies{to{opacity:.35;transform:translateY(-8px)}}
+    .topbar{position:relative;z-index:6;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px clamp(14px,4vw,40px)}
+    .brand{display:flex;align-items:center;gap:10px;font-family:Georgia,serif;font-weight:900;letter-spacing:.02em}
+    .brand-mark{width:44px;height:44px;border-radius:50% 47% 48% 44%;display:grid;place-items:center;background:var(--lime);border:3px solid #20331b;color:#20331b;box-shadow:inset -5px -6px 0 rgba(54,94,44,.25),0 4px 0 #0f1e12;transform:rotate(-4deg);font-size:24px}
+    .top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+    .student-pill,.icon-btn{border:1px solid rgba(255,245,207,.25);background:rgba(13,31,18,.68);color:var(--cream);border-radius:999px;padding:9px 13px;backdrop-filter:blur(8px)}
+    .student-pill{font-size:14px;white-space:nowrap}
+    .icon-btn{width:42px;height:42px;padding:0;font-size:19px}
+    .screen{position:relative;z-index:2;display:none;min-height:calc(100vh - 72px);padding:16px clamp(14px,4vw,40px) 44px}
+    .screen.active{display:flex}
+    .intro{align-items:center;justify-content:center}
+    .parchment{position:relative;width:min(100%,980px);background:linear-gradient(135deg,#fff4ca,#ead89f);color:var(--ink);border:4px solid #66472c;border-radius:34px 28px 36px 24px;box-shadow:var(--shadow),inset 0 0 35px rgba(126,83,35,.18);padding:clamp(26px,5vw,58px);overflow:hidden}
+    .parchment:before{content:"";position:absolute;inset:12px;border:2px dashed rgba(110,71,43,.35);border-radius:25px;pointer-events:none}
+    .intro-grid{position:relative;display:grid;grid-template-columns:1.2fr .8fr;gap:34px;align-items:center}
+    .eyebrow{display:inline-flex;align-items:center;gap:7px;background:#d8e8a5;color:#284024;border:2px solid #526b37;border-radius:999px;padding:6px 11px;font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+    h1,h2,h3,p{margin-top:0}
+    h1{font-family:Georgia,serif;font-size:clamp(42px,7vw,78px);line-height:.88;margin:20px 0 18px;letter-spacing:-.055em;color:#294226;text-shadow:0 3px 0 rgba(255,255,255,.5)}
+    .lead{font-size:clamp(17px,2.2vw,22px);line-height:1.55;max-width:650px;color:#4f3c27}
+    .rules{display:grid;gap:9px;margin:24px 0}
+    .rule{display:flex;gap:10px;align-items:flex-start;font-weight:700;color:#38422b}
+    .rule-badge{flex:0 0 27px;height:27px;border-radius:50%;display:grid;place-items:center;background:#476d38;color:white}
+    .hero-buggy{min-height:330px;position:relative;display:grid;place-items:center}
+    .moon{position:absolute;top:20px;width:230px;height:230px;border-radius:50%;background:#bfdc7a;box-shadow:0 0 0 18px rgba(183,217,109,.13),inset -28px -18px 0 rgba(87,131,61,.18)}
+    .buggy{position:relative;width:270px;height:145px;filter:drop-shadow(0 16px 12px rgba(15,27,15,.32));animation:idleBuggy 2.4s ease-in-out infinite;z-index:1}
+    @keyframes idleBuggy{50%{transform:translateY(-8px) rotate(1deg)}}
+    .buggy-body{position:absolute;left:42px;top:42px;width:188px;height:76px;background:#82532f;border:5px solid #2c2418;border-radius:50% 36% 25% 35%;box-shadow:inset 0 -15px #5c3822}
+    .buggy-seat{position:absolute;left:115px;top:15px;width:80px;height:56px;background:#74482b;border:5px solid #2c2418;border-radius:22px 22px 8px 8px}
+    .buggy-flag{position:absolute;left:195px;top:-18px;width:5px;height:70px;background:#2c2418;transform:rotate(5deg)}
+    .buggy-flag:after{content:"2α";position:absolute;left:5px;top:0;width:55px;padding:7px 0;background:#b7d96d;color:#24351f;border:3px solid #2c2418;border-radius:4px 16px 16px 4px;text-align:center;font-weight:1000}
+    .wheel{position:absolute;top:95px;width:59px;height:59px;border:7px solid #292219;border-radius:50%;background:repeating-conic-gradient(#8c6338 0 14deg,#4e321f 14deg 28deg);box-shadow:inset 0 0 0 8px #b69259}
+    .wheel.one{left:42px}.wheel.two{right:31px}
+    .driver{position:absolute;left:135px;top:20px;width:38px;height:45px;background:#79a848;border:4px solid #26341f;border-radius:50% 50% 40% 40%}
+    .driver:before,.driver:after{content:"";position:absolute;top:-11px;width:12px;height:22px;border-radius:50%;background:#79a848;border:3px solid #26341f}
+    .driver:before{left:-5px;transform:rotate(-30deg)}.driver:after{right:-5px;transform:rotate(30deg)}
+    .btn{border:0;border-radius:16px;padding:14px 20px;font-weight:1000;color:#1e2d18;background:var(--lime);box-shadow:0 5px 0 #476b36,0 10px 18px rgba(29,48,25,.24);transition:.16s transform,.16s box-shadow}
+    .btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 7px 0 #476b36,0 13px 22px rgba(29,48,25,.27)}
+    .btn:active:not(:disabled){transform:translateY(4px);box-shadow:0 1px 0 #476b36}
+    .btn.big{font-size:18px;padding:17px 25px}
+    .btn.secondary{background:#f1dfaa;box-shadow:0 5px 0 #947449;color:#432f20}
+    .btn.small{font-size:13px;padding:9px 12px;border-radius:11px;box-shadow:0 3px 0 #476b36}
+    .intro-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .muted-note{font-size:13px;color:#67523a;margin:0}
+
+    /* theory */
+    .theory{align-items:flex-start;justify-content:center}
+    .theory-shell{width:min(1200px,100%);display:grid;gap:15px}
+    .theory-top{display:flex;align-items:flex-end;justify-content:space-between;gap:18px}
+    .theory-top h2{font-family:Georgia,serif;font-size:clamp(30px,4vw,52px);margin:0}
+    .step-dots{display:flex;gap:7px}
+    .step-dot{width:42px;height:11px;border:0;border-radius:999px;background:rgba(255,245,207,.2);padding:0;box-shadow:none}
+    .step-dot.done,.step-dot.current{background:var(--gold)}
+    .step-dot.current{outline:3px solid rgba(243,196,79,.22)}
+    .lesson-card{display:grid;grid-template-columns:minmax(280px,.92fr) minmax(330px,1.08fr);background:rgba(248,237,195,.96);color:var(--ink);border:4px solid #60472e;border-radius:30px;box-shadow:var(--shadow);overflow:hidden;min-height:610px}
+    .lesson-copy{padding:clamp(24px,4vw,48px);display:flex;flex-direction:column}
+    .lesson-kicker{color:#6a7e39;font-weight:1000;text-transform:uppercase;letter-spacing:.1em;font-size:13px}
+    .lesson-copy h3{font-family:Georgia,serif;font-size:clamp(30px,4vw,50px);line-height:1;margin:12px 0 18px;color:#2c4827}
+    .lesson-copy p{line-height:1.6;font-size:17px;color:#51412d}
+    .formula-card{background:#244326;color:#fff5cf;border:3px solid #0e2315;border-radius:20px;padding:18px;margin:8px 0 18px;box-shadow:inset 0 0 25px rgba(160,200,95,.1),0 5px 0 #122616}
+    .formula-main{font-family:Georgia,serif;font-size:clamp(24px,3.3vw,39px);font-weight:900;text-align:center;line-height:1.3}
+    .formula-sub{font-size:14px;color:#cfe49a;text-align:center;margin-top:7px}
+    .tip{display:flex;gap:11px;background:#e7d49e;border-left:5px solid #9d6733;border-radius:12px;padding:13px 14px;color:#513b25;font-weight:700;line-height:1.45}
+    .lesson-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:auto;padding-top:25px}
+    .visual-side{position:relative;background:
+      radial-gradient(circle at 50% 43%,rgba(221,231,154,.22),transparent 37%),
+      linear-gradient(145deg,#274c31,#162d1d);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;min-height:580px;overflow:hidden}
+    .visual-side:before{content:"ЛАБОРАТОРИЯ УГЛОВ";position:absolute;top:20px;letter-spacing:.17em;font-size:12px;font-weight:1000;color:#acc87d}
+    .circle-wrap{width:min(100%,430px);aspect-ratio:1;position:relative}
+    .unit-svg{width:100%;height:100%;overflow:visible}
+    .grid-line{stroke:rgba(255,245,207,.16);stroke-width:1}
+    .axis{stroke:#d6e9ad;stroke-width:2}.ring{fill:rgba(12,28,17,.35);stroke:#a8c870;stroke-width:4}
+    .ray-a{stroke:#f3c44f;stroke-width:5;stroke-linecap:round}.ray-2a{stroke:#e78736;stroke-width:4;stroke-linecap:round;stroke-dasharray:8 7}
+    .projection{stroke:#8fc7a7;stroke-width:2;stroke-dasharray:5 5}
+    .point-a{fill:#f3c44f;stroke:#fff5cf;stroke-width:3}.point-2a{fill:#e78736;stroke:#fff5cf;stroke-width:3}
+    .svg-label{font:700 14px Trebuchet MS;fill:#fff5cf}.svg-label.alpha{fill:#f3c44f}.svg-label.double{fill:#f0a35b}
+    .angle-panel{width:min(100%,440px);background:rgba(9,24,14,.75);border:1px solid rgba(255,245,207,.18);border-radius:18px;padding:14px}
+    .angle-values{display:flex;justify-content:space-between;gap:12px;font-weight:900;margin-bottom:10px}
+    .angle-range{width:100%;accent-color:#f3c44f}
+    .visual-controls{display:flex;gap:8px;margin-top:10px;justify-content:center}
+    .identity-meter{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+    .meter-part{height:11px;border-radius:99px;background:#102417;overflow:hidden}
+    .meter-part i{display:block;height:100%;transition:width .2s}.meter-part.sin i{background:#e78736}.meter-part.cos i{background:#f3c44f}
+    .meter-labels{display:flex;justify-content:space-between;font-size:12px;color:#cfe49a;margin-top:7px}
+
+    /* game */
+    .game{align-items:flex-start;justify-content:center}
+    .game-shell-inner{width:min(1240px,100%);display:grid;gap:14px}
+    .hud{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:12px;background:rgba(10,29,16,.75);border:1px solid rgba(255,245,207,.18);border-radius:18px;padding:12px 15px;backdrop-filter:blur(8px)}
+    .track-label{display:flex;justify-content:space-between;font-size:13px;font-weight:900;margin-bottom:7px}
+    .track{height:12px;background:#0d2114;border-radius:99px;overflow:hidden;border:1px solid rgba(255,255,255,.16)}
+    .track-fill{height:100%;width:0;background:linear-gradient(90deg,#7bab4c,#f3c44f);border-radius:99px;transition:width .65s cubic-bezier(.2,.9,.3,1)}
+    .hud-stat{min-width:100px;text-align:center;background:#f0dea8;color:#273520;padding:8px 12px;border-radius:13px;border:2px solid #755235}
+    .hud-stat b{display:block;font-size:20px}.hud-stat span{font-size:11px;text-transform:uppercase;font-weight:900}
+    .game-grid{display:grid;grid-template-columns:minmax(320px,.93fr) minmax(420px,1.07fr);gap:15px}
+    .rally-scene{position:relative;min-height:610px;border:4px solid #503d28;border-radius:28px;overflow:hidden;background:
+      radial-gradient(circle at 72% 18%,#c9dd81 0 7%,rgba(201,221,129,.12) 7.5% 16%,transparent 16.5%),
+      linear-gradient(#527553 0 36%,#345336 36% 55%,#172b1c 55%);box-shadow:var(--shadow)}
+    .tree{position:absolute;bottom:43%;width:45px;height:240px;background:#3a271b;border:4px solid #1d1913;border-radius:60% 30% 30% 20%}
+    .tree:before,.tree:after{content:"";position:absolute;border-radius:50%;background:#2b4b27;border:4px solid #182819}
+    .tree:before{width:140px;height:110px;left:-50px;top:-35px}.tree:after{width:120px;height:95px;left:-20px;top:22px}
+    .tree.t1{left:7%;transform:scale(.85)}.tree.t2{right:5%;transform:scale(1.05)}
+    .road{position:absolute;left:-10%;right:-10%;bottom:-4%;height:52%;background:
+      radial-gradient(ellipse at 12% 40%,#89603b 0 3%,transparent 3.5%),
+      radial-gradient(ellipse at 68% 70%,#9f7043 0 2.5%,transparent 3%),
+      linear-gradient(165deg,#5a3c27,#8b5a34 53%,#4b321f);clip-path:polygon(20% 0,80% 0,100% 100%,0 100%)}
+    .road:after{content:"";position:absolute;inset:8% 16%;border:4px dashed rgba(235,209,138,.3);border-top:0;border-bottom:0}
+    .puddle{position:absolute;width:110px;height:34px;border-radius:50%;background:#172f24;border:4px solid #334e37;box-shadow:inset 0 7px rgba(101,146,105,.25)}
+    .p1{left:12%;bottom:20%}.p2{right:13%;bottom:10%;transform:scale(.75)}
+    .checkpoint{position:absolute;left:8%;right:8%;bottom:12%;display:grid;grid-template-columns:repeat(6,1fr);gap:7px;z-index:2}
+    .checkpoint i{height:8px;border-radius:50%;background:rgba(255,244,202,.2);border:1px solid rgba(255,244,202,.2)}
+    .checkpoint i.passed{background:var(--gold);box-shadow:0 0 8px var(--gold)}
+    .rally-car{position:absolute;left:16%;bottom:23%;width:225px;height:126px;z-index:4;transition:left .65s cubic-bezier(.15,.8,.25,1),transform .35s}
+    .rally-car.go{animation:carGo .7s ease}.rally-car.splash{animation:carSplash .65s ease}
+    @keyframes carGo{40%{transform:translateY(-12px) rotate(-2deg)}70%{transform:translateY(2px) rotate(2deg)}}
+    @keyframes carSplash{25%{transform:translateX(-9px) rotate(-4deg)}50%{transform:translateX(8px) rotate(4deg)}}
+    .rally-car .buggy{transform:scale(.82);transform-origin:left bottom;animation:none}
+    .mud-splash{position:absolute;left:32%;bottom:31%;font-size:0;opacity:0;z-index:5}
+    .mud-splash.show{animation:splash .7s ease}
+    .mud-splash:before,.mud-splash:after{content:"";position:absolute;width:22px;height:22px;border-radius:50%;background:#6e472b;box-shadow:35px -28px 0 #6e472b,67px -8px 0 #8c5d36,-25px -17px 0 #8c5d36}
+    .mud-splash:after{transform:scale(.55);left:25px;top:-35px}
+    @keyframes splash{0%{opacity:0;transform:scale(.3)}30%{opacity:1;transform:scale(1.2)}100%{opacity:0;transform:translateY(-28px) scale(.8)}}
+    .scene-sign{position:absolute;left:22px;top:20px;background:#f0dea8;color:#2a371f;border:3px solid #523922;border-radius:10px;padding:10px 14px;font-family:Georgia,serif;font-weight:900;transform:rotate(-2deg);box-shadow:0 5px 0 rgba(34,24,16,.5)}
+    .scene-caption{position:absolute;left:20px;right:20px;bottom:18px;text-align:center;color:#d8e8a5;font-weight:900;font-size:13px;z-index:3}
+    .question-card{min-height:610px;background:linear-gradient(140deg,#fff2c4,#e8d497);color:var(--ink);border:4px solid #5e422b;border-radius:28px;padding:clamp(22px,3.5vw,38px);box-shadow:var(--shadow);display:flex;flex-direction:column;position:relative}
+    .q-meta{display:flex;justify-content:space-between;gap:12px;align-items:center}
+    .q-type{font-size:12px;font-weight:1000;text-transform:uppercase;letter-spacing:.09em;color:#65763b;background:#dfe9ad;border:1px solid #77864c;padding:6px 9px;border-radius:999px}
+    .q-number{font-weight:1000;color:#6c5136}
+    .q-prompt{font-size:17px;line-height:1.45;margin:22px 0 8px;color:#59432c}
+    .q-expression{min-height:88px;display:grid;place-items:center;text-align:center;font-family:Georgia,serif;font-weight:900;font-size:clamp(27px,4vw,43px);line-height:1.35;color:#243b21;background:rgba(255,255,255,.28);border:2px dashed rgba(94,66,43,.38);border-radius:18px;padding:15px}
+    sup{font-size:.63em}
+    .answers{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin:20px 0}
+    .answer{min-height:62px;border:3px solid #6b7747;border-radius:15px;background:#eff0bd;color:#263920;font-size:20px;font-weight:1000;box-shadow:0 4px 0 #7c7047;transition:.15s}
+    .answer:hover:not(:disabled){transform:translateY(-2px);background:#f6f3c9}
+    .answer.correct{background:#b9dc77;border-color:#416630;box-shadow:0 4px 0 #416630}
+    .answer.wrong{background:#e7a17e;border-color:#8e392d;box-shadow:0 4px 0 #8e392d;animation:shake .35s}
+    @keyframes shake{25%,75%{transform:translateX(-5px)}50%{transform:translateX(6px)}}
+    .feedback{min-height:73px;border-radius:14px;padding:13px 15px;background:#ead9a9;color:#513a26;line-height:1.45;font-size:14px;border-left:5px solid #966837}
+    .feedback.good{background:#d9e8a7;border-left-color:#4a7534}.feedback.bad{background:#efc4a8;border-left-color:#a84b35}
+    .next-row{display:flex;justify-content:flex-end;margin-top:auto;padding-top:14px}
+
+    /* finish + login */
+    .finish{align-items:center;justify-content:center}
+    .finish-card{width:min(900px,100%);background:linear-gradient(135deg,#fff2c5,#e5cf8f);color:var(--ink);border:4px solid #5f432c;border-radius:32px;box-shadow:var(--shadow);padding:clamp(25px,5vw,55px);text-align:center}
+    .trophy{font-size:70px;filter:drop-shadow(0 7px 0 rgba(91,62,35,.25));animation:trophy 1.6s ease-in-out infinite alternate}
+    @keyframes trophy{to{transform:translateY(-7px) rotate(3deg)}}
+    .finish h2{font-family:Georgia,serif;font-size:clamp(36px,6vw,62px);margin:10px 0;color:#294526}
+    .result-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:25px 0}
+    .result-box{background:#244327;color:#fff4c9;border-radius:18px;padding:18px;border:3px solid #112716}
+    .result-box b{display:block;font-size:clamp(28px,5vw,44px);color:var(--gold)}
+    .result-box span{font-size:12px;text-transform:uppercase;font-weight:900;letter-spacing:.06em;color:#cfdfa4}
+    .save-status{min-height:25px;font-weight:900;color:#47652e}.save-status.offline{color:#9c4a32}
+    .finish-actions{display:flex;justify-content:center;gap:11px;flex-wrap:wrap;margin-top:18px}
+    .modal{position:fixed;z-index:30;inset:0;display:grid;place-items:center;padding:18px;background:rgba(6,17,9,.82);backdrop-filter:blur(9px)}
+    .modal.hide{display:none}
+    .login-card{width:min(470px,100%);background:linear-gradient(140deg,#fff1c1,#dfc98d);color:var(--ink);border:4px solid #60442c;border-radius:27px;padding:31px;box-shadow:var(--shadow);text-align:center}
+    .login-seal{width:78px;height:78px;margin:-5px auto 15px;display:grid;place-items:center;border-radius:50%;font-size:36px;background:#8bb459;border:5px solid #31502b;box-shadow:0 6px 0 #1d351c}
+    .login-card h2{font-family:Georgia,serif;font-size:31px;color:#294426;margin:0 0 8px}
+    .login-card p{color:#604a32;line-height:1.5}
+    .login-input{width:100%;border:3px solid #617047;border-radius:14px;background:#fff9db;color:#24331d;padding:15px;text-align:center;font-weight:1000;font-size:20px;letter-spacing:.12em;text-transform:uppercase;outline:none}
+    .login-input:focus{border-color:#385d32;box-shadow:0 0 0 4px rgba(90,125,66,.2)}
+    .login-error{min-height:21px;color:#a33c2e;font-weight:900;font-size:14px;margin:8px 0}
+    .login-card .btn{width:100%}
+    .toast{position:fixed;z-index:40;left:50%;bottom:24px;transform:translate(-50%,30px);background:#172b1c;color:#fff4c9;border:1px solid #8bad62;border-radius:14px;padding:11px 16px;opacity:0;pointer-events:none;transition:.25s}
+    .toast.show{opacity:1;transform:translate(-50%,0)}
+    @media(max-width:900px){
+      .intro-grid,.lesson-card,.game-grid{grid-template-columns:1fr}
+      .hero-buggy{display:none}
+      .lesson-card{min-height:0}.visual-side{min-height:520px}
+      .rally-scene{min-height:360px}.question-card{min-height:560px}
+      .tree{height:180px}.rally-car{bottom:23%;transform:scale(.8);transform-origin:left bottom}
+      .theory-top{align-items:flex-start;flex-direction:column}
+    }
+    @media(max-width:580px){
+      .brand span:last-child{display:none}.topbar{padding:10px 12px}.student-pill{max-width:170px;overflow:hidden;text-overflow:ellipsis}
+      .screen{padding:8px 10px 28px}.parchment{padding:28px 21px}.parchment:before{inset:8px}
+      h1{font-size:46px}.intro-actions{align-items:stretch;flex-direction:column}.intro-actions .btn{width:100%}
+      .lesson-copy{padding:25px 20px}.visual-side{padding:18px 8px;min-height:470px}
+      .lesson-actions{gap:8px}.lesson-actions .btn{padding:12px 10px;font-size:13px}
+      .hud{grid-template-columns:1fr 82px}.hud-stat:last-child{display:none}.hud-stat{min-width:0}
+      .rally-scene{min-height:280px}.rally-car{left:6%;bottom:18%;transform:scale(.66)}
+      .question-card{padding:20px 16px;min-height:590px}.answers{grid-template-columns:1fr}
+      .answer{min-height:54px}.result-grid{grid-template-columns:1fr}.finish-card{padding:25px 18px}
+    }
+    @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">∿</span><span>Болотное ралли · двойной угол</span></div>
+    <div class="top-actions">
+      <span class="student-pill" id="studentPill">👤 ученик не выбран</span>
+      <button class="icon-btn" id="soundBtn" type="button" aria-label="Выключить звук" title="Музыка и звуки">🔊</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="screen intro active" id="introScreen">
+      <div class="parchment">
+        <div class="intro-grid">
+          <div>
+            <span class="eyebrow">🏁 Задание 7 · Профиль</span>
+            <h1>Болотное<br>ралли</h1>
+            <p class="lead">Сначала настрой двигатель формулами двойного угла, затем проведи телегу через 15 контрольных точек.</p>
+            <div class="rules">
+              <div class="rule"><span class="rule-badge">1</span><span>Четыре коротких пит-стопа теории с движущейся окружностью.</span></div>
+              <div class="rule"><span class="rule-badge">2</span><span>Все 15 заданий фиксированы и всегда идут в одном порядке.</span></div>
+              <div class="rule"><span class="rule-badge">3</span><span>В успешность входит только правильный ответ с первой попытки.</span></div>
+            </div>
+            <div class="intro-actions">
+              <button class="btn big" id="toTheoryBtn" type="button">Открыть капот с теорией →</button>
+              <button class="btn secondary small" id="changeStudentStart" type="button">Сменить ученика</button>
+              <p class="muted-note">Мелодия включится после первого нажатия.</p>
+            </div>
+          </div>
+          <div class="hero-buggy" aria-hidden="true">
+            <div class="moon"></div>
+            <div class="buggy">
+              <div class="buggy-flag"></div><div class="buggy-seat"></div><div class="driver"></div>
+              <div class="buggy-body"></div><div class="wheel one"></div><div class="wheel two"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen theory" id="theoryScreen">
+      <div class="theory-shell">
+        <div class="theory-top">
+          <div><span class="eyebrow">🔧 Пит-стоп теории</span><h2>Настройка двигателя</h2></div>
+          <div class="step-dots" id="stepDots" aria-label="Прогресс теории"></div>
+        </div>
+        <div class="lesson-card">
+          <article class="lesson-copy">
+            <div class="lesson-kicker" id="lessonKicker"></div>
+            <h3 id="lessonTitle"></h3>
+            <div id="lessonText"></div>
+            <div class="formula-card">
+              <div class="formula-main" id="lessonFormula"></div>
+              <div class="formula-sub" id="lessonFormulaSub"></div>
+            </div>
+            <div class="tip"><span>💡</span><span id="lessonTip"></span></div>
+            <div class="lesson-actions">
+              <button class="btn secondary" id="theoryBack" type="button">← Назад</button>
+              <button class="btn" id="theoryNext" type="button">Следующий пит-стоп →</button>
+            </div>
+          </article>
+          <aside class="visual-side">
+            <div class="circle-wrap">
+              <svg class="unit-svg" viewBox="0 0 360 360" role="img" aria-label="Единичная окружность с углами альфа и два альфа">
+                <line class="grid-line" x1="65" y1="65" x2="295" y2="295"/><line class="grid-line" x1="295" y1="65" x2="65" y2="295"/>
+                <circle class="ring" cx="180" cy="180" r="115"/>
+                <line class="axis" x1="42" y1="180" x2="318" y2="180"/><line class="axis" x1="180" y1="42" x2="180" y2="318"/>
+                <line class="projection" id="projX" x1="180" y1="180" x2="180" y2="180"/>
+                <line class="projection" id="projY" x1="180" y1="180" x2="180" y2="180"/>
+                <line class="ray-2a" id="ray2a" x1="180" y1="180" x2="295" y2="180"/>
+                <line class="ray-a" id="rayA" x1="180" y1="180" x2="295" y2="180"/>
+                <circle class="point-2a" id="point2a" cx="295" cy="180" r="8"/>
+                <circle class="point-a" id="pointA" cx="295" cy="180" r="9"/>
+                <text class="svg-label alpha" id="labelA" x="300" y="175">α</text>
+                <text class="svg-label double" id="label2a" x="300" y="197">2α</text>
+                <text class="svg-label" x="306" y="173">1</text><text class="svg-label" x="185" y="53">sin</text>
+                <text class="svg-label" x="266" y="199">cos</text>
+              </svg>
+            </div>
+            <div class="angle-panel">
+              <div class="angle-values"><span>α = <b id="angleAValue">30°</b></span><span>2α = <b id="angle2AValue">60°</b></span></div>
+              <input class="angle-range" id="angleRange" type="range" min="-180" max="180" value="30" step="1" aria-label="Значение угла альфа">
+              <div class="identity-meter"><div class="meter-part cos"><i id="cosMeter"></i></div><div class="meter-part sin"><i id="sinMeter"></i></div></div>
+              <div class="meter-labels"><span id="cosSquareLabel">cos² α</span><span id="sinSquareLabel">sin² α</span></div>
+              <div class="visual-controls"><button class="btn small" id="animateAngleBtn" type="button">▶ Вращать угол</button></div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen game" id="gameScreen">
+      <div class="game-shell-inner">
+        <div class="hud">
+          <div>
+            <div class="track-label"><span>Дорога через топь</span><span id="progressText">0 / 15</span></div>
+            <div class="track"><div class="track-fill" id="trackFill"></div></div>
+          </div>
+          <div class="hud-stat"><b id="firstTryHud">0</b><span>с первой</span></div>
+          <div class="hud-stat"><b id="timeHud">00:00</b><span>время</span></div>
+        </div>
+        <div class="game-grid">
+          <div class="rally-scene">
+            <div class="tree t1"></div><div class="tree t2"></div><div class="road"></div>
+            <div class="puddle p1"></div><div class="puddle p2"></div>
+            <div class="scene-sign">Финиш: 15 болотных вех</div>
+            <div class="checkpoint" id="checkpoints"></div>
+            <div class="rally-car" id="rallyCar">
+              <div class="buggy"><div class="buggy-flag"></div><div class="buggy-seat"></div><div class="driver"></div><div class="buggy-body"></div><div class="wheel one"></div><div class="wheel two"></div></div>
+            </div>
+            <div class="mud-splash" id="mudSplash"></div>
+            <div class="scene-caption" id="sceneCaption">Выбери ответ — и телега тронется.</div>
+          </div>
+          <article class="question-card">
+            <div class="q-meta"><span class="q-type" id="questionType"></span><span class="q-number" id="questionNumber">Веха 1 из 15</span></div>
+            <p class="q-prompt" id="questionPrompt"></p>
+            <div class="q-expression" id="questionExpression"></div>
+            <div class="answers" id="answers"></div>
+            <div class="feedback" id="feedback">Выбери один из четырёх ответов.</div>
+            <div class="next-row"><button class="btn" id="nextQuestionBtn" type="button" disabled>Дальше по кочкам →</button></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen finish" id="finishScreen">
+      <div class="finish-card">
+        <div class="trophy">🏆</div>
+        <span class="eyebrow">Финиш ралли</span>
+        <h2 id="finishTitle">Топь покорена!</h2>
+        <p id="finishText">Телега добралась до сухой земли.</p>
+        <div class="result-grid">
+          <div class="result-box"><b id="scoreResult">0%</b><span>успешность с первой</span></div>
+          <div class="result-box"><b id="correctResult">0 / 15</b><span>верно с первой</span></div>
+          <div class="result-box"><b id="timeResult">00:00</b><span>время ралли</span></div>
+        </div>
+        <div class="save-status" id="saveStatus"></div>
+        <div class="finish-actions">
+          <button class="btn big" id="replayBtn" type="button">Пройти ралли ещё раз</button>
+          <button class="btn secondary" id="repeatTheoryBtn" type="button">Повторить теорию</button>
+          <button class="btn secondary" id="changeStudentFinish" type="button">Сменить ученика</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal" id="loginModal">
+    <div class="login-card">
+      <div class="login-seal">🔐</div>
+      <h2>Болотный пропуск</h2>
+      <p>Введи личный код ученика. Он нужен только для записи результата ралли.</p>
+      <input class="login-input" id="studentCode" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ЛИЧНЫЙ КОД" aria-label="Личный код ученика">
+      <div class="login-error" id="loginError"></div>
+      <button class="btn big" id="loginBtn" type="button">Проверить код</button>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+const TEST_META=Object.freeze({
+  testId:'EGE-07-BOLOTNOE-RALLI-DOUBLE-ANGLE',
+  topicId:'task-07',
+  topicName:'Формулы двойного угла и основное тригонометрическое тождество',
+  taskNumber:7,
+  schemaVersion:1
+});
+const PENDING_KEY='egePendingTestResults';
+const $=id=>document.getElementById(id);
+
+const LESSONS=[
+  {
+    kicker:'Пит-стоп 1 из 4',
+    title:'Угол удваивается',
+    text:'<p>Жёлтый луч показывает <b>α</b>, оранжевый пунктир — <b>2α</b>. Подвигай ползунок: второй луч поворачивается вдвое быстрее.</p><p>На единичной окружности координаты точки равны <b>(cos α; sin α)</b>. Поэтому формулы двойного угла связывают координаты двух положений луча.</p>',
+    formula:'α → 2α',
+    sub:'Один оборот α превращается в два оборота 2α',
+    tip:'Проверяй знак по четверти, в которую попал угол 2α.'
+  },
+  {
+    kicker:'Пит-стоп 2 из 4',
+    title:'Главное тождество',
+    text:'<p>Проекции радиуса образуют прямоугольный треугольник. Его катеты — <b>cos α</b> и <b>sin α</b>, а гипотенуза единичной окружности равна 1.</p><p>По теореме Пифагора сумма квадратов всегда остаётся единицей. Полосы под окружностью показывают доли этой суммы.</p>',
+    formula:'sin<sup>2</sup> α + cos<sup>2</sup> α = 1',
+    sub:'Отсюда: sin² α = 1 − cos² α и cos² α = 1 − sin² α',
+    tip:'Если в выражении есть сумма квадратов синуса и косинуса одного угла — сразу заменяй её на 1.'
+  },
+  {
+    kicker:'Пит-стоп 3 из 4',
+    title:'Синус двойного угла',
+    text:'<p>Синус суммы раскрывается так: <b>sin(α + α)</b>. Одинаковые слагаемые складываются в удвоенное произведение.</p><p>Эта формула особенно полезна, когда в задании видишь произведение <b>sin α · cos α</b> или дробь с <b>sin 2α</b>.</p>',
+    formula:'sin 2α = 2 sin α cos α',
+    sub:'Значит, sin α cos α = ½ sin 2α',
+    tip:'Перед заменой вынеси коэффициент: например, 8 sin α cos α = 4 sin 2α.'
+  },
+  {
+    kicker:'Пит-стоп 4 из 4',
+    title:'Три лица косинуса',
+    text:'<p>У косинуса двойного угла три равноправные записи. Выбирай ту, которая подходит к данным: через оба квадрата, только через cos или только через sin.</p><p>В задачах №7 чаще всего дана одна функция — тогда удобно использовать вторую или третью форму.</p>',
+    formula:'cos 2α = cos<sup>2</sup> α − sin<sup>2</sup> α',
+    sub:'cos 2α = 2cos² α − 1 = 1 − 2sin² α',
+    tip:'Дан sin α — бери 1 − 2sin² α. Дан cos α — бери 2cos² α − 1.'
+  }
+];
+
+const QUESTION_BANK=[
+  {type:'Синус двойного угла',prompt:'Найдите значение выражения.',expr:'8 sin 15° cos 15°',options:['2','4','1','−2'],answer:'2',explain:'2 sin 15° cos 15° = sin 30° = 0,5. Поэтому 8 sin 15° cos 15° = 4 · 0,5 = 2.'},
+  {type:'Косинус двойного угла',prompt:'Известно, что sin α = 0,6. Найдите значение выражения.',expr:'25 cos 2α',options:['16','7','−7','13'],answer:'7',explain:'cos 2α = 1 − 2sin² α = 1 − 2 · 0,36 = 0,28. Умножаем на 25: 7.'},
+  {type:'Основное тождество',prompt:'Найдите значение выражения.',expr:'7(sin<sup>2</sup> α + cos<sup>2</sup> α) − 3',options:['7','10','4','3'],answer:'4',explain:'Сумма sin² α + cos² α равна 1. Получаем 7 · 1 − 3 = 4.'},
+  {type:'Синус двойного угла',prompt:'Найдите значение выражения.',expr:'10 sin 45° cos 45°',options:['10','2,5','0','5'],answer:'5',explain:'2 sin 45° cos 45° = sin 90° = 1. Значит, исходное выражение равно 5.'},
+  {type:'Косинус двойного угла',prompt:'Известно, что cos α = 0,5. Найдите значение выражения.',expr:'4 cos 2α',options:['2','−2','−1','0'],answer:'−2',explain:'cos 2α = 2cos² α − 1 = 2 · 0,25 − 1 = −0,5. Тогда 4cos 2α = −2.'},
+  {type:'Синус двойного угла',prompt:'Найдите значение выражения.',expr:'12 sin(π/12) cos(π/12)',options:['1,5','6','3','−3'],answer:'3',explain:'2 sin(π/12)cos(π/12) = sin(π/6) = 0,5. Значит, 12sin(π/12)cos(π/12) = 6 · 0,5 = 3.'},
+  {type:'Основное тождество',prompt:'Известно, что sin α = 0,8. Найдите cos² α.',expr:'cos<sup>2</sup> α',options:['0,64','0,8','1,36','0,36'],answer:'0,36',explain:'cos² α = 1 − sin² α = 1 − 0,64 = 0,36.'},
+  {type:'Синус двойного угла',prompt:'Найдите значение выражения.',expr:'(8 sin 32° cos 32°) / sin 64°',options:['4','8','2','16'],answer:'4',explain:'2 sin 32° cos 32° = sin 64°. В числителе 4sin 64°, поэтому дробь равна 4.'},
+  {type:'Косинус двойного угла',prompt:'Известно, что cos 2α = 0,25. Найдите значение выражения.',expr:'4 − 8 sin<sup>2</sup> α',options:['0,25','1','4','−1'],answer:'1',explain:'4 − 8sin² α = 4(1 − 2sin² α) = 4cos 2α = 4 · 0,25 = 1.'},
+  {type:'Синус двойного угла',prompt:'Найдите значение выражения.',expr:'6 sin 75° cos 75°',options:['3','0,75','−1,5','1,5'],answer:'1,5',explain:'2 sin 75° cos 75° = sin 150° = 0,5. Тогда выражение равно 3 · 0,5 = 1,5.'},
+  {type:'Косинус двойного угла',prompt:'Известно, что cos α = 0,8. Найдите значение выражения.',expr:'10 cos 2α',options:['6,4','−2,8','2,8','1,4'],answer:'2,8',explain:'cos 2α = 2 · 0,8² − 1 = 1,28 − 1 = 0,28. Умножаем на 10: 2,8.'},
+  {type:'Основное тождество',prompt:'Найдите значение выражения (знаменатель не равен нулю).',expr:'(1 − cos<sup>2</sup> α) / sin<sup>2</sup> α',options:['0','sin² α','cos² α','1'],answer:'1',explain:'1 − cos² α = sin² α. Получаем sin² α / sin² α = 1.'},
+  {type:'Синус двойного угла',prompt:'Найдите значение выражения.',expr:'3 sin(13π/12) cos(13π/12)',options:['0,75','1,5','−0,75','0,5'],answer:'0,75',explain:'2sin(13π/12)cos(13π/12) = sin(13π/6) = sin(π/6) = 0,5. Значит, выражение равно 1,5 · 0,5 = 0,75.'},
+  {type:'Косинус двойного угла',prompt:'Известно, что sin α = 0,2. Найдите значение выражения.',expr:'3 cos 2α',options:['2,88','−2,76','1,38','2,76'],answer:'2,76',explain:'cos 2α = 1 − 2 · 0,2² = 1 − 0,08 = 0,92. Тогда 3cos 2α = 2,76.'},
+  {type:'Основное тождество',prompt:'Найдите значение выражения.',expr:'5 sin<sup>2</sup> α + 5 cos<sup>2</sup> α',options:['5','1','25','0'],answer:'5',explain:'Выносим 5: 5(sin² α + cos² α) = 5 · 1 = 5.'},
+  {type:'Синус двойного угла',prompt:'Найдите значение выражения.',expr:'14 sin(7π/12) cos(7π/12)',options:['3,5','−3,5','−7','−1,75'],answer:'−3,5',explain:'2sin(7π/12)cos(7π/12) = sin(7π/6) = −0,5. Тогда выражение равно 7 · (−0,5) = −3,5.'},
+  {type:'Косинус двойного угла',prompt:'Известно, что cos α = 0,75. Найдите значение выражения.',expr:'8 cos 2α',options:['0,125','−1','1','9'],answer:'1',explain:'cos 2α = 2 · 0,75² − 1 = 1,125 − 1 = 0,125. Умножаем на 8: 1.'},
+  {type:'Синус двойного угла',prompt:'Известно, что sin 2α = −0,5. Найдите значение выражения.',expr:'4 sin α cos α',options:['−0,5','1','−2','−1'],answer:'−1',explain:'4sin α cos α = 2sin 2α = 2 · (−0,5) = −1.'},
+  {type:'Синус двойного угла',prompt:'Найдите значение выражения.',expr:'(5 sin 17° cos 17°) / sin 34°',options:['2,5','5','10','0,5'],answer:'2,5',explain:'sin 17°cos 17° = 0,5sin 34°. После сокращения получаем 5 · 0,5 = 2,5.'},
+  {type:'Косинус двойного угла',prompt:'Известно, что sin α = 0,5. Найдите значение выражения.',expr:'6 cos 2α',options:['−3','1,5','6','3'],answer:'3',explain:'cos 2α = 1 − 2 · 0,5² = 1 − 0,5 = 0,5. Умножаем на 6: 3.'},
+  {type:'Основное тождество',prompt:'Найдите значение выражения (знаменатель не равен нулю).',expr:'(1 − sin<sup>2</sup> α) / cos<sup>2</sup> α',options:['1','0','sin² α','cos² α'],answer:'1',explain:'1 − sin² α = cos² α. Получаем cos² α / cos² α = 1.'},
+  {type:'Синус двойного угла',prompt:'Найдите значение выражения.',expr:'18 sin(5π/12) cos(5π/12)',options:['9','2,25','4,5','−4,5'],answer:'4,5',explain:'2sin(5π/12)cos(5π/12) = sin(5π/6) = 0,5. Значит, выражение равно 9 · 0,5 = 4,5.'},
+  {type:'Основное тождество',prompt:'Известно, что cos α = 0,6. Найдите sin² α.',expr:'sin<sup>2</sup> α',options:['0,36','0,64','0,8','1,36'],answer:'0,64',explain:'sin² α = 1 − cos² α = 1 − 0,36 = 0,64.'},
+  {type:'Косинус двойного угла',prompt:'Известно, что cos 2α = 0,4. Найдите значение выражения.',expr:'12 cos<sup>2</sup> α − 6',options:['0,4','4,8','−2,4','2,4'],answer:'2,4',explain:'12cos² α − 6 = 6(2cos² α − 1) = 6cos 2α = 6 · 0,4 = 2,4.'},
+  {type:'Синус двойного угла',prompt:'Найдите значение выражения.',expr:'(sin 20° cos 20°) / sin 40°',options:['0,5','1','2','0,25'],answer:'0,5',explain:'sin 20°cos 20° = 0,5sin 40°. После сокращения дробь равна 0,5.'},
+  {type:'Косинус двойного угла',prompt:'Известно, что cos α = 0,1. Найдите значение выражения.',expr:'2 cos 2α',options:['1,96','−0,98','−1,96','−1,8'],answer:'−1,96',explain:'cos 2α = 2 · 0,1² − 1 = 0,02 − 1 = −0,98. Умножаем на 2: −1,96.'},
+  {type:'Основное тождество',prompt:'Найдите значение выражения.',expr:'2 sin<sup>2</sup> α + 2 cos<sup>2</sup> α + 7',options:['7','2','11','9'],answer:'9',explain:'2(sin² α + cos² α) + 7 = 2 · 1 + 7 = 9.'},
+  {type:'Косинус двойного угла',prompt:'Известно, что sin α = 0,4. Найдите значение выражения.',expr:'5 cos 2α',options:['3,4','4,2','−3,4','1,7'],answer:'3,4',explain:'cos 2α = 1 − 2 · 0,4² = 1 − 0,32 = 0,68. Умножаем на 5: 3,4.'},
+  {type:'Косинус двойного угла',prompt:'Известно, что cos 2α = −0,6. Найдите значение выражения.',expr:'3(cos<sup>2</sup> α − sin<sup>2</sup> α)',options:['1,8','−0,6','−1,8','−3'],answer:'−1,8',explain:'cos² α − sin² α = cos 2α. Поэтому выражение равно 3 · (−0,6) = −1,8.'},
+  {type:'Смешанный прототип',prompt:'Найдите значение выражения.',expr:'16 sin(π/4) cos(π/4) − 3(sin<sup>2</sup> α + cos<sup>2</sup> α)',options:['8','13','−5','5'],answer:'5',explain:'16sin(π/4)cos(π/4) = 8sin(π/2) = 8. Скобка равна 1, поэтому 8 − 3 = 5.'}
+];
+
+// Фиксированный маршрут из 15 выражений: порядок и числа не меняются.
+const QUESTIONS=[0,1,2,5,7,8,12,15,16,17,20,23,24,28,29].map(index=>QUESTION_BANK[index]);
+
+let student=null;
+let theoryStep=0;
+let gameActive=false;
+let currentQuestion=0;
+let firstTryCorrect=0;
+let questionAttempted=false;
+let questionSolved=false;
+let startedAt=0;
+let gameTimer=null;
+let attemptEventId='';
+let resultSubmitted=false;
+let angleTimer=null;
+let anglePlaying=false;
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(el=>el.classList.toggle('active',el.id===id));
+  window.scrollTo(0,0);
+}
+function toast(message){
+  $('toast').textContent=message;$('toast').classList.add('show');
+  clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').classList.remove('show'),2500);
+}
+function updateStudentUI(){
+  $('studentPill').textContent=student?'👤 '+student.name:'👤 ученик не выбран';
+}
+function readStudent(){
+  const id=localStorage.getItem('egeStudentId');
+  const name=localStorage.getItem('egeStudentName');
+  const code=localStorage.getItem('egeStudentCode');
+  if(!id||!name||!code)return false;
+  student={id,name,code};updateStudentUI();return true;
+}
+function saveStudent(data){
+  student=data;
+  localStorage.setItem('egeStudentId',data.id);
+  localStorage.setItem('egeStudentName',data.name);
+  localStorage.setItem('egeStudentCode',data.code);
+  updateStudentUI();$('loginModal').classList.add('hide');flushPendingResults();
+}
+function parseStudent(data,code){
+  const source=data&&typeof data.student==='object'?data.student:(data||{});
+  const id=source.studentId||source.id||(data&&data.studentId)||(data&&data.id);
+  const name=source.studentName||source.name||(data&&data.studentName)||(data&&data.name);
+  const rejected=data&&(data.success===false||data.valid===false||data.ok===false);
+  if(rejected||!id)throw new Error((data&&(data.message||data.error))||'Код не найден');
+  return{id:String(id),name:String(name||'Ученик'),code};
+}
+function validateStudent(code){
+  return new Promise((resolve,reject)=>{
+    const callback='__egeStudent_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const script=document.createElement('script');
+    const timer=setTimeout(()=>done(new Error('Сервер долго не отвечает')),12000);
+    function done(error,value){
+      clearTimeout(timer);delete window[callback];script.remove();
+      error?reject(error):resolve(value);
+    }
+    window[callback]=data=>{try{done(null,parseStudent(data,code));}catch(error){done(error);}};
+    script.onerror=()=>done(new Error('Не удалось связаться с сервером'));
+    script.src=API_URL+'?action=validateStudent&code='+encodeURIComponent(code)+'&callback='+encodeURIComponent(callback);
+    document.head.appendChild(script);
+  });
+}
+async function login(){
+  const code=$('studentCode').value.trim();
+  if(!code){$('loginError').textContent='Введите личный код';return;}
+  $('loginError').textContent='';$('loginBtn').disabled=true;$('loginBtn').textContent='Проверяем…';
+  try{saveStudent(await validateStudent(code));}
+  catch(error){$('loginError').textContent=error&&error.message?error.message:'Неверный код';}
+  finally{$('loginBtn').disabled=false;$('loginBtn').textContent='Проверить код';}
+}
+function openLogin(code=''){
+  if(gameActive){toast('Сменить ученика можно после финиша');return;}
+  $('studentCode').value=code;$('loginError').textContent='';$('loginModal').classList.remove('hide');
+  setTimeout(()=>$('studentCode').focus(),70);
+}
+function changeStudent(){
+  if(gameActive){toast('Сменить ученика можно после финиша');return;}
+  ['egeStudentId','egeStudentName','egeStudentCode'].forEach(key=>localStorage.removeItem(key));
+  student=null;updateStudentUI();showScreen('introScreen');openLogin();
+}
+
+const Sound=(()=>{
+  let ctx=null,master=null,music=null,sfx=null,loopTimer=null,step=0,muted=false;
+  const notes=[57,60,64,67,64,60,55,59,62,65,62,59,53,57,60,64];
+  const bass=[45,45,43,43,41,41,43,43];
+  const hz=n=>440*Math.pow(2,(n-69)/12);
+  function tone(dest,freq,start,duration,gain,type='triangle'){
+    if(!ctx)return;
+    const osc=ctx.createOscillator(),amp=ctx.createGain();
+    osc.type=type;osc.frequency.setValueAtTime(freq,start);
+    amp.gain.setValueAtTime(.0001,start);amp.gain.exponentialRampToValueAtTime(gain,start+.025);
+    amp.gain.exponentialRampToValueAtTime(.0001,start+duration);
+    osc.connect(amp);amp.connect(dest);osc.start(start);osc.stop(start+duration+.03);
+  }
+  function schedule(){
+    if(!ctx||muted)return;
+    const t=ctx.currentTime+.03;
+    tone(music,hz(notes[step%notes.length]),t,.34,.055,'triangle');
+    if(step%2===0)tone(music,hz(bass[Math.floor(step/2)%bass.length]),t,.58,.06,'sine');
+    step++;
+  }
+  function start(){
+    if(ctx){ctx.resume();return;}
+    const AudioCtx=window.AudioContext||window.webkitAudioContext;
+    if(!AudioCtx)return;
+    ctx=new AudioCtx();master=ctx.createGain();music=ctx.createGain();sfx=ctx.createGain();
+    master.gain.value=.7;music.gain.value=.5;sfx.gain.value=.9;
+    music.connect(master);sfx.connect(master);master.connect(ctx.destination);
+    schedule();loopTimer=setInterval(schedule,360);
+  }
+  function setMuted(value){
+    muted=value;if(master)master.gain.setTargetAtTime(value?0:.7,ctx.currentTime,.03);
+    $('soundBtn').textContent=value?'🔇':'🔊';$('soundBtn').setAttribute('aria-label',value?'Включить звук':'Выключить звук');
+  }
+  function correct(){start();const t=ctx.currentTime;tone(sfx,hz(72),t,.16,.16,'sine');tone(sfx,hz(79),t+.1,.28,.14,'triangle');}
+  function wrong(){start();const t=ctx.currentTime;tone(sfx,150,t,.32,.15,'sawtooth');tone(sfx,105,t+.12,.4,.12,'square');}
+  function finish(){start();const t=ctx.currentTime;[60,64,67,72].forEach((n,i)=>tone(sfx,hz(n),t+i*.13,.55,.14,'triangle'));}
+  return{start,correct,wrong,finish,toggle(){setMuted(!muted);},get muted(){return muted;}};
+})();
+document.addEventListener('pointerdown',()=>Sound.start(),{once:true});
+
+function renderTheory(){
+  const lesson=LESSONS[theoryStep];
+  $('lessonKicker').textContent=lesson.kicker;$('lessonTitle').textContent=lesson.title;
+  $('lessonText').innerHTML=lesson.text;$('lessonFormula').innerHTML=lesson.formula;
+  $('lessonFormulaSub').textContent=lesson.sub;$('lessonTip').textContent=lesson.tip;
+  $('theoryBack').disabled=theoryStep===0;
+  $('theoryNext').textContent=theoryStep===LESSONS.length-1?'🏁 На старт ралли':'Следующий пит-стоп →';
+  $('stepDots').innerHTML=LESSONS.map((_,i)=>'<button class="step-dot '+(i<theoryStep?'done':i===theoryStep?'current':'')+'" data-step="'+i+'" aria-label="Пит-стоп '+(i+1)+'"></button>').join('');
+  $('stepDots').querySelectorAll('button').forEach(btn=>btn.onclick=()=>{theoryStep=Number(btn.dataset.step);renderTheory();});
+}
+function setAngle(degrees){
+  const rad=degrees*Math.PI/180,rad2=2*rad,cx=180,cy=180,r=115;
+  const ax=cx+r*Math.cos(rad),ay=cy-r*Math.sin(rad);
+  const bx=cx+r*Math.cos(rad2),by=cy-r*Math.sin(rad2);
+  $('rayA').setAttribute('x2',ax);$('rayA').setAttribute('y2',ay);
+  $('ray2a').setAttribute('x2',bx);$('ray2a').setAttribute('y2',by);
+  $('pointA').setAttribute('cx',ax);$('pointA').setAttribute('cy',ay);
+  $('point2a').setAttribute('cx',bx);$('point2a').setAttribute('cy',by);
+  $('labelA').setAttribute('x',ax+9);$('labelA').setAttribute('y',ay-8);
+  $('label2a').setAttribute('x',bx+9);$('label2a').setAttribute('y',by+17);
+  $('projX').setAttribute('x1',ax);$('projX').setAttribute('y1',ay);$('projX').setAttribute('x2',ax);$('projX').setAttribute('y2',cy);
+  $('projY').setAttribute('x1',ax);$('projY').setAttribute('y1',ay);$('projY').setAttribute('x2',cx);$('projY').setAttribute('y2',ay);
+  $('angleAValue').textContent=degrees+'°';$('angle2AValue').textContent=(degrees*2)+'°';
+  const sin2=Math.sin(rad)**2,cos2=Math.cos(rad)**2;
+  $('sinMeter').style.width=(sin2*100)+'%';$('cosMeter').style.width=(cos2*100)+'%';
+  $('sinSquareLabel').textContent='sin² α = '+sin2.toFixed(2).replace('.',',');
+  $('cosSquareLabel').textContent='cos² α = '+cos2.toFixed(2).replace('.',',');
+}
+function toggleAngleAnimation(){
+  anglePlaying=!anglePlaying;$('animateAngleBtn').textContent=anglePlaying?'❚❚ Остановить':'▶ Вращать угол';
+  clearInterval(angleTimer);
+  if(anglePlaying)angleTimer=setInterval(()=>{
+    let next=Number($('angleRange').value)+2;if(next>180)next=-180;
+    $('angleRange').value=next;setAngle(next);
+  },45);
+}
+
+function idForAttempt(){
+  return window.crypto&&typeof window.crypto.randomUUID==='function'
+    ?window.crypto.randomUUID()
+    :'evt-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)+'-'+Math.random().toString(36).slice(2);
+}
+function dateString(){
+  const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function timeText(seconds){
+  const n=Math.max(0,Math.floor(seconds));return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');
+}
+function pendingQueue(){
+  try{const q=JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');return Array.isArray(q)?q:[];}catch(error){return[];}
+}
+function keepPending(payload){
+  const q=pendingQueue();if(!q.some(item=>item&&item.eventId===payload.eventId))q.push(payload);
+  localStorage.setItem(PENDING_KEY,JSON.stringify(q));
+}
+function removePending(eventId){
+  localStorage.setItem(PENDING_KEY,JSON.stringify(pendingQueue().filter(item=>!item||item.eventId!==eventId)));
+}
+async function postResult(payload){
+  const response=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow'});
+  if(!response.ok)throw new Error('Ошибка отправки');
+}
+async function submitResult(payload){
+  $('saveStatus').className='save-status';$('saveStatus').textContent='Сохраняем результат…';
+  try{await postResult(payload);removePending(payload.eventId);$('saveStatus').textContent='✓ Результат сохранён';}
+  catch(error){keepPending(payload);$('saveStatus').className='save-status offline';$('saveStatus').textContent='Нет связи: результат сохранён на устройстве и отправится позже';}
+}
+async function flushPendingResults(){
+  if(!navigator.onLine)return;
+  for(const payload of pendingQueue().slice()){
+    if(!payload||!payload.eventId)continue;
+    try{await postResult(payload);removePending(payload.eventId);}catch(error){break;}
+  }
+}
+
+function buildCheckpoints(){
+  $('checkpoints').innerHTML=QUESTIONS.map((_,i)=>'<i data-check="'+i+'"></i>').join('');
+}
+function updateProgress(){
+  const completed=currentQuestion+(questionSolved?1:0);
+  $('progressText').textContent=completed+' / '+QUESTIONS.length;
+  $('trackFill').style.width=(completed/QUESTIONS.length*100)+'%';
+  $('firstTryHud').textContent=firstTryCorrect;
+  $('rallyCar').style.left=(10+Math.min(1,completed/QUESTIONS.length)*47)+'%';
+  $('checkpoints').querySelectorAll('i').forEach((dot,i)=>dot.classList.toggle('passed',i<completed));
+}
+function renderQuestion(){
+  const item=QUESTIONS[currentQuestion];
+  questionAttempted=false;questionSolved=false;
+  $('questionType').textContent=item.type;$('questionNumber').textContent='Веха '+(currentQuestion+1)+' из '+QUESTIONS.length;
+  $('questionPrompt').textContent=item.prompt;$('questionExpression').innerHTML=item.expr;
+  $('answers').innerHTML=item.options.map(option=>'<button class="answer" type="button" data-answer="'+option.replace(/"/g,'&quot;')+'">'+option+'</button>').join('');
+  $('answers').querySelectorAll('button').forEach(button=>button.onclick=()=>chooseAnswer(button,item));
+  $('feedback').className='feedback';$('feedback').textContent='Выбери один из четырёх ответов.';
+  $('nextQuestionBtn').disabled=true;$('nextQuestionBtn').textContent=currentQuestion===QUESTIONS.length-1?'Финишировать 🏁':'Дальше по кочкам →';
+  $('sceneCaption').textContent='Веха '+(currentQuestion+1)+': выбери верный ответ.';
+  updateProgress();
+}
+function chooseAnswer(button,item){
+  if(questionSolved||button.disabled)return;
+  const first=!questionAttempted;questionAttempted=true;
+  if(button.dataset.answer===item.answer){
+    questionSolved=true;if(first)firstTryCorrect++;
+    button.classList.add('correct');$('answers').querySelectorAll('button').forEach(btn=>btn.disabled=true);
+    $('feedback').className='feedback good';$('feedback').innerHTML='<b>Верно!</b> '+item.explain;
+    $('sceneCaption').textContent=first?'Чистый проезд — верно с первой!':'Выехали со второй попытки. Эта веха не войдёт в успешность.';
+    $('nextQuestionBtn').disabled=false;
+    $('rallyCar').classList.remove('splash');void $('rallyCar').offsetWidth;$('rallyCar').classList.add('go');
+    Sound.correct();updateProgress();
+  }else{
+    button.classList.add('wrong');button.disabled=true;
+    $('feedback').className='feedback bad';$('feedback').innerHTML='<b>Телега угодила в лужу.</b> Попробуй ещё раз. Подсказка: '+item.explain.split('.')[0]+'.';
+    $('sceneCaption').textContent='Ошибка: выбери другой ответ. Ралли продолжается.';
+    $('rallyCar').classList.remove('go');void $('rallyCar').offsetWidth;$('rallyCar').classList.add('splash');
+    $('mudSplash').classList.remove('show');void $('mudSplash').offsetWidth;$('mudSplash').classList.add('show');
+    Sound.wrong();
+  }
+}
+function startGame(){
+  if(!student){openLogin();return;}
+  clearInterval(angleTimer);anglePlaying=false;$('animateAngleBtn').textContent='▶ Вращать угол';
+  currentQuestion=0;firstTryCorrect=0;questionAttempted=false;questionSolved=false;
+  startedAt=Date.now();attemptEventId=idForAttempt();resultSubmitted=false;gameActive=true;
+  $('saveStatus').textContent='';buildCheckpoints();showScreen('gameScreen');renderQuestion();
+  clearInterval(gameTimer);gameTimer=setInterval(()=>$('timeHud').textContent=timeText((Date.now()-startedAt)/1000),1000);
+}
+function finishGame(){
+  if(resultSubmitted)return;
+  resultSubmitted=true;gameActive=false;clearInterval(gameTimer);
+  const durationSeconds=Math.max(1,Math.floor((Date.now()-startedAt)/1000));
+  const scorePercent=Math.round(firstTryCorrect/QUESTIONS.length*100);
+  $('scoreResult').textContent=scorePercent+'%';$('correctResult').textContent=firstTryCorrect+' / '+QUESTIONS.length;$('timeResult').textContent=timeText(durationSeconds);
+  $('finishTitle').textContent=scorePercent===100?'Идеальный заезд!':scorePercent>=80?'Топь покорена!':scorePercent>=60?'Доехали до финиша!':'Телега выбралась!';
+  $('finishText').textContent=scorePercent===100?'Все вехи пройдены с первой попытки — двигатель формул работает безупречно.':scorePercent>=80?'Почти без брызг. Ещё один заезд — и формулы станут автоматическими.':scorePercent>=60?'Маршрут пройден. Повтори места, где телега угодила в грязь.':'Финиш достигнут, но перед новым заездом стоит снова открыть теорию.';
+  showScreen('finishScreen');Sound.finish();
+  const payload={
+    action:'submitTest',
+    eventId:attemptEventId,
+    studentId:student.id,
+    testId:TEST_META.testId,
+    testDate:dateString(),
+    topicId:TEST_META.topicId,
+    topicName:TEST_META.topicName,
+    taskNumber:TEST_META.taskNumber,
+    scorePercent,
+    durationSeconds,
+    schemaVersion:TEST_META.schemaVersion
+  };
+  submitResult(payload);
+}
+
+$('toTheoryBtn').onclick=()=>{if(!student){openLogin();return;}theoryStep=0;renderTheory();showScreen('theoryScreen');Sound.start();};
+$('theoryBack').onclick=()=>{if(theoryStep>0){theoryStep--;renderTheory();}};
+$('theoryNext').onclick=()=>{if(theoryStep<LESSONS.length-1){theoryStep++;renderTheory();}else startGame();};
+$('angleRange').oninput=e=>setAngle(Number(e.target.value));
+$('animateAngleBtn').onclick=toggleAngleAnimation;
+$('nextQuestionBtn').onclick=()=>{if(!questionSolved)return;if(currentQuestion===QUESTIONS.length-1)finishGame();else{currentQuestion++;renderQuestion();}};
+$('replayBtn').onclick=startGame;
+$('repeatTheoryBtn').onclick=()=>{theoryStep=0;renderTheory();showScreen('theoryScreen');};
+$('changeStudentStart').onclick=changeStudent;$('changeStudentFinish').onclick=changeStudent;
+$('soundBtn').onclick=()=>Sound.toggle();
+$('loginBtn').onclick=login;$('studentCode').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();login();}};
+window.addEventListener('online',flushPendingResults);
+
+(function init(){
+  renderTheory();setAngle(30);updateStudentUI();
+  const code=new URLSearchParams(location.search).get('code');
+  if(code){openLogin(code);login();}
+  else if(readStudent()){$('loginModal').classList.add('hide');flushPendingResults();}
+  else openLogin();
+})();
+</script>
+</body>
+</html>
