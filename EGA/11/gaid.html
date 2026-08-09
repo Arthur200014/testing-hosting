@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ДЖЕДАЙ-ТРЕНАЖЁР · Задание №11 ЕГЭ · Чтение графиков функций</title>
+<style>
+/* ============================================================
+   ТЕМЫ (переключаются через data-theme на <html>)
+   ============================================================ */
+:root{
+  --bg:#0a0a1a; --bg2:#12122e;
+  --neon:#00d4ff; --saber-red:#ff0040; --saber-green:#00ff88; --gold:#ffd700;
+  --text:#dfe9ff; --muted:#8fa6c9;
+  --panel:rgba(4,18,38,.55); --panel-border:rgba(0,212,255,.40);
+  --accent:var(--saber-red); --star:#bfe9ff; --grid:rgba(0,212,255,.14);
+}
+html[data-theme="light"]{
+  --bg:#d7e6fb; --bg2:#eaf2ff;
+  --neon:#0062cc; --saber-red:#d61a4b; --saber-green:#0a9d5c; --gold:#b8860b;
+  --text:#0b1c38; --muted:#3d5578;
+  --panel:rgba(255,255,255,.74); --panel-border:rgba(0,98,204,.35);
+  --accent:#0062cc; --star:#4a78c8; --grid:rgba(0,98,204,.14);
+}
+html[data-theme="tatooine"]{
+  --bg:#2a1403; --bg2:#411f05;
+  --neon:#ff9d2f; --saber-red:#ff3b2f; --saber-green:#8fd14f; --gold:#ffd35a;
+  --text:#ffe8c6; --muted:#d9a86a;
+  --panel:rgba(58,28,4,.55); --panel-border:rgba(255,157,47,.45);
+  --accent:#ff6a00; --star:#ffcf8a; --grid:rgba(255,157,47,.14);
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:"Trebuchet MS","Segoe UI",Verdana,sans-serif; background:var(--bg); color:var(--text);
+  overflow-x:hidden; line-height:1.6; transition:background .6s,color .6s;}
+
+/* ===== ЗВЁЗДНОЕ НЕБО ===== */
+#space{position:fixed; inset:0; z-index:-3; overflow:hidden;
+  background:radial-gradient(ellipse at 30% 8%,var(--bg2),var(--bg) 70%); transition:background .6s;}
+.twinkle{position:absolute; border-radius:50%; background:var(--star);
+  animation:tw var(--d,3s) ease-in-out infinite alternate;}
+@keyframes tw{from{opacity:.15; transform:scale(.6);} to{opacity:1; transform:scale(1.1);}}
+#space::after{content:""; position:absolute; inset:-20%;
+  background:radial-gradient(circle at 78% 60%,color-mix(in srgb,var(--neon) 20%,transparent),transparent 45%),
+             radial-gradient(circle at 15% 85%,color-mix(in srgb,var(--accent) 15%,transparent),transparent 40%);
+  filter:blur(34px); opacity:.5; animation:drift 44s linear infinite alternate;}
+@keyframes drift{to{transform:translate(4%,-3%) scale(1.1);}}
+
+/* ===== ЛЕТАЮЩИЙ ФЛОТ ===== */
+#fleet{position:fixed; inset:0; z-index:-2; pointer-events:none; overflow:hidden;}
+.ship{position:absolute; width:64px; opacity:.8; filter:drop-shadow(0 0 6px var(--neon));}
+.ship.tie{filter:drop-shadow(0 0 6px var(--accent));}
+@keyframes flyRight{from{transform:translateX(-15vw);}to{transform:translateX(115vw) translateY(-40px);}}
+@keyframes flyLeft{from{transform:translateX(115vw) scaleX(-1);}to{transform:translateX(-15vw) translateY(30px) scaleX(-1);}}
+@keyframes hover{0%,100%{transform:translateY(0);}50%{transform:translateY(-14px);}}
+
+/* ===== ВЕРХНЯЯ ПАНЕЛЬ: ПРОГРЕСС «УРОВЕНЬ СИЛЫ» ===== */
+#topbar{position:fixed; top:0; left:0; right:0; height:46px; z-index:60; display:flex; align-items:center;
+  gap:12px; padding:0 14px; background:linear-gradient(180deg,color-mix(in srgb,var(--bg) 88%,transparent),transparent);
+  backdrop-filter:blur(6px);}
+#topbar .lbl{font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--neon);
+  white-space:nowrap; text-shadow:0 0 8px var(--neon);}
+#track{flex:1; height:10px; border:1px solid var(--panel-border); border-radius:6px; background:rgba(0,0,0,.35); overflow:hidden;}
+#fill{height:100%; width:0%; background:linear-gradient(90deg,var(--saber-green),var(--neon),var(--gold));
+  box-shadow:0 0 12px var(--neon); transition:width .25s ease;}
+#pct{font-size:12px; font-weight:bold; color:var(--gold); min-width:42px; text-align:right; text-shadow:0 0 8px var(--gold);}
+
+/* ===== HUD: ТЕМЫ + ЗВУК ===== */
+#hud{position:fixed; top:54px; right:12px; z-index:60; display:flex; flex-direction:column; gap:8px; align-items:flex-end;}
+.theme-dots{display:flex; gap:6px; padding:6px; border-radius:10px; border:1px solid var(--panel-border);
+  background:var(--panel); backdrop-filter:blur(6px);}
+.tdot{width:22px; height:22px; border-radius:50%; cursor:pointer; border:2px solid transparent; transition:.2s;}
+.tdot:hover{transform:scale(1.15);} .tdot.active{border-color:#fff; box-shadow:0 0 10px #fff;}
+.tdot[data-set="dark"]{background:radial-gradient(circle at 30% 30%,#3a3a6a,#0a0a1a);}
+.tdot[data-set="light"]{background:radial-gradient(circle at 30% 30%,#fff,#8fb8ef);}
+.tdot[data-set="tatooine"]{background:radial-gradient(circle at 30% 30%,#ffd35a,#c24500);}
+.hud-btn{width:44px; height:44px; border-radius:10px; cursor:pointer; border:1px solid var(--panel-border);
+  background:var(--panel); backdrop-filter:blur(6px); color:var(--neon); font-size:20px;
+  display:flex; align-items:center; justify-content:center; transition:.2s;}
+.hud-btn:hover{transform:scale(1.1); box-shadow:0 0 16px var(--neon);}
+#soundBtn .saber{width:5px; height:22px; border-radius:3px; background:var(--muted); transition:.3s;}
+#soundBtn.on .saber{background:var(--saber-green); height:24px; box-shadow:0 0 10px var(--saber-green),0 0 20px var(--saber-green);}
+
+/* ===== НАВИГАЦИЯ ПО РАЗДЕЛАМ ===== */
+#nav{position:fixed; left:12px; top:50%; transform:translateY(-50%); z-index:60; display:flex; flex-direction:column; gap:12px;}
+.navdot{position:relative; width:14px; height:14px; border-radius:50%; cursor:pointer; border:2px solid var(--neon);
+  background:transparent; transition:.25s;}
+.navdot.active{background:var(--gold); border-color:var(--gold); box-shadow:0 0 14px var(--gold);}
+.navdot span{position:absolute; left:24px; top:-4px; white-space:nowrap; font-size:11px; letter-spacing:1px;
+  color:var(--neon); opacity:0; transform:translateX(-6px); transition:.25s; pointer-events:none; text-transform:uppercase;}
+.navdot:hover span{opacity:1; transform:translateX(0);}
+
+/* ===== ГИПЕРПРЫЖОК ===== */
+#hyper{position:fixed; inset:0; z-index:90; pointer-events:none; opacity:0;
+  background:radial-gradient(circle,transparent 30%,var(--bg) 75%);}
+#hyper.jump{animation:hyperflash .8s ease;}
+@keyframes hyperflash{0%{opacity:0;}30%{opacity:1;}100%{opacity:0;}}
+#hyper .streak{position:absolute; left:50%; top:50%; width:2px; height:2px; background:var(--star); transform-origin:left center;}
+#hyper.jump .streak{animation:streak .8s ease-out;}
+@keyframes streak{from{width:2px; opacity:0;}40%{opacity:1;}to{width:60vw; opacity:0;}}
+
+/* ============================================================
+   ОБЩИЙ ЛЭЙАУТ (ЕДИНЫЙ ПОТОК, БЕЗ СТРАНИЦ)
+   ============================================================ */
+.wrap{max-width:1080px; margin:0 auto; padding:0 20px;}
+section{padding:56px 0; position:relative;}
+.eyebrow{font-size:12px; letter-spacing:6px; text-transform:uppercase; color:var(--muted); margin-bottom:8px;}
+.holo-title{font-size:clamp(26px,5vw,50px); font-weight:900; letter-spacing:2px; text-transform:uppercase; line-height:1.05;
+  background:linear-gradient(90deg,var(--neon),var(--gold),var(--neon)); background-size:200% auto;
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  text-shadow:0 0 30px color-mix(in srgb,var(--neon) 45%,transparent); animation:holoshine 6s linear infinite;}
+@keyframes holoshine{to{background-position:200% center;}}
+.lead{color:var(--muted); margin-top:10px; font-size:15px; max-width:760px;}
+.section-head{text-align:center; margin-bottom:34px;}
+.section-head .eyebrow{margin-bottom:6px;}
+.section-head .lead{margin:8px auto 0;}
+
+.panel{background:var(--panel); border:1px solid var(--panel-border); border-radius:14px; backdrop-filter:blur(8px);
+  padding:22px; position:relative; overflow:hidden; box-shadow:inset 0 0 30px color-mix(in srgb,var(--neon) 8%,transparent);}
+.panel::before{content:""; position:absolute; inset:0; pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,color-mix(in srgb,var(--neon) 4%,transparent) 3px 4px); opacity:.5;}
+.corner{position:absolute; width:14px; height:14px; border:2px solid var(--neon); z-index:1;}
+.corner.tl{top:6px;left:6px;border-right:0;border-bottom:0;} .corner.tr{top:6px;right:6px;border-left:0;border-bottom:0;}
+.corner.bl{bottom:6px;left:6px;border-right:0;border-top:0;} .corner.br{bottom:6px;right:6px;border-left:0;border-top:0;}
+
+h2.block{font-size:22px; color:var(--neon); letter-spacing:1px; text-transform:uppercase; margin:6px 0 16px;
+  display:flex; align-items:center; gap:10px; text-shadow:0 0 12px var(--neon);}
+h2.block::before{content:""; flex:0 0 26px; height:2px; background:var(--neon); box-shadow:0 0 8px var(--neon);}
+.mono{font-family:"Consolas","Courier New",monospace;}
+.eq{font-family:"Consolas",monospace; color:var(--neon);}
+.k-gold{color:var(--gold); font-weight:bold;}
+
+/* ===== HERO ===== */
+#hero{min-height:88vh; display:flex; flex-direction:column; justify-content:center; text-align:center;}
+#hero .holo-title{font-size:clamp(30px,7vw,68px);}
+#hero .lead{margin:16px auto 0; font-size:16px;}
+.badges{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:26px;}
+.badge{font-size:11px; letter-spacing:1px; padding:6px 12px; border-radius:20px; text-transform:uppercase;
+  border:1px solid var(--panel-border); color:var(--gold); background:var(--panel);}
+.scrolldown{margin-top:34px; color:var(--muted); font-size:12px; letter-spacing:2px; text-transform:uppercase; animation:hover 2.4s infinite;}
+
+/* ============================================================
+   ВЕРТИКАЛЬНЫЙ АЛГОРИТМ
+   ============================================================ */
+.algo{display:flex; flex-direction:column; align-items:center; gap:0;}
+.astep{display:flex; flex-direction:column; align-items:center; text-align:center; max-width:520px; padding:16px 18px;
+  border-radius:14px; border:1px solid var(--panel-border); background:var(--panel); backdrop-filter:blur(6px);
+  transition:transform .25s, box-shadow .25s; width:min(520px,92%);}
+.astep:hover{transform:scale(1.02); box-shadow:0 0 22px color-mix(in srgb,var(--neon) 35%,transparent);}
+.astep .ico{width:66px; height:52px; margin-bottom:6px; filter:drop-shadow(0 0 8px var(--neon));}
+.astep .ico.trap{filter:drop-shadow(0 0 8px var(--saber-red));}
+.astep .ico.win{filter:drop-shadow(0 0 8px var(--saber-green));}
+.astep .cap{font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); margin-bottom:2px;}
+.astep .ttl{font-size:16px; font-weight:bold; color:var(--text); margin-bottom:4px;}
+.astep .txt{font-size:13px; color:var(--muted);}
+.connector{width:2px; height:34px; background:linear-gradient(var(--neon),transparent);
+  position:relative; box-shadow:0 0 8px var(--neon);}
+.connector::after{content:"▼"; position:absolute; bottom:-4px; left:50%; transform:translateX(-50%); color:var(--neon); font-size:12px;}
+.branch{display:flex; gap:16px; width:min(760px,96%); justify-content:center; flex-wrap:wrap;}
+.branch .astep{flex:1; min-width:250px; max-width:360px;}
+.branch .astep.b1{border-color:var(--neon);} .branch .astep.b2{border-color:var(--gold);}
+.branch-label{font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin:14px 0 8px;}
+
+/* ============================================================
+   БЛОК ПРОТОТИПА
+   ============================================================ */
+.proto{margin-bottom:14px;}
+.proto .p-head{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px;}
+.p-num{flex:0 0 auto; width:40px; height:40px; border-radius:10px; border:1px solid var(--gold); color:var(--gold);
+  display:flex; align-items:center; justify-content:center; font-weight:900; font-size:16px; text-shadow:0 0 8px var(--gold);}
+.p-head h3{font-size:20px; color:var(--text); letter-spacing:.5px;}
+.p-head .formula{font-family:"Consolas",monospace; color:var(--neon); font-size:18px; font-weight:bold;
+  text-shadow:0 0 10px var(--neon); margin-left:auto;}
+.p-grid{display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start;}
+@media(max-width:860px){ .p-grid{grid-template-columns:1fr;} }
+
+/* Живой график + ползунки */
+.grapher{display:flex; flex-direction:column; gap:10px;}
+.gcanvas-wrap{position:relative; border-radius:12px; overflow:hidden; border:1px solid var(--panel-border);
+  background:rgba(0,0,0,.28);}
+.gcanvas-wrap canvas{display:block; width:100%; height:auto;}
+.geq{font-family:"Consolas",monospace; font-size:15px; color:var(--gold); text-shadow:0 0 8px color-mix(in srgb,var(--gold) 50%,transparent);
+  padding:6px 10px; border-radius:8px; background:color-mix(in srgb,var(--gold) 8%,transparent); text-align:center;}
+.gsliders{display:flex; flex-direction:column; gap:8px;}
+.gslider{display:grid; grid-template-columns:64px 1fr 52px; align-items:center; gap:10px;}
+.gslider label{font-family:"Consolas",monospace; color:var(--neon); font-size:14px;}
+.gslider .val{font-family:"Consolas",monospace; color:var(--gold); font-size:14px; text-align:right;}
+input[type=range]{-webkit-appearance:none; appearance:none; height:6px; border-radius:4px;
+  background:linear-gradient(90deg,var(--neon),var(--gold)); outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:18px; height:18px; border-radius:50%;
+  background:var(--gold); box-shadow:0 0 10px var(--gold); cursor:pointer; border:2px solid var(--bg);}
+input[type=range]::-moz-range-thumb{width:18px; height:18px; border-radius:50%; background:var(--gold);
+  box-shadow:0 0 10px var(--gold); cursor:pointer; border:2px solid var(--bg);}
+.ghint{font-size:12px; color:var(--muted);}
+
+/* Теория */
+.theory h4{font-size:14px; color:var(--gold); letter-spacing:1px; text-transform:uppercase; margin:14px 0 6px;}
+.theory p{font-size:14px; margin-bottom:8px;}
+.theory .cells{border-left:3px solid var(--saber-green); padding:10px 12px; border-radius:8px;
+  background:color-mix(in srgb,var(--saber-green) 8%,transparent); font-size:13.5px; margin:8px 0;}
+.theory .cells b{color:var(--saber-green);}
+
+/* Лайфхак */
+.hack{display:flex; gap:12px; align-items:flex-start; padding:12px 14px; border-radius:10px; margin-top:10px;
+  border:1px solid var(--panel-border); background:var(--panel); backdrop-filter:blur(6px);}
+.hack .ic{font-size:22px; filter:drop-shadow(0 0 6px var(--saber-green));}
+.hack b{color:var(--saber-green); display:block; margin-bottom:2px; font-size:13.5px;}
+.hack span{font-size:13px; color:var(--text);}
+
+/* Разбор */
+.solve{margin-top:16px; border-radius:12px; border:1px dashed var(--panel-border); padding:14px;}
+.solve .badge-src{font-size:11px; letter-spacing:1px; color:var(--gold); text-transform:uppercase; margin-bottom:8px; display:inline-block;}
+.step{display:flex; gap:12px; padding:7px 0; border-bottom:1px dashed color-mix(in srgb,var(--neon) 22%,transparent);}
+.step:last-child{border-bottom:0;}
+.step .n{flex:0 0 26px; height:26px; border-radius:50%; border:1px solid var(--neon); color:var(--neon);
+  display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:bold; text-shadow:0 0 8px var(--neon);}
+.step .t{font-size:13.5px;} .step .t b{color:var(--gold);}
+
+/* Практика */
+.practice{margin-top:16px; border-radius:12px; padding:14px; border:1px solid var(--saber-green);
+  background:color-mix(in srgb,var(--saber-green) 6%,transparent);}
+.practice .q{font-size:14px; margin-bottom:12px;}
+.pcheck{cursor:pointer; padding:9px 16px; border-radius:8px; border:1px solid var(--saber-green); background:transparent;
+  color:var(--saber-green); font-weight:bold; letter-spacing:1px; text-transform:uppercase; font-size:12px; transition:.2s;}
+.pcheck:hover{background:color-mix(in srgb,var(--saber-green) 18%,transparent); box-shadow:0 0 14px var(--saber-green);}
+.answer{margin-top:12px; max-height:0; overflow:hidden; opacity:0; transition:.45s; border-radius:10px;}
+.answer.show{max-height:320px; opacity:1; padding:12px; border:1px solid var(--gold);
+  background:color-mix(in srgb,var(--gold) 8%,transparent); box-shadow:0 0 20px color-mix(in srgb,var(--gold) 26%,transparent);}
+.answer .ans{font-size:20px; color:var(--gold); font-weight:900; text-shadow:0 0 12px var(--gold); margin-bottom:5px;}
+.answer .exp{font-size:13px;}
+
+/* мини-графики к разбору и практике */
+.mini canvas{width:100%; height:auto; display:block; border:1px solid var(--panel-border); border-radius:10px; background:rgba(0,0,0,.28);}
+.solve.has-mini,.practice.has-mini{display:grid; grid-template-columns:186px 1fr; gap:14px; align-items:start;}
+@media(max-width:640px){ .solve.has-mini,.practice.has-mini{grid-template-columns:1fr;} .mini{max-width:280px; margin:0 auto;} }
+
+/* ============================================================
+   ОШИБКИ (на конкретных задачах, сплит-экран)
+   ============================================================ */
+.mistake{margin-bottom:20px;}
+.m-title{font-size:16px; color:var(--gold); letter-spacing:.5px; margin-bottom:6px; display:flex; align-items:center; gap:10px;}
+.m-task{font-size:12.5px; color:var(--muted); margin-bottom:12px;}
+.m-task b{color:var(--neon);}
+.split{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+@media(max-width:760px){ .split{grid-template-columns:1fr;} }
+.side{border-radius:12px; padding:16px; backdrop-filter:blur(6px); position:relative;}
+.side.wrong{border:1px solid var(--saber-red); background:color-mix(in srgb,var(--saber-red) 8%,transparent);
+  box-shadow:inset 0 0 26px color-mix(in srgb,var(--saber-red) 14%,transparent);}
+.side.right{border:1px solid var(--saber-green); background:color-mix(in srgb,var(--saber-green) 8%,transparent);
+  box-shadow:inset 0 0 26px color-mix(in srgb,var(--saber-green) 14%,transparent);}
+.side .tag{font-size:11px; letter-spacing:2px; text-transform:uppercase; font-weight:bold; margin-bottom:8px; display:flex; align-items:center; gap:8px;}
+.side.wrong .tag{color:var(--saber-red); text-shadow:0 0 10px var(--saber-red);}
+.side.right .tag{color:var(--saber-green); text-shadow:0 0 10px var(--saber-green);}
+.side p{font-size:13.5px; margin-bottom:6px;}
+.side .eqx{font-family:"Consolas",monospace; padding:6px 10px; border-radius:6px; display:inline-block; margin:4px 0; font-size:13px;}
+.side.wrong .eqx{background:color-mix(in srgb,var(--saber-red) 14%,transparent); color:#ff9db0;}
+.side.right .eqx{background:color-mix(in srgb,var(--saber-green) 14%,transparent); color:#8fffce;}
+
+/* ===== АДАПТИВ ===== */
+@media(max-width:820px){ #nav{display:none;} .ship{width:46px;} }
+@media(max-width:520px){ #topbar .lbl{display:none;} .hud-btn{width:38px;height:38px;font-size:17px;} .p-head .formula{margin-left:0;} }
+@media(prefers-reduced-motion:reduce){ *{animation-duration:.001ms!important; animation-iteration-count:1!important; scroll-behavior:auto;} }
+</style>
+</head>
+<body>
+
+<div id="space"></div>
+<div id="fleet"></div>
+<div id="hyper"></div>
+
+<!-- ВЕРХНЯЯ ПАНЕЛЬ ПРОГРЕССА -->
+<div id="topbar">
+  <span class="lbl">Уровень&nbsp;Силы</span>
+  <div id="track"><div id="fill"></div></div>
+  <span id="pct">0%</span>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="theme-dots" title="Сторона Силы">
+    <div class="tdot active" data-set="dark" title="Тёмная сторона"></div>
+    <div class="tdot" data-set="light" title="Светлая сторона"></div>
+    <div class="tdot" data-set="tatooine" title="Закат на Татуине"></div>
+  </div>
+  <div class="hud-btn" id="soundBtn" title="Музыка (световой меч)"><div class="saber"></div></div>
+</div>
+
+<!-- НАВИГАЦИЯ -->
+<div id="nav">
+  <div class="navdot active" data-go="hero"><span>Старт</span></div>
+  <div class="navdot" data-go="algo"><span>Алгоритм</span></div>
+  <div class="navdot" data-go="protos"><span>Прототипы</span></div>
+  <div class="navdot" data-go="errors"><span>Ошибки</span></div>
+</div>
+
+<!-- ============================ HERO ============================ -->
+<section id="hero"><div class="wrap">
+  <div class="eyebrow">Голокрон джедая · Математика профильная</div>
+  <h1 class="holo-title">Задание №11<br>Чтение графиков</h1>
+  <p class="lead">Один универсальный алгоритм — на все прототипы. Двигай ползунки под каждым графиком и смотри вживую, как коэффициенты <span class="k-gold">k, b, a, c</span> меняют кривую. Разборы и задачи — из твоего сборника «100Б».</p>
+  <div class="badges">
+    <span class="badge">Линейная</span><span class="badge">Квадратичная</span><span class="badge">Гипербола</span>
+    <span class="badge">Корень</span><span class="badge">Логарифм</span><span class="badge">Показательная</span><span class="badge">Пересечения</span>
+  </div>
+  <div class="scrolldown">▼ листай вниз ▼</div>
+</div></section>
+
+<!-- ============================ АЛГОРИТМ ============================ -->
+<section id="algo"><div class="wrap">
+  <div class="section-head">
+    <div class="eyebrow">Голографическая карта</div>
+    <h2 class="holo-title" style="font-size:clamp(24px,4.4vw,40px)">Универсальный алгоритм</h2>
+    <p class="lead">Работает для любого прототипа. Три общих шага, затем развилка — «значение в точке» или «пересечение».</p>
+  </div>
+
+  <div class="algo">
+    <div class="astep">
+      <svg class="ico" viewBox="0 0 100 60"><use href="#xwing"/></svg>
+      <div class="cap">Шаг 1</div>
+      <div class="ttl">Какие коэффициенты искать</div>
+      <div class="txt">Смотрим на формулу в условии: у линейной — k и b; у параболы — a, b, c; у гиперболы и корня — k; у логарифма и показательной — основание a.</div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="astep">
+      <svg class="ico" viewBox="0 0 100 60"><use href="#xwing"/></svg>
+      <div class="cap">Шаг 2</div>
+      <div class="ttl">За что отвечают коэффициенты</div>
+      <div class="txt">k — наклон/крутизна, b и c — сдвиг по вертикали (точка на оси Oy), a — направление и растяжение, основание a — скорость роста. Понимая смысл, легче их «прочитать».</div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="astep">
+      <svg class="ico" viewBox="0 0 100 60"><use href="#xwing"/></svg>
+      <div class="cap">Шаг 3</div>
+      <div class="ttl">Найти коэффициенты по графику</div>
+      <div class="txt">Берём удобные точки — узлы сетки, где график чётко проходит через угол клетки — и считаем коэффициенты по клеткам (как именно — в каждом прототипе ниже).</div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="branch-label">↓ развилка по типу задачи ↓</div>
+    <div class="branch">
+      <div class="astep b1">
+        <svg class="ico" viewBox="0 0 100 60"><use href="#xwing"/></svg>
+        <div class="cap">Ветка A</div>
+        <div class="ttl">Значение в точке</div>
+        <div class="txt">Записываем формулу f(x) и подставляем нужный x. Ответ — число f(x₀).</div>
+      </div>
+      <div class="astep b2">
+        <svg class="ico trap" viewBox="0 0 100 90"><use href="#trooper"/></svg>
+        <div class="cap">Ветка B · ловушка</div>
+        <div class="ttl">Пересечение графиков</div>
+        <div class="txt">Приравниваем f(x)=g(x), решаем уравнение. Абсцисса — это x, ордината — y. Не перепутай, что спрашивают!</div>
+      </div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="astep">
+      <svg class="ico win" viewBox="0 0 80 100"><use href="#droid"/></svg>
+      <div class="cap">Финал</div>
+      <div class="ttl">Проверка</div>
+      <div class="txt">Сверь знак k (рост/спад), совпадение f(0) с точкой на Oy и здравый смысл. Дроид доволен — ответ верен.</div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ============================ ПРОТОТИПЫ ============================ -->
+<section id="protos"><div class="wrap">
+  <div class="section-head">
+    <div class="eyebrow">Обучение падавана</div>
+    <h2 class="holo-title" style="font-size:clamp(24px,4.4vw,40px)">Прототипы и их графики</h2>
+    <p class="lead">Теория идёт в том же порядке, что и 11 прототипов в исходном файле. У каждого прототипа — живой график: двигай ползунки и наблюдай, что происходит.</p>
+  </div>
+
+  <!-- ===== 1. ЛИНЕЙНАЯ ФУНКЦИЯ ===== -->
+  <div class="proto panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="p-head"><div class="p-num">1</div><h3>Линейная функция</h3><div class="formula">y = kx + b</div></div>
+    <div class="p-grid">
+      <div class="grapher" data-graph="linear"></div>
+      <div class="theory">
+        <h4>Откуда берутся k и b</h4>
+        <p><b class="k-gold">b</b> — это высота, на которой прямая пересекает ось Oy (значение при x = 0). Прочитай прямо по графику: где линия встречает вертикальную ось.</p>
+        <p><b class="k-gold">k</b> — наклон: на сколько клеток прямая поднимается (или опускается) при сдвиге на 1 клетку вправо.</p>
+        <div class="cells"><b>По клеткам:</b> сдвинься от точки на прямой на 1 клетку вправо. Поднялся вверх на n клеток → <b>k = +n</b>. Опустился на n → <b>k = −n</b>. Если график падает вправо — знак k обязательно минус.</div>
+        <div class="hack"><div class="ic">📐</div><div><b>Лайфхак</b><span>Между двумя целыми точками (x₁;y₁) и (x₂;y₂): k = (y₂−y₁)/(x₂−x₁). Знак сразу виден по направлению прямой.</span></div></div>
+
+        <div class="solve">
+          <span class="badge-src">Разбор · Задача №54</span>
+          <div class="step"><div class="n">1</div><div class="t">Ищем k и b. Прямая проходит через узлы (0; 1) и (1; 3).</div></div>
+          <div class="step"><div class="n">2</div><div class="t"><b>b = 1</b> (пересечение с Oy). За 1 клетку вправо график поднялся на 2 → <b>k = 2</b>.</div></div>
+          <div class="step"><div class="n">3</div><div class="t">Формула: <span class="eq">f(x) = 2x + 1</span>.</div></div>
+          <div class="step"><div class="n">✔</div><div class="t"><span class="eq">f(4) = 2·4 + 1 = 9</span>.</div></div>
+        </div>
+
+        <div class="practice">
+          <div class="q"><b>Задача №50 (сам).</b> Прямая f(x)=kx+b проходит через (0; 0) и (1; 1). Найдите f(7).</div>
+          <button class="pcheck" data-t="a1">Проверить ответ</button>
+          <div class="answer" id="a1"><div class="ans">f(7) = 7</div><div class="exp">b = 0, k = 1 → f(x) = x. Значит f(7) = 7.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 2. ОБРАТНАЯ ПРОПОРЦИОНАЛЬНОСТЬ ===== -->
+  <div class="proto panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="p-head"><div class="p-num">2</div><h3>Обратная пропорциональность</h3><div class="formula">y = k / x</div></div>
+    <div class="p-grid">
+      <div class="grapher" data-graph="hyperbola"></div>
+      <div class="theory">
+        <h4>Откуда берётся k</h4>
+        <p>У гиперболы всего один коэффициент <b class="k-gold">k</b>. Он отвечает и за «размах» ветвей, и за то, в каких четвертях они лежат: k &gt; 0 — I и III четверти, k &lt; 0 — II и IV.</p>
+        <div class="cells"><b>По клеткам:</b> возьми любую точку графика с целыми координатами (x; y) и перемножь: <b>k = x · y</b>. Например, точка (2; 3) → k = 6.</div>
+        <div class="hack"><div class="ic">✖️</div><div><b>Лайфхак</b><span>k = x·y постоянно для всех точек гиперболы. Бери самую «удобную» точку — где обе координаты целые.</span></div></div>
+
+        <div class="solve">
+          <span class="badge-src">Разбор · Задача №1</span>
+          <div class="step"><div class="n">1</div><div class="t">Ищем k. График проходит через узел (1; 1).</div></div>
+          <div class="step"><div class="n">2–3</div><div class="t"><b>k = x·y = 1·1 = 1</b> → <span class="eq">f(x) = 1/x</span>.</div></div>
+          <div class="step"><div class="n">✔</div><div class="t"><span class="eq">f(10) = 1/10 = 0,1</span>.</div></div>
+        </div>
+
+        <div class="practice">
+          <div class="q"><b>Задача №48 (сам).</b> График f(x)=k/x проходит через (3; 1). Найдите f(30).</div>
+          <button class="pcheck" data-t="a3">Проверить ответ</button>
+          <div class="answer" id="a3"><div class="ans">f(30) = 0,1</div><div class="exp">k = 3·1 = 3 → f(x) = 3/x. f(30) = 3/30 = 0,1.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 3. ПОКАЗАТЕЛЬНАЯ ФУНКЦИЯ ===== -->
+  <div class="proto panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="p-head"><div class="p-num">3</div><h3>Показательная функция</h3><div class="formula">y = aˣ</div></div>
+    <div class="p-grid">
+      <div class="grapher" data-graph="exp"></div>
+      <div class="theory">
+        <h4>Откуда берётся основание a</h4>
+        <p>Показательная всегда проходит через (0; 1) — при x = 0 значение равно 1. Основание <b class="k-gold">a</b>: если a &gt; 1 — график растёт вправо, если 0 &lt; a &lt; 1 — убывает.</p>
+        <div class="cells"><b>По клеткам:</b> основание — это значение функции при <b>x = 1</b>. Найди точку графика над x=1: её y и есть a. Если график убывает, удобно взять x=−1: там y = 1/a.</div>
+        <div class="hack"><div class="ic">📈</div><div><b>Лайфхак</b><span>Растёт → a &gt; 1; падает → a — дробь (½, ⅓). Значение f(x₀) = a^{x₀}.</span></div></div>
+
+        <div class="solve">
+          <span class="badge-src">Разбор · Задача №18 (возрастающая)</span>
+          <div class="step"><div class="n">1</div><div class="t">Ищем основание a. При x = 1 график стоит на высоте 2.</div></div>
+          <div class="step"><div class="n">2–3</div><div class="t"><b>a = 2</b> → <span class="eq">f(x) = 2ˣ</span>.</div></div>
+          <div class="step"><div class="n">✔</div><div class="t"><span class="eq">f(3) = 2³ = 8</span>.</div></div>
+        </div>
+
+        <div class="practice">
+          <div class="q"><b>Задача №4 (сам, убывающая).</b> График f(x)=aˣ проходит через (−1; 2). Найдите f(4).</div>
+          <button class="pcheck" data-t="a6">Проверить ответ</button>
+          <div class="answer" id="a6"><div class="ans">f(4) = 0,0625</div><div class="exp">a^(−1) = 2 → a = ½. f(x) = (½)ˣ. f(4) = (½)⁴ = 1/16 = 0,0625.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 4. КОРНЕВАЯ ФУНКЦИЯ ===== -->
+  <div class="proto panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="p-head"><div class="p-num">4</div><h3>Корневая функция</h3><div class="formula">y = k·√x</div></div>
+    <div class="p-grid">
+      <div class="grapher" data-graph="root"></div>
+      <div class="theory">
+        <h4>Откуда берётся k</h4>
+        <p>График существует только при x ≥ 0 и всегда выходит из начала координат (0; 0). Коэффициент <b class="k-gold">k</b> отвечает за крутизну подъёма ветви.</p>
+        <div class="cells"><b>По клеткам:</b> возьми точку графика с удобным x (полный квадрат: 1, 4, 9, 16) и раздели: <b>k = y / √x</b>. Например, точка (4; 2) → k = 2/√4 = 2/2 = 1.</div>
+        <div class="hack"><div class="ic">√</div><div><b>Лайфхак</b><span>Бери x = 4 или x = 9 — корень из них целый (2 и 3), деление получается «чистым».</span></div></div>
+
+        <div class="solve">
+          <span class="badge-src">Разбор · прототип корня (как в №37)</span>
+          <div class="step"><div class="n">1</div><div class="t">Ищем k. График проходит через (4; 2).</div></div>
+          <div class="step"><div class="n">2–3</div><div class="t"><b>k = y/√x = 2/2 = 1</b> → <span class="eq">f(x) = √x</span>.</div></div>
+          <div class="step"><div class="n">✔</div><div class="t"><span class="eq">f(9) = √9 = 3</span>.</div></div>
+        </div>
+
+        <div class="practice">
+          <div class="q"><b>Задача №16 (сам, пересечение).</b> f(x)=a√x и g(x)=kx пересекаются в A(0;0) и B. По графику a=2, k=1. Найдите абсциссу B.</div>
+          <button class="pcheck" data-t="a4">Проверить ответ</button>
+          <div class="answer" id="a4"><div class="ans">x_B = 4</div><div class="exp">2√x = x → возведём в квадрат: 4x = x² → x² − 4x = 0 → x(x−4)=0. Кроме x=0 получаем x = 4.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 5. ЛОГАРИФМИЧЕСКАЯ ФУНКЦИЯ ===== -->
+  <div class="proto panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="p-head"><div class="p-num">5</div><h3>Логарифмическая функция</h3><div class="formula">y = logₐx</div></div>
+    <div class="p-grid">
+      <div class="grapher" data-graph="log"></div>
+      <div class="theory">
+        <h4>Откуда берётся основание a</h4>
+        <p>Логарифм всегда проходит через точку (1; 0) — при x = 1 значение равно 0, при любом основании. Основание <b class="k-gold">a</b> отвечает за скорость роста.</p>
+        <div class="cells"><b>По клеткам:</b> найди на графике точку, где <b>y = 1</b>. Её x и есть основание <b>a</b>. Например, график даёт y=1 при x=2 → a = 2, значит f(x) = log₂x.</div>
+        <div class="hack"><div class="ic">🔎</div><div><b>Лайфхак</b><span>Ищи «этаж y = 1»: под какой точкой графика он находится — то и есть основание. Значение f(x₀) = logₐx₀ считаем как «в какую степень возвести a, чтобы получить x₀».</span></div></div>
+
+        <div class="solve">
+          <span class="badge-src">Разбор · Задача №15</span>
+          <div class="step"><div class="n">1</div><div class="t">Ищем основание a. При y = 1 график стоит над x = 2.</div></div>
+          <div class="step"><div class="n">2–3</div><div class="t"><b>a = 2</b> → <span class="eq">f(x) = log₂x</span>.</div></div>
+          <div class="step"><div class="n">✔</div><div class="t"><span class="eq">f(16) = log₂16 = 4</span> (2⁴ = 16).</div></div>
+        </div>
+
+        <div class="practice">
+          <div class="q"><b>Задача №24 (сам).</b> График f(x)=logₐx даёт y=1 при x=2. Найдите f(8).</div>
+          <button class="pcheck" data-t="a5">Проверить ответ</button>
+          <div class="answer" id="a5"><div class="ans">f(8) = 3</div><div class="exp">a = 2 → f(x) = log₂x. f(8) = log₂8 = 3 (2³ = 8).</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 6. КВАДРАТИЧНАЯ ФУНКЦИЯ ===== -->
+  <div class="proto panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="p-head"><div class="p-num">6</div><h3>Квадратичная функция</h3><div class="formula">y = ax² + bx + c</div></div>
+    <div class="p-grid">
+      <div class="grapher" data-graph="quadratic"></div>
+      <div class="theory">
+        <h4>Откуда берутся a, b, c</h4>
+        <p><b class="k-gold">c</b> — точка пересечения с осью Oy (значение при x = 0), читается напрямую.</p>
+        <p><b class="k-gold">a</b> — направление и «ширина». a &gt; 0 — ветви вверх, a &lt; 0 — вниз. Чем больше |a|, тем уже парабола.</p>
+        <p><b class="k-gold">b</b> обычно не ищут напрямую: удобнее работать через вершину (x₀; y₀), где x₀ = −b/(2a).</p>
+        <div class="cells"><b>Как найти a по клеткам (главный приём):</b> встань в вершину параболы и сдвинься на <b>1 клетку вправо</b>. На сколько клеток график поднялся вверх — таково и <b>a</b>. Поднялся на 1 → a = 1; на 2 → a = 2. (Формула вершины: y = a(x − x₀)² + y₀.)</div>
+        <div class="hack"><div class="ic">🎯</div><div><b>Лайфхак</b><span>Вершина — самая нижняя (или верхняя) точка графика; её координаты бери прямо по узлам сетки.</span></div></div>
+
+        <div class="solve">
+          <span class="badge-src">Разбор · Задача №26 (a, b, c — целые)</span>
+          <div class="step"><div class="n">1</div><div class="t">Вершина параболы в узле (−4; −1), ветви вверх.</div></div>
+          <div class="step"><div class="n">2</div><div class="t">От вершины 1 клетка вправо (x = −3) — график на 1 клетку выше → <b>a = 1</b>.</div></div>
+          <div class="step"><div class="n">3</div><div class="t"><span class="eq">f(x) = (x + 4)² − 1 = x² + 8x + 15</span>.</div></div>
+          <div class="step"><div class="n">✔</div><div class="t"><span class="eq">f(−12) = (−12 + 4)² − 1 = 64 − 1 = 63</span>.</div></div>
+        </div>
+
+        <div class="practice">
+          <div class="q"><b>Задача №29 (сам, целые a,b,c).</b> Вершина в (−1; −4), ветви вверх, от вершины 1 вправо — на 1 вверх. Найдите f(5).</div>
+          <button class="pcheck" data-t="a2">Проверить ответ</button>
+          <div class="answer" id="a2"><div class="ans">f(5) = 32</div><div class="exp">a = 1 → f(x) = (x+1)² − 4 = x² + 2x − 3. f(5) = 25 + 10 − 3 = 32.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 7. ПЕРЕСЕЧЕНИЕ ДВУХ ПРЯМЫХ ===== -->
+  <div class="proto panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="p-head"><div class="p-num">7</div><h3>Пересечение двух прямых</h3><div class="formula">f(x) = g(x)</div></div>
+    <div class="p-grid">
+      <div class="grapher" data-graph="intersect"></div>
+      <div class="theory">
+        <h4>Как искать точку пересечения</h4>
+        <p>Сначала по графику восстанови обе формулы (каждую — как её прототип). Затем приравняй их: <span class="eq">f(x) = g(x)</span> и реши уравнение — это и есть <b class="k-gold">абсцисса</b> точки. Подставив её в любую формулу, получишь <b class="k-gold">ординату</b>.</p>
+        <div class="cells"><b>Двигай ползунки слева:</b> меняй k и b обеих прямых и смотри, как «уезжает» точка их пересечения. Если наклоны равны — прямые параллельны и не пересекаются.</div>
+        <div class="hack"><div class="ic">⚠️</div><div><b>Лайфхак</b><span>Внимательно к вопросу: спросили <b>абсциссу</b> — дай x; спросили <b>ординату</b> — дай y. Часто точка стоит прямо в узле сетки — тогда её видно без вычислений.</span></div></div>
+
+        <div class="solve">
+          <span class="badge-src">Разбор · две прямые (как в №14, №31, №33)</span>
+          <div class="step"><div class="n">1</div><div class="t">По графику: f(x) = x + 1, g(x) = −x + 5.</div></div>
+          <div class="step"><div class="n">2</div><div class="t">Приравниваем: <span class="eq">x + 1 = −x + 5</span>.</div></div>
+          <div class="step"><div class="n">3</div><div class="t"><span class="eq">2x = 4 → x = 2</span> (абсцисса). Ордината: y = 2 + 1 = 3.</div></div>
+          <div class="step"><div class="n">✔</div><div class="t">Точка пересечения (2; 3).</div></div>
+        </div>
+
+        <div class="practice">
+          <div class="q"><b>Проверь себя.</b> Прямые f(x)=x+1 и g(x)=−x+7 пересекаются в точке B. Найдите абсциссу B.</div>
+          <button class="pcheck" data-t="a7">Проверить ответ</button>
+          <div class="answer" id="a7"><div class="ans">x_B = 3</div><div class="exp">x+1=−x+7 → 2x=6 → x=3.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 8. ПЕРЕСЕЧЕНИЕ ПАРАБОЛЫ И ПРЯМОЙ ===== -->
+  <div class="proto panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="p-head"><div class="p-num">8</div><h3>Пересечение параболы и прямой</h3><div class="formula">ax² + bx + c = kx + b₁</div></div>
+    <div class="p-grid">
+      <div class="grapher" data-graph="quadline"></div>
+      <div class="theory">
+        <h4>Почему нужно приравнять формулы</h4>
+        <p>В общей точке у параболы и прямой <b class="k-gold">одинаковые x и y</b>. Поэтому их правые части равны. После переноса всех слагаемых получается квадратное уравнение.</p>
+        <div class="cells"><b>Порядок:</b> восстанови обе формулы → приравняй → перенеси всё в одну сторону → реши уравнение → выбери корень нужной точки.</div>
+        <div class="hack"><div class="ic">⚔️</div><div><b>Лайфхак</b><span>Если одна общая точка уже дана, её абсцисса — известный корень. После вынесения общего множителя второй корень часто виден сразу.</span></div></div>
+        <div class="solve">
+          <span class="badge-src">Разбор · парабола и прямая</span>
+          <div class="step"><div class="n">1</div><div class="t"><span class="eq">f(x)=x²</span>, <span class="eq">g(x)=2x</span>. Одна точка — A(0;0).</div></div>
+          <div class="step"><div class="n">2</div><div class="t"><span class="eq">x²=2x → x²−2x=0</span>.</div></div>
+          <div class="step"><div class="n">3</div><div class="t"><span class="eq">x(x−2)=0</span>, поэтому x=0 или x=2.</div></div>
+          <div class="step"><div class="n">✔</div><div class="t">Для второй точки B берём <b>x = 2</b>.</div></div>
+        </div>
+        <div class="practice">
+          <div class="q"><b>Проверь себя.</b> y=x² и y=3x пересекаются в начале координат и точке B. Найдите абсциссу B.</div>
+          <button class="pcheck" data-t="a8">Проверить ответ</button>
+          <div class="answer" id="a8"><div class="ans">x_B = 3</div><div class="exp">x²=3x → x(x−3)=0. Кроме x=0 остаётся x=3.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 9. ПЕРЕСЕЧЕНИЕ ГИПЕРБОЛЫ И ПРЯМОЙ ===== -->
+  <div class="proto panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="p-head"><div class="p-num">9</div><h3>Пересечение гиперболы и прямой</h3><div class="formula">k / x = mx + b</div></div>
+    <div class="p-grid">
+      <div class="grapher" data-graph="hyperline"></div>
+      <div class="theory">
+        <h4>Как убрать дробь без потери смысла</h4>
+        <p>Сначала запиши ограничение <b class="k-gold">x ≠ 0</b>. Затем умножь обе части равенства на x. Дробь исчезнет, а уравнение станет квадратным.</p>
+        <div class="cells"><b>Главный переход:</b> <span class="eq">k/x = mx+b → k = mx²+bx</span>. Корни сверяй с графиком и условием.</div>
+        <div class="hack"><div class="ic">✦</div><div><b>Лайфхак</b><span>Для прямой y=mx получается x²=k/m. Сразу видны симметричные абсциссы ±√(k/m).</span></div></div>
+        <div class="solve">
+          <span class="badge-src">Разбор · гипербола и прямая</span>
+          <div class="step"><div class="n">1</div><div class="t"><span class="eq">f(x)=4/x</span>, <span class="eq">g(x)=x</span>; x≠0.</div></div>
+          <div class="step"><div class="n">2</div><div class="t"><span class="eq">4/x=x → 4=x²</span>.</div></div>
+          <div class="step"><div class="n">3</div><div class="t"><span class="eq">x=−2</span> или <span class="eq">x=2</span>.</div></div>
+          <div class="step"><div class="n">✔</div><div class="t">Абсцисса точки в первой четверти: <b>2</b>.</div></div>
+        </div>
+        <div class="practice">
+          <div class="q"><b>Проверь себя.</b> y=9/x и y=x пересекаются в первой четверти. Найдите абсциссу точки.</div>
+          <button class="pcheck" data-t="a9">Проверить ответ</button>
+          <div class="answer" id="a9"><div class="ans">x = 3</div><div class="exp">9/x=x → x²=9 → x=±3. В первой четверти x положителен.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 10. ПЕРЕСЕЧЕНИЕ ПОКАЗАТЕЛЬНОЙ ФУНКЦИИ И ПРЯМОЙ ===== -->
+  <div class="proto panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="p-head"><div class="p-num">10</div><h3>Пересечение показательной функции и прямой</h3><div class="formula">aˣ = kx + b</div></div>
+    <div class="p-grid">
+      <div class="grapher" data-graph="expline"></div>
+      <div class="theory">
+        <h4>Как читать точку без сложного уравнения</h4>
+        <p>В задании №11 коэффициенты подбираются так, чтобы общая точка попадала в узел сетки. Восстанови основание a и прямую, затем найди x, при котором обе функции дают один y.</p>
+        <div class="cells"><b>Если прямая горизонтальная:</b> <span class="eq">y=q</span>, поэтому решаем <span class="eq">aˣ=q</span>. Представь q как степень основания a.</div>
+        <div class="hack"><div class="ic">🚀</div><div><b>Лайфхак</b><span>Проверь целые x около видимой точки: −2, −1, 0, 1, 2, 3. Нужная степень обычно узнаётся сразу.</span></div></div>
+        <div class="solve">
+          <span class="badge-src">Разбор · экспонента и прямая</span>
+          <div class="step"><div class="n">1</div><div class="t"><span class="eq">f(x)=2ˣ</span>, горизонтальная прямая <span class="eq">g(x)=4</span>.</div></div>
+          <div class="step"><div class="n">2</div><div class="t"><span class="eq">2ˣ=4</span>.</div></div>
+          <div class="step"><div class="n">3</div><div class="t"><span class="eq">4=2²</span>, значит показатели равны.</div></div>
+          <div class="step"><div class="n">✔</div><div class="t"><b>x = 2</b>.</div></div>
+        </div>
+        <div class="practice">
+          <div class="q"><b>Проверь себя.</b> y=3ˣ пересекается с прямой y=9. Найдите абсциссу точки.</div>
+          <button class="pcheck" data-t="a10">Проверить ответ</button>
+          <div class="answer" id="a10"><div class="ans">x = 2</div><div class="exp">3ˣ=9, а 9=3². Следовательно, x=2.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 11. СМЕШАННЫЕ ПЕРЕСЕЧЕНИЯ ===== -->
+  <div class="proto panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="p-head"><div class="p-num">11</div><h3>Смешанные пересечения</h3><div class="formula">сначала распознай оба графика</div></div>
+    <div class="p-grid">
+      <div class="grapher" data-graph="mixed"></div>
+      <div class="theory">
+        <h4>Финальная сборка всех навыков</h4>
+        <p>Здесь могут встретиться две параболы или другие знакомые графики. Нового правила нет: <b class="k-gold">каждый график восстанавливается своим способом</b>, затем формулы приравниваются.</p>
+        <div class="cells"><b>Маршрут:</b> назови тип каждого графика → восстанови формулы независимо → приравняй → реши уравнение → выбери нужную общую точку.</div>
+        <div class="hack"><div class="ic">🛰️</div><div><b>Лайфхак</b><span>Если обе параболы проходят через начало координат, x=0 уже является корнем. После раскрытия скобок вынеси x.</span></div></div>
+        <div class="solve">
+          <span class="badge-src">Разбор · две параболы</span>
+          <div class="step"><div class="n">1</div><div class="t"><span class="eq">f(x)=x²</span>, <span class="eq">g(x)=−(x−2)²+4</span>.</div></div>
+          <div class="step"><div class="n">2</div><div class="t"><span class="eq">x²=−(x−2)²+4</span>.</div></div>
+          <div class="step"><div class="n">3</div><div class="t"><span class="eq">2x²−4x=0 → 2x(x−2)=0</span>.</div></div>
+          <div class="step"><div class="n">✔</div><div class="t">Общие абсциссы: 0 и 2. Вторая точка: <b>x = 2</b>.</div></div>
+        </div>
+        <div class="practice">
+          <div class="q"><b>Проверь себя.</b> y=x² и y=−(x−3)²+9 пересекаются в начале координат и точке B. Найдите абсциссу B.</div>
+          <button class="pcheck" data-t="a11">Проверить ответ</button>
+          <div class="answer" id="a11"><div class="ans">x_B = 3</div><div class="exp">x²=−x²+6x → 2x(x−3)=0. Кроме x=0 получаем x=3.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div></section>
+
+<!-- ============================ ОШИБКИ ============================ -->
+<section id="errors"><div class="wrap">
+  <div class="section-head">
+    <div class="eyebrow">Тёмная сторона</div>
+    <h2 class="holo-title" style="font-size:clamp(24px,4.4vw,40px)">Ошибки на конкретных задачах</h2>
+    <p class="lead">Слева — как ошибаются в реальной задаче из сборника, справа — как правильно.</p>
+  </div>
+
+  <!-- Ошибка 1 -->
+  <div class="mistake panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="m-title">1 · Знак коэффициента k</div>
+    <div class="m-task">Пример: <b>Задача №22</b> — прямая f(x)=kx+b идёт сверху вниз (через (−2; 1) и (0; −2)).</div>
+    <div class="split">
+      <div class="side wrong">
+        <div class="tag"><svg style="width:26px" viewBox="0 0 100 90"><use href="#trooper"/></svg> Неправильно</div>
+        <p>Считают «на 3 клетки вниз за 2 вправо» и пишут положительный k, теряя знак:</p>
+        <span class="eqx">k = 3/2 = 1,5 → f(3) = 1,5·3 − 2 = 2,5</span>
+        <p>Прямая-то убывает, а получилось возрастание.</p>
+      </div>
+      <div class="side right">
+        <div class="tag"><svg style="width:24px" viewBox="0 0 80 100"><use href="#droid"/></svg> Правильно</div>
+        <p>График падает вправо → k &lt; 0. За 2 вправо график ушёл на 3 <b>вниз</b>:</p>
+        <span class="eqx">k = −3/2 = −1,5, b = −2 → f(3) = −1,5·3 − 2 = −6,5</span>
+        <p><b>Проверка:</b> при k&gt;0 линия обязана подниматься. Спад = минус.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ошибка 2 -->
+  <div class="mistake panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="m-title">2 · Коэффициент a у параболы (растяжение)</div>
+    <div class="m-task">Пример: <b>Задача №34</b> — узкая парабола, от вершины 1 клетка вправо даёт подъём на 2 клетки.</div>
+    <div class="split">
+      <div class="side wrong">
+        <div class="tag"><svg style="width:26px" viewBox="0 0 100 90"><use href="#trooper"/></svg> Неправильно</div>
+        <p>Видят параболу и по привычке берут a = 1, не проверяя ширину:</p>
+        <span class="eqx">a = 1 → f(x) = (x − x₀)² + y₀</span>
+        <p>Все дальнейшие значения выходят вдвое меньше нужных.</p>
+      </div>
+      <div class="side right">
+        <div class="tag"><svg style="width:24px" viewBox="0 0 80 100"><use href="#droid"/></svg> Правильно</div>
+        <p>От вершины на 1 вправо график поднялся на <b>2</b> клетки → растяжение:</p>
+        <span class="eqx">a = 2 → f(x) = 2(x − x₀)² + y₀</span>
+        <p><b>Проверка:</b> y = 2x² уже, чем y = x². Всегда меряй a по клеткам от вершины.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ошибка 3 -->
+  <div class="mistake panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="m-title">3 · Абсцисса ↔ ордината пересечения</div>
+    <div class="m-task">Пример: <b>Задача №35</b> — спрашивают <b>ординату</b> точки B пересечения f(x)=k/x и g(x)=ax+b.</div>
+    <div class="split">
+      <div class="side wrong">
+        <div class="tag"><svg style="width:26px" viewBox="0 0 100 90"><use href="#trooper"/></svg> Неправильно</div>
+        <p>Нашли точку B(4; 1) и по инерции записали x:</p>
+        <span class="eqx">ответ: 4 (взяли абсциссу)</span>
+        <p>А в вопросе просили ординату — координату по оси Oy.</p>
+      </div>
+      <div class="side right">
+        <div class="tag"><svg style="width:24px" viewBox="0 0 80 100"><use href="#droid"/></svg> Правильно</div>
+        <p>Ордината — это y, вертикальная координата точки B(4; 1):</p>
+        <span class="eqx">ответ: 1</span>
+        <p><b>Проверка:</b> абсцисса = x (горизонталь), ордината = y (вертикаль). Читай вопрос до конца.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ошибка 4 -->
+  <div class="mistake panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="m-title">4 · Основание логарифма</div>
+    <div class="m-task">Пример: <b>Задача №15</b> — f(x)=logₐx, надо f(16); график даёт y=1 над x=2.</div>
+    <div class="split">
+      <div class="side wrong">
+        <div class="tag"><svg style="width:26px" viewBox="0 0 100 90"><use href="#trooper"/></svg> Неправильно</div>
+        <p>Путают основание с аргументом и берут a = 16 «из головы»:</p>
+        <span class="eqx">f(16) = log₁₆16 = 1</span>
+        <p>Не смотрят, где график действительно даёт y = 1.</p>
+      </div>
+      <div class="side right">
+        <div class="tag"><svg style="width:24px" viewBox="0 0 80 100"><use href="#droid"/></svg> Правильно</div>
+        <p>Основание — это x, при котором y = 1. По графику это x = 2 → a = 2:</p>
+        <span class="eqx">f(16) = log₂16 = 4</span>
+        <p><b>Проверка:</b> логарифм всегда проходит через (1; 0). Основание ищи на «этаже y = 1».</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="lead" style="text-align:center; margin:30px auto 0">Да пребудет с тобой Сила на экзамене 🌌</p>
+</div></section>
+
+<!-- ============================ SVG-СПРАЙТЫ ============================ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="xwing"><g transform="scale(.55)">
+    <polygon points="18,20 25,4 30,6 26,22" fill="#9fb2cc"/><polygon points="18,40 25,56 30,54 26,38" fill="#8496b0"/>
+    <polygon points="8,18 24,22 24,26 8,24" fill="#cfd8e6"/><polygon points="8,42 24,38 24,34 8,36" fill="#b9c4d6"/>
+    <polygon points="20,26 78,28 92,30 78,32 20,34" fill="#dfe7f2"/><polygon points="78,28 92,30 78,32" fill="var(--neon)"/>
+    <circle cx="34" cy="30" r="5" fill="#37506f"/><rect x="88" y="28.5" width="8" height="3" rx="1" fill="var(--saber-red)"/>
+  </g></g>
+  <g id="tie"><g transform="scale(.55)">
+    <rect x="12" y="6" width="7" height="48" rx="2" fill="#5a6b82"/><rect x="81" y="6" width="7" height="48" rx="2" fill="#5a6b82"/>
+    <line x1="19" y1="30" x2="40" y2="30" stroke="#8496b0" stroke-width="3"/><line x1="60" y1="30" x2="81" y2="30" stroke="#8496b0" stroke-width="3"/>
+    <circle cx="50" cy="30" r="13" fill="#2b3648" stroke="#8496b0" stroke-width="2"/><circle cx="50" cy="30" r="5" fill="var(--saber-red)"/>
+  </g></g>
+  <g id="trooper"><g transform="scale(.85)">
+    <path d="M50,10 C74,10 84,32 82,58 C81,74 68,86 50,86 C32,86 19,74 18,58 C16,32 26,10 50,10 Z" fill="#eef2f7"/>
+    <path d="M34,44 C40,38 60,38 66,44 L62,58 C56,54 44,54 38,58 Z" fill="#20272f"/>
+    <path d="M46,60 L54,60 L52,74 L48,74 Z" fill="#20272f"/>
+    <ellipse cx="41" cy="49" rx="4" ry="6" fill="#3a4552"/><ellipse cx="59" cy="49" rx="4" ry="6" fill="#3a4552"/>
+    <path d="M42,20 Q50,16 58,20" stroke="#c3ccd8" stroke-width="2" fill="none"/>
+  </g></g>
+  <g id="droid"><g transform="scale(.8)">
+    <path d="M20,34 A30,30 0 0 1 80,34 Z" fill="#d9dfe8"/><rect x="20" y="34" width="60" height="58" rx="8" fill="#eef2f7"/>
+    <circle cx="50" cy="24" r="7" fill="var(--neon)"/><circle cx="50" cy="24" r="3" fill="#0a1b2e"/>
+    <rect x="30" y="44" width="40" height="18" rx="3" fill="#2b3648"/><rect x="34" y="48" width="10" height="10" rx="2" fill="var(--saber-green)"/>
+    <circle cx="58" cy="53" r="5" fill="var(--saber-red)"/><rect x="30" y="70" width="40" height="6" rx="3" fill="#9fb2cc"/>
+    <rect x="44" y="80" width="12" height="10" rx="2" fill="#5a6b82"/>
+  </g></g>
+</defs></svg>
+
+<script>
+/* ============================================================
+   0. localStorage-безопасно
+   ============================================================ */
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:v;}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
+
+/* ============================================================
+   1. ЗВЁЗДЫ
+   ============================================================ */
+(function(){const sky=document.getElementById('space');let h='';for(let i=0;i<140;i++){const s=(Math.random()*2+.5).toFixed(1);
+  h+=`<div class="twinkle" style="left:${(Math.random()*100).toFixed(2)}%;top:${(Math.random()*100).toFixed(2)}%;width:${s}px;height:${s}px;--d:${(Math.random()*4+2).toFixed(1)}s"></div>`;}
+  sky.innerHTML=h;})();
+
+/* ============================================================
+   2. ФЛОТ
+   ============================================================ */
+(function(){const w=document.getElementById('fleet');
+  const cfg=[{t:'xwing',top:12,dur:28,a:'flyRight'},{t:'tie',top:68,dur:34,a:'flyLeft'},{t:'xwing',top:44,dur:40,a:'flyRight'},{t:'tie',top:26,dur:31,a:'flyLeft'}];
+  cfg.forEach((c,i)=>{const d=document.createElement('div');d.className='ship'+(c.t==='tie'?' tie':'');d.style.top=c.top+'%';
+    d.style.animation=`${c.a} ${c.dur}s linear ${i*4}s infinite, hover ${5+i}s ease-in-out infinite`;
+    d.innerHTML=`<svg viewBox="0 0 100 60"><use href="#${c.t}"/></svg>`;w.appendChild(d);});})();
+
+/* ============================================================
+   3. ЦВЕТА ТЕМЫ (кэш для canvas), обновляется при смене темы
+   ============================================================ */
+const THEME={};
+function refreshTheme(){const cs=getComputedStyle(document.documentElement);
+  ['--neon','--gold','--saber-green','--saber-red','--muted','--grid','--text'].forEach(v=>THEME[v]=cs.getPropertyValue(v).trim());}
+refreshTheme();
+
+/* ============================================================
+   4. ТЕМЫ
+   ============================================================ */
+const tdots=[...document.querySelectorAll('.tdot')];
+function applyTheme(set){document.documentElement.setAttribute('data-theme',set);
+  tdots.forEach(d=>d.classList.toggle('active',d.dataset.set===set));LS.set('jedi_theme',set);
+  setTimeout(refreshTheme,50);}
+tdots.forEach(d=>d.addEventListener('click',()=>applyTheme(d.dataset.set)));
+applyTheme(LS.get('jedi_theme','dark'));
+
+/* ============================================================
+   5. ПРОГРЕСС + НАВИГАЦИЯ
+   ============================================================ */
+const fill=document.getElementById('fill'),pct=document.getElementById('pct');
+const navdots=[...document.querySelectorAll('.navdot')];
+const secs=['hero','algo','protos','errors'].map(id=>document.getElementById(id));
+function onScroll(){const max=document.documentElement.scrollHeight-innerHeight;
+  const frac=max>0?Math.min(1,Math.max(0,scrollY/max)):0;const p=Math.round(frac*100);
+  fill.style.width=p+'%';pct.textContent=p+'%';
+  const mid=scrollY+innerHeight/2;let cur=0;secs.forEach((s,i)=>{if(mid>=s.offsetTop)cur=i;});
+  navdots.forEach((d,i)=>d.classList.toggle('active',i===cur));}
+addEventListener('scroll',onScroll,{passive:true});addEventListener('resize',onScroll);
+
+/* Гиперпрыжок */
+const hyper=document.getElementById('hyper');
+(function(){let h='';for(let i=0;i<40;i++)h+=`<div class="streak" style="transform:rotate(${Math.random()*360}deg);animation-delay:${(Math.random()*.3).toFixed(2)}s"></div>`;hyper.innerHTML=h;})();
+function hyperjump(id){hyper.classList.remove('jump');void hyper.offsetWidth;hyper.classList.add('jump');
+  setTimeout(()=>document.getElementById(id).scrollIntoView({behavior:'smooth'}),150);}
+navdots.forEach(d=>d.addEventListener('click',()=>hyperjump(d.dataset.go)));
+
+/* ============================================================
+   6. ЗВУК: ОРИГИНАЛЬНЫЙ ЭПИЧНЫЙ МАРШ (Web Audio, не тема Уильямса)
+   ============================================================ */
+const Sound=(function(){let ctx,master,on=false,timer,step=0;
+  const N={D2:73.42,A2:110,D3:146.83,E3:164.81,F3:174.61,G3:196,A3:220,Bb3:233.08,C4:261.63,D4:293.66,E4:329.63,F4:349.23,G4:392,A4:440,Bb4:466.16};
+  const mel=[N.D4,N.D4,N.A3,N.D4,N.F4,N.E4,N.D4,N.A3, N.Bb3,N.Bb3,N.A3,N.G3,N.F3,N.G3,N.A3,0,
+             N.D4,N.E4,N.F4,N.E4,N.D4,N.C4,N.A3,N.D4, N.F4,N.E4,N.D4,N.C4,N.Bb3,N.A3,N.D4,0];
+  const bass=[N.D2,0,N.D2,0,N.A2,0,N.A2,0, N.Bb3/2,0,N.Bb3/2,0,N.F3/2,0,N.A2,0,
+              N.D2,0,N.D2,0,N.A2,0,N.A2,0, N.G3/2,0,N.F3/2,0,N.E3/2,0,N.D2,0];
+  const T=.26;
+  function v(f,t,d,ty,vol,ff){if(!f)return;const o=ctx.createOscillator(),g=ctx.createGain(),bf=ctx.createBiquadFilter();
+    o.type=ty;o.frequency.value=f;bf.type='lowpass';bf.frequency.value=ff||1400;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.02);g.gain.exponentialRampToValueAtTime(.0008,t+d);
+    o.connect(bf);bf.connect(g);g.connect(master);o.start(t);o.stop(t+d+.05);}
+  function tick(){const t=ctx.currentTime+.05,i=step%mel.length;
+    v(mel[i],t,T*.9,'sawtooth',.16,1600);if(mel[i])v(mel[i]/2,t,T*.9,'square',.05,900);v(bass[i],t,T*1.1,'triangle',.22,600);step++;}
+  return{toggle(){if(!ctx){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;ctx=new AC();master=ctx.createGain();master.gain.value=.5;master.connect(ctx.destination);}
+    if(ctx.state==='suspended')ctx.resume();on=!on;if(on){step=0;tick();timer=setInterval(tick,T*1000);}else clearInterval(timer);return on;}};})();
+const soundBtn=document.getElementById('soundBtn');
+soundBtn.addEventListener('click',()=>soundBtn.classList.toggle('on',Sound.toggle()));
+
+/* ============================================================
+   7. ГРАФЕРЫ: живые графики с ползунками
+   ============================================================ */
+const CW=620,CH=460;                 // внутреннее разрешение canvas
+const graphers=[];                   // список для анимации
+const io=new IntersectionObserver(es=>es.forEach(e=>{const g=graphers.find(x=>x.canvas===e.target);if(g)g.visible=e.isIntersecting;}),{threshold:.05});
+
+function fmt(n){n=Math.round(n*1000)/1000;return Number.isInteger(n)?n:n;}
+function signed(n){n=fmt(n);return n>=0?('+ '+n):('− '+(-n));}
+
+/* Конфиги прототипов: origin (ox,oy в пикселях), unit (px на 1),
+   coeffs (ползунки), f (функция), eq (подпись), probe (домен бегущей точки) */
+const CONFIG={
+  linear:{ox:CW/2,oy:CH/2,unit:36,coeffs:[{id:'k',min:-4,max:4,step:.1,val:2},{id:'b',min:-5,max:5,step:.1,val:1}],
+    f:(c,x)=>c.k*x+c.b, eq:c=>`y = ${fmt(c.k)}·x ${signed(c.b)}`, probe:[-6,6]},
+  quadratic:{ox:CW/2,oy:CH*0.62,unit:34,coeffs:[{id:'a',min:-2,max:2,step:.1,val:1},{id:'b',min:-4,max:4,step:.1,val:-4},{id:'c',min:-4,max:6,step:.1,val:3}],
+    f:(c,x)=>c.a*x*x+c.b*x+c.c, eq:c=>{const a=c.a||0.0001;const vx=-c.b/(2*a);const vy=c.a*vx*vx+c.b*vx+c.c;
+      return `y = ${fmt(c.a)}x² ${signed(c.b)}x ${signed(c.c)}   ·   вершина (${fmt(vx)}; ${fmt(vy)})`;}, probe:[-6,6], mark:c=>{const a=c.a||0.0001;const vx=-c.b/(2*a);return [vx,c.a*vx*vx+c.b*vx+c.c];}},
+  hyperbola:{ox:CW/2,oy:CH/2,unit:36,coeffs:[{id:'k',min:-6,max:6,step:.1,val:2}],
+    f:(c,x)=>Math.abs(x)<1e-6?NaN:c.k/x, eq:c=>`y = ${fmt(c.k)} / x`, probe:[.4,6]},
+  root:{ox:CW*0.16,oy:CH*0.82,unit:40,coeffs:[{id:'k',min:.5,max:3,step:.1,val:1}],
+    f:(c,x)=>x<0?NaN:c.k*Math.sqrt(x), eq:c=>`y = ${fmt(c.k)}·√x`, probe:[0,9]},
+  log:{ox:CW*0.28,oy:CH/2,unit:40,coeffs:[{id:'a',min:2,max:6,step:.1,val:2}],
+    f:(c,x)=>x<=0?NaN:Math.log(x)/Math.log(c.a), eq:c=>`y = log_${fmt(c.a)} x`, probe:[.2,7]},
+  exp:{ox:CW/2,oy:CH*0.72,unit:40,coeffs:[{id:'a',min:.5,max:3,step:.1,val:2}],
+    f:(c,x)=>Math.pow(c.a,x), eq:c=>`y = ${fmt(c.a)}^x`, probe:[-3,3]},
+  intersect:{ox:CW/2,oy:CH/2,unit:34,coeffs:[{id:'k₁',min:-3,max:3,step:.1,val:1},{id:'b₁',min:-4,max:4,step:.1,val:1},{id:'k₂',min:-3,max:3,step:.1,val:-1},{id:'b₂',min:-4,max:6,step:.1,val:5}],
+    two:[ c=>x=>c['k₁']*x+c['b₁'], c=>x=>c['k₂']*x+c['b₂'] ],
+    eq:c=>{const k1=c['k₁'],k2=c['k₂'];if(Math.abs(k1-k2)<1e-6)return `параллельны — нет пересечения`;
+      const x=(c['b₂']-c['b₁'])/(k1-k2);const y=k1*x+c['b₁'];return `f=${fmt(k1)}x${signed(c['b₁'])} · g=${fmt(k2)}x${signed(c['b₂'])}   →   (${fmt(x)}; ${fmt(y)})`;},
+    crosses:c=>{const d=c['k₁']-c['k₂'];if(Math.abs(d)<1e-6)return[];const x=(c['b₂']-c['b₁'])/d;return[[x,c['k₁']*x+c['b₁']]];},probe:[-6,6]},
+  quadline:{ox:CW*.25,oy:CH*.78,unit:34,coeffs:[{id:'m',min:.5,max:4,step:.1,val:2}],
+    two:[c=>x=>x*x,c=>x=>c.m*x],eq:c=>`x² = ${fmt(c.m)}x   →   x = 0 или x = ${fmt(c.m)}`,
+    crosses:c=>[[0,0],[c.m,c.m*c.m]],probe:[0,4]},
+  hyperline:{ox:CW/2,oy:CH/2,unit:34,coeffs:[{id:'k',min:1,max:9,step:.5,val:4},{id:'m',min:.5,max:3,step:.1,val:1}],
+    two:[c=>x=>Math.abs(x)<1e-6?NaN:c.k/x,c=>x=>c.m*x],
+    eq:c=>{const q=c.k/c.m,s=q>0?Math.sqrt(q):NaN;return `k/x = mx   →   x = ±${fmt(s)}`;},
+    crosses:c=>{const q=c.k/c.m;if(q<=0)return[];const s=Math.sqrt(q);return[[-s,-c.m*s],[s,c.m*s]];},probe:[.4,6]},
+  expline:{ox:CW*.25,oy:CH*.78,unit:34,coeffs:[{id:'a',min:2,max:4,step:1,val:2},{id:'q',min:1,max:12,step:1,val:4}],
+    two:[c=>x=>Math.pow(c.a,x),c=>x=>c.q],eq:c=>`${fmt(c.a)}ˣ = ${fmt(c.q)}   →   x = ${fmt(Math.log(c.q)/Math.log(c.a))}`,
+    crosses:c=>[[Math.log(c.q)/Math.log(c.a),c.q]],probe:[-2,3]},
+  mixed:{ox:CW*.22,oy:CH*.8,unit:32,coeffs:[{id:'s',min:1,max:4,step:.1,val:2}],
+    two:[c=>x=>x*x,c=>x=>-(x-c.s)*(x-c.s)+c.s*c.s],
+    eq:c=>`x² = −(x−${fmt(c.s)})²+${fmt(c.s*c.s)}   →   x = 0 или x = ${fmt(c.s)}`,
+    crosses:c=>[[0,0],[c.s,c.s*c.s]],probe:[0,4]}
+};
+
+function buildGrapher(host){
+  const type=host.dataset.graph, cfg=CONFIG[type];
+  // разметка
+  const wrap=document.createElement('div');wrap.className='gcanvas-wrap';
+  const canvas=document.createElement('canvas');canvas.width=CW;canvas.height=CH;wrap.appendChild(canvas);
+  const eq=document.createElement('div');eq.className='geq';
+  const sl=document.createElement('div');sl.className='gsliders';
+  host.appendChild(wrap);host.appendChild(eq);host.appendChild(sl);
+
+  const state={};(cfg.coeffs||[]).forEach(c=>state[c.id]=c.val);
+  (cfg.coeffs||[]).forEach(c=>{
+    const row=document.createElement('div');row.className='gslider';
+    row.innerHTML=`<label>${c.id} =</label><input type="range" min="${c.min}" max="${c.max}" step="${c.step}" value="${c.val}"><span class="val">${fmt(c.val)}</span>`;
+    const input=row.querySelector('input'),val=row.querySelector('.val');
+    input.addEventListener('input',()=>{state[c.id]=parseFloat(input.value);val.textContent=fmt(state[c.id]);updateEq();});
+    sl.appendChild(row);
+  });
+
+  const anim={};(cfg.coeffs||[]).forEach(c=>anim[c.id]=c.val);   // плавно догоняет state
+  const g={canvas,ctx:canvas.getContext('2d'),cfg,state,anim,visible:false,phase:0,
+    funcs(){ const A=this.anim; if(cfg.two) return cfg.two.map((mk,i)=>({f:mk(A),color:i===0?THEME['--neon']:THEME['--saber-green']}));
+             return [{f:x=>cfg.f(A,x),color:THEME['--neon']}]; },
+    draw(phase){this.phase=phase;drawGraph(this,phase);}};
+  function updateEq(){eq.textContent=cfg.eq(state);}
+  updateEq();graphers.push(g);io.observe(canvas);g.draw(0);
+  return g;
+}
+
+/* Рисование одного графика */
+function drawGraph(g,phase){
+  const {ctx,cfg}=g,A=g.anim,W=CW,H=CH,ox=cfg.ox,oy=cfg.oy,u=cfg.unit;
+  ctx.clearRect(0,0,W,H);
+  // сетка
+  ctx.lineWidth=1;ctx.strokeStyle=THEME['--grid'];
+  let gx=ox-Math.ceil(ox/u)*u;for(;gx<=W;gx+=u){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,H);ctx.stroke();}
+  let gy=oy-Math.ceil(oy/u)*u;for(;gy<=H;gy+=u){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke();}
+  // оси
+  ctx.strokeStyle=THEME['--muted'];ctx.lineWidth=1.6;
+  ctx.beginPath();ctx.moveTo(0,oy);ctx.lineTo(W,oy);ctx.stroke();       // Ox
+  ctx.beginPath();ctx.moveTo(ox,0);ctx.lineTo(ox,H);ctx.stroke();       // Oy
+  // стрелки
+  ctx.fillStyle=THEME['--muted'];
+  ctx.beginPath();ctx.moveTo(W,oy);ctx.lineTo(W-10,oy-5);ctx.lineTo(W-10,oy+5);ctx.fill();
+  ctx.beginPath();ctx.moveTo(ox,0);ctx.lineTo(ox-5,10);ctx.lineTo(ox+5,10);ctx.fill();
+  // метки 1 и подписи осей
+  ctx.fillStyle=THEME['--muted'];ctx.font='13px Consolas, monospace';
+  ctx.fillText('1',ox+4,oy+16);ctx.fillText('1',ox+u+2,oy+16);
+  ctx.fillText('x',W-14,oy-8);ctx.fillText('y',ox+8,14);
+  ctx.strokeStyle=THEME['--muted'];ctx.beginPath();ctx.moveTo(ox+u,oy-4);ctx.lineTo(ox+u,oy+4);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(ox-4,oy-u);ctx.lineTo(ox+4,oy-u);ctx.stroke();
+
+  // функции
+  g.funcs().forEach(fn=>{
+    ctx.beginPath();let started=false;
+    for(let px=0;px<=W;px++){const x=(px-ox)/u;const y=fn.f(x);
+      if(!isFinite(y)){started=false;continue;}
+      const py=oy-y*u;
+      if(py<-H||py>2*H){started=false;continue;}
+      if(!started){ctx.moveTo(px,py);started=true;}else ctx.lineTo(px,py);}
+    ctx.strokeStyle=fn.color;ctx.lineWidth=3;
+    ctx.shadowColor=fn.color;ctx.shadowBlur=10;ctx.stroke();ctx.shadowBlur=0;
+  });
+
+  // маркер-особенность (вершина / пересечение)
+  if(cfg.mark){const m=cfg.mark(A);const px=ox+m[0]*u,py=oy-m[1]*u;
+    if(px>=0&&px<=W&&py>=0&&py<=H)dot(ctx,px,py,THEME['--gold']);}
+  if(cfg.crosses){cfg.crosses(A).forEach(([x,y])=>{const px=ox+x*u,py=oy-y*u;
+    if(px>=0&&px<=W&&py>=0&&py<=H)dot(ctx,px,py,THEME['--gold']);});}
+
+  // бегущая светящаяся точка (динамика)
+  if(cfg.probe){const [x0,x1]=cfg.probe;const t=(phase%1);const x=x0+t*(x1-x0);
+    const f=g.funcs()[0].f;const y=f(x);if(isFinite(y)){const px=ox+x*u,py=oy-y*u;
+      if(px>=0&&px<=W&&py>=-20&&py<=H+20)dot(ctx,px,py,THEME['--saber-red'],4);}}
+}
+function dot(ctx,x,y,color,r){r=r||5;ctx.beginPath();ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=12;
+  ctx.arc(x,y,r,0,7);ctx.fill();ctx.shadowBlur=0;}
+
+document.querySelectorAll('.grapher').forEach(buildGrapher);
+
+/* Анимация: единый rAF-цикл, рисуем только видимые графики */
+let phase=0;
+function loop(){phase+=0.006;graphers.forEach(g=>{if(!g.visible)return;
+  for(const k in g.state){const d=g.state[k]-g.anim[k];if(Math.abs(d)>1e-4)g.anim[k]+=d*0.22;else g.anim[k]=g.state[k];}
+  g.draw(phase);});requestAnimationFrame(loop);}
+requestAnimationFrame(loop);
+
+/* ============================================================
+   7б. МИНИ-ГРАФИКИ к каждому разбору и каждой практике
+   (иллюстрируют конкретную задачу; статичные)
+   ============================================================ */
+const MW=280,MH=240,minis=[];
+const MINI=[
+ {worked:{ox:140,oy:150,u:24,funcs:[x=>2*x+1],marks:[{x:0,y:1},{x:1,y:3}]},
+  practice:{ox:140,oy:140,u:28,funcs:[x=>x],marks:[{x:0,y:0},{x:1,y:1}]}},
+ {worked:{ox:140,oy:120,u:28,funcs:[x=>1/x],marks:[{x:1,y:1}]},
+  practice:{ox:95,oy:125,u:26,funcs:[x=>3/x],marks:[{x:3,y:1},{x:1,y:3}]}},
+ {worked:{ox:110,oy:200,u:30,funcs:[x=>Math.pow(2,x)],marks:[{x:0,y:1},{x:1,y:2}]},
+  practice:{ox:140,oy:200,u:30,funcs:[x=>Math.pow(0.5,x)],marks:[{x:0,y:1},{x:-1,y:2}]}},
+ {worked:{ox:40,oy:210,u:26,funcs:[x=>Math.sqrt(x)],marks:[{x:4,y:2},{x:9,y:3}]},
+  practice:{ox:50,oy:210,u:24,funcs:[x=>2*Math.sqrt(x),x=>x],marks:[{x:4,y:4,g:1},{x:0,y:0}]}},
+ {worked:{ox:70,oy:120,u:30,funcs:[x=>Math.log(x)/Math.log(2)],marks:[{x:1,y:0},{x:2,y:1}]},
+  practice:{ox:64,oy:140,u:28,funcs:[x=>Math.log(x)/Math.log(2)],marks:[{x:2,y:1},{x:8,y:3}]}},
+ {worked:{ox:235,oy:175,u:22,funcs:[x=>x*x+8*x+15],marks:[{x:-4,y:-1,g:1},{x:-3,y:0}]},
+  practice:{ox:150,oy:116,u:22,funcs:[x=>x*x+2*x-3],marks:[{x:-1,y:-4,g:1},{x:0,y:-3}]}},
+ {worked:{ox:90,oy:170,u:26,funcs:[x=>x+1,x=>-x+5],marks:[{x:2,y:3,g:1}]},
+  practice:{ox:100,oy:180,u:24,funcs:[x=>x+1,x=>-x+7],marks:[{x:3,y:4,g:1}]}},
+ {worked:{ox:62,oy:210,u:30,funcs:[x=>x*x,x=>2*x],marks:[{x:0,y:0},{x:2,y:4,g:1}]},
+  practice:{ox:52,oy:210,u:24,funcs:[x=>x*x,x=>3*x],marks:[{x:0,y:0},{x:3,y:9,g:1}]}},
+ {worked:{ox:140,oy:120,u:26,funcs:[x=>Math.abs(x)<1e-6?NaN:4/x,x=>x],marks:[{x:-2,y:-2},{x:2,y:2,g:1}]},
+  practice:{ox:140,oy:120,u:24,funcs:[x=>Math.abs(x)<1e-6?NaN:9/x,x=>x],marks:[{x:-3,y:-3},{x:3,y:3,g:1}]}},
+ {worked:{ox:70,oy:210,u:30,funcs:[x=>Math.pow(2,x),x=>4],marks:[{x:2,y:4,g:1}]},
+  practice:{ox:62,oy:210,u:24,funcs:[x=>Math.pow(3,x),x=>9],marks:[{x:2,y:9,g:1}]}},
+ {worked:{ox:55,oy:210,u:28,funcs:[x=>x*x,x=>-(x-2)*(x-2)+4],marks:[{x:0,y:0},{x:2,y:4,g:1}]},
+  practice:{ox:48,oy:210,u:23,funcs:[x=>x*x,x=>-(x-3)*(x-3)+9],marks:[{x:0,y:0},{x:3,y:9,g:1}]}}
+];
+document.querySelectorAll('.proto').forEach((proto,i)=>{
+  if(!MINI[i])return;
+  const s=proto.querySelector('.solve'),p=proto.querySelector('.practice');
+  if(s)attachMini(s,MINI[i].worked);
+  if(p)attachMini(p,MINI[i].practice);
+});
+function attachMini(block,spec){
+  const body=document.createElement('div');body.className='mini-body';
+  while(block.firstChild)body.appendChild(block.firstChild);   // переносим весь текст/шаги
+  const slot=document.createElement('div');slot.className='mini';
+  const cv=document.createElement('canvas');cv.width=MW;cv.height=MH;slot.appendChild(cv);
+  block.appendChild(slot);block.appendChild(body);block.classList.add('has-mini');
+  minis.push({cv,spec});renderMini(cv,spec);
+}
+function renderMini(cv,spec){
+  const ctx=cv.getContext('2d'),W=MW,H=MH,ox=spec.ox,oy=spec.oy,u=spec.u;
+  ctx.clearRect(0,0,W,H);
+  ctx.lineWidth=1;ctx.strokeStyle=THEME['--grid'];
+  let gx=ox-Math.ceil(ox/u)*u;for(;gx<=W;gx+=u){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,H);ctx.stroke();}
+  let gy=oy-Math.ceil(oy/u)*u;for(;gy<=H;gy+=u){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke();}
+  ctx.strokeStyle=THEME['--muted'];ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(0,oy);ctx.lineTo(W,oy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(ox,0);ctx.lineTo(ox,H);ctx.stroke();
+  ctx.fillStyle=THEME['--muted'];
+  ctx.beginPath();ctx.moveTo(W,oy);ctx.lineTo(W-8,oy-4);ctx.lineTo(W-8,oy+4);ctx.fill();
+  ctx.beginPath();ctx.moveTo(ox,0);ctx.lineTo(ox-4,8);ctx.lineTo(ox+4,8);ctx.fill();
+  ctx.font='11px Consolas, monospace';ctx.fillText('1',ox+3,oy+13);ctx.fillText('x',W-11,oy-6);ctx.fillText('y',ox+6,12);
+  ctx.strokeStyle=THEME['--muted'];ctx.beginPath();ctx.moveTo(ox+u,oy-3);ctx.lineTo(ox+u,oy+3);ctx.stroke();
+  const cols=[THEME['--neon'],THEME['--saber-green']];
+  spec.funcs.forEach((f,fi)=>{ctx.beginPath();let st=false;
+    for(let px=0;px<=W;px++){const x=(px-ox)/u,y=f(x);if(!isFinite(y)){st=false;continue;}const py=oy-y*u;
+      if(py<-H||py>2*H){st=false;continue;}if(!st){ctx.moveTo(px,py);st=true;}else ctx.lineTo(px,py);}
+    ctx.strokeStyle=cols[fi]||cols[0];ctx.lineWidth=2.6;ctx.shadowColor=cols[fi]||cols[0];ctx.shadowBlur=8;ctx.stroke();ctx.shadowBlur=0;});
+  (spec.marks||[]).forEach(m=>{const px=ox+m.x*u,py=oy-m.y*u;const c=m.g?THEME['--saber-green']:THEME['--gold'];
+    dot(ctx,px,py,c,4);ctx.fillStyle=c;ctx.font='11px Consolas, monospace';
+    const lbl='('+m.x+'; '+m.y+')';const w=ctx.measureText(lbl).width;
+    const tx=(px+8+w>W)?px-8-w:px+8;const ty=(py-8<12)?py+16:py-8;ctx.fillText(lbl,tx,ty);});
+}
+/* перерисовка мини-графиков при смене темы */
+tdots.forEach(d=>d.addEventListener('click',()=>setTimeout(()=>minis.forEach(m=>renderMini(m.cv,m.spec)),90)));
+
+/* ============================================================
+   8. ПРОВЕРКА ОТВЕТОВ
+   ============================================================ */
+document.querySelectorAll('.pcheck').forEach(btn=>btn.addEventListener('click',()=>{
+  const a=document.getElementById(btn.dataset.t);const open=a.classList.toggle('show');
+  btn.textContent=open?'Скрыть ответ':'Проверить ответ';}));
+
+/* ============================================================
+   9. СТАРТ
+   ============================================================ */
+onScroll();
+</script>
+</body>
+</html>
