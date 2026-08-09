@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Галактика графиков — экспресс-скан функций</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#03050d;--panel:#081026e8;--panel2:#0b1530;--line:#20365f;
+  --cyan:#2ff3ff;--gold:#ffd24a;--rose:#ff4d8d;--green:#43ffa3;
+  --violet:#8b7bff;--ink:#edf4ff;--muted:#91a5cf;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%}
+body{
+  background:radial-gradient(900px 600px at 50% -12%,#122657 0,#071027 45%,var(--bg) 100%);
+  color:var(--ink);font-family:'Rajdhani',system-ui,sans-serif;overflow-x:hidden
+}
+button,input{font:inherit}
+button{cursor:pointer}
+#stars{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.app{position:relative;z-index:2;width:min(920px,100%);margin:auto;padding:16px 14px 48px}
+.hidden{display:none!important}
+.screen{animation:fade .35s ease}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:13px}
+.brand{font:900 14px 'Orbitron';letter-spacing:.13em;color:var(--cyan);text-shadow:0 0 16px #2ff3ff88}
+.brand small{display:block;margin-top:3px;font:600 9px 'Rajdhani';letter-spacing:.25em;color:var(--muted);text-shadow:none}
+.spacer{flex:1}
+.icon-btn,.small-btn{
+  border:1px solid #2ff3ff66;background:#081329;color:var(--cyan);border-radius:10px;
+  padding:8px 10px;font:700 10px 'Orbitron';letter-spacing:.08em;
+  box-shadow:0 0 15px -7px #2ff3ff;transition:.2s
+}
+.icon-btn:hover,.small-btn:hover{border-color:var(--cyan);box-shadow:0 0 20px -5px #2ff3ff}
+.icon-btn.off{color:var(--muted);border-color:#34466d;box-shadow:none}
+.panel{
+  background:linear-gradient(180deg,#0b1535e8,#070d20ed);border:1px solid var(--line);
+  border-radius:20px;box-shadow:0 20px 60px -30px #000,inset 0 0 50px -35px #2ff3ff;
+  backdrop-filter:blur(8px)
+}
+.hero{text-align:center;padding:30px 18px}
+.hero h1{
+  margin:0;color:var(--cyan);font:900 clamp(28px,8vw,50px)/1.05 'Orbitron';
+  letter-spacing:.04em;text-shadow:0 0 24px #2ff3ff77,0 0 65px #2ff3ff33
+}
+.subtitle{margin:8px 0 18px;color:var(--gold);font:700 11px 'Orbitron';letter-spacing:.22em}
+.desc{max-width:650px;margin:8px auto;color:var(--muted);font-size:18px;line-height:1.45}
+.desc b{color:var(--ink)}
+.family-badges{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:22px 0}
+.family-badges span{
+  border:1px solid #263b68;background:#091229;border-radius:99px;padding:7px 12px;
+  color:#bdcbee;font-weight:700;font-size:13px
+}
+.student-card{
+  width:min(450px,100%);margin:16px auto;padding:12px 14px;border:1px solid #233c69;
+  background:#071127;border-radius:13px;color:var(--muted);font-size:16px
+}
+.student-card b{color:var(--cyan)}
+.primary{
+  border:0;border-radius:12px;padding:14px 22px;background:linear-gradient(120deg,var(--cyan),#8beeff);
+  color:#03101d;font:800 12px 'Orbitron';letter-spacing:.1em;text-transform:uppercase;
+  box-shadow:0 0 26px -5px #2ff3ffbb;transition:.18s
+}
+.primary:hover{transform:translateY(-2px);box-shadow:0 0 34px -3px #2ff3ff}
+.primary:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+.ghost{
+  border:1px solid #2ff3ff77;border-radius:10px;padding:9px 12px;background:transparent;
+  color:var(--cyan);font:700 10px 'Orbitron';letter-spacing:.08em
+}
+.auth{max-width:560px;margin:7vh auto 0;padding:28px 20px;text-align:center}
+.auth h2{font:900 25px 'Orbitron';color:var(--cyan);margin:0 0 12px;text-shadow:0 0 18px #2ff3ff77}
+.code-input{
+  width:min(410px,100%);display:block;margin:18px auto 8px;padding:13px 14px;
+  background:#061126;color:var(--ink);border:1px solid #2ff3ff88;border-radius:12px;
+  outline:none;text-align:center;font-size:19px;font-weight:700;box-shadow:0 0 20px -10px #2ff3ff
+}
+.code-input:focus{border-color:var(--cyan);box-shadow:0 0 22px -5px #2ff3ff}
+.message{min-height:24px;margin:8px 0;color:var(--muted);font-size:15px}
+.message.error{color:var(--rose)}.message.ok{color:var(--green)}.message.pending{color:var(--gold)}
+
+/* Диагностическая панель */
+.hud{display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:center;margin-bottom:11px}
+.hud-chip{
+  border:1px solid #20365f;background:#071126;border-radius:10px;padding:8px 10px;
+  color:var(--muted);font:700 10px 'Orbitron';letter-spacing:.08em;white-space:nowrap
+}
+.hud-chip b{color:var(--ink)}#timer.over{color:var(--rose)}
+#questionTimer.danger{color:var(--rose);text-shadow:0 0 9px var(--rose)}
+.progress{height:8px;background:#0a1430;border:1px solid #1d315b;border-radius:99px;overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--violet));box-shadow:0 0 12px #2ff3ffaa;transition:.4s}
+.planets{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:13px}
+.planet{
+  min-width:0;padding:8px 5px;border:1px solid #20365f;border-radius:11px;background:#071126;
+  text-align:center;color:var(--muted);font-size:11px;font-weight:700
+}
+.planet .orb{display:block;font-size:20px;filter:saturate(.7);transition:.25s}
+.planet.active{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 18px -8px #2ff3ff}
+.planet.done{border-color:#2b6e58;color:var(--green)}
+.nodes{display:flex;justify-content:center;gap:4px;margin-top:4px}
+.nodes i{width:6px;height:6px;border-radius:50%;background:#26395f}
+.nodes i.ok{background:var(--green);box-shadow:0 0 7px var(--green)}
+.nodes i.bad{background:var(--rose);box-shadow:0 0 7px var(--rose)}
+.nodes i.current{background:var(--cyan);box-shadow:0 0 7px var(--cyan)}
+
+.question{padding:16px}
+.qtop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.family-label{font:700 10px 'Orbitron';letter-spacing:.14em;color:var(--cyan);text-transform:uppercase}
+.mode-label{font-weight:700;color:var(--gold);font-size:12px}
+.signal{
+  border:1px solid #1f3867;border-radius:15px;background:linear-gradient(180deg,#09152f,#060d20);
+  padding:12px;margin-bottom:14px;box-shadow:inset 0 0 35px -25px #2ff3ff
+}
+.formula{font:700 clamp(18px,5vw,25px) 'Orbitron';color:var(--gold);text-align:center;margin:4px 0 10px;text-shadow:0 0 14px #ffd24a55}
+.plot-wrap{position:relative}
+#plot{display:block;width:100%;height:auto;border-radius:10px;background:#060d1c}
+.scanline{position:absolute;left:0;right:0;height:1px;background:#2ff3ff88;box-shadow:0 0 10px #2ff3ff;animation:scan 3.2s linear infinite;pointer-events:none}
+@keyframes scan{from{top:5%}to{top:95%}}
+.prompt{margin:3px 2px 12px;font:700 clamp(15px,4vw,19px) 'Orbitron';line-height:1.35}
+.options{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.option{
+  position:relative;min-height:70px;border:1px solid #273d69;border-radius:13px;
+  padding:13px 12px 13px 42px;background:linear-gradient(180deg,#0b1632,#081027);
+  color:#dce7ff;text-align:left;font-size:16px;font-weight:600;line-height:1.3;transition:.16s
+}
+.option:hover:not(:disabled){transform:translateY(-2px);border-color:var(--cyan);box-shadow:0 0 22px -8px #2ff3ff}
+.option .letter{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:23px;height:23px;
+  display:grid;place-items:center;border:1px solid #3a4f7d;border-radius:7px;color:var(--muted);font:700 10px 'Orbitron'}
+.option.correct{border-color:var(--green);background:#0a2a20;color:#effff8;box-shadow:0 0 22px -8px var(--green)}
+.option.correct .letter{background:var(--green);border-color:var(--green);color:#03120c}
+.option.wrong{border-color:var(--rose);background:#2a0b1a;color:#fff0f5;box-shadow:0 0 22px -8px var(--rose)}
+.option.wrong .letter{background:var(--rose);border-color:var(--rose);color:white}
+.option:disabled{cursor:default}
+.option.dim{opacity:.45}
+.feedback{display:none;margin-top:13px;padding:13px 14px;border:1px solid #254371;border-radius:12px;background:#08142d}
+.feedback.show{display:block;animation:fade .25s ease}
+.feedback h3{font:700 12px 'Orbitron';letter-spacing:.08em;margin:0 0 7px}
+.feedback h3.ok{color:var(--green)}.feedback h3.bad{color:var(--rose)}
+.feedback p{margin:0;color:#c5d4f3;font-size:16px;line-height:1.4}
+.next-row{display:flex;justify-content:flex-end;margin-top:12px}
+
+/* Результат */
+.result{padding:26px 18px;text-align:center}
+.result h2{margin:0;color:var(--cyan);font:900 clamp(23px,6vw,35px) 'Orbitron';text-shadow:0 0 20px #2ff3ff77}
+.score-ring{
+  width:175px;height:175px;margin:19px auto;display:grid;place-items:center;border-radius:50%;
+  background:conic-gradient(var(--cyan) var(--score-angle,0deg),#14203e 0);
+  box-shadow:0 0 30px -10px #2ff3ff;position:relative
+}
+.score-ring:before{content:"";position:absolute;inset:13px;border-radius:50%;background:#071026;border:1px solid #20365f}
+.score-ring strong{position:relative;font:900 39px 'Orbitron';color:var(--gold);text-shadow:0 0 16px #ffd24a77}
+.score-ring span{position:relative;display:block;margin-top:4px;color:var(--muted);font:700 10px 'Orbitron';letter-spacing:.12em}
+.rank{font:700 14px 'Orbitron';letter-spacing:.12em;color:var(--green);margin-bottom:8px}
+.result-info{display:flex;justify-content:center;gap:28px;flex-wrap:wrap;color:var(--muted);margin:14px 0}
+.result-info b{display:block;color:var(--ink);font:700 18px 'Orbitron';margin-top:3px}
+.family-result{max-width:610px;margin:17px auto;text-align:left}
+.family-row{display:grid;grid-template-columns:1fr auto;gap:10px;padding:10px 8px;border-bottom:1px solid #1d3157;font-size:16px}
+.family-row b{font-family:'Orbitron';font-size:13px}
+.family-row .mastered{color:var(--green)}.family-row .repeat{color:var(--rose)}.family-row .almost{color:var(--gold)}
+.result-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:13px}
+@media(max-width:640px){
+  .options{grid-template-columns:1fr}.planet{font-size:9px}.planet .orb{font-size:17px}
+  .hud{grid-template-columns:auto 1fr}.hud .time-chip{grid-column:auto;text-align:center}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+<main class="app">
+  <section id="authScreen" class="screen hidden">
+    <div class="panel auth">
+      <h2>ВХОД УЧЕНИКА</h2>
+      <p class="desc">Введи личный код перед диагностикой.</p>
+      <input id="studentCode" class="code-input" type="text" autocomplete="off" spellcheck="false" placeholder="ЛИЧНЫЙ КОД">
+      <div id="authMessage" class="message"></div>
+      <button id="loginBtn" class="primary">Проверить код</button>
+    </div>
+  </section>
+
+  <section id="startScreen" class="screen hidden">
+    <div class="topbar">
+      <div class="brand">ГАЛАКТИКА ГРАФИКОВ<small>ЭКСПРЕСС-СКАН · ЗАДАНИЕ 11</small></div>
+      <span class="spacer"></span>
+      <button class="icon-btn" data-sound>♫ ЗВУК</button>
+    </div>
+    <div class="panel hero">
+      <h1>ЭКСПРЕСС<br>СКАН</h1>
+      <div class="subtitle">5 ПЛАНЕТ · 20 СИГНАЛОВ · 15 СЕКУНД НА ОТВЕТ</div>
+      <p class="desc">Короткая диагностика пяти прототипов: <b>линейной функции, гиперболы, показательной, корневой и логарифмической функций</b>.</p>
+      <div class="family-badges">
+        <span>📡 Линейная</span><span>🌀 Гипербола</span><span>⚡ Показательная</span>
+        <span>🌱 Корневая</span><span>🔭 Логарифмическая</span>
+      </div>
+      <p class="desc">На каждой планете четыре сигнала: <b>график → формула</b> и <b>формула → свойство</b>. На каждый вопрос даётся 15 секунд; учитывается только первый выбор.</p>
+      <div class="student-card">Пилот: <b id="startStudent">—</b><br><button id="changeStudentStart" class="small-btn">Сменить ученика</button></div>
+      <button id="startBtn" class="primary">▶ Начать сканирование</button>
+    </div>
+  </section>
+
+  <section id="gameScreen" class="screen hidden">
+    <div class="topbar">
+      <div class="brand">ГАЛАКТИКА ГРАФИКОВ<small>ДИАГНОСТИКА ПРОТОТИПОВ</small></div>
+      <span class="spacer"></span>
+      <button class="icon-btn" data-sound>♫ ЗВУК</button>
+    </div>
+    <div class="hud">
+      <div class="hud-chip">СИГНАЛ <b id="qNum">1</b>/20</div>
+      <div class="progress"><i id="progressFill"></i></div>
+      <div class="hud-chip time-chip">ОТВЕТ <b id="questionTimer">15</b> с</div>
+      <div class="hud-chip time-chip">ОБЩЕЕ <b id="timer">0:00</b></div>
+    </div>
+    <div id="planets" class="planets"></div>
+    <article class="panel question">
+      <div class="qtop">
+        <span id="familyLabel" class="family-label">Линейная функция</span>
+        <span id="modeLabel" class="mode-label">График → формула</span>
+      </div>
+      <div id="signal" class="signal">
+        <div id="formula" class="formula hidden"></div>
+        <div id="plotWrap" class="plot-wrap">
+          <canvas id="plot" width="760" height="350"></canvas>
+          <i class="scanline"></i>
+        </div>
+      </div>
+      <div id="prompt" class="prompt"></div>
+      <div id="options" class="options"></div>
+      <div id="feedback" class="feedback">
+        <h3 id="feedbackTitle"></h3>
+        <p id="feedbackText"></p>
+      </div>
+      <div class="next-row"><button id="nextBtn" class="primary" disabled>Далее ▶</button></div>
+    </article>
+  </section>
+
+  <section id="resultScreen" class="screen hidden">
+    <div class="topbar">
+      <div class="brand">ГАЛАКТИКА ГРАФИКОВ<small>РЕЗУЛЬТАТ СКАНИРОВАНИЯ</small></div>
+      <span class="spacer"></span>
+      <button class="icon-btn" data-sound>♫ ЗВУК</button>
+    </div>
+    <div class="panel result">
+      <h2>СКАНИРОВАНИЕ ЗАВЕРШЕНО</h2>
+      <div id="scoreRing" class="score-ring"><div><strong id="finalPct">0%</strong><span>С ПЕРВОЙ ПОПЫТКИ</span></div></div>
+      <div id="rank" class="rank"></div>
+      <p id="resultMessage" class="desc"></p>
+      <div class="result-info">
+        <div>Правильных<b id="finalCorrect">0/20</b></div>
+        <div>Время<b id="finalTime">0:00</b></div>
+      </div>
+      <div id="familyResults" class="family-result"></div>
+      <div id="saveStatus" class="message">Сохраняем результат…</div>
+      <div class="result-actions">
+        <button id="againBtn" class="primary">↻ Пройти заново</button>
+        <button id="changeStudentResult" class="ghost">Сменить ученика</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+const TEST_META={
+  testId:'EGE-11-FUNCTION-GALAXY-EXPRESS-SCAN-20',
+  topicId:'task-11',
+  topicName:'Графики линейной, гиперболической, показательной, корневой и логарифмической функций',
+  taskNumber:11,
+  schemaVersion:1
+};
+const PENDING_KEY='egePendingTestResults';
+const FAMILY_ORDER=['linear','hyperbola','exponential','root','logarithm'];
+const FAMILY_META={
+  linear:{name:'Линейная функция',icon:'📡'},
+  hyperbola:{name:'Гипербола',icon:'🌀'},
+  exponential:{name:'Показательная',icon:'⚡'},
+  root:{name:'Корневая',icon:'🌱'},
+  logarithm:{name:'Логарифмическая',icon:'🔭'}
+};
+let currentStudent=null;
+const S={
+  tasks:[],i:0,firstTryCorrect:0,questionAttempted:false,answered:false,
+  familyStats:{},startedAt:0,timerId:null,questionTimerId:null,autoNextTimer:null,
+  timeLeft:15,active:false,resultSubmitted:false,sound:true
+};
+
+/* ---------- Ученик и отправка ---------- */
+function makeEventId(){
+  if(window.crypto&&typeof window.crypto.randomUUID==='function')return window.crypto.randomUUID();
+  return 'evt-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)+'-'+Math.random().toString(36).slice(2);
+}
+function localDateString(){
+  const d=new Date();
+  return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+}
+function readPendingResults(){
+  try{const value=JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');return Array.isArray(value)?value:[]}
+  catch(_){return []}
+}
+function writePendingResults(queue){localStorage.setItem(PENDING_KEY,JSON.stringify(queue))}
+function queuePendingResult(payload){
+  const queue=readPendingResults();
+  if(!queue.some(item=>item&&item.eventId===payload.eventId))queue.push(payload);
+  writePendingResults(queue);
+}
+async function postResult(payload){
+  const response=await fetch(API_URL,{
+    method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(payload),redirect:'follow'
+  });
+  if(!response.ok)throw new Error('HTTP '+response.status);
+}
+async function flushPendingResults(){
+  const queue=readPendingResults();
+  if(!queue.length||!navigator.onLine)return;
+  const sent=new Set();
+  for(const payload of queue){
+    try{await postResult(payload);if(payload&&payload.eventId)sent.add(payload.eventId)}
+    catch(_){}
+  }
+  const latest=readPendingResults();
+  writePendingResults(latest.filter(item=>!item||!sent.has(item.eventId)));
+}
+function setSaveStatus(text,kind=''){
+  $('saveStatus').textContent=text;
+  $('saveStatus').className='message '+kind;
+}
+async function submitResult(payload){
+  try{await postResult(payload);setSaveStatus('✓ Результат сохранён','ok')}
+  catch(_){
+    queuePendingResult(payload);
+    setSaveStatus('Нет связи: результат сохранён на устройстве и отправится позже','pending');
+  }
+}
+function savedStudent(){
+  const studentId=localStorage.getItem('egeStudentId');
+  const name=localStorage.getItem('egeStudentName');
+  const code=localStorage.getItem('egeStudentCode');
+  return studentId&&code?{studentId,name:name||'Ученик',code}:null;
+}
+function rememberStudent(student,code){
+  localStorage.setItem('egeStudentId',String(student.studentId));
+  localStorage.setItem('egeStudentName',String(student.name||'Ученик'));
+  localStorage.setItem('egeStudentCode',String(code));
+}
+function clearStudent(){
+  localStorage.removeItem('egeStudentId');localStorage.removeItem('egeStudentName');localStorage.removeItem('egeStudentCode');
+  currentStudent=null;
+}
+function studentFromResponse(data){
+  if(!data||data.ok===false||data.success===false||data.valid===false)return null;
+  const source=data.student||data.data||data.result||data;
+  const studentId=source.studentId??source.id??data.studentId??data.id;
+  const name=source.studentName??source.name??data.studentName??data.name;
+  return studentId!==undefined&&studentId!==null&&studentId!==''?
+    {studentId:String(studentId),name:String(name||'Ученик')}:null;
+}
+function validateStudentCode(code){
+  return new Promise((resolve,reject)=>{
+    const callback='__egeGalaxy_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const script=document.createElement('script');
+    let settled=false;
+    const timer=setTimeout(()=>finishValidation(new Error('Сервер не ответил. Проверьте интернет')),15000);
+    function cleanup(){
+      clearTimeout(timer);
+      try{delete window[callback]}catch(_){window[callback]=undefined}
+      script.remove();
+    }
+    function finishValidation(error,value){
+      if(settled)return;settled=true;cleanup();error?reject(error):resolve(value);
+    }
+    window[callback]=data=>{
+      const student=studentFromResponse(data);
+      student?finishValidation(null,student):
+        finishValidation(new Error((data&&(data.error||data.message))||'Код ученика не найден'));
+    };
+    script.onerror=()=>finishValidation(new Error('Не удалось связаться с сервером'));
+    script.src=API_URL+'?'+new URLSearchParams({action:'validateStudent',code,callback}).toString();
+    document.head.appendChild(script);
+  });
+}
+function showOnly(id){
+  ['authScreen','startScreen','gameScreen','resultScreen'].forEach(screen=>$(screen).classList.toggle('hidden',screen!==id));
+}
+function showLogin(prefill=''){
+  if(S.active)return;
+  showOnly('authScreen');$('studentCode').value=prefill;$('authMessage').textContent='';$('authMessage').className='message';
+  setTimeout(()=>$('studentCode').focus(),0);
+}
+function showStart(){
+  $('startStudent').textContent=currentStudent?currentStudent.name:'Ученик';
+  showOnly('startScreen');
+}
+function changeStudent(){
+  if(S.active)return;clearStudent();showLogin('');
+}
+async function loginStudent(){
+  const code=$('studentCode').value.trim();
+  if(!code){$('authMessage').textContent='Введите личный код';$('authMessage').className='message error';return}
+  $('loginBtn').disabled=true;$('authMessage').textContent='Проверяем код…';$('authMessage').className='message';
+  try{
+    currentStudent=await validateStudentCode(code);rememberStudent(currentStudent,code);showStart();flushPendingResults();
+  }catch(error){
+    $('authMessage').textContent=error.message||'Не удалось проверить код';$('authMessage').className='message error';
+  }finally{$('loginBtn').disabled=false}
+}
+
+/* ---------- Задания ---------- */
+function option(text,correct=false){return{text,correct}}
+function shuffle(array){
+  for(let i=array.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[array[i],array[j]]=[array[j],array[i]]}
+  return array;
+}
+function makeTasks(){
+  return[
+    {
+      family:'linear',mode:'График → формула',showGraph:true,
+      prompt:'Какая формула соответствует сигналу на графике?',
+      fn:x=>1.5*x-1,view:{xmin:-5,xmax:5,ymin:-6,ymax:6},
+      options:[option('y = 1,5x − 1',true),option('y = −1,5x − 1'),option('y = 1,5x + 1'),option('y = x − 1,5')],
+      why:'Прямая возрастает, поэтому k > 0. Она пересекает ось Oy в точке −1, значит b = −1.'
+    },
+    {
+      family:'linear',mode:'Формула → свойство',showGraph:false,formula:'y = −2x + 3',
+      prompt:'Какое описание этой функции верно?',
+      options:[
+        option('Функция убывает и пересекает Oy в точке 3',true),
+        option('Функция возрастает и пересекает Oy в точке 3'),
+        option('Функция убывает и пересекает Ox в точке 3'),
+        option('Прямая параллельна оси Ox')
+      ],
+      why:'k = −2 < 0, поэтому функция убывает. Свободный член b = 3 задаёт пересечение с осью Oy.'
+    },
+    {
+      family:'linear',mode:'График → формула',showGraph:true,
+      prompt:'Распознайте формулу второй прямой.',
+      fn:x=>-.75*x+2,view:{xmin:-6,xmax:6,ymin:-5,ymax:6},
+      options:[
+        option('y = −0,75x + 2',true),option('y = 0,75x + 2'),
+        option('y = −2x + 0,75'),option('y = −0,75x − 2')
+      ],
+      why:'Прямая убывает, значит k < 0. Пересечение с осью Oy происходит при y = 2, поэтому b = 2.'
+    },
+    {
+      family:'linear',mode:'Формула → свойство',showGraph:false,formula:'y = 3x − 6',
+      prompt:'Какое утверждение о прямой верно?',
+      options:[
+        option('Возрастает и пересекает Ox в точке x = 2',true),
+        option('Убывает и пересекает Ox в точке x = 2'),
+        option('Возрастает и пересекает Oy в точке 6'),
+        option('Параллельна оси Ox')
+      ],
+      why:'k = 3 > 0, поэтому прямая возрастает. Из 3x − 6 = 0 получаем точку пересечения с Ox: x = 2.'
+    },
+    {
+      family:'hyperbola',mode:'График → формула',showGraph:true,
+      prompt:'Какая формула задаёт изображённую гиперболу?',
+      fn:x=>3/(x-1)+2,view:{xmin:-5,xmax:7,ymin:-5,ymax:7},asymptotes:[{type:'v',value:1},{type:'h',value:2}],
+      options:[
+        option('y = 3/(x − 1) + 2',true),option('y = −3/(x − 1) + 2'),
+        option('y = 3/(x + 1) + 2'),option('y = 3/(x − 2) + 1')
+      ],
+      why:'Вертикальная асимптота x = 1 даёт скобку (x − 1), горизонтальная y = 2 — слагаемое +2. Ветви расположены как при k > 0.'
+    },
+    {
+      family:'hyperbola',mode:'Формула → свойство',showGraph:false,formula:'y = −4/(x + 2) − 1',
+      prompt:'Какие асимптоты имеет график?',
+      options:[
+        option('x = −2 и y = −1',true),option('x = 2 и y = −1'),
+        option('x = −1 и y = −2'),option('x = 2 и y = 1')
+      ],
+      why:'Из x + 2 = 0 получаем вертикальную асимптоту x = −2. Сдвиг −1 задаёт горизонтальную асимптоту y = −1.'
+    },
+    {
+      family:'hyperbola',mode:'График → формула',showGraph:true,
+      prompt:'Определите знак коэффициента и формулу гиперболы.',
+      fn:x=>-4/x,view:{xmin:-6,xmax:6,ymin:-6,ymax:6},asymptotes:[{type:'v',value:0},{type:'h',value:0}],
+      options:[
+        option('y = −4/x',true),option('y = 4/x'),
+        option('y = −x/4'),option('y = −4/(x − 1)')
+      ],
+      why:'Ветви лежат во II и IV четвертях, поэтому k < 0. Асимптоты совпадают с осями координат — сдвигов нет.'
+    },
+    {
+      family:'hyperbola',mode:'Формула → свойство',showGraph:false,formula:'y = 2/(x − 3) − 2',
+      prompt:'Где расположен центр гиперболы?',
+      options:[
+        option('В точке (3; −2)',true),option('В точке (−3; −2)'),
+        option('В точке (2; −3)'),option('В начале координат')
+      ],
+      why:'Центр находится в точке пересечения асимптот x = 3 и y = −2, то есть (3; −2).'
+    },
+    {
+      family:'exponential',mode:'График → формула',showGraph:true,
+      prompt:'Выберите формулу показательной функции.',
+      fn:x=>Math.pow(2,x)-1,view:{xmin:-4,xmax:4,ymin:-3,ymax:7},asymptotes:[{type:'h',value:-1}],
+      options:[
+        option('y = 2ˣ − 1',true),option('y = 2ˣ + 1'),
+        option('y = (1/2)ˣ − 1'),option('y = 2ˣ⁻¹')
+      ],
+      why:'График возрастает, значит основание больше 1. Горизонтальная асимптота y = −1 показывает вертикальный сдвиг на единицу вниз.'
+    },
+    {
+      family:'exponential',mode:'Формула → свойство',showGraph:false,formula:'y = (1/2)ˣ + 1',
+      prompt:'Как ведёт себя эта функция?',
+      options:[
+        option('Убывает; горизонтальная асимптота y = 1',true),
+        option('Возрастает; горизонтальная асимптота y = 1'),
+        option('Убывает; вертикальная асимптота x = 1'),
+        option('Возрастает и проходит через начало координат')
+      ],
+      why:'При 0 < a < 1 показательная функция убывает. Слагаемое +1 поднимает горизонтальную асимптоту до y = 1.'
+    },
+    {
+      family:'exponential',mode:'График → формула',showGraph:true,
+      prompt:'Какая формула соответствует убывающему сигналу?',
+      fn:x=>Math.pow(.5,x)-2,view:{xmin:-4,xmax:4,ymin:-4,ymax:7},asymptotes:[{type:'h',value:-2}],
+      options:[
+        option('y = (1/2)ˣ − 2',true),option('y = 2ˣ − 2'),
+        option('y = (1/2)ˣ + 2'),option('y = (1/2)ˣ⁻²')
+      ],
+      why:'График убывает, значит 0 < a < 1. Горизонтальная асимптота y = −2 задаёт сдвиг вниз на 2.'
+    },
+    {
+      family:'exponential',mode:'Формула → свойство',showGraph:false,formula:'y = 3ˣ⁻¹ + 2',
+      prompt:'Выберите верное описание.',
+      options:[
+        option('Возрастает; горизонтальная асимптота y = 2',true),
+        option('Убывает; горизонтальная асимптота y = 2'),
+        option('Возрастает; вертикальная асимптота x = 1'),
+        option('Убывает; горизонтальная асимптота y = −2')
+      ],
+      why:'Основание 3 > 1, поэтому функция возрастает. Сдвиг +2 задаёт горизонтальную асимптоту y = 2.'
+    },
+    {
+      family:'root',mode:'График → формула',showGraph:true,
+      prompt:'Какая формула соответствует корневой ветви?',
+      fn:x=>x>=2?-Math.sqrt(x-2)+3:NaN,view:{xmin:-2,xmax:9,ymin:-2,ymax:6},
+      options:[
+        option('y = −√(x − 2) + 3',true),option('y = √(x − 2) + 3'),
+        option('y = −√(x + 2) + 3'),option('y = √(x + 3) − 2')
+      ],
+      why:'График начинается в точке (2; 3), поэтому внутри корня x − 2, а снаружи +3. Ветка идёт вниз — перед корнем стоит минус.'
+    },
+    {
+      family:'root',mode:'Формула → свойство',showGraph:false,formula:'y = √(x + 1) − 2',
+      prompt:'Где начинается график и какова область определения?',
+      options:[
+        option('Начало (−1; −2), область x ≥ −1',true),
+        option('Начало (1; −2), область x ≥ 1'),
+        option('Начало (−2; −1), область x ≥ −2'),
+        option('Начало (−1; 2), область x ≥ −1')
+      ],
+      why:'Подкоренное выражение x + 1 должно быть неотрицательным: x ≥ −1. При x = −1 получаем y = −2.'
+    },
+    {
+      family:'root',mode:'График → формула',showGraph:true,
+      prompt:'Какая формула задаёт график кубического корня?',
+      fn:x=>1.5*Math.cbrt(x+1)-2,view:{xmin:-8,xmax:6,ymin:-6,ymax:3},
+      options:[
+        option('y = 1,5∛(x + 1) − 2',true),option('y = 1,5√(x + 1) − 2'),
+        option('y = −1,5∛(x + 1) − 2'),option('y = 1,5∛(x − 1) + 2')
+      ],
+      why:'S-образный график определён при всех x — это кубический корень. Его центр сдвинут в точку (−1; −2), коэффициент перед корнем положителен.'
+    },
+    {
+      family:'root',mode:'Формула → свойство',showGraph:false,formula:'y = −2∛(x − 3) + 1',
+      prompt:'Какое описание кубического корня верно?',
+      options:[
+        option('Область — все числа; функция убывает; центр (3; 1)',true),
+        option('Область x ≥ 3; функция убывает; начало (3; 1)'),
+        option('Область — все числа; функция возрастает; центр (−3; 1)'),
+        option('Область x > 3; вертикальная асимптота x = 3')
+      ],
+      why:'Кубический корень определён для всех x. Минус перед корнем отражает график и делает его убывающим; центр сдвига находится в точке (3; 1).'
+    },
+    {
+      family:'logarithm',mode:'График → формула',showGraph:true,
+      prompt:'Какая логарифмическая формула соответствует графику?',
+      fn:x=>x>1?Math.log2(x-1)+1:NaN,view:{xmin:-3,xmax:9,ymin:-5,ymax:6},asymptotes:[{type:'v',value:1}],
+      options:[
+        option('y = log₂(x − 1) + 1',true),option('y = log₂(x + 1) + 1'),
+        option('y = log₁⁄₂(x − 1) + 1'),option('y = log₂(x − 1) − 1')
+      ],
+      why:'Вертикальная асимптота x = 1 даёт x − 1. График возрастает, значит основание больше 1. Сдвиг вверх равен +1.'
+    },
+    {
+      family:'logarithm',mode:'Формула → свойство',showGraph:false,formula:'y = log₁⁄₂(x + 2) + 1',
+      prompt:'Какое утверждение верно?',
+      options:[
+        option('Функция убывает; область x > −2; асимптота x = −2',true),
+        option('Функция возрастает; область x > −2; асимптота x = −2'),
+        option('Функция убывает; область x > 2; асимптота x = 2'),
+        option('Функция возрастает; горизонтальная асимптота y = −2')
+      ],
+      why:'Основание 1/2 лежит между 0 и 1, поэтому функция убывает. Условие x + 2 > 0 даёт x > −2 и вертикальную асимптоту x = −2.'
+    },
+    {
+      family:'logarithm',mode:'График → формула',showGraph:true,
+      prompt:'Распознайте убывающий логарифмический график.',
+      fn:x=>x>-1?Math.log(x+1)/Math.log(.5)-1:NaN,view:{xmin:-4,xmax:8,ymin:-6,ymax:6},asymptotes:[{type:'v',value:-1}],
+      options:[
+        option('y = log₁⁄₂(x + 1) − 1',true),option('y = log₂(x + 1) − 1'),
+        option('y = log₁⁄₂(x − 1) − 1'),option('y = log₁⁄₂(x + 1) + 1')
+      ],
+      why:'График убывает, значит 0 < a < 1. Асимптота x = −1 даёт x + 1, а сдвиг вниз равен −1.'
+    },
+    {
+      family:'logarithm',mode:'Формула → свойство',showGraph:false,formula:'y = log₃(x − 4) − 2',
+      prompt:'Какова область определения и асимптота?',
+      options:[
+        option('x > 4; вертикальная асимптота x = 4',true),
+        option('x ≥ 4; горизонтальная асимптота y = 4'),
+        option('x > −4; вертикальная асимптота x = −4'),
+        option('Все действительные числа; асимптот нет')
+      ],
+      why:'Аргумент логарифма должен быть положительным: x − 4 > 0, то есть x > 4. Граница области даёт вертикальную асимптоту x = 4.'
+    }
+  ].map(task=>({...task,options:shuffle(task.options.slice())}));
+}
+
+/* ---------- График ---------- */
+function drawPlot(task){
+  const canvas=$('plot'),ctx=canvas.getContext('2d');
+  const cssWidth=Math.max(300,canvas.getBoundingClientRect().width||760);
+  const cssHeight=Math.round(cssWidth*.46);
+  const dpr=Math.min(devicePixelRatio||1,2);
+  canvas.width=Math.round(cssWidth*dpr);canvas.height=Math.round(cssHeight*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const W=cssWidth,H=cssHeight,pad=24,v=task.view;
+  const X=x=>pad+(x-v.xmin)/(v.xmax-v.xmin)*(W-2*pad);
+  const Y=y=>H-pad-(y-v.ymin)/(v.ymax-v.ymin)*(H-2*pad);
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#060d1c';ctx.fillRect(0,0,W,H);
+  ctx.lineWidth=1;ctx.strokeStyle='#122746';
+  for(let x=Math.ceil(v.xmin);x<=Math.floor(v.xmax);x++){ctx.beginPath();ctx.moveTo(X(x),pad);ctx.lineTo(X(x),H-pad);ctx.stroke()}
+  for(let y=Math.ceil(v.ymin);y<=Math.floor(v.ymax);y++){ctx.beginPath();ctx.moveTo(pad,Y(y));ctx.lineTo(W-pad,Y(y));ctx.stroke()}
+  ctx.strokeStyle='#6d84ad';ctx.lineWidth=1.5;
+  if(v.ymin<=0&&v.ymax>=0){ctx.beginPath();ctx.moveTo(pad,Y(0));ctx.lineTo(W-pad,Y(0));ctx.stroke()}
+  if(v.xmin<=0&&v.xmax>=0){ctx.beginPath();ctx.moveTo(X(0),pad);ctx.lineTo(X(0),H-pad);ctx.stroke()}
+  ctx.fillStyle='#8da3ca';ctx.font='11px Rajdhani';ctx.fillText('x',W-pad-8,Y(0)-6);ctx.fillText('y',X(0)+7,pad+11);
+  (task.asymptotes||[]).forEach(a=>{
+    ctx.save();ctx.setLineDash([7,6]);ctx.strokeStyle='#ff4d8dbb';ctx.lineWidth=1.5;ctx.beginPath();
+    if(a.type==='v'){ctx.moveTo(X(a.value),pad);ctx.lineTo(X(a.value),H-pad)}
+    else{ctx.moveTo(pad,Y(a.value));ctx.lineTo(W-pad,Y(a.value))}
+    ctx.stroke();ctx.restore();
+  });
+  ctx.save();ctx.strokeStyle='#2ff3ff';ctx.lineWidth=3;ctx.shadowColor='#2ff3ff';ctx.shadowBlur=10;
+  let drawing=false,lastY=null;
+  for(let px=pad;px<=W-pad;px+=1.2){
+    const x=v.xmin+(px-pad)/(W-2*pad)*(v.xmax-v.xmin),y=task.fn(x),sy=Y(y);
+    const valid=Number.isFinite(y)&&sy>pad-20&&sy<H-pad+20;
+    if(!valid||lastY!==null&&Math.abs(sy-lastY)>H*.45){drawing=false;lastY=null;continue}
+    if(!drawing){ctx.beginPath();ctx.moveTo(px,sy);drawing=true}else ctx.lineTo(px,sy);
+    lastY=sy;
+    if(px+1.2>W-pad&&drawing)ctx.stroke();
+    if(drawing&&Math.floor(px)%90===0){ctx.stroke();ctx.beginPath();ctx.moveTo(px,sy)}
+  }
+  if(drawing)ctx.stroke();ctx.restore();
+}
+
+/* ---------- Звук ---------- */
+const Sound=(()=>{
+  let ac=null,master=null,musicTimer=null,step=0;
+  const seq=[220,0,277,330,0,277,415,330,0,247,294,370,0,294,440,370];
+  function init(){
+    if(ac)return;ac=new (window.AudioContext||window.webkitAudioContext)();master=ac.createGain();master.gain.value=.18;master.connect(ac.destination);
+  }
+  function tone(freq,dur=.12,type='sine',gain=.12,delay=0){
+    if(!S.sound)return;init();const t=ac.currentTime+delay,o=ac.createOscillator(),g=ac.createGain();
+    o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    o.connect(g);g.connect(master);o.start(t);o.stop(t+dur);
+  }
+  function startMusic(){
+    if(!S.sound||musicTimer)return;init();if(ac.state==='suspended')ac.resume();
+    musicTimer=setInterval(()=>{const f=seq[step++%seq.length];if(f)tone(f,.28,'triangle',.08)},260);
+  }
+  function stopMusic(){clearInterval(musicTimer);musicTimer=null}
+  return{
+    startMusic,stopMusic,
+    correct(){[523,659,784].forEach((f,i)=>tone(f,.16,'square',.12,i*.08))},
+    wrong(){[220,180,140].forEach((f,i)=>tone(f,.18,'sawtooth',.1,i*.09))},
+    click(){tone(700,.06,'square',.07)}
+  };
+})();
+function paintSound(){
+  document.querySelectorAll('[data-sound]').forEach(btn=>{btn.classList.toggle('off',!S.sound);btn.textContent=S.sound?'♫ ЗВУК':'× БЕЗ ЗВУКА'});
+}
+function toggleSound(){S.sound=!S.sound;S.sound?Sound.startMusic():Sound.stopMusic();paintSound()}
+
+/* ---------- Игра ---------- */
+function resetFamilyStats(){
+  S.familyStats={};FAMILY_ORDER.forEach(key=>{
+    const total=S.tasks.filter(task=>task.family===key).length;
+    S.familyStats[key]={correct:0,total,answers:[]};
+  });
+}
+function buildPlanetRail(){
+  $('planets').innerHTML=FAMILY_ORDER.map((key,index)=>{
+    const meta=FAMILY_META[key],count=S.tasks.filter(task=>task.family===key).length;
+    const offset=S.tasks.findIndex(task=>task.family===key);
+    const nodes=Array.from({length:count},(_,i)=>`<i data-node="${offset+i}"></i>`).join('');
+    return`<div class="planet" data-family="${key}"><span class="orb">${meta.icon}</span>${meta.name.replace(' функция','')}
+      <span class="nodes">${nodes}</span></div>`;
+  }).join('');
+}
+function updatePlanetRail(){
+  document.querySelectorAll('.planet').forEach(el=>{
+    const family=el.dataset.family,current=S.tasks[S.i]?.family;
+    const familyIndexes=S.tasks.map((task,index)=>task.family===family?index:-1).filter(index=>index>=0);
+    const lastIndex=Math.max(...familyIndexes);
+    el.classList.toggle('active',family===current&&S.i<S.tasks.length);
+    el.classList.toggle('done',S.i>lastIndex);
+  });
+  document.querySelectorAll('[data-node]').forEach(node=>{
+    const n=Number(node.dataset.node);node.className='';
+    if(n===S.i&&!S.answered)node.classList.add('current');
+    if(n<S.i||n===S.i&&S.answered){
+      const task=S.tasks[n],answer=S.familyStats[task.family]?.answers.find(a=>a.index===n);
+      node.classList.add(answer&&answer.correct?'ok':'bad');
+    }
+  });
+}
+function startGame(){
+  if(!currentStudent){showLogin('');return}
+  S.tasks=makeTasks();S.i=0;S.firstTryCorrect=0;S.questionAttempted=false;S.answered=false;
+  S.startedAt=Date.now();S.active=true;S.resultSubmitted=false;resetFamilyStats();buildPlanetRail();
+  clearInterval(S.timerId);clearInterval(S.questionTimerId);clearTimeout(S.autoNextTimer);
+  S.timerId=setInterval(updateTimer,500);updateTimer();showOnly('gameScreen');Sound.startMusic();renderQuestion();
+}
+function updateTimer(){
+  if(!S.startedAt)return;const sec=Math.floor((Date.now()-S.startedAt)/1000);
+  $('timer').textContent=Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0');$('timer').classList.toggle('over',sec>300);
+}
+function renderQuestion(){
+  const task=S.tasks[S.i];S.answered=false;S.questionAttempted=false;
+  $('qNum').textContent=S.i+1;$('progressFill').style.width=(S.i/S.tasks.length*100)+'%';
+  $('familyLabel').textContent=FAMILY_META[task.family].icon+' '+FAMILY_META[task.family].name;
+  $('modeLabel').textContent=task.mode;$('prompt').textContent=task.prompt;
+  $('formula').classList.toggle('hidden',task.showGraph);$('plotWrap').classList.toggle('hidden',!task.showGraph);
+  if(task.showGraph)requestAnimationFrame(()=>drawPlot(task));else $('formula').textContent=task.formula;
+  const letters=['А','Б','В','Г'];
+  $('options').innerHTML='';
+  task.options.forEach((item,index)=>{
+    const btn=document.createElement('button');btn.className='option';btn.dataset.correct=item.correct?'1':'0';
+    btn.innerHTML=`<span class="letter">${letters[index]}</span>${item.text}`;
+    btn.onclick=()=>chooseAnswer(btn,item);$('options').appendChild(btn);
+  });
+  $('feedback').classList.remove('show');$('nextBtn').disabled=true;
+  $('nextBtn').textContent=S.i===S.tasks.length-1?'Показать результат ▶':'Далее ▶';updatePlanetRail();
+  startQuestionTimer();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function startQuestionTimer(){
+  clearInterval(S.questionTimerId);clearTimeout(S.autoNextTimer);
+  S.questionDeadline=Date.now()+15000;
+  updateQuestionTimer();
+  S.questionTimerId=setInterval(updateQuestionTimer,100);
+}
+function updateQuestionTimer(){
+  const left=Math.max(0,Math.ceil((S.questionDeadline-Date.now())/1000));
+  S.timeLeft=left;$('questionTimer').textContent=left;$('questionTimer').classList.toggle('danger',left<=5);
+  if(left===0){
+    clearInterval(S.questionTimerId);S.questionTimerId=null;handleQuestionTimeout();
+  }
+}
+function handleQuestionTimeout(){
+  if(S.answered)return;
+  S.questionAttempted=true;S.answered=true;
+  const task=S.tasks[S.i];
+  S.familyStats[task.family].answers.push({index:S.i,correct:false,timeout:true});
+  document.querySelectorAll('.option').forEach(optionBtn=>{
+    optionBtn.disabled=true;
+    if(optionBtn.dataset.correct==='1')optionBtn.classList.add('correct');
+    else optionBtn.classList.add('dim');
+  });
+  $('feedbackTitle').textContent='⌛ Время вышло';$('feedbackTitle').className='bad';
+  $('feedbackText').textContent=task.why;$('feedback').classList.add('show');$('nextBtn').disabled=false;
+  $('progressFill').style.width=((S.i+1)/S.tasks.length*100)+'%';Sound.wrong();updatePlanetRail();
+  S.autoNextTimer=setTimeout(nextQuestion,1400);
+}
+function chooseAnswer(btn,item){
+  if(S.answered)return;
+  clearInterval(S.questionTimerId);S.questionTimerId=null;clearTimeout(S.autoNextTimer);
+  const first=!S.questionAttempted;S.questionAttempted=true;S.answered=true;
+  const task=S.tasks[S.i],correct=Boolean(item.correct);
+  if(first&&correct){S.firstTryCorrect++;S.familyStats[task.family].correct++}
+  S.familyStats[task.family].answers.push({index:S.i,correct:first&&correct});
+  document.querySelectorAll('.option').forEach(optionBtn=>{
+    optionBtn.disabled=true;
+    if(optionBtn.dataset.correct==='1')optionBtn.classList.add('correct');
+    else if(optionBtn!==btn)optionBtn.classList.add('dim');
+  });
+  if(!correct)btn.classList.add('wrong');
+  $('feedbackTitle').textContent=correct?'✦ Сигнал распознан':'✕ Сигнал потерян';
+  $('feedbackTitle').className=correct?'ok':'bad';$('feedbackText').textContent=task.why;$('feedback').classList.add('show');
+  $('nextBtn').disabled=false;$('progressFill').style.width=((S.i+1)/S.tasks.length*100)+'%';
+  correct?Sound.correct():Sound.wrong();updatePlanetRail();
+}
+function nextQuestion(){
+  if(!S.answered)return;Sound.click();
+  clearInterval(S.questionTimerId);S.questionTimerId=null;clearTimeout(S.autoNextTimer);S.autoNextTimer=null;
+  if(S.i<S.tasks.length-1){S.i++;renderQuestion()}else finishGame();
+}
+function finishGame(){
+  if(S.resultSubmitted)return;S.resultSubmitted=true;S.active=false;
+  clearInterval(S.timerId);clearInterval(S.questionTimerId);clearTimeout(S.autoNextTimer);
+  S.timerId=null;S.questionTimerId=null;S.autoNextTimer=null;updateTimer();
+  const durationSeconds=Math.max(0,Math.floor((Date.now()-S.startedAt)/1000));
+  const scorePercent=Math.round(S.firstTryCorrect/S.tasks.length*100);
+  $('finalPct').textContent=scorePercent+'%';$('finalCorrect').textContent=S.firstTryCorrect+'/'+S.tasks.length;
+  $('finalTime').textContent=Math.floor(durationSeconds/60)+':'+String(durationSeconds%60).padStart(2,'0');
+  $('scoreRing').style.setProperty('--score-angle',(scorePercent*3.6)+'deg');
+  let rank,message;
+  if(scorePercent>=90){rank='КОМАНДОР ГРАФИКОВ';message='Прототипы усвоены уверенно. Все пять планет доступны для навигации.'}
+  else if(scorePercent>=70){rank='ПИЛОТ-ИССЛЕДОВАТЕЛЬ';message='База хорошая. Проверь планеты с результатом 0/2 или 1/2.'}
+  else if(scorePercent>=50){rank='ШТУРМАН-КУРСАНТ';message='Часть прототипов уже узнаётся, но преобразования графиков нужно закрепить.'}
+  else{rank='НОВОБРАНЕЦ';message='Повтори базовые графики, асимптоты и сдвиги, затем пройди скан ещё раз.'}
+  $('rank').textContent=rank;$('resultMessage').textContent=message;
+  $('familyResults').innerHTML=FAMILY_ORDER.map(key=>{
+    const stat=S.familyStats[key],cls=stat.correct===stat.total?'mastered':stat.correct>=Math.ceil(stat.total/2)?'almost':'repeat';
+    const label=stat.correct===stat.total?'усвоено':stat.correct>=Math.ceil(stat.total/2)?'почти усвоено':'повторить';
+    return`<div class="family-row"><span>${FAMILY_META[key].icon} ${FAMILY_META[key].name}</span><b class="${cls}">${stat.correct}/${stat.total} · ${label}</b></div>`;
+  }).join('');
+  setSaveStatus('Сохраняем результат…');showOnly('resultScreen');
+  const payload={
+    action:'submitTest',
+    eventId:makeEventId(),
+    studentId:currentStudent.studentId,
+    testId:TEST_META.testId,
+    testDate:localDateString(),
+    topicId:TEST_META.topicId,
+    topicName:TEST_META.topicName,
+    taskNumber:TEST_META.taskNumber,
+    scorePercent,
+    durationSeconds,
+    schemaVersion:TEST_META.schemaVersion
+  };
+  submitResult(payload);
+}
+
+/* ---------- Звёзды ---------- */
+(function stars(){
+  const canvas=$('stars'),ctx=canvas.getContext('2d');let dots=[],W=0,H=0;
+  function resize(){
+    const dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+    dots=Array.from({length:Math.min(150,Math.floor(W*H/8000))},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.3+.3,s:Math.random()*.18+.04}));
+  }
+  function loop(){
+    ctx.clearRect(0,0,W,H);ctx.fillStyle='#b7dcff';
+    dots.forEach(d=>{d.y+=d.s;if(d.y>H){d.y=0;d.x=Math.random()*W}ctx.globalAlpha=.25+d.r*.35;ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,7);ctx.fill()});
+    ctx.globalAlpha=1;requestAnimationFrame(loop);
+  }
+  addEventListener('resize',resize);resize();loop();
+})();
+
+/* ---------- События и запуск ---------- */
+$('loginBtn').onclick=loginStudent;
+$('studentCode').addEventListener('keydown',e=>{if(e.key==='Enter')loginStudent()});
+$('changeStudentStart').onclick=changeStudent;
+$('changeStudentResult').onclick=changeStudent;
+$('startBtn').onclick=startGame;$('againBtn').onclick=startGame;$('nextBtn').onclick=nextQuestion;
+document.querySelectorAll('[data-sound]').forEach(btn=>btn.onclick=toggleSound);
+addEventListener('online',flushPendingResults);
+addEventListener('resize',()=>{if(S.active&&S.tasks[S.i]?.showGraph)drawPlot(S.tasks[S.i])});
+paintSound();
+currentStudent=savedStudent();
+const codeFromUrl=new URLSearchParams(location.search).get('code');
+if(codeFromUrl){clearStudent();showLogin(codeFromUrl);loginStudent()}
+else if(currentStudent){showStart();flushPendingResults()}
+else showLogin('');
+</script>
+</body>
+</html>
