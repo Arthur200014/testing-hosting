@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Болотная Академия Логарифмов · интерактивный квест</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Ruslan+Display&family=Pangolin&family=Comfortaa:wght@400;700&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --swamp-deep:#1c2b12; --swamp:#2f4a1e;
+  --ogre:#7cb342; --ogre-bright:#9ccc4f; --leaf:#4b7a2b;
+  --mud:#5d4037; --mud-dark:#3e2b22;
+  --parch:#f6e8c8; --gold:#f2b705; --fire:#e8551e; --blue:#0d6cb0;
+  --ink:#3a2e1a;
+  --fd:'Ruslan Display',cursive; --ff:'Pangolin',cursive;
+  --fr:'Comfortaa',cursive; --fb:'Nunito',sans-serif;
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;font-family:var(--fb);color:var(--ink);
+  background:
+    radial-gradient(circle at 12% 8%, rgba(124,179,66,.20), transparent 42%),
+    radial-gradient(circle at 88% 26%, rgba(242,183,5,.10), transparent 45%),
+    linear-gradient(165deg,var(--swamp-deep),var(--swamp) 55%,#223915 100%);
+  background-attachment:fixed;min-height:100vh;overflow-x:hidden;
+}
+.bubbles{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+.bubbles span{position:absolute;bottom:-40px;border-radius:50%;
+  background:radial-gradient(circle at 30% 30%,rgba(200,255,150,.5),rgba(124,179,66,.12));
+  animation:rise linear infinite;}
+@keyframes rise{to{transform:translateY(-118vh) translateX(26px);opacity:0;}}
+.wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:0 16px 80px;}
+
+/* ---------- ШАПКА ---------- */
+.topbar{
+  position:sticky;top:0;z-index:60;display:flex;align-items:center;justify-content:space-between;
+  gap:12px;padding:9px 16px;background:linear-gradient(180deg,rgba(28,43,18,.97),rgba(28,43,18,.85));
+  backdrop-filter:blur(6px);border-bottom:3px solid var(--gold);box-shadow:0 6px 20px rgba(0,0,0,.45);
+}
+.topbar .brand{display:flex;align-items:center;gap:9px;color:var(--parch);font-family:var(--fr);font-weight:700;font-size:15px;}
+.topbar .brand b{color:var(--gold);}
+.badges{display:flex;gap:5px;}
+.badge{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12px;
+  border:2px solid var(--gold);background:rgba(93,64,55,.7);color:var(--parch);font-family:var(--fr);font-weight:700;}
+.badge.done{background:var(--ogre);border-color:#fff;color:#fff;}
+
+/* ---------- ГЕРОЙ ---------- */
+.hero{text-align:center;padding:44px 12px 22px;}
+.hero h1{font-family:var(--fd);font-size:clamp(32px,7vw,74px);line-height:.95;margin:12px 0 8px;
+  color:var(--ogre-bright);text-shadow:4px 4px 0 var(--mud-dark),8px 8px 0 rgba(0,0,0,.25);}
+.hero .sub{font-family:var(--ff);font-size:clamp(15px,2.2vw,21px);color:var(--parch);max-width:620px;margin:0 auto;line-height:1.55;}
+.hero .tag{display:inline-block;font-family:var(--ff);color:var(--mud-dark);background:var(--gold);
+  border:3px solid var(--mud-dark);border-radius:30px;padding:4px 15px;transform:rotate(-2deg);box-shadow:0 3px 0 var(--mud-dark);}
+.ogre-hero{width:120px;margin:0 auto 4px;display:block;filter:drop-shadow(0 8px 6px rgba(0,0,0,.4));}
+.ogre-hero g{animation:bob 3s ease-in-out infinite;transform-origin:center;}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-2deg);}50%{transform:translateY(-7px) rotate(2deg);}}
+
+/* ---------- КАРТА СТАНЦИЙ ---------- */
+.map{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin:20px 0 6px;}
+.mchip{font-family:var(--fr);font-weight:700;font-size:13px;text-decoration:none;color:var(--parch);
+  background:rgba(93,64,55,.65);border:2px solid var(--gold);border-radius:30px;padding:6px 13px;
+  display:flex;align-items:center;gap:6px;transition:transform .12s,background .2s;}
+.mchip:hover{transform:translateY(-3px) scale(1.04);background:var(--leaf);}
+.mchip .n{background:var(--gold);color:var(--mud-dark);border-radius:50%;width:20px;height:20px;
+  display:grid;place-items:center;font-size:11px;}
+.mchip.done .n{background:#fff;}
+
+/* ---------- СТАНЦИЯ ---------- */
+.station{margin-top:38px;scroll-margin-top:66px;
+  background:linear-gradient(180deg,#fffaf0,var(--parch));
+  border:4px solid var(--mud-dark);border-radius:24px;overflow:hidden;
+  box-shadow:0 9px 0 rgba(62,43,34,.5),0 16px 26px rgba(0,0,0,.3);}
+.st-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 18px;
+  background:linear-gradient(120deg,var(--leaf),var(--ogre));border-bottom:4px solid var(--mud-dark);position:relative;}
+.st-head::after{content:"";position:absolute;right:-24px;top:-34px;width:110px;height:110px;
+  background:radial-gradient(circle,rgba(255,255,255,.22),transparent 70%);}
+.st-head .em{font-size:38px;filter:drop-shadow(0 3px 2px rgba(0,0,0,.3));}
+.st-head .tt{flex:1;min-width:190px;}
+.st-head .eyebrow{font-family:var(--ff);color:var(--mud-dark);font-size:13px;}
+.st-head h2{font-family:var(--fr);font-weight:700;color:#fff;margin:1px 0;font-size:clamp(19px,3vw,27px);
+  text-shadow:2px 2px 0 var(--mud-dark);}
+.st-head .fx{font-family:var(--fr);font-weight:700;font-size:14px;color:var(--mud-dark);
+  background:var(--gold);border:2px solid var(--mud-dark);border-radius:20px;padding:4px 11px;}
+.st-body{padding:18px;}
+.task{font-family:var(--ff);font-size:16px;background:rgba(242,183,5,.22);border:2px dashed var(--gold);
+  border-radius:14px;padding:9px 13px;margin:0 0 16px;display:flex;gap:8px;align-items:flex-start;}
+.task b{color:var(--fire);}
+.cols{display:grid;grid-template-columns:1fr 340px;gap:18px;align-items:start;}
+@media(max-width:880px){.cols{grid-template-columns:1fr;}}
+.play{background:linear-gradient(180deg,#e9f2da,#d5e6bd);border:3px solid var(--mud-dark);
+  border-radius:18px;padding:14px;position:relative;overflow:hidden;}
+.play::before{content:"";position:absolute;inset:auto 0 0 0;height:26px;
+  background:repeating-linear-gradient(90deg,#4b7a2b 0 14px,#3f6a24 14px 28px);opacity:.5;}
+.side .note{background:#fff;border:2px solid var(--mud-dark);border-radius:14px;padding:11px 13px;margin-bottom:11px;
+  box-shadow:0 3px 0 rgba(62,43,34,.3);}
+.side .note h4{margin:0 0 6px;font-family:var(--ff);font-size:16px;display:flex;gap:7px;align-items:center;color:var(--mud);}
+.side .note p{margin:5px 0;font-size:14px;line-height:1.5;}
+.side .note.gold{background:linear-gradient(180deg,#fff3cf,#ffe294);border-color:var(--mud-dark);}
+.side .note.gold h4{color:var(--fire);}
+.readout{background:var(--swamp);border:3px solid var(--gold);border-radius:14px;padding:11px 13px;
+  color:var(--parch);font-size:15px;line-height:1.7;}
+.readout .line{margin:5px 0;}
+.readout .lbl{font-family:var(--ff);color:var(--gold);font-size:13px;display:block;}
+.readout .katex{color:var(--ogre-bright);}
+.hint{font-family:var(--ff);font-size:14px;color:var(--parch);background:rgba(232,85,30,.35);
+  border-left:4px solid var(--fire);border-radius:0 10px 10px 0;padding:7px 10px;margin-top:9px;min-height:20px;}
+.win{display:none;font-family:var(--ff);font-size:15px;background:linear-gradient(180deg,var(--ogre-bright),var(--leaf));
+  color:#fff;border:3px solid var(--mud-dark);border-radius:14px;padding:11px 14px;margin-top:14px;
+  box-shadow:0 4px 0 var(--mud-dark);}
+.win.show{display:block;animation:pop .3s ease;}
+@keyframes pop{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* кнопки */
+.btn{font-family:var(--ff);font-size:14px;cursor:pointer;color:var(--mud-dark);
+  background:linear-gradient(180deg,#ffe08a,var(--gold));border:2px solid var(--mud-dark);
+  border-radius:11px;padding:5px 12px;box-shadow:0 3px 0 var(--mud-dark);transition:.07s;}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--mud-dark);}
+.btn.gray{background:linear-gradient(180deg,#e0d6bd,#bcae90);}
+.pick{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-bottom:10px;
+  font-family:var(--ff);font-size:14px;color:var(--mud);}
+.pick button{font-family:var(--fr);font-weight:700;font-size:13px;cursor:pointer;background:#fff;
+  border:2px solid var(--leaf);color:var(--leaf);border-radius:9px;padding:3px 9px;}
+.pick button.on{background:var(--leaf);color:#fff;}
+
+/* ---------- ОБЩЕЕ ДЛЯ ПЕРЕТАСКИВАНИЯ ---------- */
+.grab{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;}
+.grab:active{cursor:grabbing;}
+.dragging{position:relative;z-index:999;cursor:grabbing;filter:drop-shadow(0 10px 10px rgba(0,0,0,.45));}
+.dz{transition:background .15s,border-color .15s,transform .15s;}
+.dz.hot{background:rgba(242,183,5,.35)!important;border-color:var(--fire)!important;transform:scale(1.03);}
+.shake{animation:shake .35s;}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+/* ---------- СТАНЦИЯ 1: лестница ---------- */
+.ladder{position:relative;height:300px;margin:0 auto;max-width:420px;}
+.rung{position:absolute;left:0;right:74px;height:14px;border-radius:5px;
+  background:linear-gradient(180deg,#8d6e63,var(--mud));border:2px solid var(--mud-dark);}
+.rung .val{position:absolute;right:-70px;top:-8px;width:64px;text-align:center;
+  font-family:var(--fr);font-weight:700;font-size:13px;color:var(--mud-dark);
+  background:#fff;border:2px solid var(--mud-dark);border-radius:8px;padding:2px 0;}
+.rung .idx{position:absolute;left:-2px;top:-19px;font-family:var(--ff);font-size:12px;color:var(--leaf);}
+.rung.here .val{background:var(--gold);}
+.tokenO{position:absolute;left:36%;width:56px;height:56px;z-index:5;transition:filter .15s;}
+.tokenO.dragging{filter:drop-shadow(0 8px 8px rgba(0,0,0,.5));}
+.ground{position:absolute;left:0;right:0;bottom:-6px;height:8px;border-radius:4px;background:var(--mud-dark);}
+
+/* ---------- БАШНИ / КИРПИЧИ ---------- */
+.tower{display:flex;flex-direction:column-reverse;gap:3px;align-items:center;}
+.brick{width:60px;height:24px;border-radius:5px;border:2px solid var(--mud-dark);
+  background:linear-gradient(180deg,var(--ogre-bright),var(--leaf));box-shadow:inset 0 -3px 0 rgba(0,0,0,.15);}
+.brick.gold{background:linear-gradient(180deg,#ffd75e,var(--gold));}
+.brick.blue{background:linear-gradient(180deg,#5aa7e0,var(--blue));}
+.brick.new{animation:drop .28s ease;}
+@keyframes drop{from{transform:translateY(-26px) scale(1.1);opacity:0}to{transform:none;opacity:1}}
+.tlabel{font-family:var(--fr);font-weight:700;font-size:13px;color:var(--mud-dark);
+  background:#fff;border:2px solid var(--mud-dark);border-radius:8px;padding:2px 8px;margin-top:6px;}
+.bench{display:flex;gap:16px;align-items:flex-end;justify-content:center;flex-wrap:wrap;
+  min-height:210px;padding-bottom:26px;position:relative;z-index:2;}
+.slot{min-width:88px;min-height:120px;border:3px dashed var(--leaf);border-radius:14px;
+  background:rgba(255,255,255,.45);display:flex;flex-direction:column;align-items:center;
+  justify-content:flex-end;padding:8px 6px;gap:4px;}
+.slot .ph{font-family:var(--ff);font-size:12px;color:var(--leaf);text-align:center;}
+.shelf{display:flex;gap:9px;flex-wrap:wrap;justify-content:center;padding:10px;margin-top:12px;
+  background:rgba(93,64,55,.22);border:2px dashed var(--mud);border-radius:14px;position:relative;z-index:2;}
+.shelf .cap{width:100%;text-align:center;font-family:var(--ff);font-size:13px;color:var(--mud);}
+.pile{display:flex;flex-direction:column;align-items:center;}
+.op{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;
+  font-family:var(--fd);font-size:28px;color:#fff;background:radial-gradient(circle at 35% 30%,#ff9d4f,var(--fire));
+  border:3px solid var(--mud-dark);box-shadow:0 4px 0 var(--mud-dark);}
+.op.minus{background:radial-gradient(circle at 35% 30%,#6cb8ec,var(--blue));}
+.eqbar{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:6px;}
+.pit{width:96px;height:74px;border-radius:50%/40%;background:radial-gradient(ellipse at 50% 35%,#1c2b12,#0d1508);
+  border:3px solid var(--mud-dark);display:grid;place-items:center;text-align:center;
+  font-family:var(--ff);font-size:12px;color:var(--ogre-bright);padding:0 8px;}
+
+/* ---------- СТАНЦИЯ 5: линейки ---------- */
+.wallwrap{display:flex;gap:20px;align-items:flex-end;justify-content:center;padding-bottom:26px;position:relative;z-index:2;}
+.wall{position:relative;width:104px;height:250px;border:3px solid var(--mud-dark);border-radius:10px;
+  background:linear-gradient(180deg,#9ccc4f,#4b7a2b);display:flex;align-items:flex-start;justify-content:center;}
+.wall .top{position:absolute;top:-26px;left:50%;transform:translateX(-50%);white-space:nowrap;
+  font-family:var(--fr);font-weight:700;font-size:14px;background:#fff;border:2px solid var(--mud-dark);
+  border-radius:8px;padding:2px 8px;}
+.wall .base{position:absolute;bottom:-24px;left:50%;transform:translateX(-50%);white-space:nowrap;
+  font-family:var(--ff);font-size:12px;color:var(--mud-dark);}
+.rulerHost{position:absolute;left:104px;bottom:0;width:120px;height:250px;pointer-events:none;}
+.ruler{position:relative;width:82px;border:3px solid var(--mud-dark);border-radius:8px;
+  background:repeating-linear-gradient(180deg,#fff3cf 0 8px,#ffe294 8px 16px);
+  display:flex;flex-direction:column;justify-content:space-between;align-items:center;}
+.ruler .tick{width:100%;height:2px;background:var(--mud-dark);}
+.ruler .cap{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-90deg);
+  white-space:nowrap;font-family:var(--fr);font-weight:700;font-size:13px;color:var(--mud-dark);}
+.ruler.placed{position:absolute;left:12px;bottom:0;}
+.rulershelf{display:flex;gap:14px;align-items:flex-end;justify-content:center;}
+
+/* ---------- СТАНЦИЯ 6: домино ---------- */
+.domino{display:flex;border:3px solid var(--mud-dark);border-radius:10px;overflow:hidden;
+  background:#fff;box-shadow:0 4px 0 rgba(62,43,34,.4);}
+.domino .half{width:46px;height:46px;display:grid;place-items:center;
+  font-family:var(--fr);font-weight:700;font-size:18px;color:var(--mud-dark);}
+.domino .half.l{border-right:2px dashed var(--mud-dark);background:rgba(124,179,66,.18);}
+.domino .half.r{background:rgba(242,183,5,.18);}
+.domino.matched{background:#dff0c4;}
+.domino small{display:none;}
+.chain{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center;min-height:80px;
+  border:3px dashed var(--leaf);border-radius:14px;background:rgba(255,255,255,.45);padding:10px;position:relative;z-index:2;}
+.chain .ph{font-family:var(--ff);font-size:13px;color:var(--leaf);}
+.linkmark{font-family:var(--fd);font-size:20px;color:var(--fire);}
+
+/* ---------- ПРАКТИКА ---------- */
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;position:relative;z-index:2;}
+@media(max-width:620px){.qgrid{grid-template-columns:1fr;}}
+.qcard{background:#fff;border:3px solid var(--mud-dark);border-radius:13px;padding:9px 11px;
+  box-shadow:0 4px 0 rgba(62,43,34,.4);display:flex;align-items:center;gap:9px;}
+.qcard .qq{flex:1;font-size:15px;}
+.qcard .drop{width:78px;height:42px;border:3px dashed var(--mud);border-radius:10px;
+  background:rgba(124,179,66,.18);display:grid;place-items:center;font-size:15px;}
+.qcard.ok{background:linear-gradient(180deg,#e2f2c4,#c3dd93);}
+.qcard.ok .drop{border-style:solid;border-color:var(--leaf);background:#fff;}
+.tokens{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:11px;margin-top:12px;
+  background:rgba(93,64,55,.22);border:2px dashed var(--mud);border-radius:14px;position:relative;z-index:2;}
+.tokens .cap{width:100%;text-align:center;font-family:var(--ff);font-size:13px;color:var(--mud);}
+.tok{min-width:58px;height:42px;padding:0 10px;display:grid;place-items:center;border-radius:11px;
+  background:linear-gradient(180deg,#fff,#f0e6cc);border:3px solid var(--mud-dark);
+  box-shadow:0 4px 0 rgba(62,43,34,.45);font-size:16px;}
+
+/* ---------- МУЗЫКА ---------- */
+.musicbar{position:fixed;left:12px;bottom:12px;z-index:80;display:flex;align-items:center;gap:8px;
+  background:rgba(28,43,18,.94);border:2px solid var(--gold);border-radius:30px;padding:6px 12px 6px 8px;
+  box-shadow:0 6px 16px rgba(0,0,0,.5);max-width:min(92vw,430px);}
+.musicbar button{font-family:var(--ff);font-size:13px;cursor:pointer;color:var(--mud-dark);
+  background:linear-gradient(180deg,#ffe08a,var(--gold));border:2px solid var(--mud-dark);
+  border-radius:20px;padding:4px 11px;white-space:nowrap;}
+.nowp{font-family:var(--ff);font-size:12px;color:var(--parch);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.eq{display:flex;gap:2px;align-items:flex-end;height:16px;}
+.eq i{width:3px;background:var(--ogre-bright);display:block;height:4px;border-radius:2px;}
+.eq.on i:nth-child(1){animation:eqa .42s ease-in-out infinite}
+.eq.on i:nth-child(2){animation:eqa .33s ease-in-out infinite .08s}
+.eq.on i:nth-child(3){animation:eqa .5s ease-in-out infinite .16s}
+.eq.on i:nth-child(4){animation:eqa .38s ease-in-out infinite .04s}
+@keyframes eqa{0%,100%{height:4px}50%{height:16px}}
+
+/* ---------- ФИНАЛ ---------- */
+.finale{margin-top:44px;text-align:center;color:var(--parch);font-family:var(--ff);
+  border-top:2px dashed var(--gold);padding-top:26px;}
+.finale .big{font-family:var(--fd);font-size:clamp(24px,5vw,40px);color:var(--ogre-bright);
+  text-shadow:3px 3px 0 var(--mud-dark);}
+.cheat{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-top:18px;text-align:left;}
+.cheat div{background:var(--parch);border:3px solid var(--mud-dark);border-radius:14px;padding:10px 12px;
+  color:var(--ink);box-shadow:0 4px 0 rgba(0,0,0,.3);}
+.cheat b{font-family:var(--ff);color:var(--leaf);display:block;margin-bottom:4px;font-size:14px;}
+.katex{font-size:1.02em;}
+
+/* ---------- ПОДКЛЮЧЕНИЕ УЧЕНИКА И СОХРАНЕНИЕ ---------- */
+.student-gate{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;
+  background:radial-gradient(circle at 50% 24%,rgba(75,122,43,.75),rgba(28,43,18,.97));
+  backdrop-filter:blur(7px);}
+.student-gate.hidden{display:none;}
+.student-panel{width:min(450px,94vw);padding:25px;text-align:center;color:var(--ink);
+  background:linear-gradient(180deg,#fffaf0,var(--parch));border:5px solid var(--mud-dark);
+  border-radius:24px;box-shadow:0 10px 0 rgba(62,43,34,.65),0 24px 55px rgba(0,0,0,.5);}
+.student-panel .gate-icon{font-size:46px;line-height:1;}
+.student-panel h2{margin:7px 0 5px;font-family:var(--fd);font-size:34px;color:var(--leaf);
+  text-shadow:2px 2px 0 #fff;}
+.student-panel p{margin:5px 0 14px;font-family:var(--ff);line-height:1.4;}
+.student-panel label{display:block;margin:12px 2px 6px;text-align:left;font-family:var(--ff);font-weight:700;}
+.student-code{width:100%;padding:12px 14px;text-align:center;text-transform:uppercase;
+  color:var(--mud-dark);background:#fff;border:3px solid var(--leaf);border-radius:13px;
+  outline:0;font-family:var(--fr);font-size:21px;font-weight:700;letter-spacing:.08em;}
+.student-code:focus{border-color:var(--gold);box-shadow:0 0 0 5px rgba(242,183,5,.2);}
+.student-msg{min-height:21px;margin:9px 0;font-family:var(--ff);font-size:13px;color:var(--mud);}
+.student-msg.error{color:#b63124}.student-msg.ok{color:var(--leaf);}
+.student-submit{padding:10px 24px;font-size:17px;}
+.student-mini{display:flex;align-items:center;gap:6px;color:var(--parch);font-family:var(--ff);
+  font-size:12px;white-space:nowrap;}
+.student-mini button{border:0;padding:2px;background:none;color:var(--gold);font-family:inherit;
+  font-size:11px;text-decoration:underline;cursor:pointer;}
+.sync-status{display:none;width:min(440px,94%);margin:15px auto 0;padding:9px 12px;
+  border:2px solid var(--gold);border-radius:12px;background:rgba(246,232,200,.12);
+  color:var(--parch);font-family:var(--ff);font-size:13px;}
+.sync-status.show{display:block}.sync-status.saved{border-color:var(--ogre-bright);color:#dff5bb;}
+.sync-status.queued{border-color:var(--gold);color:#ffe59a;}
+@media(max-width:700px){
+  .topbar{flex-wrap:wrap}.topbar .brand{flex:1}.student-mini{order:3;width:100%;justify-content:flex-end}
+}
+</style>
+</head>
+<body>
+<div class="bubbles" id="bubbles"></div>
+
+<div class="student-gate" id="studentGate">
+  <div class="student-panel">
+    <div class="gate-icon">🧅</div>
+    <h2>Код ученика</h2>
+    <p>Введи личный код один раз — Академия запомнит тебя на этом устройстве.</p>
+    <label for="studentCode">Личный код</label>
+    <input class="student-code" id="studentCode" type="text" maxlength="32"
+      autocomplete="one-time-code" autocapitalize="characters" spellcheck="false"
+      placeholder="Например, A7K4P9">
+    <div class="student-msg" id="studentMessage">Код указан в персональной ссылке или сообщении преподавателя.</div>
+    <button class="btn student-submit" id="studentSubmit" type="button">Войти в Академию</button>
+  </div>
+</div>
+
+<div class="topbar">
+  <div class="brand"><span style="font-size:20px">🧅</span> Болотная <b>Академия Логарифмов</b></div>
+  <div class="badges" id="badges"></div>
+  <div class="student-mini">🐸 <span id="studentName">Ученик</span><button id="switchStudent" type="button">сменить</button></div>
+</div>
+
+<div class="wrap">
+
+<header class="hero">
+  <svg class="ogre-hero" viewBox="0 0 120 120" aria-hidden="true"><g>
+    <ellipse cx="18" cy="52" rx="11" ry="17" fill="#7cb342" stroke="#3e2b22" stroke-width="3"/>
+    <ellipse cx="102" cy="52" rx="11" ry="17" fill="#7cb342" stroke="#3e2b22" stroke-width="3"/>
+    <path d="M28 46c0-22 18-34 32-34s32 12 32 34c0 26-16 46-32 46S28 72 28 46z" fill="#8bc34a" stroke="#3e2b22" stroke-width="3"/>
+    <path d="M40 46q8-6 16 0" fill="none" stroke="#3e2b22" stroke-width="3" stroke-linecap="round"/>
+    <path d="M64 46q8-6 16 0" fill="none" stroke="#3e2b22" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="48" cy="54" r="6" fill="#fff" stroke="#3e2b22" stroke-width="2"/>
+    <circle cx="72" cy="54" r="6" fill="#fff" stroke="#3e2b22" stroke-width="2"/>
+    <circle cx="49" cy="55" r="2.6" fill="#3e2b22"/><circle cx="73" cy="55" r="2.6" fill="#3e2b22"/>
+    <ellipse cx="60" cy="66" rx="7" ry="5" fill="#7cb342" stroke="#3e2b22" stroke-width="2"/>
+    <circle cx="57" cy="66" r="1.3" fill="#3e2b22"/><circle cx="63" cy="66" r="1.3" fill="#3e2b22"/>
+    <path d="M46 76q14 14 28 0" fill="none" stroke="#3e2b22" stroke-width="3" stroke-linecap="round"/>
+  </g></svg>
+  <div class="tag">🖐 всё можно хватать и таскать</div>
+  <h1>Болотная Академия<br>Логарифмов</h1>
+  <p class="sub">Шесть станций на болоте. Ни одного примера на решение — только руки, кирпичи и понимание, <b>почему</b> свойства логарифма работают именно так.</p>
+</header>
+
+<nav class="map" id="map"></nav>
+
+<!-- ══════════ СТАНЦИЯ 1 ══════════ -->
+<section class="station" id="s1">
+  <div class="st-head">
+    <div class="em">🪜</div>
+    <div class="tt"><div class="eyebrow">Станция 1 · знакомство</div><h2>Лестница: что вообще меряет логарифм</h2></div>
+    <div class="fx">\(a^{n}=b \iff \log_a b=n\)</div>
+  </div>
+  <div class="st-body">
+    <div class="task">🐸 <span><b>Тащи огра по лестнице вверх-вниз.</b> Каждая ступенька — это «умножили ещё раз на \(a\)». Смотри, что происходит с числом справа и с логарифмом.</span></div>
+    <div class="cols">
+      <div class="play">
+        <div class="pick">Высота одного шага (основание \(a\)):
+          <span id="s1base"></span>
+        </div>
+        <div class="ladder" id="ladder">
+          <div class="ground"></div>
+          <div class="tokenO grab" id="ogre1">
+            <svg viewBox="0 0 120 120"><g>
+              <ellipse cx="18" cy="52" rx="11" ry="17" fill="#7cb342" stroke="#3e2b22" stroke-width="4"/>
+              <ellipse cx="102" cy="52" rx="11" ry="17" fill="#7cb342" stroke="#3e2b22" stroke-width="4"/>
+              <path d="M28 46c0-22 18-34 32-34s32 12 32 34c0 26-16 46-32 46S28 72 28 46z" fill="#8bc34a" stroke="#3e2b22" stroke-width="4"/>
+              <circle cx="48" cy="54" r="6" fill="#fff" stroke="#3e2b22" stroke-width="2.5"/>
+              <circle cx="72" cy="54" r="6" fill="#fff" stroke="#3e2b22" stroke-width="2.5"/>
+              <circle cx="49" cy="55" r="2.6" fill="#3e2b22"/><circle cx="73" cy="55" r="2.6" fill="#3e2b22"/>
+              <ellipse cx="60" cy="66" rx="7" ry="5" fill="#7cb342" stroke="#3e2b22" stroke-width="2.5"/>
+              <path d="M46 76q14 14 28 0" fill="none" stroke="#3e2b22" stroke-width="4" stroke-linecap="round"/>
+            </g></svg>
+          </div>
+        </div>
+      </div>
+      <div class="side">
+        <div class="readout">
+          <div class="line"><span class="lbl">ты на ступеньке</span><span id="s1n" style="font-size:22px;font-family:var(--fr);font-weight:700"></span></div>
+          <div class="line"><span class="lbl">что под ногами (число b)</span><span id="s1pow"></span></div>
+          <div class="line"><span class="lbl">значит логарифм</span><span id="s1log"></span></div>
+        </div>
+        <div class="hint" id="s1hint"></div>
+        <div class="note gold">
+          <h4>💡 Перевод на человеческий</h4>
+          <p><b>Логарифм — это номер ступеньки.</b> Он отвечает на вопрос «сколько раз я умножил \(a\) само на себя, чтобы дойти до \(b\)».</p>
+          <p>\(2^3=8\) и \(\log_2 8=3\) — это <b>одна и та же фраза</b>, просто прочитанная с разных концов лестницы.</p>
+        </div>
+        <div class="win" id="s1win">🎉 <b>Станция пройдена!</b> Ты нащупал главное: логарифм — не страшное слово, а просто «этаж».</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ СТАНЦИЯ 2 ══════════ -->
+<section class="station" id="s2">
+  <div class="st-head">
+    <div class="em">🧱</div>
+    <div class="tt"><div class="eyebrow">Станция 2 · главный секрет</div><h2>Кирпичи: этаж прибавил — число умножил</h2></div>
+    <div class="fx">этажи <b>+</b> ⟷ числа <b>×</b></div>
+  </div>
+  <div class="st-body">
+    <div class="task">🐸 <span><b>Тащи кирпич из склада на верхушку башни</b> — и следи за числом. А чтобы снять этаж, <b>стащи верхний кирпич башни в болотную яму</b>.</span></div>
+    <div class="cols">
+      <div class="play">
+        <div class="bench">
+          <div>
+            <div class="slot dz" id="s2drop" style="min-height:170px;justify-content:flex-end">
+              <div class="tower" id="s2tower"></div>
+              <div class="ph">⬆ клади кирпич сюда</div>
+            </div>
+            <div class="tlabel" style="display:block;text-align:center;margin:8px auto 0" id="s2val"></div>
+          </div>
+          <div class="pit dz" id="s2pit">🕳<br>яма<br>(снять этаж)</div>
+        </div>
+        <div class="shelf">
+          <div class="cap">🧱 склад кирпичей — тащи отсюда</div>
+          <div class="brick grab" id="s2brick" style="width:70px;height:30px"></div>
+        </div>
+      </div>
+      <div class="side">
+        <div class="readout">
+          <div class="line"><span class="lbl">этажей</span><span id="s2n" style="font-size:22px;font-family:var(--fr);font-weight:700"></span></div>
+          <div class="line"><span class="lbl">число</span><span id="s2b"></span></div>
+          <div class="line"><span class="lbl">логарифм</span><span id="s2log"></span></div>
+        </div>
+        <div class="hint" id="s2hint">Положи первый кирпич 👆</div>
+        <div class="note gold">
+          <h4>🔑 Вот он, весь фокус</h4>
+          <p>Ты <b>прибавляешь по одному этажу</b>, а число при этом <b>умножается на \(a\)</b>. Убрал этаж — число разделилось.</p>
+          <p>Логарифм — <b>переводчик</b> из мира «умножать» в мир «складывать». Всё остальное — следствия.</p>
+        </div>
+        <div class="win" id="s2win">🎉 <b>Станция пройдена!</b> Ты видел живьём: +1 этаж = ×a, −1 этаж = ÷a.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ СТАНЦИЯ 3 ══════════ -->
+<section class="station" id="s3">
+  <div class="st-head">
+    <div class="em">🏗</div>
+    <div class="tt"><div class="eyebrow">Станция 3 · свойство №1 и №2</div><h2>Стол огра: складываем и вычитаем башни</h2></div>
+    <div class="fx">\(\log_a x\pm\log_a y=\log_a\frac{xy}{\ }\)</div>
+  </div>
+  <div class="st-body">
+    <div class="task">🐸 <span><b>Тащи две башни в круглые слоты, а между ними положи знак «+» или «−».</b> Огр сам всё сложит и покажет, что стало с числами.</span></div>
+    <div class="cols">
+      <div class="play">
+        <div class="bench" style="align-items:flex-end">
+          <div class="slot dz" data-slot="A" id="s3A" style="min-width:96px"><div class="ph">башня A</div></div>
+          <div class="slot dz" data-slot="OP" id="s3OP" style="min-width:76px;min-height:76px;justify-content:center"><div class="ph">знак</div></div>
+          <div class="slot dz" data-slot="B" id="s3B" style="min-width:96px"><div class="ph">башня B</div></div>
+          <div style="font-family:var(--fd);font-size:30px;color:var(--mud)">=</div>
+          <div class="slot" id="s3R" style="min-width:96px;border-style:solid;border-color:var(--gold);background:rgba(242,183,5,.18)"><div class="ph">результат</div></div>
+        </div>
+        <div class="shelf" id="s3shelf">
+          <div class="cap">🏛 склад башен (основание 2) и знаки — тащи что хочешь</div>
+        </div>
+        <div style="text-align:center;margin-top:10px"><button class="btn gray" id="s3reset">↺ Убрать со стола</button></div>
+      </div>
+      <div class="side">
+        <div class="readout">
+          <div class="line"><span class="lbl">в мире чисел (внизу)</span><span id="s3num"></span></div>
+          <div class="line"><span class="lbl">в мире этажей (логарифмы)</span><span id="s3lg"></span></div>
+        </div>
+        <div class="hint" id="s3hint">Стол пустой. Тащи башню в слот A.</div>
+        <div class="note gold">
+          <h4>🧠 Почему так</h4>
+          <p>Поставил башню на башню — <b>этажи сложились</b>. А числа внизу при этом <b>перемножились</b> (см. станцию 2).</p>
+          <p>Отсюда и правило: сумма логарифмов = логарифм произведения. Знак «−» = снять этажи = поделить числа.</p>
+          <p>⚠️ Работает <b>только при одинаковом основании</b>: нельзя ставить друг на друга башни с разной высотой этажа.</p>
+        </div>
+        <div class="win" id="s3win">🎉 <b>Станция пройдена!</b> Ты собрал оба свойства руками.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ СТАНЦИЯ 4 ══════════ -->
+<section class="station" id="s4">
+  <div class="st-head">
+    <div class="em">🖨</div>
+    <div class="tt"><div class="eyebrow">Станция 4 · свойство №3</div><h2>Копировальная машина: степень внутри лога</h2></div>
+    <div class="fx">\(\log_a b^{k}=k\log_a b\)</div>
+  </div>
+  <div class="st-body">
+    <div class="task">🐸 <span><b>Тащи одинаковые башни в стопку.</b> Каждая копия — это ещё одно умножение на то же число. Считай, сколько раз ты это сделал.</span></div>
+    <div class="cols">
+      <div class="play">
+        <div class="bench">
+          <div class="slot dz" id="s4stack" style="min-width:120px;min-height:190px;justify-content:flex-end">
+            <div class="tower" id="s4tower"></div>
+            <div class="ph">⬆ кидай копии сюда</div>
+          </div>
+        </div>
+        <div class="shelf">
+          <div class="cap">🖨 машина штампует башню «8» — тащи копии</div>
+          <div class="pile grab" id="s4src">
+            <div class="tower">
+              <div class="brick"></div><div class="brick"></div><div class="brick"></div>
+            </div>
+            <div class="tlabel">8 = 2³</div>
+          </div>
+        </div>
+        <div style="text-align:center;margin-top:10px"><button class="btn gray" id="s4reset">↺ Сбросить стопку</button></div>
+      </div>
+      <div class="side">
+        <div class="readout">
+          <div class="line"><span class="lbl">копий (k)</span><span id="s4k" style="font-size:22px;font-family:var(--fr);font-weight:700"></span></div>
+          <div class="line"><span class="lbl">числа перемножились</span><span id="s4num"></span></div>
+          <div class="line"><span class="lbl">этажи сложились</span><span id="s4lg"></span></div>
+        </div>
+        <div class="hint" id="s4hint">Стопка пуста. Тащи первую копию.</div>
+        <div class="note gold">
+          <h4>✂️ Откуда берётся множитель k</h4>
+          <p>\(b^k\) — это \(b\cdot b\cdot\ldots\cdot b\) (\(k\) раз). А произведение = сложение этажей. Складываем \(k\) <b>одинаковых</b> слагаемых — получаем умножение:</p>
+          <p style="text-align:center">\(\underbrace{\log_a b+\ldots+\log_a b}_{k}=k\log_a b\)</p>
+          <p>Вот почему степень «выпрыгивает» из-под лога вперёд множителем. Никакой магии — просто ленивое сложение.</p>
+        </div>
+        <div class="win" id="s4win">🎉 <b>Станция пройдена!</b> Степень = стопка копий = множитель впереди.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ СТАНЦИЯ 5 ══════════ -->
+<section class="station" id="s5">
+  <div class="st-head">
+    <div class="em">📏</div>
+    <div class="tt"><div class="eyebrow">Станция 5 · смена основания</div><h2>Линейки огра: одна стена — разные ответы</h2></div>
+    <div class="fx">\(\log_a b=\frac{\log_c b}{\log_c a}\)</div>
+  </div>
+  <div class="st-body">
+    <div class="task">🐸 <span><b>Тащи линейки к стене высотой 64.</b> Стена не меняется — а число шагов меняется. Логарифм зависит не только от числа, но и от <b>линейки</b>, которой меришь.</span></div>
+    <div class="cols">
+      <div class="play">
+        <div class="wallwrap">
+          <div class="wall dz" id="s5wall">
+            <div class="top">стена = 64</div>
+            <div class="base">🐸 высота одна и та же!</div>
+            <div class="rulerHost" id="s5host"></div>
+          </div>
+        </div>
+        <div class="shelf">
+          <div class="cap">📏 склад линеек — тащи любую к стене</div>
+          <div class="rulershelf" id="s5shelf"></div>
+        </div>
+        <div style="text-align:center;margin-top:10px"><button class="btn gray" id="s5reset">↺ Снять линейку</button></div>
+      </div>
+      <div class="side">
+        <div class="readout">
+          <div class="line"><span class="lbl">шагов уложилось</span><span id="s5cnt" style="font-size:22px;font-family:var(--fr);font-weight:700">—</span></div>
+          <div class="line"><span class="lbl">это и есть</span><span id="s5log"></span></div>
+          <div class="line"><span class="lbl">через «метры» линейки 2</span><span id="s5frac"></span></div>
+        </div>
+        <div class="hint" id="s5hint">Возьми линейку со склада.</div>
+        <div class="note gold">
+          <h4>🌉 Формула перехода — это перевод мер</h4>
+          <p>Возьмём «метром» самую мелкую линейку (основание 2). Тогда стена 64 = <b>6 метров</b>, а линейка 4 = <b>2 метра</b>. Сколько раз линейка влезет? \(6:2=3\).</p>
+          <p style="text-align:center">\(\log_4 64=\dfrac{\log_2 64}{\log_2 4}=\dfrac{6}{2}=3\)</p>
+          <p>Через какой «метр» ни считай — ответ один. Поэтому <b>дробь из двух логов с одинаковым низом</b> смело сворачивается в один лог.</p>
+        </div>
+        <div class="note">
+          <h4>🪤 И сразу ловушка с корнем</h4>
+          <p>Линейка длиннее в \(k\) раз ⇒ шагов <b>в \(k\) раз меньше</b>:</p>
+          <p style="text-align:center">\(\log_{a^{k}}b=\dfrac{1}{k}\log_a b\)</p>
+          <p>Поэтому основание \(\sqrt[3]{11}=11^{1/3}\) — линейка втрое <b>короче</b>, шагов втрое <b>больше</b>: \(\log_{\sqrt[3]{11}}11=3\).</p>
+        </div>
+        <div class="win" id="s5win">🎉 <b>Станция пройдена!</b> Логарифм = «сколько твоих линеек в этой стене».</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ СТАНЦИЯ 6 ══════════ -->
+<section class="station" id="s6">
+  <div class="st-head">
+    <div class="em">🁣</div>
+    <div class="tt"><div class="eyebrow">Станция 6 · цепочки</div><h2>Домино: логарифм как стрелка «откуда → куда»</h2></div>
+    <div class="fx">\(\log_a b\cdot\log_b c=\log_a c\)</div>
+  </div>
+  <div class="st-body">
+    <div class="task">🐸 <span><b>Собери костяшки в цепь</b> так, чтобы правое число одной совпало с левым числом следующей. Совпало — они схлопнутся. Не совпало — костяшка отпрыгнет.</span></div>
+    <div class="cols">
+      <div class="play">
+        <div class="chain dz" id="s6chain"><div class="ph">🁢 тащи костяшки сюда, начни с той, где слева 3</div></div>
+        <div class="shelf" id="s6shelf">
+          <div class="cap">🁣 костяшки: слева — основание, справа — аргумент</div>
+        </div>
+        <div style="text-align:center;margin-top:10px"><button class="btn gray" id="s6reset">↺ Рассыпать заново</button></div>
+      </div>
+      <div class="side">
+        <div class="readout">
+          <div class="line"><span class="lbl">твоя цепь</span><span id="s6eq">—</span></div>
+          <div class="line"><span class="lbl">схлопывается в</span><span id="s6res">—</span></div>
+        </div>
+        <div class="hint" id="s6hint">Цепь пуста.</div>
+        <div class="note gold">
+          <h4>🎯 Читай логарифм как стрелку</h4>
+          <p>\(\log_a b\) = «переход из \(a\) в \(b\)». Тогда произведение логарифмов — это <b>маршрут с пересадками</b>.</p>
+          <p>Промежуточные станции — это те самые «кочки \(c\)» из станции 5. Они <b>сокращаются</b>: в ответе остаются только начало и конец пути.</p>
+          <p>⚠️ Домино падает только если <b>конец одной = начало следующей</b>. Иначе сначала переведи через формулу перехода.</p>
+        </div>
+        <div class="win" id="s6win">🎉 <b>Станция пройдена!</b> Ты уронил всю цепь одним движением.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ СТАНЦИЯ 7: ПРАКТИКА ══════════ -->
+<section class="station" id="s7">
+  <div class="st-head">
+    <div class="em">🎯</div>
+    <div class="tt"><div class="eyebrow">Станция 7 · закрепление</div><h2>Экзамен у огра: собери ответы</h2></div>
+    <div class="fx">теория в бою</div>
+  </div>
+  <div class="st-body">
+    <div class="task">🐸 <span><b>Тащи жетоны с ответами на карточки.</b> Забыл — вернись на станцию и потрогай руками. Огр не против: он сам так учился.</span></div>
+    <div class="cols">
+      <div class="play">
+        <div class="qgrid" id="s7grid"></div>
+        <div class="tokens" id="s7toks"><div class="cap">🪙 жетоны — можно таскать сколько угодно раз</div></div>
+        <div style="text-align:center;margin-top:11px"><button class="btn gray" id="s7reset">↺ Начать заново</button></div>
+      </div>
+      <div class="side">
+        <div class="readout">
+          <div class="line"><span class="lbl">решено</span><span id="s7sc" style="font-size:22px;font-family:var(--fr);font-weight:700">0 / 8</span></div>
+          <div class="line"><span class="lbl">подсказка огра</span><span id="s7tip" style="font-family:var(--ff);font-size:14px">Начни с тех, где основание и число — соседи по лестнице.</span></div>
+        </div>
+        <div class="hint" id="s7hint">Тащи жетон на карточку.</div>
+        <div class="note gold">
+          <h4>🧭 Как думать на каждом типе</h4>
+          <p><b>Сумма/разность</b> → склей в один лог (станция 3).<br>
+             <b>Степень внутри</b> → вынеси множителем (станция 4).<br>
+             <b>Дробь из логов</b> → сверни, низ станет основанием (станция 5).<br>
+             <b>Корень в основании</b> → переверни: \(\log_{a^{1/k}}b=k\log_a b\).<br>
+             <b>Цепочка</b> → уроните домино, останутся концы (станция 6).</p>
+        </div>
+        <div class="win" id="s7win">🎉 <b>Экзамен сдан!</b> Теория держится в руках, а не в зубрёжке.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="finale">
+  <div class="big" id="finTitle">Пройди все 6 станций 🏰</div>
+  <p id="finText">Огр ждёт тебя на болоте. Луковица не почищена.</p>
+  <div class="sync-status" id="syncStatus">Подготавливаем результат…</div>
+  <div class="cheat">
+    <div><b>🪜 Что такое лог</b>\(\log_a b=n \iff a^{n}=b\)<br><span style="font-size:13px">номер ступеньки</span></div>
+    <div><b>🧱 Мост миров</b>\(\log_a(xy)=\log_a x+\log_a y\)<br><span style="font-size:13px">× превращается в +</span></div>
+    <div><b>🏗 Разность</b>\(\log_a\frac{x}{y}=\log_a x-\log_a y\)<br><span style="font-size:13px">÷ превращается в −</span></div>
+    <div><b>🖨 Степень</b>\(\log_a b^{k}=k\log_a b\)<br><span style="font-size:13px">стопка одинаковых копий</span></div>
+    <div><b>📏 Смена линейки</b>\(\log_a b=\frac{\log_c b}{\log_c a}\), \(\log_{a^{k}}b=\frac1k\log_a b\)</div>
+    <div><b>🁣 Домино</b>\(\log_a b\cdot\log_b c=\log_a c\)<br><span style="font-size:13px">пересадки сокращаются</span></div>
+    <div><b>🎁 Два подарка</b>\(\log_a 1=0\) (стоишь на земле), \(\log_a a=1\) (один шаг)</div>
+  </div>
+</footer>
+
+</div>
+
+<div class="musicbar">
+  <span class="eq" id="eq"><i></i><i></i><i></i><i></i></span>
+  <button id="muBtn">🔇 Включить музыку</button>
+  <span class="nowp" id="nowp">Саундтрек: «Пляска огра»</span>
+</div>
+
+<script>
+/* ═══════════ УТИЛИТЫ ═══════════ */
+const $=id=>document.getElementById(id);
+function K(el,tex){ if(!el)return; try{katex.render(tex,el,{throwOnError:false});}catch(e){el.textContent=tex;} }
+const pow=(a,n)=>Math.round(Math.pow(a,n));
+
+/* ═══════════ УЧЕНИК И ОТПРАВКА РЕЗУЛЬТАТА ═══════════ */
+const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+const TEST_META={
+  testId:'EGE-06-LOG-ACADEMY',
+  topicId:'task-06-logarithms',
+  topicName:'Свойства логарифмов',
+  taskNumber:6,
+  schemaVersion:1
+};
+const STORE={
+  studentId:'egeStudentId',
+  studentName:'egeStudentName',
+  inviteCode:'egeStudentCode',
+  pending:'egePendingTestResults'
+};
+let STUDENT={id:'',name:'',code:''};
+const COURSE_SESSION={startedPerf:0,startedAt:'',eventId:'',resultSent:false};
+const FINAL_QUIZ={firstTryCorrect:0,attempted:new Set(),solved:new Set(),total:8};
+
+function makeEventId(){
+  if(window.crypto&&crypto.randomUUID)return 'EVT-TEST-'+crypto.randomUUID();
+  return 'EVT-TEST-'+Date.now()+'-'+Math.random().toString(36).slice(2,12);
+}
+function jsonp(params,timeout=12000){
+  return new Promise((resolve,reject)=>{
+    const cb='__logAcademy_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const script=document.createElement('script');
+    const timer=setTimeout(()=>done(new Error('Сервер не ответил')),timeout);
+    function done(error,data){
+      clearTimeout(timer);delete window[cb];script.remove();
+      error?reject(error):resolve(data);
+    }
+    window[cb]=data=>done(null,data);
+    script.onerror=()=>done(new Error('Не удалось подключиться к серверу'));
+    script.src=API_URL+'?'+new URLSearchParams({...params,callback:cb});
+    document.head.appendChild(script);
+  });
+}
+function beginCourseSession(){
+  COURSE_SESSION.startedPerf=performance.now();
+  COURSE_SESSION.startedAt=new Date().toISOString();
+  COURSE_SESSION.eventId=makeEventId();
+  COURSE_SESSION.resultSent=false;
+}
+function setStudent(data,code){
+  STUDENT={id:String(data.studentId||''),name:String(data.studentName||'Ученик'),code:String(code||'')};
+  localStorage.setItem(STORE.studentId,STUDENT.id);
+  localStorage.setItem(STORE.studentName,STUDENT.name);
+  if(STUDENT.code)localStorage.setItem(STORE.inviteCode,STUDENT.code);
+  $('studentName').textContent=STUDENT.name;
+  $('studentGate').classList.add('hidden');
+  beginCourseSession();
+}
+function showStudentGate(message){
+  $('studentGate').classList.remove('hidden');
+  const msg=$('studentMessage');msg.textContent=message||'Код указан в сообщении преподавателя.';
+  msg.className='student-msg';setTimeout(()=>$('studentCode').focus(),50);
+}
+async function loginStudent(){
+  const input=$('studentCode'),btn=$('studentSubmit'),msg=$('studentMessage');
+  const code=input.value.trim().toUpperCase();
+  if(!code){msg.textContent='Введите личный код.';msg.className='student-msg error';return;}
+  btn.disabled=true;msg.textContent='Проверяем код…';msg.className='student-msg';
+  try{
+    const data=await jsonp({action:'validateStudent',code});
+    if(!data||!data.ok)throw new Error(data&&data.error||'Код не найден');
+    msg.textContent='Готово!';msg.className='student-msg ok';
+    setStudent(data,code);retryPendingResults();
+  }catch(error){
+    msg.textContent=error.message||'Не удалось проверить код.';
+    msg.className='student-msg error';
+  }finally{btn.disabled=false;}
+}
+function initStudent(){
+  const id=localStorage.getItem(STORE.studentId);
+  const name=localStorage.getItem(STORE.studentName);
+  const code=localStorage.getItem(STORE.inviteCode);
+  const linkCode=new URLSearchParams(location.search).get('code');
+  if(linkCode){$('studentCode').value=linkCode.toUpperCase();loginStudent();return;}
+  if(id&&name){setStudent({studentId:id,studentName:name},code);retryPendingResults();}
+  else showStudentGate();
+}
+function switchStudent(){
+  [STORE.studentId,STORE.studentName,STORE.inviteCode].forEach(k=>localStorage.removeItem(k));
+  location.reload();
+}
+function readPending(){
+  try{return JSON.parse(localStorage.getItem(STORE.pending)||'[]');}catch(_){return [];}
+}
+function savePending(items){localStorage.setItem(STORE.pending,JSON.stringify(items.slice(-20)));}
+async function postResult(payload){
+  const response=await fetch(API_URL,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(payload),
+    redirect:'follow'
+  });
+  if(!response.ok)throw new Error('Ошибка отправки');
+  const data=await response.json();
+  if(!data.ok)throw new Error(data.error||'Сервер отклонил результат');
+  return data;
+}
+async function retryPendingResults(){
+  const left=[];
+  for(const payload of readPending()){
+    try{await postResult(payload);}catch(_){left.push(payload);}
+  }
+  savePending(left);
+}
+function buildCourseResult(){
+  const finishedAt=new Date().toISOString();
+  return{
+    action:'submitTest',
+    eventId:COURSE_SESSION.eventId,
+    studentId:STUDENT.id,
+    testId:TEST_META.testId,
+    testDate:finishedAt.slice(0,10),
+    topicId:TEST_META.topicId,
+    topicName:TEST_META.topicName,
+    taskNumber:TEST_META.taskNumber,
+    scorePercent:Math.round(FINAL_QUIZ.firstTryCorrect/FINAL_QUIZ.total*100),
+    durationSeconds:Math.max(1,Math.round((performance.now()-COURSE_SESSION.startedPerf)/1000)),
+    schemaVersion:TEST_META.schemaVersion
+  };
+}
+async function submitCourseResult(){
+  if(COURSE_SESSION.resultSent||!STUDENT.id)return;
+  COURSE_SESSION.resultSent=true;
+  const payload=buildCourseResult(),status=$('syncStatus');
+  status.className='sync-status show';status.textContent='Сохраняем результат…';
+  try{
+    await postResult(payload);
+    status.className='sync-status show saved';status.textContent='✓ Результат сохранён';
+  }catch(_){
+    const items=readPending();
+    if(!items.some(item=>item.eventId===payload.eventId))items.push(payload);
+    savePending(items);
+    status.className='sync-status show queued';
+    status.textContent='Нет связи: результат сохранён на устройстве и отправится позже';
+  }
+}
+
+/* универсальный «тащить» */
+function drag(el,opts){
+  let sx=0,sy=0,on=false;
+  const clearHot=()=>document.querySelectorAll('.dz.hot').forEach(z=>z.classList.remove('hot'));
+  const zoneAt=(x,y)=>{
+    el.style.pointerEvents='none';
+    const t=document.elementFromPoint(x,y);
+    el.style.pointerEvents='';
+    return t&&t.closest?t.closest('.dz'):null;
+  };
+  el.addEventListener('pointerdown',e=>{
+    if(opts.can&&!opts.can()) return;
+    on=true; sx=e.clientX; sy=e.clientY;
+    el.setPointerCapture(e.pointerId);
+    el.classList.add('dragging');
+    Snd.sfx('grab');
+    e.preventDefault();
+  });
+  el.addEventListener('pointermove',e=>{
+    if(!on)return;
+    el.style.transform=`translate(${e.clientX-sx}px,${e.clientY-sy}px) rotate(-3deg) scale(1.06)`;
+    clearHot(); const z=zoneAt(e.clientX,e.clientY); if(z) z.classList.add('hot');
+  });
+  const end=e=>{
+    if(!on)return; on=false;
+    el.classList.remove('dragging');
+    const z=zoneAt(e.clientX,e.clientY);
+    clearHot(); el.style.transform='';
+    if(z && opts.onDrop) opts.onDrop(z,el);
+    else if(opts.onMiss) opts.onMiss(el);
+  };
+  el.addEventListener('pointerup',end);
+  el.addEventListener('pointercancel',end);
+}
+function bricks(n,cls){ let s=''; for(let i=0;i<n;i++) s+=`<div class="brick ${cls||''}"></div>`; return s; }
+function shake(el){ el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); }
+
+/* ═══════════ ЗВУК: «Пляска огра» (болотная джига, 4/4) ═══════════ */
+const Snd=(()=>{
+  const TEMPO=128, SPB=16, BEATS=4;
+  const P=s=>s.trim().split(/\s+/).map(Number);
+  const SECS=[
+    {name:'Часть I · Тропа через трясину',bars:4,
+     bass:P('38 0 0 38 0 0 45 0 38 0 0 38 0 45 0 0'),lead:null,
+     hat:'--x---x---x---x-',kick:'x-------x-------',snare:null},
+    {name:'Часть II · Огр учит считать этажи',bars:4,
+     bass:P('38 0 0 38 0 0 45 0 41 0 0 41 0 48 0 0'),
+     lead:P('62 0 65 0 67 0 65 0 62 0 60 0 62 0 0 0'),
+     hat:'--x---x---x---x-',kick:'x---x---x---x---',snare:'----x-------x---'},
+    {name:'Часть III · Башни растут до неба',bars:4,
+     bass:P('41 0 0 41 0 0 48 0 36 0 0 36 0 43 0 0'),
+     lead:P('69 0 67 65 0 67 69 0 72 0 69 67 0 65 62 0'),
+     hat:'x-x-x-x-x-x-x-x-',kick:'x---x---x-x-x---',snare:'----x-------x---'},
+    {name:'Часть IV · Финальный пляс на болоте',bars:4,
+     bass:P('38 38 0 45 0 45 0 38 41 41 0 48 0 48 0 41'),
+     lead:P('74 72 70 69 67 65 67 69 70 72 74 72 69 67 65 62'),
+     hat:'x-x-x-x-x-x-xxx-',kick:'x---x---x---x-x-',snare:'----x-------x-x-'}
+  ];
+  let ctx=null,mus,sfxg,on=false,timer=null,step=0,bar=0,sec=0,next=0;
+  const mid=n=>440*Math.pow(2,(n-69)/12);
+  const spf=()=>(60/TEMPO)*BEATS/SPB;
+  function voice(dest,p){
+    const t=p.t,o=ctx.createOscillator(),g=ctx.createGain();
+    o.type=p.type||'sine';o.frequency.setValueAtTime(p.freq,t);
+    if(p.slide)o.frequency.exponentialRampToValueAtTime(p.slide,t+p.dur);
+    let node=o;
+    if(p.cut){const f=ctx.createBiquadFilter();f.type='lowpass';f.frequency.setValueAtTime(p.cut,t);o.connect(f);node=f;}
+    node.connect(g);g.connect(dest);
+    g.gain.setValueAtTime(0,t);
+    g.gain.linearRampToValueAtTime(p.gain??.2,t+(p.a??.008));
+    g.gain.exponentialRampToValueAtTime(.0001,t+p.dur+(p.r??.1));
+    o.start(t);o.stop(t+p.dur+(p.r??.1)+.05);
+  }
+  function noise(dest,p){
+    const len=Math.max(1,Math.floor(ctx.sampleRate*(p.dur+.04)));
+    const b=ctx.createBuffer(1,len,ctx.sampleRate),d=b.getChannelData(0);
+    for(let i=0;i<len;i++)d[i]=Math.random()*2-1;
+    const s=ctx.createBufferSource();s.buffer=b;
+    const f=ctx.createBiquadFilter();f.type=p.ft||'highpass';f.frequency.value=p.freq||7000;
+    const g=ctx.createGain();g.gain.setValueAtTime(p.gain??.1,p.t);
+    g.gain.exponentialRampToValueAtTime(.0001,p.t+p.dur);
+    s.connect(f);f.connect(g);g.connect(dest);s.start(p.t);s.stop(p.t+p.dur+.02);
+  }
+  function init(){
+    if(ctx)return;
+    ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const m=ctx.createGain();m.gain.value=.85;m.connect(ctx.destination);
+    mus=ctx.createGain();mus.gain.value=.26;mus.connect(m);
+    sfxg=ctx.createGain();sfxg.gain.value=.5;sfxg.connect(m);
+  }
+  function playStep(t){
+    const S=SECS[sec];
+    if(S.bass[step]) voice(mus,{type:'triangle',freq:mid(S.bass[step]),t,dur:.14,gain:.5,cut:700,r:.08});
+    if(S.lead&&S.lead[step]) voice(mus,{type:'square',freq:mid(S.lead[step]),t,dur:.1,gain:.085,cut:2400,r:.09});
+    if(S.hat[step]==='x') noise(mus,{t,dur:.03,freq:7500,gain:.07});
+    if(S.kick[step]==='x') voice(mus,{type:'sine',freq:125,slide:45,t,dur:.11,gain:.6,r:.05});
+    if(S.snare&&S.snare[step]==='x') noise(mus,{t,dur:.08,freq:1700,ft:'bandpass',gain:.14});
+  }
+  function tick(){
+    if(!ctx)return;
+    while(next<ctx.currentTime+.16){
+      playStep(next);next+=spf();step++;
+      if(step>=SPB){step=0;bar++;
+        if(bar>=SECS[sec].bars){bar=0;sec=(sec+1)%SECS.length;$('nowp').textContent='🎵 '+SECS[sec].name;}
+      }
+    }
+  }
+  function start(){
+    init();ctx.resume();if(on)return;on=true;
+    step=0;bar=0;next=ctx.currentTime+.08;
+    $('nowp').textContent='🎵 '+SECS[sec].name;
+    $('eq').classList.add('on');$('muBtn').textContent='🔊 Музыка играет';
+    timer=setInterval(tick,25);
+  }
+  function stop(){
+    on=false;clearInterval(timer);timer=null;
+    $('eq').classList.remove('on');$('muBtn').textContent='🔇 Включить музыку';
+    $('nowp').textContent='Саундтрек: «Пляска огра»';
+  }
+  const SFX={
+    grab: ()=>[{type:'square',freq:600,dur:.03,gain:.06,cut:2200}],
+    ok:   ()=>[{type:'square',freq:mid(74),dur:.07,gain:.1,cut:3000},{type:'square',freq:mid(81),dur:.1,gain:.09,cut:3000,d:.06}],
+    err:  ()=>[{type:'sawtooth',freq:170,slide:75,dur:.2,gain:.13,cut:520}],
+    tick: ()=>[{type:'triangle',freq:mid(79),dur:.04,gain:.08}],
+    win:  ()=>[62,66,69,74].map((n,i)=>({type:'square',freq:mid(n),dur:.1,gain:.1,cut:3200,d:i*.07})),
+    final:()=>[50,57,62,66,69,74,81,86].map((n,i)=>({type:'square',freq:mid(n),dur:.22,gain:.1,cut:4000,d:i*.09}))
+  };
+  function sfx(k){
+    if(!ctx||!on)return;
+    (SFX[k]?SFX[k]():[]).forEach(p=>voice(sfxg,Object.assign({},p,{t:ctx.currentTime+(p.d||0)})));
+  }
+  return {start,stop,sfx,toggle(){on?stop():start();},get on(){return on;}};
+})();
+$('muBtn').onclick=()=>Snd.toggle();
+document.addEventListener('pointerdown',function once(){ if(!Snd.on) Snd.start(); document.removeEventListener('pointerdown',once); },{once:true});
+
+/* ═══════════ ПРОГРЕСС ═══════════ */
+const STATIONS=[
+  {id:'s1',n:1,em:'🪜',t:'Лестница'},{id:'s2',n:2,em:'🧱',t:'Кирпичи'},
+  {id:'s3',n:3,em:'🏗',t:'Стол огра'},{id:'s4',n:4,em:'🖨',t:'Копир'},
+  {id:'s5',n:5,em:'📏',t:'Линейки'},{id:'s6',n:6,em:'🁣',t:'Домино'},
+  {id:'s7',n:7,em:'🎯',t:'Практика'}
+];
+const done=new Set();
+const map=$('map'), badges=$('badges');
+STATIONS.forEach(s=>{
+  const a=document.createElement('a');
+  a.className='mchip'; a.href='#'+s.id; a.id='chip-'+s.id;
+  a.innerHTML=`<span class="n">${s.n}</span> ${s.em} ${s.t}`;
+  map.appendChild(a);
+  const b=document.createElement('div');
+  b.className='badge'; b.id='bdg-'+s.id; b.textContent=s.n;
+  badges.appendChild(b);
+});
+function complete(id){
+  if(done.has(id))return; done.add(id);
+  $('bdg-'+id).classList.add('done'); $('bdg-'+id).textContent='✓';
+  $('chip-'+id).classList.add('done');
+  const w=$(id+'win'); if(w) w.classList.add('show');
+  Snd.sfx('win');
+  if(done.size===STATIONS.length){
+    $('finTitle').textContent='🏆 Все станции пройдены!';
+    $('finText').innerHTML='Ты не выучил свойства — ты <b>увидел, откуда они берутся</b>. Это другое.<br>Луковица почищена, слёз ноль. 🧅✨';
+    Snd.sfx('final');
+    submitCourseResult();
+  }
+}
+
+/* ═══════════ СТАНЦИЯ 1: лестница ═══════════ */
+(function(){
+  const STEP=48, MAXN=5;
+  let a=2, n=0;
+  const lad=$('ladder'), tok=$('ogre1');
+
+  const bp=$('s1base');
+  [2,3,5,10].forEach(v=>{
+    const b=document.createElement('button');
+    b.textContent=v; b.dataset.v=v;
+    b.onclick=()=>{a=v;build();draw();};
+    bp.appendChild(b);
+  });
+
+  function build(){
+    lad.querySelectorAll('.rung').forEach(r=>r.remove());
+    for(let i=0;i<=MAXN;i++){
+      const r=document.createElement('div');
+      r.className='rung'; r.dataset.i=i;
+      r.style.bottom=(i*STEP)+'px';
+      r.innerHTML=`<span class="idx">${i===0?'земля':'шаг '+i}</span><span class="val">${i===0?'1':pow(a,i)}</span>`;
+      lad.appendChild(r);
+    }
+  }
+  function draw(){
+    tok.style.bottom=(n*STEP+8)+'px';
+    lad.querySelectorAll('.rung').forEach(r=>r.classList.toggle('here',+r.dataset.i===n));
+    bp.querySelectorAll('button').forEach(b=>b.classList.toggle('on',+b.dataset.v===a));
+    $('s1n').textContent=n;
+    K($('s1pow'), `${a}^{${n}}=${pow(a,n)}`);
+    K($('s1log'), `\\log_{${a}}${pow(a,n)}=${n}`);
+    let h='';
+    if(n===0) h='🎁 Ты на земле — ничего не умножал. Пустое произведение = 1. Вот почему \u00ablog от единицы всегда 0\u00bb.';
+    else if(n===1) h='🎁 Один шаг — и ты ровно на a. Вот почему \u00ablog по своему основанию всегда 1\u00bb.';
+    else h=`Ты умножил ${a} само на себя ${n} раз(а). Логарифм просто вернул тебе это число: ${n}.`;
+    $('s1hint').textContent=h;
+  }
+  let sy=0,sn=0,on=false;
+  tok.addEventListener('pointerdown',e=>{on=true;sy=e.clientY;sn=n;tok.setPointerCapture(e.pointerId);tok.classList.add('dragging');e.preventDefault();});
+  tok.addEventListener('pointermove',e=>{
+    if(!on)return;
+    const k=Math.max(0,Math.min(MAXN, Math.round(sn+(sy-e.clientY)/STEP)));
+    if(k!==n){n=k;Snd.sfx('tick');draw();complete('s1');}
+  });
+  const stop=()=>{on=false;tok.classList.remove('dragging');};
+  tok.addEventListener('pointerup',stop); tok.addEventListener('pointercancel',stop);
+  build();draw();
+})();
+
+/* ═══════════ СТАНЦИЯ 2: кирпичи ═══════════ */
+(function(){
+  const a=2; let n=0, touched=0;
+  const tw=$('s2tower');
+  function draw(){
+    tw.innerHTML=bricks(n);
+    const last=tw.lastElementChild;
+    if(last){ last.classList.add('new','gold','grab'); attachTop(last); }
+    $('s2n').textContent=n;
+    K($('s2b'), `b=2^{${n}}=${pow(a,n)}`);
+    K($('s2log'), n===0?`\\log_2 1=0`:`\\log_2 ${pow(a,n)}=${n}`);
+    $('s2val').textContent='число: '+pow(a,n);
+  }
+  function attachTop(el){
+    drag(el,{
+      onDrop(z){ if(z.id==='s2pit'&&n>0){ const o=pow(a,n); n--; draw();
+          $('s2hint').textContent=`Снял этаж: ${o} ÷ 2 = ${pow(a,n)}. Этажей стало ${n}. Число поделилось!`; Snd.sfx('ok');
+          touched++; if(touched>=3) complete('s2'); } else draw(); },
+      onMiss(){ draw(); }
+    });
+  }
+  drag($('s2brick'),{
+    onDrop(z){
+      if(z.id==='s2drop'&&n<5){ const o=pow(a,n); n++; draw();
+        $('s2hint').textContent=`Положил кирпич: ${o} × 2 = ${pow(a,n)}. Этажей стало ${n}. Число умножилось!`; Snd.sfx('ok');
+        touched++; if(touched>=3) complete('s2');
+      } else if(n>=5){ $('s2hint').textContent='Выше не строим — башня рухнет 😅 Сними этаж в яму.'; }
+    }
+  });
+  draw();
+})();
+
+/* ═══════════ СТАНЦИЯ 3: стол огра ═══════════ */
+(function(){
+  const TOWERS=[1,2,3,4,5]; // показатели: 2,4,8,16,32
+  let A=null,B=null,OP=null;
+  const shelf=$('s3shelf');
+
+  function mkTower(k){
+    const d=document.createElement('div');
+    d.className='pile grab'; d.dataset.k=k;
+    d.innerHTML=`<div class="tower">${bricks(k)}</div><div class="tlabel">${pow(2,k)} = 2<sup>${k}</sup></div>`;
+    drag(d,{onDrop(z){ place(z,{type:'t',k}); }});
+    return d;
+  }
+  function mkOp(sign){
+    const d=document.createElement('div');
+    d.className='op grab'+(sign==='-'?' minus':''); d.textContent=sign;
+    drag(d,{onDrop(z){ place(z,{type:'o',sign}); }});
+    return d;
+  }
+  TOWERS.forEach(k=>shelf.appendChild(mkTower(k)));
+  shelf.appendChild(mkOp('+')); shelf.appendChild(mkOp('−'));
+
+  function fill(slot,html){ slot.innerHTML=html; }
+  function place(z,item){
+    const s=z.dataset.slot;
+    if(!s)return;
+    if(item.type==='t'&&(s==='A'||s==='B')){
+      const html=`<div class="tower">${bricks(item.k,s==='B'?'gold':'')}</div><div class="tlabel">${pow(2,item.k)}</div>`;
+      fill(z,html);
+      if(s==='A')A=item.k; else B=item.k;
+    } else if(item.type==='o'&&s==='OP'){
+      OP=item.sign; fill(z,`<div class="op${item.sign==='−'?' minus':''}">${item.sign}</div>`);
+    } else { shake(z); Snd.sfx('err'); return; }
+    calc();
+  }
+  function calc(){
+    const R=$('s3R');
+    if(A===null||B===null||OP===null){
+      $('s3hint').textContent = 'Нужны обе башни и знак между ними.';
+      R.innerHTML='<div class="ph">результат</div>';
+      K($('s3num'),'\\ '); K($('s3lg'),'\\ ');
+      return;
+    }
+    const x=pow(2,A), y=pow(2,B);
+    if(OP==='−'&&B>A){
+      $('s3hint').textContent='🐸 Нельзя снять больше этажей, чем есть! Поменяй башни местами.';
+      shake(R); Snd.sfx('err'); R.innerHTML='<div class="ph">🚫</div>'; return;
+    }
+    const k = OP==='+' ? A+B : A-B;
+    const val = OP==='+' ? x*y : x/y;
+    R.innerHTML=`<div class="tower">${bricks(k,'blue')}</div><div class="tlabel">${val}</div>`;
+    if(OP==='+'){
+      K($('s3num'), `${x}\\cdot ${y}=${val}`);
+      K($('s3lg'), `\\log_2 ${x}+\\log_2 ${y}=${A}+${B}=${k}=\\log_2 ${val}`);
+      $('s3hint').textContent=`Числа перемножились (${x}·${y}=${val}), а этажи сложились (${A}+${B}=${k}). Это одно и то же событие!`;
+    } else {
+      K($('s3num'), `${x}:${y}=${val}`);
+      K($('s3lg'), `\\log_2 ${x}-\\log_2 ${y}=${A}-${B}=${k}=\\log_2 ${val}`);
+      $('s3hint').textContent=`Числа поделились (${x}:${y}=${val}), а этажи вычлись (${A}−${B}=${k}). Зеркальное правило.`;
+    }
+    complete('s3');
+  }
+  $('s3reset').onclick=()=>{
+    A=B=OP=null;
+    $('s3A').innerHTML='<div class="ph">башня A</div>';
+    $('s3B').innerHTML='<div class="ph">башня B</div>';
+    $('s3OP').innerHTML='<div class="ph">знак</div>';
+    $('s3R').innerHTML='<div class="ph">результат</div>';
+    calc();
+  };
+  calc();
+})();
+
+/* ═══════════ СТАНЦИЯ 4: копировальная машина ═══════════ */
+(function(){
+  let k=0; const BASE=3; // башня 8 = 2^3
+  const tw=$('s4tower');
+  function draw(){
+    tw.innerHTML=bricks(k*BASE, k>0?'gold':'');
+    $('s4k').textContent=k;
+    if(k===0){ K($('s4num'),'\\ '); K($('s4lg'),'\\ '); $('s4hint').textContent='Стопка пуста. Тащи первую копию.'; return; }
+    const prod=Math.pow(8,k);
+    K($('s4num'), `8^{${k}}=${prod.toLocaleString('ru-RU').replace(/\s/g,'\\,')}=2^{${k*BASE}}`);
+    K($('s4lg'), `\\log_2 8^{${k}}=\\underbrace{3+\\ldots+3}_{${k}}=${k}\\cdot 3=${k*BASE}`);
+    $('s4hint').textContent=`${k} копий по 3 этажа = ${k*BASE} этажей. Вместо ${k} слагаемых пишем ${k}×3. Вот и весь множитель k!`;
+    if(k>=2) complete('s4');
+  }
+  drag($('s4src'),{
+    onDrop(z){ if(z.id==='s4stack'&&k<4){ k++; Snd.sfx('ok'); draw(); } else if(k>=4){ $('s4hint').textContent='Хватит копий, огр устал 😅 Смысл понятен.'; } }
+  });
+  $('s4reset').onclick=()=>{k=0;draw();};
+  draw();
+})();
+
+/* ═══════════ СТАНЦИЯ 5: линейки ═══════════ */
+(function(){
+  const H=250, UNIT=H/6; // стена = 64 = 2^6, значит 1 "метр" (log2) = H/6
+  const RULERS=[{a:2,m:1},{a:4,m:2},{a:8,m:3},{a:64,m:6}];
+  const shelf=$('s5shelf'), host=$('s5host');
+
+  function mk(r,forShelf){
+    const d=document.createElement('div');
+    d.className='ruler'+(forShelf?' grab':' placed');
+    d.style.height=(UNIT*r.m)+'px';
+    d.dataset.a=r.a;
+    let t=''; for(let i=0;i<2;i++) t+='<div class="tick"></div>';
+    d.innerHTML=t+`<div class="cap">шаг ${r.a}</div>`;
+    return d;
+  }
+  RULERS.forEach(r=>{
+    const d=mk(r,true);
+    drag(d,{onDrop(z){ if(z.id==='s5wall') place(r); }});
+    shelf.appendChild(d);
+  });
+  function place(r){
+    host.innerHTML='';
+    const cnt=6/r.m;
+    for(let i=0;i<cnt;i++){
+      const d=mk(r,false);
+      d.style.bottom=(i*UNIT*r.m)+'px';
+      d.style.left='14px';
+      host.appendChild(d);
+    }
+    $('s5cnt').textContent=cnt;
+    K($('s5log'), `\\log_{${r.a}}64=${cnt}`);
+    K($('s5frac'), `\\dfrac{\\log_2 64}{\\log_2 ${r.a}}=\\dfrac{6}{${r.m}}=${cnt}`);
+    $('s5hint').textContent = r.a===2
+      ? 'Самая мелкая линейка: 6 шагов. Это наш «метр».'
+      : `Линейка ${r.a} — это ${r.m} «метра» (${r.a}=2^${r.m}). Она длиннее в ${r.m} раз ⇒ шагов в ${r.m} раз меньше: 6:${r.m}=${cnt}.`;
+    complete('s5');
+  }
+  $('s5reset').onclick=()=>{
+    host.innerHTML=''; $('s5cnt').textContent='—';
+    K($('s5log'),'\\ '); K($('s5frac'),'\\ ');
+    $('s5hint').textContent='Возьми линейку со склада.';
+  };
+})();
+
+/* ═══════════ СТАНЦИЯ 6: домино ═══════════ */
+(function(){
+  const TILES=[[3,2],[2,5],[5,7],[7,9]];
+  const shelf=$('s6shelf'), chain=$('s6chain');
+  let placed=[];
+
+  function mk(p){
+    const d=document.createElement('div');
+    d.className='domino grab'; d.dataset.l=p[0]; d.dataset.r=p[1];
+    d.innerHTML=`<div class="half l">${p[0]}</div><div class="half r">${p[1]}</div>`;
+    drag(d,{onDrop(z){ if(z.id==='s6chain') tryPlace(d); }});
+    return d;
+  }
+  function shuffle(){
+    placed=[]; chain.innerHTML='<div class="ph">🁢 тащи костяшки сюда, начни с той, где слева 3</div>';
+    shelf.querySelectorAll('.domino').forEach(x=>x.remove());
+    TILES.slice().sort(()=>Math.random()-.5).forEach(p=>shelf.appendChild(mk(p)));
+    $('s6eq').textContent='—'; $('s6res').textContent='—';
+    $('s6hint').textContent='Цепь пуста.';
+  }
+  function tryPlace(d){
+    const l=+d.dataset.l, r=+d.dataset.r;
+    const last=placed[placed.length-1];
+    if(placed.length===0 && l!==3){ shake(d); Snd.sfx('err'); $('s6hint').textContent='🐸 Начинай с костяшки, у которой слева 3 — это начало пути.'; return; }
+    if(last && last.r!==l){ shake(d); Snd.sfx('err'); $('s6hint').textContent=`🐸 Не стыкуется! Предыдущая заканчивается на ${last.r}, а эта начинается с ${l}. Домино не упадёт.`; return; }
+    const ph=chain.querySelector('.ph'); if(ph) ph.remove();
+    if(placed.length){ const m=document.createElement('span'); m.className='linkmark'; m.textContent='·'; chain.appendChild(m); }
+    d.classList.add('matched'); d.classList.remove('grab'); Snd.sfx('ok');
+    chain.appendChild(d);
+    placed.push({l,r});
+    render();
+  }
+  function render(){
+    const eq=placed.map(p=>`\\log_{${p.l}}${p.r}`).join('\\cdot ');
+    K($('s6eq'), eq||'\\ ');
+    const a=placed[0].l, b=placed[placed.length-1].r;
+    K($('s6res'), `\\log_{${a}}${b}`);
+    const mids=placed.slice(0,-1).map(p=>p.r).join(', ');
+    if(placed.length<TILES.length){
+      $('s6hint').textContent=`Хорошо! Пересадки (${mids}) сократятся. Ищи костяшку, начинающуюся с ${b}.`;
+    } else {
+      $('s6hint').textContent=`💥 Цепь упала! Все пересадки (${mids}) сократились, остались только концы: ${a} → ${b}. А log₃9 = 2, ведь 3²=9.`;
+      complete('s6');
+    }
+  }
+  $('s6reset').onclick=shuffle;
+  shuffle();
+})();
+
+/* ═══════════ СТАНЦИЯ 7: ПРАКТИКА ═══════════ */
+(function(){
+  const VALS=[{k:'0',t:'0'},{k:'1',t:'1'},{k:'2',t:'2'},{k:'3',t:'3'},{k:'4',t:'4'},
+              {k:'5',t:'5'},{k:'6',t:'6'},{k:'32',t:'32'},{k:'-1',t:'-1'}];
+  const QS=[
+    {q:'\\log_7 1=\\ ?',a:'0',tip:'Стоишь на земле — ни одного шага не сделал.'},
+    {q:'\\log_9 9=\\ ?',a:'1',tip:'Один шаг — и ты ровно на основании.'},
+    {q:'\\log_3 81=\\ ?',a:'4',tip:'Лестница с шагом 3: 3, 9, 27, 81 — считай ступеньки.'},
+    {q:'\\log_2 8+\\log_2 4=\\log_2\\ ?',a:'32',tip:'Этажи сложились (3+2), значит числа перемножились: 8·4.'},
+    {q:'\\log_5 250-\\log_5 2=\\ ?',a:'3',tip:'Разность логов = логарифм частного: 250:2=125=5³.'},
+    {q:'\\log_2 8^{2}=\\ ?',a:'6',tip:'Стопка из 2 копий по 3 этажа: 2·3.'},
+    {q:'\\dfrac{\\log_3 32}{\\log_3 2}=\\ ?',a:'5',tip:'Дробь свернулась в log₂32 — линейка с шагом 2, стена 32.'},
+    {q:'\\log_{\\sqrt{5}}25=\\ ?',a:'4',tip:'Линейка вдвое короче ⇒ шагов вдвое больше: 2·log₅25.'}
+  ];
+  const grid=$('s7grid'),toks=$('s7toks');
+  let score=0;
+  function build(){
+    grid.innerHTML='';score=0;$('s7sc').textContent='0 / '+QS.length;
+    QS.forEach((o,i)=>{
+      const c=document.createElement('div');
+      c.className='qcard';c.id='q7c'+i;
+      c.innerHTML=`<span class="qq"></span><span class="drop dz" data-i="${i}">?</span>`;
+      grid.appendChild(c);
+      const q=c.querySelector('.qq');
+      try{katex.render(o.q,q,{throwOnError:false});}catch(e){q.textContent=o.q;}
+    });
+  }
+  build();
+  VALS.forEach(v=>{
+    const t=document.createElement('div');
+    t.className='tok grab';
+    toks.appendChild(t);
+    try{katex.render(v.t,t,{throwOnError:false});}catch(e){t.textContent=v.t;}
+    drag(t,{onDrop(z){
+      const i=z.dataset.i; if(i===undefined) return;
+      const card=$('q7c'+i); if(card.classList.contains('ok')) return;
+      if(QS[i].a===v.k){
+        const firstTry=!FINAL_QUIZ.attempted.has(+i)&&!FINAL_QUIZ.solved.has(+i);
+        FINAL_QUIZ.attempted.add(+i);FINAL_QUIZ.solved.add(+i);
+        if(firstTry)FINAL_QUIZ.firstTryCorrect++;
+        card.classList.add('ok'); z.classList.remove('dz'); z.innerHTML='';
+        const s=document.createElement('span'); z.appendChild(s);
+        try{katex.render(v.t,s,{throwOnError:false});}catch(e){s.textContent=v.t;}
+        score++; $('s7sc').textContent=score+' / '+QS.length; Snd.sfx('ok');
+        $('s7hint').textContent='✅ Верно! '+QS[i].tip;
+        if(score===QS.length){ $('s7hint').textContent='🏆 Все восемь! Огр доволен и даже почти улыбнулся.'; complete('s7'); }
+      } else {
+        FINAL_QUIZ.attempted.add(+i);
+        shake(card); Snd.sfx('err');
+        $('s7hint').textContent='❌ Не то. Подсказка: '+QS[i].tip;
+        $('s7tip').textContent=QS[i].tip;
+      }
+    }});
+  });
+  $('s7reset').onclick=()=>{build();$('s7hint').textContent='Тащи жетон на карточку.';};
+})();
+
+/* ═══════════ ПУЗЫРЬКИ ═══════════ */
+const bub=$('bubbles');
+for(let i=0;i<12;i++){
+  const s=document.createElement('span');
+  const sz=6+Math.random()*20;
+  s.style.left=Math.random()*100+'vw';
+  s.style.width=s.style.height=sz+'px';
+  s.style.animationDuration=(9+Math.random()*12)+'s';
+  s.style.animationDelay=(-Math.random()*15)+'s';
+  bub.appendChild(s);
+}
+
+/* ═══════════ KaTeX ═══════════ */
+window.addEventListener('load',()=>{
+  if(window.renderMathInElement){
+    renderMathInElement(document.body,{
+      delimiters:[{left:'\\(',right:'\\)',display:false},{left:'$$',right:'$$',display:true}],
+      throwOnError:false,
+      ignoredClasses:['readout','tok','qq','drop']
+    });
+  }
+});
+$('studentSubmit').addEventListener('click',loginStudent);
+$('studentCode').addEventListener('keydown',e=>{if(e.key==='Enter')loginStudent();});
+$('switchStudent').addEventListener('click',switchStudent);
+window.addEventListener('online',retryPendingResults);
+initStudent();
+</script>
+</body>
+</html>
