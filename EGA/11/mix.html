@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ГИПЕРСКАЧОК · боевой рейд по заданию 11</title>
+<style>
+:root{
+  --void:#04060e;--hull:#0a0f1e;--panel:#101830;--line:#1d2a4c;--ink:#e7ecff;--dim:#8b9cc6;
+  --ion:#43c9ff;--plasma:#ffb03a;--ok:#48e0a0;--fail:#ff5c7a;--violet:#b489ff;
+  --display:"Bahnschrift","DIN Alternate","Oswald","Arial Narrow",system-ui,sans-serif;
+  --body:"Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:ui-monospace,"Cascadia Code","Consolas","Menlo",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--void);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55;min-height:100vh}
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(1px 1px at 12% 18%,#fff 50%,transparent 51%),
+    radial-gradient(1px 1px at 78% 8%,#cfe8ff 50%,transparent 51%),
+    radial-gradient(1px 1px at 34% 72%,#fff 50%,transparent 51%),
+    radial-gradient(1.5px 1.5px at 62% 44%,#ffd9a0 50%,transparent 51%),
+    radial-gradient(1px 1px at 88% 66%,#fff 50%,transparent 51%),
+    radial-gradient(1px 1px at 22% 90%,#bcd8ff 50%,transparent 51%),
+    radial-gradient(1px 1px at 52% 12%,#fff 50%,transparent 51%),
+    radial-gradient(1px 1px at 6% 54%,#fff 50%,transparent 51%),
+    radial-gradient(900px 500px at 80% -10%,rgba(67,201,255,.10),transparent 70%),
+    radial-gradient(700px 420px at 5% 105%,rgba(255,176,58,.08),transparent 70%);
+}
+.shell{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:22px 18px 70px;min-height:100vh}
+
+/* HUD-шапка */
+.hud{display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:1px solid var(--line);border-radius:12px;
+  padding:12px 16px;background:linear-gradient(180deg,rgba(16,24,48,.9),rgba(6,9,18,.9))}
+.hud .title{font-family:var(--display);letter-spacing:.12em;text-transform:uppercase;font-size:18px;line-height:1;flex:1}
+.hud .title span{display:block;font-family:var(--body);font-size:10.5px;letter-spacing:.22em;color:var(--ion);margin-top:3px}
+.stat{font-family:var(--mono);text-align:center;min-width:64px}
+.stat b{display:block;font-size:20px;color:var(--plasma);line-height:1}
+.stat.hit b{color:var(--ok)}
+.stat small{font-size:9.5px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+.student-box{display:none;align-items:center;gap:8px;width:100%;padding-top:8px;border-top:1px solid var(--line)}
+.student-label{font-family:var(--mono);font-size:11px;color:var(--dim);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.student-label b{color:var(--ok)}
+.switch-student{font-family:var(--mono);font-size:9px;letter-spacing:.05em;color:var(--dim);background:#0c1428;
+  border:1px solid var(--line);border-radius:7px;padding:6px 9px;cursor:pointer}
+.switch-student:hover:not(:disabled){border-color:var(--ion);color:var(--ion)}
+.switch-student:disabled{opacity:.4;cursor:not-allowed}
+
+/* полоса прогресса-рейда */
+.track{margin:14px 0 6px;height:8px;border-radius:5px;background:#16203c;overflow:hidden}
+.track>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--ion),var(--plasma));transition:width .4s}
+.pips{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:18px}
+.pip{width:12px;height:12px;border-radius:3px;background:#16203c;border:1px solid var(--line)}
+.pip.hit{background:var(--ok);border-color:var(--ok)}
+.pip.miss{background:var(--fail);border-color:var(--fail)}
+.pip.now{border-color:var(--plasma);box-shadow:0 0 0 2px rgba(255,176,58,.25)}
+
+/* карточка вопроса */
+.q{border:1px solid var(--line);border-radius:14px;padding:18px;background:linear-gradient(180deg,rgba(17,24,48,.92),rgba(10,15,30,.92))}
+.qtype{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ion)}
+.qtext{font-size:16px;margin:6px 0 12px}
+.qtext code{font-family:var(--mono);color:var(--plasma);background:rgba(255,176,58,.09);padding:0 5px;border-radius:4px}
+.plot{background:#070c1a;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:14px}
+.plot svg{display:block;width:100%;height:auto}
+
+.opts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media(max-width:560px){.opts{grid-template-columns:1fr}}
+.opt{font-family:var(--mono);font-size:17px;cursor:pointer;border:1px solid var(--line);border-radius:10px;
+  padding:14px 10px;text-align:center;background:#0c1striate;background:#0c1428;color:var(--ink);transition:.15s;user-select:none}
+.opt:hover:not(.locked){border-color:var(--ion);color:var(--ion);transform:translateY(-1px)}
+.opt:focus-visible{outline:2px solid var(--plasma);outline-offset:2px}
+.opt.correct{border-color:var(--ok);background:rgba(72,224,160,.12);color:var(--ok)}
+.opt.wrong{border-color:var(--fail);background:rgba(255,92,122,.12);color:var(--fail)}
+.opt.locked{cursor:default;opacity:.55}
+.opt.locked.correct,.opt.locked.wrong{opacity:1}
+
+/* фидбэк-подсказка */
+.feed{margin-top:14px;border-radius:10px;padding:0 14px;max-height:0;overflow:hidden;
+  border:1px solid transparent;transition:max-height .3s ease,padding .3s ease}
+.feed.show{max-height:420px;padding:13px 14px}
+.feed.good{border-color:rgba(72,224,160,.4);background:rgba(72,224,160,.06)}
+.feed.bad{border-color:rgba(255,176,58,.4);background:rgba(255,176,58,.06)}
+.feed .head{font-family:var(--display);letter-spacing:.08em;text-transform:uppercase;font-size:13px;margin-bottom:6px}
+.feed.good .head{color:var(--ok)}
+.feed.bad .head{color:var(--plasma)}
+.feed .body{font-family:var(--mono);font-size:13px;line-height:1.7;white-space:pre-line;color:var(--ink)}
+.feed .body b{color:var(--plasma)}
+
+.row{display:flex;justify-content:space-between;align-items:center;margin-top:16px;gap:10px}
+.skip{font-family:var(--mono);font-size:11px;color:var(--dim);background:none;border:none;cursor:pointer;letter-spacing:.06em}
+.skip:hover{color:var(--ion)}
+button.next{font-family:var(--display);letter-spacing:.09em;text-transform:uppercase;cursor:pointer;
+  border-radius:10px;border:1px solid #2b5c8f;background:linear-gradient(180deg,#1d3f66,#12233f);color:var(--ink);
+  padding:12px 22px;font-size:13px;transition:.15s;opacity:.4;pointer-events:none}
+button.next.ready{opacity:1;pointer-events:auto}
+button.next.ready:hover{border-color:var(--ion);color:var(--ion)}
+button.next:focus-visible{outline:2px solid var(--plasma);outline-offset:2px}
+
+/* финал */
+.result{border:1px solid var(--line);border-radius:16px;padding:30px 22px;text-align:center;
+  background:linear-gradient(180deg,rgba(17,24,48,.95),rgba(10,15,30,.95))}
+.result .rank{font-family:var(--display);font-size:34px;letter-spacing:.04em;text-transform:uppercase;margin:0}
+.result .score{font-family:var(--mono);font-size:56px;color:var(--plasma);line-height:1;margin:12px 0}
+.result .score small{font-size:22px;color:var(--dim)}
+.result p{color:var(--dim);max-width:46ch;margin:8px auto 0}
+.result .again{margin-top:22px;font-family:var(--display);letter-spacing:.09em;text-transform:uppercase;cursor:pointer;
+  border-radius:10px;border:1px solid var(--plasma);background:linear-gradient(180deg,#3a2a08,#1c1405);color:var(--plasma);
+  padding:13px 26px;font-size:14px}
+.result .again:hover{color:#fff;border-color:#fff}
+.wrongmap{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:20px}
+.wrongmap span{font-family:var(--mono);font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);color:var(--dim)}
+.wrongmap span.miss{border-color:var(--fail);color:var(--fail)}
+.wrongmap span.hit{border-color:var(--ok);color:var(--ok)}
+.login{max-width:500px;margin:42px auto 0;border:1px solid var(--line);border-radius:16px;padding:28px 24px;text-align:center;
+  background:linear-gradient(180deg,rgba(17,24,48,.96),rgba(10,15,30,.96))}
+.login h1{font-family:var(--display);font-size:28px;letter-spacing:.08em;text-transform:uppercase;margin:0;color:var(--ion)}
+.login p{color:var(--dim);max-width:42ch;margin:10px auto 18px}
+.code-input{width:100%;font-family:var(--mono);font-size:20px;letter-spacing:.16em;text-align:center;text-transform:uppercase;
+  color:var(--ink);background:#070c1a;border:1px solid var(--line);border-radius:10px;padding:14px;outline:none}
+.code-input:focus{border-color:var(--ion);box-shadow:0 0 0 3px rgba(67,201,255,.12)}
+.login-btn{margin-top:14px;font-family:var(--display);letter-spacing:.09em;text-transform:uppercase;cursor:pointer;
+  border-radius:10px;border:1px solid var(--ion);background:linear-gradient(180deg,#1d3f66,#12233f);color:var(--ink);
+  padding:12px 26px;font-size:13px}
+.login-btn:disabled{opacity:.5;cursor:wait}
+.login-status,.save-status{min-height:20px;margin-top:11px;font-family:var(--mono);font-size:11px}
+.login-status.info,.save-status.info{color:var(--dim)}
+.login-status.bad,.save-status.bad{color:var(--fail)}
+.login-status.ok,.save-status.ok{color:var(--ok)}
+.result-stats{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:16px 0}
+.result-stat{min-width:130px;border:1px solid var(--line);border-radius:10px;padding:10px;background:#070c1a}
+.result-stat b{display:block;font-family:var(--mono);font-size:25px;color:var(--plasma)}
+.result-stat small{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="hud">
+    <div class="title">Гиперскачок<span>боевой рейд · задание 11</span></div>
+    <div class="stat"><b id="qNum">1</b><small>цель</small></div>
+    <div class="stat hit"><b id="score">0</b><small>попаданий</small></div>
+    <div class="stat"><b id="streak">0</b><small>серия</small></div>
+    <div class="student-box" id="studentBox">
+      <div class="student-label">ПИЛОТ: <b id="studentName"></b></div>
+      <button class="switch-student" id="switchStudentBtn" onclick="changeStudent()">Сменить ученика</button>
+    </div>
+  </div>
+  <div class="track"><i id="trackFill"></i></div>
+  <div class="pips" id="pips"></div>
+  <div id="stage"></div>
+</div>
+
+<script>
+/* ═════════ учёт результатов ═════════ */
+const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+const TEST_META={
+  testId:'EGE-11-HYPERJUMP-20-GRAPH-MISSIONS',
+  topicId:'task-11',
+  topicName:'Графики функций',
+  taskNumber:11,
+  schemaVersion:1
+};
+const PENDING_RESULTS_KEY='egePendingTestResults';
+
+let currentStudent=null;
+let gameActive=false;
+let questionAttempted=false;
+let firstTryCorrect=0;
+let startedAt=0;
+let attemptEventId='';
+let resultSubmitted=false;
+
+function uuid(){
+  if(window.crypto&&typeof window.crypto.randomUUID==='function')return window.crypto.randomUUID();
+  return 'evt-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)+'-'+Math.random().toString(36).slice(2);
+}
+function localDate(){
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function formatDuration(seconds){
+  return Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
+}
+function escapeHtml(value){
+  return String(value).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function storedStudent(){
+  const studentId=localStorage.getItem('egeStudentId');
+  if(!studentId)return null;
+  return {
+    studentId,
+    name:localStorage.getItem('egeStudentName')||'Ученик',
+    code:localStorage.getItem('egeStudentCode')||''
+  };
+}
+function saveStudent(student){
+  localStorage.setItem('egeStudentId',student.studentId);
+  localStorage.setItem('egeStudentName',student.name);
+  localStorage.setItem('egeStudentCode',student.code);
+}
+function parseStudent(data,code){
+  const source=(data&&(data.student||data.data))||data||{};
+  const studentId=source.studentId||source.id||(data&&data.studentId);
+  const name=source.studentName||source.name||source.fullName||(data&&(data.studentName||data.name));
+  const rejected=data&&(data.success===false||data.valid===false||data.ok===false);
+  if(rejected||!studentId)throw new Error((data&&(data.message||data.error))||'Личный код не найден');
+  return {studentId:String(studentId),name:String(name||'Ученик'),code:String(code)};
+}
+function validateStudent(code){
+  return new Promise((resolve,reject)=>{
+    const callback='egeValidate_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const script=document.createElement('script');
+    let done=false;
+    const cleanup=()=>{delete window[callback];script.remove();};
+    const timer=setTimeout(()=>{
+      if(done)return;
+      done=true;cleanup();reject(new Error('Сервер не ответил. Проверь интернет-соединение'));
+    },12000);
+    window[callback]=data=>{
+      if(done)return;
+      done=true;clearTimeout(timer);cleanup();
+      try{resolve(parseStudent(data,code));}catch(error){reject(error);}
+    };
+    script.onerror=()=>{
+      if(done)return;
+      done=true;clearTimeout(timer);cleanup();reject(new Error('Не удалось проверить код. Проверь интернет-соединение'));
+    };
+    script.src=API_URL+'?'+new URLSearchParams({action:'validateStudent',code,callback}).toString();
+    document.head.appendChild(script);
+  });
+}
+function updateStudentBox(){
+  const box=document.getElementById('studentBox');
+  const name=document.getElementById('studentName');
+  const button=document.getElementById('switchStudentBtn');
+  if(!box)return;
+  box.style.display=currentStudent?'flex':'none';
+  if(name&&currentStudent)name.textContent=currentStudent.name;
+  if(button)button.disabled=gameActive;
+}
+function renderLogin(prefill=''){
+  gameActive=false;
+  currentStudent=null;
+  updateStudentBox();
+  $('trackFill').style.width='0';
+  $('pips').innerHTML='';
+  $('stage').innerHTML=`
+    <div class="login">
+      <h1>Допуск к рейду</h1>
+      <p>Введи личный код ученика. После проверки корабль запомнит пилота на этом устройстве.</p>
+      <form id="loginForm">
+        <input class="code-input" id="studentCodeInput" type="text" autocomplete="one-time-code"
+          autocapitalize="characters" spellcheck="false" maxlength="40" placeholder="ЛИЧНЫЙ КОД" value="${escapeHtml(prefill)}">
+        <button class="login-btn" id="loginBtn" type="submit">Войти в систему</button>
+        <div class="login-status info" id="loginStatus"></div>
+      </form>
+    </div>`;
+  $('loginForm').addEventListener('submit',handleLogin);
+  $('studentCodeInput').focus();
+  if(prefill)setTimeout(()=>$('loginForm').requestSubmit(),0);
+}
+async function handleLogin(event){
+  event.preventDefault();
+  const input=$('studentCodeInput');
+  const button=$('loginBtn');
+  const status=$('loginStatus');
+  const code=input.value.trim();
+  if(!code){status.className='login-status bad';status.textContent='Введи личный код';return;}
+  input.disabled=true;button.disabled=true;
+  status.className='login-status info';status.textContent='Проверяем код…';
+  try{
+    currentStudent=await validateStudent(code);
+    saveStudent(currentStudent);
+    updateStudentBox();
+    await flushPendingResults();
+    renderLaunch();
+  }catch(error){
+    status.className='login-status bad';status.textContent=error.message||'Код не подтверждён';
+    input.disabled=false;button.disabled=false;input.focus();
+  }
+}
+function changeStudent(){
+  if(gameActive)return;
+  localStorage.removeItem('egeStudentId');
+  localStorage.removeItem('egeStudentName');
+  localStorage.removeItem('egeStudentCode');
+  renderLogin();
+}
+function readPendingResults(){
+  try{
+    const queue=JSON.parse(localStorage.getItem(PENDING_RESULTS_KEY)||'[]');
+    return Array.isArray(queue)?queue:[];
+  }catch(_){return [];}
+}
+function queueResult(payload){
+  const queue=readPendingResults();
+  if(!queue.some(item=>item&&item.eventId===payload.eventId))queue.push(payload);
+  localStorage.setItem(PENDING_RESULTS_KEY,JSON.stringify(queue));
+}
+function removeQueuedResult(eventId){
+  const queue=readPendingResults().filter(item=>!item||item.eventId!==eventId);
+  localStorage.setItem(PENDING_RESULTS_KEY,JSON.stringify(queue));
+}
+async function postResult(payload){
+  const response=await fetch(API_URL,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(payload),
+    redirect:'follow'
+  });
+  if(!response.ok)throw new Error('submit failed');
+}
+async function flushPendingResults(){
+  if(!navigator.onLine)return;
+  const snapshot=readPendingResults();
+  for(const payload of snapshot){
+    if(!payload||!payload.eventId)continue;
+    try{await postResult(payload);removeQueuedResult(payload.eventId);}
+    catch(_){break;}
+  }
+}
+function setSaveStatus(type,text){
+  const el=$('saveStatus');
+  if(!el)return;
+  el.className='save-status '+type;
+  el.textContent=text;
+}
+async function submitResultOnce(scorePercent,durationSeconds){
+  if(resultSubmitted||!currentStudent)return;
+  resultSubmitted=true;
+  const payload={
+    action:'submitTest',
+    eventId:attemptEventId,
+    studentId:currentStudent.studentId,
+    testId:TEST_META.testId,
+    testDate:localDate(),
+    topicId:TEST_META.topicId,
+    topicName:TEST_META.topicName,
+    taskNumber:TEST_META.taskNumber,
+    scorePercent,
+    durationSeconds,
+    schemaVersion:TEST_META.schemaVersion
+  };
+  setSaveStatus('info','Сохраняем результат…');
+  try{
+    if(!navigator.onLine)throw new Error('offline');
+    await postResult(payload);
+    removeQueuedResult(payload.eventId);
+    setSaveStatus('ok','✓ Результат сохранён');
+  }catch(_){
+    queueResult(payload);
+    setSaveStatus('bad','Нет связи: результат сохранён на устройстве и отправится позже');
+  }
+}
+function renderLaunch(){
+  gameActive=false;
+  updateStudentBox();
+  $('trackFill').style.width='0';
+  $('pips').innerHTML='';
+  $('qNum').textContent='—';$('score').textContent='0';$('streak').textContent='0';
+  $('stage').innerHTML=`
+    <div class="result">
+      <p class="rank">Пилот подтверждён</p>
+      <div class="score" style="font-size:30px;color:var(--ok)">${escapeHtml(currentStudent.name)}</div>
+      <p>Впереди 20 целей по графикам функций. В зачёт идут только попадания с первого залпа.</p>
+      <button class="again" id="launchBtn">Начать боевой рейд</button>
+    </div>`;
+  $('launchBtn').addEventListener('click',start);
+}
+async function initAccounting(){
+  window.addEventListener('online',flushPendingResults);
+  const code=new URLSearchParams(location.search).get('code');
+  if(code){renderLogin(code);return;}
+  currentStudent=storedStudent();
+  if(currentStudent){
+    updateStudentBox();
+    await flushPendingResults();
+    renderLaunch();
+  }else renderLogin();
+}
+
+/* ═════════ утилиты чисел ═════════ */
+const R = (a,b)=>a+Math.floor(Math.random()*(b-a+1));           // целое [a,b]
+const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+const round = x => Math.abs(x-Math.round(x))<1e-9?Math.round(x):x;
+function fmt(x){ x=round(x); if(Number.isInteger(x))return String(x);
+  return (+x.toFixed(6)).toString().replace('.',','); }
+function sgn(x){ return x<0?'− '+fmt(-x):'+ '+fmt(x); }
+function poly(a,b,c){ let s=(a===1?'x²':a===-1?'−x²':fmt(a)+'x²');
+  if(b)s+=' '+(b<0?'− ':'+ ')+(Math.abs(b)===1?'x':fmt(Math.abs(b))+'x');
+  if(c)s+=' '+(c<0?'− ':'+ ')+fmt(Math.abs(c)); return s; }
+function lineStr(k,b){ let s=(k===1?'x':k===-1?'−x':fmt(k)+'x');
+  if(b)s+=' '+(b<0?'− ':'+ ')+fmt(Math.abs(b)); return s; }
+
+/* ═════════ построитель SVG ═════════ */
+const C_F='#43c9ff', C_G='#b489ff';
+function plot(cfg){
+  const W=cfg.W||620,H=cfg.H||300,pad=18;
+  const {xmin,xmax,ymin,ymax}=cfg, step=cfg.step||1, lstep=cfg.lstep||step;
+  const SX=x=>pad+(x-xmin)/(xmax-xmin)*(W-2*pad);
+  const SY=y=>H-pad-(y-ymin)/(ymax-ymin)*(H-2*pad);
+  let s=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img">`;
+  s+=`<rect width="${W}" height="${H}" fill="#070c1a"/><g stroke="#182444" stroke-width="1">`;
+  for(let v=Math.ceil(xmin/step)*step;v<=xmax+1e-9;v+=step)s+=`<line x1="${SX(v)}" y1="${pad}" x2="${SX(v)}" y2="${H-pad}"/>`;
+  for(let v=Math.ceil(ymin/step)*step;v<=ymax+1e-9;v+=step)s+=`<line x1="${pad}" y1="${SY(v)}" x2="${W-pad}" y2="${SY(v)}"/>`;
+  s+=`</g>`;
+  (cfg.hlines||[]).forEach(y=>s+=`<line x1="${pad}" y1="${SY(y)}" x2="${W-pad}" y2="${SY(y)}" stroke="#ff5c7a" stroke-width="1.4" stroke-dasharray="6 4" opacity=".7"/>`);
+  const has0x=ymin<0&&ymax>0,has0y=xmin<0&&xmax>0;
+  const ax=has0y?SX(0):SX(xmin),ay=has0x?SY(0):SY(ymin);
+  s+=`<g stroke="#7f92bd" stroke-width="1.6"><line x1="${pad}" y1="${ay}" x2="${W-pad+2}" y2="${ay}"/><line x1="${ax}" y1="${H-pad}" x2="${ax}" y2="${pad-2}"/></g>`;
+  s+=`<path d="M${W-pad+2},${ay} l-7,-3.5 v7 z" fill="#7f92bd"/><path d="M${ax},${pad-2} l-3.5,7 h7 z" fill="#7f92bd"/>`;
+  s+=`<text x="${W-pad-2}" y="${ay+15}" fill="#8b9cc6" font-family="monospace" font-size="12" font-style="italic" text-anchor="end">x</text>`;
+  s+=`<text x="${ax+7}" y="${pad+9}" fill="#8b9cc6" font-family="monospace" font-size="12" font-style="italic">y</text>`;
+  s+=`<g fill="#8b9cc6" font-family="monospace" font-size="11">`;
+  for(let v=Math.ceil(xmin/lstep)*lstep;v<=xmax-1e-9;v+=lstep)if(Math.abs(v)>1e-9)s+=`<text x="${SX(v)}" y="${ay+14}" text-anchor="middle">${fmt(v)}</text>`;
+  for(let v=Math.ceil(ymin/lstep)*lstep;v<=ymax-1e-9;v+=lstep)if(Math.abs(v)>1e-9)s+=`<text x="${ax-5}" y="${SY(v)+4}" text-anchor="end">${fmt(v)}</text>`;
+  if(has0x&&has0y)s+=`<text x="${ax-5}" y="${ay+14}" text-anchor="end">O</text>`;
+  s+=`</g>`;
+  (cfg.curves||[]).forEach(c=>{
+    const [a,b]=c.dom||[xmin,xmax],N=800,col=c.color||C_F;let d='',pen=false;
+    for(let i=0;i<=N;i++){const x=a+(b-a)*i/N,y=c.fn(x);
+      const ok=Number.isFinite(y)&&y>ymin-0.5&&y<ymax+0.5;
+      if(!ok){pen=false;continue;}
+      d+=(pen?'L':'M')+SX(x).toFixed(1)+','+SY(y).toFixed(1)+' ';pen=true;}
+    s+=`<path d="${d}" fill="none" stroke="${col}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>`;});
+  (cfg.points||[]).forEach(p=>{const col=p.color||'#ffb03a';
+    s+=`<circle cx="${SX(p.x)}" cy="${SY(p.y)}" r="6.5" fill="${col}" opacity=".18"/><circle cx="${SX(p.x)}" cy="${SY(p.y)}" r="3.6" fill="${col}"/>`;
+    if(p.label)s+=`<text x="${SX(p.x)+8}" y="${SY(p.y)-6}" fill="${col}" font-family="monospace" font-size="11.5">${p.label}</text>`;});
+  (cfg.tags||[]).forEach(t=>s+=`<text x="${SX(t.x)}" y="${SY(t.y)}" fill="${t.color||'#8b9cc6'}" font-family="monospace" font-size="${t.size||11}" text-anchor="${t.anchor||'start'}">${t.text}</text>`);
+  return s+`</svg>`;
+}
+
+/* ═════════ варианты ответа ═════════ */
+// собирает 3 варианта: правильный + 2 правдоподобных дистрактора
+function makeOpts(correct, distractors){
+  const seen=new Set([fmt(correct)]);
+  const pool=[];
+  for(const d of distractors){
+    if(!Number.isFinite(d))continue;
+    const key=fmt(d);
+    if(!seen.has(key)){seen.add(key);pool.push(d);}
+  }
+  // подстрахуемся, если дистракторов не хватило
+  let guard=0;
+  while(pool.length<2 && guard++<40){
+    const cand=round(correct + pick([-1,1,2,-2,3,-3,0.5,-0.5])* (Math.abs(correct)>4?pick([1,2,3]):1));
+    if(!seen.has(fmt(cand))){seen.add(fmt(cand));pool.push(cand);}
+  }
+  const three=[correct, pool[0], pool[1]];
+  // перемешать
+  for(let i=three.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[three[i],three[j]]=[three[j],three[i]];}
+  return three.map(v=>({v, correct:Math.abs(v-correct)<1e-9}));
+}
+
+/* ═════════ ГЕНЕРАТОРЫ ПРОТОТИПОВ ═════════
+   каждый возвращает {type,text,svg,opts,hint} со СВЕЖИМИ числами          */
+const GEN = {};
+
+/* 1. f(x)=k/x → f(t) */
+GEN.hyp = ()=>{
+  const x0=pick([1,2,3,-1,-2]); const y0=pick([1,2,3,4]);
+  const k=x0*y0; const t=pick([10,20,30,40]);
+  const ans=k/t;
+  return {type:'Гипербола · f(x)=k/x',
+    text:`График функции <code>f(x) = k/x</code>. Найдите <code>f(${t})</code>.`,
+    svg:plot({xmin:-5.5,xmax:5.5,ymin:-5.5,ymax:5.5,
+      curves:[{fn:x=>k/x,dom:[-40,-0.001]},{fn:x=>k/x,dom:[0.001,40]}],
+      points:[{x:x0,y:y0,label:`(${fmt(x0)}; ${fmt(y0)})`}]}),
+    opts:makeOpts(ans,[k*t? k/(t/10):null, (x0+y0)/t, k/(t/2), -ans, k/t*2]),
+    hint:`k = x₀·y₀ = ${fmt(x0)}·${fmt(y0)} = <b>${fmt(k)}</b>. Тогда f(${t}) = ${fmt(k)}/${t} = <b>${fmt(ans)}</b>.`};
+};
+
+/* 2. f(x)=aˣ → f(t) */
+GEN.exp = ()=>{
+  const bank=[{a:2},{a:3},{a:5},{a:0.5},{a:1/3}];
+  const {a}=pick(bank);
+  const n=(a<1)? pick([-1,-2]) : pick([1,2]);
+  const y0=Math.pow(a,n);
+  const t=(a<1)? pick([2,3]) : pick([3,4]);
+  const ans=Math.pow(a,t);
+  const vy=a<1?[-1,Math.max(6,y0+1)]:[-1,Math.max(10,ans*0+9)];
+  return {type:'Показательная · f(x)=aˣ',
+    text:`График функции <code>f(x) = a<sup>x</sup></code>. Найдите <code>f(${t})</code>.`,
+    svg:plot({xmin:-3.4,xmax:3.6,ymin:-1,ymax: a<1?6:10,step:1,
+      curves:[{fn:x=>Math.pow(a,x),dom:[-3.4,3.6]}],
+      points:[{x:0,y:1,label:'(0; 1)'},{x:n,y:y0,label:`(${fmt(n)}; ${fmt(y0)})`}]}),
+    opts:makeOpts(ans,[a*t, Math.pow(a,t)-1, Math.pow(a,t)/a, a*t+1, Math.pow(a,t-1)]),
+    hint:`Через второй маяк: a<sup>${fmt(n)}</sup> = ${fmt(y0)} → a = ${a<1?(a===0.5?'1/2':'1/3'):fmt(a)}. Считаем степенью: f(${t}) = (${a<1?(a===0.5?'1/2':'1/3'):fmt(a)})<sup>${t}</sup> = <b>${fmt(ans)}</b>.`};
+};
+
+/* 3. f(x)=log_a x → f(t) */
+GEN.log = ()=>{
+  const a=pick([2,3,4,5]);
+  const p=pick([2,3,4]);
+  const t=Math.pow(a,p);
+  const ans=p;
+  return {type:'Логарифм · f(x)=logₐx',
+    text:`График функции <code>f(x) = log<sub>a</sub> x</code>. Найдите <code>f(${t})</code>.`,
+    svg:plot({xmin:-1,xmax:Math.max(9,a+2),ymin:-3,ymax:4,
+      curves:[{fn:x=>Math.log(x)/Math.log(a),dom:[0.02,Math.max(9,a+2)]}],
+      points:[{x:a,y:1,label:`(${fmt(a)}; 1)`}],
+      tags:[{x:-0.7,y:3.4,text:'y = f(x)',color:C_F,size:11}]}),
+    opts:makeOpts(ans,[p+1, p-1, a, t/a, p*2]),
+    hint:`Точка на высоте 1 даёт основание: <b>a = ${fmt(a)}</b>. Дальше ${fmt(a)}<sup>?</sup> = ${t}. Так как ${fmt(a)}<sup>${p}</sup> = ${t}, ответ <b>${p}</b>.`};
+};
+
+/* 4. f(x)=k√x → f(t) или обратно */
+GEN.sqrt = ()=>{
+  const k=pick([0.5,1,2,3]);
+  const sq=pick([1,4,9]); const y0=round(k*Math.sqrt(sq));
+  if(Math.random()<0.5){ // прямая
+    const t=pick([16,25,36]); const ans=k*Math.sqrt(t);
+    return {type:'Корень · f(x)=k√x',
+      text:`График функции <code>f(x) = k·√x</code>. Найдите <code>f(${t})</code>.`,
+      svg:plot({xmin:-1,xmax:Math.max(10,t*0+10),ymin:-1,ymax:Math.max(7,ans+1),step:1,
+        curves:[{fn:x=>k*Math.sqrt(x),dom:[0,10]}],
+        points:[{x:sq,y:y0,label:`(${fmt(sq)}; ${fmt(y0)})`}]}),
+      opts:makeOpts(ans,[k*t, ans+k, ans-k, Math.sqrt(t), k*Math.sqrt(t)+1]),
+      hint:`k = y₀/√x₀ = ${fmt(y0)}/${fmt(Math.sqrt(sq))} = <b>${fmt(k)}</b>. f(${t}) = ${fmt(k)}·√${t} = ${fmt(k)}·${fmt(Math.sqrt(t))} = <b>${fmt(ans)}</b>.`};
+  } else { // обратная: найти x при f(x)=v
+    const v=round(k*pick([4,6,8,10]));
+    const ans=Math.pow(v/k,2);
+    return {type:'Корень · обратный ход',
+      text:`График функции <code>f(x) = k·√x</code>. Найдите <code>x</code>, при котором <code>f(x) = ${fmt(v)}</code>.`,
+      svg:plot({xmin:-1,xmax:12,ymin:-1,ymax:Math.max(7,v+1),step:1,
+        curves:[{fn:x=>k*Math.sqrt(x),dom:[0,12]}],
+        points:[{x:sq,y:y0,label:`(${fmt(sq)}; ${fmt(y0)})`}]}),
+      opts:makeOpts(ans,[v/k, ans/2, ans+k, v*k, Math.pow(v/k,2)-2]),
+      hint:`k = <b>${fmt(k)}</b>. Решаем ${fmt(k)}·√x = ${fmt(v)} → √x = ${fmt(v/k)} → x = (${fmt(v/k)})² = <b>${fmt(ans)}</b>.`};
+  }
+};
+
+/* 5. f(x)=kx+b → f(t) */
+GEN.lin = ()=>{
+  const k=pick([-3,-2,-1,1,2,3,0.5,-0.5,2.5,1.5]);
+  const b=R(-3,3);
+  const t=pick([-3,-2,4,5,7,0.5]);
+  const ans=k*t+b;
+  // второй маяк с целыми координатами
+  let x1=1; while(!Number.isInteger(k*x1+b))x1++;
+  const y1=k*x1+b;
+  return {type:'Прямая · f(x)=kx+b',
+    text:`График функции <code>f(x) = kx + b</code>. Найдите <code>f(${fmt(t)})</code>.`,
+    svg:plot({xmin:-5.5,xmax:5.5,ymin:-6.5,ymax:6.5,
+      curves:[{fn:x=>k*x+b,dom:[-20,20]}],
+      points:[{x:0,y:b,label:`(0; ${fmt(b)})`},{x:x1,y:y1,label:`(${fmt(x1)}; ${fmt(y1)})`}]}),
+    opts:makeOpts(ans,[k*t-b, k*t, -k*t+b, ans+k, ans-1, b*t+k]),
+    hint:`b = ${fmt(b)} (пересечение с осью y). k = ${fmt(k)} (наклон). f(${fmt(t)}) = ${fmt(k)}·(${fmt(t)}) ${sgn(b)} = <b>${fmt(ans)}</b>.`};
+};
+
+/* 6. f(x)=k/x+b → f(t) */
+GEN.hypb = ()=>{
+  const b=pick([-2,-1,1,2,3]);
+  const x0=pick([1,2]); const dy=pick([1,2,3,4]);
+  const k=x0*dy; const y0=k/x0+b;
+  const t=pick([-15,-10,20,25,-30]);
+  const ans=k/t+b;
+  return {type:'Смещённая гипербола · k/x+b',
+    text:`График функции <code>f(x) = k/x + b</code>. Найдите <code>f(${t})</code>.`,
+    svg:plot({xmin:-5.5,xmax:5.5,ymin:Math.min(-5.5,b-4),ymax:Math.max(4,b+5),
+      curves:[{fn:x=>k/x+b,dom:[-40,-0.001]},{fn:x=>k/x+b,dom:[0.001,40]}],
+      hlines:[b],
+      points:[{x:x0,y:y0,label:`(${fmt(x0)}; ${fmt(y0)})`}],
+      tags:[{x:5.3,y:b+0.5,text:`y = ${fmt(b)}`,color:'#ff5c7a',anchor:'end',size:10}]}),
+    opts:makeOpts(ans,[k/t, b, k/t-b, b+1, round(k/t+b+0.2), ans-b]),
+    hint:`Асимптота (пунктир) даёт b = <b>${fmt(b)}</b>. Из маяка k = x₀·(y₀−b) = ${fmt(x0)}·${fmt(dy)} = <b>${fmt(k)}</b>. f(${t}) = ${fmt(k)}/${t} ${sgn(b)} = <b>${fmt(ans)}</b>.`};
+};
+
+/* 7. f(x)=ax²+bx+c → f(t)  (целые, через корни) */
+GEN.par = ()=>{
+  const a=pick([1,1,1,2]);
+  const r1=R(-3,1), r2=r1+pick([1,2,3,4]);        // разные целые корни
+  const b=-a*(r1+r2), c=a*r1*r2;
+  const f=x=>a*x*x+b*x+c;
+  const t=pick([-3,5,-2,4,-1]);
+  const ans=f(t);
+  const xv=(r1+r2)/2;
+  // видимая область
+  const lo=Math.min(r1,r2,0)-1.5, hi=Math.max(r1,r2,0)+1.5;
+  const yv=f(xv);
+  return {type:'Парабола · ax²+bx+c',
+    text:`График функции <code>f(x) = ax² + bx + c</code> (a, b, c — целые). Найдите <code>f(${t})</code>.`,
+    svg:plot({xmin:lo-0.5,xmax:hi+0.5,ymin:Math.min(yv-1,-2),ymax:Math.max(c+1,4),
+      curves:[{fn:f,dom:[lo-0.5,hi+0.5]}],
+      points:[{x:0,y:c,label:`(0; ${fmt(c)})`},{x:r1,y:0,label:`x₁=${fmt(r1)}`},{x:r2,y:0,label:`x₂=${fmt(r2)}`}]}),
+    opts:makeOpts(ans,[a*t*t+b*t-c, a*t*t-b*t+c, ans+a, ans-2*a, -ans, a*(t-r1)*(t-r2)+1]),
+    hint:`Корни ${fmt(r1)} и ${fmt(r2)}, ветви вверх (a=${fmt(a)}): f(x)=${fmt(a)}(x−${fmt(r1)})(x−${fmt(r2)}) = ${poly(a,b,c)}.
+f(${t}) = ${poly(a,b,c).replace(/x²/g,`(${t})²`).replace(/x/g,`(${t})`)} = <b>${fmt(ans)}</b>.`};
+};
+
+/* 8. две прямые → абсцисса A */
+GEN.linlin = ()=>{
+  let k1,k2,b1,b2,x;
+  do{ k1=pick([-2,-1,1,2,3,0.5]); k2=pick([-2,-1,1,2,3,-0.5]);
+      b1=R(-3,3); b2=R(-3,3);
+  }while(k1===k2 || !Number.isInteger((b2-b1)) || (b2-b1)%(k1-k2)!==0 || Math.abs((b2-b1)/(k1-k2))>5);
+  x=(b2-b1)/(k1-k2);
+  const y=k1*x+b1;
+  return {type:'Две прямые · точка A',
+    text:`Графики двух линейных функций пересекаются в точке <code>A</code>. Найдите абсциссу <code>A</code>.`,
+    svg:plot({xmin:-5.5,xmax:6.5,ymin:-6.5,ymax:6.5,
+      curves:[{fn:t=>k1*t+b1,dom:[-30,30],color:C_F},{fn:t=>k2*t+b2,dom:[-30,30],color:C_G}],
+      points:[{x,y,color:'#48e0a0',label:'A'},{x:0,y:b1,color:C_F},{x:0,y:b2,color:C_G}]}),
+    opts:makeOpts(x,[y, x+1, x-1, -x, (b1-b2)/(k1-k2), b2-b1]),
+    hint:`f(x)=${lineStr(k1,b1)}, g(x)=${lineStr(k2,b2)}. Приравниваем: ${fmt(k1-k2)}x = ${fmt(b2-b1)} → x = <b>${fmt(x)}</b> (это абсцисса, а не ордината!).`};
+};
+
+/* 9. гипербола + прямая → абсцисса B (Виет) */
+GEN.hyplin = ()=>{
+  // выберем два целых корня разного смысла: A виден, B ищем
+  let xA,xB,k,a,b;
+  do{
+    a=1; xA=pick([-4,-3,-2,-1,1,2]); xB=pick([-6,-4,-3,3,4,6,8]);
+    if(xA===xB)continue;
+    k=xA*xB* -1;              // из x²+bx−k=0? упростим: возьмём a=1, тогда xA*xB=−k → k=−xA*xB... хотим k=xA*yA
+    // Прямая g=x+b проходит через обе точки гиперболы? Нет — построим корректно:
+    // k/x = x + b → x²+bx−k=0, корни xA,xB. Тогда xA*xB=−k, xA+xB=−b.
+    k=-(xA*xB); b=-(xA+xB);
+  }while(k===0 || Math.abs(k)>18 || Math.abs(b)>7 || !Number.isInteger(k/xA));
+  const yA=k/xA;
+  const ans=xB;
+  const vmax=Math.max(Math.abs(xA),Math.abs(xB),Math.abs(yA))+2;
+  const st = vmax>7?2:1;
+  return {type:'Гипербола ∩ прямая · точка B',
+    text:`Графики <code>f(x) = k/x</code> и <code>g(x) = x ${sgn(b)}</code> пересекаются в <code>A</code> и <code>B</code>. Найдите абсциссу <code>B</code> (точка A подписана).`,
+    svg:plot({xmin:-vmax-0.5,xmax:vmax+0.5,ymin:-vmax-0.5,ymax:vmax+0.5,step:st,lstep:st,
+      curves:[{fn:x=>k/x,dom:[-60,-0.001]},{fn:x=>k/x,dom:[0.001,60]},{fn:x=>x+b,dom:[-60,60],color:C_G}],
+      points:[{x:xA,y:yA,label:`A(${fmt(xA)}; ${fmt(yA)})`},{x:xB,y:k/xB,label:'B'}]}),
+    opts:makeOpts(ans,[k/xB, xA, -xB, k/xA, xA+xB, round(-k/xA)]),
+    hint:`Из A: k = xA·yA = ${fmt(xA)}·${fmt(yA)} = <b>${fmt(k)}</b>. Уравнение x²${sgn(b)}·x − ${fmt(k)} = 0. По Виету xA·xB = ${fmt(-k)} → xB = ${fmt(-k)}/${fmt(xA)} = <b>${fmt(xB)}</b>.`};
+};
+
+/* 10. корень + прямая kx → абсцисса B */
+GEN.sqrtlin = ()=>{
+  const a=pick([2,3,4,5,6]); const k=pick([1,2]);
+  const ans=Math.pow(a/k,2);
+  // маяки
+  const nf=[4, round(a*2)]; const ng=[2, round(k*2)];
+  const vmax=Math.max(ans, a*Math.sqrt(Math.max(ans,9)))+2;
+  const st=vmax>12?4:(vmax>7?2:1);
+  return {type:'Корень ∩ прямая · точка B',
+    text:`Графики <code>f(x) = a·√x</code> и <code>g(x) = kx</code> пересекаются в <code>A</code> и <code>B</code>. Найдите абсциссу <code>B</code>.`,
+    svg:plot({xmin:-1.5,xmax:Math.max(ans+3,12),ymin:-1.5,ymax:Math.max(a*Math.sqrt(ans)+2,10),step:st,lstep:st,
+      curves:[{fn:x=>a*Math.sqrt(x),dom:[0,Math.max(ans+3,12)]},{fn:x=>k*x,dom:[-1.5,Math.max(ans+3,12)],color:C_G}],
+      points:[{x:0,y:0,label:'A(0; 0)'},{x:nf[0],y:nf[1],color:C_F,label:`(${fmt(nf[0])}; ${fmt(nf[1])})`},{x:ng[0],y:ng[1],color:C_G}]}),
+    opts:makeOpts(ans,[a/k, ans/2, ans+k, a*k, round(Math.pow(a/k,2))+2]),
+    hint:`a = ${fmt(a)}, k = ${fmt(k)}. Делим ${fmt(a)}√x = ${fmt(k)}x на √x: √x = a/k = ${fmt(a/k)} → x = (${fmt(a/k)})² = <b>${fmt(ans)}</b>. (Точка A = начало координат.)`};
+};
+
+/* 11. парабола + прямая kx → абсцисса B (Виет) */
+GEN.parlin = ()=>{
+  const a=1;
+  const xA=pick([1,-1,2,-2]); const xB=pick([2,3,4,-3,5]);
+  if(xA===xB)return GEN.parlin();
+  // f−g = (x−xA)(x−xB) = x²−(xA+xB)x + xA·xB ; f=x²+bx+c, g=kx
+  // => b−k = −(xA+xB), c = xA·xB
+  const c=xA*xB;
+  const bk=-(xA+xB);          // = b−k
+  const k=pick([1,2,3]); const b=bk+k;
+  if(Math.abs(b)>6||Math.abs(c)>9)return GEN.parlin();
+  const f=x=>a*x*x+b*x+c;
+  const lo=Math.min(xA,xB,0)-1.5, hi=Math.max(xA,xB,0)+1.5;
+  return {type:'Парабола ∩ прямая · точка B',
+    text:`Графики <code>f(x) = ax² + bx + c</code> и <code>g(x) = kx</code> пересекаются в <code>A</code> и <code>B</code>. Найдите абсциссу <code>B</code> (A подписана).`,
+    svg:plot({xmin:lo-0.5,xmax:hi+0.5,ymin:Math.min(f(-b/2)-1,-2),ymax:Math.max(f(hi),k*hi)+1,
+      curves:[{fn:f,dom:[lo-0.5,hi+0.5]},{fn:x=>k*x,dom:[lo-0.5,hi+0.5],color:C_G}],
+      points:[{x:xA,y:k*xA,label:`A(${fmt(xA)}; ${fmt(k*xA)})`},{x:xB,y:k*xB,label:'B'}]}),
+    opts:makeOpts(xB,[xA, k*xB, -xB, c/xB, xA+xB, round(c/xA)+1]),
+    hint:`f=g даёт ${poly(a,b-k,c)} = 0. Абсцисса A = ${fmt(xA)}. По Виету xA·xB = c/a = ${fmt(c)} → xB = ${fmt(c)}/${fmt(xA)} = <b>${fmt(xB)}</b>.`};
+};
+
+/* реестр прототипов (веса подобраны, чтобы 20 вопросов покрыли всё) */
+const PROTOS=['hyp','exp','log','sqrt','lin','hypb','par','linlin','hyplin','sqrtlin','parlin'];
+
+/* строим колоду из 20: сначала по одному каждого (11), потом добор до 20 случайно,
+   затем перемешиваем — числа генерируются в момент построения (всегда новые) */
+function buildDeck(){
+  const order=[...PROTOS];
+  const extra=[];
+  while(order.length+extra.length<20) extra.push(pick(PROTOS));
+  const all=[...order,...extra];
+  for(let i=all.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[all[i],all[j]]=[all[j],all[i]];}
+  return all.map(p=>{
+    let q=GEN[p]();
+    // гарантия: ровно 3 варианта, один правильный
+    let guard=0;
+    while((q.opts.length!==3 || q.opts.filter(o=>o.correct).length!==1) && guard++<5) q=GEN[p]();
+    return q;
+  });
+}
+
+/* ═════════ ИГРОВОЙ ЦИКЛ ═════════ */
+let deck=[], idx=0, score=0, streak=0, answered=false;
+const results=[];   // 'hit' | 'miss' на каждый вопрос
+
+const $=id=>document.getElementById(id);
+
+function initPips(){
+  $('pips').innerHTML=deck.map((_,i)=>`<div class="pip" data-i="${i}"></div>`).join('');
+}
+function refreshPips(){
+  deck.forEach((_,i)=>{
+    const el=$('pips').children[i];
+    el.className='pip'+(results[i]==='hit'?' hit':results[i]==='miss'?' miss':'')+(i===idx&&!results[i]?' now':'');
+  });
+}
+
+function renderQuestion(){
+  answered=false;
+  questionAttempted=false;
+  const q=deck[idx];
+  $('qNum').textContent=idx+1;
+  $('score').textContent=score;
+  $('streak').textContent=streak;
+  $('trackFill').style.width=(idx/deck.length*100)+'%';
+  refreshPips();
+  $('stage').innerHTML=`
+    <div class="q">
+      <div class="qtype">Цель ${idx+1} / ${deck.length} · ${q.type}</div>
+      <div class="qtext">${q.text}</div>
+      <div class="plot">${q.svg}</div>
+      <div class="opts" id="opts">
+        ${q.opts.map((o,i)=>`<div class="opt" tabindex="0" role="button" data-i="${i}">${fmt(o.v)}</div>`).join('')}
+      </div>
+      <div class="feed" id="feed"><div class="head" id="feedHead"></div><div class="body" id="feedBody"></div></div>
+      <div class="row">
+        <button class="skip" id="skip">Не знаю — показать разбор</button>
+        <button class="next" id="next">${idx===deck.length-1?'Итоги рейда':'Далее ▸'}</button>
+      </div>
+    </div>`;
+  $('opts').querySelectorAll('.opt').forEach(el=>{
+    const go=()=>choose(+el.dataset.i);
+    el.addEventListener('click',go);
+    el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});
+  });
+  $('skip').addEventListener('click',reveal);
+  $('next').addEventListener('click',nextQ);
+}
+
+function lockOpts(){ $('opts').querySelectorAll('.opt').forEach(el=>el.classList.add('locked')); }
+
+function choose(i){
+  if(answered)return; answered=true;
+  const wasFirstAttempt=!questionAttempted;
+  questionAttempted=true;
+  const q=deck[idx];
+  const els=$('opts').querySelectorAll('.opt');
+  lockOpts();
+  const correctIdx=q.opts.findIndex(o=>o.correct);
+  if(q.opts[i].correct){
+    if(wasFirstAttempt)firstTryCorrect++;
+    els[i].classList.add('correct');
+    score++; streak++; results[idx]='hit';
+    showFeed(true,'Попадание.',`f-цель поражена с первого залпа. Серия: ${streak}.`);
+  }else{
+    els[i].classList.add('wrong');
+    els[correctIdx].classList.add('correct');
+    streak=0; results[idx]='miss';
+    showFeed(false,'Мимо. Разбор траектории:',q.hint);
+  }
+  $('score').textContent=score; $('streak').textContent=streak;
+  $('next').classList.add('ready');
+  refreshPips();
+}
+
+function reveal(){
+  if(answered)return; answered=true;
+  questionAttempted=true;
+  const q=deck[idx];
+  const els=$('opts').querySelectorAll('.opt');
+  lockOpts();
+  els[q.opts.findIndex(o=>o.correct)].classList.add('correct');
+  streak=0; results[idx]='miss';
+  $('streak').textContent=streak;
+  showFeed(false,'Разбор траектории:',q.hint);
+  $('next').classList.add('ready');
+  refreshPips();
+}
+
+function showFeed(good,head,body){
+  const f=$('feed');
+  f.className='feed show '+(good?'good':'bad');
+  $('feedHead').innerHTML=head; $('feedBody').innerHTML=body;
+}
+
+function nextQ(){
+  if(idx<deck.length-1){ idx++; renderQuestion(); window.scrollTo({top:0,behavior:'smooth'}); }
+  else finish();
+}
+
+function finish(){
+  if(resultSubmitted)return;
+  $('trackFill').style.width='100%';
+  refreshPips();
+  gameActive=false;
+  updateStudentBox();
+  const pct=Math.round(firstTryCorrect/deck.length*100);
+  const durationSeconds=Math.max(0,Math.floor((Date.now()-startedAt)/1000));
+  const elapsed=formatDuration(durationSeconds);
+  let rank,note;
+  if(pct===100){rank='Легенда флота';note='Чистый рейд без единого промаха. Задание 11 больше тебе не противник.';}
+  else if(pct>=85){rank='Ас-пилот';note='Уверенное прохождение. Пробей ещё раз — числа будут новыми, добьёшь до сотни.';}
+  else if(pct>=65){rank='Старший лейтенант';note='Крепкая база. Слабые сектора видно по красным меткам ниже — потренируй их отдельно.';}
+  else if(pct>=40){rank='Курсант';note='Основа есть, но половина манёвров сорвана. Пройди тренажёр по секторам, затем вернись сюда.';}
+  else {rank='Новобранец';note='Пока тяжело. Начни с брифингов в основном тренажёре — прототипы там разобраны пошагово.';}
+  $('qNum').textContent=deck.length;
+  $('stage').innerHTML=`
+    <div class="result">
+      <p class="rank">${rank}</p>
+      <div class="score">${score}<small> / ${deck.length}</small></div>
+      <div class="result-stats">
+        <div class="result-stat"><b>${pct}%</b><small>с первой попытки</small></div>
+        <div class="result-stat"><b>${elapsed}</b><small>время рейда</small></div>
+      </div>
+      <p>${note}</p>
+      <div class="wrongmap">
+        ${deck.map((q,i)=>`<span class="${results[i]==='hit'?'hit':'miss'}">${i+1}</span>`).join('')}
+      </div>
+      <div class="save-status info" id="saveStatus">Сохраняем результат…</div>
+      <button class="again" id="again">Новый рейд · свежие числа</button>
+    </div>`;
+  $('again').addEventListener('click',start);
+  window.scrollTo({top:0,behavior:'smooth'});
+  submitResultOnce(pct,durationSeconds);
+}
+
+function start(){
+  if(!currentStudent){renderLogin();return;}
+  deck=buildDeck(); idx=0; score=0; streak=0;
+  firstTryCorrect=0;
+  questionAttempted=false;
+  resultSubmitted=false;
+  attemptEventId=uuid();
+  startedAt=Date.now();
+  gameActive=true;
+  updateStudentBox();
+  results.length=0;
+  $('score').textContent=0; $('streak').textContent=0;
+  initPips();
+  renderQuestion();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+initAccounting();
+</script>
+</body>
+</html>
