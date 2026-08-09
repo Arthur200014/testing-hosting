@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Задание №12 — тренажёр экстремумов</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Fredoka+One&display=swap" rel="stylesheet">
+<style>
+/* ==========================================================
+   ТРЕНАЖЁР ЗАДАНИЯ №12 ЕГЭ — экстремумы функций
+   Оформление: вселенная Angry Birds. Один файл.
+   ========================================================== */
+:root{
+  --card:#fff8e7;
+  --line:#d8bf8f;
+  --wood:#8d5524;
+  --wood-dark:#5b3a1c;
+  --ink:#3b2412;
+  --ok:#2e7d32;
+  --no:#c62828;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  font-family:'Fredoka One',system-ui,sans-serif;
+  color:var(--ink);
+  background:#3aa3e3;
+  overflow:hidden;
+}
+button{font-family:inherit;border:none;cursor:pointer}
+button:focus-visible{outline:3px solid #fff;outline-offset:3px}
+sup{font-size:.66em}
+
+/* ---------- Фон-сцена ---------- */
+#bg{position:fixed;inset:0;width:100%;height:100%;z-index:0}
+.cloud{
+  position:fixed;z-index:1;pointer-events:none;opacity:.75;
+  animation:drift linear infinite;
+}
+@keyframes drift{from{transform:translateX(105vw)}to{transform:translateX(-35vw)}}
+.flyer{position:fixed;z-index:1;pointer-events:none;font-size:22px;animation:flutter 11s ease-in-out infinite}
+@keyframes flutter{
+  0%,100%{transform:translate(0,0) rotate(0)}
+  33%{transform:translate(70px,-26px) rotate(9deg)}
+  66%{transform:translate(30px,18px) rotate(-9deg)}
+}
+
+/* ---------- Верхняя панель ---------- */
+#top{
+  position:fixed;top:0;left:0;right:0;height:52px;z-index:10;
+  display:flex;align-items:center;gap:16px;padding:0 18px;
+  background:linear-gradient(#3d2b1a,#241608);
+  border-bottom:4px solid #14100a;
+  color:#ffe9b0;font-family:'Press Start 2P',monospace;font-size:10px;
+}
+#top .chip{background:#00000055;border:2px solid #6b4a2a;border-radius:8px;padding:7px 10px;white-space:nowrap}
+#top .chip b{color:#ffc107}
+#barWrap{flex:1;min-width:120px}
+#bar{height:14px;border:2px solid #14100a;border-radius:9px;background:#00000066;overflow:hidden}
+#barFill{height:100%;width:0;background:linear-gradient(#8bc34a,#4caf50);transition:width .45s ease}
+.top-btn{
+  background:#6b4a2a;color:#ffe9b0;border:2px solid #14100a;border-radius:8px;
+  padding:7px 9px;font-family:'Press Start 2P',monospace;font-size:9px;
+}
+.top-btn:hover{background:#8a6136}
+.top-btn.off{opacity:.45}
+.top-btn:disabled{opacity:.4;cursor:not-allowed}
+#studentTop{max-width:190px;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- Карточка задачи ---------- */
+#center{
+  position:fixed;inset:52px 0 0 0;z-index:5;
+  display:flex;align-items:center;justify-content:center;padding:22px;
+  overflow:auto;
+}
+#card{
+  width:min(920px,100%);
+  background:
+    radial-gradient(circle at 10% 0%, #ffffff66, transparent 45%),
+    linear-gradient(var(--card),#f2e3c1);
+  border:5px solid var(--wood);
+  border-radius:22px;
+  box-shadow:inset 0 -10px 0 #e2cfa4, 0 12px 0 var(--wood-dark), 0 26px 40px #00000055;
+  padding:24px 28px 26px;
+}
+#card.pop{animation:pop .42s cubic-bezier(.2,1.5,.4,1)}
+@keyframes pop{
+  from{transform:scale(.86) translateY(24px);opacity:0}
+  to{transform:scale(1) translateY(0);opacity:1}
+}
+.eyebrow{
+  font-family:'Press Start 2P',monospace;font-size:9px;color:#a4713a;
+  letter-spacing:.5px;margin-bottom:14px;
+  display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;
+}
+.eyebrow .diff{color:#8d3b0b}
+#task{font-size:21px;line-height:1.55;margin:0 0 18px}
+.fx{
+  display:inline-block;background:#fff;border:2px dashed var(--line);
+  border-radius:9px;padding:3px 10px;margin:3px 0;font-size:24px;
+}
+
+/* Варианты */
+#opts{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.opt{
+  background:linear-gradient(#ffffff,#ffeec2);
+  border:3px solid #c79a4b;border-radius:14px;
+  padding:16px 6px;font-size:26px;color:var(--ink);
+  box-shadow:0 5px 0 #a6762f;transition:transform .08s,background .15s;
+}
+.opt:hover:not(:disabled){background:linear-gradient(#fff,#ffe08a);transform:translateY(-3px)}
+.opt:disabled{cursor:default}
+.opt.right{background:linear-gradient(#b9f6ca,#69f0ae);border-color:#1b5e20;box-shadow:0 5px 0 #1b5e20}
+.opt.wrong{background:linear-gradient(#ffcdd2,#ef9a9a);border-color:#b71c1c;box-shadow:0 5px 0 #b71c1c}
+.opt.dim{opacity:.4}
+
+/* Разбор */
+#review{display:none;margin-top:18px}
+#review.show{display:block;animation:slide .35s ease-out}
+@keyframes slide{from{transform:translateY(-10px);opacity:0}to{transform:translateY(0);opacity:1}}
+.verdict{
+  font-family:'Press Start 2P',monospace;font-size:13px;margin-bottom:12px;
+  display:flex;align-items:center;gap:10px;
+}
+.verdict.ok{color:var(--ok)}
+.verdict.no{color:var(--no)}
+.block{
+  background:#fffdf6;border:2px solid var(--line);border-left:7px solid #42a5f5;
+  border-radius:12px;padding:12px 16px;margin-bottom:10px;
+}
+.block.sol{border-left-color:#ab47bc}
+.block h4{
+  margin:0 0 8px;font-family:'Press Start 2P',monospace;font-size:9px;
+  color:#6d4c41;letter-spacing:.4px;
+}
+.block ol{margin:0;padding-left:20px;font-size:16px;line-height:1.75}
+.block li{margin-bottom:5px}
+.formula{background:#fff;border:2px dashed var(--line);border-radius:7px;padding:1px 7px;display:inline-block}
+
+#next{
+  margin-top:16px;width:100%;
+  background:linear-gradient(#ff8a65,#e53935);color:#fff;
+  border:4px solid #7f0000;border-radius:16px;box-shadow:0 6px 0 #7f0000;
+  font-family:'Press Start 2P',monospace;font-size:13px;padding:16px;
+}
+#next:active{transform:translateY(4px);box-shadow:0 2px 0 #7f0000}
+
+/* ---------- Стартовый / финальный экран ---------- */
+#screen{
+  position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:24px;
+  background:radial-gradient(circle at 50% 28%, #7ec8f5, #1f6c9e);
+  overflow:auto;
+}
+#screen.hidden{display:none}
+.pane{text-align:center;color:#fff;max-width:760px}
+.pane h1{
+  font-family:'Press Start 2P',monospace;font-size:30px;line-height:1.6;margin:0 0 14px;
+  color:#ffe082;text-shadow:0 6px 0 #b34700, 0 8px 16px #00000066;
+}
+.pane p{font-size:19px;line-height:1.65;text-shadow:0 3px 0 #00000055}
+.big{
+  margin-top:20px;background:linear-gradient(#ffd54f,#ffa000);color:#4a2c00;
+  border:4px solid #7a4b12;border-radius:18px;box-shadow:0 8px 0 #7a4b12;
+  font-family:'Press Start 2P',monospace;font-size:16px;padding:18px 32px;
+}
+.big:active{transform:translateY(5px);box-shadow:0 3px 0 #7a4b12}
+table.stats{width:100%;border-collapse:collapse;margin-top:8px;font-size:17px;color:var(--ink)}
+table.stats td{border-bottom:2px dashed var(--line);padding:9px 4px;text-align:left}
+table.stats td:last-child{text-align:right;font-family:'Press Start 2P',monospace;font-size:12px;color:#8d3b0b}
+.sheet{
+  background:linear-gradient(var(--card),#f2e3c1);border:5px solid var(--wood);
+  border-radius:18px;box-shadow:0 10px 0 var(--wood-dark);padding:18px 22px;margin-top:14px;text-align:left;
+}
+.sheet .eyebrow{margin-bottom:6px}
+.auth-screen{
+  position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;
+  padding:24px;background:radial-gradient(circle at 50% 28%,#7ec8f5,#1f6c9e);
+}
+.auth-screen.show{display:flex}
+.auth-card{
+  width:min(520px,100%);text-align:center;color:#fff;background:#00000030;
+  border:4px solid #ffffff55;border-radius:22px;padding:26px;
+  box-shadow:0 18px 50px #00000055;
+}
+.auth-card h2{
+  margin:0 0 18px;font-family:'Press Start 2P',monospace;font-size:20px;
+  line-height:1.55;color:#ffe082;text-shadow:0 4px 0 #b34700;
+}
+.code-input{
+  width:100%;margin:8px 0 10px;padding:14px;border:4px solid #7a4b12;
+  border-radius:14px;background:#fff8e7;color:#3b2412;text-align:center;
+  font:20px 'Fredoka One',system-ui,sans-serif;outline:none;
+}
+.code-input:focus{box-shadow:0 0 0 4px #ffe082}
+.auth-message{min-height:25px;font-size:16px;line-height:1.4}
+.auth-message.error{color:#ffd1d1}.save-ok{color:#2e7d32}.save-pending{color:#9a5b00}
+.student-line{font-size:17px;margin:12px 0;text-shadow:0 2px 0 #00000044}
+.small-change{
+  margin:6px 0 0;background:#6b4a2a;color:#ffe9b0;border:3px solid #14100a;
+  border-radius:10px;padding:9px 12px;font-family:'Press Start 2P',monospace;font-size:9px;
+}
+
+@media (max-width:900px){
+  #opts{grid-template-columns:repeat(2,1fr)}
+  #task{font-size:19px}
+  #studentTop{display:none}
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms !important;transition-duration:.001ms !important}
+}
+</style>
+</head>
+<body>
+
+<!-- ========== ФОН: поляна свиней ========== -->
+<svg id="bg" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+  <defs>
+    <linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2f95d8"/><stop offset=".75" stop-color="#8fd3f4"/><stop offset="1" stop-color="#cdeeff"/>
+    </linearGradient>
+    <linearGradient id="gHill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8fd45a"/><stop offset="1" stop-color="#4c8f22"/>
+    </linearGradient>
+    <linearGradient id="gGround" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7cc242"/><stop offset="1" stop-color="#2f6314"/>
+    </linearGradient>
+    <radialGradient id="gPig" cx="35%" cy="30%">
+      <stop offset="0" stop-color="#a8e063"/><stop offset="1" stop-color="#4e8a1f"/>
+    </radialGradient>
+    <linearGradient id="gBird" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff5f52"/><stop offset="1" stop-color="#b71c1c"/>
+    </linearGradient>
+    <pattern id="pGrass" width="26" height="18" patternUnits="userSpaceOnUse">
+      <path d="M2 18 L6 6 L10 18 M12 18 L16 3 L20 18" stroke="#8fd45a" stroke-width="2" fill="none" opacity=".5"/>
+    </pattern>
+    <filter id="blur"><feGaussianBlur stdDeviation="9"/></filter>
+  </defs>
+
+  <rect width="1200" height="700" fill="url(#gSky)"/>
+  <circle cx="1060" cy="90" r="70" fill="#fff3a0" filter="url(#blur)" opacity=".85"/>
+  <circle cx="1060" cy="90" r="42" fill="#ffe14d"/>
+
+  <!-- Холмы -->
+  <path d="M0 540 Q 170 440 350 520 Q 520 590 680 500 Q 850 410 1030 520 Q 1120 570 1200 535 L1200 700 L0 700 Z"
+        fill="url(#gHill)" opacity=".8"/>
+  <!-- Деревья -->
+  <g id="trees" opacity=".95"></g>
+  <!-- Земля -->
+  <rect x="0" y="596" width="1200" height="104" fill="url(#gGround)"/>
+  <rect x="0" y="596" width="1200" height="104" fill="url(#pGrass)"/>
+
+  <!-- Рогатка (декоративная, слева) -->
+  <g transform="translate(120,596)">
+    <ellipse cx="0" cy="4" rx="34" ry="8" fill="#00000033"/>
+    <path d="M0 0 L0 -62" stroke="#6d4322" stroke-width="15" stroke-linecap="round"/>
+    <path d="M0 -56 L-26 -96" stroke="#8d5524" stroke-width="12" stroke-linecap="round"/>
+    <path d="M0 -56 L28 -96" stroke="#8d5524" stroke-width="12" stroke-linecap="round"/>
+    <path d="M-26 -96 Q 0 -78 28 -96" stroke="#4e342e" stroke-width="5" fill="none"/>
+  </g>
+  <!-- Птицы-наблюдатели на земле -->
+  <g id="birds"></g>
+  <!-- Свиньи-наблюдатели справа -->
+  <g id="pigs"></g>
+</svg>
+
+<!-- ========== Верхняя панель ========== -->
+<div id="top">
+  <span class="chip">ЗАДАЧА <b id="tNum">1</b>/20</span>
+  <span class="chip">ВЕРНО <b id="tOk">0</b></span>
+  <span class="chip">ОШИБОК <b id="tNo">0</b></span>
+  <div id="barWrap"><div id="bar"><div id="barFill"></div></div></div>
+  <span class="chip" id="studentTop">УЧЕНИК</span>
+  <button class="top-btn" id="btnMusic">♪ МУЗЫКА</button>
+  <button class="top-btn" id="btnSfx">🔊 ЗВУК</button>
+  <button class="top-btn" id="btnReset">⟲ ЗАНОВО</button>
+</div>
+
+<!-- ========== Карточка ========== -->
+<div id="center">
+  <div id="card">
+    <div class="eyebrow">
+      <span id="proto">ПРОТОТИП</span>
+      <span class="diff" id="diff">СЛОЖНОСТЬ</span>
+    </div>
+    <p id="task">Загрузка…</p>
+    <div id="opts"></div>
+
+    <div id="review">
+      <div class="verdict" id="verdict"></div>
+      <div class="block" id="hintBlock">
+        <h4>КАК НАДО БЫЛО ДУМАТЬ</h4>
+        <ol id="hintList"></ol>
+      </div>
+      <div class="block sol" id="solBlock">
+        <h4>РЕШЕНИЕ</h4>
+        <ol id="solList"></ol>
+      </div>
+      <button id="next">СЛЕДУЮЩАЯ ЗАДАЧА →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Вход ученика ========== -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <h2>ВХОД УЧЕНИКА</h2>
+    <p>Введи личный код, чтобы результат сохранился.</p>
+    <input class="code-input" id="studentCode" type="text" autocomplete="off" spellcheck="false" placeholder="ЛИЧНЫЙ КОД">
+    <div class="auth-message" id="authMessage"></div>
+    <button class="big" id="loginBtn">ПРОВЕРИТЬ КОД</button>
+  </div>
+</div>
+
+<!-- ========== Старт / финал ========== -->
+<div id="screen">
+  <div class="pane" id="pane">
+    <h1>ЗАДАНИЕ №12<br>ЭКСТРЕМУМЫ</h1>
+    <p>20 задач в случайном порядке — все прототипы задания №12.<br>
+       Выбирай вариант: проверка сразу, без кнопок. Ошибся — покажу алгоритм и полное решение.<br>
+       Числа генерируются заново при каждом заходе, зазубрить ответы не выйдет.</p>
+    <button class="big" id="btnStart">НАЧАТЬ</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ==========================================================
+   0. УЧЁТ РЕЗУЛЬТАТОВ И ВХОД УЧЕНИКА
+   ========================================================== */
+const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+const TEST_META={
+  testId:'EGE-12-EXTREMUM-MIX-20',
+  topicId:'task-12',
+  topicName:'Производная и исследование функций',
+  taskNumber:12,
+  schemaVersion:1
+};
+const PENDING_KEY='egePendingTestResults';
+let currentStudent=null;
+
+function makeEventId(){
+  if(window.crypto&&typeof window.crypto.randomUUID==='function') return window.crypto.randomUUID();
+  return 'evt-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)+'-'+Math.random().toString(36).slice(2);
+}
+function localDateString(){
+  const d=new Date();
+  return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+}
+function readPendingResults(){
+  try{
+    const value=JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');
+    return Array.isArray(value)?value:[];
+  }catch(_){return [];}
+}
+function writePendingResults(queue){localStorage.setItem(PENDING_KEY,JSON.stringify(queue));}
+function queuePendingResult(payload){
+  const queue=readPendingResults();
+  if(!queue.some(item=>item&&item.eventId===payload.eventId)) queue.push(payload);
+  writePendingResults(queue);
+}
+async function postResult(payload){
+  const response=await fetch(API_URL,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(payload),
+    redirect:'follow'
+  });
+  if(!response.ok) throw new Error('HTTP '+response.status);
+}
+async function flushPendingResults(){
+  const queue=readPendingResults();
+  if(!queue.length||!navigator.onLine) return;
+  const sentEventIds=new Set();
+  for(const payload of queue){
+    try{
+      await postResult(payload);
+      if(payload&&payload.eventId) sentEventIds.add(payload.eventId);
+    }catch(_){}
+  }
+  const latest=readPendingResults();
+  writePendingResults(latest.filter(item=>!item||!sentEventIds.has(item.eventId)));
+}
+function setSaveStatus(text,className){
+  const status=document.getElementById('saveStatus');
+  if(!status) return;
+  status.textContent=text;
+  status.className='auth-message '+(className||'');
+}
+async function submitResult(payload){
+  try{
+    await postResult(payload);
+    setSaveStatus('✓ Результат сохранён','save-ok');
+  }catch(_){
+    queuePendingResult(payload);
+    setSaveStatus('Нет связи: результат сохранён на устройстве и отправится позже','save-pending');
+  }
+}
+function savedStudent(){
+  const studentId=localStorage.getItem('egeStudentId');
+  const name=localStorage.getItem('egeStudentName');
+  const code=localStorage.getItem('egeStudentCode');
+  return studentId&&code?{studentId,name:name||'Ученик',code}:null;
+}
+function rememberStudent(student,code){
+  localStorage.setItem('egeStudentId',String(student.studentId));
+  localStorage.setItem('egeStudentName',String(student.name||'Ученик'));
+  localStorage.setItem('egeStudentCode',String(code));
+}
+function clearStudent(){
+  localStorage.removeItem('egeStudentId');
+  localStorage.removeItem('egeStudentName');
+  localStorage.removeItem('egeStudentCode');
+  currentStudent=null;
+}
+function studentFromResponse(data){
+  if(!data||data.ok===false||data.success===false||data.valid===false) return null;
+  const source=data.student||data.data||data.result||data;
+  const studentId=source.studentId??source.id??data.studentId??data.id;
+  const name=source.studentName??source.name??data.studentName??data.name;
+  return studentId!==undefined&&studentId!==null&&studentId!==''?
+    {studentId:String(studentId),name:String(name||'Ученик')}:null;
+}
+function validateStudentCode(code){
+  return new Promise((resolve,reject)=>{
+    const callback='__egeExtremum_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const script=document.createElement('script');
+    let settled=false;
+    const timer=setTimeout(()=>finishValidation(new Error('Сервер не ответил. Проверьте интернет')),15000);
+    function cleanup(){
+      clearTimeout(timer);
+      try{delete window[callback];}catch(_){window[callback]=undefined;}
+      script.remove();
+    }
+    function finishValidation(error,value){
+      if(settled) return;
+      settled=true;
+      cleanup();
+      error?reject(error):resolve(value);
+    }
+    window[callback]=data=>{
+      const student=studentFromResponse(data);
+      student?finishValidation(null,student):
+        finishValidation(new Error((data&&(data.error||data.message))||'Код ученика не найден'));
+    };
+    script.onerror=()=>finishValidation(new Error('Не удалось связаться с сервером'));
+    script.src=API_URL+'?'+new URLSearchParams({action:'validateStudent',code,callback}).toString();
+    document.head.appendChild(script);
+  });
+}
+
+/* ==========================================================
+   1. ЗВУК (Web Audio API): фоновая 8-битная мелодия + эффекты
+   ========================================================== */
+const Audio8 = (() => {
+  let ctx=null, master=null, mg=null, sg=null;
+  let musicOn=true, sfxOn=true, timer=null, step=0, total=null;
+
+  function init(){
+    if (ctx) return;
+    ctx = new (window.AudioContext||window.webkitAudioContext)();
+    master = ctx.createGain(); master.gain.value=.55; master.connect(ctx.destination);
+    mg = ctx.createGain(); mg.gain.value=.15; mg.connect(master);
+    sg = ctx.createGain(); sg.gain.value=.5; sg.connect(master);
+  }
+  function note(f,d,type='square',g=.3,dest=null,t0=0){
+    if(!ctx) return;
+    const t=ctx.currentTime+t0, o=ctx.createOscillator(), gn=ctx.createGain();
+    o.type=type; o.frequency.setValueAtTime(f,t);
+    gn.gain.setValueAtTime(0,t); gn.gain.linearRampToValueAtTime(g,t+.012);
+    gn.gain.exponentialRampToValueAtTime(.0001,t+d);
+    o.connect(gn); gn.connect(dest||sg); o.start(t); o.stop(t+d+.02);
+    return o;
+  }
+  // Мелодия в духе заставки Angry Birds
+  const MEL=[[659,1],[622,1],[659,1],[622,1],[659,1],[494,1],[587,1],[523,1],
+             [440,2],[0,1],[262,1],[330,1],[440,1],[494,2],[0,1],
+             [330,1],[415,1],[494,1],[523,2],[0,1],[330,1],
+             [659,1],[622,1],[659,1],[622,1],[659,1],[494,1],[587,1],[523,1],
+             [440,2],[0,1],[262,1],[330,1],[440,1],[494,2],[0,1],
+             [330,1],[523,1],[494,1],[440,3],[0,1]];
+  const BASS=[220,0,165,0,196,0,147,0];
+  const STEP=.15;
+  function len(){ if(total===null) total=MEL.reduce((s,[,l])=>s+l,0); return total; }
+  function tick(){
+    if(!musicOn||!ctx) return;
+    let acc=0;
+    for(const [f,l] of MEL){ if(step%len()===acc && f) note(f,STEP*l*.9,'square',.24,mg); acc+=l; }
+    const b=BASS[(step>>1)%BASS.length];
+    if(b && step%2===0) note(b,STEP*1.7,'triangle',.28,mg);
+    if(step%2===1) note(9000,.03,'square',.045,mg);
+    step++;
+  }
+  return {
+    unlock(){ init(); if(ctx.state==='suspended') ctx.resume(); },
+    startMusic(){ init(); if(timer) return; step=0; timer=setInterval(tick,STEP*1000); },
+    stopMusic(){ if(timer){clearInterval(timer); timer=null;} },
+    toggleMusic(){ musicOn=!musicOn; musicOn?this.startMusic():this.stopMusic(); return musicOn; },
+    toggleSfx(){ sfxOn=!sfxOn; if(sg) sg.gain.value=sfxOn?.5:0; return sfxOn; },
+    pop(){ if(sfxOn) note(880,.06,'square',.18); },
+    correct(){ if(!sfxOn) return; [659,880,1047].forEach((f,i)=>note(f,.14,'square',.26,null,i*.08)); },
+    wrong(){ if(!sfxOn) return; // хрюкающий смех
+      [0,.11,.22,.33].forEach((d,i)=>{ note(330-i*22,.09,'sawtooth',.2,null,d); note(165-i*10,.1,'square',.13,null,d); }); },
+    win(){ if(!sfxOn) return;
+      [[523,0],[659,.15],[784,.3],[1047,.45],[784,.6],[1047,.75],[1319,.95]]
+        .forEach(([f,d])=>{ note(f,.35,'square',.28,null,d); note(f/2,.35,'triangle',.18,null,d); }); }
+  };
+})();
+
+/* ==========================================================
+   2. ГЕНЕРАТОРЫ ЗАДАЧ — 12 прототипов задания №12
+   ========================================================== */
+const rnd  = (a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const pick = a=>a[Math.floor(Math.random()*a.length)];
+const rndNz= (a,b)=>{let v=0; while(v===0) v=rnd(a,b); return v;};
+
+// Знаковый член: sTerm(-3,'x') → " − 3x"
+function sTerm(c,v){
+  if(c===0) return '';
+  const s=c>0?' + ':' − ', a=Math.abs(c);
+  return (v && a===1) ? s+v : s+a+v;
+}
+// Скобка (x + a) / (x − a)
+function inBr(a){ return a===0 ? 'x' : (a>0 ? 'x + '+a : 'x − '+(-a)); }
+
+// Варианты ответа: верный + 3 «типовые ошибки»
+function makeOptions(correct, poolRaw){
+  const uniq=[...new Set(poolRaw.map(v=>Math.round(v*1000)/1000)
+                                .filter(v=>Number.isFinite(v)&&v!==correct))];
+  const out=[];
+  while(out.length<3 && uniq.length) out.push(uniq.splice(Math.floor(Math.random()*uniq.length),1)[0]);
+  let d=1;
+  while(out.length<3){ const c=correct+(d%2?d:-d); if(c!==correct&&!out.includes(c)) out.push(c); d++; }
+  const all=[correct,...out];
+  for(let i=all.length-1;i>0;i--){ const j=rnd(0,i); [all[i],all[j]]=[all[j],all[i]]; }
+  return all;
+}
+const F  = s=>`<span class="fx">${s}</span>`;
+const FS = s=>`<span class="formula">${s}</span>`;
+
+const PROTOS = [
+
+/* 1. Парабола — точка минимума */
+{ name:'ПАРАБОЛА · ТОЧКА МИНИМУМА', diff:'ЛЁГКИЙ',
+  gen(){
+    const b=rndNz(-7,7)*2, c=rnd(-20,20), ans=-b/2;
+    return { q:`Найдите точку минимума функции ${F(`y = x<sup>2</sup>${sTerm(b,'x')}${sTerm(c,'')}`)}`,
+      ans, opts:makeOptions(ans,[b/2,-b,b,ans+rndNz(-3,3),-b/2+1,c]),
+      hint:[`Коэффициент при x<sup>2</sup> равен 1 > 0 — ветви вверх, значит минимум один: это вершина.`,
+            `Производная: ${FS(`y′ = 2x${sTerm(b,'')}`)}`,
+            `Приравняйте её к нулю. Найденный x и есть ответ (контроль: ${FS('x₀ = −b/(2a)')}).`],
+      sol:[`${FS(`y′ = 2x${sTerm(b,'')}`)}`,
+           `${FS(`2x${sTerm(b,'')} = 0`)} ⟹ ${FS(`x = ${ans}`)}`,
+           `Слева от ${ans} производная отрицательна, справа — положительна: убывание сменяется возрастанием ⟹ минимум.`,
+           `<b>Ответ: ${ans}</b>`] };
+  } },
+
+/* 2. Парабола вниз — точка максимума */
+{ name:'ПАРАБОЛА · ТОЧКА МАКСИМУМА', diff:'ЛЁГКИЙ',
+  gen(){
+    const b=rndNz(-8,8)*2, c=rnd(-15,25), ans=b/2;
+    return { q:`Найдите точку максимума функции ${F(`y = −x<sup>2</sup>${sTerm(b,'x')}${sTerm(c,'')}`)}`,
+      ans, opts:makeOptions(ans,[-b/2,b,-b,ans+rndNz(-4,4),c,ans*2]),
+      hint:[`Коэффициент при x<sup>2</sup> равен −1 < 0 — ветви вниз, есть максимум.`,
+            `Производная: ${FS(`y′ = −2x${sTerm(b,'')}`)}`,
+            `Решите ${FS('y′ = 0')}: знак меняется с «+» на «−» — это максимум.`],
+      sol:[`${FS(`y′ = −2x${sTerm(b,'')}`)}`,
+           `${FS(`−2x${sTerm(b,'')} = 0`)} ⟹ ${FS(`x = ${ans}`)}`,
+           `Производная меняет знак с плюса на минус ⟹ точка максимума.`,
+           `<b>Ответ: ${ans}</b>`] };
+  } },
+
+/* 3. Парабола — наименьшее значение */
+{ name:'ПАРАБОЛА · НАИМЕНЬШЕЕ ЗНАЧЕНИЕ', diff:'ЛЁГКИЙ',
+  gen(){
+    const h=rndNz(-6,6), c=rnd(-12,18), b=2*h, ans=c-h*h;
+    return { q:`Найдите наименьшее значение функции ${F(`y = x<sup>2</sup>${sTerm(b,'x')}${sTerm(c,'')}`)}`,
+      ans, opts:makeOptions(ans,[c,-h,c+h*h,-h*h,c-h,ans+rndNz(-5,5)]),
+      hint:[`Сначала точка минимума: ${FS(`y′ = 2x${sTerm(b,'')} = 0`)}`,
+            `Затем подставьте найденный x <b>обратно в функцию</b>: спрашивают значение, а не точку.`,
+            `Самая частая ошибка в этом прототипе — записать в ответ x вместо y.`],
+      sol:[`${FS(`y′ = 2x${sTerm(b,'')} = 0`)} ⟹ ${FS(`x = ${-h}`)}`,
+           `${FS(`y(${-h}) = ${h*h}${sTerm(b*(-h),'')}${sTerm(c,'')} = ${ans}`)}`,
+           `Ветви вверх ⟹ это наименьшее значение на всей числовой прямой.`,
+           `<b>Ответ: ${ans}</b>`] };
+  } },
+
+/* 4. Корень — точка максимума */
+{ name:'КОРЕНЬ · ТОЧКА МАКСИМУМА', diff:'ЛЁГКИЙ',
+  gen(){
+    const a=rnd(2,9), k=2*a, ans=a*a;
+    return { q:`Найдите точку максимума функции ${F(`y = ${k}√x − x`)}`,
+      ans, opts:makeOptions(ans,[a,k,k*k,a*a+rndNz(-6,6),2*a*a,Math.round(k/2)]),
+      hint:[`Область определения: x ≥ 0.`,
+            `Формула: ${FS('(√x)′ = 1/(2√x)')}, поэтому ${FS(`y′ = ${k}/(2√x) − 1 = ${a}/√x − 1`)}`,
+            `Решите ${FS('y′ = 0')} относительно √x, затем возведите обе части в квадрат.`],
+      sol:[`${FS(`y′ = ${a}/√x − 1`)}`,
+           `${FS(`${a}/√x = 1`)} ⟹ ${FS(`√x = ${a}`)} ⟹ ${FS(`x = ${ans}`)}`,
+           `При x < ${ans} производная > 0, при x > ${ans} — < 0 ⟹ максимум.`,
+           `<b>Ответ: ${ans}</b>`] };
+  } },
+
+/* 5. Кубическая — точка минимума */
+{ name:'КУБИЧЕСКАЯ · ТОЧКА МИНИМУМА', diff:'СРЕДНИЙ',
+  gen(){
+    let r1,r2;
+    do{ r1=rnd(-6,4); r2=r1+2*rnd(1,4); }while(false);
+    const p=-3*(r1+r2)/2, q=3*r1*r2, d=rnd(-9,9), ans=r2;
+    return { q:`Найдите точку минимума функции ${F(`y = x<sup>3</sup>${sTerm(p,'x')}<sup>2</sup>${sTerm(q,'x')}${sTerm(d,'')}`)}`,
+      ans, opts:makeOptions(ans,[r1,-r2,(r1+r2)/2,r2+rndNz(-3,3),-r1,d]),
+      hint:[`Производная кубической — квадратный трёхчлен: ${FS(`y′ = 3x<sup>2</sup>${sTerm(2*p,'x')}${sTerm(q,'')}`)}`,
+            `Решите ${FS('y′ = 0')} — получится два корня.`,
+            `Старший коэффициент положителен ⟹ знаки y′ идут «+ − +»: <b>меньший</b> корень — максимум, <b>больший</b> — минимум.`],
+      sol:[`${FS(`y′ = 3x<sup>2</sup>${sTerm(2*p,'x')}${sTerm(q,'')} = 3(${inBr(-r1)})(${inBr(-r2)})`)}`,
+           `Корни: ${FS(`x₁ = ${r1}, x₂ = ${r2}`)}`,
+           `Знаки y′ по интервалам: + , − , + . Смена «−» на «+» происходит в ${FS(`x = ${r2}`)} ⟹ минимум.`,
+           `<b>Ответ: ${ans}</b>`] };
+  } },
+
+/* 6. Дробь — точка минимума */
+{ name:'ДРОБЬ · ТОЧКА МИНИМУМА', diff:'СРЕДНИЙ',
+  gen(){
+    const a=rnd(2,9), a2=a*a, ans=a;
+    return { q:`Найдите точку минимума функции ${F(`y = (x<sup>2</sup> + ${a2}) / x,&nbsp; x &gt; 0`)}`,
+      ans, opts:makeOptions(ans,[-a,a2,2*a,a2/2,a+rndNz(-3,3),Math.round(a2/4)]),
+      hint:[`Разделите почленно — станет проще: ${FS(`y = x + ${a2}/x`)}`,
+            `Тогда ${FS(`y′ = 1 − ${a2}/x<sup>2</sup>`)}`,
+            `Решите ${FS('y′ = 0')} и учтите условие x > 0: отрицательный корень отбрасывается.`],
+      sol:[`${FS(`y = x + ${a2}/x`)} ⟹ ${FS(`y′ = 1 − ${a2}/x<sup>2</sup>`)}`,
+           `${FS(`x<sup>2</sup> = ${a2}`)} ⟹ ${FS(`x = ±${a}`)}; по условию x > 0, берём ${FS(`x = ${a}`)}`,
+           `На (0; ${a}) производная < 0, на (${a}; +∞) — > 0 ⟹ минимум.`,
+           `<b>Ответ: ${ans}</b>`] };
+  } },
+
+/* 7. Показательная — наименьшее значение */
+{ name:'ПОКАЗАТЕЛЬНАЯ · НАИМЕНЬШЕЕ ЗНАЧЕНИЕ', diff:'СРЕДНИЙ',
+  gen(){
+    const a=rnd(2,7), c=rnd(-8,20), k=2*a, ans=c-a*a;
+    return { q:`Найдите наименьшее значение функции ${F(`y = e<sup>2x</sup> − ${k}e<sup>x</sup> + ${c}`)}`,
+      ans, opts:makeOptions(ans,[c,c+a*a,-a*a,c-k,c-2*a,ans+rndNz(-6,6)]),
+      hint:[`Замена ${FS('t = e<sup>x</sup>')}, причём t > 0. Получится парабола ${FS(`y = t<sup>2</sup> − ${k}t + ${c}`)}`,
+            `Вершина: ${FS(`t₀ = ${k}/2 = ${a}`)} — подходит, так как ${a} > 0.`,
+            `Подставьте t₀ и посчитайте. (Через производную: ${FS(`y′ = 2e<sup>2x</sup> − ${k}e<sup>x</sup> = 0`)} ⟹ ${FS(`x = ln ${a}`)}.)`],
+      sol:[`Пусть ${FS('t = e<sup>x</sup> > 0')}, тогда ${FS(`y = t<sup>2</sup> − ${k}t + ${c}`)}`,
+           `Вершина в ${FS(`t = ${a}`)}, то есть при ${FS(`x = ln ${a}`)}`,
+           `${FS(`y = ${a*a} − ${k}·${a} + ${c} = ${ans}`)}`,
+           `<b>Ответ: ${ans}</b>`] };
+  } },
+
+/* 8. Произведение с экспонентой — точка минимума */
+{ name:'e<sup>x</sup> · ТОЧКА МИНИМУМА', diff:'СРЕДНИЙ',
+  gen(){
+    const a=rndNz(-6,7), b=rnd(-5,5), ans=a-1;
+    return { q:`Найдите точку минимума функции ${F(`y = (${inBr(-a)})·e<sup>${inBr(-b)}</sup>`)}`,
+      ans, opts:makeOptions(ans,[a,a+1,b,b-1,-a-1,ans+rndNz(-4,4)]),
+      hint:[`Производная произведения: ${FS('(uv)′ = u′v + uv′')}, причём экспонента при дифференцировании не меняется.`,
+            `Вынесите общий множитель ${FS(`e<sup>${inBr(-b)}</sup>`)} — он всегда > 0 и на знак не влияет.`,
+            `Останется линейная скобка: приравняйте её к нулю.`],
+      sol:[`${FS(`y′ = e<sup>${inBr(-b)}</sup> + (${inBr(-a)})·e<sup>${inBr(-b)}</sup> = e<sup>${inBr(-b)}</sup>·(${inBr(1-a)})`)}`,
+           `${FS(`e<sup>${inBr(-b)}</sup> > 0`)} всегда, значит знак y′ задаёт только скобка ${FS(inBr(1-a))}.`,
+           `${FS(`${inBr(1-a)} = 0`)} ⟹ ${FS(`x = ${ans}`)}; слева y′ < 0, справа y′ > 0 ⟹ минимум.`,
+           `<b>Ответ: ${ans}</b>`] };
+  } },
+
+/* 9. Логарифм — наименьшее значение */
+{ name:'ЛОГАРИФМ · НАИМЕНЬШЕЕ ЗНАЧЕНИЕ', diff:'СЛОЖНЫЙ',
+  gen(){
+    const a=rnd(2,13), ans=1-a;
+    return { q:`Найдите наименьшее значение функции ${F(`y = x − ln(x + ${a})`)}`,
+      ans, opts:makeOptions(ans,[a-1,-a,a,1+a,ans+rndNz(-4,4),-1]),
+      hint:[`Область определения: ${FS(`x + ${a} > 0`)}.`,
+            `${FS(`y′ = 1 − 1/(x + ${a})`)}`,
+            `Из ${FS('y′ = 0')} следует ${FS(`x + ${a} = 1`)}. Подставьте x в функцию: ${FS('ln 1 = 0')}, логарифм исчезнет.`],
+      sol:[`${FS(`y′ = 1 − 1/(x + ${a}) = 0`)} ⟹ ${FS(`x + ${a} = 1`)} ⟹ ${FS(`x = ${ans}`)}`,
+           `${FS(`y(${ans}) = ${ans} − ln 1 = ${ans} − 0 = ${ans}`)}`,
+           `Слева y′ < 0, справа y′ > 0 ⟹ минимум.`,
+           `<b>Ответ: ${ans}</b>`] };
+  } },
+
+/* 10. Тригонометрия — наибольшее значение */
+{ name:'ТРИГОНОМЕТРИЯ · НАИБОЛЬШЕЕ ЗНАЧЕНИЕ', diff:'СЛОЖНЫЙ',
+  gen(){
+    const [p,q,r]=pick([[3,4,5],[4,3,5],[5,12,13],[12,5,13],[8,15,17],[15,8,17],[7,24,25],[24,7,25],[6,8,10],[9,12,15]]);
+    const c=rnd(-10,20), ans=c+r;
+    return { q:`Найдите наибольшее значение функции ${F(`y = ${p}sin x + ${q}cos x + ${c}`)}`,
+      ans, opts:makeOptions(ans,[c-r,c+p+q,r,c,c+Math.max(p,q),ans+rndNz(-5,5)]),
+      hint:[`Метод вспомогательного угла: ${FS('a·sin x + b·cos x = R·sin(x + φ)')}, где ${FS('R = √(a² + b²)')}.`,
+            `${FS(`R = √(${p}<sup>2</sup> + ${q}<sup>2</sup>) = √${p*p+q*q} = ${r}`)}`,
+            `${FS('sin(x + φ)')} лежит между −1 и 1 ⟹ наибольшее значение = ${FS('R + свободный член')}.`],
+      sol:[`${FS(`${p}sin x + ${q}cos x = ${r}·sin(x + φ)`)}, так как ${FS(`√(${p*p} + ${q*q}) = ${r}`)}`,
+           `${FS(`y = ${r}sin(x + φ) + ${c}`)}`,
+           `Максимум при ${FS('sin(x + φ) = 1')}: ${FS(`y = ${r} + ${c} = ${ans}`)}`,
+           `<b>Ответ: ${ans}</b>`] };
+  } },
+
+/* 11. Кубическая на отрезке — наименьшее значение */
+{ name:'КУБИЧЕСКАЯ НА ОТРЕЗКЕ · НАИМЕНЬШЕЕ', diff:'СЛОЖНЫЙ',
+  gen(){
+    const c=rnd(2,4), d=rnd(0,30), k=3*c*c, ans=d-2*c*c*c;
+    return { q:`Найдите наименьшее значение функции ${F(`y = x<sup>3</sup> − ${k}x${sTerm(d,'')}`)} на отрезке ${F(`[0; ${2*c}]`)}`,
+      ans, opts:makeOptions(ans,[d,d+2*c*c*c,c,-2*c*c*c,d-c*c*c,ans+rndNz(-8,8)]),
+      hint:[`Схема для отрезка: 1) ${FS('y′ = 0')}; 2) отобрать корни <b>внутри</b> отрезка; 3) сравнить значения y в этих корнях и <b>на обоих концах</b>.`,
+            `${FS(`y′ = 3x<sup>2</sup> − ${k} = 0`)} ⟹ ${FS(`x = ±${c}`)}, но отрезку [0; ${2*c}] принадлежит только ${FS(`x = ${c}`)}.`,
+            `Посчитайте три числа: ${FS('y(0)')}, ${FS(`y(${c})`)}, ${FS(`y(${2*c})`)} — и возьмите наименьшее.`],
+      sol:[`${FS(`y′ = 3x<sup>2</sup> − ${k} = 0`)} ⟹ ${FS(`x = ±${c}`)}; подходит ${FS(`x = ${c}`)}`,
+           `${FS(`y(0) = ${d}`)}; ${FS(`y(${c}) = ${c*c*c} − ${k*c} + ${d} = ${ans}`)}; ${FS(`y(${2*c}) = ${8*c*c*c} − ${k*2*c} + ${d} = ${d+2*c*c*c}`)}`,
+           `Наименьшее из трёх — ${FS(String(ans))}.`,
+           `<b>Ответ: ${ans}</b>`] };
+  } },
+
+/* 12. Квадратный трёхчлен × e^x — точка минимума */
+{ name:'(x<sup>2</sup> + bx + c)·e<sup>x</sup> · ТОЧКА МИНИМУМА', diff:'СЛОЖНЫЙ',
+  gen(){
+    let r1,r2;
+    do{ r1=rnd(-7,3); r2=r1+rnd(1,5); }while(r2>6);
+    const b=-(r1+r2)-2, c=r1*r2+r1+r2+2, ans=r2;
+    return { q:`Найдите точку минимума функции ${F(`y = (x<sup>2</sup>${sTerm(b,'x')}${sTerm(c,'')})·e<sup>x</sup>`)}`,
+      ans, opts:makeOptions(ans,[r1,-r2,b,c,r2+rndNz(-3,3),-(r1+r2)]),
+      hint:[`${FS('(uv)′ = u′v + uv′')}, где ${FS('(e<sup>x</sup>)′ = e<sup>x</sup>')}.`,
+            `Вынесите ${FS('e<sup>x</sup> > 0')} — останется трёхчлен ${FS(`x<sup>2</sup>${sTerm(b+2,'x')}${sTerm(b+c,'')}`)}, именно он задаёт знак y′.`,
+            `Его ветви вверх ⟹ знаки y′ идут «+ − +» ⟹ минимум в <b>большем</b> корне.`],
+      sol:[`${FS(`y′ = e<sup>x</sup>(x<sup>2</sup>${sTerm(b+2,'x')}${sTerm(b+c,'')})`)}`,
+           `Корни трёхчлена: ${FS(`x₁ = ${r1}, x₂ = ${r2}`)}`,
+           `${FS('e<sup>x</sup> > 0')} всегда, поэтому знаки y′ повторяют знаки параболы: + , − , + ⟹ минимум в ${FS(`x = ${r2}`)}.`,
+           `<b>Ответ: ${ans}</b>`] };
+  } }
+];
+
+/* ==========================================================
+   3. ФОН: деревья, птицы, свиньи, облака
+   ========================================================== */
+const NS='http://www.w3.org/2000/svg';
+const el=(t,a={})=>{const e=document.createElementNS(NS,t); for(const k in a) e.setAttribute(k,a[k]); return e;};
+const $ = id=>document.getElementById(id);
+
+(function scenery(){
+  // Деревья
+  const g=$('trees');
+  [[70,.9],[260,.7],[470,.85],[700,.75],[880,.95],[1140,.8]].forEach(([x,s])=>{
+    const t=el('g',{transform:`translate(${x},600) scale(${s})`});
+    t.appendChild(el('rect',{x:-9,y:-70,width:18,height:70,fill:'#6d4322',rx:5}));
+    t.appendChild(el('circle',{cx:0,cy:-86,r:40,fill:'#3f7d20'}));
+    t.appendChild(el('circle',{cx:-30,cy:-70,r:29,fill:'#4c9426'}));
+    t.appendChild(el('circle',{cx:30,cy:-70,r:29,fill:'#4c9426'}));
+    t.appendChild(el('circle',{cx:0,cy:-106,r:26,fill:'#5cab2e'}));
+    g.appendChild(t);
+  });
+  // Птицы у рогатки
+  const bg=$('birds');
+  [[196,650,1],[236,656,.8],[62,652,.9]].forEach(([x,y,s],i)=>{
+    const b=el('g',{transform:`translate(${x},${y}) scale(${s})`, id:'flock'+i});
+    b.appendChild(el('ellipse',{cx:0,cy:22,rx:18,ry:5,fill:'#00000033'}));
+    b.appendChild(el('circle',{cx:0,cy:0,r:20,fill:'url(#gBird)',stroke:'#7f0000','stroke-width':2}));
+    b.appendChild(el('path',{d:'M-16 -12 Q -5 -26 5 -14',stroke:'#7f0000','stroke-width':3,fill:'none'}));
+    b.appendChild(el('circle',{cx:-6,cy:-5,r:6,fill:'#fff'}));
+    b.appendChild(el('circle',{cx:8,cy:-5,r:6,fill:'#fff'}));
+    b.appendChild(el('circle',{cx:-5,cy:-5,r:3,fill:'#111'}));
+    b.appendChild(el('circle',{cx:9,cy:-5,r:3,fill:'#111'}));
+    b.appendChild(el('path',{d:'M2 2 L18 7 L2 12 Z',fill:'#ffb300',stroke:'#e65100','stroke-width':1.5}));
+    bg.appendChild(b);
+  });
+  // Свиньи справа — по одной на прототип
+  const pg=$('pigs');
+  [[820,640,1],[900,648,.78],[980,636,1.15],[1070,650,.72],[1140,642,.95]].forEach(([x,y,s],i)=>{
+    const r=26*s;
+    const p=el('g',{transform:`translate(${x},${y})`, class:'watcher', id:'pig'+i});
+    p.appendChild(el('ellipse',{cx:0,cy:r+4,rx:r*.95,ry:6,fill:'#00000033'}));
+    p.appendChild(el('path',{d:`M${-r*.62} ${-r*.72} l${-r*.3} ${-r*.42} l${r*.5} ${r*.12} z`,fill:'#4e8a1f'}));
+    p.appendChild(el('path',{d:`M${r*.62} ${-r*.72} l${r*.3} ${-r*.42} l${-r*.5} ${r*.12} z`,fill:'#4e8a1f'}));
+    p.appendChild(el('circle',{cx:0,cy:0,r:r,fill:'url(#gPig)',stroke:'#356312','stroke-width':2}));
+    p.appendChild(el('circle',{cx:-r*.34,cy:-r*.18,r:r*.24,fill:'#fff'}));
+    p.appendChild(el('circle',{cx:r*.34,cy:-r*.18,r:r*.24,fill:'#fff'}));
+    p.appendChild(el('circle',{cx:-r*.3,cy:-r*.18,r:r*.11,fill:'#111'}));
+    p.appendChild(el('circle',{cx:r*.38,cy:-r*.18,r:r*.11,fill:'#111'}));
+    p.appendChild(el('ellipse',{cx:0,cy:r*.22,rx:r*.34,ry:r*.26,fill:'#63a52a',stroke:'#356312','stroke-width':1.6}));
+    p.appendChild(el('ellipse',{cx:-r*.11,cy:r*.22,rx:r*.06,ry:r*.09,fill:'#2f5a10'}));
+    p.appendChild(el('ellipse',{cx:r*.11,cy:r*.22,rx:r*.06,ry:r*.09,fill:'#2f5a10'}));
+    p.appendChild(el('path',{class:'mouth',d:`M${-r*.3} ${r*.6} q ${r*.3} ${r*.18} ${r*.6} 0`,
+      stroke:'#2f5a10','stroke-width':2.6,fill:'none','stroke-linecap':'round'}));
+    p.dataset.r=r; p.dataset.x=x; p.dataset.y=y;
+    pg.appendChild(p);
+  });
+  // Облака + порхающие
+  [[7,140,30,44],[22,190,48,58],[3,100,22,36],[38,160,38,50]].forEach(([top,w,h,dur],i)=>{
+    const d=document.createElement('div');
+    d.className='cloud';
+    d.style.cssText=`top:${top}%;width:${w}px;height:${h}px;animation-duration:${dur+i*12}s;animation-delay:-${i*11}s`;
+    d.innerHTML=`<svg viewBox="0 0 120 44" width="${w}" height="${h}"><g fill="#fff">
+      <ellipse cx="34" cy="28" rx="30" ry="16"/><ellipse cx="62" cy="20" rx="26" ry="18"/>
+      <ellipse cx="88" cy="28" rx="24" ry="14"/></g></svg>`;
+    document.body.appendChild(d);
+  });
+  ['🦋','🐝','🦋'].forEach((s,i)=>{
+    const b=document.createElement('div');
+    b.className='flyer'; b.textContent=s;
+    b.style.cssText=`left:${8+i*6}%;top:${62+i*9}%;animation-delay:-${i*3.5}s;animation-duration:${9+i*2.5}s`;
+    document.body.appendChild(b);
+  });
+})();
+
+/* Реакция фоновых персонажей */
+function pigsLaugh(){
+  document.querySelectorAll('.watcher').forEach((p,i)=>{
+    const r=+p.dataset.r, x=+p.dataset.x, y=+p.dataset.y;
+    p.querySelector('.mouth').setAttribute('d',`M${-r*.34} ${r*.5} q ${r*.34} ${r*.42} ${r*.68} 0 z`);
+    p.animate([{transform:`translate(${x}px,${y}px)`},
+               {transform:`translate(${x}px,${y-9}px) rotate(-6deg)`},
+               {transform:`translate(${x}px,${y}px) rotate(6deg)`},
+               {transform:`translate(${x}px,${y}px)`}],{duration:640,iterations:2,delay:i*60});
+  });
+}
+function pigsUpset(){
+  document.querySelectorAll('.watcher').forEach(p=>{
+    const r=+p.dataset.r;
+    p.querySelector('.mouth').setAttribute('d',`M${-r*.3} ${r*.66} q ${r*.3} ${-r*.2} ${r*.6} 0`);
+  });
+  document.querySelectorAll('#birds > g').forEach((b,i)=>{
+    b.animate([{transform:b.getAttribute('transform')+' translateY(0)'},
+               {transform:b.getAttribute('transform')+' translateY(-22px)'},
+               {transform:b.getAttribute('transform')+' translateY(0)'}],{duration:420,delay:i*70});
+  });
+}
+
+/* ==========================================================
+   4. КОЛОДА: 20 задач в случайном порядке, все 12 прототипов
+   ========================================================== */
+function buildDeck(){
+  const idx=[...PROTOS.keys()];                 // все 12 прототипов обязательно
+  const extra=[];
+  const weights=[4,5,6,7,8,9,10,11];            // добор — из средних и сложных
+  while(extra.length<8) extra.push(pick(weights));
+  const all=[...idx,...extra];
+  for(let i=all.length-1;i>0;i--){ const j=rnd(0,i); [all[i],all[j]]=[all[j],all[i]]; }
+  return all.map(i=>({proto:i, task:PROTOS[i].gen()}));
+}
+
+const S={
+  deck:[],i:0,ok:0,no:0,started:0,answered:false,
+  firstTryCorrect:0,questionAttempted:false,active:false,resultSubmitted:false
+};
+
+function updateStudentUI(){
+  $('studentTop').textContent=currentStudent?currentStudent.name:'УЧЕНИК';
+}
+function showStudentLogin(prefill=''){
+  if(S.active) return;
+  $('authScreen').classList.add('show');
+  $('studentCode').value=prefill;
+  $('authMessage').textContent='';
+  $('authMessage').className='auth-message';
+  setTimeout(()=>$('studentCode').focus(),0);
+}
+function showStartScreen(){
+  $('authScreen').classList.remove('show');
+  updateStudentUI();
+  $('pane').innerHTML=`
+    <h1>ЗАДАНИЕ №12<br>ЭКСТРЕМУМЫ</h1>
+    <p>20 задач в случайном порядке — все прототипы задания №12.<br>
+       Выбирай вариант: проверка сразу, без кнопок. Ошибся — покажу алгоритм и полное решение.<br>
+       Числа генерируются заново при каждом заходе, зазубрить ответы не выйдет.</p>
+    <div class="student-line">Игрок: <b>${escapeHtml(currentStudent?currentStudent.name:'Ученик')}</b></div>
+    <button class="small-change" id="changeStudentStart">СМЕНИТЬ УЧЕНИКА</button><br>
+    <button class="big" id="btnStart">НАЧАТЬ</button>`;
+  $('screen').classList.remove('hidden');
+  $('btnStart').onclick=start;
+  $('changeStudentStart').onclick=requestStudentChange;
+}
+function escapeHtml(value){
+  const span=document.createElement('span');
+  span.textContent=String(value);
+  return span.innerHTML;
+}
+function requestStudentChange(){
+  if(S.active) return;
+  clearStudent();
+  updateStudentUI();
+  showStudentLogin('');
+}
+async function loginStudent(){
+  const code=$('studentCode').value.trim();
+  if(!code){
+    $('authMessage').textContent='Введите личный код';
+    $('authMessage').className='auth-message error';
+    return;
+  }
+  $('loginBtn').disabled=true;
+  $('authMessage').textContent='Проверяем код…';
+  $('authMessage').className='auth-message';
+  try{
+    const student=await validateStudentCode(code);
+    currentStudent=student;
+    rememberStudent(student,code);
+    showStartScreen();
+    flushPendingResults();
+  }catch(error){
+    $('authMessage').textContent=error.message||'Не удалось проверить код';
+    $('authMessage').className='auth-message error';
+  }finally{
+    $('loginBtn').disabled=false;
+  }
+}
+
+/* ==========================================================
+   5. ИНТЕРФЕЙС
+   ========================================================== */
+function render(){
+  const {proto,task}=S.deck[S.i];
+  $('proto').innerHTML=`ЗАДАЧА ${S.i+1} · ПРОТОТИП ${proto+1} · ${PROTOS[proto].name}`;
+  $('diff').textContent=PROTOS[proto].diff;
+  $('task').innerHTML=task.q;
+  const box=$('opts'); box.innerHTML='';
+  task.opts.forEach(v=>{
+    const b=document.createElement('button');
+    b.className='opt';
+    b.textContent=String(v).replace('-','−');
+    b.dataset.val=v;
+    b.onclick=()=>answer(b,v);
+    box.appendChild(b);
+  });
+  $('review').classList.remove('show');
+  S.answered=false;
+  S.questionAttempted=false;
+  const card=$('card');
+  card.classList.remove('pop'); void card.offsetWidth; card.classList.add('pop');
+  updateTop();
+}
+
+function answer(btn,v){
+  if(S.answered) return;
+  const isFirstAttempt=!S.questionAttempted;
+  S.questionAttempted=true;
+  S.answered=true;
+  const {task}=S.deck[S.i];
+  const ok = v===task.ans;
+  if(isFirstAttempt&&ok) S.firstTryCorrect++;
+  document.querySelectorAll('.opt').forEach(o=>{
+    o.disabled=true;
+    const val=+o.dataset.val;
+    if(val===task.ans) o.classList.add('right');
+    else if(val===v) o.classList.add('wrong');
+    else o.classList.add('dim');
+  });
+
+  const verdict=$('verdict');
+  if(ok){
+    S.ok++;
+    Audio8.correct();
+    pigsUpset();
+    verdict.className='verdict ok';
+    verdict.innerHTML='🐦 ВЕРНО!';
+    // При верном ответе разбор не навязываем — только короткое подтверждение
+    $('hintBlock').style.display='none';
+    $('solBlock').style.display='none';
+  }else{
+    S.no++;
+    Audio8.wrong();
+    pigsLaugh();
+    verdict.className='verdict no';
+    verdict.innerHTML=`🐷 ХРЮ-ХА-ХА! Правильный ответ: ${String(task.ans).replace('-','−')}`;
+    $('hintBlock').style.display='';
+    $('solBlock').style.display='';
+    $('hintList').innerHTML=task.hint.map(h=>`<li>${h}</li>`).join('');
+    $('solList').innerHTML=task.sol.map(h=>`<li>${h}</li>`).join('');
+  }
+  $('next').textContent = S.i===S.deck.length-1 ? 'ПОКАЗАТЬ ИТОГИ →' : 'СЛЕДУЮЩАЯ ЗАДАЧА →';
+  $('review').classList.add('show');
+  $('next').focus({preventScroll:true});
+  $('review').scrollIntoView({behavior:'smooth',block:'nearest'});
+  updateTop();
+}
+
+$('next').onclick=()=>{
+  Audio8.pop();
+  if(S.i===S.deck.length-1){ finish(); return; }
+  S.i++;
+  render();
+  $('center').scrollTo({top:0,behavior:'smooth'});
+};
+
+function updateTop(){
+  $('tNum').textContent=S.i+1;
+  $('tOk').textContent=S.ok;
+  $('tNo').textContent=S.no;
+  $('barFill').style.width=((S.ok+S.no)/S.deck.length*100).toFixed(1)+'%';
+}
+
+/* ==========================================================
+   6. ФИНАЛ
+   ========================================================== */
+function finish(){
+  if(S.resultSubmitted) return;
+  S.resultSubmitted=true;
+  S.active=false;
+  updateStudentUI();
+  Audio8.win();
+  const secs=Math.floor((Date.now()-S.started)/1000);
+  const acc=Math.round(S.firstTryCorrect/S.deck.length*100);
+  const rank = acc>=90?'ЗОЛОТАЯ ПТИЦА 🥇' : acc>=75?'СЕРЕБРЯНЫЙ КЛЮВ 🥈' : acc>=50?'БРОНЗОВОЕ ПЕРО 🥉' : 'ПТЕНЕЦ 🐣';
+  // Прототипы с ошибками — что повторить
+  const weak=[...new Set(S.deck.filter(d=>d.wrong).map(d=>d.proto))];
+  $('pane').innerHTML=`
+    <h1 style="font-size:24px">20 ЗАДАЧ<br>ПРОЙДЕНО</h1>
+    <div style="font-size:40px;margin:4px 0">🐦 🐦 🐦 🐦 🐦</div>
+    <div class="sheet">
+      <div class="eyebrow">ИТОГИ</div>
+      <table class="stats">
+        <tr><td>Правильных ответов</td><td>${S.ok} из ${S.deck.length}</td></tr>
+        <tr><td>Ошибок</td><td>${S.no}</td></tr>
+        <tr><td>С первой попытки</td><td>${acc}%</td></tr>
+        <tr><td>Время</td><td>${Math.floor(secs/60)} мин ${secs%60} с</td></tr>
+        <tr><td>Звание</td><td>${rank}</td></tr>
+      </table>
+      ${weak.length ? `<p style="font-size:16px;color:#5b3a1c;margin:12px 0 0;text-shadow:none">
+        <b>Повторить:</b> ${weak.map(i=>PROTOS[i].name).join(' · ')}</p>` : ''}
+      <div class="auth-message" id="saveStatus">Сохраняем результат…</div>
+    </div>
+    <button class="big" id="btnAgain">ЕЩЁ 20 ЗАДАЧ</button><br>
+    <button class="small-change" id="changeStudentFinal">СМЕНИТЬ УЧЕНИКА</button>`;
+  $('screen').classList.remove('hidden');
+  $('btnAgain').onclick=start;
+  $('changeStudentFinal').onclick=requestStudentChange;
+  const payload={
+    action:'submitTest',
+    eventId:makeEventId(),
+    studentId:currentStudent.studentId,
+    testId:TEST_META.testId,
+    testDate:localDateString(),
+    topicId:TEST_META.topicId,
+    topicName:TEST_META.topicName,
+    taskNumber:TEST_META.taskNumber,
+    scorePercent:acc,
+    durationSeconds:secs,
+    schemaVersion:TEST_META.schemaVersion
+  };
+  submitResult(payload);
+}
+
+/* ==========================================================
+   7. СТАРТ
+   ========================================================== */
+function start(){
+  if(!currentStudent){showStudentLogin('');return;}
+  Audio8.unlock(); Audio8.startMusic();
+  S.deck=buildDeck(); S.i=0; S.ok=0; S.no=0; S.started=Date.now();
+  S.firstTryCorrect=0; S.questionAttempted=false; S.active=true; S.resultSubmitted=false;
+  $('screen').classList.add('hidden');
+  updateStudentUI();
+  render();
+}
+$('btnStart').onclick=start;
+$('btnReset').onclick=start;
+
+$('btnMusic').onclick=e=>{ Audio8.unlock(); e.currentTarget.classList.toggle('off', !Audio8.toggleMusic()); };
+$('btnSfx').onclick  =e=>{ Audio8.unlock(); e.currentTarget.classList.toggle('off', !Audio8.toggleSfx()); };
+
+// Клавиатура: 1–4 — выбрать вариант, Enter/Пробел — дальше
+document.addEventListener('keydown',e=>{
+  if(!$('screen').classList.contains('hidden')) return;
+  const opts=[...document.querySelectorAll('.opt')];
+  if(['1','2','3','4'].includes(e.key) && opts[+e.key-1] && !S.answered) opts[+e.key-1].click();
+  if((e.key==='Enter'||e.code==='Space') && S.answered){ e.preventDefault(); $('next').click(); }
+});
+
+// Отметка ошибочных прототипов для итогов
+const _answer=answer;
+answer=function(btn,v){
+  const wrong = v!==S.deck[S.i].task.ans && !S.answered;
+  if(wrong) S.deck[S.i].wrong=true;
+  _answer(btn,v);
+};
+
+$('loginBtn').onclick=loginStudent;
+$('studentCode').addEventListener('keydown',event=>{if(event.key==='Enter') loginStudent();});
+window.addEventListener('online',flushPendingResults);
+
+currentStudent=savedStudent();
+updateStudentUI();
+const codeFromUrl=new URLSearchParams(location.search).get('code');
+if(codeFromUrl){
+  clearStudent();
+  showStudentLogin(codeFromUrl);
+  loginStudent();
+}else if(currentStudent){
+  showStartScreen();
+  flushPendingResults();
+}else{
+  showStudentLogin('');
+}
+</script>
+</body>
+</html>
