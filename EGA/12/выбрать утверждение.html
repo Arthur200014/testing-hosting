@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Штурм трёх башен — задание 12</title>
+<style>
+:root{--ink:#18200f;--paper:#fffbea;--red:#d9352b;--yellow:#ffd447;--green:#7abf36;--sky:#74c9ef;--stone:#a08a65;--dark:#26321d}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;color:var(--ink);font-family:Trebuchet MS,Arial,sans-serif;background:linear-gradient(#62bce9 0 56%,#9bd65b 56% 74%,#5a922f 74%);overflow-x:hidden}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 12% 14%,#fff9 0 4%,transparent 4.3%),radial-gradient(circle at 70% 8%,#fff8 0 5%,transparent 5.3%),linear-gradient(100deg,transparent 0 52%,#fff2 52% 53%,transparent 53%);opacity:.65}
+button,input{font:inherit}
+button{touch-action:manipulation}
+.topbar{position:sticky;z-index:20;top:0;display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px clamp(10px,3vw,28px);background:#26321dee;color:#fff;box-shadow:0 3px 0 #0003}
+.brand{font-weight:1000;letter-spacing:.04em}.student{display:none;align-items:center;gap:8px;min-width:0}.student b{max-width:28vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.icon-btn,.switch{border:1px solid #ffffff55;border-radius:10px;color:#fff;background:#ffffff14;padding:7px 10px;cursor:pointer}.switch:disabled{opacity:.38;cursor:not-allowed}
+.hud{display:none;align-items:center;gap:10px;flex:1;max-width:680px}.track{height:12px;flex:1;border:2px solid #18200f;background:#f5e8b4;border-radius:99px;overflow:hidden}.track i{display:block;width:0;height:100%;background:linear-gradient(90deg,#f18a2b,#e43027);transition:.4s}
+.counter,.live{font-size:.88rem;font-weight:900;white-space:nowrap}
+#screen{position:relative;z-index:2;width:min(1160px,96vw);margin:14px auto 30px}
+.panel{border:4px solid #26321d;border-radius:24px;background:linear-gradient(145deg,#fffdf0,#f2e5b9);box-shadow:0 10px 0 #2d451e,0 18px 32px #172b2766;overflow:hidden}
+.start{min-height:520px;padding:clamp(22px,5vw,55px);display:grid;grid-template-columns:1.05fr .95fr;gap:20px;align-items:center}
+h1{margin:.15em 0 .25em;font-size:clamp(2.2rem,7vw,5.2rem);line-height:.88;letter-spacing:-.055em;text-transform:uppercase;text-shadow:0 4px 0 #fff}
+.lead{max-width:650px;font-size:clamp(1rem,2vw,1.25rem);line-height:1.45}.tag{display:inline-block;padding:6px 12px;border-radius:999px;background:var(--red);color:#fff;font-weight:1000;letter-spacing:.1em;box-shadow:0 3px 0 #891e19}
+.rules{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:22px 0}.rule{min-height:80px;padding:12px 8px;border:2px solid #6f603f;border-radius:14px;background:#fff8d8;text-align:center;font-weight:900;display:grid;place-items:center}
+.primary,.secondary{border:0;border-radius:13px;padding:13px 21px;font-weight:1000;cursor:pointer;box-shadow:0 5px 0 #7b1714;transition:.12s transform,.12s box-shadow}.primary{color:#fff;background:var(--red);font-size:1.08rem}.secondary{color:#26321d;background:#f2da73;box-shadow:0 5px 0 #9c812a}.primary:hover,.secondary:hover{transform:translateY(-2px)}.primary:active,.secondary:active{transform:translateY(3px);box-shadow:0 2px 0 #7b1714}
+.hero-castle{position:relative;height:360px;display:flex;align-items:flex-end;justify-content:center;gap:7px;filter:drop-shadow(0 8px 0 #0003)}
+.tower-mini{width:28%;height:var(--h);display:flex;flex-direction:column;justify-content:flex-end;align-items:center}.tower-mini:before{content:"";width:76%;height:50px;border:4px solid #392f20;border-radius:50% 50% 10px 10px;background:#7fb941}
+.tower-mini i{display:block;width:100%;height:43px;border:3px solid #3a3022;background:linear-gradient(100deg,#b99f72,#8d795a);transform:skew(-2deg)}
+.tower-mini:nth-child(2){--h:310px}.tower-mini:nth-child(1),.tower-mini:nth-child(3){--h:255px}
+.login{min-height:470px;display:grid;place-content:center;text-align:center;padding:30px}.login h1{font-size:clamp(2rem,6vw,4.5rem)}.login form{display:grid;gap:12px;width:min(440px,82vw);margin:18px auto}.code{width:100%;padding:16px;border:3px solid #4a5835;border-radius:14px;text-align:center;text-transform:uppercase;font-weight:1000;font-size:1.15rem;background:#fff}.status{min-height:24px;font-weight:900}.status.bad{color:#a51e1a}
+.game{padding:13px}.arena{display:grid;grid-template-columns:minmax(285px,.78fr) minmax(420px,1.22fr);gap:13px}
+.castle{position:relative;min-height:590px;border:3px solid #29421f;border-radius:18px;background:linear-gradient(#83d4f4 0 50%,#acd96a 50% 72%,#6d9e3c 72%);overflow:hidden;padding:16px 10px 24px;display:flex;align-items:flex-end;justify-content:space-around}
+.cloud{position:absolute;width:92px;height:28px;border-radius:50px;background:#fff9;top:30px;left:7%;box-shadow:30px -12px 0 #fff9,58px 0 0 #fff9}.cloud.c2{left:auto;right:8%;top:90px;transform:scale(.7)}
+.towers{position:relative;z-index:2;width:100%;display:flex;align-items:flex-end;justify-content:space-evenly;gap:7px}.tower{width:31%;display:flex;flex-direction:column;align-items:center;transition:.35s;filter:saturate(.75)}.tower.active{filter:saturate(1.25) drop-shadow(0 0 9px #ffe75e);transform:translateY(-4px)}.tower.collapsed{transform:translateY(24px) rotate(var(--tilt));opacity:.6}
+.pig{position:relative;width:68px;height:62px;margin-bottom:-1px;border:3px solid #24381b;border-radius:48% 48% 44% 44%;background:#8acb43;box-shadow:inset -8px -8px #5e9e32;transition:.25s}.pig:before,.pig:after{content:"";position:absolute;top:15px;width:14px;height:17px;border:3px solid #26321d;border-radius:50%;background:#fff}.pig:before{left:10px}.pig:after{right:10px}.snout{position:absolute;z-index:2;left:18px;bottom:8px;width:32px;height:22px;border:3px solid #26321d;border-radius:50%;background:#a8db68}.snout:before,.snout:after{content:"";position:absolute;top:6px;width:5px;height:7px;border-radius:50%;background:#26321d}.snout:before{left:7px}.snout:after{right:7px}
+.tower.hit .pig{animation:pigHit .65s}.tower.laugh .pig{animation:laugh .55s}
+.roof{width:100%;height:21px;border:3px solid #372f22;background:#765632;clip-path:polygon(0 100%,8% 0,27% 0,34% 45%,45% 45%,50% 0,68% 0,73% 45%,86% 45%,92% 0,100% 100%)}
+.bricks{width:84%;display:flex;flex-direction:column-reverse}.brick{height:56px;border:3px solid #3f3527;border-radius:3px;background:linear-gradient(100deg,#bda275 0 47%,#9c835f 48%);box-shadow:inset 0 -7px #00000013;transition:.55s;display:grid;place-items:center;font-size:.7rem;font-weight:1000;color:#302719}.brick.gone{transform:translateX(var(--fly)) rotate(var(--rot));opacity:0}
+.tower:nth-child(1) .brick.gone{--fly:-105px;--rot:-18deg}.tower:nth-child(2) .brick.gone{--fly:70px;--rot:15deg}.tower:nth-child(3) .brick.gone{--fly:110px;--rot:22deg}
+.tower-name{margin-top:7px;padding:5px 7px;border-radius:9px;background:#24351fe8;color:#fff;text-align:center;font-size:.68rem;font-weight:1000}
+.bird-shot{position:absolute;z-index:5;left:12px;top:48%;width:55px;height:48px;border:3px solid #251c19;border-radius:50%;background:#d92d28;box-shadow:inset -8px -7px #a7191b;opacity:0}.bird-shot:before{content:"";position:absolute;right:-10px;top:14px;border-left:18px solid #f3c640;border-top:9px solid transparent;border-bottom:9px solid transparent}.bird-shot.fly{animation:fly 1s ease-in forwards}
+.work{min-height:590px;border:3px solid #615537;border-radius:18px;background:#fffdf1;padding:clamp(14px,2.5vw,24px);display:flex;flex-direction:column}
+.work-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;color:#5b4e31;font-weight:900}.proto{padding:5px 9px;border-radius:999px;background:#7dbb3f;color:#fff}
+.problem{border:3px solid #3f4e2d;border-radius:16px;background:#f7edc9;padding:14px}.problem small{font-weight:1000;color:#78633d;text-transform:uppercase}.formula{margin-top:8px;font-family:Georgia,serif;font-size:clamp(1.15rem,2.3vw,1.55rem);line-height:1.45}
+.phasebar{display:flex;gap:7px;margin:13px 0}.phasebar i{height:9px;flex:1;border-radius:9px;background:#d9cfac}.phasebar i.done{background:#72b537}.phasebar i.now{background:#f1a128;box-shadow:0 0 0 3px #f1a12833}
+.prompt{font-size:clamp(1.05rem,2vw,1.28rem);font-weight:1000;margin:5px 0 12px}.choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.choice{min-height:70px;border:3px solid #50452e;border-radius:14px;background:#fff8d8;padding:10px;font-weight:900;cursor:pointer;box-shadow:0 4px 0 #8e7950;transition:.14s}.choice:hover{transform:translateY(-2px);background:#fff}.choice:disabled{cursor:default;transform:none}.choice.correct{border-color:#4d8d27;background:#dff2bd}.choice.wrong{border-color:#a81e1b;background:#ffd5cb;animation:shake .35s}
+.lane{grid-column:1/-1;position:relative;height:120px;border:3px solid #578db0;border-radius:18px;background:linear-gradient(#dff7ff,#9cdaf1);overflow:hidden}.lane:after{content:"";position:absolute;left:8%;right:8%;top:62px;height:8px;border-radius:9px;background:#fff;box-shadow:0 3px #61a5cc}.endpoint{position:absolute;z-index:3;top:36px;width:70px;height:58px;border:3px solid #254a63;border-radius:14px;background:#fff;color:#17394d;font-weight:1000;cursor:pointer}.endpoint.left{left:5%}.endpoint.right{right:5%}.ice-bird{position:absolute;z-index:4;left:50%;top:39px;width:54px;height:50px;transform:translateX(-50%);border:3px solid #254a63;border-radius:50%;background:#b9f2ff;box-shadow:inset -8px -7px #78cce4;cursor:grab;touch-action:none}.ice-bird:before{content:"↔";position:absolute;inset:0;display:grid;place-items:center;font-size:1.4rem;font-weight:1000}.ice-bird.drag{cursor:grabbing}
+.feedback{min-height:60px;margin-top:auto;padding-top:13px;font-weight:1000}.feedback small{display:block;margin-top:4px;color:#655839;font-weight:700;line-height:1.35}.feedback.good{color:#37781b}.feedback.bad{color:#ad211d}
+.result{text-align:center;padding:35px;min-height:540px}.result h1{font-size:clamp(2.2rem,6vw,4.8rem)}.score{width:170px;height:170px;margin:15px auto;border-radius:50%;display:grid;place-items:center;box-shadow:inset 0 0 0 15px #fff9,0 7px 0 #48652e}.score b{font-size:2.5rem}.stats{display:flex;justify-content:center;gap:12px;margin:17px}.stat{min-width:150px;padding:12px;border:2px solid #7c6944;border-radius:13px;background:#fff8d8}.stat b{display:block;font-size:1.25rem}.save-status{min-height:28px;font-weight:1000}.save-status.ok{color:#3e7a20}.save-status.bad{color:#9e251f}.actions{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin-top:12px}
+.tower-banner{position:absolute;z-index:10;inset:43% 8% auto;padding:13px;border:3px solid #26321d;border-radius:14px;background:#ffd447;color:#25321c;text-align:center;font-size:1.25rem;font-weight:1000;transform:rotate(-2deg);animation:pop .45s}
+@keyframes fly{0%{opacity:1;transform:translate(0,0) rotate(0)}70%{opacity:1;transform:translate(220px,-90px) rotate(540deg)}100%{opacity:0;transform:translate(300px,10px) rotate(720deg)}}
+@keyframes pigHit{30%{transform:translateX(-12px) rotate(-12deg)}60%{transform:translateX(10px) rotate(10deg)}}
+@keyframes laugh{25%,75%{transform:translateY(-8px) rotate(-5deg)}50%{transform:translateY(0) rotate(5deg)}}
+@keyframes shake{25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+@keyframes pop{from{opacity:0;transform:scale(.7) rotate(-2deg)}}
+@media(max-width:850px){.arena{grid-template-columns:1fr}.castle{min-height:270px}.bricks .brick{height:34px}.pig{transform:scale(.8);transform-origin:bottom}.work{min-height:500px}.start{grid-template-columns:1fr}.hero-castle{height:250px}.rules{grid-template-columns:1fr 1fr}.rule:last-child{grid-column:1/-1}.brand{display:none}}
+@media(max-width:540px){#screen{width:98vw;margin-top:7px}.panel{border-radius:16px}.game{padding:7px}.choices{grid-template-columns:1fr}.choice{min-height:56px}.castle{min-height:230px;padding-bottom:10px}.brick{font-size:.55rem}.tower-name{font-size:.55rem}.stats{flex-direction:column}.student b{max-width:32vw}.hud .live{display:none}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">ШТУРМ ТРЁХ БАШЕН</div>
+  <div class="hud" id="hud"><span class="counter" id="counter">1 / 12</span><span class="track"><i id="progress"></i></span><span class="live">⭐ <b id="live">0</b></span></div>
+  <div class="student" id="studentBox"><b id="studentName"></b><button class="switch" id="switchBtn">Сменить ученика</button></div>
+  <button class="icon-btn" id="muteBtn" aria-label="Звук">🔊</button>
+</header>
+<main id="screen"></main>
+<script>
+'use strict';
+const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+const PENDING_KEY='egePendingTestResults';
+const TEST_META={testId:'EGE-12-THREE-TOWERS-PROTOTYPES-5-7',topicId:'task-12',topicName:'Экстремумы: сложные прототипы',taskNumber:12,schemaVersion:1};
+const TOTAL=12,$=id=>document.getElementById(id);
+const towerNames=['Квадрат + ln','Тригонометрия','Многочлен × eˣ'];
+let currentStudent=null,gameActive=false,questions=[],index=0,phase=0,answered=false,taskClean=true,firstTryCorrect=0;
+let towerProgress=[0,0,0],startedAt=0,attemptEventId='',resultSubmitted=false,muted=false,transitioning=false;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ri=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const shuffle=a=>{for(let i=a.length-1;i;i--){const j=ri(0,i);[a[i],a[j]]=[a[j],a[i]]}return a};
+const opt=(id,label)=>({id:String(id),label});
+
+function makeP5(){
+ const a=ri(1,5),b=ri(a+2,a+7),sum=a+b,prod=a*b,askMax=Math.random()<.5,answer=askMax?a:b;
+ const p1=[
+  opt('ok',`y′ = <span class="frac">((x−${a})(x−${b}))/x</span>`),
+  opt('plus',`y′ = <span class="frac">((x+${a})(x+${b}))/x</span>`),
+  opt('swap',`y′ = <span class="frac">((x−${a})(x+${b}))/x</span>`),
+  opt('nox',`y′ = (x−${a})(x−${b})`)
+ ];
+ return{tower:0,proto:'Прототип 5 · квадрат + ln',problem:`y = 0,5x² − ${sum}x + ${prod} ln x. Найдите точку ${askMax?'максимума':'минимума'}.`,
+  stages:[
+   {prompt:'Шаг 1. Выбери правильную производную в разложенном виде.',options:shuffle(p1),answer:'ok',why:`y′=x−${sum}+${prod}/x=((x−${a})(x−${b}))/x, причём x>0.`},
+   {prompt:`Шаг 2. В какую критическую точку запускать птицу — точку ${askMax?'максимума':'минимума'}?`,options:shuffle([opt(a,`x = ${a}`),opt(b,`x = ${b}`),opt(-a,`x = −${a}`),opt(sum,`x = ${sum}`)]),answer:String(answer),why:`На x>0 знак производной меняется: «+ − +». Поэтому x=${a} — максимум, x=${b} — минимум.`}
+  ]};
+}
+function makeP6(){
+ const increasing=Math.random()<.5,k=ri(3,8),m=ri(1,k-1),c=ri(1,9),left=ri(-4,1),right=left+ri(3,7),askMax=Math.random()<.5;
+ const sign=increasing?'−':'＋',linear=increasing?`${k}x`:`−${k}x`;
+ const endpoint=(increasing===askMax)?right:left;
+ return{tower:1,proto:'Прототип 6 · тригонометрия',problem:`y = ${linear} ${increasing?'−':'＋'} ${m} sin x + ${c}, &nbsp; x∈[${left}; ${right}]. Найдите точку ${askMax?'максимума':'минимума'}.`,
+  stages:[
+   {prompt:'Шаг 1. Определи поведение функции на всём отрезке.',options:shuffle([opt('inc','Функция возрастает ↗'),opt('dec','Функция убывает ↘'),opt('turn','Сначала растёт, потом убывает'),opt('none','Определить нельзя')]),answer:increasing?'inc':'dec',why:increasing?`y′=${k}−${m}cos x ≥ ${k-m}>0 — функция возрастает.`:`y′=−${k}+${m}cos x ≤ −${k-m}<0 — функция убывает.`},
+   {prompt:`Шаг 2. Направь ледяную птицу в нужный конец отрезка для ${askMax?'максимума':'минимума'}. Можно нажать на конец или перетащить птицу.`,kind:'lane',left,right,options:[opt(left,`x = ${left}`),opt(right,`x = ${right}`)],answer:String(endpoint),why:`Для ${increasing?'возрастающей':'убывающей'} функции точка ${askMax?'максимума':'минимума'} на этом отрезке: x=${endpoint}.`}
+  ]};
+}
+function makeP7(){
+ const minus=Math.random()<.5,a=ri(2,8),b=ri(1,10),askMax=Math.random()<.62;
+ const max=minus?2-a:-a-2,min=-a,answer=askMax?max:min,exp=minus?`${b}−x`:`x+${b}`;
+ const other=[max,min,a,minus?-a-2:2-a].filter((v,i,x)=>x.indexOf(v)===i&&v!==answer);
+ while(other.length<3){const v=ri(-11,7);if(v!==answer&&!other.includes(v))other.push(v)}
+ return{tower:2,proto:'Прототип 7 · многочлен × экспонента',problem:`y = (x + ${a})²e<sup>${exp}</sup>. Найдите точку ${askMax?'максимума':'минимума'}.`,
+  stages:[
+   {prompt:'Шаг 1. Какую скобку получим после вынесения экспоненты?',options:shuffle([opt('minus',`P′(x) − P(x)`),opt('plus',`P′(x) + P(x)`),opt('only',`только P′(x)`),opt('product',`P′(x)·P(x)`)]),answer:minus?'minus':'plus',why:minus?'У показателя b−x производная равна −1, поэтому скобка P′−P.':'У показателя x+b производная равна 1, поэтому скобка P′+P.'},
+   {prompt:`Шаг 2. Выбери точку ${askMax?'максимума':'минимума'}.`,options:shuffle([opt(answer,`x = ${answer}`),...other.slice(0,3).map(v=>opt(v,`x = ${v}`))]),answer:String(answer),why:minus?`y′=e^(${exp})(x+${a})(${2-a}−x). Максимум: x=${max}, минимум: x=${min}.`:`y′=e^(${exp})(x+${a})(x+${a+2}). Максимум: x=${max}, минимум: x=${min}.`}
+  ]};
+}
+function buildQuestions(){return[...shuffle(Array.from({length:4},makeP5)),...shuffle(Array.from({length:4},makeP6)),...shuffle(Array.from({length:4},makeP7))]}
+
+function uuid(){if(window.crypto&&typeof crypto.randomUUID==='function')return crypto.randomUUID();return'evt-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)+'-'+Math.random().toString(36).slice(2)}
+function localDate(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function duration(){return Math.max(1,Math.round((Date.now()-startedAt)/1000))}
+function timeText(s){return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+function storedStudent(){const studentId=localStorage.getItem('egeStudentId');return studentId?{studentId,name:localStorage.getItem('egeStudentName')||'Ученик',code:localStorage.getItem('egeStudentCode')||''}:null}
+function saveStudent(s){localStorage.setItem('egeStudentId',s.studentId);localStorage.setItem('egeStudentName',s.name);localStorage.setItem('egeStudentCode',s.code)}
+function parseStudent(data,code){const src=(data&&(data.student||data.data))||data||{},studentId=src.studentId||src.id||(data&&data.studentId),name=src.studentName||src.name||src.fullName||(data&&(data.studentName||data.name)),bad=data&&(data.success===false||data.valid===false||data.ok===false);if(bad||!studentId)throw new Error((data&&(data.message||data.error))||'Личный код не найден');return{studentId:String(studentId),name:String(name||'Ученик'),code:String(code)}}
+function validateStudent(code){return new Promise((resolve,reject)=>{const cb='egeValidate_'+Date.now()+'_'+Math.random().toString(36).slice(2),s=document.createElement('script');let done=false;const clean=()=>{delete window[cb];s.remove()},limit=setTimeout(()=>{if(done)return;done=true;clean();reject(new Error('Сервер не ответил. Проверь интернет'))},12000);window[cb]=data=>{if(done)return;done=true;clearTimeout(limit);clean();try{resolve(parseStudent(data,code))}catch(e){reject(e)}};s.onerror=()=>{if(done)return;done=true;clearTimeout(limit);clean();reject(new Error('Не удалось проверить код'))};s.src=API_URL+'?'+new URLSearchParams({action:'validateStudent',code,callback:cb});document.head.appendChild(s)})}
+function updateStudent(){const box=$('studentBox');box.style.display=currentStudent?'flex':'none';if(currentStudent)$('studentName').textContent=currentStudent.name;$('switchBtn').disabled=gameActive}
+function readQueue(){try{const q=JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');return Array.isArray(q)?q:[]}catch(_){return[]}}
+function queueResult(p){const q=readQueue();if(!q.some(x=>x&&x.eventId===p.eventId))q.push(p);localStorage.setItem(PENDING_KEY,JSON.stringify(q))}
+function removeQueued(id){localStorage.setItem(PENDING_KEY,JSON.stringify(readQueue().filter(x=>!x||x.eventId!==id)))}
+async function postResult(p){const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(p),redirect:'follow'});if(!r.ok)throw new Error('submit')}
+async function flushPending(){if(!navigator.onLine)return;for(const p of readQueue()){if(!p||!p.eventId)continue;try{await postResult(p);removeQueued(p.eventId)}catch(_){break}}}
+function setSave(cls,text){const e=$('saveStatus');if(e){e.className='save-status '+cls;e.textContent=text}}
+async function submitOnce(scorePercent,durationSeconds){
+ if(resultSubmitted||!currentStudent)return;resultSubmitted=true;
+ const payload={action:'submitTest',eventId:attemptEventId,studentId:currentStudent.studentId,testId:TEST_META.testId,testDate:localDate(),topicId:TEST_META.topicId,topicName:TEST_META.topicName,taskNumber:TEST_META.taskNumber,scorePercent,durationSeconds,schemaVersion:TEST_META.schemaVersion};
+ setSave('','Сохраняем результат…');
+ try{if(!navigator.onLine)throw new Error('offline');await postResult(payload);removeQueued(payload.eventId);setSave('ok','✓ Результат сохранён')}
+ catch(_){queueResult(payload);setSave('bad','Нет связи: результат сохранён на устройстве и отправится позже')}
+}
+
+function renderLogin(prefill=''){
+ gameActive=false;currentStudent=null;updateStudent();$('hud').style.display='none';
+ $('screen').innerHTML=`<section class="panel login"><span class="tag">ЕГЭ · ЗАДАНИЕ 12</span><h1>ДОПУСК К ШТУРМУ</h1><p>Введи личный код ученика. Имя загрузится автоматически.</p><form id="loginForm"><input class="code" id="codeInput" maxlength="40" autocomplete="one-time-code" placeholder="ЛИЧНЫЙ КОД" value="${esc(prefill)}"><button class="primary" id="loginBtn">Проверить код</button><div class="status" id="loginStatus"></div></form></section>`;
+ $('loginForm').addEventListener('submit',handleLogin);if(prefill)setTimeout(()=>$('loginForm').requestSubmit(),0)
+}
+async function handleLogin(e){
+ e.preventDefault();const input=$('codeInput'),btn=$('loginBtn'),status=$('loginStatus'),code=input.value.trim();
+ if(!code){status.className='status bad';status.textContent='Введи личный код';return}
+ input.disabled=btn.disabled=true;status.textContent='Проверяем…';
+ try{currentStudent=await validateStudent(code);saveStudent(currentStudent);updateStudent();await flushPending();renderStart()}
+ catch(err){status.className='status bad';status.textContent=err.message||'Код не подтверждён';input.disabled=btn.disabled=false}
+}
+function changeStudent(){if(gameActive)return;['egeStudentId','egeStudentName','egeStudentCode'].forEach(k=>localStorage.removeItem(k));renderLogin()}
+function heroCastle(){return`<div class="hero-castle"><div class="tower-mini" style="--h:255px"><div class="pig"><i class="snout"></i></div><i></i><i></i><i></i><i></i></div><div class="tower-mini" style="--h:310px"><div class="pig"><i class="snout"></i></div><i></i><i></i><i></i><i></i></div><div class="tower-mini" style="--h:255px"><div class="pig"><i class="snout"></i></div><i></i><i></i><i></i><i></i></div></div>`}
+function renderStart(){
+ gameActive=false;updateStudent();$('hud').style.display='none';
+ $('screen').innerHTML=`<section class="panel start"><div><span class="tag">ПРОТОТИПЫ 5–7</span><h1>Штурм трёх башен</h1><p class="lead">За один короткий рейд вспомни три сложных прототипа экстремумов. У каждой башни — четыре блока, у каждой атаки — два решения.</p><div class="rules"><div class="rule">🏰 3 башни<br>12 атак</div><div class="rule">🧘 Без таймера<br>решай спокойно</div><div class="rule">⭐ В зачёт — оба шага<br>с первого выбора</div></div><button class="primary" id="startBtn">Начать штурм</button></div>${heroCastle()}</section>`;
+ $('startBtn').addEventListener('click',startGame)
+}
+function startGame(){
+ questions=buildQuestions();index=0;phase=0;answered=false;taskClean=true;firstTryCorrect=0;towerProgress=[0,0,0];startedAt=Date.now();attemptEventId=uuid();resultSubmitted=false;gameActive=true;transitioning=false;updateStudent();$('hud').style.display='flex';sound('start');renderCurrent()
+}
+function towerMarkup(activeTower){
+ return`<div class="castle"><div class="cloud"></div><div class="cloud c2"></div><div class="bird-shot" id="birdShot"></div><div class="towers">${towerNames.map((name,t)=>{
+  const done=towerProgress[t],collapsed=done>=4;
+  return`<div class="tower ${t===activeTower?'active':''} ${collapsed?'collapsed':''}" data-tower="${t}" style="--tilt:${t===1?'4deg':'-4deg'}"><div class="pig"><i class="snout"></i></div><div class="roof"></div><div class="bricks">${[0,1,2,3].map(i=>`<div class="brick ${i<done?'gone':''}">${i<done?'':4-i}</div>`).join('')}</div><div class="tower-name">${name}</div></div>`
+ }).join('')}</div></div>`
+}
+function renderCurrent(){
+ answered=false;transitioning=false;const q=questions[index],stage=q.stages[phase];
+ $('counter').textContent=(index+1)+' / '+TOTAL;$('progress').style.width=(index/TOTAL*100)+'%';$('live').textContent=firstTryCorrect;
+ const dots=`<div class="phasebar"><i class="${phase===0?'now':'done'}"></i><i class="${phase===1?'now':''}"></i></div>`;
+ let choices;
+ if(stage.kind==='lane'){
+  choices=`<div class="choices"><div class="lane" id="lane"><button class="endpoint left" data-value="${stage.left}">ЛЕВЫЙ<br>${stage.left}</button><div class="ice-bird" id="iceBird" title="Перетащи к нужному концу"></div><button class="endpoint right" data-value="${stage.right}">ПРАВЫЙ<br>${stage.right}</button></div></div>`
+ }else choices=`<div class="choices">${stage.options.map(o=>`<button class="choice" data-value="${esc(o.id)}">${o.label}</button>`).join('')}</div>`;
+ $('screen').innerHTML=`<section class="panel game"><div class="arena">${towerMarkup(q.tower)}<div class="work"><div class="work-head"><span class="proto">${q.proto}</span><span>Атака ${towerProgress[q.tower]+1} из 4</span></div><div class="problem"><small>Задание</small><div class="formula">${q.problem}</div></div>${dots}<div class="prompt">${stage.prompt}</div>${choices}<div class="feedback" id="feedback"></div></div></div></section>`;
+ document.querySelectorAll('[data-value]').forEach(b=>b.addEventListener('click',()=>choose(b.dataset.value,b)));
+ if(stage.kind==='lane')setupDrag()
+}
+function setupDrag(){
+ const bird=$('iceBird'),lane=$('lane');if(!bird||!lane)return;let dragging=false;
+ bird.addEventListener('pointerdown',e=>{if(answered)return;dragging=true;bird.classList.add('drag');bird.setPointerCapture(e.pointerId)});
+ bird.addEventListener('pointermove',e=>{if(!dragging)return;const r=lane.getBoundingClientRect(),x=Math.max(28,Math.min(r.width-28,e.clientX-r.left));bird.style.left=x+'px'});
+ bird.addEventListener('pointerup',e=>{if(!dragging)return;dragging=false;bird.classList.remove('drag');const ends=[...lane.querySelectorAll('.endpoint')],target=ends.find(x=>{const r=x.getBoundingClientRect();return e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom});if(target)choose(target.dataset.value,target);else bird.style.left='50%'})
+}
+function choose(value,button){
+ if(answered||transitioning)return;answered=true;const q=questions[index],stage=q.stages[phase],ok=String(value)===String(stage.answer),fb=$('feedback');
+ document.querySelectorAll('[data-value]').forEach(b=>{b.disabled=true;if(String(b.dataset.value)===String(stage.answer))b.classList.add('correct')});
+ if(!ok){taskClean=false;button?.classList.add('wrong');fb.className='feedback bad';fb.innerHTML=`❌ Свинья укрепила блок<small>Правильно: ${stage.options.find(o=>String(o.id)===String(stage.answer))?.label||'другой конец отрезка'}. ${stage.why}</small>`;animatePig(q.tower,false);sound('laugh')}
+ else{fb.className='feedback good';fb.innerHTML=`✅ Точное решение<small>${stage.why}</small>`;animatePig(q.tower,true);sound('hit')}
+ if(phase===0)setTimeout(()=>{phase=1;renderCurrent()},1050);
+ else{if(ok&&taskClean)firstTryCorrect++;setTimeout(completeTask,1200)}
+}
+function animatePig(tower,hit){
+ const el=document.querySelector(`.tower[data-tower="${tower}"]`);el?.classList.add(hit?'hit':'laugh');
+ if(hit){const bird=$('birdShot');bird?.classList.add('fly')}
+}
+function completeTask(){
+ if(transitioning)return;transitioning=true;const q=questions[index];towerProgress[q.tower]++;
+ const tower=document.querySelector(`.tower[data-tower="${q.tower}"]`),brick=tower?.querySelector(`.brick:not(.gone)`);
+ brick?.classList.add('gone');$('live').textContent=firstTryCorrect;
+ const towerDone=towerProgress[q.tower]===4;
+ if(towerDone){tower?.classList.add('collapsed');const castle=document.querySelector('.castle');if(castle)castle.insertAdjacentHTML('beforeend',`<div class="tower-banner">🏰 Башня «${towerNames[q.tower]}» взята!</div>`);sound('tower')}
+ setTimeout(()=>{index++;phase=0;taskClean=true;if(index>=TOTAL)finish();else renderCurrent()},towerDone?1350:700)
+}
+function finish(){
+ gameActive=false;updateStudent();$('progress').style.width='100%';const seconds=duration(),score=Math.round(firstTryCorrect/TOTAL*100);
+ $('screen').innerHTML=`<section class="panel result"><span class="tag">ТРИ БАШНИ ВЗЯТЫ</span><h1>${score>=80?'Блестящий штурм!':score>=55?'Башни пали!':'Пора на второй заход!'}</h1><div class="score" style="background:conic-gradient(#78bb38 ${score}%,#ded5b5 0)"><b>${score}%</b></div><p>Успешность с первой попытки</p><div class="stats"><div class="stat">Чистые атаки<b>${firstTryCorrect} из ${TOTAL}</b></div><div class="stat">Время прохождения<b>${timeText(seconds)}</b></div></div><div class="save-status" id="saveStatus">Сохраняем результат…</div><div class="actions"><button class="primary" id="againBtn">Штурмовать снова</button><button class="secondary" id="homeBtn">На старт</button></div></section>`;
+ $('againBtn').addEventListener('click',startGame);$('homeBtn').addEventListener('click',renderStart);sound('finish');submitOnce(score,seconds)
+}
+function sound(type){
+ if(muted)return;try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;const ac=sound.ac||(sound.ac=new AC()),o=ac.createOscillator(),g=ac.createGain(),now=ac.currentTime,map={start:[170,390,.22],hit:[360,720,.16],laugh:[480,230,.28],tower:[140,65,.5],finish:[400,850,.42]},m=map[type]||map.hit;o.type=type==='laugh'||type==='tower'?'sawtooth':'triangle';o.connect(g);g.connect(ac.destination);o.frequency.setValueAtTime(m[0],now);o.frequency.exponentialRampToValueAtTime(m[1],now+m[2]);g.gain.setValueAtTime(.055,now);g.gain.exponentialRampToValueAtTime(.001,now+m[2]);o.start();o.stop(now+m[2])}catch(_){}
+}
+$('switchBtn').addEventListener('click',changeStudent);
+$('muteBtn').addEventListener('click',()=>{muted=!muted;$('muteBtn').textContent=muted?'🔇':'🔊'});
+window.addEventListener('online',flushPending);
+async function init(){const code=new URLSearchParams(location.search).get('code');if(code){renderLogin(code);return}currentStudent=storedStudent();if(currentStudent){updateStudent();await flushPending();renderStart()}else renderLogin()}
+init();
+</script>
+</body>
+</html>
