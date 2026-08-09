@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ГРАФИКИ · Задание 11</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#04060f;
+    --panel:#070b1ccc;
+    --panel-solid:#080d20;
+    --cyan:#2ff3ff;
+    --gold:#ffd24a;
+    --rose:#ff4d8d;
+    --green:#43ffa3;
+    --violet:#8b7bff;
+    --ink:#e8f0ff;
+    --muted:#8ba0cc;
+    --line:#1b2c4d;
+    --grid:#12203f;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    background:radial-gradient(1200px 700px at 50% -10%, #0b1533 0%, #060a19 45%, #03050d 100%);
+    color:var(--ink);
+    font-family:'Rajdhani','Segoe UI',system-ui,sans-serif;
+    overflow-x:hidden;
+    min-height:100vh;
+  }
+  #stars{position:fixed;inset:0;z-index:0;pointer-events:none}
+  .wrap{position:relative;z-index:2;max-width:760px;margin:0 auto;padding:18px 16px 60px}
+
+  h1,h2,h3,.mono{font-family:'Orbitron','Rajdhani',sans-serif}
+
+  /* ---------- Top bar ---------- */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+  .brand{font-family:'Orbitron';font-weight:900;letter-spacing:.14em;font-size:15px;
+    color:var(--cyan);text-shadow:0 0 12px #2ff3ff88,0 0 26px #2ff3ff44}
+  .brand small{display:block;font-family:'Rajdhani';font-weight:600;letter-spacing:.28em;
+    font-size:9.5px;color:var(--muted);text-shadow:none;margin-top:2px}
+  .mute-btn{cursor:pointer;border:1px solid #2ff3ff55;background:#08122b;color:var(--cyan);
+    font-family:'Orbitron';font-size:11px;letter-spacing:.12em;border-radius:10px;
+    padding:8px 12px;display:flex;align-items:center;gap:7px;transition:.2s;
+    box-shadow:0 0 14px #2ff3ff22}
+  .mute-btn:hover{box-shadow:0 0 20px #2ff3ff66;transform:translateY(-1px)}
+  .mute-btn.off{color:var(--muted);border-color:#33436a;box-shadow:none}
+  .eq-wave{display:inline-flex;gap:2px;align-items:flex-end;height:13px}
+  .eq-wave i{width:2.5px;background:var(--cyan);border-radius:2px;box-shadow:0 0 6px var(--cyan);
+    animation:eq .9s ease-in-out infinite}
+  .eq-wave i:nth-child(1){height:5px;animation-delay:0s}
+  .eq-wave i:nth-child(2){height:12px;animation-delay:.15s}
+  .eq-wave i:nth-child(3){height:7px;animation-delay:.3s}
+  .eq-wave i:nth-child(4){height:11px;animation-delay:.45s}
+  @keyframes eq{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}
+  .mute-btn.off .eq-wave i{animation-play-state:paused;background:var(--muted);box-shadow:none}
+
+  /* ---------- Progress ---------- */
+  .hud{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;
+    font-family:'Orbitron';font-size:11px;letter-spacing:.1em;color:var(--muted)}
+  .hud b{color:var(--ink)}
+  .hud .sc{color:var(--green);text-shadow:0 0 10px #43ffa355}
+  .bar{height:6px;border-radius:99px;background:#0e1734;overflow:hidden;margin-bottom:16px;
+    border:1px solid #17224a}
+  .bar>i{display:block;height:100%;width:0;border-radius:99px;
+    background:linear-gradient(90deg,var(--cyan),var(--violet));
+    box-shadow:0 0 14px #2ff3ff88;transition:width .5s cubic-bezier(.2,.8,.2,1)}
+
+  /* ---------- Cards ---------- */
+  .card{background:var(--panel);border:1px solid #1a2b4d;border-radius:18px;
+    backdrop-filter:blur(6px)}
+  .graph-card{border:1px solid #1b2c55;border-radius:18px;padding:14px 14px 8px;
+    background:linear-gradient(180deg,#0a1024 0%,#070b1c 100%);
+    box-shadow:0 0 0 1px #0c1836,0 18px 50px -22px #000,inset 0 0 60px -30px #2ff3ff33;
+    margin-bottom:16px}
+  .eqline{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+  .fam{font-family:'Rajdhani';font-weight:600;letter-spacing:.22em;font-size:10.5px;
+    color:var(--cyan);text-transform:uppercase;opacity:.85}
+  .equation{font-family:'Orbitron';font-weight:700;font-size:clamp(17px,5.4vw,23px);
+    color:var(--gold);text-shadow:0 0 14px #ffd24a55,0 0 30px #ffd24a22;letter-spacing:.02em}
+  canvas.plot{width:100%;height:auto;display:block;border-radius:12px}
+
+  .prompt{font-family:'Orbitron';font-weight:700;font-size:12px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--ink);margin:2px 4px 12px;
+    display:flex;align-items:center;gap:9px}
+  .prompt .dot{width:8px;height:8px;border-radius:50%;background:var(--rose);
+    box-shadow:0 0 10px var(--rose);animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* ---------- Statements ---------- */
+  .options{display:flex;flex-direction:column;gap:11px}
+  .opt{position:relative;cursor:pointer;border:1px solid #24365f;border-radius:14px;
+    padding:14px 15px 14px 46px;background:linear-gradient(180deg,#0b1330,#090f24);
+    font-size:16.5px;line-height:1.35;color:#dbe6ff;transition:transform .16s ease,
+    border-color .2s,box-shadow .25s,background .2s}
+  .opt .lb{position:absolute;left:12px;top:50%;transform:translateY(-50%);
+    width:22px;height:22px;border-radius:7px;border:1px solid #33477a;
+    display:flex;align-items:center;justify-content:center;font-family:'Orbitron';
+    font-size:11px;color:var(--muted);transition:.2s}
+  .opt:hover{transform:translateY(-2px);border-color:var(--cyan);
+    box-shadow:0 0 0 1px #2ff3ff55,0 0 26px -4px #2ff3ff66,inset 0 0 22px -12px #2ff3ff66}
+  .opt:hover .lb{color:var(--cyan);border-color:var(--cyan);box-shadow:0 0 10px #2ff3ff66}
+  .opt.correct{border-color:var(--green);background:linear-gradient(180deg,#0c2a1f,#0a1f18);
+    box-shadow:0 0 0 1px #43ffa366,0 0 30px -6px #43ffa377;color:#eafff5}
+  .opt.correct .lb{color:#04120c;background:var(--green);border-color:var(--green);
+    box-shadow:0 0 14px #43ffa3aa}
+  .opt.wrong{border-color:var(--rose);background:linear-gradient(180deg,#2a0e1c,#1f0a15);
+    box-shadow:0 0 0 1px #ff4d8d66,0 0 30px -6px #ff4d8d77;color:#ffe7ef}
+  .opt.wrong .lb{color:#fff;background:var(--rose);border-color:var(--rose);
+    box-shadow:0 0 14px #ff4d8daa}
+  .opt.locked{cursor:default}
+  .opt.locked:hover{transform:none;box-shadow:none;border-color:#24365f}
+  .opt.dim{opacity:.5}
+  .opt.locked.correct:hover,.opt.locked.wrong:hover{border-color:inherit}
+
+  /* ---------- Explanation ---------- */
+  .explain{margin-top:16px;border-radius:14px;padding:15px 16px;overflow:hidden;
+    max-height:0;opacity:0;transform:translateY(6px);transition:.35s ease;
+    border:1px solid transparent}
+  .explain.show{max-height:420px;opacity:1;transform:none;padding:15px 16px;
+    border-color:#22407a;background:linear-gradient(180deg,#0a1430,#080f24);
+    box-shadow:inset 0 0 40px -22px #2ff3ff55}
+  .verdict{font-family:'Orbitron';font-weight:700;font-size:13px;letter-spacing:.1em;
+    text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .verdict.ok{color:var(--green);text-shadow:0 0 12px #43ffa355}
+  .verdict.no{color:var(--rose);text-shadow:0 0 12px #ff4d8d55}
+  .explain p{margin:0;font-size:16px;line-height:1.45;color:#cfdcf7}
+  .explain .why{color:var(--gold);font-weight:600}
+
+  .next{margin-top:16px;display:flex;justify-content:flex-end}
+  .btn{cursor:pointer;border:none;border-radius:12px;font-family:'Orbitron';font-weight:700;
+    letter-spacing:.12em;font-size:13px;padding:13px 22px;color:#04101f;
+    background:linear-gradient(120deg,var(--cyan),#7be8ff);
+    box-shadow:0 0 24px -4px #2ff3ffaa,0 8px 24px -12px #000;transition:.2s;text-transform:uppercase}
+  .btn:hover{transform:translateY(-2px);box-shadow:0 0 34px -2px #2ff3ffcc}
+  .btn.ghost{background:transparent;color:var(--cyan);border:1px solid #2ff3ff66;
+    box-shadow:0 0 16px -6px #2ff3ff66}
+  .btn:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
+
+  /* ---------- Screens ---------- */
+  .screen{animation:fadein .5s ease}
+  @keyframes fadein{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .hero{text-align:center;padding:26px 8px 10px}
+  .hero h1{font-size:clamp(30px,10vw,52px);font-weight:900;letter-spacing:.06em;margin:0 0 4px;
+    color:var(--cyan);text-shadow:0 0 22px #2ff3ff66,0 0 60px #2ff3ff33;line-height:1}
+  .hero .sub{font-family:'Orbitron';font-weight:500;letter-spacing:.3em;font-size:11px;
+    color:var(--gold);text-shadow:0 0 14px #ffd24a44;margin-bottom:20px}
+  .hero .desc{color:var(--muted);font-size:17px;line-height:1.5;max-width:520px;margin:0 auto 6px}
+  .hero .desc b{color:var(--ink)}
+  .badges{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:22px auto 26px;max-width:560px}
+  .badge{font-family:'Rajdhani';font-weight:600;font-size:12.5px;letter-spacing:.06em;
+    padding:7px 13px;border-radius:99px;border:1px solid #24365f;color:var(--muted);
+    background:#0a1226}
+  .start-hint{color:var(--muted);font-size:13px;margin-top:16px}
+  .student-panel{margin:16px auto 4px;padding:12px 16px;max-width:440px;border:1px solid #24365f;
+    border-radius:13px;background:#081127;color:var(--muted);font-size:15px}
+  .student-panel b{color:var(--cyan)}
+  .code-input{display:block;width:min(420px,100%);margin:16px auto 8px;padding:13px 15px;
+    border:1px solid #2ff3ff77;border-radius:12px;background:#071126;color:var(--ink);
+    font:600 18px 'Rajdhani',system-ui,sans-serif;text-align:center;outline:none;
+    box-shadow:0 0 18px -8px #2ff3ffaa}
+  .code-input:focus{border-color:var(--cyan);box-shadow:0 0 22px -4px #2ff3ffaa}
+  .auth-message{min-height:24px;margin:8px auto;color:var(--muted);font-size:15px}
+  .auth-message.error{color:var(--rose)}.auth-message.save-ok{color:var(--green)}
+  .auth-message.save-pending{color:var(--gold)}
+  .small-change{cursor:pointer;border:1px solid #2ff3ff55;background:transparent;color:var(--cyan);
+    font-family:'Orbitron';font-size:10px;letter-spacing:.1em;border-radius:9px;padding:8px 11px;margin-top:9px}
+
+  /* ---------- Result ---------- */
+  .result{text-align:center;padding:20px 8px}
+  .result h2{font-size:clamp(22px,7vw,34px);margin:0 0 6px;color:var(--cyan);
+    text-shadow:0 0 20px #2ff3ff55}
+  .ring-wrap{position:relative;width:190px;height:190px;margin:22px auto 10px}
+  .ring-num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:center}
+  .ring-num b{font-family:'Orbitron';font-size:44px;color:var(--gold);
+    text-shadow:0 0 20px #ffd24a55;line-height:1}
+  .ring-num span{font-family:'Orbitron';font-size:11px;letter-spacing:.2em;color:var(--muted);margin-top:4px}
+  .rank{font-family:'Orbitron';font-weight:700;letter-spacing:.14em;font-size:15px;margin:8px 0 22px}
+  .result-meta{display:flex;justify-content:center;gap:24px;flex-wrap:wrap;margin:10px auto 16px;
+    color:var(--muted);font-size:15px}
+  .result-meta b{display:block;color:var(--gold);font-family:'Orbitron';font-size:18px;margin-top:3px}
+
+  .center{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:10px}
+  .hidden{display:none!important}
+  @media(max-width:520px){
+    .opt{font-size:15.5px;padding-left:44px}
+    .explain p,.hero .desc{font-size:15px}
+  }
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+<div class="wrap">
+
+  <!-- ===== STUDENT LOGIN ===== -->
+  <section id="authScreen" class="screen hidden">
+    <div class="topbar">
+      <div class="brand">ГРАФИКИ<small>ЗАДАНИЕ 11 · ПРОФИЛЬ</small></div>
+    </div>
+    <div class="hero">
+      <h1 style="font-size:clamp(26px,8vw,42px)">ВХОД<br>УЧЕНИКА</h1>
+      <p class="desc">Введи личный код, чтобы результат сохранился.</p>
+      <input class="code-input" id="studentCode" type="text" autocomplete="off" spellcheck="false" placeholder="ЛИЧНЫЙ КОД">
+      <div class="auth-message" id="authMessage"></div>
+      <div class="center"><button class="btn" id="loginBtn">Проверить код</button></div>
+    </div>
+  </section>
+
+  <!-- ===== START SCREEN ===== -->
+  <section id="startScreen" class="screen">
+    <div class="topbar">
+      <div class="brand">ГРАФИКИ<small>ЗАДАНИЕ 11 · ПРОФИЛЬ</small></div>
+      <button class="mute-btn" id="muteStart">
+        <span class="eq-wave"><i></i><i></i><i></i><i></i></span>ЗВУК
+      </button>
+    </div>
+    <div class="hero">
+      <h1>АНАЛИЗ<br>ГРАФИКОВ</h1>
+      <div class="sub">DEEP SPACE · FUNCTIONS &amp; COEFFICIENTS</div>
+      <p class="desc">На экране — <b>график функции</b> и её общий вид. Под ним <b>четыре утверждения</b> о коэффициентах: одно из них <b>ложное</b>. Твоя задача — найти и обезвредить неверное.</p>
+      <p class="desc" style="margin-top:14px">20 задач охватывают <b>все прототипы</b>: прямые, параболы, гиперболы, корни, показательные, логарифмы и тригонометрию.</p>
+      <div class="badges">
+        <span class="badge">прямая · k, b</span>
+        <span class="badge">парабола · a, b, c</span>
+        <span class="badge">гипербола · k</span>
+        <span class="badge">√ и ∛</span>
+        <span class="badge">aˣ + c</span>
+        <span class="badge">logₐx</span>
+        <span class="badge">sin · cos · амплитуда</span>
+      </div>
+      <div class="student-panel">Игрок: <b id="studentNameStart">—</b><br>
+        <button class="small-change" id="changeStudentStart">Сменить ученика</button>
+      </div>
+      <div class="center">
+        <button class="btn" id="startBtn">▶ Начать миссию</button>
+      </div>
+      <p class="start-hint">Спокойный режим · без таймера · с разбором каждого ответа</p>
+    </div>
+  </section>
+
+  <!-- ===== GAME SCREEN ===== -->
+  <section id="gameScreen" class="screen hidden">
+    <div class="topbar">
+      <div class="brand">ГРАФИКИ<small>ЗАДАНИЕ 11 · ПРОФИЛЬ</small></div>
+      <button class="mute-btn" id="muteGame">
+        <span class="eq-wave"><i></i><i></i><i></i><i></i></span>ЗВУК
+      </button>
+    </div>
+
+    <div class="hud">
+      <span>ЗАДАЧА <b id="qNum">1</b> / 20</span>
+      <span class="sc">ВЕРНО: <b id="score">0</b></span>
+    </div>
+    <div class="bar"><i id="barFill"></i></div>
+
+    <div class="graph-card">
+      <div class="eqline">
+        <span class="fam" id="famLabel">линейная функция</span>
+        <span class="equation" id="eqLabel">y = kx + b</span>
+      </div>
+      <canvas class="plot" id="plot" width="480" height="380"></canvas>
+    </div>
+
+    <div class="prompt"><span class="dot"></span>Найдите неверное утверждение</div>
+    <div class="options" id="options"></div>
+
+    <div class="explain" id="explain">
+      <div class="verdict" id="verdict"></div>
+      <p id="explainText"></p>
+    </div>
+
+    <div class="next">
+      <button class="btn" id="nextBtn" disabled>Далее ▶</button>
+    </div>
+  </section>
+
+  <!-- ===== RESULT SCREEN ===== -->
+  <section id="resultScreen" class="screen hidden">
+    <div class="topbar">
+      <div class="brand">ГРАФИКИ<small>ЗАДАНИЕ 11 · ПРОФИЛЬ</small></div>
+      <button class="mute-btn" id="muteResult">
+        <span class="eq-wave"><i></i><i></i><i></i><i></i></span>ЗВУК
+      </button>
+    </div>
+    <div class="result">
+      <h2>МИССИЯ ЗАВЕРШЕНА</h2>
+      <div class="ring-wrap">
+        <canvas id="ring" width="190" height="190"></canvas>
+        <div class="ring-num"><b id="finalScore">0</b><span>ИЗ 20</span></div>
+      </div>
+      <div class="rank" id="rankText"></div>
+      <p class="desc" id="resultMsg" style="color:var(--muted);font-size:16px;max-width:460px;margin:0 auto 8px"></p>
+      <div class="result-meta">
+        <div>С первой попытки<b id="finalPct">0%</b></div>
+        <div>Время прохождения<b id="finalTime">0:00</b></div>
+      </div>
+      <div class="auth-message" id="saveStatus">Сохраняем результат…</div>
+      <div class="center">
+        <button class="btn" id="againBtn">↻ Пройти заново</button>
+        <button class="btn ghost" id="reviewBtn">Разобрать ошибки</button>
+      </div>
+      <button class="small-change" id="changeStudentResult">Сменить ученика</button>
+      <div id="mistakeList" style="text-align:left;margin-top:22px"></div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* =========================================================
+   ДАННЫЕ: 20 задач. У каждой ровно одно ЛОЖНОЕ утверждение (bad:true)
+   ========================================================= */
+const PI=Math.PI;
+const TASKS=[
+ // 1 — линейная возрастающая
+ {fam:"линейная функция",eq:"y = kx + b",
+  view:{xmin:-6,xmax:6,ymin:-6,ymax:6},color:"cyan",
+  fn:x=>1.5*x+2,
+  st:[
+   {t:"k > 0, потому что прямая возрастает (идёт вверх слева направо)."},
+   {t:"b — ордината точки пересечения графика с осью Oy (значение y при x = 0)."},
+   {t:"b отвечает за угол наклона прямой."},
+   {t:"Угловой коэффициент k равен тангенсу угла наклона прямой к оси Ox."}
+  ],bad:2,
+  why:"За наклон (крутизну) прямой отвечает угловой коэффициент k, а b лишь сдвигает прямую по вертикали и задаёт точку пересечения с осью Oy."},
+
+ // 2 — линейная убывающая
+ {fam:"линейная функция",eq:"y = kx + b",
+  view:{xmin:-6,xmax:6,ymin:-6,ymax:6},color:"cyan",
+  fn:x=>-2*x+1,
+  st:[
+   {t:"k < 0, так как прямая убывает."},
+   {t:"b > 0: график пересекает ось Oy выше начала координат."},
+   {t:"Чем больше |k|, тем круче (быстрее) поднимается или опускается прямая."},
+   {t:"Знак b определяет, возрастает функция или убывает."}
+  ],bad:3,
+  why:"Возрастание/убывание определяет знак углового коэффициента k (k > 0 — возрастает, k < 0 — убывает). Коэффициент b на монотонность не влияет."},
+
+ // 3 — парабола вверх
+ {fam:"квадратичная функция",eq:"y = ax² + bx + c",
+  view:{xmin:-6,xmax:4,ymin:-4,ymax:6},color:"cyan",
+  fn:x=>0.5*x*x+x-1.5,
+  st:[
+   {t:"a > 0, поэтому ветви параболы направлены вверх."},
+   {t:"c — ордината точки пересечения параболы с осью Oy."},
+   {t:"Коэффициент a отвечает за пересечение параболы с осью Oy."},
+   {t:"Чем больше |a|, тем уже (круче) ветви параболы."}
+  ],bad:2,
+  why:"За точку пересечения с осью Oy отвечает свободный член c (значение y при x = 0). Коэффициент a задаёт направление ветвей и их «ширину»."},
+
+ // 4 — парабола вниз
+ {fam:"квадратичная функция",eq:"y = ax² + bx + c",
+  view:{xmin:-3,xmax:5,ymin:-6,ymax:6},color:"cyan",
+  fn:x=>-1*x*x+2*x+3,
+  st:[
+   {t:"a < 0, поэтому ветви направлены вниз."},
+   {t:"c = 3 — ордината пересечения с осью Oy."},
+   {t:"Если a < 0, ветви параболы направлены вверх."},
+   {t:"Абсцисса вершины находится по формуле x = −b / (2a)."}
+  ],bad:2,
+  why:"При a < 0 ветви направлены ВНИЗ, при a > 0 — вверх. Здесь ветви смотрят вниз, значит a < 0."},
+
+ // 5 — парабола: ширина / |a|
+ {fam:"квадратичная функция",eq:"y = ax² + bx + c",
+  view:{xmin:-2,xmax:4,ymin:-4,ymax:8},color:"cyan",
+  fn:x=>2*x*x-4*x,
+  st:[
+   {t:"a > 0 — ветви параболы направлены вверх."},
+   {t:"|a| велик, поэтому ветви узкие (крутые)."},
+   {t:"Чем больше |a|, тем ветви параболы шире."},
+   {t:"c = 0, поэтому парабола проходит через начало координат."}
+  ],bad:2,
+  why:"Чем больше |a|, тем УЖЕ (круче) ветви; чем меньше |a| — тем шире. Здесь |a| большой, поэтому парабола узкая."},
+
+ // 6 — гипербола k>0
+ {fam:"обратная пропорциональность",eq:"y = k / x",
+  view:{xmin:-6,xmax:6,ymin:-6,ymax:6},color:"gold",
+  fn:x=>3/x,
+  st:[
+   {t:"k > 0, поэтому ветви лежат в I и III координатных четвертях."},
+   {t:"Оси координат являются асимптотами графика."},
+   {t:"При k > 0 ветви гиперболы лежат во II и IV четвертях."},
+   {t:"Чем больше |k|, тем дальше ветви гиперболы отходят от осей."}
+  ],bad:2,
+  why:"При k > 0 ветви лежат в I и III четвертях, а при k < 0 — во II и IV. Здесь ветви в I и III, значит k > 0."},
+
+ // 7 — гипербола k<0
+ {fam:"обратная пропорциональность",eq:"y = k / x",
+  view:{xmin:-6,xmax:6,ymin:-6,ymax:6},color:"gold",
+  fn:x=>-4/x,
+  st:[
+   {t:"k < 0, поэтому ветви расположены во II и IV четвертях."},
+   {t:"График не определён только в одной точке — при x = 0."},
+   {t:"Знак k определяет, в каких четвертях лежат ветви гиперболы."},
+   {t:"Коэффициент k отвечает за сдвиг гиперболы вдоль оси Ox."}
+  ],bad:3,
+  why:"У функции y = k/x коэффициент k задаёт расположение ветвей (четверти) и «растяжение», но НЕ сдвигает график вдоль оси Ox — сдвига здесь нет вовсе."},
+
+ // 8 — гипербола со сдвигами
+ {fam:"дробно-рациональная",eq:"y = k/(x − a) + b",
+  view:{xmin:-4,xmax:8,ymin:-5,ymax:7},color:"gold",
+  fn:x=>3/(x-2)+1,
+  st:[
+   {t:"Вертикальная асимптота x = 2 задаётся горизонтальным сдвигом a."},
+   {t:"Горизонтальная асимптота y = 1 задаётся коэффициентом b (сдвиг по вертикали)."},
+   {t:"Коэффициент b задаёт вертикальную асимптоту графика."},
+   {t:"Знак k определяет расположение ветвей относительно центра (пересечения асимптот)."}
+  ],bad:2,
+  why:"Коэффициент b — это сдвиг по ВЕРТИКАЛИ, он задаёт ГОРИЗОНТАЛЬНУЮ асимптоту y = b. Вертикальную асимптоту x = a задаёт горизонтальный сдвиг a."},
+
+ // 9 — кубический корень
+ {fam:"кубический корень",eq:"y = a·∛x",
+  view:{xmin:-6,xmax:6,ymin:-3,ymax:3},color:"violet",
+  fn:x=>1.4*Math.cbrt(x),
+  st:[
+   {t:"Область определения функции — все действительные числа."},
+   {t:"a > 0, поэтому функция возрастает на всей области определения."},
+   {t:"График проходит через начало координат."},
+   {t:"Область определения кубического корня — только x ≥ 0."}
+  ],bad:3,
+  why:"Кубический корень определён для ЛЮБЫХ x, включая отрицательные (в отличие от квадратного). Поэтому область определения — все действительные числа."},
+
+ // 10 — квадратный корень (сдвиг + область)
+ {fam:"квадратный корень",eq:"y = √(x + a) + b",
+  view:{xmin:-3,xmax:7,ymin:-3,ymax:4},color:"violet",
+  fn:x=> x>=-2 ? Math.sqrt(x+2)-1 : NaN,
+  st:[
+   {t:"Область определения: x ≥ −2 (подкоренное выражение неотрицательно)."},
+   {t:"Свободное слагаемое b сдвигает график по вертикали."},
+   {t:"Сдвиг под корнем влияет на область определения функции."},
+   {t:"Область определения квадратного корня — все действительные числа."}
+  ],bad:3,
+  why:"Квадратный корень существует только там, где подкоренное выражение ≥ 0. Здесь x + 2 ≥ 0, то есть x ≥ −2 — это НЕ все числа."},
+
+ // 11 — квадратный корень с отражением
+ {fam:"квадратный корень",eq:"y = a·√x + b",
+  view:{xmin:-1,xmax:9,ymin:-4,ymax:5},color:"violet",
+  fn:x=> x>=0 ? -2*Math.sqrt(x)+3 : NaN,
+  st:[
+   {t:"Область определения: x ≥ 0."},
+   {t:"a < 0, поэтому график направлен вниз (функция убывает)."},
+   {t:"b — значение функции при x = 0 (начало «ветки»)."},
+   {t:"Знак коэффициента a не влияет на возрастание или убывание функции."}
+  ],bad:3,
+  why:"Знак a задаёт направление: при a > 0 функция возрастает, при a < 0 — убывает (график отражён вниз). Здесь ветка идёт вниз, значит a < 0."},
+
+ // 12 — показательная возрастающая
+ {fam:"показательная функция",eq:"y = aˣ + c",
+  view:{xmin:-4,xmax:4,ymin:-3,ymax:7},color:"cyan",
+  fn:x=>Math.pow(2,x)-1,
+  st:[
+   {t:"Основание a > 1, поэтому функция возрастает."},
+   {t:"Горизонтальная асимптота y = −1 задаётся слагаемым c."},
+   {t:"Основание a отвечает за горизонтальную асимптоту графика."},
+   {t:"График лежит выше своей асимптоты (значения больше −1)."}
+  ],bad:2,
+  why:"За горизонтальную асимптоту отвечает свободное слагаемое c (вертикальный сдвиг). Основание a задаёт возрастание/убывание и крутизну."},
+
+ // 13 — показательная убывающая
+ {fam:"показательная функция",eq:"y = aˣ + c",
+  view:{xmin:-4,xmax:4,ymin:-1,ymax:7},color:"cyan",
+  fn:x=>Math.pow(0.5,x)+1,
+  st:[
+   {t:"Основание 0 < a < 1, поэтому функция убывает."},
+   {t:"Горизонтальная асимптота y = 1 (сдвиг вверх на 1)."},
+   {t:"При a > 1 функция возрастала бы, а при 0 < a < 1 — убывает."},
+   {t:"При основании 0 < a < 1 показательная функция возрастает."}
+  ],bad:3,
+  why:"Показательная функция y = aˣ убывает при 0 < a < 1 и возрастает при a > 1. Здесь график падает, значит основание меньше 1."},
+
+ // 14 — логарифм a>1
+ {fam:"логарифмическая функция",eq:"y = logₐ x",
+  view:{xmin:-1,xmax:9,ymin:-4,ymax:4},color:"gold",
+  fn:x=> x>0 ? Math.log(x)/Math.log(2) : NaN,
+  st:[
+   {t:"Область определения: x > 0."},
+   {t:"Основание a > 1, поэтому функция возрастает."},
+   {t:"График пересекает ось Ox в точке x = 1 (logₐ 1 = 0)."},
+   {t:"Область определения логарифма — все действительные числа."}
+  ],bad:3,
+  why:"Логарифм определён только для положительных аргументов: x > 0. Ось Oy (x = 0) — вертикальная асимптота, левее графика нет."},
+
+ // 15 — логарифм 0<a<1
+ {fam:"логарифмическая функция",eq:"y = logₐ x",
+  view:{xmin:-1,xmax:9,ymin:-4,ymax:4},color:"gold",
+  fn:x=> x>0 ? Math.log(x)/Math.log(0.5) : NaN,
+  st:[
+   {t:"Основание 0 < a < 1, поэтому функция убывает."},
+   {t:"Область определения: x > 0."},
+   {t:"При основании 0 < a < 1 логарифмическая функция возрастает."},
+   {t:"График проходит через точку (1; 0) при любом основании a."}
+  ],bad:2,
+  why:"Логарифм убывает при 0 < a < 1 и возрастает при a > 1. Здесь график убывает, значит основание меньше 1."},
+
+ // 16 — синус, амплитуда
+ {fam:"тригонометрическая функция",eq:"y = a·sin x + b",
+  view:{xmin:-2*PI,xmax:2*PI,ymin:-4,ymax:4},color:"cyan",trig:true,
+  fn:x=>2*Math.sin(x),
+  st:[
+   {t:"Амплитуда колебаний равна |a| = 2 (график от −2 до 2)."},
+   {t:"b = 0 — средняя линия совпадает с осью Ox."},
+   {t:"Коэффициент a отвечает за период функции."},
+   {t:"Коэффициент a задаёт амплитуду (размах) колебаний."}
+  ],bad:2,
+  why:"Коэффициент a перед синусом задаёт АМПЛИТУДУ (|a|), а не период. Период y = a·sin x всегда равен 2π и от a не зависит."},
+
+ // 17 — синус, вертикальный сдвиг
+ {fam:"тригонометрическая функция",eq:"y = a·sin x + b",
+  view:{xmin:-2*PI,xmax:2*PI,ymin:-2,ymax:4},color:"cyan",trig:true,
+  fn:x=>Math.sin(x)+2,
+  st:[
+   {t:"b = 2 — средняя линия графика y = 2 (сдвиг вверх)."},
+   {t:"Амплитуда равна |a| = 1."},
+   {t:"Функция принимает значения от 1 до 3."},
+   {t:"Коэффициент b изменяет амплитуду колебаний."}
+  ],bad:3,
+  why:"Коэффициент b сдвигает график по вертикали (задаёт среднюю линию y = b), но амплитуду НЕ меняет. Амплитуда зависит только от |a|."},
+
+ // 18 — косинус, амплитуда
+ {fam:"тригонометрическая функция",eq:"y = a·cos x + b",
+  view:{xmin:-2*PI,xmax:2*PI,ymin:-5,ymax:5},color:"cyan",trig:true,
+  fn:x=>3*Math.cos(x),
+  st:[
+   {t:"Амплитуда равна |a| = 3."},
+   {t:"При x = 0 косинус достигает максимума."},
+   {t:"b = 0 — средняя линия совпадает с осью Ox."},
+   {t:"Амплитуда колебаний равна b."}
+  ],bad:3,
+  why:"Амплитуда равна |a| (здесь 3), а b задаёт среднюю линию. Путать амплитуду с вертикальным сдвигом b нельзя."},
+
+ // 19 — косинус со сдвигом
+ {fam:"тригонометрическая функция",eq:"y = a·cos x + b",
+  view:{xmin:-2*PI,xmax:2*PI,ymin:-4,ymax:3},color:"cyan",trig:true,
+  fn:x=>2*Math.cos(x)-1,
+  st:[
+   {t:"Средняя линия графика: y = −1 (коэффициент b = −1)."},
+   {t:"Амплитуда равна |a| = 2."},
+   {t:"Функция принимает значения от −3 до 1."},
+   {t:"Коэффициент b = −1 отвечает за амплитуду колебаний."}
+  ],bad:3,
+  why:"b задаёт вертикальный сдвиг (среднюю линию y = b = −1), а амплитуду задаёт |a| = 2. Диапазон: от b − |a| = −3 до b + |a| = 1."},
+
+ // 20 — синус: отражение
+ {fam:"тригонометрическая функция",eq:"y = a·sin x + b",
+  view:{xmin:-2*PI,xmax:2*PI,ymin:-2,ymax:4},color:"cyan",trig:true,
+  fn:x=>-2*Math.sin(x)+1,
+  st:[
+   {t:"Средняя линия y = 1 (b = 1)."},
+   {t:"Амплитуда равна |a| = 2."},
+   {t:"Знак a < 0 означает, что график «перевёрнут» относительно средней линии."},
+   {t:"Отрицательный знак a уменьшает период функции."}
+  ],bad:3,
+  why:"Знак a отвечает за отражение графика, а не за период. Период не зависит ни от a, ни от b и равен 2π. Амплитуда = |a| = 2."}
+];
+
+/* =========================================================
+   ГРАФИК на canvas
+   ========================================================= */
+const COLORS={cyan:"#2ff3ff",gold:"#ffd24a",violet:"#8b7bff"};
+function drawGraph(canvas,task){
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const cssW=canvas.clientWidth||480, cssH=cssW*380/480;
+  canvas.width=cssW*dpr; canvas.height=cssH*dpr;
+  const ctx=canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const W=cssW,H=cssH;
+  const v=task.view;
+  const X=mx=>(mx-v.xmin)/(v.xmax-v.xmin)*W;
+  const Y=my=>H-(my-v.ymin)/(v.ymax-v.ymin)*H;
+
+  ctx.clearRect(0,0,W,H);
+  // фон карточки
+  ctx.fillStyle="#060b1a"; ctx.fillRect(0,0,W,H);
+
+  // сетка
+  ctx.lineWidth=1;
+  ctx.strokeStyle="#12203f";
+  const gx=task.trig?1:1, gy=1;
+  ctx.beginPath();
+  for(let x=Math.ceil(v.xmin/gx)*gx;x<=v.xmax;x+=gx){ctx.moveTo(X(x),0);ctx.lineTo(X(x),H);}
+  for(let y=Math.ceil(v.ymin/gy)*gy;y<=v.ymax;y+=gy){ctx.moveTo(0,Y(y));ctx.lineTo(W,Y(y));}
+  ctx.stroke();
+
+  // оси
+  ctx.strokeStyle="#3c5590"; ctx.lineWidth=1.6;
+  ctx.beginPath();
+  if(v.ymin<0&&v.ymax>0){ctx.moveTo(0,Y(0));ctx.lineTo(W,Y(0));}
+  if(v.xmin<0&&v.xmax>0){ctx.moveTo(X(0),0);ctx.lineTo(X(0),H);}
+  ctx.stroke();
+  // стрелки осей
+  ctx.fillStyle="#3c5590";
+  if(v.ymin<0&&v.ymax>0){ctx.beginPath();ctx.moveTo(W,Y(0));ctx.lineTo(W-9,Y(0)-4);ctx.lineTo(W-9,Y(0)+4);ctx.fill();}
+  if(v.xmin<0&&v.xmax>0){ctx.beginPath();ctx.moveTo(X(0),0);ctx.lineTo(X(0)-4,9);ctx.lineTo(X(0)+4,9);ctx.fill();}
+  // подписи осей
+  ctx.fillStyle="#6f86b8"; ctx.font="12px Orbitron, sans-serif";
+  if(v.ymin<0&&v.ymax>0)ctx.fillText("x",W-14,Y(0)-8);
+  if(v.xmin<0&&v.xmax>0)ctx.fillText("y",X(0)+8,14);
+
+  // единичные метки на осях (только целые, не слишком часто)
+  ctx.fillStyle="#5b76ad"; ctx.font="10.5px Rajdhani, sans-serif";
+  if(v.ymin<0&&v.ymax>0){
+    const step=(v.xmax-v.xmin)>16?2:1;
+    for(let x=Math.ceil(v.xmin);x<=v.xmax;x+=step){
+      if(x===0)continue;
+      ctx.fillText(x,X(x)-3,Y(0)+14);
+    }
+  }
+  if(v.xmin<0&&v.xmax>0){
+    const step=(v.ymax-v.ymin)>16?2:1;
+    for(let y=Math.ceil(v.ymin);y<=v.ymax;y+=step){
+      if(y===0)continue;
+      ctx.fillText(y,X(0)+6,Y(y)+3.5);
+    }
+  }
+
+  // кривая с неоновым свечением
+  const col=COLORS[task.color]||COLORS.cyan;
+  const jumpLimit=(v.ymax-v.ymin)*1.2;
+  ctx.lineJoin="round"; ctx.lineCap="round";
+  for(let pass=0;pass<2;pass++){
+    ctx.beginPath();
+    let pen=false, prevY=null;
+    for(let px=0;px<=W;px++){
+      const mx=v.xmin+px/W*(v.xmax-v.xmin);
+      let my=task.fn(mx);
+      if(my==null||!isFinite(my)||isNaN(my)){pen=false;prevY=null;continue;}
+      if(my> v.ymax+50)my=v.ymax+50;
+      if(my< v.ymin-50)my=v.ymin-50;
+      if(prevY!==null&&Math.abs(my-prevY)>jumpLimit){pen=false;}
+      const sx=px, sy=Y(my);
+      if(!pen){ctx.moveTo(sx,sy);pen=true;}else{ctx.lineTo(sx,sy);}
+      prevY=my;
+    }
+    if(pass===0){ctx.strokeStyle=col;ctx.globalAlpha=.9;ctx.shadowColor=col;ctx.shadowBlur=16;ctx.lineWidth=6;}
+    else{ctx.strokeStyle="#ffffff";ctx.globalAlpha=1;ctx.shadowColor=col;ctx.shadowBlur=8;ctx.lineWidth=2;}
+    ctx.stroke();
+  }
+  ctx.globalAlpha=1;ctx.shadowBlur=0;
+}
+
+/* =========================================================
+   ЗВУК — оригинальная эпическая космическая мелодия (WebAudio)
+   ========================================================= */
+const Audio_=(()=>{
+  let ac=null,master=null,timer=null,step=0,nextTime=0,on=false,ready=false;
+  const BPM=104, spb=60/BPM, stepDur=spb/2; // восьмые
+  const N={D2:73.42,A2:110,Bb2:116.54,F2:87.31,G2:98,
+           D3:146.83,F3:174.61,G3:196,A3:220,Bb3:233.08,C4:261.63,
+           D4:293.66,E4:329.63,F4:349.23,G4:392,A4:440,Bb4:466.16,C5:523.25,D5:587.33};
+  // 16 шагов, повторяется. Оригинальный минорный марш (ре минор).
+  const bass=[N.D2,N.D2,N.D2,N.A2, N.D2,N.D2,N.Bb2,N.Bb2, N.F2,N.F2,N.F2,N.C4/4, N.G2,N.G2,N.A2,N.A2];
+  const mel =[N.D4,null,N.A4,null, N.F4,N.A4,N.G4,N.F4, N.E4,null,N.F4,N.G4, N.A4,null,N.A4,N.G4];
+  const harm=[N.F3,null,null,null, N.D4,null,null,null, N.A3,null,null,null, N.Bb3,null,null,null];
+  const kick=[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0];
+  const snare=[0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0];
+
+  function tone(freq,t,dur,type,peak){
+    const o=ac.createOscillator(),g=ac.createGain();
+    o.type=type;o.frequency.value=freq;
+    o.connect(g);g.connect(master);
+    g.gain.setValueAtTime(0,t);
+    g.gain.linearRampToValueAtTime(peak,t+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0008,t+dur);
+    o.start(t);o.stop(t+dur+0.05);
+  }
+  function noise(t,dur,peak,hp){
+    const len=Math.floor(ac.sampleRate*dur),buf=ac.createBuffer(1,len,ac.sampleRate),d=buf.getChannelData(0);
+    for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*(1-i/len);
+    const s=ac.createBufferSource();s.buffer=buf;
+    const f=ac.createBiquadFilter();f.type="highpass";f.frequency.value=hp;
+    const g=ac.createGain();g.gain.value=peak;
+    s.connect(f);f.connect(g);g.connect(master);s.start(t);
+  }
+  function kickHit(t){
+    const o=ac.createOscillator(),g=ac.createGain();
+    o.type="sine";o.frequency.setValueAtTime(120,t);o.frequency.exponentialRampToValueAtTime(45,t+0.14);
+    g.gain.setValueAtTime(0.5,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.16);
+    o.connect(g);g.connect(master);o.start(t);o.stop(t+0.2);
+  }
+  function schedule(){
+    while(nextTime<ac.currentTime+0.15){
+      const s=step%16;
+      if(bass[s])tone(bass[s],nextTime,stepDur*1.9,"sawtooth",0.14);
+      if(mel[s]) tone(mel[s], nextTime,stepDur*1.7,"triangle",0.16);
+      if(mel[s]) tone(mel[s]*2.001,nextTime,stepDur*1.4,"sine",0.05);
+      if(harm[s])tone(harm[s],nextTime,stepDur*3.6,"sawtooth",0.05);
+      if(kick[s])kickHit(nextTime);
+      if(snare[s])noise(nextTime,0.13,0.16,1600);
+      nextTime+=stepDur;step++;
+    }
+  }
+  function init(){
+    if(ready)return;
+    ac=new (window.AudioContext||window.webkitAudioContext)();
+    master=ac.createGain();master.gain.value=0.0;master.connect(ac.destination);
+    ready=true;
+  }
+  function start(){
+    init();
+    if(ac.state==="suspended")ac.resume();
+    on=true;
+    master.gain.cancelScheduledValues(ac.currentTime);
+    master.gain.linearRampToValueAtTime(0.16,ac.currentTime+0.8);
+    if(!timer){nextTime=ac.currentTime+0.1;timer=setInterval(schedule,25);}
+  }
+  function stop(){
+    if(!ready)return;on=false;
+    master.gain.cancelScheduledValues(ac.currentTime);
+    master.gain.linearRampToValueAtTime(0.0001,ac.currentTime+0.4);
+  }
+  return {start,stop,init,isOn:()=>on};
+})();
+
+/* =========================================================
+   STARFIELD фон
+   ========================================================= */
+(function(){
+  const c=document.getElementById('stars'),ctx=c.getContext('2d');
+  let stars=[],W,H;
+  function resize(){W=c.width=innerWidth;H=c.height=innerHeight;
+    stars=[];const n=Math.min(150,Math.floor(W*H/9000));
+    for(let i=0;i<n;i++)stars.push({x:Math.random()*W,y:Math.random()*H,
+      z:Math.random()*.8+.2,r:Math.random()*1.3+.3,tw:Math.random()*Math.PI*2});
+  }
+  function loop(t){
+    ctx.clearRect(0,0,W,H);
+    for(const s of stars){
+      s.y+=s.z*.22; if(s.y>H){s.y=0;s.x=Math.random()*W;}
+      const a=.35+.5*Math.abs(Math.sin(t*0.001+s.tw))*s.z;
+      ctx.beginPath();ctx.arc(s.x,s.y,s.r*s.z+.2,0,7);
+      ctx.fillStyle="rgba(150,210,255,"+a.toFixed(2)+")";ctx.fill();
+    }
+    requestAnimationFrame(loop);
+  }
+  addEventListener('resize',resize);resize();requestAnimationFrame(loop);
+})();
+
+/* =========================================================
+   ИГРОВАЯ ЛОГИКА
+   ========================================================= */
+const $=s=>document.querySelector(s);
+const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+const TEST_META={
+  testId:'EGE-11-GRAPHS-ODD-STATEMENT-20',
+  topicId:'task-11',
+  topicName:'Анализ графиков и коэффициентов функций',
+  taskNumber:11,
+  schemaVersion:1
+};
+const PENDING_KEY='egePendingTestResults';
+let currentStudent=null;
+let order=[],idx=0,score=0,answered=false,mistakes=[];
+let firstTryCorrect=0,questionAttempted=false,gameActive=false,resultSubmitted=false,startedAt=0;
+
+function makeEventId(){
+  if(window.crypto&&typeof window.crypto.randomUUID==='function') return window.crypto.randomUUID();
+  return 'evt-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)+'-'+Math.random().toString(36).slice(2);
+}
+function localDateString(){
+  const d=new Date();
+  return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+}
+function readPendingResults(){
+  try{
+    const value=JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');
+    return Array.isArray(value)?value:[];
+  }catch(_){return [];}
+}
+function writePendingResults(queue){localStorage.setItem(PENDING_KEY,JSON.stringify(queue));}
+function queuePendingResult(payload){
+  const queue=readPendingResults();
+  if(!queue.some(item=>item&&item.eventId===payload.eventId)) queue.push(payload);
+  writePendingResults(queue);
+}
+async function postResult(payload){
+  const response=await fetch(API_URL,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(payload),
+    redirect:'follow'
+  });
+  if(!response.ok) throw new Error('HTTP '+response.status);
+}
+async function flushPendingResults(){
+  const queue=readPendingResults();
+  if(!queue.length||!navigator.onLine) return;
+  const sentEventIds=new Set();
+  for(const payload of queue){
+    try{
+      await postResult(payload);
+      if(payload&&payload.eventId) sentEventIds.add(payload.eventId);
+    }catch(_){}
+  }
+  const latest=readPendingResults();
+  writePendingResults(latest.filter(item=>!item||!sentEventIds.has(item.eventId)));
+}
+function setSaveStatus(text,className){
+  const status=$('#saveStatus');
+  if(!status) return;
+  status.textContent=text;
+  status.className='auth-message '+(className||'');
+}
+async function submitResult(payload){
+  try{
+    await postResult(payload);
+    setSaveStatus('✓ Результат сохранён','save-ok');
+  }catch(_){
+    queuePendingResult(payload);
+    setSaveStatus('Нет связи: результат сохранён на устройстве и отправится позже','save-pending');
+  }
+}
+function savedStudent(){
+  const studentId=localStorage.getItem('egeStudentId');
+  const name=localStorage.getItem('egeStudentName');
+  const code=localStorage.getItem('egeStudentCode');
+  return studentId&&code?{studentId,name:name||'Ученик',code}:null;
+}
+function rememberStudent(student,code){
+  localStorage.setItem('egeStudentId',String(student.studentId));
+  localStorage.setItem('egeStudentName',String(student.name||'Ученик'));
+  localStorage.setItem('egeStudentCode',String(code));
+}
+function clearStudent(){
+  localStorage.removeItem('egeStudentId');
+  localStorage.removeItem('egeStudentName');
+  localStorage.removeItem('egeStudentCode');
+  currentStudent=null;
+}
+function studentFromResponse(data){
+  if(!data||data.ok===false||data.success===false||data.valid===false) return null;
+  const source=data.student||data.data||data.result||data;
+  const studentId=source.studentId??source.id??data.studentId??data.id;
+  const name=source.studentName??source.name??data.studentName??data.name;
+  return studentId!==undefined&&studentId!==null&&studentId!==''?
+    {studentId:String(studentId),name:String(name||'Ученик')}:null;
+}
+function validateStudentCode(code){
+  return new Promise((resolve,reject)=>{
+    const callback='__egeGraphs_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const script=document.createElement('script');
+    let settled=false;
+    const timer=setTimeout(()=>finishValidation(new Error('Сервер не ответил. Проверьте интернет')),15000);
+    function cleanup(){
+      clearTimeout(timer);
+      try{delete window[callback];}catch(_){window[callback]=undefined;}
+      script.remove();
+    }
+    function finishValidation(error,value){
+      if(settled) return;
+      settled=true;
+      cleanup();
+      error?reject(error):resolve(value);
+    }
+    window[callback]=data=>{
+      const student=studentFromResponse(data);
+      student?finishValidation(null,student):
+        finishValidation(new Error((data&&(data.error||data.message))||'Код ученика не найден'));
+    };
+    script.onerror=()=>finishValidation(new Error('Не удалось связаться с сервером'));
+    script.src=API_URL+'?'+new URLSearchParams({action:'validateStudent',code,callback}).toString();
+    document.head.appendChild(script);
+  });
+}
+function showStartForStudent(){
+  $('#authScreen').classList.add('hidden');
+  $('#gameScreen').classList.add('hidden');
+  $('#resultScreen').classList.add('hidden');
+  $('#startScreen').classList.remove('hidden');
+  $('#studentNameStart').textContent=currentStudent?currentStudent.name:'Ученик';
+}
+function showStudentLogin(prefill=''){
+  if(gameActive) return;
+  $('#startScreen').classList.add('hidden');
+  $('#gameScreen').classList.add('hidden');
+  $('#resultScreen').classList.add('hidden');
+  $('#authScreen').classList.remove('hidden');
+  $('#studentCode').value=prefill;
+  $('#authMessage').textContent='';
+  $('#authMessage').className='auth-message';
+  setTimeout(()=>$('#studentCode').focus(),0);
+}
+function requestStudentChange(){
+  if(gameActive) return;
+  clearStudent();
+  showStudentLogin('');
+}
+async function loginStudent(){
+  const code=$('#studentCode').value.trim();
+  if(!code){
+    $('#authMessage').textContent='Введите личный код';
+    $('#authMessage').className='auth-message error';
+    return;
+  }
+  $('#loginBtn').disabled=true;
+  $('#authMessage').textContent='Проверяем код…';
+  $('#authMessage').className='auth-message';
+  try{
+    const student=await validateStudentCode(code);
+    currentStudent=student;
+    rememberStudent(student,code);
+    showStartForStudent();
+    flushPendingResults();
+  }catch(error){
+    $('#authMessage').textContent=error.message||'Не удалось проверить код';
+    $('#authMessage').className='auth-message error';
+  }finally{
+    $('#loginBtn').disabled=false;
+  }
+}
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function startGame(){
+  if(!currentStudent){showStudentLogin('');return;}
+  order=[...Array(TASKS.length).keys()]; // подряд, как выбрано
+  idx=0;score=0;mistakes=[];firstTryCorrect=0;questionAttempted=false;
+  gameActive=true;resultSubmitted=false;startedAt=Date.now();
+  $('#startScreen').classList.add('hidden');
+  $('#resultScreen').classList.add('hidden');
+  $('#gameScreen').classList.remove('hidden');
+  renderTask();
+}
+
+function renderTask(){
+  answered=false;
+  questionAttempted=false;
+  const task=TASKS[order[idx]];
+  $('#qNum').textContent=idx+1;
+  $('#score').textContent=score;
+  $('#barFill').style.width=((idx)/TASKS.length*100)+'%';
+  $('#famLabel').textContent=task.fam;
+  $('#eqLabel').textContent=task.eq;
+
+  // график (после того как canvas получит ширину)
+  requestAnimationFrame(()=>drawGraph($('#plot'),task));
+
+  // утверждения — перемешиваем порядок, запоминаем bad
+  const opts=$('#options');opts.innerHTML='';
+  const items=task.st.map((s,i)=>({t:s.t,bad:i===task.bad}));
+  shuffle(items);
+  const labels=['А','Б','В','Г'];
+  items.forEach((it,i)=>{
+    const el=document.createElement('div');
+    el.className='opt';
+    el.innerHTML='<span class="lb">'+labels[i]+'</span>'+it.t;
+    el.onclick=()=>choose(el,it,items,task);
+    opts.appendChild(el);
+  });
+
+  // разбор скрыть
+  const ex=$('#explain');ex.classList.remove('show');
+  $('#nextBtn').disabled=true;
+  $('#nextBtn').textContent = idx===TASKS.length-1 ? 'Итоги ▶' : 'Далее ▶';
+  $('#gameScreen').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function choose(el,it,items,task){
+  if(answered)return;
+  const isFirstAttempt=!questionAttempted;
+  questionAttempted=true;
+  answered=true;
+  const nodes=[...document.querySelectorAll('#options .opt')];
+  nodes.forEach(n=>n.classList.add('locked'));
+  const correct = it.bad; // нашёл ложное = верно
+
+  if(correct){
+    score++;
+    if(isFirstAttempt)firstTryCorrect++;
+    el.classList.add('correct');
+  }else{
+    el.classList.add('wrong');
+    // подсветить настоящее ложное
+    nodes.forEach((n,i)=>{ if(items[i].bad) n.classList.add('correct'); });
+    mistakes.push(order[idx]);
+  }
+  nodes.forEach((n,i)=>{ if(!items[i].bad && n!==el) n.classList.add('dim'); });
+
+  $('#score').textContent=score;
+
+  // разбор
+  const v=$('#verdict'),ex=$('#explain'),tx=$('#explainText');
+  if(correct){v.className='verdict ok';v.innerHTML='✦ Верно — цель поражена';}
+  else{v.className='verdict no';v.innerHTML='✕ Мимо — ложное утверждение подсвечено';}
+  tx.innerHTML='<span class="why">Почему оно ложно: </span>'+task.why;
+  ex.classList.add('show');
+  $('#nextBtn').disabled=false;
+  $('#barFill').style.width=((idx+1)/TASKS.length*100)+'%';
+}
+
+function next(){
+  if(idx<TASKS.length-1){idx++;renderTask();}
+  else showResult();
+}
+
+function showResult(){
+  if(resultSubmitted)return;
+  resultSubmitted=true;
+  gameActive=false;
+  $('#gameScreen').classList.add('hidden');
+  $('#resultScreen').classList.remove('hidden');
+  $('#finalScore').textContent=score;
+  const scorePercent=Math.round(firstTryCorrect/TASKS.length*100);
+  const durationSeconds=Math.max(0,Math.floor((Date.now()-startedAt)/1000));
+  $('#finalPct').textContent=scorePercent+'%';
+  $('#finalTime').textContent=Math.floor(durationSeconds/60)+':'+String(durationSeconds%60).padStart(2,'0');
+  setSaveStatus('Сохраняем результат…','');
+  const pct=score/TASKS.length;
+  let rank,rc,msg;
+  if(pct>=0.95){rank="КОМАНДОР ГРАФИКОВ";rc="var(--gold)";msg="Идеальное чтение коэффициентов. Ты видишь функцию насквозь.";}
+  else if(pct>=0.8){rank="ПИЛОТ-АС";rc="var(--cyan)";msg="Отличный уровень. Пара коэффициентов ещё пытается спрятаться — добей их.";}
+  else if(pct>=0.6){rank="ШТУРМАН";rc="var(--violet)";msg="Хорошая база. Повтори разбор ошибок ниже — и будет ас.";}
+  else if(pct>=0.4){rank="КУРСАНТ";rc="#7be8ff";msg="Есть над чем поработать: смотри, за что отвечает каждый коэффициент.";}
+  else{rank="НОВОБРАНЕЦ";rc="var(--rose)";msg="Начало положено. Пройди ещё раз и разбери каждое ложное утверждение.";}
+  const rt=$('#rankText');rt.textContent=rank;rt.style.color=rc;rt.style.textShadow="0 0 14px "+rc;
+  $('#resultMsg').textContent=msg;
+  drawRing(pct);
+  buildMistakes();
+  $('#mistakeList').classList.add('hidden');
+  $('#resultScreen').scrollIntoView({behavior:'smooth',block:'start'});
+  const payload={
+    action:'submitTest',
+    eventId:makeEventId(),
+    studentId:currentStudent.studentId,
+    testId:TEST_META.testId,
+    testDate:localDateString(),
+    topicId:TEST_META.topicId,
+    topicName:TEST_META.topicName,
+    taskNumber:TEST_META.taskNumber,
+    scorePercent,
+    durationSeconds,
+    schemaVersion:TEST_META.schemaVersion
+  };
+  submitResult(payload);
+}
+
+function drawRing(pct){
+  const c=$('#ring'),ctx=c.getContext('2d');
+  const dpr=Math.min(devicePixelRatio||1,2);
+  c.width=190*dpr;c.height=190*dpr;ctx.scale(dpr,dpr);
+  const cx=95,cy=95,r=78;
+  ctx.clearRect(0,0,190,190);
+  ctx.lineWidth=12;ctx.lineCap="round";
+  ctx.beginPath();ctx.arc(cx,cy,r,0,7);ctx.strokeStyle="#12203f";ctx.stroke();
+  let cur=-Math.PI/2;const end=cur+pct*Math.PI*2;
+  ctx.beginPath();ctx.arc(cx,cy,r,cur,end);
+  const g=ctx.createLinearGradient(0,0,190,190);g.addColorStop(0,"#2ff3ff");g.addColorStop(1,"#8b7bff");
+  ctx.strokeStyle=g;ctx.shadowColor="#2ff3ff";ctx.shadowBlur=18;ctx.stroke();
+}
+
+function buildMistakes(){
+  const box=$('#mistakeList');box.innerHTML='';
+  if(mistakes.length===0){
+    box.innerHTML='<div style="text-align:center;color:var(--green);font-family:Orbitron;'+
+      'font-size:13px;letter-spacing:.1em;padding:14px;border:1px solid #1c4a37;border-radius:12px;'+
+      'background:#0a1f18">БЕЗ ОШИБОК · ЧИСТОЕ ПРОХОЖДЕНИЕ ✦</div>';
+    return;
+  }
+  const h=document.createElement('div');
+  h.style.cssText="font-family:Orbitron;font-size:12px;letter-spacing:.12em;color:var(--muted);margin:0 0 12px";
+  h.textContent="РАЗБОР ОШИБОК ("+mistakes.length+")";
+  box.appendChild(h);
+  mistakes.forEach(ti=>{
+    const t=TASKS[ti];
+    const d=document.createElement('div');
+    d.style.cssText="border:1px solid #22407a;border-radius:12px;padding:12px 14px;margin-bottom:10px;"+
+      "background:linear-gradient(180deg,#0a1430,#080f24)";
+    d.innerHTML='<div style="font-family:Orbitron;color:var(--gold);font-size:14px;margin-bottom:4px">'+t.eq+
+      ' · <span style="color:var(--muted);font-size:11px;letter-spacing:.06em">'+t.fam+'</span></div>'+
+      '<div style="color:var(--rose);font-size:14.5px;margin-bottom:6px">Ложное: '+t.st[t.bad].t+'</div>'+
+      '<div style="color:#cfdcf7;font-size:14.5px;line-height:1.4">'+t.why+'</div>';
+    box.appendChild(d);
+  });
+}
+
+/* ---------- Кнопки звука ---------- */
+function paintMute(){
+  const btns=[$('#muteStart'),$('#muteGame'),$('#muteResult')].filter(Boolean);
+  btns.forEach(b=>{
+    if(Audio_.isOn()){b.classList.remove('off');b.lastChild.textContent=' ЗВУК';}
+    else{b.classList.add('off');b.lastChild.textContent=' ВКЛ ЗВУК';}
+  });
+}
+function toggleMusic(){ if(Audio_.isOn())Audio_.stop(); else Audio_.start(); paintMute(); }
+
+/* ---------- Слушатели ---------- */
+$('#startBtn').addEventListener('click',()=>{ Audio_.start(); paintMute(); startGame(); });
+$('#nextBtn').addEventListener('click',next);
+$('#againBtn').addEventListener('click',startGame);
+$('#reviewBtn').addEventListener('click',()=>{
+  const box=$('#mistakeList');box.classList.toggle('hidden');
+  if(!box.classList.contains('hidden'))box.scrollIntoView({behavior:'smooth'});
+});
+[['#muteStart'],['#muteGame'],['#muteResult']].forEach(([s])=>$(s).addEventListener('click',toggleMusic));
+$('#loginBtn').addEventListener('click',loginStudent);
+$('#studentCode').addEventListener('keydown',e=>{if(e.key==='Enter')loginStudent();});
+$('#changeStudentStart').addEventListener('click',requestStudentChange);
+$('#changeStudentResult').addEventListener('click',requestStudentChange);
+addEventListener('online',flushPendingResults);
+
+// перерисовать текущий график при повороте/ресайзе
+addEventListener('resize',()=>{ if(!$('#gameScreen').classList.contains('hidden'))drawGraph($('#plot'),TASKS[order[idx]]); });
+paintMute();
+currentStudent=savedStudent();
+const codeFromUrl=new URLSearchParams(location.search).get('code');
+if(codeFromUrl){
+  clearStudent();
+  showStudentLogin(codeFromUrl);
+  loginStudent();
+}else if(currentStudent){
+  showStartForStudent();
+  flushPendingResults();
+}else{
+  showStudentLogin('');
+}
+</script>
+</body>
+</html>
