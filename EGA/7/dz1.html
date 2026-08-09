@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>ЕГЭ № 7 — Домашняя работа 1 · Болото степеней</title>
+  <style>
+    :root{
+      --sky:#76d7ff;--sky2:#b8ecff;--grass:#62c84b;--grass-dark:#2e7f32;
+      --dirt:#8b5a35;--dirt-dark:#563522;--stone:#66727a;--ink:#183121;
+      --cream:#fffdf0;--gold:#ffd84d;--red:#d84b3f;--green:#38a947;
+      --shadow:#173d27;--white:#fff;--muted:#567060;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;min-width:300px;color:var(--ink);
+      background:
+        linear-gradient(90deg,#ffffff10 1px,transparent 1px) 0 0/24px 24px,
+        linear-gradient(#ffffff10 1px,transparent 1px) 0 0/24px 24px,
+        #dff8cd;
+      font-family:Inter,"Segoe UI",Arial,sans-serif;line-height:1.55;
+    }
+    button,input{font:inherit}
+    button{cursor:pointer}
+    .pixel{font-family:"Courier New",ui-monospace,monospace;font-weight:900;letter-spacing:.02em}
+    .sound-button{
+      position:fixed;right:14px;top:14px;z-index:80;min-width:48px;min-height:44px;
+      color:#17321f;background:var(--gold);border:3px solid var(--shadow);
+      box-shadow:4px 4px 0 var(--shadow);font-weight:900;
+    }
+    .sound-button:active,.block-button:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--shadow)}
+    .hero{
+      position:relative;min-height:300px;overflow:hidden;padding:34px 18px 95px;
+      color:var(--white);background:linear-gradient(var(--sky),var(--sky2));
+      border-bottom:10px solid var(--grass-dark);
+    }
+    .hero::after{
+      content:"";position:absolute;left:0;right:0;bottom:0;height:76px;
+      background:
+        linear-gradient(var(--grass),var(--grass)) 0 0/100% 24px no-repeat,
+        linear-gradient(90deg,#a06a3d 50%,#8a5735 50%) 0 24px/48px 28px,
+        linear-gradient(90deg,#785039 50%,#60402d 50%) 24px 52px/48px 24px;
+    }
+    .hero-inner{position:relative;z-index:2;max-width:940px;margin:auto;text-align:center}
+    .badge{
+      display:inline-block;margin-bottom:13px;padding:7px 10px;color:#15351f;background:#fff;
+      border:3px solid var(--shadow);box-shadow:4px 4px 0 var(--shadow);font-size:.82rem;
+    }
+    h1{
+      margin:0 auto 12px;font-size:clamp(2rem,6vw,4rem);line-height:1.05;
+      text-shadow:4px 0 var(--shadow),-4px 0 var(--shadow),0 4px var(--shadow),0 -4px var(--shadow),6px 7px #173d2777;
+    }
+    .hero-copy{
+      max-width:690px;margin:auto;padding:9px 13px;color:#173522;background:#ffffffdc;
+      border:3px solid var(--shadow);box-shadow:5px 5px 0 #173d2788;font-weight:800;
+    }
+    .scene{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+    .cloud-a{animation:cloud 18s linear infinite alternate}.cloud-b{animation:cloud 25s linear infinite alternate-reverse}
+    .sun{animation:sun 3.4s steps(2,end) infinite;transform-origin:center}
+    .steve{animation:walk 2.1s steps(2,end) infinite;transform-origin:center}
+    .creeper{animation:creep 4.2s ease-in-out infinite}
+    @keyframes cloud{to{transform:translateX(90px)}}
+    @keyframes sun{50%{transform:scale(1.1)}}
+    @keyframes walk{50%{transform:translateY(-7px) rotate(-1deg)}}
+    @keyframes creep{50%{transform:translateX(-18px)}}
+    .student-bar{
+      position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;
+      gap:12px;padding:10px max(14px,calc((100% - 1050px)/2));color:#fff;
+      background:#205e32ee;border-bottom:5px solid #153d25;backdrop-filter:blur(7px);
+    }
+    .student-name{font-weight:900}.student-name small{display:block;color:#d6ffd2;font-weight:600}
+    .student-bar[hidden]{display:none}
+    .shell{width:min(1050px,calc(100% - 28px));margin:28px auto 86px}
+    .screen{display:none}.screen.on{display:block;animation:rise .42s ease-out}
+    @keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+    .panel{
+      padding:22px;background:var(--cream);border:4px solid var(--shadow);
+      box-shadow:8px 8px 0 #173d2740;
+    }
+    .panel h2{margin:0 0 8px;font-size:clamp(1.35rem,4vw,2rem)}
+    .lead{margin-top:0;color:var(--muted)}
+    .login-panel{max-width:570px;margin:0 auto}
+    .code-row{display:flex;gap:10px;margin-top:18px}
+    .code-input,.answer-input{
+      width:100%;min-height:48px;padding:10px 12px;color:var(--ink);background:#fff;
+      border:3px solid var(--shadow);border-radius:0;box-shadow:inset 3px 3px 0 #00000012;
+    }
+    .code-input{text-transform:uppercase;font-weight:900;letter-spacing:.09em}
+    .code-input:focus,.answer-input:focus{outline:4px solid var(--gold);outline-offset:2px}
+    .block-button{
+      min-height:48px;padding:9px 15px;color:#17321f;background:#9dec68;
+      border:3px solid var(--shadow);border-radius:0;box-shadow:4px 4px 0 var(--shadow);
+      font-weight:900;
+    }
+    .block-button:hover{background:#baff81}
+    .block-button.secondary{background:#e7e1c7}.block-button.danger{background:#ffb097}
+    .block-button:disabled{cursor:not-allowed;filter:grayscale(.7);opacity:.58}
+    .status{min-height:25px;margin:12px 0 0;font-weight:800}.status.error{color:#b82e26}.status.ok{color:#207a32}
+    .spinner{
+      width:46px;height:46px;margin:18px auto;background:var(--grass);
+      border:4px solid var(--shadow);animation:spin 1.1s steps(4,end) infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .welcome-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+    .map-card{
+      padding:16px;color:#fff;background:var(--stone);border:4px solid #29343a;
+      box-shadow:5px 5px 0 #29343a;
+    }
+    .map-card ul{margin:8px 0 0;padding-left:22px}.map-card li+li{margin-top:6px}
+    .rules{padding:16px;background:#fff5b8;border:4px solid #6d5c1b}
+    .rules strong{display:block;margin-bottom:7px}
+    .start-row{display:flex;justify-content:center;margin-top:20px}
+    .progress-wrap{
+      position:sticky;top:69px;z-index:30;margin-bottom:16px;padding:10px;
+      color:#fff;background:#214f30;border:4px solid var(--shadow);box-shadow:5px 5px 0 #173d2740;
+    }
+    .progress-line{height:20px;background:#0b2816;border:3px solid #06170c}
+    .progress-fill{height:100%;width:0;background:linear-gradient(90deg,#7aff43,#39c84e);transition:width .25s steps(6,end)}
+    .progress-meta{display:flex;justify-content:space-between;gap:10px;margin-bottom:5px;font-size:.88rem;font-weight:900}
+    .task-list{display:grid;gap:18px}
+    .task{
+      position:relative;padding:19px;background:var(--cream);border:4px solid var(--shadow);
+      box-shadow:7px 7px 0 #173d2738;
+    }
+    .task::before{
+      content:"";position:absolute;left:-4px;top:-4px;bottom:-4px;width:9px;background:var(--grass);
+      border:2px solid var(--shadow);
+    }
+    .task-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:11px}
+    .task-num{padding:5px 9px;color:#fff;background:var(--stone);border:2px solid #263238;font-weight:900}
+    .prototype-tag{color:var(--green);font-size:.82rem;font-weight:900;text-align:right}
+    .task-text{font-family:Georgia,"Times New Roman",serif;font-size:1.08rem;line-height:1.62}
+    .answer-row{display:grid;grid-template-columns:auto minmax(140px,260px);align-items:center;gap:10px;margin-top:14px}
+    .answer-row label{font-weight:900}
+    .task.answered::before{background:var(--gold);animation:pulse 1.3s steps(2,end) infinite}
+    @keyframes pulse{50%{filter:brightness(1.25)}}
+    .submit-row{display:flex;justify-content:center;margin:24px 0}
+    .submit-note{text-align:center;color:var(--muted);font-size:.9rem}
+    .result-score{
+      display:grid;place-items:center;width:150px;height:150px;margin:10px auto 20px;
+      color:#fff;background:var(--green);border:8px solid var(--shadow);box-shadow:8px 8px 0 #173d2740;
+      font-size:2.3rem;font-weight:900;animation:score-pop .55s cubic-bezier(.2,1.5,.5,1);
+    }
+    @keyframes score-pop{from{transform:scale(.25) rotate(-8deg)}to{transform:none}}
+    .result-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
+    .stat{padding:13px;text-align:center;background:#e7f8d8;border:3px solid var(--shadow)}
+    .stat b{display:block;font-size:1.35rem}.result-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+    .solutions{display:none;margin-top:24px}.solutions.on{display:grid;gap:18px;animation:rise .4s ease-out}
+    .solution{padding:18px;background:#f8ffe9;border:4px solid var(--shadow);box-shadow:6px 6px 0 #173d2730}
+    .solution h3{margin:0 0 12px}.recall,.lifehack{padding:11px 13px;border:3px solid var(--shadow)}
+    .recall{background:#d8efff}.lifehack{background:#fff1a8}.formula{display:inline-block;margin:10px 0;padding:8px 11px;color:#fff;background:#505b64;border:3px solid #242d32;font-weight:900}
+    .steps{margin:9px 0 0;padding-left:24px}.steps li+li{margin-top:7px}
+    .locked{max-width:680px;margin:auto;text-align:center}.lock-icon{font-size:4rem;animation:lock-bob 2s ease-in-out infinite}
+    @keyframes lock-bob{50%{transform:translateY(-7px)}}
+    .toast{
+      position:fixed;left:50%;bottom:18px;z-index:100;max-width:min(560px,calc(100% - 28px));
+      padding:11px 14px;color:#fff;background:#173d27;border:3px solid #071b0f;
+      box-shadow:5px 5px 0 #071b0f;transform:translate(-50%,150%);transition:transform .25s ease;
+      font-weight:800;
+    }
+    .toast.on{transform:translate(-50%,0)}.toast.error{background:#9f3028}
+    [hidden]{display:none!important}
+    @media(max-width:720px){
+      .hero{min-height:280px;padding-top:68px}.welcome-grid{grid-template-columns:1fr}
+      .badge{font-size:.72rem;max-width:calc(100% - 14px)}
+      .code-row{grid-template-columns:1fr;display:grid}.result-stats{grid-template-columns:1fr}
+      .answer-row{grid-template-columns:1fr}.progress-wrap{top:64px}
+      .student-name small{display:none}.shell{width:min(100% - 18px,1050px)}
+      .panel,.task{padding:15px}.hero-copy{font-size:.9rem}
+    }
+    @media(prefers-reduced-motion:reduce){
+      *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+    }
+  
+    :root{
+      --sky:#1fd6e6;--sky2:#087bbd;--grass:#ffe14d;--grass-dark:#d39420;
+      --dirt:#edc56b;--dirt-dark:#9d6a26;--stone:#0b74aa;--ink:#07355d;
+      --cream:#f6ffff;--gold:#ffe14d;--red:#e55252;--green:#4dbb75;
+      --shadow:#063865;--white:#fff;--muted:#4d7189;
+    }
+    body{
+      background:
+        radial-gradient(circle at 12% 15%,#ffffff2b 0 4px,transparent 5px) 0 0/80px 80px,
+        linear-gradient(180deg,#b8fbf3,#dffcf8 45%,#c7edf4);
+      font-family:"Trebuchet MS","Arial Rounded MT Bold",Arial,sans-serif;
+    }
+    .pixel{font-family:"Trebuchet MS","Arial Rounded MT Bold",Arial,sans-serif;letter-spacing:0}
+    .hero{min-height:300px;padding-bottom:62px;border-bottom:8px solid #e0ae4e;background:#0a8dc5}
+    .hero::after{display:none}.hero-inner{max-width:820px}
+    .badge,.hero-copy,.panel,.task,.progress-wrap,.solution,.map-card,.rules{
+      border-radius:22px;border-width:3px;box-shadow:0 9px 0 #06386524,0 16px 36px #06386528;
+    }
+    h1{text-shadow:0 4px 0 #07558c,0 9px 24px #04315c66}
+    .badge{border-radius:999px;box-shadow:0 5px 0 #06386545}
+    .student-bar{background:#064f86ed;border-bottom:4px solid #033761}
+    .sound-button,.block-button{border-radius:14px;border-width:3px;box-shadow:0 5px 0 var(--shadow)}
+    .sound-button{background:#ffe14d}.block-button{background:#7ee6a3}.block-button.secondary{background:#dff8fb}
+    .panel{background:#f7ffff}.login-panel{border-color:#0a668f}
+    .map-card{background:linear-gradient(145deg,#087db5,#07558e)}
+    .rules{background:#fff6b8;border-color:#b88425}
+    .progress-wrap{background:#064f86;border-color:#04345d}.progress-line{border-radius:999px;overflow:hidden}.progress-fill{background:linear-gradient(90deg,#ffe14d,#7ee6a3)}
+    .task{border-color:#0a668f}.task::before{border-radius:18px 0 0 18px;background:#ffe14d;border-color:#0a668f}
+    .task-num{border-radius:10px;background:#087db5;border-color:#04436e}.prototype-tag{color:#0879a8}
+    .code-input,.answer-input{border-radius:13px;border-color:#0a668f}
+    .result-score{border-radius:50%;background:#ff7fab;border-color:#713d6e}
+    .stat{border-radius:16px;border-color:#0a668f;background:#e4fbff}
+    .solution{border-color:#0a668f;background:#fbffff}.recall,.lifehack,.formula{border-radius:14px;border-color:#0a668f}
+    .recall{background:#dff7ff}.lifehack{background:#fff2a8}.formula{background:#075d91}
+    .bubble-group{animation:bubbles 4.5s ease-in-out infinite alternate}.jelly{animation:float 3.2s ease-in-out infinite}.sponge{animation:spongeBob 2.8s ease-in-out infinite}
+    @keyframes bubbles{to{transform:translateY(-24px)}}@keyframes float{50%{transform:translate(940px,38px) rotate(4deg)}}@keyframes spongeBob{50%{transform:translate(1030px,112px) rotate(-3deg)}}
+    .solution-condition{margin:0 0 13px;padding:12px 14px;border:2px solid #b9e2ec;border-radius:14px;background:#effcff;font-family:Georgia,"Times New Roman",serif}
+
+  
+    :root{
+      --sky:#a7c568;--sky2:#496f32;--grass:#9cbd4b;--grass-dark:#355326;
+      --dirt:#765132;--dirt-dark:#452f22;--stone:#5b713a;--ink:#25331c;
+      --cream:#fffced;--gold:#f1cb5b;--red:#b34839;--green:#5f8a36;
+      --shadow:#26371d;--white:#fff;--muted:#667052;
+    }
+    body{background:radial-gradient(circle at 14% 20%,#fff89e66 0 3px,transparent 4px) 0 0/76px 76px,linear-gradient(180deg,#dce7a5,#cad48e 48%,#8fa568);font-family:"Trebuchet MS","Arial Rounded MT Bold",Arial,sans-serif}
+    .pixel{font-family:"Trebuchet MS","Arial Rounded MT Bold",Arial,sans-serif;letter-spacing:0}
+    .hero{min-height:300px;padding-bottom:62px;border-bottom:8px solid #68452d;background:#557a37}
+    .hero::after{display:none}.hero-inner{max-width:850px}
+    .badge,.hero-copy,.panel,.task,.progress-wrap,.solution,.map-card,.rules{border-radius:22px;border-width:3px;box-shadow:0 9px 0 #26371d25,0 16px 36px #26371d2d}
+    h1{text-shadow:0 4px 0 #2b441f,0 9px 24px #17271299}.badge{border-radius:999px;box-shadow:0 5px 0 #26371d66}
+    .student-bar{background:#2d4a22ed;border-bottom:4px solid #1a3014}
+    .sound-button,.block-button{border-radius:14px;border-width:3px;box-shadow:0 5px 0 var(--shadow)}
+    .sound-button{background:#f4d567}.block-button{background:#a9d45e}.block-button.secondary{background:#e7edc9}
+    .panel{background:#fffced}.login-panel{border-color:#506934}.map-card{background:linear-gradient(145deg,#617b3c,#3b572b)}
+    .rules{background:#f9e8a2;border-color:#8a6728}.progress-wrap{background:#344f28;border-color:#203719}
+    .progress-line{border-radius:999px;overflow:hidden}.progress-fill{background:linear-gradient(90deg,#f4d567,#a9d45e)}
+    .task{border-color:#536d36}.task::before{border-radius:18px 0 0 18px;background:#9dbd49;border-color:#405b2c}
+    .task-num{border-radius:10px;background:#5a743b;border-color:#344923}.prototype-tag{color:#557b30}
+    .code-input,.answer-input{border-radius:13px;border-color:#536d36}.result-score{border-radius:46% 54% 48% 52%;background:#8bad43;border-color:#385127}
+    .stat{border-radius:16px;border-color:#536d36;background:#edf5d0}.solution{border-color:#536d36;background:#fffef1}
+    .recall,.lifehack,.formula{border-radius:14px;border-color:#536d36}.recall{background:#e3efd1}.lifehack{background:#f9e8a2}.formula{background:#4a6333}
+    .solution-condition{margin:0 0 13px;padding:12px 14px;border:2px solid #b8c58d;border-radius:14px;background:#f7f8df;font-family:Georgia,"Times New Roman",serif}
+    .firefly-svg{animation:firefly 2.5s ease-in-out infinite alternate}.ogre-svg{animation:ogreBob 3s ease-in-out infinite}.donkey-svg{animation:donkeyBob 2.2s ease-in-out infinite}
+    @keyframes firefly{to{opacity:.25;transform:translateY(-14px)}}@keyframes ogreBob{50%{transform:translate(85px,65px) rotate(-2deg)}}@keyframes donkeyBob{50%{transform:translate(980px,117px) rotate(3deg)}}
+  
+  </style>
+</head>
+<body>
+  <button class="sound-button pixel" id="soundButton" type="button" aria-pressed="true" title="Включить или выключить звук">🔊</button>
+
+  <header class="hero">
+
+
+    <svg class="scene" viewBox="0 0 1200 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><linearGradient id="swampSky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#adc86b"/><stop offset="1" stop-color="#476d31"/></linearGradient></defs>
+      <rect width="1200" height="300" fill="url(#swampSky)"/>
+      <circle cx="1010" cy="65" r="43" fill="#f5dc78" opacity=".8"/>
+      <g class="firefly-svg" fill="#fff69a"><circle cx="180" cy="60" r="4"/><circle cx="320" cy="120" r="3"/><circle cx="790" cy="66" r="4"/><circle cx="920" cy="150" r="3"/></g>
+      <path d="M0 238Q160 205 310 240T610 235T900 244T1200 230V300H0Z" fill="#304c25"/>
+      <path d="M0 265Q170 238 350 267T720 258T1200 266V300H0Z" fill="#5d7040"/>
+      <g class="ogre-svg" transform="translate(85 72)">
+        <path d="M15 59L-14 42M105 59l29-17" stroke="#27351c" stroke-width="14" stroke-linecap="round"/>
+        <path d="M15 59L-14 42M105 59l29-17" stroke="#9fbd4e" stroke-width="8" stroke-linecap="round"/>
+        <ellipse cx="60" cy="86" rx="61" ry="68" fill="#9fbd4e" stroke="#27351c" stroke-width="5"/>
+        <circle cx="37" cy="70" r="13" fill="#fff"/><circle cx="82" cy="70" r="13" fill="#fff"/>
+        <circle cx="40" cy="72" r="5" fill="#25331c"/><circle cx="79" cy="72" r="5" fill="#25331c"/>
+        <ellipse cx="60" cy="92" rx="13" ry="9" fill="#7e963c"/>
+        <path d="M31 113Q60 135 91 111" fill="none" stroke="#503b25" stroke-width="5"/>
+      </g>
+      <g class="donkey-svg" transform="translate(980 125)">
+        <path d="M22 15L5-25L42 7M78 15l18-40L61 8" fill="#767b79" stroke="#303432" stroke-width="5"/>
+        <ellipse cx="51" cy="55" rx="45" ry="53" fill="#777d7b" stroke="#303432" stroke-width="5"/>
+        <ellipse cx="50" cy="78" rx="30" ry="21" fill="#bbb4a6"/>
+        <circle cx="34" cy="46" r="11" fill="#fff"/><circle cx="66" cy="46" r="11" fill="#fff"/>
+        <circle cx="37" cy="48" r="4"/><circle cx="63" cy="48" r="4"/>
+        <path d="M34 84Q51 95 68 83" fill="none" stroke="#38312b" stroke-width="4"/>
+      </g>
+      <g fill="#344f28"><path d="M280 270q-4-96 34-127q20 43-34 127"/><path d="M760 273q6-92 48-114q12 48-48 114"/></g>
+    </svg>
+    <div class="hero-inner">
+      <div class="badge pixel">ЕГЭ · ЗАДАНИЕ №7 · ДОМАШНЯЯ РАБОТА 1</div>
+      <h1 class="pixel">Болото выражений</h1>
+      <p class="hero-copy">Новые корректные числа при каждом открытии. Пройди тропу, отправь ответы и затем открой подробный разбор.</p>
+    </div>
+  </header>
+
+  <div class="student-bar" id="studentBar" hidden>
+    <div class="student-name" id="studentName">Ученик<small>Домашняя работа 1 из 3</small></div>
+    <button class="block-button secondary" id="changeStudent" type="button">Сменить ученика</button>
+  </div>
+
+  <main class="shell">
+    <section class="screen on" id="authScreen">
+      <div class="panel login-panel">
+        <h2 class="pixel">🔑 Вход ученика</h2>
+        <p class="lead">Введи личный код. На этом устройстве он сохранится для следующих работ.</p>
+        <form id="loginForm">
+          <div class="code-row">
+            <input class="code-input" id="studentCode" name="code" autocomplete="one-time-code" placeholder="Личный код" required>
+            <button class="block-button" id="loginButton" type="submit">Войти</button>
+          </div>
+          <p class="status" id="loginStatus" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+
+    <section class="screen" id="checkingScreen">
+      <div class="panel login-panel" style="text-align:center">
+        <h2 class="pixel">Проверяем доступ</h2>
+        <div class="spinner" aria-hidden="true"></div>
+        <p id="checkingText">Проверяем, не отправлялась ли эта работа в текущем месяце…</p>
+        <button class="block-button secondary" id="retryCheck" type="button" hidden>Повторить проверку</button>
+      </div>
+    </section>
+
+    <section class="screen" id="welcomeScreen">
+      <div class="panel">
+        <h2 class="pixel">🗺 Карта работы 1</h2>
+        <p class="lead">Задания идут в порядке изучения прототипов. Проверка появится только после отправки.</p>
+        <div class="welcome-grid">
+          <div class="map-card">
+            <strong class="pixel">Сегодняшние прототипы</strong>
+            <ul id="prototypeSummary"></ul>
+          </div>
+          <div class="rules">
+            <strong class="pixel">Правила мира</strong>
+            <div>• 15 числовых ответов</div>
+            <div>• запятая и точка допустимы</div>
+            <div>• одна отправка в месяц</div>
+            <div>• разбор — после отправки</div>
+          </div>
+        </div>
+        <div class="start-row"><button class="block-button pixel" id="startButton" type="button">Начать работу</button></div>
+      </div>
+    </section>
+
+    <section class="screen" id="workScreen">
+      <div class="progress-wrap">
+        <div class="progress-meta"><span>Заполнено</span><span id="progressText">0 / 15</span></div>
+        <div class="progress-line"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+      <form id="homeworkForm">
+        <div class="task-list" id="taskList"></div>
+        <div class="submit-row"><button class="block-button pixel" id="submitButton" type="submit" disabled>Отправить ответы</button></div>
+        <p class="submit-note" id="submitStatus" aria-live="polite">Заполни все пятнадцать полей — кнопка отправки станет активной.</p>
+      </form>
+    </section>
+
+    <section class="screen" id="resultScreen">
+      <div class="panel">
+        <h2 class="pixel" style="text-align:center">🏆 Работа отправлена</h2>
+        <div class="result-score pixel" id="scoreValue">0%</div>
+        <div class="result-stats">
+          <div class="stat"><b id="correctValue">0 / 15</b>правильных</div>
+          <div class="stat"><b id="timeValue">0:00</b>время</div>
+          <div class="stat"><b>✓</b>сохранено</div>
+        </div>
+        <div class="result-actions"><button class="block-button pixel" id="solutionsButton" type="button">Разобрать решения</button></div>
+        <div class="solutions" id="solutions"></div>
+      </div>
+    </section>
+
+    <section class="screen" id="lockedScreen">
+      <div class="panel locked">
+        <div class="lock-icon">🔒</div>
+        <h2 class="pixel">Работа уже отправлена</h2>
+        <p>В текущем календарном месяце эту домашнюю работу можно было отправить только один раз.</p>
+        <p class="lead">Новая попытка откроется автоматически в следующем месяце.</p><button class="block-button secondary" id="reviewLocked" type="button">Просмотреть задания</button>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    "use strict";
+
+    const API_URL = "https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
+    const PART_CONFIG = {"assignmentId":"HW-EGE07-PART1-MONTHLY","generators":["p01","p02","p03","p04","p06","p07","p08","p10","p11","p12","p14","p15","p16","l01","l02"]};
+    const HOMEWORK_META = Object.freeze({
+      assignmentId: PART_CONFIG.assignmentId,
+      taskNumber: 7,
+      topicId: "task-07",
+      topicName: "Вычисления и преобразования выражений",
+      schemaVersion: 1
+    });
+
+    const $ = selector => document.querySelector(selector);
+    const $$ = selector => [...document.querySelectorAll(selector)];
+    const rand = (min,max) => Math.floor(Math.random()*(max-min+1))+min;
+    const pick = values => values[rand(0,values.length-1)];
+    const gcd = (a,b) => b ? gcd(b,a%b) : Math.abs(a);
+    const lcm = (a,b) => Math.abs(a*b)/gcd(a,b);
+    const num = value => Number(value.toFixed(8));
+    const showNum = value => String(num(value)).replace(".",",");
+    const minutes = seconds => {
+      const m=Math.floor(seconds/60),s=seconds%60;
+      return m+":"+String(s).padStart(2,"0");
+    };
+
+    function question(id,prototype,text,answer,recall,formula,tip,steps){
+      const q={id,prototype,text,answer:num(answer),recall,formula,tip,steps};
+      if(!Number.isFinite(q.answer)||!q.text||!q.steps.length) throw new Error("Некорректная генерация "+id);
+      return q;
+    }
+
+
+
+    const powerRecall="При умножении степеней показатели складывают, при делении — вычитают, а при возведении степени в степень — перемножают.";
+    const logRecall="Логарифм отвечает на вопрос, в какую степень нужно возвести основание. Используем свойства суммы, разности и перехода к новому основанию.";
+    const trigRecall="Основное тождество: sin²α + cos²α = 1. Знак функции определяем по четверти.";
+    const exprRecall="Используем табличные значения, формулы приведения, двойного угла и основное тригонометрическое тождество.";
+    const pow=(a,b)=>Math.pow(a,b);
+    const sq=n=>n*n;
+    const frac=(a,b)=>"<span style='display:inline-block;text-align:center;vertical-align:middle'><span style='display:block;border-bottom:1px solid'>"+a+"</span><span style='display:block'>"+b+"</span></span>";
+    const step=(a,b,c)=>[a,b,c];
+
+    const GENERATORS = {
+      p01(){
+        const a=pick([2,3,4,5,6]),m=rand(4,9),n=rand(2,4),k=pick([1,2]),ans=pow(a,k);
+        return question("p01","Степени: степень степени","Найдите значение: <b>"+frac("("+a+"<sup>"+m+"</sup>)<sup>"+n+"</sup>",a+"<sup>"+(m*n-k)+"</sup>")+"</b>.",ans,powerRecall,
+          "(aᵐ)ⁿ : aᵖ = aᵐⁿ⁻ᵖ","Сначала упростите показатель, и только потом вычисляйте степень.",
+          step("Раскрываем степень степени: ("+a+"<sup>"+m+"</sup>)<sup>"+n+"</sup> = "+a+"<sup>"+(m*n)+"</sup>.","При делении вычитаем показатели: "+(m*n)+" − "+(m*n-k)+" = "+k+".","Получаем "+a+"<sup>"+k+"</sup> = "+showNum(ans)+"."));
+      },
+      p02(){
+        const c=pick([2,3,4,5]),r=pick([2,3,5,7,11]),ans=pick([1,2,4]),den=c*c*r/ans;
+        return question("p02","Квадрат выражения с корнем","Найдите значение: <b>"+frac("("+c+"√"+r+")²",showNum(den))+"</b>.",ans,
+          "Квадрат произведения равен произведению квадратов, а (√a)² = a.","(c√a)² = c²a","Сразу замените квадрат корня подкоренным числом.",
+          step("Числитель: ("+c+"√"+r+")² = "+c+"²·"+r+" = "+(c*c*r)+".","Делим: "+(c*c*r)+" : "+showNum(den)+".","Ответ: "+showNum(ans)+"."));
+      },
+      p03(){
+        const r=pick([2,3,5,7]),k=pick([2,3,4]),ans=(k-1)*r;
+        return question("p03","Вынесение множителя из корня","Найдите значение: <b>(√"+(k*k*r)+" − √"+r+")·√"+r+"</b>.",ans,
+          "Если под корнем есть полный квадрат, его можно вынести: √(k²a)=k√a.","√(k²a)=k√a","Сначала приведите оба корня к одному виду.",
+          step("√"+(k*k*r)+" = "+k+"√"+r+".","Получаем ("+k+"√"+r+" − √"+r+")√"+r+" = "+(k-1)+"√"+r+"·√"+r+".","Ответ: "+(k-1)+"·"+r+" = "+ans+"."));
+      },
+      p04(){
+        const a=pick([2,3]),y=pick([0.4,0.6,0.8,1.2]),k=pick([2,3,4]),x=num(2*y+k),ans=pow(a,k);
+        return question("p04","Десятичные показатели","Найдите значение: <b>"+frac(a+"<sup>"+showNum(x)+"</sup>",""+(a*a)+"<sup>"+showNum(y)+"</sup>")+"</b>.",ans,powerRecall,
+          "aˣ : (a²)ʸ = aˣ⁻²ʸ","Представьте знаменатель как степень того же основания.",
+          step((a*a)+"<sup>"+showNum(y)+"</sup> = "+a+"<sup>"+showNum(2*y)+"</sup>.","Показатель частного: "+showNum(x)+" − "+showNum(2*y)+" = "+k+".","Ответ: "+a+"<sup>"+k+"</sup> = "+ans+"."));
+      },
+      p06(){
+        const a=pick([2,3,5,6]),v=pick([0.6,0.7,0.8,0.9]),target=pick([2,3]),u=num(target-2*v),ans=pow(a,target);
+        return question("p06","Степени одинакового основания","Найдите значение: <b>"+a+"<sup>"+showNum(u)+"</sup>·"+(a*a)+"<sup>"+showNum(v)+"</sup></b>.",ans,powerRecall,
+          "aᵘ·(a²)ᵛ = aᵘ⁺²ᵛ","Переведите число "+(a*a)+" в степень основания "+a+".",
+          step((a*a)+"<sup>"+showNum(v)+"</sup> = "+a+"<sup>"+showNum(2*v)+"</sup>.","Сумма показателей: "+showNum(u)+" + "+showNum(2*v)+" = "+target+".","Ответ: "+a+"<sup>"+target+"</sup> = "+ans+"."));
+      },
+      p07(){
+        const a=pick([2,3,4,5]),ans=a*a;
+        return question("p07","Дробные показатели","Найдите значение: <b>"+(a*a)+"<sup>3/4</sup>·"+pow(a,4)+"<sup>1/8</sup></b>.",ans,powerRecall,
+          "(a²)³⁄⁴·(a⁴)¹⁄⁸ = a²","Удобнее не извлекать корни по отдельности, а работать с показателями.",
+          step((a*a)+"<sup>3/4</sup> = "+a+"<sup>3/2</sup>.",""+pow(a,4)+"<sup>1/8</sup> = "+a+"<sup>1/2</sup>.","a<sup>3/2+1/2</sup> = "+a+"² = "+ans+"."));
+      },
+      p08(){
+        const p=pick([{n:3,a:3},{n:4,a:4},{n:5,a:5},{n:6,a:4},{n:7,a:7},{n:8,a:4}]),n=p.n,z=pick([2,3,5,7]),x=z*p.a,y=n*n/p.a;
+        return question("p08","Произведение квадратных корней","Найдите значение: <b>"+frac("√"+showNum(x)+" · √"+showNum(y),"√"+z)+"</b>.",n,
+          "Для неотрицательных чисел √a·√b/√c = √(ab/c).","√a·√b/√c = √(ab/c)","Объедините три корня в один.",
+          step("Под одним корнем получаем "+showNum(x)+"·"+showNum(y)+" : "+z+".","Подкоренное выражение равно "+showNum(n*n)+".","√"+showNum(n*n)+" = "+n+"."));
+      },
+      p10(){
+        const n=pick([4,9,16,25,36]),ans=Math.sqrt(n);
+        return question("p10","Корни разных степеней","Найдите значение: <b>"+frac("⁵√"+n+" · ³√"+n,"³⁰√"+n)+"</b>.",ans,
+          "Корень n-й степени — это степень с показателем 1/n.","⁵√a·³√a:³⁰√a = a¹⁄²","Замените все корни дробными степенями и сложите показатели.",
+          step("Показатель равен 1/5 + 1/3 − 1/30.","Приводим к знаменателю 30: 6/30 + 10/30 − 1/30 = 15/30 = 1/2.","Получаем √"+n+" = "+ans+"."));
+      },
+      p11(){
+        const a=pick([2,3,5]),b=pick([6,7,11]),c=pick([2,4,5]),ans=1/c;
+        return question("p11","Квадрат суммы корней","Найдите значение: <b>"+frac("(√"+a+" + √"+b+")²",c+"("+a+" + "+b+" + 2√"+(a*b)+")")+"</b>.",ans,
+          "Квадрат суммы: (x+y)²=x²+2xy+y².","(√a+√b)²=a+b+2√ab","Сравните числитель со скобкой в знаменателе — они одинаковы.",
+          step("(√"+a+"+√"+b+")² = "+a+"+"+b+"+2√"+(a*b)+".","Одинаковые выражения сокращаются.","Остаётся 1/"+c+" = "+showNum(ans)+"."));
+      },
+      p12(){
+        const a=pick([3,5,7,11]),ans=16*a;
+        return question("p12","Составное степенное выражение","Найдите значение: <b>"+frac("("+(4*a)+")<sup>5,3</sup>·"+a+"<sup>−4,3</sup>","4<sup>3,3</sup>")+"</b>.",ans,powerRecall,
+          "(4a)⁵·³·a⁻⁴·³:4³·³ = 4²a","Разделите степень произведения на степени множителей.",
+          step("("+(4*a)+")<sup>5,3</sup> = 4<sup>5,3</sup>·"+a+"<sup>5,3</sup>.","Показатели: у 4 получаем 5,3−3,3=2; у "+a+" получаем 5,3−4,3=1.","Ответ: 4²·"+a+" = "+ans+"."));
+      },
+      p14(){
+        const a=pick([2,3,4,5]),b=pick([6,8,9,10,12]),ans=b/a;
+        return question("p14","Отрицательные показатели","Найдите значение: <b>"+(a*b)+"<sup>−1,7</sup>·"+a+"<sup>0,7</sup> : "+b+"<sup>−2,7</sup></b>.",ans,powerRecall,
+          "(ab)⁻¹·⁷·a⁰·⁷:b⁻²·⁷ = b/a","Деление на отрицательную степень превращается в умножение на положительную.",
+          step("Разлагаем ("+(a*b)+")<sup>−1,7</sup> = "+a+"<sup>−1,7</sup>·"+b+"<sup>−1,7</sup>.","У "+a+": −1,7+0,7=−1; у "+b+": −1,7−(−2,7)=1.","Получаем "+b+"/"+a+" = "+showNum(ans)+"."));
+      },
+      p15(){
+        const a=pick([7,11,13,17,19]),ans=a;
+        return question("p15","Сложение дробных показателей","Найдите значение: <b>"+frac("³⁵√"+a+" · "+a+" · ¹⁴√"+a,"¹⁰√"+a)+"</b>.",ans,
+          "Представьте корни степенями и сложите все показатели с учётом деления.","a¹⁄³⁵·a·a¹⁄¹⁴:a¹⁄¹⁰ = a","Приводите дроби к знаменателю 70.",
+          step("Показатель: 1/35 + 1 + 1/14 − 1/10.","2/70 + 70/70 + 5/70 − 7/70 = 70/70 = 1.","Получаем "+a+"¹ = "+a+"."));
+      },
+      p16(){
+        const x=pick([2,3,4]),y=pick([2,3,5]),A=pow(x,3),B=pow(y,2),ans=B;
+        return question("p16","Сложное выражение с дробными степенями","Найдите значение: <b>"+frac("("+A+"<sup>2/5</sup>·"+B+"<sup>3/7</sup>)<sup>35</sup>",(A*B)+"<sup>14</sup>")+"</b>.",ans,
+          "После раскрытия степеней отдельно сократите степени одинаковых оснований.","(x³)¹⁴(y²)¹⁵ : (x³y²)¹⁴ = y²","Представьте "+A+" как "+x+"³, а "+B+" как "+y+"².",
+          step("Числитель: "+A+"<sup>14</sup>·"+B+"<sup>15</sup>.","Знаменатель: "+A+"<sup>14</sup>·"+B+"<sup>14</sup>.","После сокращения остаётся "+B+" = "+ans+"."));
+      },
+
+      l01(){
+        const p=pick([{b:6,x:3},{b:8,x:4},{b:10,x:5},{b:12,x:3},{b:15,x:5}]),b=p.b,x=p.x,y=b*b/x;
+        return question("l01","Логарифм суммы","Найдите значение: <b>log<sub>"+b+"</sub>"+showNum(x)+" + log<sub>"+b+"</sub>"+showNum(y)+"</b>.",2,logRecall,
+          "logₐx + logₐy = logₐ(xy)","Сначала перемножьте аргументы.",
+          step("Объединяем: log<sub>"+b+"</sub>("+showNum(x)+"·"+showNum(y)+").","Произведение равно "+(b*b)+" = "+b+"².","log<sub>"+b+"</sub>"+b+"² = 2."));
+      },
+      l02(){
+        const b=pick([2,3,5]),k=pick([3,4,5,6]),d=pick([2,4,5]),top=pow(b,k)*d;
+        return question("l02","Логарифм разности","Найдите значение: <b>log<sub>"+b+"</sub>"+showNum(top)+" − log<sub>"+b+"</sub>"+d+"</b>.",k,logRecall,
+          "logₐx − logₐy = logₐ(x/y)","При разности логарифмов делите аргументы.",
+          step("Получаем log<sub>"+b+"</sub>("+showNum(top)+"/"+d+").","Частное равно "+pow(b,k)+" = "+b+"<sup>"+k+"</sup>.","Ответ: "+k+"."));
+      },
+      l03(){
+        const p=pick([{b:6,x:2},{b:8,x:2},{b:9,x:3},{b:10,x:4},{b:12,x:6}]),b=p.b,x=p.x,y=b*b/x;
+        return question("l03","Сумма логарифмов","Найдите значение: <b>log<sub>"+b+"</sub>"+showNum(x)+" + log<sub>"+b+"</sub>"+showNum(y)+"</b>.",2,logRecall,
+          "logₐx + logₐy = logₐ(xy)","Проверьте, не является ли произведение точной степенью основания.",
+          step("log<sub>"+b+"</sub>("+showNum(x)+"·"+showNum(y)+").","Внутри получаем "+(b*b)+".","log<sub>"+b+"</sub>"+b+"² = 2."));
+      },
+      l04(){
+        const q=pick([0.2,0.25,0.4,0.5]),x=pick([4,8,10,20]),y=num(x*q);
+        return question("l04","Основание меньше единицы","Найдите значение: <b>log<sub>"+showNum(q)+"</sub>"+x+" − log<sub>"+showNum(q)+"</sub>"+showNum(y)+"</b>.",-1,logRecall,
+          "log_q(x/y)=log_q(1/q)=−1","Основание меньше 1 — отрицательный ответ здесь естественен.",
+          step("Объединяем: log<sub>"+showNum(q)+"</sub>("+x+"/"+showNum(y)+").","Частное равно "+showNum(1/q)+" = 1/"+showNum(q)+".","log<sub>"+showNum(q)+"</sub>("+showNum(q)+"<sup>−1</sup>) = −1."));
+      },
+      l05(){
+        const b=pick([2,3,5,7]),n=pick([3,4,5]),k=pick([2,3,4]),coef=n*k;
+        return question("l05","Логарифм корня","Найдите значение: <b>"+coef+"log<sub>"+b+"</sub> ⁿ√"+b+"</b>, где n = "+n+".",k,logRecall,
+          "log_b ⁿ√b = 1/n","Корень из основания сразу превращается в дробь 1/n.",
+          step("ⁿ√"+b+" = "+b+"<sup>1/"+n+"</sup>.","log<sub>"+b+"</sub>"+b+"<sup>1/"+n+"</sup> = 1/"+n+".",coef+"·1/"+n+" = "+k+"."));
+      },
+      l06(){
+        const b=pick([2,3,5,6,7]),c=pick([2,3,4,5]),ans=6*c;
+        return question("l06","Логарифм по коренному основанию","Найдите значение: <b>"+c+"log<sub>³√"+b+"</sub>"+(b*b)+"</b>.",ans,logRecall,
+          "log_(b¹⁄³)(b²)=2/(1/3)=6","Сравните показатели степеней одного числа.",
+          step("³√"+b+" = "+b+"<sup>1/3</sup>, а "+(b*b)+" = "+b+"².","Логарифм равен 2 : 1/3 = 6.",c+"·6 = "+ans+"."));
+      },
+      l07(){
+        const a=pick([2,3,5,7]),b=pick([2,3,5]),k=pick([3,4,5]),top=pow(b,k);
+        return question("l07","Отношение логарифмов","Найдите значение: <b>"+frac("log<sub>"+a+"</sub>"+top,"log<sub>"+a+"</sub>"+b)+"</b>.",k,logRecall,
+          "logₐ(bᵏ)/logₐb = k","В числителе вынесите показатель степени перед логарифмом.",
+          step("log<sub>"+a+"</sub>"+top+" = log<sub>"+a+"</sub>"+b+"<sup>"+k+"</sup>.","Выносим показатель: "+k+"log<sub>"+a+"</sub>"+b+".","Сокращаем и получаем "+k+"."));
+      },
+      l08(){
+        const a=pick([2,3,5,7]),x=pick([11,13,17,19]);
+        return question("l08","Переход к новому основанию","Найдите значение: <b>"+frac("log<sub>"+a+"</sub>"+x,"log<sub>"+(a*a)+"</sub>"+x)+"</b>.",2,logRecall,
+          "log_(a²)x = ½logₐx","Знаменатель отличается только квадратом основания.",
+          step("По переходу к основанию "+a+": log<sub>"+(a*a)+"</sub>"+x+" = log<sub>"+a+"</sub>"+x+"/2.","Делим log<sub>"+a+"</sub>"+x+" на половину этого же числа.","Ответ: 2."));
+      },
+      l09(){
+        const a=pick([2,3,5,7]),b=pick([3,5,6,10]),k=pick([3,4,5,6]);
+        return question("l09","Цепочка логарифмов","Найдите значение: <b>log<sub>"+a+"</sub>"+b+" · log<sub>"+b+"</sub>"+pow(a,k)+"</b>.",k,logRecall,
+          "logₐb·log_b c = logₐc","Среднее основание сокращается как звено цепочки.",
+          step("Произведение равно log<sub>"+a+"</sub>"+pow(a,k)+".",""+pow(a,k)+" = "+a+"<sup>"+k+"</sup>.","Ответ: "+k+"."));
+      },
+      l10(){
+        const a=pick([3,5,7,11]),p=pick([{x:2,y:5},{x:4,y:10},{x:5,y:8},{x:4,y:6}]),x=p.x,y=p.y,z=num(y/x);
+        return question("l10","Составное логарифмическое выражение","Найдите значение: <b>"+frac("log<sub>"+a+"</sub>"+x,"log<sub>"+a+"</sub>"+y)+" + log<sub>"+y+"</sub>"+showNum(z)+"</b>.",1,logRecall,
+          "logₐx/logₐy = log_y x","Сначала замените дробь логарифмом по основанию y.",
+          step("Первая дробь равна log<sub>"+y+"</sub>"+x+".","Сумма равна log<sub>"+y+"</sub>("+x+"·"+showNum(z)+").","Произведение равно "+y+", значит ответ 1."));
+      },
+      l11(){
+        const q=pick([0.2,0.25,0.4,0.5]),a=pick([3,5,7,11]),c=pick([2,3,4,5]);
+        return question("l11","Обратные логарифмы","Найдите значение: <b>"+c+"log<sub>"+showNum(q)+"</sub>"+a+" · log<sub>"+a+"</sub>"+showNum(1/q)+"</b>.",-c,logRecall,
+          "log_q a·log_a(1/q)=log_q(q⁻¹)=−1","Сверните произведение в один логарифм.",
+          step("Цепочка даёт log<sub>"+showNum(q)+"</sub>"+showNum(1/q)+".",""+showNum(1/q)+" = "+showNum(q)+"<sup>−1</sup>, поэтому логарифм равен −1.",c+"·(−1) = −"+c+"."));
+      },
+
+      t01(){
+        const p=pick([{c:3,s:4,h:5},{c:5,s:12,h:13},{c:8,s:15,h:17}]),ans=p.s/p.h;
+        return question("t01","Синус по косинусу","Найдите sin α, если <b>cos α = −"+frac(p.c,p.h)+"</b>, α∈(π/2;π).",ans,trigRecall,
+          "sin α = +√(1−cos²α)","Во II четверти синус положителен.",
+          step("sin²α = 1 − "+p.c+"²/"+p.h+"² = "+p.s+"²/"+p.h+"².","Во II четверти выбираем знак «плюс».","sin α = "+p.s+"/"+p.h+" = "+showNum(ans)+"."));
+      },
+      t02(){
+        const p=pick([{c:3,s:4,h:5},{c:5,s:12,h:13},{c:8,s:15,h:17}]),ans=p.c/p.h;
+        return question("t02","Косинус по синусу","Найдите cos α, если <b>sin α = "+frac(p.s,p.h)+"</b>, α∈(0;π/2).",ans,trigRecall,
+          "cos α = +√(1−sin²α)","В I четверти обе функции положительны.",
+          step("cos²α = 1 − "+p.s+"²/"+p.h+"² = "+p.c+"²/"+p.h+"².","В I четверти берём положительный корень.","cos α = "+p.c+"/"+p.h+" = "+showNum(ans)+"."));
+      },
+      t03(){
+        const p=pick([{c:3,s:4,h:5},{c:5,s:12,h:13},{c:8,s:15,h:17}]),ans=-p.s/p.h;
+        return question("t03","Знак функции по четверти","Найдите sin α, если <b>cos α = "+frac(p.c,p.h)+"</b>, α∈(3π/2;2π).",ans,trigRecall,
+          "sin α = −√(1−cos²α)","В IV четверти синус отрицателен.",
+          step("|sin α| = "+p.s+"/"+p.h+".","В IV четверти ставим знак «минус».","sin α = −"+p.s+"/"+p.h+" = "+showNum(ans)+"."));
+      },
+      t04(){
+        const p=pick([{c:3,s:4,h:5},{c:5,s:12,h:13},{c:8,s:15,h:17}]),ans=-p.c/p.h;
+        return question("t04","Косинус в III четверти","Найдите cos α, если <b>sin α = −"+frac(p.s,p.h)+"</b>, α∈(π;3π/2).",ans,trigRecall,
+          "cos α = −√(1−sin²α)","В III четверти косинус отрицателен.",
+          step("|cos α| = "+p.c+"/"+p.h+".","По четверти выбираем отрицательный знак.","cos α = −"+p.c+"/"+p.h+" = "+showNum(ans)+"."));
+      },
+      t05(){
+        const p=pick([{c:3,s:4,h:5},{c:5,s:12,h:13},{c:8,s:15,h:17}]),ans=-p.s/p.c;
+        return question("t05","Тангенс по синусу","Найдите tg α, если <b>sin α = "+frac(p.s,p.h)+"</b>, α∈(π/2;π).",ans,trigRecall,
+          "tg α = sin α / cos α","Во II четверти косинус отрицателен, поэтому тангенс отрицателен.",
+          step("Из тождества |cos α| = "+p.c+"/"+p.h+".","Во II четверти cos α = −"+p.c+"/"+p.h+".","tg α = ("+p.s+"/"+p.h+"):(−"+p.c+"/"+p.h+") = "+showNum(ans)+"."));
+      },
+      t06(){
+        const p=pick([{c:3,s:4,h:5},{c:5,s:12,h:13},{c:8,s:15,h:17}]),ans=p.s/p.c;
+        return question("t06","Тангенс по косинусу","Найдите tg α, если <b>cos α = −"+frac(p.c,p.h)+"</b>, α∈(π;3π/2).",ans,trigRecall,
+          "tg α = sin α / cos α","В III четверти синус и косинус отрицательны, а тангенс положителен.",
+          step("Из тождества |sin α| = "+p.s+"/"+p.h+".","В III четверти sin α = −"+p.s+"/"+p.h+".","tg α = (−"+p.s+"/"+p.h+"):(−"+p.c+"/"+p.h+") = "+showNum(ans)+"."));
+      },
+      t07(){
+        const s=pick([0.3,0.4,0.6,0.8]),coef=pick([2,4,5,10]),ans=num(coef*(1-2*s*s));
+        return question("t07","Косинус двойного угла","Найдите <b>"+coef+"cos 2α</b>, если sin α = "+showNum(-s)+".",ans,
+          "Косинус двойного угла можно выразить только через синус: cos2α=1−2sin²α.","cos 2α = 1 − 2sin²α","Знак sin α исчезает после возведения в квадрат.",
+          step("sin²α = "+showNum(s*s)+".","cos2α = 1 − 2·"+showNum(s*s)+" = "+showNum(1-2*s*s)+".",coef+"cos2α = "+showNum(ans)+"."));
+      },
+
+      e01(){
+        const c=4*rand(2,7),ans=-3*c/4;
+        return question("e01","Табличные значения углов","Найдите значение: <b>"+c+"sin60°·cos150°</b>.",ans,exprRecall,
+          "sin60°=√3/2, cos150°=−√3/2","Сразу перемножьте два табличных значения.",
+          step("Подставляем: "+c+"·√3/2·(−√3/2).","Произведение корней равно 3, знаменатель — 4.","Получаем −"+c+"·3/4 = "+ans+"."));
+      },
+      e02(){
+        const c=pick([8,12,16,20,24,28]),ans=-c;
+        return question("e02","Косинус отрицательного угла","Найдите значение: <b>"+c+"√2·cos(−135°)</b>.",ans,exprRecall,
+          "cos(−x)=cosx, cos135°=−√2/2","Косинус — чётная функция.",
+          step("cos(−135°)=cos135°=−√2/2.",""+c+"√2·(−√2/2) = −"+c+"·2/2.","Ответ: "+ans+"."));
+      },
+      e03(){
+        const c=2*rand(4,14),ans=c/2;
+        return question("e03","Произведение табличных косинусов","Найдите значение: <b>"+c+"√2·cos(5π/4)·cos(2π/3)</b>.",ans,exprRecall,
+          "cos(5π/4)=−√2/2, cos(2π/3)=−1/2","Два минуса дают плюс.",
+          step("Подставляем табличные значения.",""+c+"√2·(−√2/2)·(−1/2) = "+c+"·2/4.","Ответ: "+ans+"."));
+      },
+      e04(){
+        const c=pick([6,8,10,12,14,16]),ans=c;
+        return question("e04","Тангенс и синус табличных углов","Найдите значение: <b>"+c+"√2·tg(3π/4)·sin(5π/4)</b>.",ans,exprRecall,
+          "tg(3π/4)=−1, sin(5π/4)=−√2/2","Следите за двумя отрицательными множителями.",
+          step("Подставляем: "+c+"√2·(−1)·(−√2/2).","Знаки дают плюс, √2·√2=2.","Получаем "+c+"·2/2 = "+ans+"."));
+      },
+      e05(){
+        const a=rand(10,35),c=rand(2,9),angle=pick([23,34,41,57]),ans=a+c;
+        return question("e05","Дополнительные углы","Найдите значение: <b>"+frac(a+"cos"+angle+"°","sin"+(90-angle)+"°")+" + "+c+"</b>.",ans,exprRecall,
+          "sin(90°−α)=cosα","Дополнительные функции в дроби полностью сокращаются.",
+          step("sin"+(90-angle)+"° = cos"+angle+"°.","Дробь равна "+a+".",a+" + "+c+" = "+ans+"."));
+      },
+      e06(){
+        const a=rand(7,25),angle=rand(20,160),full=angle+360,ans=-a;
+        return question("e06","Периодичность синуса","Найдите значение: <b>"+frac("−"+a+"sin"+full+"°","sin"+angle+"°")+"</b>.",ans,exprRecall,
+          "sin(α+360°)=sinα","Сначала уберите полный оборот.",
+          step("sin"+full+"° = sin"+angle+"°.","Одинаковые синусы сокращаются.","Остаётся −"+a+"."));
+      },
+      e07(){
+        const a=rand(20,50),c=rand(5,25),angle=pick([15,25,35,40]),ans=-a+c;
+        return question("e07","Тангенсы дополнительных углов","Найдите значение: <b>−"+a+"tg"+angle+"°·tg"+(90-angle)+"° + "+c+"</b>.",ans,exprRecall,
+          "tg(90°−α)=ctgα, tgα·ctgα=1","Произведение тангенсов дополнительных углов равно 1.",
+          step("tg"+(90-angle)+"° = ctg"+angle+"°.","tg"+angle+"°·ctg"+angle+"° = 1.","−"+a+"·1 + "+c+" = "+ans+"."));
+      },
+      e08(){
+        const c=rand(2,8),ans=pick([2,3,4,5]),n=ans*(c+1),angle=rand(10,80);
+        return question("e08","Сумма квадратов дополнительных функций","Найдите значение: <b>"+frac(n,"cos²"+angle+"° + "+c+" + cos²"+(angle+90)+"°")+"</b>.",ans,exprRecall,
+          "cos(α+90°)=−sinα, поэтому cos²α+cos²(α+90°)=1.","Знак минус пропадёт после возведения в квадрат.",
+          step("cos²"+(angle+90)+"° = sin²"+angle+"°.","Сумма квадратов равна 1, знаменатель: 1+"+c+"="+(c+1)+".",n+":"+(c+1)+" = "+ans+"."));
+      },
+      e10(){
+        const c=2*rand(3,10),ans=c/2;
+        return question("e10","Формула синуса двойного угла","Найдите значение: <b>"+c+"√2·sin(π/8)·cos(π/8)</b>.",ans,exprRecall,
+          "2sinx cosx = sin2x","Выделите множитель 2 перед произведением.",
+          step("2sin(π/8)cos(π/8)=sin(π/4)=√2/2.","sin(π/8)cos(π/8)=√2/4.",""+c+"√2·√2/4 = "+c+"/2 = "+ans+"."));
+      },
+      e11(){
+        const c=2*rand(4,14),angle=rand(15,74),ans=c/2;
+        return question("e11","Синус двойного угла в дроби","Найдите значение: <b>"+frac(c+"sin"+angle+"°·cos"+angle+"°","sin"+(2*angle)+"°")+"</b>.",ans,exprRecall,
+          "sin2α=2sinαcosα","Замените знаменатель удвоенным произведением.",
+          step("sin"+(2*angle)+"° = 2sin"+angle+"°cos"+angle+"°.","Сокращаем одинаковое произведение.","Остаётся "+c+"/2 = "+ans+"."));
+      },
+      e12(){
+        const c=rand(3,12),angle=pick([19,23,31,37,41]),ans=2*c;
+        return question("e12","Синус двойного угла и дополнительные углы","Найдите значение: <b>"+frac(c+"sin"+(2*angle)+"°","cos"+angle+"°·cos"+(90-angle)+"°")+"</b>.",ans,exprRecall,
+          "sin2α=2sinαcosα, cos(90°−α)=sinα","Преобразуйте и числитель, и второй косинус.",
+          step("cos"+(90-angle)+"° = sin"+angle+"°.","sin"+(2*angle)+"° = 2sin"+angle+"°cos"+angle+"°.","После сокращения получаем 2·"+c+" = "+ans+"."));
+      },
+      e13(){
+        const c=pick([3,5,7,9,11]),ans=-c;
+        return question("e13","Разность квадратов синуса и косинуса","Найдите значение: <b>"+c+"√2·cos²(5π/8) − "+c+"√2·sin²(5π/8)</b>.",ans,exprRecall,
+          "cos²x−sin²x=cos2x","Вынесите общий множитель и примените косинус двойного угла.",
+          step("Выносим "+c+"√2: "+c+"√2(cos²x−sin²x).","В скобках cos(5π/4)=−√2/2.",""+c+"√2·(−√2/2) = −"+c+"."));
+      },
+      e14(){
+        const m=rand(1,5),ans=-3*m;
+        return question("e14","Квадрат косинуса сложного угла","Найдите значение: <b>√"+(48*m*m)+"·cos²(17π/12) − √"+(12*m*m)+"</b>.",ans,exprRecall,
+          "cos²x=(1+cos2x)/2; cos(17π/6)=−√3/2","Сначала упростите корни: √(48m²)=4m√3.",
+          step("cos²(17π/12)=(1−√3/2)/2=(2−√3)/4.","Первое слагаемое: 4·"+m+"√3·(2−√3)/4 = "+m+"(2√3−3).","Вычитаем 2·"+m+"√3 и получаем −3·"+m+" = "+ans+"."));
+      },
+      e16(){
+        const c=pick([9,15,21,25,29,31]),angle=rand(10,80),ans=-c/2;
+        return question("e16","Разность квадратов и двойной угол","Найдите значение: <b>"+frac(c+"(sin²"+angle+"° − cos²"+angle+"°)","2cos"+(2*angle)+"°")+"</b>.",ans,exprRecall,
+          "sin²α−cos²α=−cos2α","Числитель и знаменатель содержат один и тот же cos2α.",
+          step("sin²"+angle+"°−cos²"+angle+"° = −cos"+(2*angle)+"°.","Сокращаем cos"+(2*angle)+"°.","Остаётся −"+c+"/2 = "+showNum(ans)+"."));
+      }
+    };
+
+    function buildQuestions(){
+      const result=PART_CONFIG.generators.map(name=>{
+        if(!GENERATORS[name]) throw new Error("Неизвестный генератор "+name);
+        return GENERATORS[name]();
+      });
+      if(result.length!==PART_CONFIG.generators.length||new Set(result.map(q=>q.id)).size!==result.length) throw new Error("Некорректный набор заданий");
+      return result;
+    }
+
+    const state={
+      student:null,
+      questions:buildQuestions(),
+      startedAt:0,
+      durationSeconds:0,
+      correct:0,
+      scorePercent:0,
+      submitted:false
+    };
+
+
+
+    class AudioEngine{
+      constructor(){this.enabled=true;this.ctx=null;this.timer=null;this.step=0}
+      ensure(){if(!this.enabled)return;if(!this.ctx)this.ctx=new (window.AudioContext||window.webkitAudioContext)();if(this.ctx.state==="suspended")this.ctx.resume()}
+      tone(freq,duration=.18,type="sine",volume=.015,delay=0){
+        if(!this.enabled)return;this.ensure();if(!this.ctx)return;
+        const now=this.ctx.currentTime+delay,o=this.ctx.createOscillator(),g=this.ctx.createGain();
+        o.type=type;o.frequency.setValueAtTime(freq,now);g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(volume,now+.025);g.gain.exponentialRampToValueAtTime(.0001,now+duration);
+        o.connect(g).connect(this.ctx.destination);o.start(now);o.stop(now+duration+.04);
+      }
+      click(){this.tone(392,.07,"triangle",.015);this.tone(523,.08,"triangle",.009,.04)}
+      good(){[392,494,587,784].forEach((n,i)=>this.tone(n,.24,"triangle",.018,i*.12))}
+      bad(){this.tone(196,.25,"sawtooth",.012);this.tone(147,.28,"triangle",.012,.12)}
+      startMusic(){
+        if(!this.enabled||this.timer)return;this.ensure();
+        const melody=[196,247,294,330,294,247,220,196,262,330,392,330,294,262,220,247];
+        const tick=()=>{if(!this.enabled)return;const n=melody[this.step%melody.length];this.tone(n,.38,"triangle",.005);if(this.step%4===0)this.tone(n/2,.72,"sine",.003);if(this.step%8===7)this.tone(n*1.5,.12,"sine",.003,.15);this.step++};
+        tick();this.timer=setInterval(tick,520);
+      }
+      stopMusic(){if(this.timer){clearInterval(this.timer);this.timer=null}}
+      toggle(){this.enabled=!this.enabled;if(this.enabled)this.startMusic();else this.stopMusic();return this.enabled}
+    }
+    const audio=new AudioEngine();
+
+
+
+    function showScreen(id){
+      $$(".screen").forEach(screen=>screen.classList.toggle("on",screen.id===id));
+      window.scrollTo({top:Math.max(0,$(".hero").offsetHeight-10),behavior:"smooth"});
+    }
+    function toast(message,error=false){
+      const box=$("#toast");box.textContent=message;box.classList.toggle("error",error);box.classList.add("on");
+      clearTimeout(toast.timer);toast.timer=setTimeout(()=>box.classList.remove("on"),3500);
+    }
+    function jsonp(params,timeout=12000){
+      return new Promise((resolve,reject)=>{
+        const callback="egeCb_"+Date.now()+"_"+Math.random().toString(36).slice(2);
+        const script=document.createElement("script");
+        const timer=setTimeout(()=>finish(new Error("Сервер не ответил")),timeout);
+        const finish=(error,data)=>{
+          clearTimeout(timer);delete window[callback];script.remove();error?reject(error):resolve(data);
+        };
+        window[callback]=data=>finish(null,data);
+        script.onerror=()=>finish(new Error("Не удалось подключиться к серверу"));
+        script.src=API_URL+"?"+new URLSearchParams({...params,callback}).toString();
+        document.head.appendChild(script);
+      });
+    }
+    async function postApi(payload){
+      const response=await fetch(API_URL,{
+        method:"POST",
+        headers:{"Content-Type":"text/plain;charset=utf-8"},
+        body:JSON.stringify(payload),
+        redirect:"follow"
+      });
+      const text=await response.text();
+      let data;
+      try{data=JSON.parse(text)}catch{throw new Error("Сервер вернул непонятный ответ")}
+      if(!response.ok||data?.success===false||data?.ok===false)throw new Error(data?.message||data?.error||"Запрос отклонён");
+      return data;
+    }
+    async function checkHomework(){
+      const payload={action:"checkHomeworkSubmission",studentId:state.student.id,assignmentId:HOMEWORK_META.assignmentId};
+      try{return await postApi(payload)}catch(firstError){
+        try{
+          const data=await jsonp(payload);
+          if(data?.success===false||data?.ok===false)throw new Error(data?.message||data?.error||"Проверка отклонена");
+          return data;
+        }catch(secondError){
+          throw secondError?.message?secondError:firstError;
+        }
+      }
+    }
+    function alreadySubmitted(data){
+      const values=[
+        data?.submitted,data?.alreadySubmitted,data?.hasSubmission,data?.hasSubmitted,data?.submittedThisMonth,
+        data?.data?.submitted,data?.data?.alreadySubmitted,data?.data?.hasSubmitted,data?.data?.submittedThisMonth,
+        data?.result?.submitted,data?.result?.alreadySubmitted,data?.result?.hasSubmitted,data?.result?.submittedThisMonth
+      ];
+      if(data?.canSubmit===false||data?.data?.canSubmit===false)return true;
+      return values.some(v=>v===true||v===1||v==="true"||v==="yes");
+    }
+    function extractStudent(data,code){
+      const source=data?.student||data?.data?.student||data?.data||data?.result||data||{};
+      const id=source.id||source.studentId||data?.studentId;
+      const name=source.name||source.studentName||data?.studentName||"Ученик";
+      const valid=data?.valid===true||data?.success===true||data?.ok===true||data?.status==="ok"||Boolean(id);
+      if(!valid||!id)throw new Error(data?.message||data?.error||"Код ученика не найден");
+      return {id:String(id),name:String(name),code:String(code)};
+    }
+    function saveStudent(student){
+      localStorage.setItem("egeStudentId",student.id);
+      localStorage.setItem("egeStudentName",student.name);
+      localStorage.setItem("egeStudentCode",student.code);
+    }
+    function cachedStudent(){
+      const id=localStorage.getItem("egeStudentId"),name=localStorage.getItem("egeStudentName"),code=localStorage.getItem("egeStudentCode");
+      return id&&code?{id,name:name||"Ученик",code}:null;
+    }
+    function monthKey(){
+      const d=new Date();
+      return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+    }
+    function localLockKey(){return "egeHomeworkSubmitted:"+HOMEWORK_META.assignmentId+":"+monthKey()}
+    async function activateStudent(student){
+      state.student=student;saveStudent(student);
+      $("#studentName").firstChild.textContent=student.name;
+      $("#studentBar").hidden=false;
+      showScreen("checkingScreen");
+      $("#retryCheck").hidden=true;$("#checkingText").textContent="Проверяем, не отправлялась ли эта работа в текущем месяце…";
+      try{
+        const result=await checkHomework();
+        if(alreadySubmitted(result)||localStorage.getItem(localLockKey())==="1"){
+          showScreen("lockedScreen");return;
+        }
+        showScreen("welcomeScreen");
+      }catch(error){
+        $("#checkingText").textContent="Не удалось проверить доступ: "+error.message;
+        $("#retryCheck").hidden=false;
+      }
+    }
+    async function validateCode(code){
+      const data=await jsonp({action:"validateStudent",code});
+      return extractStudent(data,code);
+    }
+    function renderSummary(){
+      const counts=new Map();
+      state.questions.forEach(q=>counts.set(q.prototype,(counts.get(q.prototype)||0)+1));
+      $("#prototypeSummary").innerHTML=[...counts].map(([name,count])=>"<li><b>"+name+"</b> — "+count+" "+(count===1?"задача":count<5?"задачи":"задач")+"</li>").join("");
+    }
+    function renderTasks(){
+      $("#taskList").innerHTML=state.questions.map((q,index)=>`
+        <article class="task" data-index="${index}">
+          <div class="task-head">
+            <span class="task-num pixel">Задание ${index+1}</span>
+            <span class="prototype-tag">${q.prototype}</span>
+          </div>
+          <div class="task-text">${q.text}</div>
+          <div class="answer-row">
+            <label for="answer-${index}">Ответ:</label>
+            <input class="answer-input" id="answer-${index}" name="answer-${index}" inputmode="decimal" autocomplete="off" aria-label="Ответ на задание ${index+1}">
+          </div>
+        </article>`).join("");
+    }
+    function normalizeAnswer(value){
+      const clean=String(value).trim().replace(/\s+/g,"").replace(",",".");
+      if(clean==="")return NaN;
+      return Number(clean);
+    }
+    function updateProgress(){
+      const inputs=$$(".answer-input"),filled=inputs.filter(input=>input.value.trim()!=="").length;
+      inputs.forEach(input=>input.closest(".task").classList.toggle("answered",input.value.trim()!==""));
+      $("#progressText").textContent=filled+" / "+inputs.length;
+      $("#progressFill").style.width=(filled/inputs.length*100)+"%";
+      $("#submitButton").disabled=filled!==inputs.length||state.submitted;
+      $("#submitStatus").textContent=filled===inputs.length?"Ответы заполнены. Проверка появится только после отправки.":"Заполни все пятнадцать полей — кнопка отправки станет активной.";
+    }
+    function uuid(){
+      if(crypto?.randomUUID)return crypto.randomUUID();
+      return "hw-"+Date.now()+"-"+Math.random().toString(16).slice(2)+"-"+Math.random().toString(16).slice(2);
+    }
+    function buildSubmissionPayload(durationSeconds,scorePercent){
+      return {
+        action:"submitHomework",
+        eventId:uuid(),
+        studentId:state.student.id,
+        assignmentId:HOMEWORK_META.assignmentId,
+        taskNumber:HOMEWORK_META.taskNumber,
+        topicId:HOMEWORK_META.topicId,
+        topicName:HOMEWORK_META.topicName,
+        scorePercent,
+        durationSeconds,
+        schemaVersion:1
+      };
+    }
+    function grade(){
+      const values=$$(".answer-input").map(input=>normalizeAnswer(input.value));
+      const correct=values.reduce((sum,value,index)=>sum+(Number.isFinite(value)&&Math.abs(value-state.questions[index].answer)<1e-7?1:0),0);
+      return {correct,scorePercent:Math.round(correct/state.questions.length*100)};
+    }
+    function renderSolutions(){
+      $("#solutions").innerHTML=state.questions.map((q,index)=>`
+        <article class="solution">
+          <h3 class="pixel">Задание ${index+1} · Ответ: ${showNum(q.answer)}</h3>
+          <div class="solution-condition">${q.text}</div><div class="recall"><b>Вспомним.</b> ${q.recall}</div>
+          <div class="formula">${q.formula}</div>
+          <div class="lifehack"><b>Лайфхак.</b> ${q.tip}</div>
+          <ol class="steps">${q.steps.map(step=>"<li>"+step+"</li>").join("")}</ol>
+        </article>`).join("");
+    }
+    function lockInputs(){
+      $$(".answer-input").forEach(input=>input.disabled=true);
+      $("#submitButton").disabled=true;
+    }
+
+    $("#loginForm").addEventListener("submit",async event=>{
+      event.preventDefault();audio.click();
+      const code=$("#studentCode").value.trim();
+      if(!code)return;
+      $("#loginButton").disabled=true;$("#loginStatus").className="status";$("#loginStatus").textContent="Проверяем код…";
+      try{
+        const student=await validateCode(code);
+        $("#loginStatus").className="status ok";$("#loginStatus").textContent="✓ Код подтверждён";
+        await activateStudent(student);
+      }catch(error){
+        audio.bad();$("#loginStatus").className="status error";$("#loginStatus").textContent=error.message;
+      }finally{$("#loginButton").disabled=false}
+    });
+    $("#retryCheck").addEventListener("click",()=>activateStudent(state.student));
+    $("#reviewLocked").addEventListener("click",()=>{renderTasks();lockInputs();showScreen("workScreen");$("#submitStatus").textContent="Эта работа уже отправлена в текущем месяце. Доступен режим просмотра.";});
+    $("#changeStudent").addEventListener("click",()=>{
+      if($("#workScreen").classList.contains("on"))return;
+      ["egeStudentId","egeStudentName","egeStudentCode"].forEach(key=>localStorage.removeItem(key));
+      const url=new URL(location.href);url.searchParams.delete("code");location.href=url.pathname+url.search;
+    });
+    $("#startButton").addEventListener("click",()=>{
+      audio.click();audio.startMusic();renderTasks();state.startedAt=Date.now();
+      $("#changeStudent").disabled=true;showScreen("workScreen");updateProgress();
+    });
+    $("#taskList").addEventListener("input",updateProgress);
+    $("#homeworkForm").addEventListener("submit",async event=>{
+      event.preventDefault();
+      if($("#submitButton").disabled||state.submitted)return;
+      state.submitted=true;$("#submitButton").disabled=true;$("#submitStatus").textContent="Проверяем право на отправку…";
+      try{
+        const access=await checkHomework();
+        if(alreadySubmitted(access)){showScreen("lockedScreen");return}
+        state.durationSeconds=Math.max(1,Math.round((Date.now()-state.startedAt)/1000));
+        const result=grade();state.correct=result.correct;state.scorePercent=result.scorePercent;
+        $("#submitStatus").textContent="Сохраняем результат…";
+        const payload=buildSubmissionPayload(state.durationSeconds,state.scorePercent);
+        await postApi(payload);
+        localStorage.setItem(localLockKey(),"1");lockInputs();renderSolutions();
+        $("#scoreValue").textContent=state.scorePercent+"%";
+        $("#correctValue").textContent=state.correct+" / "+state.questions.length;
+        $("#timeValue").textContent=minutes(state.durationSeconds);
+        showScreen("resultScreen");
+        state.correct===state.questions.length?audio.good():audio.bad();
+      }catch(error){
+        state.submitted=false;$("#submitButton").disabled=false;
+        $("#submitStatus").textContent="Не удалось отправить: "+error.message+". Ответы сохранены на странице — попробуй ещё раз.";
+        toast("Результат не отправлен",true);audio.bad();
+      }
+    });
+    $("#solutionsButton").addEventListener("click",()=>{
+      audio.click();const box=$("#solutions"),open=box.classList.toggle("on");
+      $("#solutionsButton").textContent=open?"Скрыть разбор":"Разобрать решения";
+      if(open)box.scrollIntoView({behavior:"smooth",block:"start"});
+    });
+    $("#soundButton").addEventListener("click",()=>{
+      const enabled=audio.toggle();$("#soundButton").textContent=enabled?"🔊":"🔇";
+      $("#soundButton").setAttribute("aria-pressed",String(enabled));
+    });
+
+    async function boot(){
+      renderSummary();
+      const codeFromUrl=new URLSearchParams(location.search).get("code");
+      if(codeFromUrl){
+        $("#studentCode").value=codeFromUrl;
+        $("#loginStatus").textContent="Проверяем код из ссылки…";
+        try{await activateStudent(await validateCode(codeFromUrl))}catch(error){$("#loginStatus").className="status error";$("#loginStatus").textContent=error.message}
+        return;
+      }
+      const cached=cachedStudent();
+      if(cached)await activateStudent(cached);
+    }
+
+    window.__HOMEWORK_DIAGNOSTICS__={
+      meta:HOMEWORK_META,
+      questionCount:state.questions.length,
+      prototypes:state.questions.map(q=>q.prototype),
+      answersValid:state.questions.every(q=>Number.isFinite(q.answer)),
+      submissionKeys:["action","eventId","studentId","assignmentId","taskNumber","topicId","topicName","scorePercent","durationSeconds","schemaVersion"]
+    };
+    boot();
+  </script>
+</body>
+</html>
