@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Галактика графиков — параболы и пересечения</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#03050d;--panel:#081026e8;--panel2:#0b1530;--line:#20365f;
+  --cyan:#2ff3ff;--gold:#ffd24a;--rose:#ff4d8d;--green:#43ffa3;
+  --violet:#8b7bff;--ink:#edf4ff;--muted:#91a5cf;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%}
+body{
+  background:radial-gradient(900px 600px at 50% -12%,#122657 0,#071027 45%,var(--bg) 100%);
+  color:var(--ink);font-family:'Rajdhani',system-ui,sans-serif;overflow-x:hidden
+}
+button,input{font:inherit}
+button{cursor:pointer}
+#stars{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.app{position:relative;z-index:2;width:min(920px,100%);margin:auto;padding:16px 14px 48px}
+.hidden{display:none!important}
+.screen{animation:fade .35s ease}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:13px}
+.brand{font:900 14px 'Orbitron';letter-spacing:.13em;color:var(--cyan);text-shadow:0 0 16px #2ff3ff88}
+.brand small{display:block;margin-top:3px;font:600 9px 'Rajdhani';letter-spacing:.25em;color:var(--muted);text-shadow:none}
+.spacer{flex:1}
+.icon-btn,.small-btn{
+  border:1px solid #2ff3ff66;background:#081329;color:var(--cyan);border-radius:10px;
+  padding:8px 10px;font:700 10px 'Orbitron';letter-spacing:.08em;
+  box-shadow:0 0 15px -7px #2ff3ff;transition:.2s
+}
+.icon-btn:hover,.small-btn:hover{border-color:var(--cyan);box-shadow:0 0 20px -5px #2ff3ff}
+.icon-btn.off{color:var(--muted);border-color:#34466d;box-shadow:none}
+.panel{
+  background:linear-gradient(180deg,#0b1535e8,#070d20ed);border:1px solid var(--line);
+  border-radius:20px;box-shadow:0 20px 60px -30px #000,inset 0 0 50px -35px #2ff3ff;
+  backdrop-filter:blur(8px)
+}
+.hero{text-align:center;padding:30px 18px}
+.hero h1{
+  margin:0;color:var(--cyan);font:900 clamp(28px,8vw,50px)/1.05 'Orbitron';
+  letter-spacing:.04em;text-shadow:0 0 24px #2ff3ff77,0 0 65px #2ff3ff33
+}
+.subtitle{margin:8px 0 18px;color:var(--gold);font:700 11px 'Orbitron';letter-spacing:.22em}
+.desc{max-width:650px;margin:8px auto;color:var(--muted);font-size:18px;line-height:1.45}
+.desc b{color:var(--ink)}
+.family-badges{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:22px 0}
+.family-badges span{
+  border:1px solid #263b68;background:#091229;border-radius:99px;padding:7px 12px;
+  color:#bdcbee;font-weight:700;font-size:13px
+}
+.student-card{
+  width:min(450px,100%);margin:16px auto;padding:12px 14px;border:1px solid #233c69;
+  background:#071127;border-radius:13px;color:var(--muted);font-size:16px
+}
+.student-card b{color:var(--cyan)}
+.primary{
+  border:0;border-radius:12px;padding:14px 22px;background:linear-gradient(120deg,var(--cyan),#8beeff);
+  color:#03101d;font:800 12px 'Orbitron';letter-spacing:.1em;text-transform:uppercase;
+  box-shadow:0 0 26px -5px #2ff3ffbb;transition:.18s
+}
+.primary:hover{transform:translateY(-2px);box-shadow:0 0 34px -3px #2ff3ff}
+.primary:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+.ghost{
+  border:1px solid #2ff3ff77;border-radius:10px;padding:9px 12px;background:transparent;
+  color:var(--cyan);font:700 10px 'Orbitron';letter-spacing:.08em
+}
+.auth{max-width:560px;margin:7vh auto 0;padding:28px 20px;text-align:center}
+.auth h2{font:900 25px 'Orbitron';color:var(--cyan);margin:0 0 12px;text-shadow:0 0 18px #2ff3ff77}
+.code-input{
+  width:min(410px,100%);display:block;margin:18px auto 8px;padding:13px 14px;
+  background:#061126;color:var(--ink);border:1px solid #2ff3ff88;border-radius:12px;
+  outline:none;text-align:center;font-size:19px;font-weight:700;box-shadow:0 0 20px -10px #2ff3ff
+}
+.code-input:focus{border-color:var(--cyan);box-shadow:0 0 22px -5px #2ff3ff}
+.message{min-height:24px;margin:8px 0;color:var(--muted);font-size:15px}
+.message.error{color:var(--rose)}.message.ok{color:var(--green)}.message.pending{color:var(--gold)}
+
+/* Диагностическая панель */
+.hud{display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:center;margin-bottom:11px}
+.hud-chip{
+  border:1px solid #20365f;background:#071126;border-radius:10px;padding:8px 10px;
+  color:var(--muted);font:700 10px 'Orbitron';letter-spacing:.08em;white-space:nowrap
+}
+.hud-chip b{color:var(--ink)}#timer.over{color:var(--rose)}
+#questionTimer.danger{color:var(--rose);text-shadow:0 0 9px var(--rose)}
+.progress{height:8px;background:#0a1430;border:1px solid #1d315b;border-radius:99px;overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--violet));box-shadow:0 0 12px #2ff3ffaa;transition:.4s}
+.planets{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:13px}
+.planet{
+  min-width:0;padding:8px 5px;border:1px solid #20365f;border-radius:11px;background:#071126;
+  text-align:center;color:var(--muted);font-size:11px;font-weight:700
+}
+.planet .orb{display:block;font-size:20px;filter:saturate(.7);transition:.25s}
+.planet.active{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 18px -8px #2ff3ff}
+.planet.done{border-color:#2b6e58;color:var(--green)}
+.nodes{display:flex;justify-content:center;gap:4px;margin-top:4px}
+.nodes i{width:6px;height:6px;border-radius:50%;background:#26395f}
+.nodes i.ok{background:var(--green);box-shadow:0 0 7px var(--green)}
+.nodes i.bad{background:var(--rose);box-shadow:0 0 7px var(--rose)}
+.nodes i.current{background:var(--cyan);box-shadow:0 0 7px var(--cyan)}
+.combat-hud{
+  display:grid;grid-template-columns:minmax(220px,1fr) auto auto;align-items:center;gap:9px;margin-bottom:13px
+}
+.shield-box,.combat-stat{
+  min-height:43px;border:1px solid #20365f;border-radius:11px;background:#071126;
+  color:var(--muted);font:700 9px 'Orbitron';letter-spacing:.1em
+}
+.shield-box{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;padding:8px 10px}
+.shield-track{height:9px;overflow:hidden;border:1px solid #29446f;border-radius:99px;background:#020713}
+.shield-track i{display:block;width:100%;height:100%;background:linear-gradient(90deg,var(--rose),var(--gold),var(--green));transition:width .35s}
+.shield-box b{color:var(--green)}
+.combat-stat{display:grid;place-items:center;min-width:92px;padding:6px 10px;text-align:center}
+.combat-stat b{display:block;margin-top:3px;color:var(--cyan);font-size:14px}
+.danger-sector .question{border-color:#ff4d8daa;box-shadow:0 0 30px -12px var(--rose),inset 0 0 50px -35px var(--rose)}
+.danger-sector .mode-label{color:var(--rose);text-shadow:0 0 9px #ff4d8d88}
+
+.question{padding:16px}
+.qtop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.family-label{font:700 10px 'Orbitron';letter-spacing:.14em;color:var(--cyan);text-transform:uppercase}
+.mode-label{font-weight:700;color:var(--gold);font-size:12px}
+.signal{
+  border:1px solid #1f3867;border-radius:15px;background:linear-gradient(180deg,#09152f,#060d20);
+  padding:12px;margin-bottom:14px;box-shadow:inset 0 0 35px -25px #2ff3ff
+}
+.formula{font:700 clamp(18px,5vw,25px) 'Orbitron';color:var(--gold);text-align:center;margin:4px 0 10px;text-shadow:0 0 14px #ffd24a55}
+.plot-wrap{position:relative}
+#plot{display:block;width:100%;height:auto;border-radius:10px;background:#060d1c}
+.scanline{position:absolute;left:0;right:0;height:1px;background:#2ff3ff88;box-shadow:0 0 10px #2ff3ff;animation:scan 3.2s linear infinite;pointer-events:none}
+@keyframes scan{from{top:5%}to{top:95%}}
+.prompt{margin:3px 2px 12px;font:700 clamp(15px,4vw,19px) 'Orbitron';line-height:1.35}
+.options{
+  position:relative;z-index:3;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;
+  transform-origin:center top
+}
+.options.approaching{animation:portalApproach 30s linear forwards}
+.options.resolved{animation-play-state:paused}
+@keyframes portalApproach{
+  0%{transform:translateY(0) scale(.78);filter:brightness(.78)}
+  65%{filter:brightness(1)}
+  100%{transform:translateY(145px) scale(1.06);filter:brightness(1.2)}
+}
+.option{
+  position:relative;min-height:108px;border:2px solid #34598c;border-radius:28px 28px 14px 14px;
+  padding:35px 10px 12px;background:
+    radial-gradient(ellipse at 50% 108%,#183d6f 0,#0b1934 47%,#060b1a 75%);
+  color:#dce7ff;text-align:center;font-size:15px;font-weight:600;line-height:1.25;transition:.16s
+}
+.option:before{
+  content:"";position:absolute;inset:-7px;border:1px solid #2ff3ff55;border-radius:34px 34px 18px 18px;
+  box-shadow:0 0 18px -7px var(--cyan),inset 0 0 18px -11px var(--cyan);pointer-events:none
+}
+.option:hover:not(:disabled){border-color:#5274ae}
+.option .letter{position:absolute;left:50%;top:7px;transform:translateX(-50%);width:23px;height:23px;
+  display:grid;place-items:center;border:1px solid #3a4f7d;border-radius:7px;color:var(--muted);font:700 10px 'Orbitron'}
+.option.selected:not(:disabled){
+  border-color:var(--cyan);background:linear-gradient(180deg,#102a4a,#091936);
+  box-shadow:0 0 25px -5px #2ff3ff,inset 0 0 25px -18px #2ff3ff
+}
+.option.selected:not(:disabled) .letter{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 10px -3px var(--cyan)}
+.option.correct{border-color:var(--green);background:#0a2a20;color:#effff8;box-shadow:0 0 22px -8px var(--green)}
+.option.correct .letter{background:var(--green);border-color:var(--green);color:#03120c}
+.option.wrong{border-color:var(--rose);background:#2a0b1a;color:#fff0f5;box-shadow:0 0 22px -8px var(--rose)}
+.option.wrong .letter{background:var(--rose);border-color:var(--rose);color:white}
+.option.portal-open{animation:portalOpen .48s ease forwards}
+.option.portal-crash{animation:portalCrash .12s linear 4 alternate}
+@keyframes portalOpen{55%{scale:1.16;filter:brightness(2)}100%{scale:1.45;opacity:0}}
+@keyframes portalCrash{to{translate:5px 2px;filter:brightness(1.8)}}
+.option:disabled{cursor:default}
+.option.dim{opacity:.45}
+.flight-arena{
+  position:relative;isolation:isolate;overflow:hidden;padding:14px 12px 0;border:1px solid #213d6d;
+  border-radius:18px;background:
+    radial-gradient(circle at 50% 115%,#18366b99 0,#08142e 38%,#030817 76%),
+    linear-gradient(180deg,#04091a,#071126);box-shadow:inset 0 0 46px -24px #2ff3ff
+}
+.runway{position:relative;height:205px;margin:0 -12px;background:linear-gradient(180deg,#07132b,#030714);overflow:hidden}
+.runway:before{
+  content:"";position:absolute;inset:-20% 0 0;background:
+    linear-gradient(90deg,transparent 33.05%,#2ff3ff55 33.25% 33.6%,transparent 33.8% 66.2%,#2ff3ff55 66.4% 66.75%,transparent 66.95%),
+    repeating-linear-gradient(0deg,transparent 0 30px,#d7ecff24 31px 33px);
+  transform:perspective(380px) rotateX(58deg);transform-origin:center bottom;animation:roadRush .75s linear infinite
+}
+.lane-labels{position:absolute;z-index:1;left:0;right:0;bottom:7px;display:grid;grid-template-columns:repeat(3,1fr);text-align:center}
+.lane-labels span{color:#7892bf;font:700 9px 'Orbitron';letter-spacing:.11em}
+@keyframes roadRush{from{translate:0 -20px}to{translate:0 20px}}
+.ship-craft,.blaster{
+  position:absolute;z-index:5;left:50%;translate:-50% 0;transition:left .2s ease;pointer-events:none
+}
+.ship-craft{
+  bottom:22px;width:58px;height:58px;display:grid;place-items:center;font-size:43px;
+  transform:rotate(-45deg);filter:drop-shadow(0 0 10px #2ff3ff);animation:shipFlight .35s ease-in-out infinite alternate
+}
+.ship-craft:after{
+  content:"";position:absolute;width:18px;height:30px;right:38px;top:38px;
+  background:linear-gradient(90deg,transparent,var(--gold),var(--rose),transparent);
+  clip-path:polygon(50% 100%,0 0,100% 0);filter:blur(1px);animation:thruster .15s linear infinite alternate
+}
+.ship-craft.survived{filter:drop-shadow(0 0 16px var(--green));animation:survive .25s ease 4 alternate}
+.ship-craft.crashed{filter:drop-shadow(0 0 16px var(--rose));animation:crash .16s ease 5 alternate}
+.blaster{
+  bottom:72px;width:14px;height:42px;border-radius:50% 50% 40% 40%;
+  background:radial-gradient(circle at 50% 20%,#fff 0 12%,var(--cyan) 28%,#4374ff 58%,transparent 72%);
+  box-shadow:0 0 9px var(--cyan),0 0 24px #3a6cff;opacity:0
+}
+.blaster.flying{animation:laserShot .34s ease-in forwards}
+.blaster.impact{animation:none;bottom:178px;opacity:1;scale:2.6;filter:blur(1px)}
+@keyframes laserShot{0%{bottom:72px;opacity:1;scale:.7}100%{bottom:178px;opacity:1;scale:2}}
+@keyframes shipFlight{to{translate:-50% -3px}}
+@keyframes thruster{to{transform:scaleY(.65);opacity:.7}}
+@keyframes survive{to{scale:1.13}}
+@keyframes crash{to{translate:-46% 2px;rotate:7deg}}
+.pilot-controls{
+  display:grid;grid-template-columns:64px minmax(160px,260px) 64px;
+  justify-content:center;align-items:center;gap:10px;margin-top:12px
+}
+.steer{
+  height:48px;border-radius:12px;border:1px solid #35527f;background:#09152d;color:var(--cyan);
+  font:800 20px 'Orbitron';box-shadow:inset 0 0 18px -13px #2ff3ff;transition:.15s
+}
+.steer:hover,.steer:active{border-color:var(--cyan);background:#102342;transform:translateY(-1px)}
+.course-status{
+  height:48px;display:grid;place-items:center;border:1px solid #263f6c;border-radius:12px;
+  background:#071126;color:var(--gold);font:700 10px 'Orbitron';letter-spacing:.1em;text-align:center
+}
+.steer:disabled{opacity:.35;cursor:default;transform:none;box-shadow:none}
+.flight-hint{text-align:center;margin:8px 0 0;color:var(--muted);font-size:13px}
+.flight-hint kbd{border:1px solid #365078;border-radius:5px;background:#071126;color:var(--cyan);padding:1px 5px;font:700 10px 'Orbitron'}
+.feedback{display:none;margin-top:13px;padding:13px 14px;border:1px solid #254371;border-radius:12px;background:#08142d}
+.feedback.show{display:block;animation:fade .25s ease}
+.feedback h3{font:700 12px 'Orbitron';letter-spacing:.08em;margin:0 0 7px}
+.feedback h3.ok{color:var(--green)}.feedback h3.bad{color:var(--rose)}
+.feedback p{margin:0;color:#c5d4f3;font-size:16px;line-height:1.4}
+.next-row{display:flex;justify-content:flex-end;margin-top:12px}
+
+/* Результат */
+.result{padding:26px 18px;text-align:center}
+.result h2{margin:0;color:var(--cyan);font:900 clamp(23px,6vw,35px) 'Orbitron';text-shadow:0 0 20px #2ff3ff77}
+.score-ring{
+  width:175px;height:175px;margin:19px auto;display:grid;place-items:center;border-radius:50%;
+  background:conic-gradient(var(--cyan) var(--score-angle,0deg),#14203e 0);
+  box-shadow:0 0 30px -10px #2ff3ff;position:relative
+}
+.score-ring:before{content:"";position:absolute;inset:13px;border-radius:50%;background:#071026;border:1px solid #20365f}
+.score-ring strong{position:relative;font:900 39px 'Orbitron';color:var(--gold);text-shadow:0 0 16px #ffd24a77}
+.score-ring span{position:relative;display:block;margin-top:4px;color:var(--muted);font:700 10px 'Orbitron';letter-spacing:.12em}
+.rank{font:700 14px 'Orbitron';letter-spacing:.12em;color:var(--green);margin-bottom:8px}
+.result-info{display:flex;justify-content:center;gap:28px;flex-wrap:wrap;color:var(--muted);margin:14px 0}
+.result-info b{display:block;color:var(--ink);font:700 18px 'Orbitron';margin-top:3px}
+.family-result{max-width:610px;margin:17px auto;text-align:left}
+.family-row{display:grid;grid-template-columns:1fr auto;gap:10px;padding:10px 8px;border-bottom:1px solid #1d3157;font-size:16px}
+.family-row b{font-family:'Orbitron';font-size:13px}
+.family-row .mastered{color:var(--green)}.family-row .repeat{color:var(--rose)}.family-row .almost{color:var(--gold)}
+.result-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:13px}
+@media(max-width:640px){
+  .options{gap:5px}.planet{font-size:9px}.planet .orb{font-size:17px}
+  .hud{grid-template-columns:auto 1fr}.hud .time-chip{grid-column:auto;text-align:center}
+  .flight-arena{padding:9px 6px 0}.runway{margin:0 -6px;height:180px}
+  .option{min-height:120px;padding:32px 5px 9px;font-size:12px}.option .letter{top:6px;width:20px;height:20px}
+  @keyframes portalApproach{0%{transform:translateY(0) scale(.82)}100%{transform:translateY(126px) scale(1.03)}}
+  .ship-craft{bottom:20px;font-size:37px}.blaster{bottom:64px}.blaster.flying{animation-name:laserShotMobile}
+  @keyframes laserShotMobile{0%{bottom:64px;opacity:1;scale:.7}100%{bottom:151px;opacity:1;scale:2}}
+  .pilot-controls{grid-template-columns:52px minmax(130px,1fr) 52px;gap:6px}
+  .steer,.course-status{height:44px}
+  .combat-hud{grid-template-columns:1fr 1fr}.shield-box{grid-column:1/-1}.combat-stat{min-width:0}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+<main class="app">
+  <section id="authScreen" class="screen hidden">
+    <div class="panel auth">
+      <h2>ВХОД УЧЕНИКА</h2>
+      <p class="desc">Введи личный код перед диагностикой.</p>
+      <input id="studentCode" class="code-input" type="text" autocomplete="off" spellcheck="false" placeholder="ЛИЧНЫЙ КОД">
+      <div id="authMessage" class="message"></div>
+      <button id="loginBtn" class="primary">Проверить код</button>
+    </div>
+  </section>
+
+  <section id="startScreen" class="screen hidden">
+    <div class="topbar">
+      <div class="brand">ГАЛАКТИКА ГРАФИКОВ<small>ПАРАБОЛЫ И ПЕРЕСЕЧЕНИЯ · ЗАДАНИЕ 11</small></div>
+      <span class="spacer"></span>
+      <button class="icon-btn" data-sound>♫ ЗВУК</button>
+    </div>
+    <div class="panel hero">
+      <h1>ПЛАЗМЕННЫЙ<br>КОРИДОР</h1>
+      <div class="subtitle">20 СЛУЧАЙНЫХ СЕКТОРОВ · 3 ДОРОЖКИ · 30 СЕКУНД</div>
+      <p class="desc">Скоростная отработка задания №11: <b>анализ знаков и величины коэффициентов, положения парабол и прямых, комбинаций разных графиков</b>. Решать уравнения не потребуется.</p>
+      <div class="family-badges">
+        <span>🛰️ Коэффициенты параболы</span><span>💫 Положение параболы</span><span>📐 Коэффициенты прямых</span>
+        <span>🔀 Прямая и парабола</span><span>🧩 Комбинации графиков</span>
+      </div>
+      <p class="desc">Все 20 сигналов идут <b>в случайном порядке</b>. Три портала с ответами приближаются к кораблю. Перестройся стрелками <b>← →</b>: лазер выстрелит автоматически. Верная серия усиливает комбо и восстанавливает щит, ошибка повреждает корабль.</p>
+      <div class="student-card">Пилот: <b id="startStudent">—</b><br><button id="changeStudentStart" class="small-btn">Сменить ученика</button></div>
+      <button id="startBtn" class="primary">🚀 Начать полёт</button>
+    </div>
+  </section>
+
+  <section id="gameScreen" class="screen hidden">
+    <div class="topbar">
+      <div class="brand">ГАЛАКТИКА ГРАФИКОВ<small>ПАРАБОЛЫ И ПЕРЕСЕЧЕНИЯ</small></div>
+      <span class="spacer"></span>
+      <button class="icon-btn" data-sound>♫ ЗВУК</button>
+    </div>
+    <div class="hud">
+      <div class="hud-chip">СИГНАЛ <b id="qNum">1</b>/20</div>
+      <div class="progress"><i id="progressFill"></i></div>
+      <div class="hud-chip time-chip">СТОЛКНОВЕНИЕ <b id="questionTimer">30</b> с</div>
+      <div class="hud-chip time-chip">ОБЩЕЕ <b id="timer">0:00</b></div>
+    </div>
+    <div id="planets" class="planets"></div>
+    <div class="combat-hud">
+      <div class="shield-box">ЩИТ <span class="shield-track"><i id="shieldFill"></i></span><b id="shieldValue">100%</b></div>
+      <div class="combat-stat">КОМБО<b id="comboValue">×0</b></div>
+      <div class="combat-stat">ОЧКИ<b id="pointsValue">0</b></div>
+    </div>
+    <article class="panel question">
+      <div class="qtop">
+        <span id="familyLabel" class="family-label">Линейная функция</span>
+        <span id="modeLabel" class="mode-label">График → формула</span>
+      </div>
+      <div id="prompt" class="prompt"></div>
+      <div id="signal" class="signal">
+        <div id="formula" class="formula hidden"></div>
+        <div id="plotWrap" class="plot-wrap">
+          <canvas id="plot" width="760" height="350"></canvas>
+          <i class="scanline"></i>
+        </div>
+      </div>
+      <div id="flightArena" class="flight-arena">
+        <div id="options" class="options"></div>
+        <div class="runway" aria-hidden="true">
+          <div class="lane-labels"><span>ЛЕВЫЙ ПУТЬ</span><span>СРЕДНИЙ ПУТЬ</span><span>ПРАВЫЙ ПУТЬ</span></div>
+          <i id="blaster" class="blaster"></i>
+          <span id="shipCraft" class="ship-craft">🚀</span>
+        </div>
+      </div>
+      <div class="pilot-controls" aria-label="Управление кораблём">
+        <button id="moveLeft" class="steer" type="button" aria-label="Перейти на левую дорожку">←</button>
+        <div id="courseStatus" class="course-status" aria-live="polite">КУРС: СРЕДНИЙ</div>
+        <button id="moveRight" class="steer" type="button" aria-label="Перейти на правую дорожку">→</button>
+      </div>
+      <p class="flight-hint"><kbd>←</kbd> <kbd>→</kbd> — сменить дорожку. Лазер сработает автоматически, когда порталы приблизятся.</p>
+      <div id="feedback" class="feedback">
+        <h3 id="feedbackTitle"></h3>
+        <p id="feedbackText"></p>
+      </div>
+    </article>
+  </section>
+
+  <section id="resultScreen" class="screen hidden">
+    <div class="topbar">
+      <div class="brand">ГАЛАКТИКА ГРАФИКОВ<small>РЕЗУЛЬТАТ СКАНИРОВАНИЯ</small></div>
+      <span class="spacer"></span>
+      <button class="icon-btn" data-sound>♫ ЗВУК</button>
+    </div>
+    <div class="panel result">
+      <h2>СКАНИРОВАНИЕ ЗАВЕРШЕНО</h2>
+      <div id="scoreRing" class="score-ring"><div><strong id="finalPct">0%</strong><span>С ПЕРВОЙ ПОПЫТКИ</span></div></div>
+      <div id="rank" class="rank"></div>
+      <p id="resultMessage" class="desc"></p>
+      <div class="result-info">
+        <div>Правильных<b id="finalCorrect">0/20</b></div>
+        <div>Время<b id="finalTime">0:00</b></div>
+        <div>Игровые очки<b id="finalPoints">0</b></div>
+        <div>Щит<b id="finalShield">100%</b></div>
+      </div>
+      <div id="familyResults" class="family-result"></div>
+      <div id="saveStatus" class="message">Сохраняем результат…</div>
+      <div class="result-actions">
+        <button id="againBtn" class="primary">↻ Пройти заново</button>
+        <button id="changeStudentResult" class="ghost">Сменить ученика</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+const TEST_META={
+  testId:'EGE-11-COEFFICIENT-PORTAL-RUNNER-20',
+  topicId:'task-11',
+  topicName:'Быстрый анализ коэффициентов и взаимного положения графиков',
+  taskNumber:11,
+  schemaVersion:1
+};
+const PENDING_KEY='egePendingTestResults';
+const FAMILY_ORDER=['parabolaFormula','parabolaProperties','twoLines','lineParabola','mixedGraphs'];
+const FAMILY_META={
+  parabolaFormula:{name:'Коэффициенты параболы',icon:'🛰️'},
+  parabolaProperties:{name:'Положение параболы',icon:'💫'},
+  twoLines:{name:'Коэффициенты прямых',icon:'📐'},
+  lineParabola:{name:'Прямая и парабола',icon:'🔀'},
+  mixedGraphs:{name:'Комбинации графиков',icon:'🧩'}
+};
+let currentStudent=null;
+const S={
+  tasks:[],i:0,firstTryCorrect:0,questionAttempted:false,answered:false,
+  familyStats:{},startedAt:0,timerId:null,questionTimerId:null,autoNextTimer:null,
+  timeLeft:30,active:false,resultSubmitted:false,sound:true,selectedOption:1,
+  shield:100,combo:0,gamePoints:0,reboots:0,resolving:false
+};
+
+/* ---------- Ученик и отправка ---------- */
+function makeEventId(){
+  if(window.crypto&&typeof window.crypto.randomUUID==='function')return window.crypto.randomUUID();
+  return 'evt-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)+'-'+Math.random().toString(36).slice(2);
+}
+function localDateString(){
+  const d=new Date();
+  return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+}
+function readPendingResults(){
+  try{const value=JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');return Array.isArray(value)?value:[]}
+  catch(_){return []}
+}
+function writePendingResults(queue){localStorage.setItem(PENDING_KEY,JSON.stringify(queue))}
+function queuePendingResult(payload){
+  const queue=readPendingResults();
+  if(!queue.some(item=>item&&item.eventId===payload.eventId))queue.push(payload);
+  writePendingResults(queue);
+}
+async function postResult(payload){
+  const response=await fetch(API_URL,{
+    method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(payload),redirect:'follow'
+  });
+  if(!response.ok)throw new Error('HTTP '+response.status);
+}
+async function flushPendingResults(){
+  const queue=readPendingResults();
+  if(!queue.length||!navigator.onLine)return;
+  const sent=new Set();
+  for(const payload of queue){
+    try{await postResult(payload);if(payload&&payload.eventId)sent.add(payload.eventId)}
+    catch(_){}
+  }
+  const latest=readPendingResults();
+  writePendingResults(latest.filter(item=>!item||!sent.has(item.eventId)));
+}
+function setSaveStatus(text,kind=''){
+  $('saveStatus').textContent=text;
+  $('saveStatus').className='message '+kind;
+}
+async function submitResult(payload){
+  try{await postResult(payload);setSaveStatus('✓ Результат сохранён','ok')}
+  catch(_){
+    queuePendingResult(payload);
+    setSaveStatus('Нет связи: результат сохранён на устройстве и отправится позже','pending');
+  }
+}
+function savedStudent(){
+  const studentId=localStorage.getItem('egeStudentId');
+  const name=localStorage.getItem('egeStudentName');
+  const code=localStorage.getItem('egeStudentCode');
+  return studentId&&code?{studentId,name:name||'Ученик',code}:null;
+}
+function rememberStudent(student,code){
+  localStorage.setItem('egeStudentId',String(student.studentId));
+  localStorage.setItem('egeStudentName',String(student.name||'Ученик'));
+  localStorage.setItem('egeStudentCode',String(code));
+}
+function clearStudent(){
+  localStorage.removeItem('egeStudentId');localStorage.removeItem('egeStudentName');localStorage.removeItem('egeStudentCode');
+  currentStudent=null;
+}
+function studentFromResponse(data){
+  if(!data||data.ok===false||data.success===false||data.valid===false)return null;
+  const source=data.student||data.data||data.result||data;
+  const studentId=source.studentId??source.id??data.studentId??data.id;
+  const name=source.studentName??source.name??data.studentName??data.name;
+  return studentId!==undefined&&studentId!==null&&studentId!==''?
+    {studentId:String(studentId),name:String(name||'Ученик')}:null;
+}
+function validateStudentCode(code){
+  return new Promise((resolve,reject)=>{
+    const callback='__egeGalaxy_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const script=document.createElement('script');
+    let settled=false;
+    const timer=setTimeout(()=>finishValidation(new Error('Сервер не ответил. Проверьте интернет')),15000);
+    function cleanup(){
+      clearTimeout(timer);
+      try{delete window[callback]}catch(_){window[callback]=undefined}
+      script.remove();
+    }
+    function finishValidation(error,value){
+      if(settled)return;settled=true;cleanup();error?reject(error):resolve(value);
+    }
+    window[callback]=data=>{
+      const student=studentFromResponse(data);
+      student?finishValidation(null,student):
+        finishValidation(new Error((data&&(data.error||data.message))||'Код ученика не найден'));
+    };
+    script.onerror=()=>finishValidation(new Error('Не удалось связаться с сервером'));
+    script.src=API_URL+'?'+new URLSearchParams({action:'validateStudent',code,callback}).toString();
+    document.head.appendChild(script);
+  });
+}
+function showOnly(id){
+  ['authScreen','startScreen','gameScreen','resultScreen'].forEach(screen=>$(screen).classList.toggle('hidden',screen!==id));
+}
+function showLogin(prefill=''){
+  if(S.active)return;
+  showOnly('authScreen');$('studentCode').value=prefill;$('authMessage').textContent='';$('authMessage').className='message';
+  setTimeout(()=>$('studentCode').focus(),0);
+}
+function showStart(){
+  $('startStudent').textContent=currentStudent?currentStudent.name:'Ученик';
+  showOnly('startScreen');
+}
+function changeStudent(){
+  if(S.active)return;clearStudent();showLogin('');
+}
+async function loginStudent(){
+  const code=$('studentCode').value.trim();
+  if(!code){$('authMessage').textContent='Введите личный код';$('authMessage').className='message error';return}
+  $('loginBtn').disabled=true;$('authMessage').textContent='Проверяем код…';$('authMessage').className='message';
+  try{
+    currentStudent=await validateStudentCode(code);rememberStudent(currentStudent,code);showStart();flushPendingResults();
+  }catch(error){
+    $('authMessage').textContent=error.message||'Не удалось проверить код';$('authMessage').className='message error';
+  }finally{$('loginBtn').disabled=false}
+}
+
+/* ---------- Задания ---------- */
+function option(text,correct=false){return{text,correct}}
+function shuffle(array){
+  for(let i=array.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[array[i],array[j]]=[array[j],array[i]]}
+  return array;
+}
+/* Актуальный набор прототипов задания №11 */
+function makeTasks(){
+  return[
+    {
+      family:'parabolaFormula',mode:'График → знаки коэффициентов',showGraph:true,
+      prompt:'Какие знаки имеют коэффициенты a, b и c?',
+      fn:x=>.6*x*x+1.2*x-2,view:{xmin:-6,xmax:5,ymin:-5,ymax:7},
+      options:[option('a > 0, b > 0, c < 0',true),option('a < 0, b > 0, c < 0'),option('a > 0, b < 0, c > 0'),option('a > 0, b < 0, c < 0')],
+      why:'Ветви вверх: a > 0. Пересечение с Oy ниже нуля: c < 0. Вершина слева от Oy при a > 0 означает b > 0.'
+    },
+    {
+      family:'parabolaFormula',mode:'Формула → знаки коэффициентов',showGraph:false,formula:'y = −2x² + 3x + 1',
+      prompt:'Выбери верный набор знаков без вычислений.',
+      options:[option('a < 0, b > 0, c > 0',true),option('a > 0, b > 0, c < 0'),option('a < 0, b < 0, c > 0'),option('a > 0, b < 0, c > 0')],
+      why:'Знаки видны прямо в записи: перед x² стоит −2, перед x — +3, свободный член равен +1.'
+    },
+    {
+      family:'parabolaFormula',mode:'График → коэффициенты вершины',showGraph:true,
+      prompt:'Как описать коэффициенты формы y = a(x − h)² + k?',
+      fn:x=>2*(x-1)*(x-1)-2,view:{xmin:-3,xmax:5,ymin:-4,ymax:8},
+      options:[option('a > 1, h > 0, k < 0',true),option('a < 0, h > 0, k < 0'),option('0 < a < 1, h < 0, k < 0'),option('a > 1, h < 0, k > 0')],
+      why:'Парабола узкая и направлена вверх: a > 1. Вершина справа от Oy и ниже Ox: h > 0, k < 0.'
+    },
+    {
+      family:'parabolaFormula',mode:'Формула → быстрый образ',showGraph:false,formula:'y = 0,25(x + 2)² + 1',
+      prompt:'Как выглядит график по коэффициентам?',
+      options:[option('Широкие ветви вверх, вершина слева и выше начала координат',true),option('Узкие ветви вверх, вершина справа и выше'),option('Широкие ветви вниз, вершина слева и ниже'),option('Узкие ветви вниз, вершина справа и ниже')],
+      why:'0 < a < 1 даёт широкие ветви вверх. x + 2 сдвигает вершину влево, +1 — вверх.'
+    },
+    {
+      family:'parabolaProperties',mode:'График → коэффициенты',showGraph:true,
+      prompt:'Какой набор знаков подходит этой параболе?',
+      fn:x=>x*x-6*x+5,view:{xmin:-2,xmax:8,ymin:-6,ymax:8},
+      options:[option('a > 0, b < 0, c > 0',true),option('a < 0, b < 0, c > 0'),option('a > 0, b > 0, c < 0'),option('a > 0, b > 0, c > 0')],
+      why:'Ветви вверх: a > 0. Вершина справа от Oy: b < 0. График пересекает Oy выше Ox: c > 0.'
+    },
+    {
+      family:'parabolaProperties',mode:'График → форма вершины',showGraph:true,
+      prompt:'Какие знаки имеют a, h и k в форме y = a(x − h)² + k?',
+      fn:x=>-.5*(x+1)*(x+1)+3,view:{xmin:-7,xmax:5,ymin:-5,ymax:5},
+      options:[option('a < 0, h < 0, k > 0',true),option('a > 0, h < 0, k > 0'),option('a < 0, h > 0, k < 0'),option('a > 0, h > 0, k > 0')],
+      why:'Ветви вниз: a < 0. Вершина слева от Oy и выше Ox: h < 0, k > 0.'
+    },
+    {
+      family:'parabolaProperties',mode:'Коэффициенты → положение',showGraph:false,formula:'y = 2x² + 4x − 6',
+      prompt:'Где находится вершина и куда направлены ветви?',
+      options:[option('Вершина слева от Oy, ветви вверх',true),option('Вершина справа от Oy, ветви вверх'),option('Вершина слева от Oy, ветви вниз'),option('Вершина на Oy, ветви вниз')],
+      why:'a > 0 — ветви вверх. a и b одного знака, поэтому −b/(2a) отрицательно: вершина слева от Oy.'
+    },
+    {
+      family:'parabolaProperties',mode:'График → свободный член',showGraph:true,
+      prompt:'Что можно сразу сказать о коэффициентах?',
+      fn:x=>x*x+2,view:{xmin:-5,xmax:5,ymin:-2,ymax:8},
+      options:[option('a > 0, b = 0, c > 0',true),option('a < 0, b = 0, c > 0'),option('a > 0, b > 0, c < 0'),option('a > 0, b < 0, c = 0')],
+      why:'Ветви вверх дают a > 0. Ось симметрии совпадает с Oy, значит b = 0. Пересечение с Oy выше нуля: c > 0.'
+    },
+    {
+      family:'twoLines',mode:'Две прямые → знаки наклонов',showGraph:true,
+      prompt:'Голубая и жёлтая прямые: какие знаки имеют их угловые коэффициенты?',
+      functions:[x=>x+1,x=>-x+3],view:{xmin:-5,xmax:5,ymin:-5,ymax:6},
+      options:[option('kгол > 0, kжёл < 0',true),option('kгол < 0, kжёл > 0'),option('Оба k > 0'),option('Оба k < 0')],
+      why:'Голубая прямая возрастает — её k положителен. Жёлтая убывает — её k отрицателен.'
+    },
+    {
+      family:'twoLines',mode:'Две прямые → сравнение k',showGraph:true,
+      prompt:'Обе прямые возрастают. У какой угловой коэффициент больше?',
+      functions:[x=>2*x-1,x=>.5*x+2],view:{xmin:-4,xmax:6,ymin:-4,ymax:8},
+      options:[option('У голубой: она поднимается круче',true),option('У жёлтой: она выше пересекает Oy'),option('Коэффициенты равны'),option('Сравнить по графику нельзя')],
+      why:'Чем больше положительный k, тем круче прямая поднимается слева направо. Положение на Oy задаёт b, а не k.'
+    },
+    {
+      family:'twoLines',mode:'Коэффициенты → взаимное положение',showGraph:false,formula:'y = 3x − 2;  y = 3x + 4',
+      prompt:'Какой признак сразу показывает, что прямые параллельны?',
+      options:[option('Одинаковые k и разные b',true),option('Разные k и одинаковые b'),option('Одинаковые k и одинаковые b'),option('Оба свободных члена положительны')],
+      why:'У параллельных несовпадающих прямых одинаковые угловые коэффициенты k и разные свободные члены b.'
+    },
+    {
+      family:'twoLines',mode:'Формулы → быстрый образ',showGraph:false,formula:'y = −2x + 5;  y = x − 1',
+      prompt:'Как ведут себя эти прямые?',
+      options:[option('Первая убывает и пересекает Oy выше нуля; вторая возрастает и пересекает Oy ниже нуля',true),option('Обе возрастают и пересекают Oy выше нуля'),option('Первая возрастает, вторая убывает'),option('Обе убывают и параллельны')],
+      why:'У первой k = −2 < 0 и b = 5 > 0. У второй k = 1 > 0 и b = −1 < 0.'
+    },
+    {
+      family:'lineParabola',mode:'Прямая + парабола → коэффициенты',showGraph:true,
+      prompt:'Что верно для голубой параболы и жёлтой прямой?',
+      functions:[x=>x*x,x=>x+2],view:{xmin:-4,xmax:4,ymin:-3,ymax:8},
+      options:[option('У параболы a > 0 и b = 0; у прямой k > 0 и свободный член > 0',true),option('У параболы a < 0; у прямой k < 0'),option('У параболы b > 0; у прямой свободный член < 0'),option('Оба графика имеют отрицательный наклон')],
+      why:'Парабола направлена вверх и симметрична относительно Oy: a > 0, b = 0. Прямая возрастает и пересекает Oy выше нуля.'
+    },
+    {
+      family:'lineParabola',mode:'Парабола + горизонталь',showGraph:true,
+      prompt:'Как свободный член параболы связан с её положением?',
+      functions:[x=>x*x-4,x=>0],view:{xmin:-5,xmax:5,ymin:-6,ymax:7},
+      options:[option('c < 0: график пересекает Oy ниже горизонтали y = 0',true),option('c > 0: график пересекает Oy выше y = 0'),option('c = 0: вершина лежит на горизонтали'),option('Знак c определяет направление ветвей')],
+      why:'Значение c равно y(0). На рисунке точка параболы при x = 0 находится ниже линии y = 0, значит c < 0.'
+    },
+    {
+      family:'lineParabola',mode:'Форма вершины → положение',showGraph:false,formula:'y = (x − 1)²;  y = 0',
+      prompt:'Как коэффициенты показывают взаимное положение графиков?',
+      options:[option('a > 0, вершина сдвинута вправо и лежит на y = 0 — это касание',true),option('a < 0, вершина лежит выше y = 0'),option('Вершина сдвинута влево и графики не встречаются'),option('Свободный член прямой положителен')],
+      why:'Квадрат с положительным коэффициентом даёт ветви вверх, а вершина (1; 0) лежит прямо на горизонтали y = 0.'
+    },
+    {
+      family:'lineParabola',mode:'Коэффициенты → положение',showGraph:false,formula:'y = −x² + 4;  y = 5',
+      prompt:'Почему горизонталь находится выше всей параболы?',
+      options:[option('a < 0, вершина имеет высоту 4, а у прямой b = 5',true),option('a > 0, а свободный член параболы равен 5'),option('У прямой отрицательный угловой коэффициент'),option('Коэффициенты при x² равны')],
+      why:'Парабола направлена вниз и достигает максимума 4. Горизонталь y = 5 проходит на единицу выше.'
+    },
+    {
+      family:'mixedGraphs',mode:'Гипербола + прямая → знаки',showGraph:true,
+      prompt:'Что видно по коэффициентам этих графиков?',
+      functions:[x=>x===0?NaN:4/x,x=>x],view:{xmin:-6,xmax:6,ymin:-6,ymax:6},asymptotes:[{type:'v',value:0}],
+      options:[option('У гиперболы коэффициент > 0, у прямой k > 0',true),option('У гиперболы коэффициент < 0, у прямой k > 0'),option('Оба коэффициента отрицательны'),option('Прямая имеет k = 0')],
+      why:'Ветви гиперболы находятся в I и III четвертях — её коэффициент положителен. Прямая возрастает — k > 0.'
+    },
+    {
+      family:'mixedGraphs',mode:'Корневая + прямая → сдвиг',showGraph:true,
+      prompt:'Какой коэффициент прямой виден по её пересечению с Oy?',
+      functions:[x=>x>=0?Math.sqrt(x):NaN,x=>x-2],view:{xmin:-2,xmax:8,ymin:-4,ymax:6},
+      options:[option('Свободный член прямой b < 0',true),option('Свободный член прямой b > 0'),option('Угловой коэффициент прямой k < 0'),option('Прямая имеет k = 0')],
+      why:'Прямая пересекает Oy ниже начала координат, поэтому её свободный член отрицателен. При этом она возрастает: k > 0.'
+    },
+    {
+      family:'mixedGraphs',mode:'Показательная + горизонталь',showGraph:true,
+      prompt:'Как коэффициенты задают вид этих графиков?',
+      functions:[x=>Math.pow(2,x),x=>4],view:{xmin:-4,xmax:5,ymin:-1,ymax:9},
+      options:[option('Основание показательной функции > 1, горизонталь имеет уровень 4',true),option('Основание находится между 0 и 1, горизонталь имеет уровень −4'),option('Показательная функция убывает, прямая имеет k > 0'),option('Оба графика проходят через начало координат')],
+      why:'Показательный график возрастает, значит основание больше 1. Второй график горизонтален и расположен на уровне y = 4.'
+    },
+    {
+      family:'mixedGraphs',mode:'Показательная + прямая → быстрый образ',showGraph:true,
+      prompt:'Какой набор коэффициентов согласуется с рисунком?',
+      functions:[x=>Math.pow(2,x),x=>x+1],view:{xmin:-4,xmax:4,ymin:-2,ymax:8},
+      options:[option('Основание экспоненты > 1; у прямой k > 0 и b > 0',true),option('Основание экспоненты между 0 и 1; у прямой k < 0'),option('Основание > 1; у прямой k = 0'),option('У прямой k > 0 и b < 0')],
+      why:'Экспонента возрастает — её основание больше 1. Прямая также возрастает и пересекает Oy выше нуля: k > 0, b > 0.'
+    }
+  ].map(task=>{
+    const correct=task.options.find(item=>item.correct);
+    const distractors=shuffle(task.options.filter(item=>!item.correct)).slice(0,2);
+    return{...task,options:shuffle([correct,...distractors])};
+  });
+}
+function buildMissionTasks(){
+  const all=makeTasks();
+  const bossPool=shuffle(all.filter(task=>task.family==='lineParabola'||task.family==='mixedGraphs'));
+  const bosses=bossPool.slice(0,4);
+  const regular=shuffle(all.filter(task=>!bosses.includes(task)));
+  const mission=[];
+  for(let index=0;index<20;index++){
+    const isBoss=(index+1)%5===0;
+    const pool=isBoss?bosses:regular;
+    const recent=mission.slice(-2).map(task=>task.family);
+    let pickIndex=pool.findIndex(task=>recent.length<2||!recent.every(family=>family===task.family));
+    if(pickIndex<0)pickIndex=0;
+    const task=pool.splice(pickIndex,1)[0];
+    mission.push({...task,boss:isBoss});
+  }
+  return mission;
+}
+
+/* ---------- График ---------- */
+function drawPlot(task){
+  const canvas=$('plot'),ctx=canvas.getContext('2d');
+  const cssWidth=Math.max(300,canvas.getBoundingClientRect().width||760);
+  const cssHeight=Math.round(cssWidth*.46);
+  const dpr=Math.min(devicePixelRatio||1,2);
+  canvas.width=Math.round(cssWidth*dpr);canvas.height=Math.round(cssHeight*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const W=cssWidth,H=cssHeight,pad=24,v=task.view;
+  const X=x=>pad+(x-v.xmin)/(v.xmax-v.xmin)*(W-2*pad);
+  const Y=y=>H-pad-(y-v.ymin)/(v.ymax-v.ymin)*(H-2*pad);
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#060d1c';ctx.fillRect(0,0,W,H);
+  ctx.lineWidth=1;ctx.strokeStyle='#122746';
+  for(let x=Math.ceil(v.xmin);x<=Math.floor(v.xmax);x++){ctx.beginPath();ctx.moveTo(X(x),pad);ctx.lineTo(X(x),H-pad);ctx.stroke()}
+  for(let y=Math.ceil(v.ymin);y<=Math.floor(v.ymax);y++){ctx.beginPath();ctx.moveTo(pad,Y(y));ctx.lineTo(W-pad,Y(y));ctx.stroke()}
+  ctx.strokeStyle='#6d84ad';ctx.lineWidth=1.5;
+  if(v.ymin<=0&&v.ymax>=0){ctx.beginPath();ctx.moveTo(pad,Y(0));ctx.lineTo(W-pad,Y(0));ctx.stroke()}
+  if(v.xmin<=0&&v.xmax>=0){ctx.beginPath();ctx.moveTo(X(0),pad);ctx.lineTo(X(0),H-pad);ctx.stroke()}
+  ctx.fillStyle='#8da3ca';ctx.font='11px Rajdhani';ctx.fillText('x',W-pad-8,Y(0)-6);ctx.fillText('y',X(0)+7,pad+11);
+  (task.asymptotes||[]).forEach(a=>{
+    ctx.save();ctx.setLineDash([7,6]);ctx.strokeStyle='#ff4d8dbb';ctx.lineWidth=1.5;ctx.beginPath();
+    if(a.type==='v'){ctx.moveTo(X(a.value),pad);ctx.lineTo(X(a.value),H-pad)}
+    else{ctx.moveTo(pad,Y(a.value));ctx.lineTo(W-pad,Y(a.value))}
+    ctx.stroke();ctx.restore();
+  });
+  const graphFunctions=task.functions||[task.fn],colors=['#2ff3ff','#ffd24a','#ff4d8d'];
+  graphFunctions.forEach((fn,index)=>{
+    ctx.save();ctx.strokeStyle=colors[index%colors.length];ctx.lineWidth=3;
+    ctx.shadowColor=colors[index%colors.length];ctx.shadowBlur=10;
+    let drawing=false,lastY=null;
+    for(let px=pad;px<=W-pad;px+=1.2){
+      const x=v.xmin+(px-pad)/(W-2*pad)*(v.xmax-v.xmin),y=fn(x),sy=Y(y);
+      const valid=Number.isFinite(y)&&sy>pad-20&&sy<H-pad+20;
+      if(!valid||lastY!==null&&Math.abs(sy-lastY)>H*.45){
+        if(drawing)ctx.stroke();drawing=false;lastY=null;continue;
+      }
+      if(!drawing){ctx.beginPath();ctx.moveTo(px,sy);drawing=true}else ctx.lineTo(px,sy);
+      lastY=sy;
+    }
+    if(drawing)ctx.stroke();ctx.restore();
+  });
+}
+
+/* ---------- Звук ---------- */
+const Sound=(()=>{
+  let ac=null,master=null,musicTimer=null,step=0;
+  const seq=[220,0,277,330,0,277,415,330,0,247,294,370,0,294,440,370];
+  function init(){
+    if(ac)return;ac=new (window.AudioContext||window.webkitAudioContext)();master=ac.createGain();master.gain.value=.18;master.connect(ac.destination);
+  }
+  function tone(freq,dur=.12,type='sine',gain=.12,delay=0){
+    if(!S.sound)return;init();const t=ac.currentTime+delay,o=ac.createOscillator(),g=ac.createGain();
+    o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    o.connect(g);g.connect(master);o.start(t);o.stop(t+dur);
+  }
+  function startMusic(){
+    if(!S.sound||musicTimer)return;init();if(ac.state==='suspended')ac.resume();
+    musicTimer=setInterval(()=>{const f=seq[step++%seq.length];if(f)tone(f,.28,'triangle',.08)},260);
+  }
+  function stopMusic(){clearInterval(musicTimer);musicTimer=null}
+  return{
+    startMusic,stopMusic,
+    laser(){tone(920,.18,'sawtooth',.11);tone(1320,.12,'square',.07,.08)},
+    correct(){[523,659,784].forEach((f,i)=>tone(f,.16,'square',.12,i*.08))},
+    wrong(){[220,180,140].forEach((f,i)=>tone(f,.18,'sawtooth',.1,i*.09))},
+    click(){tone(700,.06,'square',.07)}
+  };
+})();
+function paintSound(){
+  document.querySelectorAll('[data-sound]').forEach(btn=>{btn.classList.toggle('off',!S.sound);btn.textContent=S.sound?'♫ ЗВУК':'× БЕЗ ЗВУКА'});
+}
+function toggleSound(){S.sound=!S.sound;S.sound?Sound.startMusic():Sound.stopMusic();paintSound()}
+
+/* ---------- Игра ---------- */
+function resetFamilyStats(){
+  S.familyStats={};FAMILY_ORDER.forEach(key=>{
+    const total=S.tasks.filter(task=>task.family===key).length;
+    S.familyStats[key]={correct:0,total,answers:[]};
+  });
+}
+function buildPlanetRail(){
+  $('planets').innerHTML=FAMILY_ORDER.map(key=>{
+    const meta=FAMILY_META[key];
+    const familyIndexes=S.tasks.map((task,index)=>task.family===key?index:-1).filter(index=>index>=0);
+    const nodes=familyIndexes.map(index=>`<i data-node="${index}"></i>`).join('');
+    return`<div class="planet" data-family="${key}"><span class="orb">${meta.icon}</span>${meta.name.replace(' функция','')}
+      <span class="nodes">${nodes}</span></div>`;
+  }).join('');
+}
+function updatePlanetRail(){
+  document.querySelectorAll('.planet').forEach(el=>{
+    const family=el.dataset.family,current=S.tasks[S.i]?.family;
+    el.classList.toggle('active',family===current&&S.i<S.tasks.length);
+    el.classList.toggle('done',S.familyStats[family].answers.length>=S.familyStats[family].total);
+  });
+  document.querySelectorAll('[data-node]').forEach(node=>{
+    const n=Number(node.dataset.node);node.className='';
+    if(n===S.i&&!S.answered)node.classList.add('current');
+    if(n<S.i||n===S.i&&S.answered){
+      const task=S.tasks[n],answer=S.familyStats[task.family]?.answers.find(a=>a.index===n);
+      node.classList.add(answer&&answer.correct?'ok':'bad');
+    }
+  });
+}
+function startGame(){
+  if(!currentStudent){showLogin('');return}
+  S.tasks=buildMissionTasks();S.i=0;S.firstTryCorrect=0;S.questionAttempted=false;S.answered=false;
+  S.shield=100;S.combo=0;S.gamePoints=0;S.reboots=0;S.resolving=false;
+  S.startedAt=Date.now();S.active=true;S.resultSubmitted=false;resetFamilyStats();buildPlanetRail();
+  clearInterval(S.timerId);clearInterval(S.questionTimerId);clearTimeout(S.autoNextTimer);
+  S.timerId=setInterval(updateTimer,500);updateTimer();updateCombatHud();showOnly('gameScreen');Sound.startMusic();renderQuestion();
+}
+function updateCombatHud(){
+  $('shieldFill').style.width=S.shield+'%';$('shieldValue').textContent=S.shield+'%';
+  $('shieldValue').style.color=S.shield>55?'var(--green)':S.shield>25?'var(--gold)':'var(--rose)';
+  $('comboValue').textContent='×'+S.combo;$('pointsValue').textContent=String(S.gamePoints);
+}
+function updateTimer(){
+  if(!S.startedAt)return;const sec=Math.floor((Date.now()-S.startedAt)/1000);
+  $('timer').textContent=Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0');$('timer').classList.toggle('over',sec>300);
+}
+function renderQuestion(){
+  const task=S.tasks[S.i];S.answered=false;S.questionAttempted=false;S.resolving=false;
+  S.selectedOption=1;
+  $('gameScreen').classList.toggle('danger-sector',Boolean(task.boss));
+  $('qNum').textContent=S.i+1;$('progressFill').style.width=(S.i/S.tasks.length*100)+'%';
+  $('familyLabel').textContent=FAMILY_META[task.family].icon+' '+FAMILY_META[task.family].name;
+  $('modeLabel').textContent=(task.boss?'⚠ ОПАСНЫЙ СЕКТОР · ':'')+task.mode;$('prompt').textContent=task.prompt;
+  $('formula').classList.toggle('hidden',task.showGraph);$('plotWrap').classList.toggle('hidden',!task.showGraph);
+  if(task.showGraph)requestAnimationFrame(()=>drawPlot(task));else $('formula').textContent=task.formula;
+  const letters=['1','2','3'];
+  $('options').innerHTML='';
+  task.options.forEach((item,index)=>{
+    const btn=document.createElement('button');btn.className='option';btn.dataset.correct=item.correct?'1':'0';
+    btn.dataset.index=String(index);btn.type='button';
+    btn.innerHTML=`<span class="letter">${letters[index]}</span>${item.text}`;
+    btn.onclick=()=>selectShip(index);$('options').appendChild(btn);
+  });
+  setFlightControlsDisabled(false);placeShip();
+  $('feedback').classList.remove('show');updatePlanetRail();
+  startQuestionTimer();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function setFlightControlsDisabled(disabled){
+  ['moveLeft','moveRight'].forEach(id=>$(id).disabled=disabled);
+}
+function placeShip(){
+  document.querySelectorAll('.option').forEach((button,index)=>{
+    const selected=index===S.selectedOption;
+    button.classList.toggle('selected',selected);
+    button.setAttribute('aria-pressed',selected?'true':'false');
+  });
+  const lanePosition=((S.selectedOption+.5)/3*100)+'%';
+  $('shipCraft').style.left=lanePosition;$('blaster').style.left=lanePosition;
+  $('courseStatus').textContent='КУРС: '+['ЛЕВЫЙ','СРЕДНИЙ','ПРАВЫЙ'][S.selectedOption];
+}
+function selectShip(index,withSound=true){
+  if(S.answered||S.resolving)return;
+  S.selectedOption=Math.max(0,Math.min(2,Number(index)));placeShip();
+  if(withSound)Sound.click();
+}
+function moveShip(direction){selectShip(S.selectedOption+direction)}
+function startQuestionTimer(){
+  clearInterval(S.questionTimerId);clearTimeout(S.autoNextTimer);
+  const blast=$('blaster'),ship=$('shipCraft');
+  const portals=$('options');
+  blast.className='blaster';ship.className='ship-craft';
+  portals.classList.remove('approaching','resolved');void portals.offsetWidth;portals.classList.add('approaching');
+  S.questionDeadline=Date.now()+30000;
+  updateQuestionTimer();
+  S.questionTimerId=setInterval(updateQuestionTimer,100);
+}
+function updateQuestionTimer(){
+  const left=Math.max(0,Math.ceil((S.questionDeadline-Date.now())/1000));
+  S.timeLeft=left;$('questionTimer').textContent=left;$('questionTimer').classList.toggle('danger',left<=5);
+  if(left===0){
+    clearInterval(S.questionTimerId);S.questionTimerId=null;handleQuestionTimeout();
+  }
+}
+function handleQuestionTimeout(){
+  if(S.answered||S.resolving)return;
+  S.resolving=true;setFlightControlsDisabled(true);$('options').classList.add('resolved');
+  const task=S.tasks[S.i],item=task.options[S.selectedOption];
+  const button=document.querySelector(`.option[data-index="${S.selectedOption}"]`);
+  if(!button||!item)return;
+  const blast=$('blaster');blast.className='blaster flying';Sound.laser();
+  setTimeout(()=>{
+    if(S.answered)return;
+    blast.className='blaster impact';chooseAnswer(button,item);
+    S.autoNextTimer=setTimeout(nextQuestion,1650);
+  },340);
+}
+function chooseAnswer(btn,item){
+  if(S.answered)return;
+  clearInterval(S.questionTimerId);S.questionTimerId=null;clearTimeout(S.autoNextTimer);
+  const first=!S.questionAttempted;S.questionAttempted=true;S.answered=true;
+  const task=S.tasks[S.i],correct=Boolean(item.correct);
+  setFlightControlsDisabled(true);
+  if(first&&correct){S.firstTryCorrect++;S.familyStats[task.family].correct++}
+  let rebooted=false,shieldBonus=false;
+  if(correct){
+    S.combo++;S.gamePoints+=100*Math.min(S.combo,5);
+    if(S.combo%3===0){S.shield=Math.min(100,S.shield+12);shieldBonus=true}
+  }else{
+    S.combo=0;S.shield=Math.max(0,S.shield-25);
+    if(S.shield===0){S.reboots++;S.shield=50;rebooted=true}
+  }
+  S.familyStats[task.family].answers.push({index:S.i,correct:first&&correct});
+  document.querySelectorAll('.option').forEach(optionBtn=>{
+    optionBtn.disabled=true;
+    if(optionBtn.dataset.correct==='1')optionBtn.classList.add('correct');
+    else if(optionBtn!==btn)optionBtn.classList.add('dim');
+  });
+  if(correct)btn.classList.add('portal-open');
+  else{btn.classList.add('wrong','portal-crash')}
+  $('shipCraft').classList.add(correct?'survived':'crashed');
+  $('feedbackTitle').textContent=rebooted?'⚠ АВАРИЙНЫЙ ПЕРЕЗАПУСК · ЩИТ 50%':
+    correct?(shieldBonus?'✦ ПОРТАЛ УНИЧТОЖЕН · ЩИТ +12%':'✦ ПОРТАЛ УНИЧТОЖЕН · КОМБО ×'+S.combo):
+    '✕ УДАР ПО ЩИТУ · −25%';
+  $('feedbackTitle').className=correct?'ok':'bad';$('feedbackText').textContent=task.why;$('feedback').classList.add('show');
+  $('progressFill').style.width=((S.i+1)/S.tasks.length*100)+'%';
+  correct?Sound.correct():Sound.wrong();updateCombatHud();updatePlanetRail();
+}
+function nextQuestion(){
+  if(!S.answered)return;Sound.click();
+  clearInterval(S.questionTimerId);S.questionTimerId=null;clearTimeout(S.autoNextTimer);S.autoNextTimer=null;
+  if(S.i<S.tasks.length-1){S.i++;renderQuestion()}else finishGame();
+}
+function finishGame(){
+  if(S.resultSubmitted)return;S.resultSubmitted=true;S.active=false;
+  clearInterval(S.timerId);clearInterval(S.questionTimerId);clearTimeout(S.autoNextTimer);
+  S.timerId=null;S.questionTimerId=null;S.autoNextTimer=null;updateTimer();
+  const durationSeconds=Math.max(0,Math.floor((Date.now()-S.startedAt)/1000));
+  const scorePercent=Math.round(S.firstTryCorrect/S.tasks.length*100);
+  $('finalPct').textContent=scorePercent+'%';$('finalCorrect').textContent=S.firstTryCorrect+'/'+S.tasks.length;
+  $('finalTime').textContent=Math.floor(durationSeconds/60)+':'+String(durationSeconds%60).padStart(2,'0');
+  $('finalPoints').textContent=String(S.gamePoints);$('finalShield').textContent=S.shield+'%';
+  $('scoreRing').style.setProperty('--score-angle',(scorePercent*3.6)+'deg');
+  let rank,message;
+  if(scorePercent>=90){rank='КОМАНДОР ГРАФИКОВ';message='Прототипы усвоены уверенно. Все пять планет доступны для навигации.'}
+  else if(scorePercent>=70){rank='ПИЛОТ-ИССЛЕДОВАТЕЛЬ';message='База хорошая. Проверь планеты с результатом 0/2 или 1/2.'}
+  else if(scorePercent>=50){rank='ШТУРМАН-КУРСАНТ';message='Часть прототипов уже узнаётся, но преобразования графиков нужно закрепить.'}
+  else{rank='НОВОБРАНЕЦ';message='Повтори базовые графики, асимптоты и сдвиги, затем пройди скан ещё раз.'}
+  $('rank').textContent=rank;$('resultMessage').textContent=message;
+  $('familyResults').innerHTML=FAMILY_ORDER.map(key=>{
+    const stat=S.familyStats[key],cls=stat.correct===stat.total?'mastered':stat.correct>=Math.ceil(stat.total/2)?'almost':'repeat';
+    const label=stat.correct===stat.total?'усвоено':stat.correct>=Math.ceil(stat.total/2)?'почти усвоено':'повторить';
+    return`<div class="family-row"><span>${FAMILY_META[key].icon} ${FAMILY_META[key].name}</span><b class="${cls}">${stat.correct}/${stat.total} · ${label}</b></div>`;
+  }).join('');
+  setSaveStatus('Сохраняем результат…');showOnly('resultScreen');
+  const payload={
+    action:'submitTest',
+    eventId:makeEventId(),
+    studentId:currentStudent.studentId,
+    testId:TEST_META.testId,
+    testDate:localDateString(),
+    topicId:TEST_META.topicId,
+    topicName:TEST_META.topicName,
+    taskNumber:TEST_META.taskNumber,
+    scorePercent,
+    durationSeconds,
+    schemaVersion:TEST_META.schemaVersion
+  };
+  submitResult(payload);
+}
+
+/* ---------- Звёзды ---------- */
+(function stars(){
+  const canvas=$('stars'),ctx=canvas.getContext('2d');let dots=[],W=0,H=0;
+  function resize(){
+    const dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+    dots=Array.from({length:Math.min(150,Math.floor(W*H/8000))},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.3+.3,s:Math.random()*.18+.04}));
+  }
+  function loop(){
+    ctx.clearRect(0,0,W,H);ctx.fillStyle='#b7dcff';
+    dots.forEach(d=>{d.y+=d.s;if(d.y>H){d.y=0;d.x=Math.random()*W}ctx.globalAlpha=.25+d.r*.35;ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,7);ctx.fill()});
+    ctx.globalAlpha=1;requestAnimationFrame(loop);
+  }
+  addEventListener('resize',resize);resize();loop();
+})();
+
+/* ---------- События и запуск ---------- */
+$('loginBtn').onclick=loginStudent;
+$('studentCode').addEventListener('keydown',e=>{if(e.key==='Enter')loginStudent()});
+$('changeStudentStart').onclick=changeStudent;
+$('changeStudentResult').onclick=changeStudent;
+$('startBtn').onclick=startGame;$('againBtn').onclick=startGame;
+$('moveLeft').onclick=()=>moveShip(-1);$('moveRight').onclick=()=>moveShip(1);
+addEventListener('keydown',event=>{
+  if(!S.active||S.answered||event.target instanceof HTMLInputElement)return;
+  if(event.key==='ArrowLeft'){event.preventDefault();moveShip(-1)}
+  else if(event.key==='ArrowRight'){event.preventDefault();moveShip(1)}
+});
+document.querySelectorAll('[data-sound]').forEach(btn=>btn.onclick=toggleSound);
+addEventListener('online',flushPendingResults);
+addEventListener('resize',()=>{if(S.active&&S.tasks[S.i]?.showGraph)drawPlot(S.tasks[S.i])});
+paintSound();
+currentStudent=savedStudent();
+const codeFromUrl=new URLSearchParams(location.search).get('code');
+if(codeFromUrl){clearStudent();showLogin(codeFromUrl);loginStudent()}
+else if(currentStudent){showStart();flushPendingResults()}
+else showLogin('');
+</script>
+</body>
+</html>
