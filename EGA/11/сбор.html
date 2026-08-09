@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Конструктор графиков — собери по уравнению</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#02050d;--panel:#08132bea;--panel2:#0b1935;--line:#25436e;
+  --cyan:#2ff3ff;--gold:#ffd24a;--rose:#ff4d8d;--green:#43ffa3;
+  --violet:#8b7bff;--ink:#edf5ff;--muted:#93a9d3
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%}
+body{
+  background:radial-gradient(900px 620px at 50% -10%,#163068 0,#07132d 46%,var(--bg) 100%);
+  color:var(--ink);font-family:'Rajdhani',system-ui,sans-serif;overflow-x:hidden
+}
+button,input{font:inherit}button{cursor:pointer}.hidden{display:none!important}
+#stars{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.app{position:relative;z-index:2;width:min(1100px,100%);margin:auto;padding:8px 12px 20px}
+.screen{animation:fade .32s ease}
+@keyframes fade{from{opacity:0;translate:0 8px}to{opacity:1;translate:0 0}}
+.panel{
+  background:linear-gradient(180deg,#0b1836ed,#060d20f3);border:1px solid var(--line);
+  border-radius:20px;box-shadow:0 22px 65px -32px #000,inset 0 0 50px -36px var(--cyan);
+  backdrop-filter:blur(8px)
+}
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.brand{font:900 14px 'Orbitron';letter-spacing:.12em;color:var(--cyan);text-shadow:0 0 16px #2ff3ff88}
+.brand small{display:block;margin-top:3px;font:600 9px 'Rajdhani';letter-spacing:.24em;color:var(--muted);text-shadow:none}
+.spacer{flex:1}
+.icon-btn,.small-btn{
+  border:1px solid #2ff3ff66;background:#081329;color:var(--cyan);border-radius:10px;
+  padding:8px 10px;font:700 10px 'Orbitron';letter-spacing:.08em;transition:.18s
+}
+.icon-btn.off{color:var(--muted);border-color:#34466d}
+.hero{text-align:center;padding:30px 18px}
+.hero h1{
+  margin:0;color:var(--cyan);font:900 clamp(27px,7vw,48px)/1.05 'Orbitron';
+  letter-spacing:.04em;text-shadow:0 0 24px #2ff3ff77,0 0 65px #2ff3ff33
+}
+.subtitle{margin:9px 0 18px;color:var(--gold);font:700 11px 'Orbitron';letter-spacing:.2em}
+.desc{max-width:680px;margin:9px auto;color:var(--muted);font-size:18px;line-height:1.45}
+.desc b{color:var(--ink)}
+.family-badges{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:21px 0}
+.family-badges span{
+  border:1px solid #294472;background:#09142d;border-radius:99px;padding:7px 12px;
+  color:#c5d4f2;font-weight:700;font-size:13px
+}
+.student-card{
+  width:min(450px,100%);margin:16px auto;padding:12px 14px;border:1px solid #294472;
+  background:#071127;border-radius:13px;color:var(--muted);font-size:16px
+}
+.student-card b{color:var(--cyan)}
+.primary{
+  border:0;border-radius:12px;padding:14px 22px;background:linear-gradient(120deg,var(--cyan),#96f3ff);
+  color:#03101d;font:800 12px 'Orbitron';letter-spacing:.1em;text-transform:uppercase;
+  box-shadow:0 0 28px -5px #2ff3ffbb;transition:.18s
+}
+.primary:hover{translate:0 -2px;box-shadow:0 0 35px -3px #2ff3ff}
+.primary:disabled{opacity:.4;cursor:default;translate:none;box-shadow:none}
+.ghost{border:1px solid #2ff3ff77;border-radius:10px;padding:9px 12px;background:transparent;color:var(--cyan);font:700 10px 'Orbitron'}
+.auth{max-width:560px;margin:7vh auto 0;padding:28px 20px;text-align:center}
+.auth h2{font:900 25px 'Orbitron';color:var(--cyan);margin:0 0 12px}
+.code-input{
+  width:min(410px,100%);display:block;margin:18px auto 8px;padding:13px 14px;
+  background:#061126;color:var(--ink);border:1px solid #2ff3ff88;border-radius:12px;
+  outline:none;text-align:center;font-size:19px;font-weight:700
+}
+.code-input:focus{border-color:var(--cyan);box-shadow:0 0 22px -5px #2ff3ff}
+.message{min-height:24px;margin:8px 0;color:var(--muted);font-size:15px}
+.message.error{color:var(--rose)}.message.ok{color:var(--green)}.message.pending{color:var(--gold)}
+
+.hud{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;margin-bottom:7px}
+.hud-chip{
+  border:1px solid #24416d;background:#071126;border-radius:10px;padding:8px 10px;
+  color:var(--muted);font:700 10px 'Orbitron';letter-spacing:.08em;white-space:nowrap
+}
+.hud-chip b{color:var(--ink)}
+.progress{height:9px;background:#0a1430;border:1px solid #1d315b;border-radius:99px;overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--violet));box-shadow:0 0 12px #2ff3ffaa;transition:.4s}
+.family-rail{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:7px}
+.family-node{
+  min-width:0;padding:4px;border:1px solid #20365f;border-radius:10px;background:#071126;
+  text-align:center;color:var(--muted);font-size:10px;font-weight:700
+}
+.family-node span{display:block;font-size:18px}.family-node.active{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 17px -8px var(--cyan)}
+.family-node.done{border-color:#2e765d;color:var(--green)}
+
+.lab{padding:10px}
+.lab-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:5px}
+.family-label{font:700 10px 'Orbitron';letter-spacing:.14em;color:var(--cyan);text-transform:uppercase}
+.module-label{font:700 11px 'Orbitron';letter-spacing:.08em;color:var(--gold)}
+.mission-text{margin:2px 0 7px;font:700 clamp(15px,3vw,19px) 'Orbitron';line-height:1.25}
+.equation-strip{display:grid;grid-template-columns:minmax(220px,.8fr) minmax(300px,1.2fr);gap:8px;margin-bottom:8px}
+.prototype{
+  border:1px solid #29466f;border-radius:12px;background:#07132b;padding:7px 10px;
+  text-align:center;color:var(--muted);font-size:13px
+}
+.prototype b{color:var(--gold);font:700 16px 'Orbitron'}
+.target-equation{
+  border:1px solid #ffd24a77;border-radius:13px;background:#1a1609;padding:7px 10px;
+  text-align:center;color:var(--muted);font-size:13px;box-shadow:0 0 18px -10px var(--gold)
+}
+.target-equation b{display:block;margin-top:2px;color:var(--gold);font:700 clamp(16px,3vw,20px) 'Orbitron'}
+.workspace{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(270px,.72fr);gap:10px;align-items:start}
+.tuning-column{min-width:0}
+.graph-shell{position:relative;border:1px solid #254371;border-radius:16px;background:#030817;padding:9px;overflow:hidden}
+#graph{display:block;width:100%;height:auto;border-radius:10px;background:#050b18}
+.scanline{position:absolute;left:9px;right:9px;height:1px;background:#2ff3ff77;box-shadow:0 0 10px var(--cyan);animation:scan 3s linear infinite;pointer-events:none}
+@keyframes scan{from{top:8%}to{top:92%}}
+.sync-row{display:grid;grid-template-columns:auto 1fr auto;gap:7px;align-items:center;margin:0 0 7px}
+.sync-row span{color:var(--muted);font:700 9px 'Orbitron';letter-spacing:.1em}
+.sync-track{height:11px;background:#071027;border:1px solid #29466f;border-radius:99px;overflow:hidden}
+.sync-track i{display:block;width:0;height:100%;background:linear-gradient(90deg,var(--rose),var(--gold),var(--green));transition:width .2s}
+#syncValue{color:var(--gold);min-width:42px;text-align:right}
+.controls{display:grid;grid-template-columns:1fr;gap:7px}
+.control{
+  border:1px solid #233e68;border-radius:13px;background:linear-gradient(180deg,#0a1833,#071127);
+  padding:7px 9px
+}
+.control-head{display:flex;justify-content:space-between;gap:8px;margin-bottom:3px}
+.control-head b{color:var(--cyan);font:700 13px 'Orbitron'}.control-head span{color:var(--gold);font:700 13px 'Orbitron'}
+.control small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+input[type="range"]{width:100%;accent-color:var(--cyan);cursor:ew-resize}
+.match-flash{
+  display:none;position:absolute;z-index:8;inset:0;place-items:center;background:#03121bd9;
+  color:var(--green);text-align:center;font:900 clamp(22px,6vw,38px) 'Orbitron';
+  text-shadow:0 0 22px var(--green)
+}
+.match-flash.show{display:grid;animation:match .6s ease}
+@keyframes match{from{opacity:0;scale:.82}to{opacity:1;scale:1}}
+
+.result{padding:25px 18px;text-align:center}
+.result h2{margin:0;color:var(--cyan);font:900 clamp(23px,6vw,35px) 'Orbitron'}
+.score-ring{
+  width:172px;height:172px;margin:19px auto;display:grid;place-items:center;border-radius:50%;
+  background:conic-gradient(var(--cyan) var(--score-angle,0deg),#14203e 0);position:relative
+}
+.score-ring:before{content:"";position:absolute;inset:13px;border-radius:50%;background:#071026;border:1px solid #20365f}
+.score-ring strong{position:relative;font:900 38px 'Orbitron';color:var(--gold)}
+.score-ring span{position:relative;display:block;margin-top:4px;color:var(--muted);font:700 9px 'Orbitron';letter-spacing:.11em}
+.rank{font:700 14px 'Orbitron';letter-spacing:.12em;color:var(--green);margin-bottom:8px}
+.result-info{display:flex;justify-content:center;gap:28px;flex-wrap:wrap;color:var(--muted);margin:14px 0}
+.result-info b{display:block;color:var(--ink);font:700 18px 'Orbitron';margin-top:3px}
+.family-result{max-width:620px;margin:17px auto;text-align:left}
+.family-row{display:grid;grid-template-columns:1fr auto;gap:10px;padding:10px 8px;border-bottom:1px solid #1d3157;font-size:16px}
+.family-row b{font-family:'Orbitron';font-size:13px}.mastered{color:var(--green)}.repeat{color:var(--rose)}.almost{color:var(--gold)}
+.result-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:13px}
+@media(max-width:650px){
+  .family-node{font-size:8px}.family-node span{font-size:16px}
+  .equation-strip,.workspace{grid-template-columns:1fr}.equation-strip{gap:5px;margin-bottom:6px}
+  .lab{padding:8px}.graph-shell{padding:6px}.controls{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .control small{display:none}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+<main class="app">
+  <section id="authScreen" class="screen hidden">
+    <div class="panel auth">
+      <h2>ВХОД В ЛАБОРАТОРИЮ</h2>
+      <p class="desc">Введи личный код ученика перед запуском миссии.</p>
+      <input id="studentCode" class="code-input" type="text" autocomplete="off" spellcheck="false" placeholder="ЛИЧНЫЙ КОД">
+      <div id="authMessage" class="message"></div>
+      <button id="loginBtn" class="primary">Проверить код</button>
+    </div>
+  </section>
+
+  <section id="startScreen" class="screen hidden">
+    <div class="topbar">
+      <div class="brand">КОНСТРУКТОР ГРАФИКОВ<small>ПЕРВАЯ ЧАСТЬ ПРОТОТИПОВ · ЗАДАНИЕ 11</small></div>
+      <span class="spacer"></span>
+      <button class="icon-btn" data-sound>♫ ЗВУК</button>
+    </div>
+    <div class="panel hero">
+      <h1>СОБЕРИ<br>ГРАФИК</h1>
+      <div class="subtitle">15 МОДУЛЕЙ · ПЕРВЫЕ 5 ПРОТОТИПОВ ЗАДАНИЯ 11</div>
+      <p class="desc">Перед тобой уравнение функции. Двигай ползунки коэффициентов и самостоятельно собери соответствующий ему график. Пунктирной подсказки и ограничения времени нет.</p>
+      <div class="family-badges">
+        <span>📡 Линейная</span><span>🌀 Гипербола</span><span>⚡ Показательная</span>
+        <span>🌱 Корневая</span><span>🔭 Логарифмическая</span>
+      </div>
+      <p class="desc"><b>Три простые сборки каждого типа.</b> Без сдвигов и сложных преобразований. Правильная сборка засчитывается автоматически.</p>
+      <div class="student-card">Инженер: <b id="startStudent">—</b><br><button id="changeStudentStart" class="small-btn">Сменить ученика</button></div>
+      <button id="startBtn" class="primary">▶ Запустить лабораторию</button>
+    </div>
+  </section>
+
+  <section id="gameScreen" class="screen hidden">
+    <div class="topbar">
+      <div class="brand">КОНСТРУКТОР ГРАФИКОВ<small>СИНХРОНИЗАЦИЯ КРИВЫХ</small></div>
+      <span class="spacer"></span>
+      <button class="icon-btn" data-sound>♫ ЗВУК</button>
+    </div>
+    <div class="hud">
+      <div class="hud-chip">МОДУЛЬ <b id="moduleNum">1</b>/15</div>
+      <div class="progress"><i id="progressFill"></i></div>
+    </div>
+    <div id="familyRail" class="family-rail"></div>
+    <article class="panel lab">
+      <div class="lab-head">
+        <span id="familyLabel" class="family-label">Линейная функция</span>
+        <span id="moduleLabel" class="module-label">СБОРКА 1/15</span>
+      </div>
+      <div class="mission-text">Собери график по заданному уравнению</div>
+      <div class="equation-strip">
+        <div class="prototype">Прототип: <b id="prototypeFormula">y = ax + b</b></div>
+        <div class="target-equation">Уравнение для сборки:<b id="targetEquation"></b></div>
+      </div>
+      <div class="workspace">
+        <div class="graph-shell">
+          <canvas id="graph" width="900" height="440"></canvas>
+          <i class="scanline"></i>
+          <div id="matchFlash" class="match-flash">✓ ГРАФИК СОБРАН</div>
+        </div>
+        <div class="tuning-column">
+          <div class="sync-row">
+            <span>СИНХРОНИЗАЦИЯ</span>
+            <span class="sync-track"><i id="syncFill"></i></span>
+            <b id="syncValue">0%</b>
+          </div>
+          <div id="controls" class="controls"></div>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section id="resultScreen" class="screen hidden">
+    <div class="topbar">
+      <div class="brand">КОНСТРУКТОР ГРАФИКОВ<small>ОТЧЁТ ЛАБОРАТОРИИ</small></div>
+      <span class="spacer"></span>
+      <button class="icon-btn" data-sound>♫ ЗВУК</button>
+    </div>
+    <div class="panel result">
+      <h2>МИССИЯ ЗАВЕРШЕНА</h2>
+      <div id="scoreRing" class="score-ring"><div><strong id="finalPct">0%</strong><span>ГРАФИКОВ СОБРАНО</span></div></div>
+      <div id="rank" class="rank"></div>
+      <p id="resultMessage" class="desc"></p>
+      <div class="result-info">
+        <div>Собрано<b id="finalBuilt">0/15</b></div>
+      </div>
+      <div id="familyResults" class="family-result"></div>
+      <div id="saveStatus" class="message">Сохраняем результат…</div>
+      <div class="result-actions">
+        <button id="againBtn" class="primary">↻ Новая миссия</button>
+        <button id="changeStudentResult" class="ghost">Сменить ученика</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+const TEST_META={
+  testId:'EGE-11-GRAPH-CONSTRUCTOR-FIRST-5-PROTOTYPES-15',
+  topicId:'task-11',
+  topicName:'Конструктор графиков: линейная, гипербола, показательная, корневая и логарифмическая',
+  taskNumber:11,
+  schemaVersion:1
+};
+const PENDING_KEY='egePendingTestResults';
+const FAMILY_ORDER=['linear','hyperbola','exponential','root','logarithm'];
+const FAMILY_META={
+  linear:{name:'Линейная',icon:'📡'},
+  hyperbola:{name:'Гипербола',icon:'🌀'},
+  exponential:{name:'Показательная',icon:'⚡'},
+  root:{name:'Корневая',icon:'🌱'},
+  logarithm:{name:'Логарифмическая',icon:'🔭'}
+};
+let currentStudent=null;
+const S={
+  challenges:[],i:0,completed:0,current:{},familyStats:{},active:false,locked:false,
+  startedAt:0,transitionId:null,resultSubmitted:false,sound:true
+};
+
+function makeEventId(){
+  if(window.crypto&&typeof window.crypto.randomUUID==='function')return window.crypto.randomUUID();
+  return'evt-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)+'-'+Math.random().toString(36).slice(2);
+}
+function localDateString(){
+  const d=new Date();return[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+}
+function readPendingResults(){
+  try{const value=JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');return Array.isArray(value)?value:[]}
+  catch(_){return[]}
+}
+function writePendingResults(queue){localStorage.setItem(PENDING_KEY,JSON.stringify(queue))}
+function queuePendingResult(payload){
+  const queue=readPendingResults();
+  if(!queue.some(item=>item&&item.eventId===payload.eventId))queue.push(payload);
+  writePendingResults(queue);
+}
+async function postResult(payload){
+  const response=await fetch(API_URL,{
+    method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(payload),redirect:'follow'
+  });
+  if(!response.ok)throw new Error('HTTP '+response.status);
+}
+async function flushPendingResults(){
+  const queue=readPendingResults();if(!queue.length||!navigator.onLine)return;
+  const sent=new Set();
+  for(const payload of queue){
+    try{await postResult(payload);if(payload&&payload.eventId)sent.add(payload.eventId)}catch(_){}
+  }
+  const latest=readPendingResults();writePendingResults(latest.filter(item=>!item||!sent.has(item.eventId)));
+}
+function setSaveStatus(text,kind=''){$('saveStatus').textContent=text;$('saveStatus').className='message '+kind}
+async function submitResult(payload){
+  try{await postResult(payload);setSaveStatus('✓ Результат сохранён','ok')}
+  catch(_){queuePendingResult(payload);setSaveStatus('Нет связи: результат сохранён на устройстве и отправится позже','pending')}
+}
+function savedStudent(){
+  const studentId=localStorage.getItem('egeStudentId'),name=localStorage.getItem('egeStudentName'),code=localStorage.getItem('egeStudentCode');
+  return studentId&&code?{studentId,name:name||'Ученик',code}:null;
+}
+function rememberStudent(student,code){
+  localStorage.setItem('egeStudentId',String(student.studentId));
+  localStorage.setItem('egeStudentName',String(student.name||'Ученик'));
+  localStorage.setItem('egeStudentCode',String(code));
+}
+function clearStudent(){
+  localStorage.removeItem('egeStudentId');localStorage.removeItem('egeStudentName');localStorage.removeItem('egeStudentCode');currentStudent=null;
+}
+function studentFromResponse(data){
+  if(!data||data.ok===false||data.success===false||data.valid===false)return null;
+  const source=data.student||data.data||data.result||data;
+  const studentId=source.studentId??source.id??data.studentId??data.id;
+  const name=source.studentName??source.name??data.studentName??data.name;
+  return studentId!==undefined&&studentId!==null&&studentId!==''?{studentId:String(studentId),name:String(name||'Ученик')}:null;
+}
+function validateStudentCode(code){
+  return new Promise((resolve,reject)=>{
+    const callback='__egeConstructor_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const script=document.createElement('script');let settled=false;
+    const timer=setTimeout(()=>finish(new Error('Сервер не ответил. Проверьте интернет')),15000);
+    function cleanup(){clearTimeout(timer);try{delete window[callback]}catch(_){window[callback]=undefined}script.remove()}
+    function finish(error,value){if(settled)return;settled=true;cleanup();error?reject(error):resolve(value)}
+    window[callback]=data=>{
+      const student=studentFromResponse(data);
+      student?finish(null,student):finish(new Error((data&&(data.error||data.message))||'Код ученика не найден'));
+    };
+    script.onerror=()=>finish(new Error('Не удалось связаться с сервером'));
+    script.src=API_URL+'?'+new URLSearchParams({action:'validateStudent',code,callback}).toString();
+    document.head.appendChild(script);
+  });
+}
+function showOnly(id){
+  ['authScreen','startScreen','gameScreen','resultScreen'].forEach(screen=>$(screen).classList.toggle('hidden',screen!==id));
+}
+function showLogin(prefill=''){
+  if(S.active)return;showOnly('authScreen');$('studentCode').value=prefill;$('authMessage').textContent='';$('authMessage').className='message';
+  setTimeout(()=>$('studentCode').focus(),0);
+}
+function showStart(){$('startStudent').textContent=currentStudent?currentStudent.name:'Ученик';showOnly('startScreen')}
+function changeStudent(){if(S.active)return;clearStudent();showLogin('')}
+async function loginStudent(){
+  const code=$('studentCode').value.trim();
+  if(!code){$('authMessage').textContent='Введите личный код';$('authMessage').className='message error';return}
+  $('loginBtn').disabled=true;$('authMessage').textContent='Проверяем код…';$('authMessage').className='message';
+  try{currentStudent=await validateStudentCode(code);rememberStudent(currentStudent,code);showStart();flushPendingResults()}
+  catch(error){$('authMessage').textContent=error.message||'Не удалось проверить код';$('authMessage').className='message error'}
+  finally{$('loginBtn').disabled=false}
+}
+
+const Sound=(()=>{
+  let ac=null,master=null,musicTimer=null,step=0;
+  const seq=[220,277,330,0,247,311,370,0,262,330,392,0];
+  function init(){
+    if(ac)return;ac=new(window.AudioContext||window.webkitAudioContext)();master=ac.createGain();master.gain.value=.16;master.connect(ac.destination);
+  }
+  function tone(freq,dur=.12,type='sine',gain=.1,delay=0){
+    if(!S.sound)return;init();const t=ac.currentTime+delay,o=ac.createOscillator(),g=ac.createGain();
+    o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    o.connect(g);g.connect(master);o.start(t);o.stop(t+dur);
+  }
+  function startMusic(){
+    if(!S.sound||musicTimer)return;init();if(ac.state==='suspended')ac.resume();
+    musicTimer=setInterval(()=>{const f=seq[step++%seq.length];if(f)tone(f,.28,'triangle',.07)},300);
+  }
+  function stopMusic(){clearInterval(musicTimer);musicTimer=null}
+  return{
+    startMusic,stopMusic,
+    tick(){tone(620,.045,'square',.045)},
+    success(){[523,659,784,1047].forEach((f,i)=>tone(f,.18,'square',.11,i*.07))}
+  };
+})();
+function paintSound(){
+  document.querySelectorAll('[data-sound]').forEach(btn=>{btn.classList.toggle('off',!S.sound);btn.textContent=S.sound?'♫ ЗВУК':'× БЕЗ ЗВУКА'});
+}
+function toggleSound(){S.sound=!S.sound;S.sound?Sound.startMusic():Sound.stopMusic();paintSound()}
+
+function param(key,label,min,max,step,hint){return{key,label,min,max,step,hint}}
+const PARAMS={
+  k:()=>param('k','k',-3,3,.1,'коэффициент функции · шаг 0,1'),
+  b:()=>param('b','b',-3,3,.1,'свободный член · шаг 0,1'),
+  base:()=>param('a','a',2,4,.1,'основание функции · шаг 0,1')
+};
+function makeChallenges(){
+  const wide={xmin:-6,xmax:6,ymin:-6,ymax:7};
+  const positive={xmin:-1,xmax:7,ymin:-5,ymax:7};
+  const power={xmin:-3,xmax:3,ymin:-2,ymax:7};
+  return[
+    {family:'linear',prototype:'f(x) = kx + b',params:[PARAMS.k(),PARAMS.b()],target:{k:2,b:1},view:wide,fn:(p,x)=>p.k*x+p.b},
+    {family:'linear',prototype:'f(x) = kx + b',params:[PARAMS.k(),PARAMS.b()],target:{k:-1,b:2},view:wide,fn:(p,x)=>p.k*x+p.b},
+    {family:'linear',prototype:'f(x) = kx + b',params:[PARAMS.k(),PARAMS.b()],target:{k:1,b:-2},view:wide,fn:(p,x)=>p.k*x+p.b},
+    {family:'hyperbola',prototype:'f(x) = k/x',params:[PARAMS.k()],target:{k:1},view:wide,fn:(p,x)=>Math.abs(x)<.02?NaN:p.k/x},
+    {family:'hyperbola',prototype:'f(x) = k/x',params:[PARAMS.k()],target:{k:-2},view:wide,fn:(p,x)=>Math.abs(x)<.02?NaN:p.k/x},
+    {family:'hyperbola',prototype:'f(x) = k/x',params:[PARAMS.k()],target:{k:3},view:wide,fn:(p,x)=>Math.abs(x)<.02?NaN:p.k/x},
+    {family:'exponential',prototype:'f(x) = aˣ',params:[PARAMS.base()],target:{a:2},view:power,fn:(p,x)=>Math.pow(p.a,x)},
+    {family:'exponential',prototype:'f(x) = aˣ',params:[PARAMS.base()],target:{a:3},view:power,fn:(p,x)=>Math.pow(p.a,x)},
+    {family:'exponential',prototype:'f(x) = aˣ',params:[PARAMS.base()],target:{a:4},view:power,fn:(p,x)=>Math.pow(p.a,x)},
+    {family:'root',prototype:'f(x) = k√x',params:[PARAMS.k()],target:{k:1},view:positive,fn:(p,x)=>x>=0?p.k*Math.sqrt(x):NaN},
+    {family:'root',prototype:'f(x) = k√x',params:[PARAMS.k()],target:{k:2},view:positive,fn:(p,x)=>x>=0?p.k*Math.sqrt(x):NaN},
+    {family:'root',prototype:'f(x) = k√x',params:[PARAMS.k()],target:{k:-1},view:positive,fn:(p,x)=>x>=0?p.k*Math.sqrt(x):NaN},
+    {family:'logarithm',prototype:'f(x) = logₐx',params:[PARAMS.base()],target:{a:2},view:positive,fn:(p,x)=>x>0?Math.log(x)/Math.log(p.a):NaN},
+    {family:'logarithm',prototype:'f(x) = logₐx',params:[PARAMS.base()],target:{a:3},view:positive,fn:(p,x)=>x>0?Math.log(x)/Math.log(p.a):NaN},
+    {family:'logarithm',prototype:'f(x) = logₐx',params:[PARAMS.base()],target:{a:4},view:positive,fn:(p,x)=>x>0?Math.log(x)/Math.log(p.a):NaN}
+  ];
+}
+function shuffle(array){
+  for(let i=array.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[array[i],array[j]]=[array[j],array[i]]}
+  return array;
+}
+function formatNumber(value){
+  const rounded=Math.round(Number(value)*100)/100;
+  return String(rounded).replace('-', '−').replace('.',',');
+}
+function coefficient(value,symbol){
+  if(value===1)return symbol;if(value===-1)return'−'+symbol;
+  return formatNumber(value)+'·'+symbol;
+}
+function signed(value){
+  if(value===0)return'';return value>0?' + '+formatNumber(value):' − '+formatNumber(Math.abs(value));
+}
+function equationFor(challenge,p){
+  if(challenge.family==='linear')return'f(x) = '+coefficient(p.k,'x')+signed(p.b);
+  if(challenge.family==='hyperbola')return'f(x) = '+formatNumber(p.k)+'/x';
+  if(challenge.family==='exponential')return'f(x) = '+formatNumber(p.a)+'<sup>x</sup>';
+  if(challenge.family==='root')return'f(x) = '+coefficient(p.k,'√x');
+  return'f(x) = log<sub>'+formatNumber(p.a)+'</sub>x';
+}
+function valuesFor(spec){
+  const values=[];for(let value=spec.min;value<=spec.max+1e-9;value+=spec.step)values.push(Math.round(value*100)/100);
+  return values;
+}
+function initialValues(challenge){
+  const values={};
+  challenge.params.forEach(spec=>{
+    const possible=valuesFor(spec);values[spec.key]=possible[Math.floor(Math.random()*possible.length)];
+  });
+  if(challenge.params.every(spec=>values[spec.key]===challenge.target[spec.key])){
+    const spec=challenge.params[0],possible=valuesFor(spec),index=possible.indexOf(values[spec.key]);
+    values[spec.key]=possible[(index+1)%possible.length];
+  }
+  return values;
+}
+function exactMatch(challenge){
+  return challenge.params.every(spec=>Math.abs(S.current[spec.key]-challenge.target[spec.key])<=spec.step/2+1e-8);
+}
+function graphSimilarity(challenge){
+  const v=challenge.view,span=v.ymax-v.ymin;let total=0,count=0;
+  for(let i=0;i<=140;i++){
+    const x=v.xmin+(v.xmax-v.xmin)*i/140;
+    const target=challenge.fn(challenge.target,x),player=challenge.fn(S.current,x);
+    if(Number.isFinite(target)&&Number.isFinite(player)&&Math.abs(target)<span*3&&Math.abs(player)<span*3){
+      total+=Math.min(1,Math.abs(target-player)/(span*.55));count++;
+    }
+  }
+  const curve=count?1-total/count:0;
+  const parameter=challenge.params.reduce((sum,spec)=>{
+    return sum+Math.max(0,1-Math.abs(S.current[spec.key]-challenge.target[spec.key])/(spec.max-spec.min));
+  },0)/challenge.params.length;
+  return Math.round(Math.max(0,Math.min(1,curve*.62+parameter*.38))*100);
+}
+function asymptotes(challenge,p){
+  if(challenge.family==='hyperbola')return[{type:'v',value:0},{type:'h',value:0}];
+  if(challenge.family==='exponential')return[{type:'h',value:0}];
+  if(challenge.family==='logarithm')return[{type:'v',value:0}];
+  return[];
+}
+function drawGraph(){
+  const challenge=S.challenges[S.i],canvas=$('graph'),ctx=canvas.getContext('2d');
+  const cssWidth=Math.max(300,canvas.getBoundingClientRect().width||900);
+  const cssHeight=Math.min(Math.round(cssWidth*.49),Math.max(190,innerHeight-360));
+  const dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(cssWidth*dpr);canvas.height=Math.round(cssHeight*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const W=cssWidth,H=cssHeight,pad=25,v=challenge.view;
+  const X=x=>pad+(x-v.xmin)/(v.xmax-v.xmin)*(W-2*pad);
+  const Y=y=>H-pad-(y-v.ymin)/(v.ymax-v.ymin)*(H-2*pad);
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#050b18';ctx.fillRect(0,0,W,H);
+  ctx.lineWidth=1;ctx.strokeStyle='#14294a';
+  for(let x=Math.ceil(v.xmin);x<=Math.floor(v.xmax);x++){ctx.beginPath();ctx.moveTo(X(x),pad);ctx.lineTo(X(x),H-pad);ctx.stroke()}
+  for(let y=Math.ceil(v.ymin);y<=Math.floor(v.ymax);y++){ctx.beginPath();ctx.moveTo(pad,Y(y));ctx.lineTo(W-pad,Y(y));ctx.stroke()}
+  ctx.strokeStyle='#7188ad';ctx.lineWidth=1.4;
+  if(v.ymin<=0&&v.ymax>=0){ctx.beginPath();ctx.moveTo(pad,Y(0));ctx.lineTo(W-pad,Y(0));ctx.stroke()}
+  if(v.xmin<=0&&v.xmax>=0){ctx.beginPath();ctx.moveTo(X(0),pad);ctx.lineTo(X(0),H-pad);ctx.stroke()}
+  ctx.fillStyle='#91a7cb';ctx.font='11px Rajdhani';
+  if(v.ymin<=0&&v.ymax>=0){
+    for(let x=Math.ceil(v.xmin);x<=Math.floor(v.xmax);x+=2)if(x!==0)ctx.fillText(String(x),X(x)+2,Y(0)+12);
+  }
+  if(v.xmin<=0&&v.xmax>=0){
+    for(let y=Math.ceil(v.ymin);y<=Math.floor(v.ymax);y+=2)if(y!==0)ctx.fillText(String(y),X(0)+5,Y(y)-3);
+  }
+  ctx.fillText('x',W-pad-7,Y(0)-6);ctx.fillText('y',X(0)+7,pad+11);
+  function drawAsymptote(item,color){
+    ctx.save();ctx.strokeStyle=color;ctx.lineWidth=1.2;ctx.beginPath();
+    if(item.type==='v'){ctx.moveTo(X(item.value),pad);ctx.lineTo(X(item.value),H-pad)}
+    else{ctx.moveTo(pad,Y(item.value));ctx.lineTo(W-pad,Y(item.value))}
+    ctx.stroke();ctx.restore();
+  }
+  asymptotes(challenge,S.current).forEach(item=>drawAsymptote(item,'#2ff3ff77'));
+  function drawCurve(params,color){
+    ctx.save();ctx.strokeStyle=color;ctx.lineWidth=3;ctx.shadowColor=color;ctx.shadowBlur=9;
+    let drawing=false,lastY=null;
+    for(let px=pad;px<=W-pad;px+=1.15){
+      const x=v.xmin+(px-pad)/(W-2*pad)*(v.xmax-v.xmin),y=challenge.fn(params,x),sy=Y(y);
+      const valid=Number.isFinite(y)&&sy>pad-35&&sy<H-pad+35;
+      if(!valid||lastY!==null&&Math.abs(sy-lastY)>H*.42){
+        if(drawing)ctx.stroke();drawing=false;lastY=null;continue;
+      }
+      if(!drawing){ctx.beginPath();ctx.moveTo(px,sy);drawing=true}else ctx.lineTo(px,sy);
+      lastY=sy;
+    }
+    if(drawing)ctx.stroke();ctx.restore();
+  }
+  drawCurve(S.current,'#2ff3ff');
+}
+function resetFamilyStats(){
+  S.familyStats={};FAMILY_ORDER.forEach(key=>S.familyStats[key]={completed:0,total:3});
+}
+function buildFamilyRail(){
+  $('familyRail').innerHTML=FAMILY_ORDER.map(key=>`<div class="family-node" data-family="${key}"><span>${FAMILY_META[key].icon}</span>${FAMILY_META[key].name}</div>`).join('');
+}
+function updateFamilyRail(){
+  const current=S.challenges[S.i]?.family;
+  document.querySelectorAll('.family-node').forEach(node=>{
+    const family=node.dataset.family,stat=S.familyStats[family];
+    node.classList.toggle('active',S.active&&!S.locked&&family===current);
+    node.classList.toggle('done',stat.completed===stat.total);
+  });
+}
+function startGame(){
+  if(!currentStudent){showLogin('');return}
+  S.challenges=shuffle(makeChallenges());S.i=0;S.completed=0;S.active=true;S.locked=false;S.resultSubmitted=false;
+  S.startedAt=Date.now();resetFamilyStats();buildFamilyRail();
+  clearTimeout(S.transitionId);showOnly('gameScreen');Sound.startMusic();renderChallenge();
+}
+function renderChallenge(){
+  const challenge=S.challenges[S.i];S.locked=false;S.current=initialValues(challenge);
+  $('moduleNum').textContent=S.i+1;$('moduleLabel').textContent='СБОРКА '+(S.i+1)+'/15';
+  $('progressFill').style.width=(S.completed/S.challenges.length*100)+'%';
+  $('familyLabel').textContent=FAMILY_META[challenge.family].icon+' '+FAMILY_META[challenge.family].name;
+  $('prototypeFormula').textContent=challenge.prototype;$('targetEquation').innerHTML=equationFor(challenge,challenge.target);
+  $('matchFlash').classList.remove('show');
+  $('controls').innerHTML=challenge.params.map(spec=>`
+    <label class="control">
+      <span class="control-head"><b>${spec.label}</b><span id="value-${spec.key}">${formatNumber(S.current[spec.key])}</span></span>
+      <input type="range" min="${spec.min}" max="${spec.max}" step="${spec.step}" value="${S.current[spec.key]}" data-param="${spec.key}" aria-label="Коэффициент ${spec.label}">
+      <small>${spec.hint}</small>
+    </label>`).join('');
+  document.querySelectorAll('[data-param]').forEach(slider=>{
+    slider.addEventListener('input',()=>{
+      if(S.locked||!S.active)return;
+      S.current[slider.dataset.param]=Number(slider.value);$('value-'+slider.dataset.param).textContent=formatNumber(slider.value);
+      Sound.tick();updateConstruction();
+    });
+  });
+  updateFamilyRail();updateConstruction();
+}
+function updateConstruction(){
+  const challenge=S.challenges[S.i],sync=graphSimilarity(challenge);
+  $('syncFill').style.width=sync+'%';$('syncValue').textContent=sync+'%';
+  drawGraph();
+  if(exactMatch(challenge))completeChallenge();
+}
+function completeChallenge(){
+  if(S.locked||!S.active)return;S.locked=true;S.completed++;
+  const challenge=S.challenges[S.i];S.familyStats[challenge.family].completed++;
+  document.querySelectorAll('[data-param]').forEach(slider=>slider.disabled=true);
+  $('syncFill').style.width='100%';$('syncValue').textContent='100%';$('progressFill').style.width=(S.completed/S.challenges.length*100)+'%';
+  $('matchFlash').classList.add('show');Sound.success();updateFamilyRail();
+  S.transitionId=setTimeout(()=>{
+    if(!S.active)return;
+    if(S.i<S.challenges.length-1){S.i++;renderChallenge()}else finishGame();
+  },950);
+}
+function finishGame(){
+  if(S.resultSubmitted)return;S.resultSubmitted=true;S.active=false;S.locked=true;
+  clearTimeout(S.transitionId);S.transitionId=null;Sound.stopMusic();
+  const durationSeconds=Math.max(0,Math.floor((Date.now()-S.startedAt)/1000));
+  const scorePercent=Math.round(S.completed/S.challenges.length*100);
+  $('finalPct').textContent=scorePercent+'%';$('finalBuilt').textContent=S.completed+'/'+S.challenges.length;
+  $('scoreRing').style.setProperty('--score-angle',(scorePercent*3.6)+'deg');
+  let rank,message;
+  if(scorePercent===100){rank='АРХИТЕКТОР ФУНКЦИЙ';message='Все пятнадцать графиков собраны. Базовые прототипы узнаются уверенно.'}
+  else if(scorePercent>=70){rank='ИНЖЕНЕР ГРАФИКОВ';message='Основные прототипы освоены. Повтори семейства, где собран только один модуль.'}
+  else if(scorePercent>=40){rank='ТЕХНИК ЛАБОРАТОРИИ';message='Часть прототипов уже понятна, но коэффициенты и основания нужно закрепить.'}
+  else{rank='СТАЖЁР-КОНСТРУКТОР';message='Начни со смысла коэффициентов k, b и основания a, затем попробуй собрать графики ещё раз.'}
+  $('rank').textContent=rank;$('resultMessage').textContent=message;
+  $('familyResults').innerHTML=FAMILY_ORDER.map(key=>{
+    const stat=S.familyStats[key],cls=stat.completed===3?'mastered':stat.completed>=1?'almost':'repeat';
+    const label=stat.completed===3?'усвоено':stat.completed===2?'почти усвоено':stat.completed===1?'закрепить':'повторить';
+    return`<div class="family-row"><span>${FAMILY_META[key].icon} ${FAMILY_META[key].name}</span><b class="${cls}">${stat.completed}/3 · ${label}</b></div>`;
+  }).join('');
+  setSaveStatus('Сохраняем результат…');showOnly('resultScreen');
+  const payload={
+    action:'submitTest',
+    eventId:makeEventId(),
+    studentId:currentStudent.studentId,
+    testId:TEST_META.testId,
+    testDate:localDateString(),
+    topicId:TEST_META.topicId,
+    topicName:TEST_META.topicName,
+    taskNumber:TEST_META.taskNumber,
+    scorePercent,
+    durationSeconds,
+    schemaVersion:TEST_META.schemaVersion
+  };
+  submitResult(payload);
+}
+
+(function stars(){
+  const canvas=$('stars'),ctx=canvas.getContext('2d');let dots=[],W=0,H=0;
+  function resize(){
+    const dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    dots=Array.from({length:Math.min(160,Math.floor(W*H/7500))},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.3+.3,s:Math.random()*.17+.04}));
+  }
+  function loop(){
+    ctx.clearRect(0,0,W,H);ctx.fillStyle='#b7dcff';
+    dots.forEach(dot=>{dot.y+=dot.s;if(dot.y>H){dot.y=0;dot.x=Math.random()*W}ctx.globalAlpha=.25+dot.r*.35;ctx.beginPath();ctx.arc(dot.x,dot.y,dot.r,0,7);ctx.fill()});
+    ctx.globalAlpha=1;requestAnimationFrame(loop);
+  }
+  addEventListener('resize',resize);resize();loop();
+})();
+
+$('loginBtn').onclick=loginStudent;
+$('studentCode').addEventListener('keydown',event=>{if(event.key==='Enter')loginStudent()});
+$('changeStudentStart').onclick=changeStudent;$('changeStudentResult').onclick=changeStudent;
+$('startBtn').onclick=startGame;$('againBtn').onclick=startGame;
+document.querySelectorAll('[data-sound]').forEach(button=>button.onclick=toggleSound);
+addEventListener('online',flushPendingResults);
+addEventListener('resize',()=>{if(S.active)drawGraph()});
+paintSound();currentStudent=savedStudent();
+const codeFromUrl=new URLSearchParams(location.search).get('code');
+if(codeFromUrl){clearStudent();showLogin(codeFromUrl);loginStudent()}
+else if(currentStudent){showStart();flushPendingResults()}
+else showLogin('');
+</script>
+</body>
+</html>
