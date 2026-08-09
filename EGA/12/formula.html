@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Angry Derivatives — квиз по производным</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Fredoka+One&display=swap" rel="stylesheet">
+<style>
+/* ====================== ТЕМЫ ====================== */
+:root{
+  --sky-top:#63c8ff; --sky-bot:#bff0ff;
+  --grass:#5fbb3a; --grass-dark:#3f8f26; --earth:#8a5a2b; --earth-dark:#5f3c1b;
+  --card:#f7e2b6; --card-line:#c79a56; --ink:#3a2410;
+  --sun:#ffd93b; --cloud:#ffffff; --cloud-op:.9;
+  --accent:#e23b30; --ok:#3fbf5a; --bad:#e2483b;
+}
+body[data-theme="sunset"]{
+  --sky-top:#ff9a4d; --sky-bot:#ffd9a0;
+  --grass:#4e9a3c; --grass-dark:#2f6a24; --earth:#7a4a24; --earth-dark:#4e3016;
+  --card:#ffe0b8; --card-line:#b8763c; --ink:#3a1d0a;
+  --sun:#ff5f3b; --cloud:#ffd0a8; --cloud-op:.85;
+}
+body[data-theme="night"]{
+  --sky-top:#0f1a3d; --sky-bot:#28356b;
+  --grass:#20603a; --grass-dark:#123d24; --earth:#3f2a16; --earth-dark:#251809;
+  --card:#2b2540; --card-line:#6d5fa8; --ink:#f3ecff;
+  --sun:#f2f0d8; --cloud:#6d7bb0; --cloud-op:.5;
+  --accent:#ff5a4d;
+}
+
+/* ====================== БАЗА ====================== */
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Fredoka One',system-ui,sans-serif;
+  background:linear-gradient(180deg,var(--sky-top),var(--sky-bot));
+  color:var(--ink);
+  min-height:100vh;
+  transition:background .5s ease,color .3s ease;
+  overflow-x:hidden;
+}
+.wrap{max-width:1000px;margin:0 auto;padding:10px 12px 40px}
+
+/* ====================== ВЕРХНЯЯ ПАНЕЛЬ ====================== */
+.hud{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:rgba(0,0,0,.22);border:3px solid rgba(0,0,0,.3);
+  border-radius:14px;padding:8px 10px;margin-bottom:10px;color:#fff;
+}
+.hud .tag{font-family:'Press Start 2P',monospace;font-size:10px;line-height:1.6;text-shadow:2px 2px 0 rgba(0,0,0,.45)}
+.hud .spacer{flex:1}
+.iconbtn{
+  border:2px solid rgba(0,0,0,.35);background:rgba(255,255,255,.85);color:#3a2410;
+  border-radius:10px;padding:6px 9px;cursor:pointer;font-family:'Fredoka One';font-size:14px;
+  transition:transform .12s ease, background .2s;
+}
+.iconbtn:hover{transform:translateY(-2px)}
+.iconbtn[aria-pressed="true"]{background:var(--sun)}
+.iconbtn:focus-visible,.opt:focus-visible,.bigbtn:focus-visible{outline:3px solid #fff;outline-offset:2px}
+
+/* Полоска босса — «зомби-свинья» */
+.boss{width:100%;display:flex;align-items:center;gap:8px}
+.bossbar{flex:1;height:16px;background:#3d1f1f;border:3px solid #1b0f0f;border-radius:10px;overflow:hidden}
+.bossfill{height:100%;width:100%;background:linear-gradient(90deg,#7ee06a,#3fbf5a);transition:width .5s cubic-bezier(.2,.8,.2,1)}
+
+/* ====================== СЦЕНА ====================== */
+.stage{position:relative;border:4px solid rgba(0,0,0,.35);border-radius:16px;overflow:hidden;background:linear-gradient(180deg,var(--sky-top),var(--sky-bot))}
+svg.scene{display:block;width:100%;height:auto}
+.cloud{opacity:var(--cloud-op)}
+.c1{animation:drift 46s linear infinite}
+.c2{animation:drift 68s linear infinite}
+.c3{animation:drift 90s linear infinite}
+@keyframes drift{from{transform:translateX(-260px)}to{transform:translateX(1160px)}}
+.blade{transform-origin:bottom center;animation:sway 3.2s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(5deg)}}
+.sunray{transform-origin:center;animation:spin 40s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pig-shake{animation:shake .45s ease}
+@keyframes shake{0%,100%{transform:translate(0,0) rotate(0)}25%{transform:translate(-6px,2px) rotate(-7deg)}50%{transform:translate(6px,-2px) rotate(6deg)}75%{transform:translate(-4px,0) rotate(-4deg)}}
+.pig-laugh{animation:laugh .6s ease}
+@keyframes laugh{0%,100%{transform:translateY(0) scale(1)}30%{transform:translateY(-10px) scale(1.06)}60%{transform:translateY(0) scale(.96)}}
+.pig-gone{animation:gone .5s ease forwards}
+@keyframes gone{to{opacity:0;transform:scale(.2) rotate(40deg)}}
+.hpwrap rect{transition:width .18s linear}
+
+/* ====================== КАРТОЧКА-ЛУНКА ====================== */
+.hole{
+  position:relative;margin:14px auto 0;max-width:760px;
+  background:
+    radial-gradient(circle at 20% 15%, rgba(255,255,255,.35), transparent 40%),
+    var(--card);
+  border:5px solid var(--card-line);
+  border-radius:110px/60px;
+  padding:26px 30px 24px;
+  box-shadow:0 12px 0 rgba(0,0,0,.22), inset 0 -10px 22px rgba(0,0,0,.12);
+}
+.qnum{font-family:'Press Start 2P';font-size:9px;opacity:.75;letter-spacing:1px;text-align:center;margin-bottom:8px}
+.qtext{font-size:clamp(18px,3.4vw,28px);text-align:center;margin:0 0 16px;line-height:1.4}
+.opts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media(max-width:640px){.opts{grid-template-columns:1fr}.hole{border-radius:40px;padding:20px 16px}}
+.opt{
+  font-family:'Fredoka One';font-size:clamp(15px,2.4vw,20px);
+  padding:14px 8px;border-radius:14px;cursor:pointer;
+  border:3px solid var(--earth-dark);
+  background:linear-gradient(180deg,#fff8e6,#f0d9a8);
+  color:#3a2410;
+  box-shadow:0 5px 0 var(--earth-dark);
+  transition:transform .1s ease, background .2s ease;
+}
+.opt:hover{transform:translateY(-2px)}
+.opt:active{transform:translateY(3px);box-shadow:0 2px 0 var(--earth-dark)}
+.opt.right{background:linear-gradient(180deg,#8ef09c,var(--ok));color:#08340f}
+.opt.wrong{background:linear-gradient(180deg,#ff9a90,var(--bad));color:#3d0a05}
+.opt[disabled]{cursor:default;opacity:.95}
+
+.tools{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap}
+.bigbtn{
+  font-family:'Press Start 2P';font-size:9px;letter-spacing:.5px;
+  padding:11px 12px;border-radius:12px;cursor:pointer;color:#fff;
+  border:3px solid rgba(0,0,0,.4);background:var(--accent);
+  box-shadow:0 5px 0 rgba(0,0,0,.35);
+}
+.bigbtn:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.35)}
+.bigbtn[disabled]{filter:grayscale(.8);opacity:.5;cursor:not-allowed}
+.bigbtn.ghost{background:#6b8ea3}
+.hint{
+  margin:12px auto 0;max-width:700px;text-align:center;
+  background:rgba(255,255,255,.75);border:3px dashed var(--card-line);
+  border-radius:14px;padding:12px;font-size:17px;color:#3a2410;display:none;
+}
+.hint.show{display:block;animation:pop .3s ease}
+@keyframes pop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* ====================== ЗАМЕТКИ ====================== */
+.notes{
+  position:fixed;right:14px;bottom:14px;width:min(320px,90vw);z-index:40;
+  background:var(--card);border:4px solid var(--card-line);border-radius:14px;
+  box-shadow:0 10px 30px rgba(0,0,0,.35);display:none;
+}
+.notes.open{display:block}
+.notes h4{font-family:'Press Start 2P';font-size:9px;margin:0;padding:10px;border-bottom:3px solid var(--card-line);color:var(--ink)}
+.notes textarea{
+  width:100%;height:170px;border:0;background:transparent;resize:vertical;
+  font-family:'Fredoka One';font-size:15px;padding:10px;color:var(--ink);outline:none;
+}
+.notesbtn{position:fixed;right:14px;bottom:14px;z-index:41}
+
+/* ====================== ФИНАЛ ====================== */
+.modal{
+  position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;
+  align-items:center;justify-content:center;z-index:60;padding:16px;
+}
+.modal.open{display:flex}
+.panel{
+  background:var(--card);border:5px solid var(--card-line);border-radius:20px;
+  padding:24px;max-width:460px;width:100%;text-align:center;color:var(--ink);
+}
+.panel h2{font-family:'Press Start 2P';font-size:14px;line-height:1.8;margin:0 0 14px}
+.stat{display:flex;justify-content:space-between;font-size:18px;padding:6px 0;border-bottom:2px dotted var(--card-line)}
+.studentbox{display:flex;align-items:center;gap:8px;max-width:100%}
+.studentname{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.studentbox .iconbtn{font-size:12px;padding:5px 8px}
+.studentbox .iconbtn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+.codeinput{
+  width:100%;margin:8px 0 12px;padding:13px 14px;border-radius:12px;
+  border:3px solid var(--card-line);background:rgba(255,255,255,.88);
+  color:#3a2410;font:18px 'Fredoka One',system-ui,sans-serif;text-align:center;outline:none;
+}
+.codeinput:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(255,255,255,.55)}
+.authmsg{min-height:24px;margin:8px 0;font-size:15px;line-height:1.35}
+.authmsg.error{color:#a81e17}
+.saveok{color:#187b2c}.savepending{color:#9a5b00}
+.panel .bigbtn{margin-top:10px}
+#fw{position:fixed;inset:0;pointer-events:none;z-index:55}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body data-theme="day">
+<div class="wrap">
+
+  <!-- ============ HUD ============ -->
+  <div class="hud">
+    <span class="tag" id="counter">ВОПРОС 1/30</span>
+    <span class="tag" id="score">✔ 0 &nbsp; ✘ 0</span>
+    <span class="spacer"></span>
+    <span class="studentbox">
+      <span class="tag studentname" id="studentName">УЧЕНИК НЕ ВЫБРАН</span>
+      <button class="iconbtn" id="changeStudent" title="Сменить ученика">Сменить</button>
+    </span>
+    <button class="iconbtn" id="thDay"   title="Тема: День">☀️</button>
+    <button class="iconbtn" id="thSun"   title="Тема: Закат">🌇</button>
+    <button class="iconbtn" id="thNight" title="Тема: Ночь">🌙</button>
+    <button class="iconbtn" id="music" aria-pressed="false" title="Музыка вкл/выкл">🎵</button>
+    <div class="boss">
+      <span class="tag">БОСС</span>
+      <div class="bossbar"><div class="bossfill" id="bossfill"></div></div>
+      <span class="tag" id="bosspct">100%</span>
+    </div>
+  </div>
+
+  <!-- ============ СЦЕНА ============ -->
+  <div class="stage">
+    <svg class="scene" viewBox="0 0 900 380" xmlns="http://www.w3.org/2000/svg" aria-label="Игровая сцена">
+      <defs>
+        <linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="var(--sky-top)"/><stop offset="1" stop-color="var(--sky-bot)"/>
+        </linearGradient>
+        <linearGradient id="gGrass" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="var(--grass)"/><stop offset="1" stop-color="var(--grass-dark)"/>
+        </linearGradient>
+        <radialGradient id="gPig"><stop offset="0" stop-color="#9fe86a"/><stop offset="1" stop-color="#3f9c2b"/></radialGradient>
+        <radialGradient id="gBird"><stop offset="0" stop-color="#ff6b5e"/><stop offset="1" stop-color="#c8261c"/></radialGradient>
+      </defs>
+
+      <!-- небо -->
+      <rect width="900" height="380" fill="url(#gSky)"/>
+      <!-- солнце / луна -->
+      <g transform="translate(790,62)">
+        <g class="sunray">
+          <path d="M0,-46 L5,-30 L-5,-30Z M0,46 L5,30 L-5,30Z M-46,0 L-30,5 L-30,-5Z M46,0 L30,5 L30,-5Z" fill="var(--sun)" opacity=".65"/>
+        </g>
+        <circle r="26" fill="var(--sun)"/>
+      </g>
+      <!-- облака -->
+      <g class="cloud c1" fill="var(--cloud)"><ellipse cx="120" cy="70" rx="42" ry="22"/><ellipse cx="155" cy="62" rx="30" ry="24"/><ellipse cx="88" cy="76" rx="26" ry="16"/></g>
+      <g class="cloud c2" fill="var(--cloud)"><ellipse cx="420" cy="46" rx="34" ry="18"/><ellipse cx="452" cy="40" rx="24" ry="19"/></g>
+      <g class="cloud c3" fill="var(--cloud)"><ellipse cx="640" cy="104" rx="46" ry="20"/><ellipse cx="676" cy="98" rx="28" ry="22"/></g>
+
+      <!-- земля -->
+      <rect y="300" width="900" height="80" fill="var(--earth)"/>
+      <rect y="288" width="900" height="20" fill="url(#gGrass)"/>
+      <g id="blades" fill="var(--grass)"></g>
+
+      <!-- рогатка -->
+      <g id="sling" transform="translate(120,222)">
+        <rect x="-7" y="30" width="14" height="60" rx="4" fill="var(--earth-dark)"/>
+        <path d="M-6,34 L-26,-16" stroke="var(--earth-dark)" stroke-width="12" stroke-linecap="round"/>
+        <path d="M6,34 L26,-16" stroke="var(--earth-dark)" stroke-width="12" stroke-linecap="round"/>
+        <path id="band" d="M-26,-16 L0,4 L26,-16" stroke="#4d2b12" stroke-width="6" fill="none" stroke-linecap="round"/>
+      </g>
+
+      <!-- птица -->
+      <g id="bird" transform="translate(120,222)">
+        <circle r="20" fill="url(#gBird)"/>
+        <path d="M-22,-6 q-12,-10 -2,-16 q10,2 12,12Z" fill="#c8261c"/>
+        <circle cx="7" cy="-6" r="7" fill="#fff"/><circle cx="9" cy="-6" r="3.4" fill="#221"/>
+        <path d="M18,0 l14,5 l-14,5Z" fill="#ffb43b"/>
+        <path d="M-2,-18 q6,-12 12,-4" stroke="#7c1610" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M-24,10 q-14,4 -6,12" stroke="#f2ddc0" stroke-width="4" fill="none" stroke-linecap="round"/>
+      </g>
+
+      <!-- след полёта -->
+      <g id="trail" fill="#fff" opacity=".8"></g>
+
+      <!-- свинья -->
+      <g id="pigGroup" transform="translate(720,250)">
+        <g class="hpwrap" transform="translate(-42,-78)">
+          <rect width="84" height="12" rx="6" fill="#2b1414" stroke="#120808" stroke-width="2"/>
+          <rect id="hpbar" x="2" y="2" width="80" height="8" rx="4" fill="#e2483b"/>
+        </g>
+        <g id="pig">
+          <ellipse cy="6" rx="46" ry="44" fill="url(#gPig)"/>
+          <ellipse cx="-30" cy="-32" rx="10" ry="12" fill="#4fae35"/>
+          <ellipse cx="30" cy="-32" rx="10" ry="12" fill="#4fae35"/>
+          <circle cx="-15" cy="-8" r="11" fill="#fff"/><circle cx="15" cy="-8" r="11" fill="#fff"/>
+          <circle id="eyeL" cx="-13" cy="-6" r="5" fill="#1a2a12"/><circle id="eyeR" cx="17" cy="-6" r="5" fill="#1a2a12"/>
+          <g id="brows" opacity="0">
+            <path d="M-26,-20 L-4,-14" stroke="#1a2a12" stroke-width="4" stroke-linecap="round"/>
+            <path d="M26,-20 L4,-14" stroke="#1a2a12" stroke-width="4" stroke-linecap="round"/>
+          </g>
+          <ellipse cx="0" cy="12" rx="16" ry="12" fill="#6ec94a"/>
+          <ellipse cx="-6" cy="12" rx="3.4" ry="5" fill="#2c5f1c"/><ellipse cx="6" cy="12" rx="3.4" ry="5" fill="#2c5f1c"/>
+          <path id="mouth" d="M-14,30 q14,6 28,0" stroke="#2c5f1c" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+        </g>
+      </g>
+
+      <!-- частицы -->
+      <g id="fx"></g>
+    </svg>
+  </div>
+
+  <!-- ============ КАРТОЧКА-ЛУНКА ============ -->
+  <div class="hole">
+    <div class="qnum" id="qnum">ВОПРОС 1 / 30</div>
+    <p class="qtext" id="qtext">…</p>
+    <div class="opts" id="opts"></div>
+    <div class="tools">
+      <button class="bigbtn" id="hintBtn">ПОДСКАЗКА (3)</button>
+      <button class="bigbtn ghost" id="skipBtn" disabled>ПРОПУСТИТЬ</button>
+    </div>
+    <div class="hint" id="hintBox"></div>
+  </div>
+</div>
+
+<!-- ============ ЗАМЕТКИ ============ -->
+<button class="iconbtn notesbtn" id="notesBtn">📝 Заметки</button>
+<div class="notes" id="notesWin">
+  <h4>ЗАМЕТКИ <span style="float:right;cursor:pointer" id="notesClose">✕</span></h4>
+  <textarea id="notesArea" placeholder="Запиши формулу, чтобы не забыть…"></textarea>
+</div>
+
+<!-- ============ ВХОД УЧЕНИКА ============ -->
+<div class="modal" id="authModal">
+  <div class="panel">
+    <h2>ВХОД В ИГРУ</h2>
+    <p>Введи личный код ученика</p>
+    <input class="codeinput" id="studentCode" type="text" autocomplete="off" spellcheck="false" placeholder="ЛИЧНЫЙ КОД">
+    <div class="authmsg" id="authMessage"></div>
+    <button class="bigbtn" id="loginBtn">ПРОВЕРИТЬ КОД</button>
+  </div>
+</div>
+
+<!-- ============ СТАРТ ============ -->
+<div class="modal" id="startModal">
+  <div class="panel">
+    <h2>ANGRY DERIVATIVES</h2>
+    <p>Игрок: <b id="startStudentName">—</b></p>
+    <p>Разбей 30 свиней правильными производными!</p>
+    <button class="bigbtn" id="startGame">НАЧАТЬ ИГРУ</button>
+    <br>
+    <button class="iconbtn" id="startChangeStudent">Сменить ученика</button>
+  </div>
+</div>
+
+<!-- ============ ФИНАЛ ============ -->
+<div class="modal" id="modal">
+  <div class="panel">
+    <h2 id="finalTitle">ПОБЕДА!</h2>
+    <div class="stat"><span>Правильных</span><b id="fCorrect">0/30</b></div>
+    <div class="stat"><span>С первой попытки</span><b id="fPct">0%</b></div>
+    <div class="stat"><span>Ошибок</span><b id="fWrong">0</b></div>
+    <div class="stat"><span>Подсказок</span><b id="fHints">0</b></div>
+    <div class="stat"><span>Свиней разбито</span><b id="fPigs">0/30</b></div>
+    <div class="stat"><span>Время</span><b id="fTime">0:00</b></div>
+    <div class="authmsg" id="saveStatus">Сохраняем результат…</div>
+    <button class="bigbtn" id="again" style="margin-top:16px">ИГРАТЬ СНОВА</button>
+  </div>
+</div>
+<canvas id="fw"></canvas>
+
+<script>
+/* =========================================================
+   0. ПОДКЛЮЧЕНИЕ К СИСТЕМЕ УЧЁТА РЕЗУЛЬТАТОВ
+   ========================================================= */
+const API_URL = 'https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+const TEST_META = {
+  testId: 'EGE-12-ANGRY-DERIVATIVES-30',
+  topicId: 'task-12',
+  topicName: 'Производная и исследование функций',
+  taskNumber: 12,
+  schemaVersion: 1
+};
+const PENDING_KEY = 'egePendingTestResults';
+
+/* =========================================================
+   1. БАЗА ВОПРОСОВ — 30 производных средней сложности
+   c: индекс правильного варианта, h: подсказка (правило)
+   ========================================================= */
+const QUESTIONS = [
+ {q:"f(x) = x⁵", o:["5x⁴","x⁴","5x⁵"], c:0, h:"(xⁿ)′ = n·xⁿ⁻¹"},
+ {q:"f(x) = 3x⁴ − 2x", o:["12x³ − 2x","12x³ − 2","3x³ − 2"], c:1, h:"(xⁿ)′ = n·xⁿ⁻¹, (kx)′ = k"},
+ {q:"f(x) = √x", o:["1/√x","2√x","1/(2√x)"], c:2, h:"(√x)′ = 1/(2√x)"},
+ {q:"f(x) = 1/x", o:["−1/x²","1/x²","−1/x"], c:0, h:"(1/x)′ = −1/x²"},
+ {q:"f(x) = sin x", o:["−sin x","cos x","−cos x"], c:1, h:"(sin x)′ = cos x"},
+ {q:"f(x) = cos x", o:["sin x","−sin x","−cos x"], c:1, h:"(cos x)′ = −sin x"},
+ {q:"f(x) = tg x", o:["1/cos²x","1/sin²x","−1/cos²x"], c:0, h:"(tg x)′ = 1/cos²x"},
+ {q:"f(x) = ctg x", o:["1/sin²x","−1/sin²x","−1/cos²x"], c:1, h:"(ctg x)′ = −1/sin²x"},
+ {q:"f(x) = eˣ", o:["x·eˣ⁻¹","eˣ/x","eˣ"], c:2, h:"(eˣ)′ = eˣ — не меняется"},
+ {q:"f(x) = ln x", o:["1/x","1/x²","x"], c:0, h:"(ln x)′ = 1/x"},
+ {q:"f(x) = x·ln x", o:["1","ln x + 1","1/x"], c:1, h:"(uv)′ = u′v + uv′"},
+ {q:"f(x) = x²·eˣ", o:["eˣ(x² + 2x)","2x·eˣ","eˣ(x² − 2x)"], c:0, h:"(uv)′ = u′v + uv′; (eˣ)′ = eˣ"},
+ {q:"f(x) = x·sin x", o:["cos x","sin x − x·cos x","sin x + x·cos x"], c:2, h:"(uv)′ = u′v + uv′"},
+ {q:"f(x) = eˣ·cos x", o:["eˣ(cos x − sin x)","eˣ(cos x + sin x)","−eˣ·sin x"], c:0, h:"(uv)′ = u′v + uv′; (cos x)′ = −sin x"},
+ {q:"f(x) = x / (x + 1)", o:["1","−1/(x+1)²","1/(x+1)²"], c:2, h:"(u/v)′ = (u′v − uv′)/v²"},
+ {q:"f(x) = x² / (x − 1)", o:["(x² − 2x)/(x−1)²","2x/(x−1)","(x² + 2x)/(x−1)²"], c:0, h:"(u/v)′ = (u′v − uv′)/v²"},
+ {q:"f(x) = sin x / x", o:["cos x / x","(x·cos x − sin x)/x²","(sin x − x·cos x)/x²"], c:1, h:"(u/v)′ = (u′v − uv′)/v²"},
+ {q:"f(x) = ln x / x", o:["(1 − ln x)/x²","1/x²","(ln x − 1)/x²"], c:0, h:"(u/v)′ = (u′v − uv′)/v²; (ln x)′ = 1/x"},
+ {q:"f(x) = e²ˣ", o:["e²ˣ","2e²ˣ","2x·e²ˣ"], c:1, h:"(e^{kx})′ = k·e^{kx}"},
+ {q:"f(x) = ln(3x)", o:["3/x","1/(3x)","1/x"], c:2, h:"(ln kx)′ = 1/x (сложная функция)"},
+ {q:"f(x) = sin 2x", o:["2·cos 2x","cos 2x","−2·cos 2x"], c:0, h:"(sin kx)′ = k·cos kx"},
+ {q:"f(x) = cos 3x", o:["3·sin 3x","−3·sin 3x","−sin 3x"], c:1, h:"(cos kx)′ = −k·sin kx"},
+ {q:"f(x) = ln(x² + 1)", o:["1/(x² + 1)","2x/(x² + 1)","2x"], c:1, h:"(ln u)′ = u′/u"},
+ {q:"f(x) = e^(x²)", o:["2x·e^(x²)","e^(x²)","x²·e^(x²−1)"], c:0, h:"(e^u)′ = u′·e^u"},
+ {q:"f(x) = (2x + 1)⁵", o:["5(2x + 1)⁴","10(2x + 1)⁴","10(2x + 1)⁵"], c:1, h:"(uⁿ)′ = n·uⁿ⁻¹·u′"},
+ {q:"f(x) = √(x² + 1)", o:["1/(2√(x²+1))","2x/√(x²+1)","x/√(x²+1)"], c:2, h:"(√u)′ = u′/(2√u)"},
+ {q:"f(x) = x·eˣ, найдите f′(0)", o:["1","0","e"], c:0, h:"f′ = eˣ(x + 1), затем подставь x = 0"},
+ {q:"f(x) = sin²x", o:["2·sin x","2·sin x·cos x","cos²x"], c:1, h:"(u²)′ = 2u·u′ = 2 sin x cos x = sin 2x"},
+ {q:"f(x) = x − ln x. Точка минимума", o:["x = 1","x = e","x = 0"], c:0, h:"f′ = 1 − 1/x; приравняй к нулю"},
+ {q:"f(x) = x·eˣ. Точка минимума", o:["x = 0","x = 1","x = −1"], c:2, h:"f′ = eˣ(x + 1); eˣ > 0 всегда"}
+];
+
+/* =========================================================
+   2. СОСТОЯНИЕ ИГРЫ
+   ========================================================= */
+const S = {
+  i:0,            // индекс вопроса
+  correct:0, wrong:0, hints:3, hintsUsed:0, pigs:0,
+  firstTryCorrect:0,
+  questionAttempted:false,
+  mistakes:0,     // ошибок на текущем вопросе
+  hp:100,         // здоровье текущей свиньи
+  busy:false,     // идёт анимация
+  order:[],       // порядок вариантов
+  start:0,
+  music:false,
+  active:false,
+  resultSubmitted:false
+};
+const $ = id => document.getElementById(id);
+let currentStudent = null;
+
+function makeEventId(){
+  if(window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+  return 'evt-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2) + '-' + Math.random().toString(36).slice(2);
+}
+function localDate(){
+  const d = new Date();
+  return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
+}
+function readPending(){
+  try {
+    const value = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]');
+    return Array.isArray(value) ? value : [];
+  } catch(_){ return []; }
+}
+function writePending(queue){
+  localStorage.setItem(PENDING_KEY, JSON.stringify(queue));
+}
+function queueResult(payload){
+  const queue = readPending();
+  if(!queue.some(item => item && item.eventId === payload.eventId)) queue.push(payload);
+  writePending(queue);
+}
+async function postResult(payload){
+  const response = await fetch(API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(payload),
+    redirect:'follow'
+  });
+  if(!response.ok) throw new Error('HTTP ' + response.status);
+}
+function setSaveStatus(text, className){
+  const el = $('saveStatus');
+  el.textContent = text;
+  el.className = 'authmsg ' + (className || '');
+}
+async function submitResult(payload){
+  try {
+    await postResult(payload);
+    setSaveStatus('✓ Результат сохранён', 'saveok');
+  } catch(_){
+    queueResult(payload);
+    setSaveStatus('Нет связи: результат сохранён на устройстве и отправится позже', 'savepending');
+  }
+}
+async function flushPendingResults(){
+  const queue = readPending();
+  if(!queue.length || !navigator.onLine) return;
+  const sentEventIds = new Set();
+  for(const payload of queue){
+    try {
+      await postResult(payload);
+      if(payload && payload.eventId) sentEventIds.add(payload.eventId);
+    } catch(_){}
+  }
+  const latestQueue = readPending();
+  writePending(latestQueue.filter(item => !item || !sentEventIds.has(item.eventId)));
+}
+function savedStudent(){
+  const studentId = localStorage.getItem('egeStudentId');
+  const name = localStorage.getItem('egeStudentName');
+  const code = localStorage.getItem('egeStudentCode');
+  return studentId && name && code ? {studentId, name, code} : null;
+}
+function rememberStudent(student, code){
+  localStorage.setItem('egeStudentId', String(student.studentId));
+  localStorage.setItem('egeStudentName', String(student.name));
+  localStorage.setItem('egeStudentCode', code);
+}
+function clearStudent(){
+  localStorage.removeItem('egeStudentId');
+  localStorage.removeItem('egeStudentName');
+  localStorage.removeItem('egeStudentCode');
+  currentStudent = null;
+  updateStudentUI();
+}
+function updateStudentUI(){
+  $('studentName').textContent = currentStudent ? currentStudent.name : 'УЧЕНИК НЕ ВЫБРАН';
+  $('startStudentName').textContent = currentStudent ? currentStudent.name : '—';
+  $('changeStudent').disabled = S.active;
+}
+function showLogin(prefill){
+  if(S.active) return;
+  $('startModal').classList.remove('open');
+  $('authModal').classList.add('open');
+  $('studentCode').value = prefill || '';
+  $('authMessage').textContent = '';
+  $('authMessage').className = 'authmsg';
+  setTimeout(()=>$('studentCode').focus(), 0);
+}
+function showStart(){
+  $('authModal').classList.remove('open');
+  updateStudentUI();
+  $('startModal').classList.add('open');
+}
+function extractStudent(data){
+  if(!data || data.ok === false || data.success === false || data.valid === false) return null;
+  const source = data.student || data.data || data.result || data;
+  const studentId = source.studentId ?? source.id ?? data.studentId ?? data.id;
+  const name = source.studentName ?? source.name ?? data.studentName ?? data.name;
+  return studentId != null && studentId !== '' ? {studentId:String(studentId), name:String(name || 'Ученик')} : null;
+}
+function validateStudentCode(code){
+  return new Promise((resolve, reject)=>{
+    const callback = '__egeStudent_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    let settled = false;
+    const cleanup = () => {
+      delete window[callback];
+      script.remove();
+      clearTimeout(timer);
+    };
+    window[callback] = data => {
+      if(settled) return;
+      settled = true;
+      cleanup();
+      const student = extractStudent(data);
+      student ? resolve(student) : reject(new Error((data && data.error) || 'Неверный код ученика'));
+    };
+    script.onerror = () => {
+      if(settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error('Не удалось связаться с сервером'));
+    };
+    const timer = setTimeout(()=>{
+      if(settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error('Сервер не ответил. Проверьте интернет'));
+    }, 12000);
+    script.src = API_URL + '?action=validateStudent&code=' + encodeURIComponent(code) + '&callback=' + encodeURIComponent(callback);
+    document.head.appendChild(script);
+  });
+}
+async function login(){
+  const code = $('studentCode').value.trim();
+  if(!code){
+    $('authMessage').textContent = 'Введите личный код';
+    $('authMessage').className = 'authmsg error';
+    return;
+  }
+  $('loginBtn').disabled = true;
+  $('authMessage').textContent = 'Проверяем код…';
+  $('authMessage').className = 'authmsg';
+  try {
+    const student = await validateStudentCode(code);
+    currentStudent = student;
+    rememberStudent(student, code);
+    showStart();
+    flushPendingResults();
+  } catch(err){
+    $('authMessage').textContent = err.message || 'Не удалось проверить код';
+    $('authMessage').className = 'authmsg error';
+  } finally {
+    $('loginBtn').disabled = false;
+  }
+}
+
+/* =========================================================
+   3. ЗВУК (Web Audio API): 8-бит музыка + эффекты
+   ========================================================= */
+let AC=null, musicTimer=null, musicGain=null;
+function ac(){ if(!AC) AC = new (window.AudioContext||window.webkitAudioContext)(); return AC; }
+
+// Один короткий тон
+function tone(freq, dur, type='square', vol=.12, delay=0){
+  const c = ac(), t = c.currentTime + delay;
+  const o = c.createOscillator(), g = c.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + dur);
+}
+// Шум (взрыв)
+function noise(dur=.35, vol=.25){
+  const c = ac(), n = c.sampleRate*dur;
+  const buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+  for(let i=0;i<n;i++) d[i] = (Math.random()*2-1) * (1 - i/n);
+  const src = c.createBufferSource(); src.buffer = buf;
+  const g = c.createGain(); g.gain.value = vol;
+  const f = c.createBiquadFilter(); f.type='lowpass'; f.frequency.value=1200;
+  src.connect(f); f.connect(g); g.connect(c.destination); src.start();
+}
+const SFX = {
+  hit(){ noise(.4,.3); tone(180,.18,'sawtooth',.2); tone(90,.35,'triangle',.2,.05); },
+  laugh(){ [420,360,440,340,460,320].forEach((f,k)=>tone(f,.09,'square',.1,k*.09)); },
+  win(){ [523,659,784,1046].forEach((f,k)=>tone(f,.16,'square',.12,k*.1)); },
+  click(){ tone(880,.06,'square',.08); },
+  launch(){ tone(300,.12,'sine',.1); tone(700,.1,'sine',.08,.06); }
+};
+// 8-битная фоновая мелодия (зацикленная)
+const MEL = [392,0,440,494,523,494,440,392,330,392,440,392,330,294,330,392];
+function musicOn(){
+  const c = ac(); let step = 0;
+  musicGain = c.createGain(); musicGain.gain.value=.5; musicGain.connect(c.destination);
+  musicTimer = setInterval(()=>{
+    const f = MEL[step % MEL.length];
+    if(f) tone(f, .22, 'square', .05);
+    if(step % 4 === 0) tone(f?f/2:98, .3, 'triangle', .05);
+    step++;
+  }, 230);
+}
+function musicOff(){ clearInterval(musicTimer); musicTimer=null; }
+
+/* =========================================================
+   4. ТРАВА (генерируем травинки)
+   ========================================================= */
+(function grass(){
+  const g = $('blades'); let s='';
+  for(let x=4; x<900; x+=13){
+    const h = 10 + Math.random()*12;
+    s += `<path class="blade" style="animation-delay:${(Math.random()*3).toFixed(2)}s"
+           d="M${x},296 q3,-${h/2} 1,-${h}" stroke="var(--grass)" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+  }
+  g.innerHTML = s;
+})();
+
+/* =========================================================
+   5. ОТРИСОВКА ВОПРОСА
+   ========================================================= */
+function render(){
+  const q = QUESTIONS[S.i];
+  S.mistakes = 0; S.hp = 100; S.questionAttempted = false;
+  $('qnum').textContent = `ВОПРОС ${S.i+1} / 30`;
+  $('counter').textContent = `ВОПРОС ${S.i+1}/30`;
+  $('qtext').textContent = q.q;
+  $('hintBox').classList.remove('show');
+  $('skipBtn').disabled = true;
+  setHP(100);
+  // перемешиваем варианты
+  S.order = q.o.map((_,k)=>k).sort(()=>Math.random()-.5);
+  const box = $('opts'); box.innerHTML='';
+  S.order.forEach(k=>{
+    const b = document.createElement('button');
+    b.className='opt'; b.textContent = q.o[k];
+    b.onclick = () => answer(b, k === q.c);
+    box.appendChild(b);
+  });
+  resetPig();
+  updHUD();
+}
+function updHUD(){
+  $('score').textContent = `✔ ${S.correct}  ✘ ${S.wrong}`;
+  const left = Math.round((30 - S.pigs)/30*100);
+  $('bossfill').style.width = left + '%';
+  $('bosspct').textContent = left + '%';
+  $('hintBtn').textContent = `ПОДСКАЗКА (${S.hints})`;
+  $('hintBtn').disabled = S.hints === 0;
+}
+function setHP(v){
+  S.hp = Math.max(0, v);
+  $('hpbar').setAttribute('width', 80 * S.hp/100);
+  $('hpbar').setAttribute('fill', S.hp>60 ? '#3fbf5a' : S.hp>25 ? '#f0a72c' : '#e2483b');
+}
+function resetPig(){
+  const p = $('pig'), pg = $('pigGroup');
+  pg.style.opacity = 1; pg.style.transform = '';
+  pg.setAttribute('transform','translate(720,250)');
+  p.className.baseVal = '';
+  $('brows').setAttribute('opacity', 0);
+  $('mouth').setAttribute('d','M-14,30 q14,6 28,0');
+}
+
+/* =========================================================
+   6. ОТВЕТ ИГРОКА
+   ========================================================= */
+function answer(btn, ok){
+  if(S.busy || !S.active) return;
+  const isFirstAttempt = !S.questionAttempted;
+  if(isFirstAttempt){
+    S.questionAttempted = true;
+    if(ok) S.firstTryCorrect++;
+  }
+  if(ok){
+    S.busy = true;
+    btn.classList.add('right');
+    [...$('opts').children].forEach(b => b.disabled = true);
+    S.correct++;
+    fly(true, () => {           // птица попадает
+      drain(() => {             // HP уходит порциями по 20
+        destroyPig();
+        S.pigs++;
+        updHUD();
+        setTimeout(next, 700);
+      });
+    });
+  } else {
+    btn.classList.add('wrong');
+    btn.disabled = true;
+    S.wrong++; S.mistakes++;
+    if(S.mistakes >= 2) $('skipBtn').disabled = false;
+    updHUD();
+    fly(false, () => pigLaugh());
+  }
+}
+
+/* =========================================================
+   7. ПОЛЁТ ПТИЦЫ ПО ПАРАБОЛЕ + СЛЕД
+   ========================================================= */
+function fly(hit, done){
+  SFX.launch();
+  const bird = $('bird'), trail = $('trail');
+  trail.innerHTML = '';
+  const x0=120, y0=222, x1 = hit?700:900, y1 = hit?250:120;
+  const peak = hit ? 90 : 60;          // высота дуги
+  const T = hit ? 750 : 900;
+  const t0 = performance.now();
+  // натяжение резинки
+  $('band').setAttribute('d','M-26,-16 L-30,10 L26,-16');
+  setTimeout(()=>$('band').setAttribute('d','M-26,-16 L0,4 L26,-16'), 120);
+
+  (function step(now){
+    const t = Math.min(1, (now - t0)/T);
+    const x = x0 + (x1-x0)*t;
+    const y = y0 + (y1-y0)*t - Math.sin(Math.PI*t)*(peak+80);
+    bird.setAttribute('transform', `translate(${x},${y}) rotate(${t*360})`);
+    if(Math.random() < .5){
+      const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      c.setAttribute('cx',x); c.setAttribute('cy',y); c.setAttribute('r',3);
+      c.setAttribute('opacity',.6); trail.appendChild(c);
+      setTimeout(()=>c.remove(), 500);
+    }
+    if(t < 1) requestAnimationFrame(step);
+    else{
+      if(hit){ SFX.hit(); burst(700,250,18); }
+      else   { SFX.laugh(); }
+      bird.setAttribute('transform','translate(120,222)');
+      trail.innerHTML = '';
+      done && done();
+    }
+  })(t0);
+}
+
+/* Урон: −20 HP за удар, 5 ударов подряд разбивают свинью */
+function drain(done){
+  const pig = $('pig');
+  let n = 0;
+  const iv = setInterval(()=>{
+    setHP(S.hp - 20); n++;
+    pig.className.baseVal = ''; void pig.getBBox();
+    pig.className.baseVal = 'pig-shake';
+    burst(720, 250, 6);
+    tone(140 + n*40, .07, 'square', .1);
+    if(n >= 5){ clearInterval(iv); done(); }
+  }, 130);
+}
+
+function destroyPig(){
+  SFX.win();
+  burst(720, 250, 34);
+  $('pigGroup').style.transformOrigin = '720px 250px';
+  $('pigGroup').classList.add('pig-gone');
+  setTimeout(()=>$('pigGroup').classList.remove('pig-gone'), 500);
+}
+
+function pigLaugh(){
+  const p = $('pig');
+  $('brows').setAttribute('opacity', 1);
+  $('mouth').setAttribute('d','M-16,26 q16,16 32,0');   // хохочет
+  p.className.baseVal = 'pig-laugh';
+  setTimeout(()=>{ p.className.baseVal=''; }, 700);
+}
+
+/* Частицы попадания */
+function burst(cx, cy, n){
+  const fx = $('fx');
+  for(let i=0;i<n;i++){
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    const r = 2 + Math.random()*5;
+    c.setAttribute('cx',cx); c.setAttribute('cy',cy); c.setAttribute('r',r);
+    c.setAttribute('fill', ['#ffd93b','#ff8a3b','#fff','#8ef09c'][i%4]);
+    fx.appendChild(c);
+    const a = Math.random()*Math.PI*2, sp = 40 + Math.random()*110, t0 = performance.now();
+    (function mv(now){
+      const t = (now-t0)/600;
+      if(t>=1){ c.remove(); return; }
+      c.setAttribute('cx', cx + Math.cos(a)*sp*t);
+      c.setAttribute('cy', cy + Math.sin(a)*sp*t + 120*t*t);
+      c.setAttribute('opacity', 1-t);
+      requestAnimationFrame(mv);
+    })(t0);
+  }
+}
+
+/* =========================================================
+   8. ПЕРЕХОД / ФИНАЛ
+   ========================================================= */
+function next(){
+  S.busy = false;
+  SFX.click();
+  S.i++;
+  if(S.i >= QUESTIONS.length) finish();
+  else render();
+}
+function finish(){
+  if(S.resultSubmitted) return;
+  S.resultSubmitted = true;
+  S.active = false;
+  updateStudentUI();
+  const secs = Math.round((Date.now()-S.start)/1000);
+  const scorePercent = Math.round(S.firstTryCorrect/QUESTIONS.length*100);
+  $('fCorrect').textContent = `${S.correct}/30`;
+  $('fPct').textContent = scorePercent + '%';
+  $('fWrong').textContent = S.wrong;
+  $('fHints').textContent = S.hintsUsed;
+  $('fPigs').textContent = `${S.pigs}/30`;
+  $('fTime').textContent = `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;
+  $('finalTitle').textContent = S.pigs === 30 ? 'ВСЕ СВИНЬИ РАЗБИТЫ!' : 'РАУНД ОКОНЧЕН';
+  setSaveStatus('Сохраняем результат…', '');
+  $('modal').classList.add('open');
+  if(S.pigs === 30) fireworks();
+  const payload = {
+    action:'submitTest',
+    eventId:makeEventId(),
+    studentId:currentStudent.studentId,
+    testId:TEST_META.testId,
+    testDate:localDate(),
+    topicId:TEST_META.topicId,
+    topicName:TEST_META.topicName,
+    taskNumber:TEST_META.taskNumber,
+    scorePercent,
+    durationSeconds:secs,
+    schemaVersion:TEST_META.schemaVersion
+  };
+  submitResult(payload);
+}
+
+/* Фейерверк на canvas */
+function fireworks(){
+  const cv = $('fw'), ctx = cv.getContext('2d');
+  cv.width = innerWidth; cv.height = innerHeight;
+  let parts = [], frames = 0;
+  const boom = () => {
+    const x = Math.random()*cv.width, y = Math.random()*cv.height*.6;
+    const hue = Math.random()*360;
+    for(let i=0;i<50;i++){
+      const a = Math.random()*Math.PI*2, s = Math.random()*4+1;
+      parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,hue});
+    }
+  };
+  const iv = setInterval(boom, 500); boom();
+  (function loop(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    parts = parts.filter(p=>p.life>0);
+    parts.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy; p.vy+=.05; p.life-=.012;
+      ctx.fillStyle = `hsla(${p.hue},90%,60%,${p.life})`;
+      ctx.beginPath(); ctx.arc(p.x,p.y,2.5,0,7); ctx.fill();
+    });
+    if(++frames < 600) requestAnimationFrame(loop);
+    else { clearInterval(iv); ctx.clearRect(0,0,cv.width,cv.height); }
+  })();
+}
+
+/* =========================================================
+   9. КНОПКИ ИНТЕРФЕЙСА
+   ========================================================= */
+$('hintBtn').onclick = () => {
+  if(S.hints === 0 || S.busy || !S.active) return;
+  S.hints--; S.hintsUsed++;
+  $('hintBox').textContent = '💡 ' + QUESTIONS[S.i].h;
+  $('hintBox').classList.add('show');
+  SFX.click(); updHUD();
+};
+$('skipBtn').onclick = () => {
+  if(S.busy || !S.active) return;
+  SFX.click();
+  S.busy = true;
+  setTimeout(next, 200);
+};
+$('music').onclick = e => {
+  S.music = !S.music;
+  e.currentTarget.setAttribute('aria-pressed', S.music);
+  S.music ? musicOn() : musicOff();
+};
+const themes = {thDay:'day', thSun:'sunset', thNight:'night'};
+Object.entries(themes).forEach(([id,name])=>{
+  $(id).onclick = () => { document.body.dataset.theme = name; SFX.click(); };
+});
+$('again').onclick = () => {
+  Object.assign(S, {
+    i:0,correct:0,wrong:0,hints:3,hintsUsed:0,pigs:0,busy:false,
+    firstTryCorrect:0,questionAttempted:false,start:Date.now(),active:true,resultSubmitted:false
+  });
+  $('modal').classList.remove('open');
+  updateStudentUI();
+  render();
+};
+
+$('loginBtn').onclick = login;
+$('studentCode').addEventListener('keydown', e => { if(e.key === 'Enter') login(); });
+function requestStudentChange(){
+  if(S.active) return;
+  clearStudent();
+  showLogin('');
+}
+$('changeStudent').onclick = requestStudentChange;
+$('startChangeStudent').onclick = requestStudentChange;
+$('startGame').onclick = () => {
+  if(!currentStudent) return showLogin('');
+  Object.assign(S, {
+    i:0,correct:0,wrong:0,hints:3,hintsUsed:0,pigs:0,busy:false,
+    firstTryCorrect:0,questionAttempted:false,start:Date.now(),active:true,resultSubmitted:false
+  });
+  $('startModal').classList.remove('open');
+  updateStudentUI();
+  render();
+};
+window.addEventListener('online', flushPendingResults);
+
+/* Заметки (хранятся в памяти вкладки) */
+let notesText = '';
+$('notesBtn').onclick = () => { $('notesWin').classList.toggle('open'); $('notesArea').value = notesText; };
+$('notesClose').onclick = () => $('notesWin').classList.remove('open');
+$('notesArea').oninput = e => notesText = e.target.value;
+
+/* Старт */
+render();
+currentStudent = savedStudent();
+updateStudentUI();
+const linkCode = new URLSearchParams(location.search).get('code');
+if(linkCode){
+  clearStudent();
+  showLogin(linkCode);
+  login();
+} else if(currentStudent){
+  showStart();
+  flushPendingResults();
+} else {
+  showLogin('');
+}
+</script>
+</body>
+</html>
