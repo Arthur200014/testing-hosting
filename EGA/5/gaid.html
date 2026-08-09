@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#24153f">
+  <title>Задание 5 ЕГЭ · Лаборатория вероятностей</title>
+  <style>
+    :root{
+      --yellow:#ffd739;--yellow2:#ffeb70;--purple:#6f3ca7;--purple2:#9a68d0;
+      --ink:#f8f5ff;--muted:#cfc5df;--dark:#130c21;--panel:#21143aee;
+      --blue:#4dc8ea;--red:#ff646d;--green:#70e391;--line:#08050d;
+      --paper:#f7f1df;--paper-ink:#251d2d;--pixel:ui-monospace,"SFMono-Regular",Consolas,monospace;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth;scroll-padding-top:104px}
+    body{margin:0;background:#160d28;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,sans-serif;line-height:1.55;overflow-x:hidden}
+    body::before{content:"";position:fixed;inset:0;z-index:-3;background:radial-gradient(circle at 75% 15%,#5e3387 0 8%,transparent 25%),linear-gradient(145deg,#1f1237,#0c0814 72%);transition:.5s}
+    body::after{content:"";position:fixed;inset:0;z-index:-2;opacity:.13;pointer-events:none;background:repeating-linear-gradient(135deg,#fff 0 2px,transparent 2px 24px)}
+    button,a,summary{font:inherit}button{color:inherit}a{color:inherit}b,strong{color:#fff}
+    h1,h2,h3,h4{font-family:var(--pixel);line-height:1.18}
+    h1{font-size:clamp(36px,7vw,76px);margin:14px 0;color:var(--yellow);text-shadow:5px 5px #6d4810,9px 9px #07040a}
+    h2{font-size:clamp(25px,4vw,42px);margin:6px 0 10px}
+    h3{font-size:clamp(18px,2.4vw,25px);color:var(--yellow);margin:0 0 12px}
+    h4{font-size:16px;margin:0 0 8px}
+    .pixel{font-family:var(--pixel);font-weight:900}
+    .formula{display:inline-block;padding:3px 7px;background:#120a20;border:2px solid #6f5792;color:#ffe976;font-family:var(--pixel)}
+    .hud{position:fixed;inset:0 0 auto;z-index:60;background:#10091bf2;border-bottom:4px solid #050309;box-shadow:0 6px 0 #0008;backdrop-filter:blur(12px)}
+    .hud-in{max-width:1500px;margin:auto;min-height:70px;padding:8px 18px;display:flex;align-items:center;gap:16px}
+    .brand{min-width:225px}.brand b{display:block;color:var(--yellow);font:900 clamp(14px,2vw,21px) var(--pixel)}.brand small{display:block;color:var(--muted);font-size:11px}
+    .progress-box{flex:1}.progress-label{display:flex;justify-content:space-between;font:800 11px var(--pixel);margin-bottom:4px}
+    .progress{height:18px;background:#060309;border:3px solid #000;padding:2px}.progress i{display:block;height:100%;width:0;background:repeating-linear-gradient(90deg,var(--yellow) 0 20px,#d9a919 20px 24px);transition:width .18s}
+    .fx{border:3px solid #050309;background:#53317a;padding:8px 10px;box-shadow:inset 3px 3px #8460aa,inset -3px -3px #321b50;cursor:pointer;font:800 11px var(--pixel)}
+    .fx:hover,.fx:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
+    .layout{max-width:1500px;margin:auto;padding:96px 20px 70px;display:grid;grid-template-columns:270px minmax(0,980px);gap:28px;justify-content:center}
+    .toc{position:sticky;top:92px;align-self:start;max-height:calc(100vh - 110px);overflow:auto;background:#120b20ed;border:4px solid #050309;padding:10px;box-shadow:8px 8px 0 #0008}
+    .toc-title{padding:6px 8px 11px;color:var(--yellow);border-bottom:2px dashed #ffffff2b;font:900 13px var(--pixel)}
+    .toc a{display:flex;gap:8px;align-items:center;text-decoration:none;padding:7px 6px;margin:4px 0;border:2px solid transparent;color:#d8cee5;font-size:12px}
+    .toc a:hover,.toc a.active{background:#4c2b72;border-color:#8d68b2;color:#fff}
+    .toc a.seen .dot{background:var(--yellow);color:#211328}.dot{flex:0 0 24px;height:24px;display:grid;place-items:center;background:#3e3151;border:2px solid #08050c;font:900 10px var(--pixel)}
+    main{min-width:0}.hero,.map-section,.chapter,.finish{position:relative;margin-bottom:34px;background:linear-gradient(135deg,#251641ed,#160d29f2);border:5px solid #06030a;box-shadow:10px 10px 0 #0008;overflow:hidden}
+    .hero::before,.map-section::before,.chapter::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.14;background:linear-gradient(90deg,#fff 1px,transparent 1px),linear-gradient(#fff 1px,transparent 1px);background-size:26px 26px}
+    .hero{min-height:520px;padding:clamp(24px,5vw,54px);display:grid;grid-template-columns:1.15fr .85fr;align-items:center;gap:20px}
+    .eyebrow{display:inline-flex;padding:6px 10px;background:#553078;border:3px solid #07040b;color:#f3eaff;font:800 12px var(--pixel)}
+    .hero p{font-size:clamp(16px,2vw,20px);max-width:620px;color:#eee7f6}.hero-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+    .lab-btn{display:inline-flex;text-decoration:none;padding:12px 15px;background:var(--yellow);color:#241a08;border:4px solid #070408;box-shadow:inset 4px 4px #fff08b,inset -4px -4px #bd8e10,5px 5px 0 #0008;font:900 13px var(--pixel);cursor:pointer}
+    .lab-btn.alt{background:#7847aa;color:#fff;box-shadow:inset 4px 4px #a979cf,inset -4px -4px #4c286e,5px 5px 0 #0008}.lab-btn:hover{transform:translate(-2px,-2px)}
+    .hero svg{display:block;width:100%;max-width:400px;margin:auto;filter:drop-shadow(8px 9px 0 #0007)}
+    .goggle{animation:blink 3.5s steps(1,end) infinite}.banana{animation:float 2.2s ease-in-out infinite}.ray{animation:pulse 1.1s ease-in-out infinite}
+    .map-section,.chapter{padding:clamp(18px,4vw,38px);scroll-margin-top:100px}.lab-banner{display:flex;justify-content:space-between;gap:10px;margin:-38px -38px 24px;padding:11px 20px;background:repeating-linear-gradient(135deg,#f2c82d 0 18px,#19131f 18px 36px);border-bottom:4px solid #050309;color:#fff;font:900 12px var(--pixel);text-shadow:2px 2px #000}
+    .chapter-head{display:grid;grid-template-columns:72px 1fr;gap:15px;align-items:center;padding-bottom:18px;border-bottom:4px solid #ffffff1c;margin-bottom:20px}.chapter-no{width:72px;height:72px;display:grid;place-items:center;background:var(--yellow);color:#251726;border:4px solid #070408;box-shadow:inset 6px 6px #fff185,inset -6px -6px #bb8e10;font:900 24px var(--pixel)}
+    .subtitle{color:var(--muted);margin:0}.life{display:grid;grid-template-columns:54px 1fr;gap:12px;background:#3b2458;border:3px solid #08050d;padding:14px;margin:16px 0}.life .icon{font-size:35px}.life b{font-family:var(--pixel)}
+    .grid2,.grid3{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.grid3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .card,.formula-card,.tips,.errors,.check{background:#1b102f;border:3px solid #07040c;padding:15px;box-shadow:inset 3px 3px #ffffff0c,5px 5px 0 #0005}.formula-card{background:#33204d}.formula-card .formula{display:block;margin:6px 0;font-size:clamp(15px,2vw,20px)}
+    .visual{margin:20px 0;background:#0e0819;border:4px solid #050309;padding:10px;overflow:hidden}.visual-top{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:4px 4px 9px}.visual-top b{color:var(--yellow);font:900 12px var(--pixel)}.replay{border:2px solid #050309;background:#553279;padding:6px 8px;cursor:pointer;font:800 10px var(--pixel)}
+    .visual svg{display:block;width:100%;height:auto;min-height:210px}.visual text{font-family:var(--pixel)}
+    .local-flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:18px;margin:22px 0}.flow-step{position:relative;background:#36224e;border:3px solid #07040b;padding:11px;text-align:center;min-height:104px;font-size:12px}.flow-step b{display:block;color:var(--yellow);font-family:var(--pixel);margin-bottom:5px}.flow-step:not(:last-child)::after{content:"▶";position:absolute;right:-17px;top:40%;color:var(--yellow);font-size:18px}
+    .examples-title{margin-top:25px}.example{margin:16px 0;background:var(--paper);color:var(--paper-ink);border:5px solid #0d0910;box-shadow:8px 8px 0 #0008;overflow:hidden}.example-head{padding:15px 17px;background:#ddd0b4;border-bottom:4px solid #0d0910}.example-head h4{color:#2b1e30;font-size:18px}.example-head p{margin:7px 0 0}.source-tag{display:inline-block;padding:3px 7px;margin-bottom:7px;background:#4f3272;color:#fff;font:800 10px var(--pixel)}
+    .method-tabs{display:flex;flex-wrap:wrap;gap:6px;padding:12px 14px;background:#c7b99d;border-bottom:3px solid #7f735d}.method-tab{border:3px solid #2c2130;background:#efe6d0;color:#2b2130;padding:7px 9px;cursor:pointer;font:800 11px var(--pixel)}.method-tab.active{background:#6d3e9d;color:#fff}.method-panel{padding:15px 17px}.method-panel h4{color:#5a307e}.steps{counter-reset:s;display:grid;gap:9px}.step{position:relative;padding:10px 12px 10px 46px;background:#fffaf0;border:2px solid #8f8064;min-height:46px}.step::before{counter-increment:s;content:counter(s);position:absolute;left:10px;top:9px;width:25px;height:25px;display:grid;place-items:center;background:#7650a0;color:#fff;border:2px solid #2b173e;font:900 11px var(--pixel)}.method-panel .formula{background:#eadfc8;border-color:#9e8c69;color:#342642}.answer{margin:0 17px 17px;padding:11px 14px;background:#c4efae;border:3px solid #256029;color:#173c1a;font:900 14px var(--pixel)}
+    .theory-lab{margin:22px 0;background:#eee5d2;color:#271d2e;border:5px solid #0c0710;box-shadow:8px 8px 0 #0007;overflow:hidden}.theory-lab-head{padding:15px 17px;background:#d4c5a7;border-bottom:4px solid #0c0710}.theory-lab-head h3{color:#553276;margin-bottom:6px}.theory-lab-head p{margin:0}.theory-tabs{display:flex;flex-wrap:wrap;gap:7px;padding:11px 13px;background:#baaa8b;border-bottom:3px solid #74674f}.theory-tab{flex:1 1 150px;border:3px solid #2b1e30;background:#f4ecd9;color:#2b2031;padding:8px 10px;cursor:pointer;font:900 11px var(--pixel)}.theory-tab.active{background:#70409e;color:#fff}.theory-panel{padding:15px 17px}.theory-panel h4{color:#5a307e;font-size:18px}.theory-panel p{margin:8px 0}.theory-points{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}.theory-point{background:#fffaf0;border:2px solid #8f8064;padding:10px;font-size:12px}.theory-point b{display:block;color:#613b80;font-family:var(--pixel);margin-bottom:4px}
+    .method-viz{margin:0 0 14px;background:#160c25;color:#fff;border:4px solid #281638;box-shadow:inset 0 0 0 3px #694b89;overflow:hidden}.method-viz-head{display:flex;justify-content:space-between;gap:10px;padding:8px 11px;background:#372151;border-bottom:3px solid #100819}.method-viz-head b{color:#ffe36a;font:900 11px var(--pixel)}.method-viz-head span{color:#d9cce7;font-size:11px}.method-viz svg{display:block;width:100%;height:auto;min-height:225px;background:#12091f}.method-viz text{font-family:var(--pixel)}.method-viz-note{padding:9px 12px;background:#2a193d;text-align:center;color:#eee5f5;font-size:12px}
+    .theory-panel:not([hidden]) .viz-draw{stroke-dasharray:900;stroke-dashoffset:900;animation:drawLine 1.15s ease forwards}.theory-panel:not([hidden]) .viz-pop{transform-box:fill-box;transform-origin:center;animation:vizPop .55s cubic-bezier(.2,.9,.3,1.4) both}.theory-panel:not([hidden]) .viz-pop.d2{animation-delay:.2s}.theory-panel:not([hidden]) .viz-pop.d3{animation-delay:.4s}.theory-panel:not([hidden]) .viz-shade{animation:shadeIn .8s ease both}.theory-panel:not([hidden]) .viz-token{animation:tokenHop 1.3s ease-in-out infinite alternate}.theory-panel:not([hidden]) .viz-cell{animation:cellGlow 1.1s ease-in-out infinite alternate}
+    .support{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}.tips{background:#463b14}.errors{background:#431b27}.tips h3{color:#ffe369}.errors h3{color:#ff8b92}.error{padding:9px 0;border-top:2px dashed #ffffff25}.error:first-of-type{border-top:0}.bad{color:#ffa1a6}.fix{color:#9ff0b1}.check{margin-top:14px;background:#19333a}.checks{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.checks li{position:relative;padding:8px 9px 8px 34px;background:#11242b;border:2px solid #32515a}.checks li::before{content:"□";position:absolute;left:9px;top:5px;color:var(--yellow);font:900 18px var(--pixel)}
+    details.more{margin:15px 0;background:#211437;border:3px solid #07040b}details.more summary{padding:12px 15px;cursor:pointer;color:#ffe572;font:800 12px var(--pixel);list-style:none}details.more summary::-webkit-details-marker{display:none}details.more summary::after{content:"＋";float:right}details.more[open] summary::after{content:"−"}details.more>div{padding:0 15px 14px;border-top:2px dashed #ffffff25}
+    .mega-map{position:relative;margin-top:24px;padding:24px 16px 30px;background:#0d0717;border:4px solid #040207;box-shadow:inset 0 0 0 3px #4d3369}.map-trunk,.map-final{display:flex;flex-direction:column;align-items:center}.map-node{position:relative;z-index:2;width:min(100%,700px);padding:12px 14px;background:#3a2455;border:3px solid #050309;text-align:center;box-shadow:5px 5px #0007}.map-node b{display:block;color:var(--yellow);font:900 13px var(--pixel)}.map-node.start,.map-node.finish{width:min(100%,480px);background:#7450a0}.map-node.finish{background:#b28b18}.map-line{position:relative;width:6px;height:34px;background:var(--yellow)}.map-line::after{content:"▼";position:absolute;bottom:-13px;left:50%;transform:translateX(-50%);color:var(--yellow);font-size:18px}.diamond{position:relative;z-index:2;width:min(100%,520px);min-height:105px;padding:25px 70px;display:grid;place-items:center;text-align:center;background:#806310;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);font:900 13px var(--pixel);filter:drop-shadow(6px 7px #0008)}
+    .map-branches{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:45px;padding-top:17px}.map-branches::before{content:"";position:absolute;left:24%;right:24%;top:0;height:6px;background:var(--yellow)}.map-branch{position:relative;background:#211335;border:4px solid #07040b;padding:13px}.map-branch::before{content:"";position:absolute;top:-25px;left:50%;width:6px;height:24px;background:var(--yellow)}.branch-title{text-align:center;color:#fff;font:900 15px var(--pixel)}.branch-list{display:grid;gap:7px;margin-top:10px}.branch-list a{text-decoration:none;background:#3b2458;border:3px solid #08050c;padding:8px}.branch-list a:hover{outline:3px solid var(--yellow)}.branch-list b{display:block;color:var(--yellow);font:800 11px var(--pixel)}.branch-list small{font-size:10px;color:#ddd2ea}.branch-arrow{text-align:center;color:var(--yellow);font-size:18px}.map-rejoin{width:54%;height:46px;margin:auto;border-left:6px solid var(--yellow);border-right:6px solid var(--yellow);border-bottom:6px solid var(--yellow);position:relative}.map-rejoin::before,.map-rejoin::after{content:"";position:absolute;left:50%;width:6px;background:var(--yellow);transform:translateX(-50%)}.map-rejoin::before{top:0;bottom:0}.map-rejoin::after{height:30px;bottom:-34px}.map-final{margin-top:32px}
+    .finish{text-align:center;padding:44px 20px;background:linear-gradient(135deg,#5b3a84,#1c102d)}.moon{width:140px;height:140px;border-radius:50%;margin:18px auto;background:radial-gradient(circle at 38% 35%,#fffad4 0 7%,transparent 8%),radial-gradient(circle at 65% 62%,#c7c1a1 0 9%,transparent 10%),#eee7b8;box-shadow:0 0 35px #fff6b6;animation:float 3s ease-in-out infinite}
+    .reveal{opacity:0;transform:translateY(30px);transition:.6s}.reveal.visible{opacity:1;transform:none}.paused *,.restarting *{animation-play-state:paused!important}
+    @keyframes blink{0%,46%,50%,100%{transform:scaleY(1)}48%{transform:scaleY(.12)}}@keyframes float{50%{transform:translateY(-9px)}}@keyframes pulse{50%{opacity:.25}}@keyframes drawLine{to{stroke-dashoffset:0}}@keyframes vizPop{from{transform:scale(.2);opacity:0}to{transform:scale(1);opacity:1}}@keyframes shadeIn{from{opacity:0}to{opacity:1}}@keyframes tokenHop{to{transform:translateY(-10px)}}@keyframes cellGlow{to{filter:brightness(1.5);opacity:.65}}
+    @media(max-width:1080px){.layout{grid-template-columns:1fr;padding-top:132px}.toc{position:fixed;z-index:55;top:70px;left:0;right:0;max-height:none;display:flex;overflow-x:auto;padding:6px;border-width:0 0 4px}.toc-title{display:none}.toc a{flex:0 0 auto;margin:0 2px}.toc a span:last-child{display:none}.hero{grid-template-columns:1fr}.hero svg{max-width:300px}}
+    @media(max-width:720px){html{scroll-padding-top:122px}.hud-in{padding:8px 10px}.brand{min-width:0;flex:1}.brand small{display:none}.progress-box{position:absolute;left:0;right:0;bottom:-17px;background:#10091b;padding:2px 10px 4px}.progress-label{display:none}.progress{height:11px}.fx{font-size:0;padding:7px}.fx::before{content:"✨";font-size:15px}.layout{padding:132px 9px 50px}.hero,.map-section,.chapter{border-width:4px;box-shadow:6px 6px #0008}.hero{padding:22px 16px;min-height:0}.map-section,.chapter{padding:16px 12px}.lab-banner{margin:-16px -12px 18px;padding:9px 10px}.chapter-head{grid-template-columns:52px 1fr;gap:9px}.chapter-no{width:52px;height:52px;font-size:18px}.grid2,.grid3,.support,.checks{grid-template-columns:1fr}.local-flow{grid-template-columns:1fr;gap:23px}.flow-step{min-height:0;text-align:left}.flow-step:not(:last-child)::after{content:"▼";right:auto;left:48%;top:auto;bottom:-23px}.visual svg{min-height:160px}.map-branches{grid-template-columns:1fr;gap:33px}.map-branches::before{display:none}.map-branch::before{top:-26px}.map-rejoin{width:6px;height:36px;border:0;background:var(--yellow)}.map-rejoin::before{display:none}.diamond{padding:23px 48px;font-size:11px}.method-tabs{padding:9px}.method-tab{flex:1 1 120px}.example-head,.method-panel{padding-left:12px;padding-right:12px}.answer{margin-left:12px;margin-right:12px}}
+    @media(max-width:720px){.theory-points{grid-template-columns:1fr}.method-viz svg{min-height:180px}.method-viz-head{display:block}.method-viz-head span{display:block;margin-top:3px}.theory-panel{padding:12px}.theory-lab-head{padding:13px}.theory-tabs{padding:9px}.theory-tab{flex-basis:120px}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.reveal{opacity:1;transform:none;transition:none}*,*::before,*::after{animation:none!important;transition:none!important}}
+    body.effects-off *,body.effects-off *::before,body.effects-off *::after{animation:none!important;transition:none!important}
+  </style>
+</head>
+<body>
+  <header class="hud">
+    <div class="hud-in">
+      <div class="brand"><b>ЛАБОРАТОРИЯ ВЕРОЯТНОСТЕЙ</b><small>ЕГЭ №5 · 15 прототипов · теория в анимациях</small></div>
+      <div class="progress-box"><div class="progress-label"><span id="zone">ЛАБОРАТОРИЯ ГРЮ</span><span id="progressText">0%</span></div><div class="progress"><i id="progressBar"></i></div></div>
+      <button class="fx" id="fxBtn" type="button" aria-pressed="true">ЭФФЕКТЫ: ВКЛ</button>
+    </div>
+  </header>
+  <div class="layout">
+    <aside class="toc" id="toc" aria-label="Оглавление"><div class="toc-title">ПАНЕЛЬ МИССИЙ</div></aside>
+    <main>
+      <section class="hero reveal" id="start" data-zone="СТАРТ · ЛАБОРАТОРИЯ">
+        <div>
+          <span class="eyebrow">🍌 СЕКРЕТНЫЙ КУРС ГРЮ</span>
+          <h1>ВЕРОЯТНОСТЬ<br>БЕЗ ПАНИКИ</h1>
+          <p>Пойми каждый прототип без задач и вычислительных разборов: теория объясняется через <b>живые деревья, круги Эйлера, роспись случаев, числовые прямые и схему Бернулли</b>.</p>
+          <div class="hero-actions"><a class="lab-btn" href="#algorithm">ОТКРЫТЬ ДЕРЕВО</a><a class="lab-btn alt" href="#p1">К ПРОТОТИПАМ</a></div>
+        </div>
+        <svg viewBox="0 0 420 400" role="img" aria-label="Два жёлтых помощника в лаборатории вероятностей">
+          <rect width="420" height="400" fill="#35204f"/><g opacity=".25" stroke="#fff" stroke-width="2"><path d="M0 80h420M0 160h420M0 240h420M0 320h420M84 0v400M168 0v400M252 0v400M336 0v400"/></g>
+          <g transform="translate(45 88)"><rect x="20" y="42" width="120" height="180" rx="55" fill="#f5d33f" stroke="#0a0710" stroke-width="7"/><rect x="20" y="140" width="120" height="82" fill="#426ca7"/><rect x="32" y="205" width="30" height="80" fill="#202633"/><rect x="98" y="205" width="30" height="80" fill="#202633"/><g class="goggle"><circle cx="80" cy="95" r="35" fill="#b5b9bc" stroke="#111" stroke-width="8"/><circle cx="80" cy="95" r="23" fill="#fff"/><circle cx="80" cy="95" r="9" fill="#6a3d24"/></g><path d="M56 130q24 20 48 0" fill="none" stroke="#3e2518" stroke-width="6"/></g>
+          <g transform="translate(238 125) scale(.82)"><rect x="20" y="42" width="120" height="180" rx="55" fill="#f5d33f" stroke="#0a0710" stroke-width="7"/><rect x="20" y="140" width="120" height="82" fill="#426ca7"/><circle cx="62" cy="95" r="27" fill="#b5b9bc" stroke="#111" stroke-width="7"/><circle cx="99" cy="95" r="27" fill="#b5b9bc" stroke="#111" stroke-width="7"/><circle cx="62" cy="95" r="16" fill="#fff"/><circle cx="99" cy="95" r="16" fill="#fff"/><circle cx="62" cy="95" r="6" fill="#65402b"/><circle cx="99" cy="95" r="6" fill="#65402b"/><path d="M55 130q25 18 50 0" fill="none" stroke="#3e2518" stroke-width="6"/></g>
+          <g class="banana" transform="translate(300 40) rotate(-18)"><path d="M0 65Q45 10 100 25Q70 85 12 88Z" fill="#ffe04b" stroke="#8b6510" stroke-width="6"/></g>
+          <path class="ray" d="M190 330h165" stroke="#65e7ff" stroke-width="12"/><path d="m355 314 36 16-36 16z" fill="#65e7ff"/>
+        </svg>
+      </section>
+
+      <section class="map-section reveal" id="algorithm" data-zone="ГЛАВНОЕ ДЕРЕВО">
+        <div class="lab-banner"><span>СЕКРЕТНАЯ СХЕМА ВЫБОРА</span><span>15 ПРОТОТИПОВ</span></div>
+        <h2>Большое вертикальное дерево решения</h2>
+        <p class="subtitle">Начинай сверху. Ветвь выбирается по логике условия; внутри каждой карточки указан подходящий инструмент.</p>
+        <div class="mega-map">
+          <div class="map-trunk">
+            <div class="map-node start"><b>СТАРТ</b>Прочитай, что требуется найти, и назови событие словами.</div><div class="map-line"></div>
+            <div class="map-node"><b>ШАГ 1</b>Выпиши все данные как вероятности событий, успеха/неудачи или отдельных ветвей.</div><div class="map-line"></div>
+            <div class="diamond">СКОЛЬКО ИСПЫТАНИЙ И СОБЫТИЙ СВЯЗАНО?</div>
+          </div>
+          <div class="map-branches">
+            <article class="map-branch"><div class="branch-title">⭕ ОТНОШЕНИЯ СОБЫТИЙ</div><div class="branch-list">
+              <a href="#p1"><b>1 · НЕСОВМЕСТНЫЕ</b><small>«A или B», вместе невозможны → сложение</small></a>
+              <a href="#p2"><b>2 · ПРОТИВОПОЛОЖНОЕ</b><small>«не», «иначе» → дополнение до 1</small></a>
+              <a href="#p3"><b>3 · РОВНО ОДНО ЗНАЧЕНИЕ</b><small>вложенные пороги → разность</small></a>
+              <a href="#p4"><b>4 · ИНТЕРВАЛ ВРЕМЕНИ</b><small>между двумя сроками → разность</small></a>
+              <a href="#p5"><b>5 · ЦЕЛЫЙ ИНТЕРВАЛ</b><small>от a до b включительно</small></a>
+              <a href="#p6"><b>6 · ПЕРЕСЕЧЕНИЕ</b><small>выполнены оба условия → круги Эйлера</small></a>
+              <a href="#p7"><b>7 · НИ ОДНОГО</b><small>дополнение к объединению</small></a>
+            </div></article>
+            <article class="map-branch"><div class="branch-title">🌳 НЕСКОЛЬКО ИСПЫТАНИЙ</div><div class="branch-list">
+              <a href="#p8"><b>8 · УСЛОВНАЯ ВЕРОЯТНОСТЬ</b><small>«известно, что…» → сократить пространство</small></a>
+              <a href="#p9"><b>9 · НЕЗАВИСИМОЕ ПРОИЗВЕДЕНИЕ</b><small>оба независимых события → умножение</small></a>
+              <a href="#p10"><b>10 · ЗАДАННАЯ ЦЕПОЧКА</b><small>указан точный порядок успехов</small></a>
+              <a href="#p11"><b>11 · ХОТЯ БЫ ОДНО</b><small>1 − вероятность ни одного</small></a>
+              <a href="#p12"><b>12 · БЕЗ ВОЗВРАЩЕНИЯ</b><small>состав меняется после выбора</small></a>
+              <a href="#p13"><b>13 · ПЕРЕБОР ИСХОДОВ</b><small>расписать все подходящие кейсы</small></a>
+              <a href="#p14"><b>14 · ПОЛНАЯ ВЕРОЯТНОСТЬ</b><small>сначала одна из гипотез, затем событие</small></a>
+              <a href="#p15"><b>15 · ДО ПЕРВОГО УСПЕХА</b><small>найти минимальное число попыток</small></a>
+            </div></article>
+          </div>
+          <div class="map-rejoin"></div>
+          <div class="map-final">
+            <div class="map-node"><b>ШАГ 2 · ВЫБЕРИ ИНСТРУМЕНТ</b>Круги — для отношений событий; дерево — для этапов; роспись — для небольшого числа исходов; формула — для общего вычисления.</div><div class="map-line"></div>
+            <div class="map-node"><b>ШАГ 3 · ПРОВЕРЬ МОДЕЛЬ</b>Независимы ли испытания? Возвращается ли предмет? Задан ли порядок успехов? Покрывает ли объединение все исходы?</div><div class="map-line"></div>
+            <div class="map-node"><b>ШАГ 4 · ПОСЧИТАЙ</b>По одной ветви вероятности умножаются, разные благоприятные ветви складываются.</div><div class="map-line"></div>
+            <div class="diamond">ОТВЕТ ЛЕЖИТ ОТ 0 ДО 1 И СООТВЕТСТВУЕТ СМЫСЛУ?</div><div class="map-line"></div>
+            <div class="map-node finish"><b>ФИНИШ</b>Запиши десятичную дробь и сделай быструю проверку альтернативным способом.</div>
+          </div>
+        </div>
+      </section>
+
+      <div id="chapters"></div>
+      <section class="finish reveal" id="finish" data-zone="МИССИЯ ВЫПОЛНЕНА"><span class="eyebrow">🚀 ЛУНА ПОХИЩЕНА</span><h2>Все прототипы обезврежены</h2><div class="moon"></div><p>Если сомневаешься, вернись к дереву: <b>отношения событий → круги; последовательные этапы → дерево; мало исходов → роспись; общий случай → формула.</b></p><a class="lab-btn" href="#algorithm">ВЕРНУТЬСЯ К ДЕРЕВУ</a></section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+      const prototypes = [
+        {
+          title:"Сумма несовместных событий",method:"КРУГИ · СЛОЖЕНИЕ",icon:"🎯",
+          explain:"Если события не могут произойти одновременно, их области не пересекаются.",
+          life:"Выбор одной темы билета, одного приза, одного маршрута или одной категории товара.",
+          simple:"Событие «A или B» собирает два отдельных благоприятных сектора. Один исход нельзя посчитать дважды, потому что пересечения нет.",
+          formula:"P(A∪B)=P(A)+P(B)",formulaNote:"Только для несовместных событий: P(A∩B)=0.",
+          visualLabel:"ДВА НЕПЕРЕСЕКАЮЩИХСЯ СЕКТОРА",kind:"euler",
+          flow:["Найди слово «или».","Убедись, что A и B вместе невозможны.","Выпиши P(A) и P(B).","Сложи вероятности.","Проверь: сумма не больше 1."],
+          examples:[
+            {source:"ИЗ ПРИЛОЖЕННОГО ФАЙЛА",title:"Экзаменационная тема",task:"Вероятность вопроса на тему «Неравенства» равна 0,25, на тему «Квадратичная функция» — 0,2. Вопросов, относящихся сразу к двум темам, нет. Найдите вероятность одной из этих тем.",answer:"0,45",methods:[
+              {name:"Круги Эйлера",steps:[`Рисуем два непересекающихся круга: A — «Неравенства», B — «Квадратичная функция».`,`Фраза «одновременно не относятся» означает <span class='formula'>P(A∩B)=0</span>.`,`Объединение состоит из двух целых кругов: <span class='formula'>0,25+0,20=0,45</span>.`]},
+              {name:"Роспись случаев",steps:[`Подходящий билет имеет ровно один из двух типов: случай A или случай B.`,`Эти случаи не перекрываются, поэтому их вероятности складываются.`,`Получаем <span class='formula'>P=0,25+0,2=0,45</span>.`]},
+              {name:"Формула",steps:[`Общая формула: <span class='formula'>P(A∪B)=P(A)+P(B)−P(A∩B)</span>.`,`Пересечение равно нулю.`,`Следовательно, <span class='formula'>P=0,25+0,2−0=0,45</span>.`]}
+            ]},
+            {source:"НОВЫЙ АНАЛОГ",title:"Приз лаборатории",task:"В розыгрыше участник получает только один приз. Вероятность получить книгу равна 0,32, а кружку — 0,18. Найдите вероятность получить книгу или кружку.",answer:"0,5",methods:[
+              {name:"Круги Эйлера",steps:[`Круг A — книга, круг B — кружка. Один участник получает один приз, поэтому круги не пересекаются.`,`Закрашиваем оба круга и складываем их площади-вероятности.`,`<span class='formula'>P(A∪B)=0,32+0,18=0,50</span>.`]},
+              {name:"Роспись случаев",steps:[`Благоприятны два раздельных случая: «книга» и «кружка».`,`Вероятность суммы несовместных случаев равна сумме вероятностей.`,`<span class='formula'>0,32+0,18=0,5</span>.`]}
+            ]}
+          ],
+          methodsGuide:"<p><b>Круги Эйлера</b> лучше всего показывают отсутствие пересечения. <b>Роспись</b> удобна, когда вариантов мало. Общая формула нужна как страховка: она напоминает, что пересечение обычно надо вычитать.</p>",
+          tips:["Подчеркни фразу «одновременно невозможно» — это разрешение просто сложить.","Если события могут пересечься, переходи к прототипу 6."],
+          errors:[{bad:"Складывают любые события со словом «или».",fix:"Сначала проверь пересечение. Если оно есть, его нужно вычесть."},{bad:"Получают вероятность больше 1.",fix:"Это сигнал двойного счёта или неверных исходных данных."}],
+          check:["Есть слово «или»","События несовместны","Пересечение равно нулю","Ответ от 0 до 1"]
+        },
+        {
+          title:"Противоположное событие",method:"ДОПОЛНЕНИЕ ДО 1",icon:"🔄",
+          explain:"Событие и его противоположность вместе покрывают все исходы.",
+          life:"Надёжность техники, опоздание транспорта, успех проверки, выполнение гарантии.",
+          simple:"Вся вероятность — это полный круг площадью 1. Если известна часть A, всё, что осталось вне неё, и есть «не A».",
+          formula:"P(Ā)=1−P(A)",formulaNote:"A и Ā несовместны и вместе образуют всё пространство исходов.",
+          visualLabel:"СОБЫТИЕ И ВСЁ, ЧТО ОСТАЛОСЬ",kind:"complement",
+          flow:["Найди пару «произойдёт / не произойдёт».","Назови известное событие A.","Убедись, что другого варианта нет.","Вычти P(A) из 1.","Проверь сумму двух событий."],
+          examples:[
+            {source:"ИЗ ПРИЛОЖЕННОГО ФАЙЛА",title:"Температура человека",task:"Вероятность того, что температура окажется ниже 36,8 °C, равна 0,83. Найдите вероятность температуры 36,8 °C или выше.",answer:"0,17",methods:[
+              {name:"Дополнение",steps:[`Событие A: «температура ниже 36,8 °C», <span class='formula'>P(A)=0,83</span>.`,`Событие «36,8 °C или выше» — точное отрицание A.`,`<span class='formula'>P(Ā)=1−0,83=0,17</span>.`]},
+              {name:"Круги Эйлера",steps:[`Весь прямоугольник исходов имеет вероятность 1.`,`Круг «ниже 36,8» занимает 0,83; нужная область находится снаружи круга.`,`Её площадь: <span class='formula'>1−0,83=0,17</span>.`]}
+            ]},
+            {source:"НОВЫЙ АНАЛОГ",title:"Прибытие автобуса",task:"Автобус приходит вовремя с вероятностью 0,76. Найдите вероятность того, что он опоздает.",answer:"0,24",methods:[
+              {name:"Дополнение",steps:[`A — «автобус вовремя», <span class='formula'>P(A)=0,76</span>.`,`Если автобус не вовремя, он опоздал; это противоположное событие.`,`<span class='formula'>P(Ā)=1−0,76=0,24</span>.`]},
+              {name:"Роспись случаев",steps:[`Все исходы делятся на два случая: вовремя и опоздал.`,`Их вероятности в сумме равны 1.`,`Искомая вероятность <span class='formula'>1−0,76=0,24</span>.`]}
+            ]}
+          ],
+          methodsGuide:"<p><b>Дополнение</b> — самый короткий способ. <b>Круг Эйлера</b> нужен для понимания: искомая область — всё пространство без известного события.</p>",
+          tips:["Перефразируй вопрос через слово «не».","Проверь, действительно ли события дополняют друг друга без третьего варианта."],
+          errors:[{bad:"Вычитают из 100, хотя вероятность записана десятичной дробью.",fix:"Для дробей полный объём равен 1; для процентов — 100%."},{bad:"Считают противоположными события, которые не покрывают все исходы.",fix:"Спроси: может ли произойти что-то третье?"}],
+          check:["События взаимно исключают друг друга","Вместе покрывают все исходы","Вычитаю из 1","Сумма ответа и данного равна 1"]
+        },
+        {
+          title:"Разность вложенных событий: ровно одно значение",method:"КРУГИ · РАЗНОСТЬ",icon:"🎯",
+          explain:"Более строгое пороговое событие целиком лежит внутри более широкого.",
+          life:"Число решённых задач, количество продаж, число ошибок, результат тестирования.",
+          simple:"Событие «больше 3» содержит результаты 4, 5, 6… Событие «больше 4» содержит 5, 6… Если убрать внутреннюю часть, останется ровно 4.",
+          formula:"P(X=k)=P(X>k−1)−P(X>k)",formulaNote:"Работает благодаря вложенности событий.",
+          visualLabel:"БОЛЬШОЙ КРУГ МИНУС ВЛОЖЕННЫЙ",kind:"interval",
+          flow:["Переведи «больше» в список целых значений.","Найди широкое событие.","Найди вложенное строгое событие.","Вычти меньшее множество из большего.","Проверь, какое ровно значение осталось."],
+          examples:[
+            {source:"ИЗ ПРИЛОЖЕННОГО ФАЙЛА",title:"Ровно четыре задачи",task:"Вероятность решить больше четырёх задач равна 0,73, а больше трёх — 0,86. Найдите вероятность решить ровно 4 задачи.",answer:"0,13",methods:[
+              {name:"Круги Эйлера",steps:[`A — «больше 3»: 4, 5, 6…; B — «больше 4»: 5, 6… . Поэтому <span class='formula'>B⊂A</span>.`,`Область A без B содержит только результат «4 задачи».`,`<span class='formula'>P(X=4)=0,86−0,73=0,13</span>.`]},
+              {name:"Роспись случаев",steps:[`Записываем: <span class='formula'>P(X>3)=P(X=4)+P(X>4)</span>.`,`Подставляем числа: <span class='formula'>0,86=P(X=4)+0,73</span>.`,`Отсюда <span class='formula'>P(X=4)=0,13</span>.`]},
+              {name:"Формула",steps:[`Используем разность хвостовых вероятностей.`,`<span class='formula'>P(X=4)=P(X>3)−P(X>4)</span>.`,`<span class='formula'>0,86−0,73=0,13</span>.`]}
+            ]},
+            {source:"НОВЫЙ АНАЛОГ",title:"Ровно восемь заказов",task:"Вероятность выполнить больше 7 заказов равна 0,68, а больше 8 заказов — 0,41. Найдите вероятность выполнить ровно 8 заказов.",answer:"0,27",methods:[
+              {name:"Круги Эйлера",steps:[`Событие «больше 8» находится внутри события «больше 7».`,`Внешняя полоска большого события соответствует ровно 8 заказам.`,`<span class='formula'>0,68−0,41=0,27</span>.`]},
+              {name:"Роспись случаев",steps:[`«Больше 7» = «ровно 8» или «больше 8».`,`Эти два случая несовместны: <span class='formula'>0,68=P(X=8)+0,41</span>.`,`<span class='formula'>P(X=8)=0,27</span>.`]}
+            ]}
+          ],
+          methodsGuide:"<p><b>Круги</b> показывают вложенность, <b>роспись</b> превращает пороги в конкретные значения, а формула даёт короткую запись после понимания.</p>",
+          tips:["Для целого X выражение X&gt;3 начинается с 4.","Всегда вычитай вероятность более узкого события из более широкого."],
+          errors:[{bad:"Путают «больше 4» и «не меньше 4».",fix:"Распиши первые допустимые целые значения."},{bad:"Вычитают 0,86 из 0,73.",fix:"Большому множеству соответствует большая вероятность."}],
+          check:["X принимает целые значения","Пороги распечатаны словами","События вложены","Осталось ровно нужное значение"]
+        },
+        {
+          title:"Разность вложенных событий: интервал времени",method:"ПОЛОСКА ВРЕМЕНИ",icon:"⏳",
+          explain:"Вероятность попадания между сроками равна разности двух вероятностей «прослужит дольше».",
+          life:"Срок службы техники, гарантийный период, время ожидания, долговечность аккумулятора.",
+          simple:"Полоса «дольше года» состоит из двух частей: от года до двух и дольше двух. Убираем дальний хвост — остаётся нужный промежуток.",
+          formula:"P(t₁<T≤t₂)=P(T>t₁)−P(T>t₂)",formulaNote:"Границы важны для дискретных величин; для непрерывного времени точка обычно имеет вероятность 0.",
+          visualLabel:"ХВОСТ ВЕРОЯТНОСТИ НА ШКАЛЕ",kind:"interval",
+          flow:["Отметь оба срока на прямой.","Покажи событие «дольше меньшего срока».","Внутри отметь «дольше большего».","Вычти вложенный хвост.","Сверь открытые и закрытые границы."],
+          examples:[
+            {source:"ИЗ ПРИЛОЖЕННОГО ФАЙЛА",title:"Срок службы сканера",task:"Сканер служит больше года с вероятностью 0,95, а больше двух лет — с вероятностью 0,86. Найдите вероятность, что он прослужит больше года, но меньше двух лет.",answer:"0,09",methods:[
+              {name:"Числовая прямая",steps:[`На шкале отмечаем 1 и 2 года. Область T&gt;2 вложена в область T&gt;1.`,`Нужна полоска между отметками.`,`Её вероятность: <span class='formula'>0,95−0,86=0,09</span>.`]},
+              {name:"Круги Эйлера",steps:[`Большой круг A — «служит больше года», внутренний B — «служит больше двух лет».`,`A без B соответствует сроку между одним и двумя годами.`,`<span class='formula'>P(A\\B)=0,95−0,86=0,09</span>.`]}
+            ]},
+            {source:"НОВЫЙ АНАЛОГ",title:"Аккумулятор от трёх до пяти лет",task:"Вероятность работы аккумулятора больше 3 лет равна 0,88, а больше 5 лет — 0,64. Найдите вероятность работы больше 3, но не больше 5 лет.",answer:"0,24",methods:[
+              {name:"Числовая прямая",steps:[`Событие T&gt;3 включает нужный интервал и хвост T&gt;5.`,`Удаляем хвост после 5 лет.`,`<span class='formula'>P(3&lt;T≤5)=0,88−0,64=0,24</span>.`]},
+              {name:"Формула",steps:[`Подставляем в формулу разности вложенных событий.`,`<span class='formula'>P=P(T&gt;3)−P(T&gt;5)</span>.`,`<span class='formula'>P=0,88−0,64=0,24</span>.`]}
+            ]}
+          ],
+          methodsGuide:"<p><b>Числовая прямая</b> лучше всего защищает от путаницы границ. <b>Круги</b> подчёркивают вложенность, формула ускоряет вычисление.</p>",
+          tips:["Всегда рисуй сроки слева направо.","Более дальний хвост имеет меньшую вероятность."],
+          errors:[{bad:"Складывают две хвостовые вероятности.",fix:"Одна область уже находится внутри другой; нужно вычитание."},{bad:"Вычитают в обратном порядке.",fix:"Из вероятности меньшего порога вычитай вероятность большего."}],
+          check:["Сроки стоят по порядку","События вложены","Вычитаю дальний хвост","Ответ неотрицателен"]
+        },
+        {
+          title:"Разность вложенных событий: целые значения",method:"ЦЕЛОЧИСЛЕННЫЙ ИНТЕРВАЛ",icon:"🚌",
+          explain:"Для количества объектов границы переводятся в точный список целых значений.",
+          life:"Число пассажиров, покупателей, заявок, ошибок, изделий или посетителей.",
+          simple:"«Меньше 22» — это 0…21, а «меньше 13» — 0…12. Вычитание оставляет 13…21.",
+          formula:"P(a≤X<b)=P(X<b)−P(X<a)",formulaNote:"Для целого X обязательно проверь, какие значения входят в каждую границу.",
+          visualLabel:"ЦЕЛЫЕ ТОЧКИ МЕЖДУ ПОРОГАМИ",kind:"line",
+          flow:["Выпиши крайние допустимые целые.","Найди широкое событие X<b.","Найди вложенное X<a.","Вычти вероятности.","Сверь обе границы с вопросом."],
+          examples:[
+            {source:"ИЗ ПРИЛОЖЕННОГО ФАЙЛА",title:"Пассажиры автобуса",task:"Вероятность, что пассажиров меньше 22, равна 0,81, а меньше 13 — 0,59. Найдите вероятность числа пассажиров от 13 до 21 включительно.",answer:"0,22",methods:[
+              {name:"Числовая прямая",steps:[`X&lt;22 означает значения до 21 включительно.`,`X&lt;13 означает значения до 12 включительно.`,`После вычитания остаются 13…21: <span class='formula'>0,81−0,59=0,22</span>.`]},
+              {name:"Роспись случаев",steps:[`Событие X&lt;22 распадается на два несовместных случая: X&lt;13 и 13≤X≤21.`,`<span class='formula'>0,81=0,59+P(13≤X≤21)</span>.`,`Искомая вероятность <span class='formula'>0,22</span>.`]}
+            ]},
+            {source:"НОВЫЙ АНАЛОГ",title:"Посетители библиотеки",task:"Вероятность, что за час придёт меньше 50 посетителей, равна 0,92, а меньше 35 — 0,63. Найдите вероятность от 35 до 49 посетителей включительно.",answer:"0,29",methods:[
+              {name:"Числовая прямая",steps:[`X&lt;50 заканчивается значением 49; X&lt;35 — значением 34.`,`Нужный отрезок — часть первого события без второго.`,`<span class='formula'>0,92−0,63=0,29</span>.`]},
+              {name:"Формула",steps:[`Используем <span class='formula'>P(35≤X&lt;50)=P(X&lt;50)−P(X&lt;35)</span>.`,`Подставляем вероятности.`,`<span class='formula'>P=0,92−0,63=0,29</span>.`]}
+            ]}
+          ],
+          methodsGuide:"<p><b>Числовая прямая</b> показывает включённость концов. <b>Роспись</b> полезна для проверки словами, формула — для быстрой записи.</p>",
+          tips:["Сразу заменяй «меньше 22» на «не больше 21» для целого числа.","Ответ должен быть разностью большей и меньшей вероятности."],
+          errors:[{bad:"Включают 22 или исключают 13.",fix:"Распиши первое и последнее целое значение диапазона."},{bad:"Используют формулу непрерывного интервала без проверки границ.",fix:"Для пассажиров и предметов границы важны."}],
+          check:["Величина целочисленная","Первое значение 13/35 включено","Верхняя граница переведена верно","Получена положительная разность"]
+        },
+        {
+          title:"Пересечение двух событий",method:"КРУГИ · ПЕРЕСЕЧЕНИЕ",icon:"⭕",
+          explain:"Нужно найти область, в которой оба условия выполняются одновременно.",
+          life:"Допуски массы, температуры, скорости, качества продукции и медицинских показателей.",
+          simple:"Два круга перекрываются. Пересечение — общая линза. Чтобы найти её, складываем круги и вычитаем всё объединение.",
+          formula:"P(A∩B)=P(A)+P(B)−P(A∪B)",formulaNote:"В задачах, где A∪B покрывает все исходы, P(A∪B)=1.",
+          visualLabel:"ОБЩАЯ ЛИНЗА ДВУХ УСЛОВИЙ",kind:"intersection",
+          flow:["Назови два условия A и B.","Нарисуй их пересечение.","Определи P(A∪B).","Примени общую формулу.","Проверь, что ответ не больше каждого события."],
+          examples:[
+            {source:"ИЗ ПРИЛОЖЕННОГО ФАЙЛА",title:"Масса буханки",task:"Вероятность массы меньше 815 г равна 0,97, а массы больше 780 г — 0,84. Найдите вероятность массы больше 780 г, но меньше 815 г.",answer:"0,81",methods:[
+              {name:"Круги Эйлера",steps:[`A — масса меньше 815 г, B — масса больше 780 г. Нужна общая часть кругов.`,`Любая масса удовлетворяет хотя бы одному условию: если она не меньше 815, то точно больше 780; если не больше 780, то меньше 815. Поэтому <span class='formula'>P(A∪B)=1</span>.`,`<span class='formula'>P(A∩B)=0,97+0,84−1=0,81</span>.`]},
+              {name:"Формула",steps:[`Общая формула: <span class='formula'>P(A∩B)=P(A)+P(B)−P(A∪B)</span>.`,`Здесь объединение покрывает всё пространство, значит его вероятность 1.`,`<span class='formula'>0,97+0,84−1=0,81</span>.`]},
+              {name:"Дополнение",steps:[`За нужным интервалом находятся два несовместных «хвоста»: масса ≤780 с вероятностью <span class='formula'>1−0,84=0,16</span> и масса ≥815 с вероятностью <span class='formula'>1−0,97=0,03</span>.`,`Вне интервала: <span class='formula'>0,16+0,03=0,19</span>.`,`Внутри интервала: <span class='formula'>1−0,19=0,81</span>.`]}
+            ]},
+            {source:"НОВЫЙ АНАЛОГ",title:"Заряд устройства",task:"Вероятность заряда выше 20% равна 0,78, а ниже 80% — 0,86. Найдите вероятность заряда выше 20%, но ниже 80%.",answer:"0,64",methods:[
+              {name:"Круги Эйлера",steps:[`A — заряд &gt;20%, B — заряд &lt;80%. Их объединение покрывает любой возможный заряд.`,`Нужна общая линза A∩B.`,`<span class='formula'>P(A∩B)=0,78+0,86−1=0,64</span>.`]},
+              {name:"Дополнение",steps:[`Заряд ≤20% имеет вероятность <span class='formula'>1−0,78=0,22</span>. Заряд ≥80% — <span class='formula'>1−0,86=0,14</span>.`,`Эти крайние области не пересекаются: вне середины <span class='formula'>0,22+0,14=0,36</span>.`,`В середине: <span class='formula'>1−0,36=0,64</span>.`]}
+            ]}
+          ],
+          methodsGuide:"<p><b>Круги Эйлера</b> обязательны для понимания общей формулы. <b>Дополнение</b> часто быстрее, если проще найти два внешних хвоста.</p>",
+          tips:["Не заучивай «P(A)+P(B)−1» без условия: единица появляется только когда объединение достоверно.","Пересечение не может быть вероятнее ни A, ни B."],
+          errors:[{bad:"Всегда вычитают 1.",fix:"В общем случае вычитают P(A∪B); сначала докажи, что оно равно 1."},{bad:"Складывают 0,97 и 0,84 без вычитания.",fix:"Общая область при сложении считается дважды."}],
+          check:["Искомое требует оба условия","Объединение определено","Пересечение не больше исходных вероятностей","Общая формула применена полностью"]
+        },
+        {
+          title:"Ни одно из двух событий",method:"КРУГИ · ДОПОЛНЕНИЕ",icon:"🛡️",
+          explain:"Сначала находим вероятность хотя бы одного нежелательного события, затем берём дополнение.",
+          life:"Безотказная работа устройств, отсутствие ошибок, сохранность товара, надёжность двух систем.",
+          simple:"Два круга — два сбоя. «Ни одного» находится вне обоих кругов. У объединения пересечение нельзя считать дважды.",
+          formula:"P(Ā∩B̄)=1−P(A)−P(B)+P(A∩B)",formulaNote:"Это дополнение к объединению A∪B.",
+          visualLabel:"ОБЛАСТЬ ВНЕ ОБОИХ КРУГОВ",kind:"complement",
+          flow:["Обозначь два нежелательных события.","Найди их объединение.","Вычти двойной счёт пересечения.","Возьми дополнение до 1.","Проверь смысл «оба без сбоя»."],
+          examples:[
+            {source:"ИЗ ПРИЛОЖЕННОГО ФАЙЛА",title:"Два кофейных автомата",task:"Вероятность, что кофе закончится в первом автомате, равна 0,1; во втором — 0,1; в обоих — 0,04. Найдите вероятность, что кофе останется в обоих.",answer:"0,84",methods:[
+              {name:"Круги Эйлера",steps:[`A и B — кофе закончился в соответствующем автомате.`,`Хотя бы один пуст: <span class='formula'>P(A∪B)=0,1+0,1−0,04=0,16</span>.`,`Оба с кофе — вне объединения: <span class='formula'>1−0,16=0,84</span>.`]},
+              {name:"Формула",steps:[`Используем закон де Морган: «ни A, ни B» = дополнение к A∪B.`,`<span class='formula'>P=1−P(A)−P(B)+P(A∩B)</span>.`,`<span class='formula'>1−0,1−0,1+0,04=0,84</span>.`]},
+              {name:"Роспись случаев",steps:[`Всё пространство делится на: только первый пуст, только второй пуст, оба пусты, оба с кофе.`,`Только первый: <span class='formula'>0,1−0,04=0,06</span>; только второй также 0,06; оба пусты 0,04.`,`Оба с кофе: <span class='formula'>1−0,06−0,06−0,04=0,84</span>.`]}
+            ]},
+            {source:"НОВЫЙ АНАЛОГ",title:"Две системы контроля",task:"Вероятность ошибки первой системы равна 0,15, второй — 0,15, обеих одновременно — 0,03. Найдите вероятность, что обе системы отработают без ошибки.",answer:"0,73",methods:[
+              {name:"Круги Эйлера",steps:[`Объединение ошибок: <span class='formula'>0,15+0,15−0,03=0,27</span>.`,`Нужное событие находится вне обоих кругов.`,`<span class='formula'>1−0,27=0,73</span>.`]},
+              {name:"Формула",steps:[`Сразу используем <span class='formula'>1−P(A)−P(B)+P(A∩B)</span>.`,`Подставляем: <span class='formula'>1−0,15−0,15+0,03</span>.`,`Получаем <span class='formula'>0,73</span>.`]}
+            ]}
+          ],
+          methodsGuide:"<p><b>Круги</b> объясняют знак «плюс пересечение» в итоговой формуле. <b>Роспись четырёх областей</b> — сильная проверка.</p>",
+          tips:["Фраза «оба без…» часто означает «ни одного нежелательного».","Знак перед пересечением в итоговой формуле положительный, потому что его сначала вычли дважды."],
+          errors:[{bad:"Пишут 1−P(A)−P(B) и забывают пересечение.",fix:"Пересечение при таком вычитании удалено дважды; верни его один раз."},{bad:"Умножают вероятности сбоев.",fix:"Независимость не дана; используй известное пересечение."}],
+          check:["События обозначены как нежелательные","Пересечение учтено","Взято дополнение к объединению","Независимость не придумана"]
+        },
+        {
+          title:"Условная вероятность",method:"СОКРАЩЕНИЕ ПРОСТРАНСТВА",icon:"🎲",
+          explain:"После слов «известно, что» запрещённые исходы удаляются, и знаменатель меняется.",
+          life:"Отбор по условию, диагностика после теста, анализ данных внутри выбранной группы.",
+          simple:"Мы больше не рассматриваем все исходы. Сначала оставляем только те, которые удовлетворяют условию B, и уже внутри них считаем долю A.",
+          formula:"P(A|B)=P(A∩B)/P(B)",formulaNote:"В равновероятных исходах это число подходящих исходов внутри нового пространства.",
+          visualLabel:"ОБРЕЗАННОЕ ДЕРЕВО ИСХОДОВ",kind:"conditional",
+          flow:["Выдели условие после «известно».","Удалить невозможные исходы.","Посчитай новый объём пространства.","Найди благоприятные исходы внутри него.","Раздели благоприятные на допустимые."],
+          examples:[
+            {source:"ИЗ ПРИЛОЖЕННОГО ФАЙЛА",title:"Два броска без пятёрки",task:"Кость бросили два раза. Известно, что пятёрка не выпала ни разу. Найдите вероятность суммы 9.",answer:"0,08",methods:[
+              {name:"Роспись случаев",steps:[`После запрета пятёрки на каждом кубике остаются значения 1, 2, 3, 4, 6 — всего <span class='formula'>5·5=25</span> равновероятных пар.`,`Сумму 9 дают допустимые пары (3,6) и (6,3). Пары (4,5), (5,4) удалены условием.`,`<span class='formula'>P=2/25=0,08</span>.`]},
+              {name:"Дерево",steps:[`Строим два уровня дерева; на каждом оставляем пять ветвей без числа 5.`,`Всего 25 конечных ветвей с одинаковой вероятностью <span class='formula'>1/25</span>.`,`Подходят две ветви, поэтому <span class='formula'>2·1/25=0,08</span>.`]},
+              {name:"Формула",steps:[`B — «пятёрка не выпала», <span class='formula'>P(B)=(5/6)²=25/36</span>.`,`A∩B содержит две пары из 36: <span class='formula'>P(A∩B)=2/36</span>.`,`<span class='formula'>P(A|B)=(2/36)/(25/36)=2/25=0,08</span>.`]}
+            ]},
+            {source:"НОВЫЙ АНАЛОГ",title:"Два броска без шестёрки",task:"Кость бросили два раза. Известно, что шестёрка не выпала ни разу. Найдите вероятность суммы 8.",answer:"0,12",methods:[
+              {name:"Роспись случаев",steps:[`Допустимы числа 1…5 на каждом броске: всего <span class='formula'>25</span> пар.`,`Сумма 8 получается в парах (3,5), (4,4), (5,3).`,`<span class='formula'>P=3/25=0,12</span>.`]},
+              {name:"Дерево",steps:[`Обрезаем ветвь «6» на каждом из двух уровней.`,`Остаются 25 равновероятных конечных ветвей.`,`Три благоприятные ветви дают <span class='formula'>3/25=0,12</span>.`]}
+            ]}
+          ],
+          methodsGuide:"<p><b>Роспись</b> быстрее для двух костей. <b>Дерево</b> наглядно показывает новое пространство. Формула условной вероятности универсальна.</p>",
+          tips:["Слова «при этом условии» меняют знаменатель.","Сначала перечеркни запрещённые строки и столбцы таблицы исходов."],
+          errors:[{bad:"Оставляют знаменатель 36.",fix:"После условия допустимы только 25 пар."},{bad:"Считают пары с запрещённым числом.",fix:"Сначала сформируй новое пространство, затем ищи сумму."}],
+          check:["Условие B выделено","Запрещённые исходы удалены","Новый знаменатель пересчитан","Благоприятные исходы лежат внутри B"]
+        },
+        {
+          title:"Произведение независимых событий",method:"ДЕРЕВО · УМНОЖЕНИЕ",icon:"♟️",
+          explain:"Если один результат не меняет вероятность другого, вдоль выбранной ветви вероятности перемножаются.",
+          life:"Две независимые проверки, этапы игры, резервные устройства, последовательные испытания.",
+          simple:"Чтобы пройти по ветви «успех и затем успех», нужно выполнить оба перехода. Доля после первого перехода снова уменьшается во столько раз, сколько задаёт второй.",
+          formula:"P(A∩B)=P(A)·P(B)",formulaNote:"Формула требует независимости событий.",
+          visualLabel:"ДВА НЕЗАВИСИМЫХ ЭТАПА",kind:"tree",
+          flow:["Найди слово «оба/и».","Проверь независимость.","Нарисуй два этапа.","Перемножь вероятности по ветви.","Проверь, что ответ не больше каждого множителя."],
+          examples:[
+            {source:"ИЗ ПРИЛОЖЕННОГО ФАЙЛА",title:"Две шахматные партии",task:"Шахматист выигрывает белыми с вероятностью 0,6, чёрными — 0,35. Он играет две партии разными цветами. Найдите вероятность выиграть обе.",answer:"0,21",methods:[
+              {name:"Дерево",steps:[`На первом уровне ветвь победы белыми имеет вероятность 0,6.`,`Из неё идём по ветви победы чёрными с вероятностью 0,35.`,`По одной ветви умножаем: <span class='formula'>0,6·0,35=0,21</span>.`]},
+              {name:"Формула",steps:[`A — победа белыми, B — победа чёрными. В модели задачи результаты считаются независимыми.`,`Нужно пересечение A∩B.`,`<span class='formula'>P(A∩B)=0,6·0,35=0,21</span>.`]},
+              {name:"Роспись случаев",steps:[`Полная пара результатов может быть ВВ, ВП, ПВ или ПП.`,`Требуется только случай ВВ.`,`Его вероятность равна произведению последовательных независимых результатов: <span class='formula'>0,6·0,35=0,21</span>.`]}
+            ]},
+            {source:"НОВЫЙ АНАЛОГ",title:"Два этапа проверки робота",task:"Робот проходит первый этап с вероятностью 0,9, второй — с вероятностью 0,7. Этапы независимы. Найдите вероятность пройти оба.",answer:"0,63",methods:[
+              {name:"Дерево",steps:[`Выбираем ветвь успеха первого этапа: 0,9.`,`После неё выбираем успех второго: 0,7.`,`<span class='formula'>0,9·0,7=0,63</span>.`]},
+              {name:"Формула",steps:[`События независимы, поэтому вероятность пересечения равна произведению.`,`<span class='formula'>P=0,9·0,7</span>.`,`Получаем <span class='formula'>0,63</span>.`]}
+            ]}
+          ],
+          methodsGuide:"<p><b>Дерево</b> показывает, почему по одной ветви выполняется умножение. Формула удобна после явной проверки независимости.</p>",
+          tips:["«Оба» обычно ведёт к пересечению, но умножение разрешено только при независимости.","Произведение чисел от 0 до 1 не может стать больше исходных множителей."],
+          errors:[{bad:"Складывают вероятности двух побед.",fix:"Требуется одновременное выполнение обоих событий — движение по одной ветви."},{bad:"Умножают зависимые события.",fix:"Если первый выбор меняет второй, используй условную вероятность."}],
+          check:["Нужно выполнение обоих событий","Независимость дана или обоснована","Вероятности умножены","Ответ не больше 0,35/0,7"]
+        },
+        {
+          title:"Заданная цепочка успехов и неудач",method:"ТОЧНЫЙ ПОРЯДОК",icon:"🎯",
+          explain:"Условие задаёт одну конкретную последовательность, поэтому коэффициент числа перестановок не нужен.",
+          life:"Серия выстрелов, контрольные запуски, заданная последовательность результатов тестов.",
+          simple:"Цепочка «попал, попал, промах, промах» — одна дорожка дерева. Мы не переставляем успехи местами.",
+          formula:"P=pᵏ(1−p)ⁿ⁻ᵏ",formulaNote:"Для заданного порядка. В формуле Бернулли коэффициент Cₙᵏ учитывает все порядки; здесь подходящий порядок один.",
+          visualLabel:"ОДНА ВЫБРАННАЯ ВЕТВЬ ДЕРЕВА",kind:"tree",
+          flow:["Запиши точный порядок буквами.","Найди q=1−p.","Подставь p для успеха и q для неудачи.","Перемножь по цепочке.","Не добавляй Cₙᵏ, если порядок фиксирован."],
+          examples:[
+            {source:"ИЗ ПРИЛОЖЕННОГО ФАЙЛА",title:"Два попадания, затем два промаха",task:"Стрелок делает четыре независимых выстрела, вероятность попадания 0,6. Найдите вероятность попасть в две первые мишени и промахнуться по двум последним.",answer:"0,0576",methods:[
+              {name:"Дерево",steps:[`Нужна единственная ветвь П–П–М–М.`,`Вероятности переходов: 0,6; 0,6; 0,4; 0,4.`,`<span class='formula'>P=0,6·0,6·0,4·0,4=0,0576</span>.`]},
+              {name:"Роспись случаев",steps:[`Записываем требуемый код результата: ППММ. Другие расположения двух попаданий не подходят.`,`Для независимых выстрелов вероятность кода равна произведению символов.`,`<span class='formula'>0,6²·0,4²=0,0576</span>.`]},
+              {name:"Бернулли",steps:[`Формула для ровно двух попаданий в любом порядке содержала бы <span class='formula'>C₄²</span>.`,`Но условие фиксирует один порядок ППММ, поэтому из шести возможных расположений подходит только одно: коэффициент фактически равен 1.`,`<span class='formula'>1·0,6²·0,4²=0,0576</span>.`]}
+            ]},
+            {source:"НОВЫЙ АНАЛОГ",title:"Чередующаяся серия из пяти выстрелов",task:"Вероятность попадания равна 0,7. Найдите вероятность последовательности: попадание, промах, попадание, промах, попадание.",answer:"0,03087",methods:[
+              {name:"Дерево",steps:[`Выбираем ветвь П–М–П–М–П.`,`По ней стоят множители 0,7; 0,3; 0,7; 0,3; 0,7.`,`<span class='formula'>P=0,7³·0,3²=0,343·0,09=0,03087</span>.`]},
+              {name:"Роспись случаев",steps:[`Условие задаёт ровно один код ПМПМП.`,`Три успеха дают множитель 0,7³, два промаха — 0,3².`,`<span class='formula'>P=0,03087</span>.`]},
+              {name:"Бернулли",steps:[`Для любых трёх попаданий из пяти было бы <span class='formula'>C₅³=10</span> порядков.`,`Здесь требуется только один из этих десяти порядков, поэтому коэффициент не ставим.`,`<span class='formula'>P=0,7³·0,3²=0,03087</span>.`]}
+            ]}
+          ],
+          methodsGuide:"<p><b>Дерево</b> и <b>роспись</b> показывают фиксированный порядок. Вкладка Бернулли объясняет, почему биномиальный коэффициент здесь равен не Cₙᵏ, а 1.</p>",
+          tips:["Сначала запиши цепочку буквами.","Если сказано «ровно k успехов» без порядка — нужен Cₙᵏ; если указаны номера успешных испытаний — нет."],
+          errors:[{bad:"Умножают на C₄².",fix:"Это посчитает все расположения двух попаданий, а условие разрешает только ППММ."},{bad:"Для промаха используют p.",fix:"Вероятность неудачи q=1−p."}],
+          check:["Порядок действительно задан","q вычислено как 1−p","По ветви вероятности перемножены","Лишний биномиальный коэффициент не добавлен"]
+        },
+        {
+          title:"Хотя бы одно благоприятное событие",method:"ДОПОЛНЕНИЕ · БЕРНУЛЛИ",icon:"💡",
+          explain:"Вместо множества благоприятных случаев проще исключить единственный случай «ни одного».",
+          life:"Надёжность группы ламп, серверов, датчиков, вероятность хотя бы одного успешного запуска.",
+          simple:"Событий «хотя бы одно» много: одно, два, три успеха… Их противоположность одна — все испытания закончились неудачей.",
+          formula:"P(хотя бы 1)=1−qⁿ",formulaNote:"q — вероятность противоположного результата в одном независимом испытании.",
+          visualLabel:"ВСЕ ВЕТВИ, КРОМЕ ОДНОЙ",kind:"tree",
+          flow:["Определи благоприятный результат.","Сформулируй «ни одного».","Найди q одного противоположного исхода.","Вычисли qⁿ и вычти из 1.","Проверь, что ответ велик при большом n."],
+          examples:[
+            {source:"ИЗ ПРИЛОЖЕННОГО ФАЙЛА",title:"Три лампы",task:"Три лампы перегорают независимо. Вероятность перегорания каждой за год равна 0,4. Найдите вероятность, что хотя бы одна лампа не перегорит.",answer:"0,936",methods:[
+              {name:"Дополнение",steps:[`Нужное событие: хотя бы одна лампа работает. Противоположное: перегорели все три.`,`Из-за независимости <span class='formula'>P(все перегорели)=0,4³=0,064</span>.`,`<span class='formula'>P=1−0,064=0,936</span>.`]},
+              {name:"Дерево",steps:[`У дерева 8 конечных ветвей «работает/перегорела».`,`Неблагоприятна только одна ветвь: П–П–П с вероятностью <span class='formula'>0,4³</span>.`,`Сумма всех остальных ветвей: <span class='formula'>1−0,4³=0,936</span>.`]},
+              {name:"Бернулли",steps:[`Вероятность одной работающей лампы: <span class='formula'>C₃¹·0,6·0,4²=0,288</span>.`,`Двух работающих: <span class='formula'>C₃²·0,6²·0,4=0,432</span>; трёх: <span class='formula'>C₃³·0,6³=0,216</span>.`,`Сумма: <span class='formula'>0,288+0,432+0,216=0,936</span>. Дополнение короче.`]}
+            ]},
+            {source:"НОВЫЙ АНАЛОГ",title:"Четыре резервных сервера",task:"Вероятность отказа каждого из четырёх независимых серверов равна 0,1. Найдите вероятность, что хотя бы один сервер будет работать.",answer:"0,9999",methods:[
+              {name:"Дополнение",steps:[`Противоположное событие — отказали все четыре сервера.`,`<span class='formula'>P(все отказали)=0,1⁴=0,0001</span>.`,`<span class='formula'>P(хотя бы один работает)=1−0,0001=0,9999</span>.`]},
+              {name:"Дерево",steps:[`Все конечные ветви, кроме «О–О–О–О», благоприятны.`,`Вероятность единственной плохой ветви равна <span class='formula'>0,1⁴</span>.`,`Берём дополнение: <span class='formula'>0,9999</span>.`]},
+              {name:"Бернулли",steps:[`Можно сложить вероятности ровно 1, 2, 3 и 4 работающих серверов по формуле Бернулли.`,`Это сумма <span class='formula'>Σₖ₌₁⁴ C₄ᵏ·0,9ᵏ·0,1⁴⁻ᵏ</span>.`,`Она равна <span class='formula'>1−C₄⁰·0,1⁴=0,9999</span>.`]}
+            ]}
+          ],
+          methodsGuide:"<p><b>Дополнение</b> почти всегда самое быстрое. <b>Бернулли</b> показывает сумму всех случаев k≥1, но вычислений больше. Дерево объясняет, какая одна ветвь исключается.</p>",
+          tips:["После слов «хотя бы одно» сразу попробуй противоположное «ни одного».","Не перепутай, что здесь q: в задаче про работающую лампу противоположный исход — перегорела."],
+          errors:[{bad:"Считают только ровно один успех.",fix:"«Хотя бы один» включает 1, 2, 3… успеха."},{bad:"Пишут 1−q вместо 1−qⁿ.",fix:"Все n испытаний должны одновременно дать противоположный результат."}],
+          check:["Испытания независимы","Противоположное событие сформулировано","Степень равна числу испытаний","Ответ больше вероятности одного успеха"]
+        },
+        {
+          title:"Выбор без возвращения",method:"ДЕРЕВО · ЗНАМЕНАТЕЛЬ МЕНЯЕТСЯ",icon:"🖍️",
+          explain:"После первого выбора предмет не возвращают, поэтому состав коробки и вероятность второго выбора меняются.",
+          life:"Выбор карточек, деталей из партии, участников из группы, предметов из коробки.",
+          simple:"Первый предмет исчезает из коробки. На втором шаге всего предметов уже n−1, а число предметов выбранного цвета может уменьшиться.",
+          formula:"P(AB или BA)=a/n·b/(n−1)+b/n·a/(n−1)",formulaNote:"Две ветви соответствуют двум возможным порядкам цветов.",
+          visualLabel:"КОРОБКА ПОСЛЕ ПЕРВОГО ВЫБОРА",kind:"urn",
+          flow:["Посчитай все предметы n.","Нарисуй ветви первого цвета.","Измени состав на втором уровне.","Перемножь каждую подходящую ветвь.","Сложи порядки AB и BA."],
+          examples:[
+            {source:"ИЗ ПРИЛОЖЕННОГО ФАЙЛА",title:"Синий и красный фломастеры",task:"В коробке 5 синих, 9 красных и 11 зелёных фломастеров. Выбирают два без возвращения. Найдите вероятность одного синего и одного красного.",answer:"0,15",methods:[
+              {name:"Дерево",steps:[`Всего <span class='formula'>25</span> фломастеров. Подходят две ветви: С→К и К→С.`,`<span class='formula'>P(С→К)=5/25·9/24</span>, <span class='formula'>P(К→С)=9/25·5/24</span>.`,`Сумма: <span class='formula'>2·5·9/(25·24)=90/600=0,15</span>.`]},
+              {name:"Роспись случаев",steps:[`Первый подходящий порядок: синий, затем красный. Второй: красный, затем синий.`,`Вероятности порядков одинаковы: <span class='formula'>5/25·9/24</span>.`,`Умножаем на 2: <span class='formula'>0,15</span>.`]},
+              {name:"Комбинации",steps:[`Всего пар: <span class='formula'>C₂₅²=300</span>.`,`Благоприятных пар: выбрать 1 из 5 синих и 1 из 9 красных: <span class='formula'>5·9=45</span>.`,`<span class='formula'>P=45/300=0,15</span>.`]}
+            ]},
+            {source:"НОВЫЙ АНАЛОГ",title:"Жёлтый и фиолетовый жетоны",task:"В коробке 2 жёлтых, 3 фиолетовых и 1 чёрный жетон. Выбирают два без возвращения. Найдите вероятность одного жёлтого и одного фиолетового.",answer:"0,4",methods:[
+              {name:"Дерево",steps:[`Всего 6 жетонов. Ветви: Ж→Ф и Ф→Ж.`,`<span class='formula'>P=2/6·3/5+3/6·2/5</span>.`,`<span class='formula'>P=6/30+6/30=12/30=0,4</span>.`]},
+              {name:"Комбинации",steps:[`Всего неупорядоченных пар <span class='formula'>C₆²=15</span>.`,`Благоприятных пар <span class='formula'>2·3=6</span>.`,`<span class='formula'>P=6/15=0,4</span>.`]}
+            ]}
+          ],
+          methodsGuide:"<p><b>Дерево</b> надёжнее всего показывает изменение знаменателя. <b>Комбинации</b> быстрее, когда выбирается группа без учёта порядка.</p>",
+          tips:["После первого выбора зачеркни один предмет и число n замени на n−1.","Фраза «один A и один B» обычно допускает два порядка."],
+          errors:[{bad:"На втором шаге оставляют знаменатель n.",fix:"Предмет не возвращают, поэтому всего осталось n−1."},{bad:"Считают только порядок AB.",fix:"Добавь симметричную ветвь BA."}],
+          check:["Уточнено отсутствие возвращения","Второй знаменатель n−1","Учтены оба порядка","В комбинациях порядок не дублируется"]
+        },
+        {
+          title:"Перебор подходящих исходов",method:"РОСПИСЬ КЕЙСОВ",icon:"⚽",
+          explain:"Когда исходов немного, перечисляем только комбинации, удовлетворяющие условию.",
+          life:"Турнирные очки, расписания, варианты комплектации, короткие игровые серии.",
+          simple:"Сначала забываем про вероятности и решаем логическую задачу: какие пары результатов вообще дают нужное количество очков? Потом считаем каждую пару.",
+          formula:"P=Σ P(подходящего случая)",formulaNote:"Складываются только несовместные подходящие кейсы.",
+          visualLabel:"ТАБЛИЦА ВСЕХ ПАР РЕЗУЛЬТАТОВ",kind:"cases",
+          flow:["Выпиши возможные результаты одного шага.","Составь пары исходов.","Отбери пары по условию.","Посчитай вероятность каждой пары.","Сложи подходящие случаи."],
+          examples:[
+            {source:"ИЗ ПРИЛОЖЕННОГО ФАЙЛА",title:"Выход команды в следующий круг",task:"За победу дают 3 очка, за ничью — 1, за поражение — 0. В каждой из двух игр вероятности победы и поражения равны 0,05. Для выхода нужно хотя бы 4 очка. Найдите вероятность выхода.",answer:"0,0925",methods:[
+              {name:"Роспись случаев",steps:[`Вероятность ничьей: <span class='formula'>1−0,05−0,05=0,90</span>.`,`Хотя бы 4 очка дают только случаи ВВ (6), ВН (4), НВ (4).`,`<span class='formula'>P=0,05²+0,05·0,90+0,90·0,05=0,0025+0,045+0,045=0,0925</span>.`]},
+              {name:"Дерево",steps:[`На каждом уровне три ветви: В=0,05, Н=0,90, П=0,05.`,`Отмечаем конечные ветви ВВ, ВН и НВ; остальные дают меньше 4 очков.`,`Сумма отмеченных ветвей: <span class='formula'>0,0025+0,045+0,045=0,0925</span>.`]},
+              {name:"Формула",steps:[`Записываем объединение трёх несовместных случаев.`,`<span class='formula'>P=P(ВВ)+P(ВН)+P(НВ)</span>.`,`<span class='formula'>P=0,05²+2·0,05·0,90=0,0925</span>.`]}
+            ]},
+            {source:"НОВЫЙ АНАЛОГ",title:"Две игры лабораторной команды",task:"Вероятность победы в каждой игре равна 0,2, поражения — 0,1, ничьей — 0,7. За две игры нужно набрать хотя бы 4 очка. Найдите вероятность успеха.",answer:"0,32",methods:[
+              {name:"Роспись случаев",steps:[`Подходящие пары не меняются: ВВ, ВН, НВ.`,`Их вероятности: <span class='formula'>0,2²=0,04</span>, <span class='formula'>0,2·0,7=0,14</span> и 0,14.`,`<span class='formula'>P=0,04+0,14+0,14=0,32</span>.`]},
+              {name:"Дерево",steps:[`Строим два уровня с ветвями В, Н, П.`,`Закрашиваем ветви ВВ, ВН и НВ.`,`Складываем их вероятности: <span class='formula'>0,32</span>.`]}
+            ]}
+          ],
+          methodsGuide:"<p><b>Роспись случаев</b> — основной метод: сначала логика очков, потом вероятность. Дерево удобно как визуальная проверка полноты перебора.</p>",
+          tips:["Сначала составь таблицу очков, не подставляя вероятности.","Симметричные случаи ВН и НВ можно объединить множителем 2."],
+          errors:[{bad:"Добавляют ВП: 3+0=3 очка.",fix:"Проверяй сумму очков каждого кейса до вычислений."},{bad:"Считают вероятность ничьей равной 0,9 без вывода.",fix:"Ничья — дополнение: 1−P(В)−P(П)."}],
+          check:["Все исходы одной игры выписаны","Вероятности В+Н+П дают 1","Отобраны только пары с ≥4 очками","Симметричные порядки учтены"]
+        },
+        {
+          title:"Формула полной вероятности",method:"ДЕРЕВО ГИПОТЕЗ",icon:"🔬",
+          explain:"Сначала объект попадает в одну из групп-гипотез, затем в каждой группе событие происходит со своей вероятностью.",
+          life:"Контроль качества, медицинские тесты, сортировка, доставка разными службами, производство на разных линиях.",
+          simple:"К событию ведут несколько дорог. Вероятность каждой дороги — произведение «попал в группу» × «событие внутри группы». Затем дороги складываются.",
+          formula:"P(A)=Σ P(Hᵢ)P(A|Hᵢ)",formulaNote:"Гипотезы Hᵢ должны быть несовместны и вместе покрывать все случаи.",
+          visualLabel:"ДВЕ ГИПОТЕЗЫ ВЕДУТ К ОДНОМУ СОБЫТИЮ",kind:"total",
+          flow:["Выдели группы H₁, H₂…","Проверь, что их доли дают 1.","Подпиши условные вероятности события.","Перемножь вдоль каждой ветви.","Сложи ветви, ведущие к событию."],
+          examples:[
+            {source:"ИЗ ПРИЛОЖЕННОГО ФАЙЛА",title:"Контроль батареек",task:"Вероятность неисправной батарейки 0,01. Контроль бракует неисправную с вероятностью 0,94, а исправную по ошибке — с вероятностью 0,04. Найдите вероятность брака.",answer:"0,049",methods:[
+              {name:"Дерево",steps:[`Первая развилка: неисправна 0,01; исправна <span class='formula'>0,99</span>.`,`К браку ведут две ветви: неисправна→брак <span class='formula'>0,01·0,94=0,0094</span> и исправна→ошибочный брак <span class='formula'>0,99·0,04=0,0396</span>.`,`Складываем: <span class='formula'>0,0094+0,0396=0,049</span>.`]},
+              {name:"Формула",steps:[`H₁ — неисправная, H₂ — исправная. Их вероятности 0,01 и 0,99.`,`По формуле полной вероятности <span class='formula'>P(Б)=0,01·0,94+0,99·0,04</span>.`,`<span class='formula'>P(Б)=0,049</span>.`]},
+              {name:"Роспись случаев",steps:[`Батарейка попадёт в брак двумя несовместными способами: верно забракована неисправная или ошибочно забракована исправная.`,`Вероятности способов 0,0094 и 0,0396.`,`Их сумма <span class='formula'>0,049</span>.`]}
+            ]},
+            {source:"НОВЫЙ АНАЛОГ",title:"Опоздание посылки",task:"Посылку отправляют экспресс-службой с вероятностью 0,3 и обычной — с вероятностью 0,7. Вероятность опоздания равна соответственно 0,05 и 0,12. Найдите вероятность опоздания.",answer:"0,099",methods:[
+              {name:"Дерево",steps:[`Ветка экспресс: <span class='formula'>0,3·0,05=0,015</span>.`,`Ветка обычной доставки: <span class='formula'>0,7·0,12=0,084</span>.`,`Обе ведут к опозданию: <span class='formula'>0,015+0,084=0,099</span>.`]},
+              {name:"Формула",steps:[`Гипотезы «экспресс» и «обычная» несовместны и дают сумму 1.`,`<span class='formula'>P(О)=0,3·0,05+0,7·0,12</span>.`,`<span class='formula'>P(О)=0,099</span>.`]}
+            ]}
+          ],
+          methodsGuide:"<p><b>Дерево</b> защищает от перепутывания долей и условных вероятностей. Формула полной вероятности — компактная запись того же дерева.</p>",
+          tips:["На первом уровне всегда стоят доли групп, на втором — вероятность события внутри группы.","Проверь, что вероятности всех гипотез в сумме равны 1."],
+          errors:[{bad:"Складывают 0,94 и 0,04.",fix:"Это условные вероятности внутри групп; сначала умножь на долю группы."},{bad:"Для исправных используют долю 0,01.",fix:"Исправных 1−0,01=0,99."}],
+          check:["Гипотезы покрывают все объекты","Доли гипотез дают 1","По ветви выполнено умножение","Все ветви события сложены"]
+        },
+        {
+          title:"Испытания до первого успеха",method:"ДОПОЛНЕНИЕ · НЕРАВЕНСТВО",icon:"🚀",
+          explain:"Нужно подобрать минимальное n, при котором вероятность хотя бы одного успеха достигает порога.",
+          life:"Повторные запуски, попытки соединения, запас патронов, резервные проверки.",
+          simple:"Неважно, на какой именно попытке случится первый успех. Удобнее исключить случай, когда все n попыток оказались неудачными.",
+          formula:"1−(1−p)ⁿ≥P₀",formulaNote:"После решения обязательно проверяются n−1 и n, чтобы доказать минимальность.",
+          visualLabel:"ПОВТОРЯЕМ ПОПЫТКИ ДО УСПЕХА",kind:"tree",
+          flow:["Найди p и порог P₀.","Вычисли q=1−p.","Запиши 1−qⁿ≥P₀.","Подбери или реши n.","Проверь n−1 и минимальность."],
+          examples:[
+            {source:"ИЗ ПРИЛОЖЕННОГО ФАЙЛА",title:"Стрелок до первого попадания",task:"Вероятность попадания при каждом выстреле равна 0,7. Какое наименьшее число патронов нужно, чтобы поразить цель с вероятностью не меньше 0,9?",answer:"2",methods:[
+              {name:"Дополнение",steps:[`Вероятность промаха <span class='formula'>q=1−0,7=0,3</span>.`,`За n выстрелов хотя бы одно попадание: <span class='formula'>1−0,3ⁿ</span>. Нужно <span class='formula'>1−0,3ⁿ≥0,9</span>.`,`При n=1 вероятность 0,7 &lt;0,9; при n=2: <span class='formula'>1−0,09=0,91≥0,9</span>. Минимум 2.`]},
+              {name:"Дерево",steps:[`Для одного патрона благоприятна ветвь попадания 0,7 — порога не хватает.`,`Для двух патронов единственная плохая ветвь ПР–ПР имеет вероятность <span class='formula'>0,3²=0,09</span>.`,`Все остальные ветви содержат попадание: <span class='formula'>1−0,09=0,91</span>.`]},
+              {name:"Бернулли",steps:[`Для двух выстрелов складываем ровно одно и ровно два попадания.`,`<span class='formula'>C₂¹·0,7·0,3+C₂²·0,7²=0,42+0,49=0,91</span>.`,`Один выстрел даёт лишь 0,7, поэтому минимальное число равно 2.`]}
+            ]},
+            {source:"НОВЫЙ АНАЛОГ",title:"Повторные запуски устройства",task:"Вероятность успешного запуска в одной независимой попытке равна 0,4. Какое наименьшее число попыток нужно для успеха с вероятностью не меньше 0,95?",answer:"6",methods:[
+              {name:"Дополнение",steps:[`Вероятность неудачи <span class='formula'>q=0,6</span>. Требуется <span class='formula'>1−0,6ⁿ≥0,95</span>, то есть <span class='formula'>0,6ⁿ≤0,05</span>.`,`Проверяем: <span class='formula'>0,6⁵=0,07776&gt;0,05</span> — пяти мало.`,`<span class='formula'>0,6⁶=0,046656≤0,05</span>; вероятность успеха 0,953344. Минимум 6.`]},
+              {name:"Дерево",steps:[`Неблагоприятна только ветвь из n последовательных неудач.`,`Для 5 попыток плохая ветвь имеет вероятность 0,07776, поэтому успех 0,92224 &lt;0,95.`,`Для 6 попыток плохая ветвь 0,046656, успех <span class='formula'>0,953344≥0,95</span>.`]}
+            ]}
+          ],
+          methodsGuide:"<p><b>Дополнение</b> даёт самое короткое неравенство. Дерево объясняет единственную плохую ветвь. Бернулли возможен как сумма случаев с 1…n успехами, но обычно длиннее.</p>",
+          tips:["Докажи минимальность сравнением n−1 и n.","Если степени неудобны, последовательно умножай q, пока результат не станет меньше допустимой вероятности неудачи."],
+          errors:[{bad:"Решают qⁿ≥1−P₀.",fix:"После переноса знак должен быть qⁿ≤1−P₀."},{bad:"Находят подходящее n, но не проверяют n−1.",fix:"Вопрос просит наименьшее число попыток."}],
+          check:["q=1−p вычислено","Записано событие хотя бы одного успеха","Порог преобразован верно","Проверена минимальность"]
+        }
+      ];
+
+      const methodIcons = { "Круги Эйлера":"⭕", "Дерево":"🌳", "Роспись случаев":"🧾", "Формула":"🧪", "Дополнение":"↩", "Числовая прямая":"↔", "Комбинации":"C", "Бернулли":"B" };
+      const flowLabels = ["Распознай","Нарисуй","Запиши","Вычисли","Проверь"];
+      const esc = s => String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+      const strip = s => String(s).replace(/<[^>]*>/g,"");
+      const theoryPlans = [
+        ["Круги Эйлера","Формула","Роспись случаев"],
+        ["Дополнение","Круги Эйлера"],
+        ["Круги Эйлера","Числовая прямая","Формула"],
+        ["Числовая прямая","Круги Эйлера"],
+        ["Числовая прямая","Роспись случаев"],
+        ["Круги Эйлера","Дополнение","Формула"],
+        ["Круги Эйлера","Дополнение","Роспись случаев"],
+        ["Дерево","Роспись случаев","Формула"],
+        ["Дерево","Формула"],
+        ["Дерево","Роспись случаев","Бернулли"],
+        ["Дополнение","Дерево","Бернулли"],
+        ["Дерево","Комбинации"],
+        ["Роспись случаев","Дерево"],
+        ["Дерево","Формула","Роспись случаев"],
+        ["Дополнение","Дерево","Бернулли"]
+      ];
+      const theoryText = {
+        "Круги Эйлера":{
+          title:"События превращаются в области",
+          points:[["1 · Нарисуй","Каждое событие получает свой круг."],["2 · Найди область","«И» — пересечение, «или» — объединение, «не» — область снаружи."],["3 · Посчитай","Сложи или вычти площади-вероятности нужных областей."]],
+          note:"Анимация показывает не формулу, а геометрию событий: какая область действительно нужна."
+        },
+        "Дерево":{
+          title:"Каждый этап — новый уровень ветвей",
+          points:[["1 · Ветви","Из одной точки выходят все возможные результаты этапа."],["2 · Вдоль ветви ×","Последовательные вероятности перемножаются."],["3 · Между ветвями +","Вероятности разных подходящих маршрутов складываются."]],
+          note:"Дерево не даёт потерять порядок испытаний и показывает, когда меняется вероятность следующего шага."
+        },
+        "Роспись случаев":{
+          title:"Сначала логика, затем вычисления",
+          points:[["1 · Выпиши","Создай таблицу или список всех возможных кейсов."],["2 · Отбери","Закрась только те случаи, которые выполняют условие."],["3 · Сложи","Посчитай вероятность каждого выбранного случая и сложи."]],
+          note:"Этот способ особенно надёжен, когда исходов мало и их можно увидеть все сразу."
+        },
+        "Формула":{
+          title:"Смысл переводится в короткую запись",
+          points:[["1 · Обозначь","Назови события A, B и их отношения."],["2 · Подставь","Вставь данные только после выбора правильной формулы."],["3 · Проверь","Результат должен находиться между 0 и 1."]],
+          note:"Формула ускоряет решение, но работает только после того, как понятна изображённая ситуация."
+        },
+        "Дополнение":{
+          title:"От полного пространства убираем лишнее",
+          points:[["1 · Весь мир","Полная вероятность всех исходов равна 1."],["2 · Противоположность","Сформулируй единственное событие, противоположное нужному."],["3 · Вычти","Искомая вероятность равна 1 минус вероятность противоположного."]],
+          note:"Часто одна плохая ветвь считается намного проще, чем множество благоприятных."
+        },
+        "Числовая прямая":{
+          title:"Пороги становятся видимыми",
+          points:[["1 · Отметь границы","Поставь данные числа на шкалу."],["2 · Закрась события","Покажи стрелками «больше» или «меньше»."],["3 · Возьми разность","Нужный интервал — широкая область без вложенного хвоста."]],
+          note:"Шкала защищает от ошибок со словами «больше», «не меньше» и включёнными границами."
+        },
+        "Комбинации":{
+          title:"Считаем группы без учёта порядка",
+          points:[["1 · Все группы","Найди число способов выбрать нужное количество объектов."],["2 · Благоприятные","Посчитай группы требуемого состава."],["3 · Раздели","Вероятность равна числу благоприятных групп, делённому на число всех."]],
+          note:"Комбинации заменяют длинное дерево, если порядок выбора не важен."
+        },
+        "Бернулли":{
+          title:"Коэффициент считает расположения успехов",
+          points:[["Cₙᵏ","Показывает, сколькими способами можно расставить k успехов среди n испытаний."],["pᵏ","Вероятность всех k успехов в одном выбранном расположении."],["qⁿ⁻ᵏ","Вероятность оставшихся неудач; q=1−p."]],
+          note:"Если порядок успехов уже задан условием, подходящее расположение одно и коэффициент Cₙᵏ не ставится."
+        }
+      };
+
+      function theorySvg(name,p,index){
+        const bg=`<rect width="720" height="260" fill="#12091f"/><g opacity=".12" stroke="#fff"><path d="M0 52h720M0 104h720M0 156h720M0 208h720M90 0v260M180 0v260M270 0v260M360 0v260M450 0v260M540 0v260M630 0v260"/></g>`;
+        const formula=esc(strip(p.formula));
+        if(name==="Круги Эйлера"){
+          if(index===0) return `<svg viewBox="0 0 720 260" role="img" aria-label="Непересекающиеся круги Эйлера">${bg}<circle class="viz-pop" cx="245" cy="125" r="78" fill="#4dc8eaaa" stroke="#baf3ff" stroke-width="6"/><circle class="viz-pop d2" cx="475" cy="125" r="78" fill="#ff6f9aaa" stroke="#ffc6d8" stroke-width="6"/><text x="245" y="132" text-anchor="middle" fill="#fff" font-size="27">A</text><text x="475" y="132" text-anchor="middle" fill="#fff" font-size="27">B</text><path class="viz-draw" d="M330 125h60" stroke="#ffe15a" stroke-width="6" stroke-dasharray="10 8"/><text x="360" y="224" text-anchor="middle" fill="#ffe15a" font-size="16">пересечения нет → вероятности складываются</text></svg>`;
+          if([2,3,4].includes(index)) return `<svg viewBox="0 0 720 260" role="img" aria-label="Вложенные круги Эйлера">${bg}<circle class="viz-pop" cx="360" cy="125" r="105" fill="#4dc8ea77" stroke="#baf3ff" stroke-width="6"/><circle class="viz-pop d2" cx="360" cy="125" r="58" fill="#ff6f9aaa" stroke="#ffc6d8" stroke-width="6"/><text x="285" y="72" fill="#fff" font-size="18">широкое событие</text><text x="360" y="132" text-anchor="middle" fill="#fff" font-size="17">вложенный хвост</text><path class="viz-draw" d="M265 194Q360 225 455 194" fill="none" stroke="#ffe15a" stroke-width="6"/><text x="360" y="244" text-anchor="middle" fill="#ffe15a" font-size="15">внешнее кольцо = разность вероятностей</text></svg>`;
+          const outside=index===1||index===6;
+          return `<svg viewBox="0 0 720 260" role="img" aria-label="Пересекающиеся круги Эйлера">${bg}${outside?`<rect class="viz-shade" x="22" y="22" width="676" height="216" rx="18" fill="#ffe15a33" stroke="#ffe15a" stroke-width="4"/>`:""}<circle class="viz-pop" cx="305" cy="125" r="88" fill="#4dc8ea99" stroke="#baf3ff" stroke-width="6"/><circle class="viz-pop d2" cx="415" cy="125" r="88" fill="#ff6f9a99" stroke="#ffc6d8" stroke-width="6"/><path class="viz-shade" d="M360 57a88 88 0 0 1 0 136a88 88 0 0 1 0-136z" fill="#ffe15aaa"/><text x="270" y="130" fill="#fff" font-size="24">A</text><text x="438" y="130" fill="#fff" font-size="24">B</text><text x="360" y="130" text-anchor="middle" fill="#281631" font-size="20">${outside?"A∩B":"И"}</text><text x="360" y="244" text-anchor="middle" fill="#ffe15a" font-size="15">${outside?"вне кругов = ни A, ни B":"общая линза = оба условия"}</text></svg>`;
+        }
+        if(name==="Дерево") return `<svg viewBox="0 0 720 260" role="img" aria-label="Анимированное дерево вероятностей">${bg}<g fill="none" stroke-width="6"><path class="viz-draw" d="M75 130L270 55M75 130l195 75" stroke="#ffe15a"/><path class="viz-draw" style="animation-delay:.25s" d="M270 55l230-35M270 55l230 72M270 205l230-78M270 205l230 35" stroke="#67ddf4"/></g><g fill="#fff"><circle class="viz-pop" cx="75" cy="130" r="15"/><circle class="viz-pop d2" cx="270" cy="55" r="13"/><circle class="viz-pop d2" cx="270" cy="205" r="13"/><circle class="viz-pop d3" cx="500" cy="20" r="11"/><circle class="viz-pop d3" cx="500" cy="127" r="11"/><circle class="viz-pop d3" cx="500" cy="240" r="11"/></g><text x="160" y="72" fill="#ffe15a" font-size="16">успех p</text><text x="150" y="202" fill="#ffe15a" font-size="16">неудача q</text><text x="555" y="93" fill="#fff" font-size="15">по ветви: ×</text><text x="555" y="123" fill="#fff" font-size="15">между ветвями: +</text><text x="555" y="181" fill="#ffe15a" font-size="14">${formula}</text></svg>`;
+        if(name==="Роспись случаев") return `<svg viewBox="0 0 720 260" role="img" aria-label="Анимированная роспись случаев">${bg}<g transform="translate(115 34)" stroke="#e9dcf7" stroke-width="3"><rect width="490" height="174" fill="#28163e"/><path d="M0 58h490M0 116h490M122 0v174M245 0v174M368 0v174"/></g><g fill="#ffe15a" font-size="16"><text x="166" y="68">случай 1</text><text x="287" y="68">случай 2</text><text x="410" y="68">случай 3</text><text x="533" y="68">случай 4</text></g><rect class="viz-cell" x="117" y="94" width="118" height="54" fill="#70e391aa"/><rect class="viz-cell" x="362" y="152" width="118" height="54" fill="#70e391aa" style="animation-delay:.25s"/><rect x="240" y="94" width="118" height="54" fill="#ff646d55"/><text x="360" y="238" text-anchor="middle" fill="#ffe15a" font-size="15">зелёные кейсы подходят → их вероятности складываем</text></svg>`;
+        if(name==="Дополнение") return `<svg viewBox="0 0 720 260" role="img" aria-label="Анимированная схема дополнения">${bg}<text x="70" y="60" fill="#fff" font-size="18">ВСЕ ИСХОДЫ = 1</text><rect x="70" y="82" width="580" height="92" rx="12" fill="#3a2455" stroke="#fff" stroke-width="5"/><rect class="viz-shade" x="70" y="82" width="360" height="92" rx="12" fill="#ff6f9a"/><rect class="viz-shade" x="430" y="82" width="220" height="92" rx="12" fill="#70e391" style="animation-delay:.35s"/><text x="250" y="135" text-anchor="middle" fill="#fff" font-size="19">известное событие</text><text x="540" y="135" text-anchor="middle" fill="#17331d" font-size="19">нужный остаток</text><path class="viz-draw" d="M430 195v35M650 195v35M430 220h220" stroke="#ffe15a" stroke-width="5"/><text x="540" y="249" text-anchor="middle" fill="#ffe15a" font-size="16">1 − P(противоположного)</text></svg>`;
+        if(name==="Числовая прямая") return `<svg viewBox="0 0 720 260" role="img" aria-label="Анимированная числовая прямая">${bg}<path class="viz-draw" d="M70 135h580" stroke="#fff" stroke-width="7"/><path d="m650 121 27 14-27 14z" fill="#fff"/><circle class="viz-pop" cx="255" cy="135" r="13" fill="#ffe15a"/><circle class="viz-pop d2" cx="470" cy="135" r="13" fill="#ffe15a"/><rect class="viz-shade" x="255" y="105" width="215" height="60" fill="#70e39188"/><path class="viz-draw" style="animation-delay:.25s" d="M255 82h345" stroke="#4dc8ea" stroke-width="6"/><path class="viz-draw" style="animation-delay:.45s" d="M470 58h130" stroke="#ff6f9a" stroke-width="6"/><text x="255" y="190" text-anchor="middle" fill="#fff" font-size="17">a</text><text x="470" y="190" text-anchor="middle" fill="#fff" font-size="17">b</text><text x="360" y="236" text-anchor="middle" fill="#ffe15a" font-size="15">широкий хвост − вложенный хвост = зелёный интервал</text></svg>`;
+        if(name==="Комбинации") return `<svg viewBox="0 0 720 260" role="img" aria-label="Анимированная схема комбинаций">${bg}<g transform="translate(85 55)">${[0,1,2,3,4,5].map((_,j)=>`<circle class="viz-token" style="animation-delay:${j*.12}s" cx="${(j%3)*58}" cy="${Math.floor(j/3)*62}" r="23" fill="${j<2?"#ffe15a":j<5?"#9d68d0":"#596171"}"/>`).join("")}</g><path class="viz-draw" d="M275 128h105" stroke="#fff" stroke-width="7"/><path d="m380 113 27 15-27 15z" fill="#fff"/><g transform="translate(445 76)"><circle class="viz-pop" cx="55" cy="52" r="31" fill="#ffe15a"/><circle class="viz-pop d2" cx="135" cy="52" r="31" fill="#9d68d0"/></g><text x="360" y="224" text-anchor="middle" fill="#ffe15a" font-size="16">P = число подходящих групп ÷ число всех групп</text></svg>`;
+        if(name==="Бернулли") return `<svg viewBox="0 0 720 260" role="img" aria-label="Анимированная формула Бернулли">${bg}<g transform="translate(90 52)">${[0,1,2,3,4].map((_,j)=>`<g class="viz-pop" style="animation-delay:${j*.12}s"><circle cx="${j*115}" cy="35" r="28" fill="${j<3?"#70e391":"#ff6f9a"}"/><text x="${j*115}" y="42" text-anchor="middle" fill="#17261a" font-size="17">${j<3?"У":"Н"}</text></g>`).join("")}</g><g transform="translate(75 150)"><rect class="viz-pop" width="150" height="58" rx="9" fill="#65408b"/><text x="75" y="36" text-anchor="middle" fill="#fff" font-size="22">Cₙᵏ</text><text x="174" y="36" fill="#ffe15a" font-size="24">×</text><rect class="viz-pop d2" x="210" width="150" height="58" rx="9" fill="#267d52"/><text x="285" y="36" text-anchor="middle" fill="#fff" font-size="22">pᵏ</text><text x="384" y="36" fill="#ffe15a" font-size="24">×</text><rect class="viz-pop d3" x="420" width="170" height="58" rx="9" fill="#8b3657"/><text x="505" y="36" text-anchor="middle" fill="#fff" font-size="22">qⁿ⁻ᵏ</text></g><text x="360" y="240" text-anchor="middle" fill="#ffe15a" font-size="15">расположения × успехи × неудачи</text></svg>`;
+        return `<svg viewBox="0 0 720 260" role="img" aria-label="Анимированная схема формулы">${bg}<g transform="translate(65 80)"><rect class="viz-pop" width="165" height="86" rx="10" fill="#4a2c6b"/><text x="82" y="35" text-anchor="middle" fill="#fff" font-size="17">СМЫСЛ</text><text x="82" y="61" text-anchor="middle" fill="#ffe15a" font-size="14">события A, B</text><path class="viz-draw" d="M180 43h78" stroke="#fff" stroke-width="6"/><path d="m258 30 24 13-24 13z" fill="#fff"/><rect class="viz-pop d2" x="295" width="240" height="86" rx="10" fill="#2b6578"/><text x="415" y="35" text-anchor="middle" fill="#fff" font-size="16">ФОРМУЛА</text><text x="415" y="62" text-anchor="middle" fill="#ffe15a" font-size="13">${formula}</text><path class="viz-draw" style="animation-delay:.3s" d="M550 43h55" stroke="#fff" stroke-width="6"/><path d="m605 30 24 13-24 13z" fill="#fff"/></g><text x="360" y="222" text-anchor="middle" fill="#ffe15a" font-size="15">сначала модель → затем подстановка чисел</text></svg>`;
+      }
+
+      function renderTheoryLab(p,index){
+        const names=theoryPlans[index];
+        return `<section class="theory-lab"><div class="theory-lab-head"><h3>Анимированное объяснение способов</h3><p>Нажимай на методы: рисунок и объяснение полностью меняются.</p></div><div class="theory-tabs" role="tablist">${names.map((name,j)=>`<button class="theory-tab ${j===0?"active":""}" type="button" data-theory-method="${esc(name)}" aria-selected="${j===0}">${methodIcons[name]||"◆"} ${name}</button>`).join("")}</div>${names.map((name,j)=>{const t=theoryText[name];return `<div class="theory-panel" ${j===0?"":"hidden"} data-theory-panel="${esc(name)}"><h4>${methodIcons[name]||"◆"} ${t.title}</h4><div class="method-viz"><div class="method-viz-head"><b>ВИЗУАЛЬНАЯ МОДЕЛЬ</b><span>${p.title}</span></div>${theorySvg(name,p,index)}<div class="method-viz-note">${t.note}</div></div><div class="theory-points">${t.points.map(x=>`<div class="theory-point"><b>${x[0]}</b>${x[1]}</div>`).join("")}</div><p><b>Для этого прототипа:</b> ${p.methodsGuide.replace(/<[^>]+>/g," ")}</p></div>`}).join("")}</section>`;
+      }
+
+      function visualSvg(kind){
+        const base = `<rect width="720" height="235" fill="#160d27"/><g opacity=".15" stroke="#fff"><path d="M0 47h720M0 94h720M0 141h720M0 188h720M90 0v235M180 0v235M270 0v235M360 0v235M450 0v235M540 0v235M630 0v235"/></g>`;
+        if(["euler","complement","intersection"].includes(kind)) return `<svg viewBox="0 0 720 235" role="img" aria-label="Динамические круги Эйлера">${base}<circle cx="295" cy="115" r="82" fill="#4fc8e7aa" stroke="#b9f3ff" stroke-width="5"/><circle cx="425" cy="115" r="82" fill="#f06c96aa" stroke="#ffc3d7" stroke-width="5"/><text x="265" y="118" fill="#fff" font-size="22">A</text><text x="455" y="118" fill="#fff" font-size="22">B</text><text class="ray" x="360" y="210" text-anchor="middle" fill="#ffe35a" font-size="15">области показывают, что складывать и вычитать</text></svg>`;
+        if(["interval","line"].includes(kind)) return `<svg viewBox="0 0 720 235" role="img" aria-label="Числовая прямая с вложенными событиями">${base}<path d="M70 125h580" stroke="#fff" stroke-width="6"/><path d="m650 112 24 13-24 13z" fill="#fff"/><g fill="#ffe15a"><circle cx="255" cy="125" r="13"/><circle cx="465" cy="125" r="13"/></g><rect class="ray" x="255" y="98" width="210" height="54" fill="#7bdff255"/><text x="255" y="82" text-anchor="middle" fill="#fff" font-size="18">a</text><text x="465" y="82" text-anchor="middle" fill="#fff" font-size="18">b</text><text x="360" y="202" text-anchor="middle" fill="#ffe45d" font-size="15">большое событие − вложенное = нужная полоска</text></svg>`;
+        if(["tree","total","conditional"].includes(kind)) return `<svg viewBox="0 0 720 235" role="img" aria-label="Дерево вероятностей">${base}<g fill="none" stroke-width="6"><path d="M95 115L290 55M95 115l195 70" stroke="#ffe050"/><path d="M290 55l225-32M290 55l225 64M290 185l225-64M290 185l225 31" stroke="#66dced"/></g><g fill="#fff"><circle cx="95" cy="115" r="15"/><circle cx="290" cy="55" r="13"/><circle cx="290" cy="185" r="13"/><circle cx="515" cy="23" r="11"/><circle cx="515" cy="119" r="11"/><circle cx="515" cy="121" r="11"/><circle cx="515" cy="216" r="11"/></g><text x="610" y="118" fill="#ffe45d" font-size="15">по ветви ×</text><text x="610" y="145" fill="#ffe45d" font-size="15">ветви +</text></svg>`;
+        if(kind==="urn") return `<svg viewBox="0 0 720 235" role="img" aria-label="Выбор шаров без возвращения">${base}<path d="M155 45h175l-22 155H177z" fill="#655078" stroke="#050309" stroke-width="7"/><g><circle cx="210" cy="95" r="20" fill="#ffe04c"/><circle cx="270" cy="88" r="20" fill="#9c66d0"/><circle cx="235" cy="145" r="20" fill="#ffe04c"/><circle cx="285" cy="150" r="20" fill="#9c66d0"/></g><path d="M360 115h125" stroke="#fff" stroke-width="7"/><path d="m485 101 25 14-25 14z" fill="#fff"/><g class="banana"><circle cx="570" cy="91" r="26" fill="#ffe04c"/><circle cx="620" cy="146" r="26" fill="#9c66d0"/></g><text x="520" y="205" fill="#fff" font-size="15">после выбора знаменатель n−1</text></svg>`;
+        return `<svg viewBox="0 0 720 235" role="img" aria-label="Таблица и роспись исходов">${base}<g transform="translate(110 40)" stroke="#fff" stroke-width="3"><rect width="500" height="150" fill="#2d1a47"/><path d="M0 50h500M0 100h500M125 0v150M250 0v150M375 0v150"/></g><g fill="#ffe15a" font-size="19"><text x="170" y="72">1</text><text x="300" y="72">2</text><text x="425" y="72">3</text><text x="550" y="72">4</text></g><text x="360" y="220" text-anchor="middle" fill="#fff" font-size="15">оставь только допустимые кейсы и сложи их вероятности</text></svg>`;
+      }
+
+      function renderChapter(p,i){
+        return `<section class="chapter reveal" id="p${i+1}" data-zone="ПРОТОТИП ${i+1}"><div class="lab-banner"><span>ТЕОРИЯ ${String(i+1).padStart(2,"0")}</span><span>${p.method}</span></div><header class="chapter-head"><div class="chapter-no">${String(i+1).padStart(2,"0")}</div><div><h2>${p.title}</h2><p class="subtitle">${p.explain}</p></div></header><div class="life"><div class="icon">${p.icon}</div><div><b>Где применяется</b><br>${p.life}</div></div><div class="grid2"><div class="card"><h3>Простая мысль</h3><p>${p.simple}</p></div><div class="formula-card"><h3>Главная запись</h3><span class="formula">${p.formula}</span><small>${p.formulaNote}</small></div></div>${renderTheoryLab(p,i)}<h3>Алгоритм распознавания и решения</h3><div class="local-flow">${p.flow.map((x,j)=>`<div class="flow-step"><b>${j+1} · ${flowLabels[j]}</b>${x}</div>`).join("")}</div><details class="more"><summary>Как связаны визуальные способы?</summary><div>${p.methodsGuide}</div></details><div class="support"><div class="tips"><h3>Лайфхаки</h3>${p.tips.map(x=>`<p>🍌 ${x}</p>`).join("")}</div><div class="errors"><h3>Типичные ошибки</h3>${p.errors.map(x=>`<div class="error"><span class="bad">✗ ${x.bad}</span><br><span class="fix">✓ ${x.fix}</span></div>`).join("")}</div></div><div class="check"><h3>Чек-лист понимания</h3><ul class="checks">${p.check.map(x=>`<li>${x}</li>`).join("")}</ul></div></section>`;
+      }
+
+      document.getElementById("chapters").innerHTML=prototypes.map(renderChapter).join("");
+      document.getElementById("toc").insertAdjacentHTML("beforeend",`<a href="#start" data-target="start"><span class="dot">◆</span><span>Старт</span></a><a href="#algorithm" data-target="algorithm"><span class="dot">A</span><span>Дерево</span></a>${prototypes.map((p,i)=>`<a href="#p${i+1}" data-target="p${i+1}"><span class="dot">${i+1}</span><span>${p.title}</span></a>`).join("")}`);
+
+      document.addEventListener("click",e=>{
+        const theoryTab=e.target.closest(".theory-tab"); if(theoryTab){const lab=theoryTab.closest(".theory-lab");lab.querySelectorAll(".theory-tab").forEach(b=>{const on=b===theoryTab;b.classList.toggle("active",on);b.setAttribute("aria-selected",String(on))});lab.querySelectorAll(".theory-panel").forEach(p=>{const on=p.dataset.theoryPanel===theoryTab.dataset.theoryMethod;p.hidden=!on;if(on){p.classList.remove("viz-restart");requestAnimationFrame(()=>requestAnimationFrame(()=>p.classList.add("viz-restart")))}})}
+        const replay=e.target.closest(".replay"); if(replay){const v=replay.closest(".visual");v.classList.add("restarting");requestAnimationFrame(()=>requestAnimationFrame(()=>v.classList.remove("restarting")))}
+      });
+      const bar=document.getElementById("progressBar"),pt=document.getElementById("progressText");
+      function progress(){const max=Math.max(1,document.documentElement.scrollHeight-innerHeight),v=Math.max(0,Math.min(100,Math.round(scrollY/max*100)));bar.style.width=v+"%";pt.textContent=v+"%"}addEventListener("scroll",progress,{passive:true});addEventListener("resize",progress);progress();
+      const reveals=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add("visible")}),{threshold:.06});document.querySelectorAll(".reveal").forEach(x=>reveals.observe(x));
+      const links=[...document.querySelectorAll(".toc a")],zone=document.getElementById("zone");const activeObs=new IntersectionObserver(es=>{const v=es.filter(e=>e.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];if(!v)return;zone.textContent=v.target.dataset.zone||"ЛАБОРАТОРИЯ";links.forEach(a=>{const on=a.dataset.target===v.target.id;a.classList.toggle("active",on);if(on)a.classList.add("seen")})},{rootMargin:"-18% 0px -60% 0px",threshold:[0,.1,.3]});document.querySelectorAll("[data-zone]").forEach(x=>activeObs.observe(x));
+      document.getElementById("fxBtn").addEventListener("click",e=>{const off=document.body.classList.toggle("effects-off");e.currentTarget.textContent=off?"ЭФФЕКТЫ: ВЫКЛ":"ЭФФЕКТЫ: ВКЛ";e.currentTarget.setAttribute("aria-pressed",String(!off))});
+      if(matchMedia("(prefers-reduced-motion: reduce)").matches){document.body.classList.add("effects-off");document.getElementById("fxBtn").textContent="ЭФФЕКТЫ: ВЫКЛ"}
+    })();
+  </script>
+</body>
+</html>
