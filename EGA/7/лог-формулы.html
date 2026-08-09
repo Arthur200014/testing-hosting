@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#172311">
+<title>Болотный туалет · все свойства логарифмов</title>
+<style>
+:root{
+  --night:#111b0d;--swamp:#203317;--moss:#51752f;--lime:#91bd48;--mud:#50351f;
+  --mud2:#2e2117;--wood:#76502e;--wood2:#3b281a;--gold:#e9b83c;--paper:#f3dfac;
+  --ink:#2e2418;--danger:#c94431;--ok:#7bbf48;--cream:#fff1c9;
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:"Trebuchet MS",system-ui,sans-serif;background:var(--night);color:var(--ink)}
+button,input{font:inherit}
+button{-webkit-tap-highlight-color:transparent}
+.hidden{display:none!important}
+#app{position:fixed;inset:0;overflow:hidden;background:
+  radial-gradient(ellipse at 50% 18%,rgba(118,150,69,.3),transparent 43%),
+  linear-gradient(#182711 0 47%,#263c1a 48%,#151d10 100%)}
+
+/* болото */
+.fog{position:absolute;z-index:2;left:-20%;right:-20%;height:130px;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(212,229,167,.13),transparent 70%);filter:blur(17px);animation:fog 12s ease-in-out infinite alternate}
+.fog.f1{top:36%}.fog.f2{top:56%;animation-delay:-5s;opacity:.55}
+@keyframes fog{to{translate:9% 7px;scale:1.08}}
+.moon{position:absolute;z-index:1;right:8%;top:6%;width:96px;height:96px;border-radius:50%;background:#e7d893;
+  box-shadow:0 0 45px rgba(231,216,147,.34),inset -22px -10px 0 rgba(131,140,81,.18)}
+.moon::before,.moon::after{content:"";position:absolute;border-radius:50%;background:rgba(87,92,55,.18)}
+.moon::before{width:19px;height:19px;left:22px;top:25px}.moon::after{width:12px;height:12px;right:20px;bottom:24px}
+.tree{position:absolute;z-index:1;bottom:35%;width:80px;height:46%;background:linear-gradient(90deg,#162111,#263519,#11190d);
+  border-radius:60% 35% 5% 5%;filter:drop-shadow(8px 8px 8px rgba(0,0,0,.4))}
+.tree::before,.tree::after{content:"";position:absolute;background:inherit;border-radius:999px;transform-origin:bottom}
+.tree::before{width:25px;height:58%;left:-18px;top:-13%;rotate:-38deg}.tree::after{width:24px;height:54%;right:-18px;top:-7%;rotate:42deg}
+.t1{left:2%;transform:scale(1.2)}.t2{left:21%;height:35%;opacity:.55;transform:scale(.7)}
+.t3{right:2%;height:42%;transform:scale(.9)}.t4{right:24%;height:29%;opacity:.5;transform:scale(.6)}
+.water{position:absolute;z-index:3;left:-5%;right:-5%;bottom:-6%;height:48%;border-radius:48% 52% 0 0/18% 22% 0 0;
+  background:
+    radial-gradient(ellipse at 15% 30%,rgba(122,142,64,.27) 0 3%,transparent 3.5%),
+    radial-gradient(ellipse at 73% 19%,rgba(115,136,53,.24) 0 4%,transparent 4.5%),
+    repeating-radial-gradient(ellipse at 50% 0,transparent 0 25px,rgba(167,183,90,.05) 26px 28px),
+    linear-gradient(180deg,#40502c,#273421 55%,#172016)}
+.mudbank{position:absolute;z-index:4;left:4%;right:45%;bottom:5%;height:21%;background:
+  radial-gradient(circle at 22% 35%,#80623b 0 3px,transparent 4px),
+  radial-gradient(circle at 71% 55%,#322116 0 4px,transparent 5px),
+  linear-gradient(#65472d,#352519);border-radius:55% 45% 28% 34%;box-shadow:inset 0 9px rgba(147,111,63,.22),0 -3px 20px rgba(0,0,0,.25)}
+.reed{position:absolute;z-index:7;bottom:12%;width:7px;height:95px;background:#59752e;border-radius:10px;transform-origin:bottom;animation:reed 3s ease-in-out infinite alternate}
+.reed::after{content:"";position:absolute;left:-5px;top:-20px;width:17px;height:31px;border-radius:50%;background:#503721}
+.r1{left:5%}.r2{left:12%;height:130px;animation-delay:-1s}.r3{right:43%;height:105px;animation-delay:-2s}.r4{right:3%;height:122px}
+@keyframes reed{to{rotate:4deg}}
+.firefly{position:absolute;z-index:8;width:5px;height:5px;border-radius:50%;background:#efff79;box-shadow:0 0 12px 5px rgba(224,255,98,.5);animation:fly 5s ease-in-out infinite}
+@keyframes fly{25%{translate:34px -25px}50%{translate:70px 8px}75%{translate:22px 34px}}
+.swamp-bubble{position:absolute;z-index:6;bottom:10%;border:2px solid rgba(180,207,100,.42);border-radius:50%;animation:swampRise 4s ease-in infinite}
+@keyframes swampRise{to{translate:0 -110px;scale:1.4;opacity:0}}
+
+/* верхняя панель */
+.hud{position:absolute;z-index:50;left:13px;right:13px;top:11px;display:flex;align-items:center;gap:9px;pointer-events:none}
+.brand{margin-right:auto;padding:9px 15px;color:var(--cream);font-weight:1000;letter-spacing:.04em;
+  background:rgba(25,39,17,.83);border:2px solid rgba(233,184,60,.55);border-radius:15px;backdrop-filter:blur(5px)}
+.pill{padding:8px 13px;color:#fff4c8;font-weight:900;background:rgba(25,39,17,.84);border:2px solid rgba(233,184,60,.55);
+  border-radius:14px;backdrop-filter:blur(5px)}
+.sound{pointer-events:auto;cursor:pointer;border:2px solid rgba(233,184,60,.55)}
+.bar{position:absolute;z-index:50;left:13px;right:13px;top:60px;height:9px;border-radius:99px;background:rgba(10,17,7,.65);overflow:hidden}
+#progressFill{height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#638f38,#d9d746,#e9b83c);transition:width .4s}
+
+/* макет */
+.layout{position:absolute;z-index:10;inset:78px 0 0;display:grid;grid-template-columns:minmax(460px,1.25fr) minmax(390px,.8fr)}
+.world{position:relative;min-width:0;perspective:1050px;perspective-origin:48% 44%}
+.question-panel{position:relative;z-index:20;margin:18px 22px 24px 6px;align-self:center;max-height:calc(100vh - 120px);overflow:auto;
+  padding:22px;background:linear-gradient(165deg,#fff3c7,#e2c17b);border:6px solid var(--wood2);border-radius:25px;
+  box-shadow:inset 0 0 0 3px #fff2c5,0 11px 0 rgba(42,28,18,.65),0 22px 44px rgba(0,0,0,.35)}
+.question-panel::before{content:"";position:absolute;inset:9px;border:2px dashed rgba(80,53,30,.24);border-radius:14px;pointer-events:none}
+.property{position:relative;z-index:1;display:inline-flex;gap:7px;align-items:center;padding:5px 10px;border-radius:999px;
+  background:#476d2d;color:#fff7d1;font-size:12px;font-weight:900}
+.rule{position:relative;z-index:1;margin:10px 0 0;padding:8px 11px;border-left:4px solid var(--gold);background:rgba(255,255,255,.35);
+  border-radius:0 10px 10px 0;font-size:13px;font-weight:800;color:#5a4528}
+.question{position:relative;z-index:1;margin:14px 0 16px;font-size:clamp(19px,2.1vw,27px);line-height:1.32;font-weight:950;color:#2c2519}
+.math{font-family:Georgia,"Times New Roman",serif;white-space:nowrap}
+.answer-zone{position:relative;z-index:1;min-height:68px}
+.choices{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.choice{min-height:62px;padding:9px;border:3px solid #76502e;border-radius:13px;background:linear-gradient(#fff5d6,#e7c47e);
+  color:#332618;font-weight:950;cursor:pointer;box-shadow:0 5px 0 #4b321f;transition:.1s}
+.choice:hover{translate:0 -2px}.choice:active{translate:0 4px;box-shadow:0 1px 0 #4b321f}
+.choice.wrong{background:#f2a28b;border-color:#8e2d23;animation:shake .35s}.choice.correct{background:#bada78;border-color:#426d2d}
+@keyframes shake{20%,60%{translate:-7px 0}40%,80%{translate:7px 0}}
+.input-row{display:flex;gap:8px}
+.answer-input{flex:1;min-width:0;padding:12px 14px;border:3px solid #76502e;border-radius:13px;background:#fff9e7;
+  color:#2e2418;font-size:22px;font-weight:950;text-align:center;outline:0}
+.answer-input:focus{border-color:#4e7b2e;box-shadow:0 0 0 5px rgba(78,123,46,.17)}
+.submit{border:3px solid #3e6127;border-radius:13px;background:linear-gradient(#9bcd55,#65963b);color:white;font-weight:950;padding:0 18px;cursor:pointer;box-shadow:0 5px 0 #365523}
+.drag-note{margin-bottom:9px;font-size:13px;font-weight:900;color:#5d452a}
+.keys{display:flex;gap:9px;flex-wrap:wrap}
+.key{position:relative;min-width:105px;flex:1;padding:10px 12px;border:3px solid #563c25;border-radius:12px;
+  background:linear-gradient(#f0c85e,#bb7a2f);box-shadow:0 5px 0 #56371f;color:#2e2117;font-weight:950;text-align:center;
+  cursor:grab;touch-action:none;transition:.12s}
+.key::after{content:"";position:absolute;right:-14px;top:50%;translate:0 -50%;width:17px;height:11px;background:#d8a845;border:3px solid #563c25;border-left:0}
+.key.dragging{position:fixed;z-index:300;cursor:grabbing;transition:none;scale:1.05;rotate:-3deg}
+.key.snap{transition:left .28s,top .28s,scale .28s}
+.hint-row{position:relative;z-index:1;margin-top:15px;display:flex;align-items:center;gap:9px}
+.hint-btn{border:2px solid #624528;border-radius:12px;background:#efd26f;color:#48331d;font-weight:900;padding:8px 12px;cursor:pointer}
+.message{flex:1;min-height:38px;padding:8px 10px;border-radius:11px;background:rgba(65,88,40,.13);font-size:13px;font-weight:850;color:#4b3b26}
+.message.bad{background:rgba(190,63,45,.15);color:#8c2e24}.message.good{background:rgba(91,142,53,.18);color:#3d6929}
+
+/* 3D туалет */
+.outhouse-stage{position:absolute;z-index:9;left:50%;bottom:9%;width:390px;height:540px;translate:-50% 0;
+  transform-style:preserve-3d;transform:rotateX(-1deg) rotateY(-7deg)}
+.outhouse-shadow{position:absolute;left:30px;right:0;bottom:3px;height:63px;border-radius:50%;background:rgba(0,0,0,.48);filter:blur(12px);transform:rotateX(76deg)}
+.hut{position:absolute;left:64px;bottom:45px;width:266px;height:396px;transform-style:preserve-3d}
+.hut-front{position:absolute;inset:0;transform:translateZ(48px);background:
+  repeating-linear-gradient(90deg,transparent 0 40px,rgba(37,24,15,.5) 41px 45px),
+  linear-gradient(100deg,#79522f,#50351f 60%,#6c4728);border:9px solid #382519;box-shadow:inset 0 0 25px rgba(0,0,0,.3)}
+.hut-side{position:absolute;right:-96px;top:0;width:96px;height:396px;transform-origin:left;transform:rotateY(90deg) translateZ(48px);
+  background:repeating-linear-gradient(90deg,#4b311e 0 30px,#342317 31px 35px);border:8px solid #2b1d13}
+.roof{position:absolute;left:38px;top:-72px;width:310px;height:145px;background:linear-gradient(135deg,#4d3922,#21180f);
+  clip-path:polygon(50% 0,100% 75%,92% 100%,8% 100%,0 75%);transform:translateZ(45px);filter:drop-shadow(0 12px 5px rgba(0,0,0,.4))}
+.roof::after{content:"";position:absolute;inset:17px 25px 24px;background:repeating-linear-gradient(90deg,#59442a 0 42px,#2d2217 43px 48px);
+  clip-path:polygon(50% 0,100% 100%,0 100%)}
+.door-frame{position:absolute;z-index:4;left:39px;right:39px;top:49px;bottom:18px;background:#130f0b;border:11px solid #2c1c12;
+  box-shadow:inset 0 0 30px #000}
+.inside{position:absolute;inset:0;display:grid;place-items:center;color:#d7e79b;font-size:54px;opacity:.28;
+  background:radial-gradient(circle at 50% 72%,rgba(130,163,61,.4),transparent 45%)}
+.door{position:absolute;z-index:6;left:50px;top:60px;width:166px;height:309px;transform-origin:0 50%;transform-style:preserve-3d;
+  background:repeating-linear-gradient(90deg,#805630 0 35px,#593a23 36px 40px);
+  border:7px solid #392519;box-shadow:inset 0 0 18px rgba(0,0,0,.25),6px 7px 10px rgba(0,0,0,.45);
+  transition:transform 1s cubic-bezier(.25,.8,.25,1)}
+.door.open{transform:perspective(650px) rotateY(-108deg)}
+.door.rattle{animation:rattle .42s}
+@keyframes rattle{20%{transform:rotateZ(-2deg)}40%{transform:rotateZ(2deg)}60%{transform:rotateZ(-1.5deg)}80%{transform:rotateZ(1deg)}}
+.crescent{position:absolute;left:50%;top:39px;translate:-50% 0;width:51px;height:51px;border-radius:50%;background:#17120c;
+  box-shadow:inset 14px 0 #9e7140;rotate:-18deg}
+.hinge{position:absolute;left:-12px;width:31px;height:11px;border-radius:5px;background:linear-gradient(#a98c57,#574323);border:2px solid #392a19}
+.h1{top:50px}.h2{bottom:50px}
+.knob{position:absolute;right:17px;top:52%;width:17px;height:17px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f4cf67,#8a5a25 65%);border:2px solid #4b321f}
+.lock-target{position:absolute;z-index:11;right:12px;top:48%;width:62px;height:70px;border:3px dashed transparent;border-radius:14px;translate:0 -50%;transition:.15s}
+.lock-target.hot{border-color:#eaff72;background:rgba(222,255,94,.18);box-shadow:0 0 18px #dbff59}
+.signboard{position:absolute;z-index:12;left:78px;top:-10px;width:220px;padding:8px;text-align:center;color:#302215;font-weight:1000;
+  background:linear-gradient(#d5a14d,#9a682f);border:5px solid #4a301e;border-radius:8px;rotate:-2deg;box-shadow:0 6px 8px rgba(0,0,0,.35)}
+.mud-splash{position:fixed;z-index:350;width:14px;height:14px;border-radius:50%;background:#78522f;pointer-events:none;animation:splash .7s ease-out forwards}
+@keyframes splash{to{translate:var(--dx) var(--dy);scale:.2;opacity:0}}
+.door-glow{position:absolute;z-index:3;left:94px;top:128px;width:170px;height:240px;background:rgba(188,220,86,.25);filter:blur(25px);opacity:0;transition:.5s}
+.door-glow.on{opacity:1}
+
+/* экраны */
+.overlay{position:absolute;z-index:500;inset:0;display:grid;place-items:center;padding:20px;background:
+  radial-gradient(circle at 50% 25%,rgba(81,117,47,.62),rgba(17,27,13,.96));backdrop-filter:blur(7px)}
+.modal{width:min(570px,94vw);max-height:94vh;overflow:auto;padding:27px;text-align:center;background:linear-gradient(165deg,#fff1c5,#d6ad64);
+  border:7px solid #3c2819;border-radius:28px;box-shadow:inset 0 0 0 3px #ffedbc,0 13px 0 rgba(46,31,20,.7),0 28px 70px rgba(0,0,0,.55)}
+.modal-icon{font-size:54px;line-height:1}.modal h1{margin:9px 0 5px;font-size:clamp(31px,6vw,50px);line-height:1;color:#4d752f;text-shadow:2px 2px #fff1c4}
+.modal p{margin:8px 0 15px;font-weight:800;line-height:1.45;color:#533e26}
+.rules{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:16px 0}
+.rules div{padding:10px 7px;background:rgba(72,105,41,.13);border:2px solid rgba(61,88,36,.25);border-radius:13px;font-size:12px;font-weight:900}
+.rules b{display:block;font-size:22px;color:#527b32}
+.main-btn{border:3px solid #345020;border-radius:15px;padding:12px 28px;background:linear-gradient(#99ca55,#5b8d36);color:white;
+  font-size:19px;font-weight:1000;cursor:pointer;box-shadow:0 7px 0 #345020}
+.main-btn:active{translate:0 5px;box-shadow:0 2px 0 #345020}
+.code-label{display:block;text-align:left;margin:12px 2px 6px;font-weight:900;color:#513a23}
+.code-input{width:100%;padding:12px 14px;border:3px solid #587b38;border-radius:13px;background:#fffaf0;color:#302318;
+  text-align:center;text-transform:uppercase;font-size:22px;font-weight:950;letter-spacing:.08em;outline:0}
+.code-input:focus{border-color:#d6a739;box-shadow:0 0 0 5px rgba(214,167,57,.2)}
+.auth-msg{min-height:22px;margin:9px 0;font-size:13px;font-weight:850;color:#664a2d}.auth-msg.error{color:#a83227}.auth-msg.ok{color:#4e782f}
+.student-line{display:flex;justify-content:center;align-items:center;gap:8px;margin:4px 0 15px;font-weight:900;color:#527b32}
+.switch{border:0;background:none;color:#76502e;text-decoration:underline;font-size:12px;font-weight:900;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:15px 0}
+.stat{padding:11px 5px;background:#fff5d6;border:3px solid #88602e;border-radius:14px}.stat b{display:block;font-size:25px;color:#527b32}.stat span{font-size:10px;text-transform:uppercase;font-weight:900}
+.save{margin:9px 0 15px;padding:9px;border-radius:11px;background:rgba(70,104,39,.12);font-size:13px;font-weight:900}.save.saved{color:#3e6b28}.save.queued{color:#80601f}
+.music-credit{margin:13px auto 0!important;max-width:470px;font-size:11px!important;font-weight:750!important;opacity:.72}
+.hint-note{display:block;margin-top:4px;font-size:11px;opacity:.82}
+
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr;grid-template-rows:44% 56%;inset-top:74px}
+  .world{grid-row:1}.question-panel{grid-row:2;margin:4px 10px 14px;max-height:calc(56vh - 18px);padding:16px}
+  .outhouse-stage{height:420px;width:310px;bottom:-26%;scale:.67}
+  .mudbank{right:4%}.question{font-size:19px}.brand{font-size:12px}.pill{font-size:12px;padding:7px 9px}
+}
+@media(max-width:570px){
+  .hud{left:7px;right:7px;top:7px;gap:5px}.brand{padding:7px 9px}.brand span{display:none}.bar{left:7px;right:7px;top:51px}
+  .layout{inset:64px 0 0;grid-template-rows:40% 60%}.question-panel{max-height:calc(60vh - 24px)}
+  .choices{grid-template-columns:1fr}.choice{min-height:48px}.rules{grid-template-columns:1fr 1fr}.rules div:last-child{grid-column:1/-1}
+  .input-row{flex-direction:column}.submit{padding:10px}.keys{flex-direction:column}.key{width:calc(100% - 20px)}
+  .hint-row{align-items:stretch;flex-direction:column}.message{min-height:auto}
+}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;animation-iteration-count:1!important}}
+</style>
+</head>
+<body>
+<main id="app">
+  <div class="moon"></div>
+  <i class="tree t1"></i><i class="tree t2"></i><i class="tree t3"></i><i class="tree t4"></i>
+  <div class="fog f1"></div><div class="fog f2"></div><div class="water"></div><div class="mudbank"></div>
+  <i class="reed r1"></i><i class="reed r2"></i><i class="reed r3"></i><i class="reed r4"></i>
+  <div id="ambient"></div>
+
+  <header class="hud">
+    <div class="brand"><span>🧅</span> Болотные логарифмы</div>
+    <div class="pill" id="propertyProgress">Свойство 0/9</div>
+    <div class="pill" id="totalProgress">0/63</div>
+    <button class="pill sound" id="soundBtn" type="button" title="Включить или выключить звук">♪</button>
+  </header>
+  <div class="bar"><div id="progressFill"></div></div>
+
+  <div class="layout">
+    <section class="world">
+      <div class="outhouse-stage" id="outhouseStage">
+        <div class="outhouse-shadow"></div>
+        <div class="door-glow" id="doorGlow"></div>
+        <div class="hut">
+          <div class="roof"></div><div class="hut-side"></div><div class="hut-front">
+            <div class="door-frame"><div class="inside">🧅</div></div>
+            <div class="door" id="door">
+              <div class="crescent"></div><i class="hinge h1"></i><i class="hinge h2"></i><i class="knob"></i>
+              <div class="lock-target" id="lockTarget"></div>
+            </div>
+          </div>
+        </div>
+        <div class="signboard" id="doorSign">Закрыто логарифмом</div>
+      </div>
+    </section>
+
+    <section class="question-panel">
+      <div class="property" id="propertyName">Все свойства логарифмов</div>
+      <div class="rule" id="propertyRule">Правильный ответ откроет дверь.</div>
+      <div class="question" id="questionText">Нажми «Начать».</div>
+      <div class="answer-zone" id="answerZone"></div>
+      <div class="hint-row">
+        <button class="hint-btn" id="hintBtn" type="button">💡 Подсказка</button>
+        <div class="message" id="message">Дверь ждёт правильного ответа.</div>
+      </div>
+    </section>
+  </div>
+
+  <section class="overlay" id="loginScreen">
+    <div class="modal">
+      <div class="modal-icon">🌿</div>
+      <h1>Код ученика</h1>
+      <p>Введи личный код — результат отправится преподавателю после прохождения всех свойств.</p>
+      <label class="code-label" for="studentCode">Личный код</label>
+      <input class="code-input" id="studentCode" maxlength="32" autocomplete="one-time-code"
+        autocapitalize="characters" spellcheck="false" placeholder="Например, A7K4P9">
+      <div class="auth-msg" id="authMessage">Код указан в персональной ссылке или сообщении преподавателя.</div>
+      <button class="main-btn" id="loginBtn" type="button">Войти на болото</button>
+    </div>
+  </section>
+
+  <section class="overlay hidden" id="startScreen">
+    <div class="modal">
+      <div class="modal-icon">🚪</div>
+      <h1>Дверь логарифмов</h1>
+      <p>Девять свойств, по семь новых примеров на каждое. Порядок и параметры выражений меняются при каждом запуске.</p>
+      <div class="rules">
+        <div><b>9</b>свойств</div><div><b>63</b>примера</div><div><b>3</b>механики</div>
+      </div>
+      <div class="student-line">🐸 <span id="studentName">Ученик</span><button class="switch" id="switchStudent" type="button">сменить</button></div>
+      <button class="main-btn" id="startBtn" type="button">Открывать двери</button>
+      <p class="music-credit">♪ Музыкальная тема: традиционная джига «The Irish Washerwoman» (общественное достояние), браузерное исполнение.</p>
+    </div>
+  </section>
+
+  <section class="overlay hidden" id="finishScreen">
+    <div class="modal">
+      <div class="modal-icon">🏆</div>
+      <h1>Все двери открыты!</h1>
+      <p id="finishText">Болото признало твоё знание логарифмов.</p>
+      <div class="stats">
+        <div class="stat"><b id="finalFirst">0/63</b><span>зачтено</span></div>
+        <div class="stat"><b id="finalPercent">0%</b><span>результат</span></div>
+        <div class="stat"><b id="finalTime">0:00</b><span>время</span></div>
+      </div>
+      <div class="save" id="saveStatus">Подготавливаем результат…</div>
+      <button class="main-btn" id="againBtn" type="button">Перемешать и пройти ещё</button>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+const shuffle=a=>{const x=[...a];for(let i=x.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[x[i],x[j]]=[x[j],x[i]]}return x};
+const API_URL="https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
+const TEST_META={testId:"EGE-06-LOG-SWAMP-DOOR",topicId:"task-06-log-properties",topicName:"Все свойства логарифмов",taskNumber:6,schemaVersion:1};
+const STORE={studentId:"egeStudentId",studentName:"egeStudentName",inviteCode:"egeStudentCode",pending:"egePendingTestResults"};
+
+const GROUPS=[
+  {id:"definition",name:"1. Определение логарифма",rule:"logₐb = n ⇔ aⁿ = b",tasks:[
+    {type:"mcq",q:"Какое равенство равносильно <span class='math'>log<sub>2</sub>8 = 3</span>?",answer:"2³ = 8",options:["3² = 8","2³ = 8","8² = 3"],hint:"Переведи логарифм в показательную форму.",explain:"Логарифм показывает степень: 2³ = 8."},
+    {type:"input",q:"Вычисли <span class='math'>log<sub>3</sub>81</span>.",answer:["4"],hint:"В какую степень нужно возвести 3, чтобы получить 81?",explain:"3⁴ = 81, поэтому ответ 4."},
+    {type:"drag",q:"Перетащи к замку значение <span class='math'>log<sub>5</sub>125</span>.",answer:"3",options:["2","3","5"],hint:"125 = 5·5·5.",explain:"5³ = 125."},
+    {type:"input",q:"Вычисли <span class='math'>lg 0,01</span>.",answer:["-2","−2"],hint:"0,01 = 10⁻².",explain:"lg 0,01 = −2."},
+    {type:"mcq",q:"Чему равен <span class='math'>log<sub>1/2</sub>8</span>?",answer:"−3",options:["3","−3","−2"],hint:"Проверь: (1/2) в какой степени даст 8?",explain:"(1/2)⁻³ = 2³ = 8."},
+    {type:"drag",q:"Найди <span class='math'>log<sub>4</sub>(1/64)</span>.",answer:"−3",options:["−3","−2","3"],hint:"1/64 = 4⁻³.",explain:"4⁻³ = 1/64."},
+    {type:"input",q:"Вычисли <span class='math'>log<sub>9</sub>(1/3)</span>.",answer:["-0.5","-0,5","-1/2","−0.5","−0,5","−1/2"],hint:"9 = 3², а 1/3 = 3⁻¹.",explain:"9⁻¹ᐟ² = 1/3, ответ −1/2."}
+  ]},
+  {id:"domain",name:"2. Условия существования",rule:"a > 0, a ≠ 1, b > 0",tasks:[
+    {type:"mcq",q:"Какой логарифм существует?",answer:"log₂7",options:["log₂7","log₋₂8","log₁5"],hint:"Основание положительно, не равно 1; аргумент положителен.",explain:"Только log₂7 удовлетворяет всем условиям."},
+    {type:"input",q:"Наименьшее целое <span class='math'>x</span>, при котором существует <span class='math'>log<sub>3</sub>(x−2)</span>.",answer:["3"],hint:"Аргумент должен быть строго положительным: x−2 > 0.",explain:"x > 2, наименьшее целое — 3."},
+    {type:"drag",q:"Перетащи полное условие на основание <span class='math'>a</span>.",answer:"a > 0, a ≠ 1",options:["a > 0","a ≠ 0","a > 0, a ≠ 1"],hint:"У логарифма два ограничения на основание.",explain:"Основание положительно и не равно единице."},
+    {type:"mcq",q:"ОДЗ выражения <span class='math'>log<sub>x−1</sub>5</span>:",answer:"x > 1, x ≠ 2",options:["x > 1","x > 1, x ≠ 2","x ≠ 1"],hint:"Основание x−1 должно быть >0 и не равно 1.",explain:"x−1 > 0 и x−1 ≠ 1: x > 1, x ≠ 2."},
+    {type:"input",q:"Наибольшее целое <span class='math'>x</span>, при котором существует <span class='math'>log<sub>2</sub>(5−x)</span>.",answer:["4"],hint:"5−x > 0.",explain:"x < 5, наибольшее целое — 4."},
+    {type:"mcq",q:"Какое выражение не определено в действительных числах?",answer:"log₋₃9",options:["log₃9","log₁/₃9","log₋₃9"],hint:"Проверь знак основания.",explain:"Отрицательное основание логарифма недопустимо."},
+    {type:"drag",q:"Выбери ОДЗ <span class='math'>log<sub>x+3</sub>(x−1)</span>.",answer:"x > 1",options:["x > −3","x > 1","x ≠ −2"],hint:"Сначала аргумент x−1 > 0; это условие автоматически решает ограничения основания.",explain:"При x > 1 и аргумент, и основание допустимы."}
+  ]},
+  {id:"basic",name:"3. Основные значения",rule:"logₐ1 = 0, logₐa = 1",tasks:[
+    {type:"input",q:"Вычисли <span class='math'>log<sub>7</sub>1</span>.",answer:["0"],hint:"Любое допустимое основание в нулевой степени равно 1.",explain:"logₐ1 = 0."},
+    {type:"mcq",q:"Чему равен <span class='math'>log<sub>12</sub>12</span>?",answer:"1",options:["0","1","12"],hint:"Основание в первой степени равно самому себе.",explain:"logₐa = 1."},
+    {type:"drag",q:"Перетащи значение <span class='math'>log<sub>1/3</sub>1</span>.",answer:"0",options:["−1","0","1"],hint:"Основание не влияет на logₐ1.",explain:"Ответ всегда 0."},
+    {type:"input",q:"Вычисли <span class='math'>log<sub>0,2</sub>0,2</span>.",answer:["1"],hint:"Аргумент совпадает с допустимым основанием.",explain:"logₐa = 1."},
+    {type:"mcq",q:"Вычисли <span class='math'>log<sub>5</sub>1 + log<sub>9</sub>9</span>.",answer:"1",options:["0","1","2"],hint:"Первый логарифм равен 0, второй — 1.",explain:"0 + 1 = 1."},
+    {type:"drag",q:"Какое тождество верно при допустимом <span class='math'>a</span>?",answer:"logₐa = 1",options:["logₐa = 0","logₐa = 1","logₐ1 = 1"],hint:"Один шаг по основанию приводит к самому основанию.",explain:"a¹ = a."},
+    {type:"input",q:"Вычисли <span class='math'>4log<sub>2</sub>1 + 7log<sub>3</sub>3</span>.",answer:["7"],hint:"Подставь два основных значения.",explain:"4·0 + 7·1 = 7."}
+  ]},
+  {id:"product",name:"4. Логарифм произведения",rule:"logₐ(xy) = logₐx + logₐy",tasks:[
+    {type:"input",q:"Вычисли <span class='math'>log<sub>2</sub>4 + log<sub>2</sub>8</span>.",answer:["5"],hint:"Можно сложить показатели или перемножить 4·8.",explain:"2 + 3 = 5."},
+    {type:"mcq",q:"Чему равен <span class='math'>log<sub>3</sub>9 + log<sub>3</sub>27</span>?",answer:"5",options:["4","5","6"],hint:"9·27 = 243 = 3⁵.",explain:"2 + 3 = 5."},
+    {type:"drag",q:"Сверни выражение <span class='math'>log<sub>5</sub>x + log<sub>5</sub>y</span>.",answer:"log₅(xy)",options:["log₅(x+y)","log₅(xy)","log₅(x/y)"],hint:"Сумма логарифмов превращается в произведение аргументов.",explain:"log₅x + log₅y = log₅(xy)."},
+    {type:"input",q:"Вычисли <span class='math'>lg4 + lg25</span>.",answer:["2"],hint:"Сверни: lg(4·25).",explain:"lg100 = 2."},
+    {type:"mcq",q:"Вычисли <span class='math'>log<sub>7</sub>14 + log<sub>7</sub>(7/2)</span>.",answer:"2",options:["1","2","7"],hint:"14·7/2 = 49.",explain:"log₇49 = 2."},
+    {type:"input",q:"Вычисли <span class='math'>log<sub>2</sub>3 + log<sub>2</sub>(8/3)</span>.",answer:["3"],hint:"Аргументы перемножаются.",explain:"log₂8 = 3."},
+    {type:"drag",q:"Сверни три слагаемых <span class='math'>logₐm + logₐn + logₐp</span>.",answer:"logₐ(mnp)",options:["logₐ(m+n+p)","logₐ(mnp)","logₐ(m/np)"],hint:"Каждый плюс добавляет множитель.",explain:"Получается логарифм произведения mnp."}
+  ]},
+  {id:"quotient",name:"5. Логарифм частного",rule:"logₐ(x/y) = logₐx − logₐy",tasks:[
+    {type:"input",q:"Вычисли <span class='math'>log<sub>2</sub>32 − log<sub>2</sub>4</span>.",answer:["3"],hint:"Сверни в log₂(32/4).",explain:"log₂8 = 3."},
+    {type:"mcq",q:"Чему равен <span class='math'>log<sub>3</sub>81 − log<sub>3</sub>3</span>?",answer:"3",options:["2","3","4"],hint:"81/3 = 27.",explain:"log₃27 = 3."},
+    {type:"drag",q:"Сверни <span class='math'>logₐx − logₐy</span>.",answer:"logₐ(x/y)",options:["logₐ(x−y)","logₐ(x/y)","logₐ(xy)"],hint:"Разность превращается в деление.",explain:"Аргументы образуют частное x/y."},
+    {type:"input",q:"Вычисли <span class='math'>lg250 − lg2,5</span>.",answer:["2"],hint:"250/2,5 = 100.",explain:"lg100 = 2."},
+    {type:"mcq",q:"Вычисли <span class='math'>log<sub>5</sub>75 − log<sub>5</sub>3</span>.",answer:"2",options:["1","2","3"],hint:"75/3 = 25.",explain:"log₅25 = 2."},
+    {type:"input",q:"Вычисли <span class='math'>log<sub>2</sub>7 − log<sub>2</sub>(7/16)</span>.",answer:["4"],hint:"Раздели 7 на 7/16.",explain:"Получится log₂16 = 4."},
+    {type:"drag",q:"Сверни <span class='math'>logₐx − logₐy − logₐz</span>.",answer:"logₐ(x/(yz))",options:["logₐ((x−y)/z)","logₐ(x/(yz))","logₐ(xy/z)"],hint:"Два вычитания дают два делителя.",explain:"Аргумент равен x/(yz)."}
+  ]},
+  {id:"power",name:"6. Степень и корень",rule:"logₐ(bᵏ) = k·logₐb",tasks:[
+    {type:"input",q:"Вычисли <span class='math'>log<sub>2</sub>(8⁴)</span>.",answer:["12"],hint:"log₂8 = 3, затем умножь на 4.",explain:"4·3 = 12."},
+    {type:"input",q:"Вычисли <span class='math'>log<sub>3</sub>√27</span>.",answer:["1.5","1,5","3/2"],hint:"√27 = 27¹ᐟ².",explain:"(1/2)·log₃27 = 3/2."},
+    {type:"drag",q:"Вынеси степень: <span class='math'>logₐ(x⁷)</span>.",answer:"7logₐx",options:["logₐ(7x)","7logₐx","(logₐx)⁷"],hint:"Показатель степени становится множителем.",explain:"logₐ(x⁷) = 7logₐx."},
+    {type:"input",q:"Вычисли <span class='math'>2log<sub>5</sub>25</span>.",answer:["4"],hint:"log₅25 = 2.",explain:"2·2 = 4."},
+    {type:"mcq",q:"Чему равен <span class='math'>log<sub>2</sub>⁴√32</span>?",answer:"5/4",options:["4/5","5/4","5"],hint:"⁴√32 = 32¹ᐟ⁴.",explain:"(1/4)·log₂32 = 5/4."},
+    {type:"input",q:"Вычисли <span class='math'>log<sub>4</sub>((1/64)²)</span>.",answer:["-6","−6"],hint:"1/64 = 4⁻³, затем возведи в квадрат.",explain:"(4⁻³)² = 4⁻⁶."},
+    {type:"drag",q:"Вырази <span class='math'>log<sub>a³</sub>b</span> через <span class='math'>logₐb</span>.",answer:"(1/3)logₐb",options:["3logₐb","(1/3)logₐb","(logₐb)³"],hint:"Основание a³ делает один шаг втрое длиннее.",explain:"logₐ³b = logₐb / 3."}
+  ]},
+  {id:"base",name:"7. Переход к новому основанию",rule:"logₐb = logcb / logca",tasks:[
+    {type:"mcq",q:"Вычисли <span class='math'>log<sub>4</sub>64</span> через основание 2.",answer:"6/2 = 3",options:["4/6","6/2 = 3","6·2"],hint:"log₂64 = 6, log₂4 = 2.",explain:"6/2 = 3."},
+    {type:"input",q:"Вычисли <span class='math'>log<sub>9</sub>27</span>.",answer:["1.5","1,5","3/2"],hint:"Перейди к основанию 3.",explain:"log₃27/log₃9 = 3/2."},
+    {type:"drag",q:"Выбери формулу перехода к основанию <span class='math'>c</span>.",answer:"logcb / logca",options:["logca / logcb","logcb / logca","logc(ab)"],hint:"Аргумент идёт в числитель, старое основание — в знаменатель.",explain:"logₐb = logcb/logca."},
+    {type:"input",q:"Вычисли <span class='math'>log<sub>25</sub>5</span>.",answer:["0.5","0,5","1/2"],hint:"25 = 5².",explain:"5²·¹ᐟ² = 5, поэтому ответ 1/2."},
+    {type:"mcq",q:"Вычисли <span class='math'>log<sub>3</sub>7 / log<sub>3</sub>49</span>.",answer:"1/2",options:["2","1/2","7"],hint:"49 = 7² или сверни через переход к основанию 7.",explain:"log₄₉7 = 1/2."},
+    {type:"input",q:"Вычисли <span class='math'>lg8 / lg2</span>.",answer:["3"],hint:"Это формула log₂8.",explain:"log₂8 = 3."},
+    {type:"drag",q:"Сверни <span class='math'>log<sub>5</sub>11 / log<sub>5</sub>2</span>.",answer:"log₂11",options:["log₁₁2","log₂11","log₅22"],hint:"Знаменатель становится новым основанием.",explain:"По формуле перехода получаем log₂11."}
+  ]},
+  {id:"inverse",name:"8. Обратные и цепочные свойства",rule:"logₐb·logbc = logₐc; logₐb = 1/logba",tasks:[
+    {type:"mcq",q:"Вычисли <span class='math'>log<sub>2</sub>7·log<sub>7</sub>2</span>.",answer:"1",options:["0","1","2"],hint:"Логарифмы взаимно обратны.",explain:"log₂7·log₇2 = 1."},
+    {type:"input",q:"Вычисли <span class='math'>log<sub>3</sub>5·log<sub>5</sub>9</span>.",answer:["2"],hint:"Промежуточное основание 5 сокращается.",explain:"Получаем log₃9 = 2."},
+    {type:"drag",q:"Вырази <span class='math'>logₐb</span> через обратный логарифм.",answer:"1/logba",options:["logba","1/logba","−logba"],hint:"Произведение двух обратных логарифмов равно 1.",explain:"logₐb = 1/logba."},
+    {type:"input",q:"Вычисли <span class='math'>log<sub>2</sub>3·log<sub>3</sub>5·log<sub>5</sub>8</span>.",answer:["3"],hint:"Сократи промежуточные переходы 3 и 5.",explain:"Остаётся log₂8 = 3."},
+    {type:"mcq",q:"Чему равно <span class='math'>1/log<sub>4</sub>7</span>?",answer:"log₇4",options:["log₄7","log₇4","−log₄7"],hint:"Поменяй местами основание и аргумент.",explain:"1/log₄7 = log₇4."},
+    {type:"input",q:"Вычисли <span class='math'>log<sub>5</sub>2·log<sub>2</sub>125</span>.",answer:["3"],hint:"Цепочка превращается в log₅125.",explain:"log₅125 = 3."},
+    {type:"drag",q:"Сверни цепочку <span class='math'>logₐb·logbc·logcd</span>.",answer:"logₐd",options:["logd a","logₐd","logₐ(bcd)"],hint:"Промежуточные точки b и c сокращаются.",explain:"Остаются только начало a и конец d."}
+  ]},
+  {id:"identity",name:"9. Показательно-логарифмические тождества",rule:"a^(logₐb) = b; logₐ(aˣ) = x",tasks:[
+    {type:"mcq",q:"Вычисли <span class='math'>2<sup>log₂7</sup></span>.",answer:"7",options:["2","7","14"],hint:"Степень и логарифм имеют одинаковое основание.",explain:"2^(log₂7) = 7."},
+    {type:"input",q:"Вычисли <span class='math'>5<sup>log₅125</sup></span>.",answer:["125"],hint:"Основание степени совпадает с основанием логарифма.",explain:"Получаем аргумент 125."},
+    {type:"drag",q:"Упрости <span class='math'>log<sub>3</sub>(3ˣ)</span>.",answer:"x",options:["3x","x","x/3"],hint:"Логарифм отменяет возведение в степень.",explain:"log₃(3ˣ) = x."},
+    {type:"input",q:"Вычисли <span class='math'>log<sub>2</sub>(2⁻⁶)</span>.",answer:["-6","−6"],hint:"Логарифм возвращает показатель степени.",explain:"Ответ −6."},
+    {type:"mcq",q:"Упрости <span class='math'>10<sup>lg0,04</sup></span>.",answer:"0,04",options:["0,4","0,04","4"],hint:"lg имеет основание 10.",explain:"10^(lg b) = b."},
+    {type:"input",q:"Вычисли <span class='math'>4<sup>log₄3</sup></span>.",answer:["3"],hint:"Одинаковое основание взаимно уничтожает операции.",explain:"Получаем 3."},
+    {type:"drag",q:"Выбери верное тождество.",answer:"a^(logₐb) = b",options:["a^(logₐb) = a","a^(logₐb) = b","a^(logₐb) = ab"],hint:"Показательная функция отменяет логарифм по тому же основанию.",explain:"a^(logₐb) = b при допустимых a и b."}
+  ]}
+];
+
+/* Каждый запуск строит новый банк: меняются основания, степени, числа,
+   буквенные обозначения, варианты ответов и порядок свойств. */
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const pow=(a,n)=>a**n;
+const sub=n=>String(n).replace(/-/g,"−");
+const vars=()=>shuffle(["x","y","m","n","p","q"]);
+function gcd(a,b){while(b)[a,b]=[b,a%b];return Math.abs(a)}
+function fraction(n,d){
+  const g=gcd(Math.abs(n),Math.abs(d));n/=g;d/=g;
+  if(d<0){n=-n;d=-d}return d===1?String(n):`${n}/${d}`
+}
+function inputAnswers(n,d=1){
+  const f=fraction(n,d),v=n/d,out=[f];
+  if(d!==1){out.push(String(v),String(v).replace(".",","))}
+  if(n<0)out.push(...out.map(x=>x.replace("-","−")));
+  return [...new Set(out)]
+}
+function opts(answer,distractors){
+  const seen=new Set([String(answer)]),out=[String(answer)];
+  for(const x of distractors){const s=String(x);if(!seen.has(s)){seen.add(s);out.push(s)}if(out.length===3)break}
+  let k=1;while(out.length<3){const s=String(Number(answer)+k++);if(!seen.has(s)){seen.add(s);out.push(s)}}
+  return out;
+}
+function nopts(n){return opts(sub(n),shuffle([sub(n-1),sub(n+1),sub(-n),sub(n+2)]))}
+function T(type,q,answer,options,hint,explain){return{type,q,answer,options,hint,explain}}
+const BASES=[2,3,4,5,6,7,8,9];
+
+const GENERATORS={
+  definition(){
+    const a=pick(BASES),n=rnd(2,4),a2=pick([2,3,4,5]),m=rnd(2,4),k=rnd(2,5),z=rnd(1,4),b=pick([2,3,5]);
+    return[
+      T("input",`Вычисли <span class='math'>log<sub>${a}</sub>${pow(a,n)}</span>.`,[String(n)],null,`Представь ${pow(a,n)} как степень числа ${a}.`,`${a}<sup>${n}</sup> = ${pow(a,n)}, поэтому ответ ${n}.`),
+      T("drag",`Найди <span class='math'>log<sub>${a2}</sub>(1/${pow(a2,m)})</span>.`,sub(-m),nopts(-m),`1/${pow(a2,m)} = ${a2}<sup>−${m}</sup>.`,`Ответ −${m}.`),
+      T("mcq",`Какое равенство равносильно <span class='math'>log<sub>${b}</sub>${pow(b,k)} = ${k}</span>?`,`${b}<sup>${k}</sup> = ${pow(b,k)}`,opts(`${b}<sup>${k}</sup> = ${pow(b,k)}`,[`${k}<sup>${b}</sup> = ${pow(b,k)}`,`${pow(b,k)}<sup>${b}</sup> = ${k}`]),"Основание логарифма возводится в найденную степень.",`${b}<sup>${k}</sup> = ${pow(b,k)}.`),
+      T("input",`Вычисли <span class='math'>log<sub>${k*k}</sub>${k}</span>.`,inputAnswers(1,2),null,`${k*k} = ${k}².`,`(${k}²)<sup>1/2</sup> = ${k}, поэтому ответ 1/2.`),
+      T("mcq",`Чему равен <span class='math'>log<sub>1/${a2}</sub>${pow(a2,m)}</span>?`,sub(-m),nopts(-m),`(1/${a2})<sup>−${m}</sup> = ${a2}<sup>${m}</sup>.`,`Ответ −${m}.`),
+      T("input",`Вычисли <span class='math'>lg(1/${pow(10,z)})</span>.`,inputAnswers(-z),null,`1/${pow(10,z)} = 10<sup>−${z}</sup>.`,`Десятичный логарифм равен −${z}.`),
+      T("drag",`Какую степень числа ${a} даёт ${pow(a,n)}? Выбери <span class='math'>log<sub>${a}</sub>${pow(a,n)}</span>.`,String(n),nopts(n),`Последовательно умножай ${a} само на себя.`,`Это ${n}-я степень, ответ ${n}.`)
+    ]
+  },
+  domain(){
+    const c=rnd(2,8),d=rnd(3,9),a=pick(BASES),b=rnd(2,12),v=pick(["x","t","y"]);
+    return[
+      T("input",`Наименьшее целое ${v}, при котором существует <span class='math'>log<sub>${a}</sub>(${v}−${c})</span>.`,[String(c+1)],null,`Аргумент должен быть положительным: ${v}−${c} > 0.`,`${v} > ${c}; наименьшее целое — ${c+1}.`),
+      T("input",`Наибольшее целое ${v}, при котором существует <span class='math'>log<sub>${a}</sub>(${d}−${v})</span>.`,[String(d-1)],null,`${d}−${v} > 0.`,`${v} < ${d}; наибольшее целое — ${d-1}.`),
+      T("mcq","Какой логарифм существует?",`log<sub>${a}</sub>${b}`,opts(`log<sub>${a}</sub>${b}`,[`log<sub>−${a}</sub>${b}`,`log<sub>1</sub>${b}`]),"Основание положительно и не равно 1, аргумент положителен.",`Только log<sub>${a}</sub>${b} удовлетворяет всем условиям.`),
+      T("drag","Перетащи полное условие на основание <span class='math'>a</span>.","a > 0, a ≠ 1",["a > 0","a ≠ 0","a > 0, a ≠ 1"],"У основания два ограничения.","Основание положительно и не равно единице."),
+      T("mcq",`ОДЗ выражения <span class='math'>log<sub>${v}−${c}</sub>${b}</span>:`,`${v} > ${c}, ${v} ≠ ${c+1}`,opts(`${v} > ${c}, ${v} ≠ ${c+1}`,[`${v} > ${c}`,`${v} ≠ ${c}`]),`Основание ${v}−${c} должно быть > 0 и не равно 1.`,`${v} > ${c}, но точку ${c+1} нужно исключить.`),
+      T("input",`Наименьшее целое ${v} для <span class='math'>log<sub>${a}</sub>(${v}+${c})</span>.`,[String(1-c)],null,`${v}+${c} > 0.`,`${v} > −${c}; первое целое — ${1-c}.`),
+      T("mcq","Какое выражение не определено в действительных числах?",`log<sub>−${a}</sub>${b}`,opts(`log<sub>−${a}</sub>${b}`,[`log<sub>${a}</sub>${b}`,`log<sub>1/${a}</sub>${b}`]),"Найди недопустимое основание.",`Отрицательное основание −${a} недопустимо.`)
+    ]
+  },
+  basic(){
+    const a=pick(BASES),b=pick(BASES.filter(x=>x!==a)),p=rnd(2,8),q=rnd(2,9);
+    return[
+      T("input",`Вычисли <span class='math'>log<sub>${a}</sub>1</span>.`,["0"],null,"Любое допустимое основание в нулевой степени равно 1.","logₐ1 = 0."),
+      T("mcq",`Чему равен <span class='math'>log<sub>${b}</sub>${b}</span>?`,"1",["0","1",String(b)],"Аргумент совпадает с основанием.","logₐa = 1."),
+      T("drag",`Перетащи значение <span class='math'>log<sub>1/${a}</sub>1</span>.`,"0",["−1","0","1"],"Основание не меняет значение logₐ1.","Ответ 0."),
+      T("input",`Вычисли <span class='math'>${p}log<sub>${a}</sub>1 + ${q}log<sub>${b}</sub>${b}</span>.`,[String(q)],null,"Первый логарифм равен 0, второй — 1.",`${p}·0 + ${q}·1 = ${q}.`),
+      T("mcq",`Вычисли <span class='math'>log<sub>${a}</sub>1 + log<sub>${b}</sub>${b}</span>.`,"1",["0","1","2"],"Используй два основных значения.","0 + 1 = 1."),
+      T("drag","Какое тождество верно при допустимом <span class='math'>c</span>?","log<sub>c</sub>c = 1",["log<sub>c</sub>c = 0","log<sub>c</sub>c = 1","log<sub>c</sub>1 = 1"],"Один шаг по основанию приводит к самому основанию.","c¹ = c."),
+      T("input",`Вычисли <span class='math'>${q}log<sub>${a}</sub>${a} − ${p}log<sub>${b}</sub>1</span>.`,[String(q)],null,"Подставь logₐa = 1 и logₐ1 = 0.",`${q}·1 − ${p}·0 = ${q}.`)
+    ]
+  },
+  product(){
+    const a=pick([2,3,5]),m=rnd(1,3),n=rnd(2,4),[x,y,z]=vars(),k=pick([2,4,5,8]),ten=100/k,rnum=rnd(2,9);
+    return[
+      T("input",`Вычисли <span class='math'>log<sub>${a}</sub>${pow(a,m)} + log<sub>${a}</sub>${pow(a,n)}</span>.`,[String(m+n)],null,"Сложи показатели степеней.",`${m} + ${n} = ${m+n}.`),
+      T("mcq",`Чему равен <span class='math'>log<sub>${a}</sub>${pow(a,m)} + log<sub>${a}</sub>${pow(a,n)}</span>?`,String(m+n),nopts(m+n),"Сверни сумму в логарифм произведения.",`Получается log<sub>${a}</sub>${pow(a,m+n)} = ${m+n}.`),
+      T("drag",`Сверни <span class='math'>log<sub>${a}</sub>${x} + log<sub>${a}</sub>${y}</span>.`,`log<sub>${a}</sub>(${x}${y})`,[`log<sub>${a}</sub>(${x}+${y})`,`log<sub>${a}</sub>(${x}${y})`,`log<sub>${a}</sub>(${x}/${y})`],"Сумма логарифмов превращается в произведение аргументов.","Аргументы перемножаются."),
+      T("input",`Вычисли <span class='math'>lg${k} + lg${ten}</span>.`,["2"],null,`Перемножь ${k} и ${ten}.`,"Получаем lg100 = 2."),
+      T("mcq",`Сверни <span class='math'>log<sub>${a}</sub>${x} + log<sub>${a}</sub>${y} + log<sub>${a}</sub>${z}</span>.`,`log<sub>${a}</sub>(${x}${y}${z})`,[`log<sub>${a}</sub>(${x}+${y}+${z})`,`log<sub>${a}</sub>(${x}${y}${z})`,`log<sub>${a}</sub>(${x}/${y}${z})`],"Каждый плюс добавляет множитель.","Получается логарифм произведения трёх аргументов."),
+      T("input",`Вычисли <span class='math'>log<sub>${a}</sub>${rnum} + log<sub>${a}</sub>(${pow(a,n)}/${rnum})</span>.`,[String(n)],null,"Перемножь аргументы.",`Произведение равно ${pow(a,n)}, ответ ${n}.`),
+      T("drag",`Как раскрыть <span class='math'>log<sub>${a}</sub>(${x}${y})</span>?`,`log<sub>${a}</sub>${x} + log<sub>${a}</sub>${y}`,[`log<sub>${a}</sub>${x} + log<sub>${a}</sub>${y}`,`log<sub>${a}</sub>${x} − log<sub>${a}</sub>${y}`,`log<sub>${a}</sub>(${x}+${y})`],"Произведение внутри даёт сумму снаружи.","Это сумма двух логарифмов.")
+    ]
+  },
+  quotient(){
+    const a=pick([2,3,5]),m=rnd(3,6),n=rnd(1,m-1),[x,y,z]=vars(),k=pick([2,4,5]),hund=100*k,rnum=rnd(2,9);
+    return[
+      T("input",`Вычисли <span class='math'>log<sub>${a}</sub>${pow(a,m)} − log<sub>${a}</sub>${pow(a,n)}</span>.`,[String(m-n)],null,"Вычти показатели.",`${m} − ${n} = ${m-n}.`),
+      T("mcq",`Чему равен <span class='math'>log<sub>${a}</sub>${pow(a,m)} − log<sub>${a}</sub>${pow(a,n)}</span>?`,String(m-n),nopts(m-n),"Сверни в логарифм частного.",`Частное равно ${a}<sup>${m-n}</sup>.`),
+      T("drag",`Сверни <span class='math'>log<sub>${a}</sub>${x} − log<sub>${a}</sub>${y}</span>.`,`log<sub>${a}</sub>(${x}/${y})`,[`log<sub>${a}</sub>(${x}−${y})`,`log<sub>${a}</sub>(${x}/${y})`,`log<sub>${a}</sub>(${x}${y})`],"Разность превращается в деление.","Аргументы образуют частное."),
+      T("input",`Вычисли <span class='math'>lg${hund} − lg${k}</span>.`,["2"],null,`${hund}/${k} = 100.`,"Получаем lg100 = 2."),
+      T("mcq",`Сверни <span class='math'>log<sub>${a}</sub>${x} − log<sub>${a}</sub>${y} − log<sub>${a}</sub>${z}</span>.`,`log<sub>${a}</sub>(${x}/(${y}${z}))`,[`log<sub>${a}</sub>((${x}−${y})/${z})`,`log<sub>${a}</sub>(${x}/(${y}${z}))`,`log<sub>${a}</sub>(${x}${y}/${z})`],"Каждое вычитание добавляет делитель.","В знаменателе получится произведение двух аргументов."),
+      T("input",`Вычисли <span class='math'>log<sub>${a}</sub>${rnum} − log<sub>${a}</sub>(${rnum}/${pow(a,n)})</span>.`,[String(n)],null,"Раздели первый аргумент на второй.",`Частное равно ${pow(a,n)}, ответ ${n}.`),
+      T("drag",`Как раскрыть <span class='math'>log<sub>${a}</sub>(${x}/${y})</span>?`,`log<sub>${a}</sub>${x} − log<sub>${a}</sub>${y}`,[`log<sub>${a}</sub>${x} + log<sub>${a}</sub>${y}`,`log<sub>${a}</sub>${x} − log<sub>${a}</sub>${y}`,`log<sub>${a}</sub>(${x}−${y})`],"Частное внутри даёт разность снаружи.","Это разность двух логарифмов.")
+    ]
+  },
+  power(){
+    const a=pick([2,3,4,5]),m=rnd(2,4),k=rnd(2,5),r=pick([2,3,4]),[x]=vars(),p=rnd(2,6);
+    return[
+      T("input",`Вычисли <span class='math'>log<sub>${a}</sub>((${pow(a,m)})<sup>${k}</sup>)</span>.`,[String(m*k)],null,`log<sub>${a}</sub>${pow(a,m)} = ${m}, затем умножь на ${k}.`,`Ответ ${m*k}.`),
+      T("input",`Вычисли <span class='math'>log<sub>${a}</sub>√<span style="text-decoration:overline">${pow(a,2*m)}</span></span>.`,[String(m)],null,"Корень — степень 1/2.",`(1/2)·${2*m} = ${m}.`),
+      T("drag",`Вынеси степень: <span class='math'>log<sub>${a}</sub>(${x}<sup>${p}</sup>)</span>.`,`${p}log<sub>${a}</sub>${x}`,[`log<sub>${a}</sub>(${p}${x})`,`${p}log<sub>${a}</sub>${x}`,`(log<sub>${a}</sub>${x})<sup>${p}</sup>`],"Показатель становится множителем.","Степень выносится перед логарифмом."),
+      T("input",`Вычисли <span class='math'>${k}log<sub>${a}</sub>${pow(a,m)}</span>.`,[String(k*m)],null,`Сам логарифм равен ${m}.`,`${k}·${m} = ${k*m}.`),
+      T("mcq",`Чему равен <span class='math'>log<sub>${a}</sub><sup>${r}</sup>√<span style="text-decoration:overline">${pow(a,m)}</span></span>?`,fraction(m,r),opts(fraction(m,r),[fraction(r,m),String(m),String(r)]),"Корень степени r даёт показатель 1/r.",`Ответ ${fraction(m,r)}.`),
+      T("input",`Вычисли <span class='math'>log<sub>${a}</sub>((1/${pow(a,m)})<sup>${k}</sup>)</span>.`,inputAnswers(-m*k),null,`1/${pow(a,m)} = ${a}<sup>−${m}</sup>.`,`После степени ${k} показатель равен −${m*k}.`),
+      T("drag",`Вырази <span class='math'>log<sub>a<sup>${p}</sup></sub>b</span> через <span class='math'>log<sub>a</sub>b</span>.`,`(1/${p})log<sub>a</sub>b`,[`${p}log<sub>a</sub>b`,`(1/${p})log<sub>a</sub>b`,`(log<sub>a</sub>b)<sup>${p}</sup>`],"Новый шаг основания в p раз длиннее.","Логарифм делится на показатель основания.")
+    ]
+  },
+  base(){
+    const a=pick([2,3,5]),p=rnd(2,4),q=rnd(1,6),c=pick([2,3,5,7]),[x,y]=vars(),f=fraction(q,p);
+    return[
+      T("mcq",`Вычисли <span class='math'>log<sub>${pow(a,p)}</sub>${pow(a,q)}</span> через основание ${a}.`,f,opts(f,[fraction(p,q),String(q),String(p)]),`Раздели ${q} на ${p}.`,`Ответ ${f}.`),
+      T("input",`Вычисли <span class='math'>log<sub>${pow(a,p)}</sub>${pow(a,q)}</span>.`,inputAnswers(q,p),null,`Перейди к основанию ${a}.`,`${q}/${p} = ${f}.`),
+      T("drag",`Выбери формулу перехода к основанию <span class='math'>${c}</span>.`,`log<sub>${c}</sub>${y} / log<sub>${c}</sub>${x}`,[`log<sub>${c}</sub>${x} / log<sub>${c}</sub>${y}`,`log<sub>${c}</sub>${y} / log<sub>${c}</sub>${x}`,`log<sub>${c}</sub>(${x}${y})`],"Аргумент идёт в числитель, старое основание — в знаменатель.","Это формула logₓy через основание c."),
+      T("input",`Вычисли <span class='math'>log<sub>${pow(a,p)}</sub>${a}</span>.`,inputAnswers(1,p),null,`${pow(a,p)} = ${a}<sup>${p}</sup>.`,`Ответ 1/${p}.`),
+      T("mcq",`Вычисли <span class='math'>log<sub>${c}</sub>${a} / log<sub>${c}</sub>${pow(a,p)}</span>.`,fraction(1,p),opts(fraction(1,p),[String(p),fraction(p,1),fraction(1,p+1)]),"Это переход к основанию aᵖ.",`Получаем log<sub>${pow(a,p)}</sub>${a} = 1/${p}.`),
+      T("input",`Вычисли <span class='math'>lg${pow(2,q)} / lg2</span>.`,[String(q)],null,"Узнай формулу перехода к основанию 2.",`Это log₂${pow(2,q)} = ${q}.`),
+      T("drag",`Сверни <span class='math'>log<sub>${c}</sub>${y} / log<sub>${c}</sub>${x}</span>.`,`log<sub>${x}</sub>${y}`,[`log<sub>${y}</sub>${x}`,`log<sub>${x}</sub>${y}`,`log<sub>${c}</sub>(${x}${y})`],"Знаменатель становится новым основанием.","Получаем logₓy.")
+    ]
+  },
+  inverse(){
+    const a=pick([2,3,5]),b=pick([7,11,13]),n=rnd(2,5),[x,y,z]=vars();
+    return[
+      T("mcq",`Вычисли <span class='math'>log<sub>${a}</sub>${b}·log<sub>${b}</sub>${a}</span>.`,"1",["0","1","2"],"Логарифмы взаимно обратны.","Их произведение равно 1."),
+      T("input",`Вычисли <span class='math'>log<sub>${a}</sub>${b}·log<sub>${b}</sub>${pow(a,n)}</span>.`,[String(n)],null,`Промежуточное основание ${b} сокращается.`,`Остаётся log<sub>${a}</sub>${pow(a,n)} = ${n}.`),
+      T("drag",`Вырази <span class='math'>log<sub>${x}</sub>${y}</span> через обратный логарифм.`,`1/log<sub>${y}</sub>${x}`,[`log<sub>${y}</sub>${x}`,`1/log<sub>${y}</sub>${x}`,`−log<sub>${y}</sub>${x}`],"Произведение обратных логарифмов равно 1.","Нужно взять обратную величину."),
+      T("input",`Вычисли <span class='math'>log<sub>${a}</sub>${b}·log<sub>${b}</sub>${z}·log<sub>${z}</sub>${pow(a,n)}</span>.`,[String(n)],null,"Сократи две промежуточные точки цепочки.",`Остаётся log<sub>${a}</sub>${pow(a,n)} = ${n}.`),
+      T("mcq",`Чему равно <span class='math'>1/log<sub>${a}</sub>${b}</span>?`,`log<sub>${b}</sub>${a}`,[`log<sub>${a}</sub>${b}`,`log<sub>${b}</sub>${a}`,`−log<sub>${a}</sub>${b}`],"Поменяй местами основание и аргумент.","Получается обратный логарифм."),
+      T("input",`Вычисли <span class='math'>log<sub>${a}</sub>${b}·log<sub>${b}</sub>${pow(a,n)}</span>.`,[String(n)],null,"Сверни цепочку в один логарифм.",`Ответ ${n}.`),
+      T("drag",`Сверни цепочку <span class='math'>log<sub>${x}</sub>${y}·log<sub>${y}</sub>${z}</span>.`,`log<sub>${x}</sub>${z}`,[`log<sub>${z}</sub>${x}`,`log<sub>${x}</sub>${z}`,`log<sub>${x}</sub>(${y}${z})`],"Промежуточное основание y сокращается.","Остаются начало x и конец z.")
+    ]
+  },
+  identity(){
+    const a=pick([2,3,4,5,7]),b=rnd(2,20),n=rnd(-6,6)||3,[x]=vars(),d=pick(["0,2","0,04","2,5"]);
+    return[
+      T("mcq",`Вычисли <span class='math'>${a}<sup>log<sub>${a}</sub>${b}</sup></span>.`,String(b),nopts(b),"Степень и логарифм имеют одно основание.",`Получаем аргумент ${b}.`),
+      T("input",`Вычисли <span class='math'>${a}<sup>log<sub>${a}</sub>${b}</sup></span>.`,[String(b)],null,"Операции взаимно уничтожаются.",`Ответ ${b}.`),
+      T("drag",`Упрости <span class='math'>log<sub>${a}</sub>(${a}<sup>${x}</sup>)</span>.`,x,[`${a}${x}`,x,`${x}/${a}`],"Логарифм возвращает показатель.",`Ответ ${x}.`),
+      T("input",`Вычисли <span class='math'>log<sub>${a}</sub>(${a}<sup>${sub(n)}</sup>)</span>.`,inputAnswers(n),null,"Логарифм возвращает показатель степени.",`Ответ ${sub(n)}.`),
+      T("mcq",`Упрости <span class='math'>10<sup>lg${d}</sup></span>.`,d,opts(d,["0,4","4","2"]),"lg — логарифм по основанию 10.",`Получаем ${d}.`),
+      T("input",`Вычисли <span class='math'>${a}<sup>log<sub>${a}</sub>${b+1}</sup></span>.`,[String(b+1)],null,"Одинаковое основание отменяет логарифм.",`Ответ ${b+1}.`),
+      T("drag",`Выбери верное тождество для основания ${a}.`,`${a}<sup>log<sub>${a}</sub>b</sup> = b`,[`${a}<sup>log<sub>${a}</sub>b</sup> = ${a}`,`${a}<sup>log<sub>${a}</sub>b</sup> = b`,`${a}<sup>log<sub>${a}</sub>b</sup> = ${a}b`],"Показательная функция отменяет логарифм.","Результат равен аргументу b.")
+    ]
+  }
+};
+
+let STUDENT={id:"",name:"",code:""};
+const G={queue:[],index:0,firstTry:0,hadMistake:false,hintUsed:false,running:false,busy:false,startedPerf:0,eventId:"",resultSent:false,currentGroupIndex:0};
+
+function fmt(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
+function makeEventId(){return window.crypto&&crypto.randomUUID?"EVT-TEST-"+crypto.randomUUID():"EVT-TEST-"+Date.now()+"-"+Math.random().toString(36).slice(2)}
+function jsonp(params,timeout=12000){
+  return new Promise((resolve,reject)=>{
+    const cb="__logDoor_"+Date.now()+"_"+Math.random().toString(36).slice(2),script=document.createElement("script");
+    const timer=setTimeout(()=>done(new Error("Сервер не ответил")),timeout);
+    function done(err,data){clearTimeout(timer);delete window[cb];script.remove();err?reject(err):resolve(data)}
+    window[cb]=data=>done(null,data);script.onerror=()=>done(new Error("Не удалось подключиться к серверу"));
+    script.src=API_URL+"?"+new URLSearchParams({...params,callback:cb});document.head.appendChild(script);
+  });
+}
+function setStudent(data,code){
+  STUDENT={id:String(data.studentId||""),name:String(data.studentName||"Ученик"),code:String(code||"")};
+  localStorage.setItem(STORE.studentId,STUDENT.id);localStorage.setItem(STORE.studentName,STUDENT.name);
+  if(STUDENT.code)localStorage.setItem(STORE.inviteCode,STUDENT.code);
+  $("#studentName").textContent=STUDENT.name;$("#loginScreen").classList.add("hidden");$("#startScreen").classList.remove("hidden");
+}
+function showLogin(message){$("#startScreen").classList.add("hidden");$("#loginScreen").classList.remove("hidden");const m=$("#authMessage");m.textContent=message||"Введите личный код.";m.className="auth-msg";setTimeout(()=>$("#studentCode").focus(),50)}
+async function login(){
+  const code=$("#studentCode").value.trim().toUpperCase(),btn=$("#loginBtn"),m=$("#authMessage");
+  if(!code){m.textContent="Введите личный код.";m.className="auth-msg error";return}
+  btn.disabled=true;m.textContent="Проверяем код…";m.className="auth-msg";
+  try{const data=await jsonp({action:"validateStudent",code});if(!data||!data.ok)throw new Error(data&&data.error||"Код не найден");setStudent(data,code);retryPending()}
+  catch(e){m.textContent=e.message||"Не удалось проверить код.";m.className="auth-msg error"}finally{btn.disabled=false}
+}
+function initStudent(){
+  const link=new URLSearchParams(location.search).get("code"),id=localStorage.getItem(STORE.studentId),name=localStorage.getItem(STORE.studentName),code=localStorage.getItem(STORE.inviteCode);
+  if(link){$("#studentCode").value=link.toUpperCase();login()}else if(id&&name){setStudent({studentId:id,studentName:name},code);retryPending()}else showLogin()
+}
+function switchStudent(){if(G.running)return;[STORE.studentId,STORE.studentName,STORE.inviteCode].forEach(k=>localStorage.removeItem(k));STUDENT={id:"",name:"",code:""};$("#studentCode").value="";showLogin("Введите код другого ученика.")}
+function readPending(){try{return JSON.parse(localStorage.getItem(STORE.pending)||"[]")}catch(_){return[]}}
+function savePending(x){localStorage.setItem(STORE.pending,JSON.stringify(x.slice(-20)))}
+async function postResult(payload){const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload),redirect:"follow"});if(!r.ok)throw new Error("Ошибка отправки");const d=await r.json();if(!d.ok)throw new Error(d.error||"Сервер отклонил результат");return d}
+async function retryPending(){const left=[];for(const p of readPending()){try{await postResult(p)}catch(_){left.push(p)}}savePending(left)}
+async function sendResult(payload){const s=$("#saveStatus");s.className="save";s.textContent="Сохраняем результат…";try{await postResult(payload);s.className="save saved";s.textContent="✓ Результат сохранён"}catch(_){const p=readPending();if(!p.some(x=>x.eventId===payload.eventId))p.push(payload);savePending(p);s.className="save queued";s.textContent="Нет связи: результат сохранён и отправится позже"}}
+
+const SFX=(()=>{
+  let ctx,muted=false,musicStarted=false,musicTimer=0;
+  const JIG=[
+    [392,.5],[440,.5],[494,.5],[523,.5],[494,.5],[440,.5],
+    [392,.5],[494,.5],[587,.5],[659,.5],[587,.5],[494,.5],
+    [440,.5],[523,.5],[659,.5],[784,.5],[659,.5],[523,.5],
+    [494,.5],[587,.5],[740,.5],[659,.5],[587,.5],[494,.5]
+  ];
+  function ready(){if(!ctx)ctx=new(window.AudioContext||window.webkitAudioContext)();ctx.resume()}
+  function tone(f,d=.15,type="sine",v=.12,delay=0){if(muted)return;ready();const t=ctx.currentTime+delay,o=ctx.createOscillator(),g=ctx.createGain();o.type=type;o.frequency.setValueAtTime(f,t);g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(v,t+.012);g.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(g).connect(ctx.destination);o.start(t);o.stop(t+d+.02)}
+  function jig(){
+    if(!musicStarted||muted)return;let at=0;
+    JIG.forEach(([f,beats],i)=>{const d=.115*beats;tone(f,d,"triangle",.025,at);if(i%6===0)tone(f/4,.34,"sine",.018,at);at+=.145*beats});
+    musicTimer=setTimeout(jig,(at+.12)*1000)
+  }
+  function startMusic(){if(musicStarted)return;musicStarted=true;ready();jig()}
+  function stopMusic(){clearTimeout(musicTimer);musicTimer=0}
+  return{
+    startMusic,
+    toggle(){muted=!muted;if(muted)stopMusic();else{ready();if(musicStarted)jig()}return muted},
+    grab(){tone(430,.06,"square",.06)},bad(){tone(170,.22,"sawtooth",.1);tone(105,.25,"square",.05,.05)},
+    creak(){[160,135,110].forEach((f,i)=>tone(f,.35,"sawtooth",.05,i*.12));tone(620,.12,"triangle",.1,.36)},
+    hint(){tone(700,.1,"sine",.08);tone(960,.14,"triangle",.07,.08)},
+    finish(){[392,523,659,784,1047].forEach((f,i)=>tone(f,.3,"triangle",.12,i*.09))}
+  }
+})();
+
+function startGame(){
+  const groups=shuffle(GROUPS.map(g=>({...g,tasks:GENERATORS[g.id]()})));G.queue=[];
+  groups.forEach((g,gi)=>shuffle(g.tasks).forEach((t,ti)=>G.queue.push({...t,group:g,groupOrder:gi,within:ti})));
+  G.index=0;G.firstTry=0;G.hadMistake=false;G.hintUsed=false;G.running=true;G.busy=false;G.startedPerf=performance.now();G.eventId=makeEventId();G.resultSent=false;
+  SFX.startMusic();
+  $("#startScreen").classList.add("hidden");$("#finishScreen").classList.add("hidden");renderTask()
+}
+function renderTask(){
+  if(G.index>=G.queue.length){finish();return}
+  const t=G.queue[G.index];G.hadMistake=false;G.hintUsed=false;G.busy=false;
+  $("#door").className="door";$("#doorGlow").classList.remove("on");$("#lockTarget").classList.remove("hot");
+  $("#doorSign").textContent="Закрыто логарифмом";$("#propertyName").textContent=t.group.name.replace(/^\d+\.\s*/,"");$("#propertyRule").textContent=t.group.rule;
+  $("#questionText").innerHTML=t.q;$("#message").className="message";$("#message").textContent="Правильный ответ откроет дверь.";
+  $("#hintBtn").disabled=false;$("#hintBtn").textContent="💡 Подсказка";renderAnswers(t);updateHUD();
+}
+function updateHUD(){
+  const done=G.index,t=G.queue[G.index],groupNumber=t? t.groupOrder+1:9,within=t? t.within+1:7;
+  $("#totalProgress").textContent=`${done}/63`;$("#propertyProgress").textContent=`Свойство ${groupNumber}/9 · ${within}/7`;
+  $("#progressFill").style.width=done/63*100+"%";
+}
+function renderAnswers(t){
+  const z=$("#answerZone");z.innerHTML="";
+  if(t.type==="mcq"){
+    const box=document.createElement("div");box.className="choices";
+    shuffle(t.options).forEach(x=>{const b=document.createElement("button");b.className="choice";b.type="button";b.innerHTML=x;b.onclick=()=>check(x,b);box.appendChild(b)});z.appendChild(box)
+  }else if(t.type==="input"){
+    const row=document.createElement("div");row.className="input-row";row.innerHTML='<input class="answer-input" id="answerInput" autocomplete="off" placeholder="Введи ответ"><button class="submit" type="button">Проверить</button>';z.appendChild(row);
+    const input=$("#answerInput");row.querySelector("button").onclick=()=>check(input.value,input);input.onkeydown=e=>{if(e.key==="Enter")check(input.value,input)};setTimeout(()=>input.focus(),40)
+  }else{
+    const note=document.createElement("div");note.className="drag-note";note.textContent="Перетащи правильный ключ прямо на замок двери.";
+    const box=document.createElement("div");box.className="keys";shuffle(t.options).forEach(x=>{const k=document.createElement("button");k.type="button";k.className="key";k.innerHTML=x;k.dataset.value=x;bindKey(k);box.appendChild(k)});z.append(note,box)
+  }
+}
+function norm(x){return String(x).trim().toLowerCase().replace(/\s+/g,"").replace(/,/g,".").replace(/−/g,"-")}
+function isCorrect(value,answer){return(Array.isArray(answer)?answer:[answer]).some(a=>norm(a)===norm(value))}
+function check(value,el,dragState){
+  if(!G.running||G.busy)return;const t=G.queue[G.index],good=isCorrect(value,t.answer);
+  if(!good){
+    G.hadMistake=true;$("#door").classList.remove("rattle");void $("#door").offsetWidth;$("#door").classList.add("rattle");
+    $("#message").className="message bad";$("#message").textContent="Дверь не открылась. Попробуй другой ход.";SFX.bad();
+    if(el){el.classList.add("wrong");setTimeout(()=>el.classList.remove("wrong"),400)}if(dragState)snapKey(el,dragState);return
+  }
+  G.busy=true;if(!G.hadMistake&&!G.hintUsed)G.firstTry++;
+  $("#message").className="message good";$("#message").innerHTML="✅ "+t.explain+(G.hintUsed?"<span class='hint-note'>Ответ открыт с подсказкой — в результат таблицы не засчитан.</span>":"");
+  $("#door").classList.add("open");$("#doorGlow").classList.add("on");$("#doorSign").textContent="Открыто!";
+  $("#hintBtn").disabled=true;document.querySelectorAll(".choice,.key,.submit").forEach(x=>x.disabled=true);
+  if(el)el.classList.add("correct");splash();SFX.creak();
+  setTimeout(()=>{G.index++;renderTask()},1450)
+}
+function showHint(){if(G.busy)return;const t=G.queue[G.index];G.hintUsed=true;$("#message").className="message";$("#message").innerHTML="💡 "+t.hint+"<span class='hint-note'>Этот пример можно завершить, но в результат таблицы он не войдёт.</span>";$("#hintBtn").disabled=true;$("#hintBtn").textContent="Подсказка открыта · 0 баллов";SFX.hint()}
+
+let DRAG=null;
+function bindKey(k){
+  k.addEventListener("pointerdown",e=>{if(G.busy)return;const r=k.getBoundingClientRect();DRAG={el:k,id:e.pointerId,ox:e.clientX-r.left,oy:e.clientY-r.top,left:r.left,top:r.top,width:r.width};k.setPointerCapture(e.pointerId);k.classList.add("dragging");k.style.width=r.width+"px";moveKey(e);SFX.grab()});
+  k.addEventListener("pointermove",moveKey);k.addEventListener("pointerup",endKey);k.addEventListener("pointercancel",cancelKey);
+  k.addEventListener("click",e=>{if(e.detail===0)check(k.dataset.value,k)})
+}
+function moveKey(e){if(!DRAG||DRAG.id!==e.pointerId)return;DRAG.el.style.left=e.clientX-DRAG.ox+"px";DRAG.el.style.top=e.clientY-DRAG.oy+"px";$("#lockTarget").classList.toggle("hot",hitsLock(DRAG.el))}
+function endKey(e){if(!DRAG||DRAG.id!==e.pointerId)return;const d=DRAG,hit=hitsLock(d.el);DRAG=null;$("#lockTarget").classList.remove("hot");if(hit)check(d.el.dataset.value,d.el,d);else snapKey(d.el,d)}
+function cancelKey(){if(!DRAG)return;const d=DRAG;DRAG=null;$("#lockTarget").classList.remove("hot");snapKey(d.el,d)}
+function hitsLock(el){const a=el.getBoundingClientRect(),b=$("#lockTarget").getBoundingClientRect();return!(a.right<b.left||a.left>b.right||a.bottom<b.top||a.top>b.bottom)}
+function snapKey(el,d){el.classList.add("snap");el.style.left=d.left+"px";el.style.top=d.top+"px";setTimeout(()=>{el.classList.remove("dragging","snap");el.style.left=el.style.top=el.style.width=""},300)}
+function splash(){const r=$("#door").getBoundingClientRect(),x=r.left+r.width/2,y=r.bottom;for(let i=0;i<20;i++){const s=document.createElement("i"),a=Math.random()*Math.PI*2,d=35+Math.random()*105;s.className="mud-splash";s.style.left=x+"px";s.style.top=y+"px";s.style.setProperty("--dx",Math.cos(a)*d+"px");s.style.setProperty("--dy",Math.sin(a)*d+"px");document.body.appendChild(s);setTimeout(()=>s.remove(),720)}}
+function resultPayload(){const date=new Date().toISOString();return{action:"submitTest",eventId:G.eventId,studentId:STUDENT.id,testId:TEST_META.testId,testDate:date.slice(0,10),topicId:TEST_META.topicId,topicName:TEST_META.topicName,taskNumber:TEST_META.taskNumber,scorePercent:Math.round(G.firstTry/63*100),durationSeconds:Math.max(1,Math.round((performance.now()-G.startedPerf)/1000)),schemaVersion:TEST_META.schemaVersion}}
+function finish(){
+  G.running=false;const pct=Math.round(G.firstTry/63*100),used=(performance.now()-G.startedPerf)/1000;
+  $("#finalFirst").textContent=G.firstTry+"/63";$("#finalPercent").textContent=pct+"%";$("#finalTime").textContent=fmt(used);
+  $("#finishText").textContent=pct>=85?"Все свойства держатся уверенно.":pct>=60?"Хорошая работа — повтори двери, которые не открылись сразу.":"Пройди болото ещё раз: порядок задач снова изменится.";
+  $("#finishScreen").classList.remove("hidden");SFX.finish();if(!G.resultSent){G.resultSent=true;sendResult(resultPayload())}
+}
+function ambient(){
+  const box=$("#ambient");for(let i=0;i<13;i++){const f=document.createElement("i");f.className="firefly";f.style.left=5+Math.random()*90+"%";f.style.top=15+Math.random()*62+"%";f.style.animationDelay=-Math.random()*5+"s";f.style.animationDuration=4+Math.random()*4+"s";box.appendChild(f)}
+  for(let i=0;i<12;i++){const b=document.createElement("i"),s=5+Math.random()*16;b.className="swamp-bubble";b.style.left=Math.random()*100+"%";b.style.width=b.style.height=s+"px";b.style.animationDelay=-Math.random()*4+"s";b.style.animationDuration=3+Math.random()*3+"s";box.appendChild(b)}
+}
+
+$("#loginBtn").onclick=login;$("#studentCode").onkeydown=e=>{if(e.key==="Enter")login()};$("#switchStudent").onclick=switchStudent;
+$("#startBtn").onclick=startGame;$("#againBtn").onclick=startGame;$("#hintBtn").onclick=showHint;
+$("#soundBtn").onclick=function(){const off=SFX.toggle();this.textContent=off?"×":"♪";this.title=off?"Включить музыку и звук":"Выключить музыку и звук"};window.addEventListener("online",retryPending);
+ambient();initStudent();
+</script>
+</body>
+</html>
