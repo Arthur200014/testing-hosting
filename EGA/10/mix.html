@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>КРАФТ ЗАДАЧ — тренажёр №10 ЕГЭ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --grass:#5db83c; --grass-dk:#3f8a28;
+    --dirt:#8b5a2b; --dirt-dk:#5c3a1a;
+    --stone:#7f7f7f; --stone-dk:#4f4f4f;
+    --wood:#a0672f;
+    --paper:#f3e3bb; --paper-dk:#d9c391; --ink:#3a2a12;
+    --diamond:#4aedd9; --redstone:#ff4444;
+    --gold:#ffcc33;
+    --panel:#1d1d24; --panel-lt:#3a3a45;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;margin:0;overflow:hidden;}
+  body{
+    font-family:'Press Start 2P', 'Courier New', monospace;
+    background:#0b0b10; color:#fff;
+    image-rendering:pixelated;
+    user-select:none;
+    touch-action:manipulation;
+  }
+  canvas#world{position:fixed;inset:0;width:100%;height:100%;z-index:0;image-rendering:pixelated;}
+  canvas#fx{position:fixed;inset:0;width:100%;height:100%;z-index:5;pointer-events:none;}
+
+  #app{position:relative;z-index:3;height:100%;display:flex;flex-direction:column;padding:8px;gap:8px;}
+  #app.shake{animation:shake .35s;}
+  @keyframes shake{
+    0%,100%{transform:translate(0,0)}
+    15%{transform:translate(-10px,4px)} 30%{transform:translate(9px,-6px)}
+    45%{transform:translate(-7px,-3px)} 60%{transform:translate(6px,5px)}
+    80%{transform:translate(-3px,2px)}
+  }
+
+  .mc{ /* блочная рамка в стиле Minecraft */
+    border:3px solid #000;
+    box-shadow: inset 3px 3px 0 rgba(255,255,255,.28), inset -3px -3px 0 rgba(0,0,0,.45);
+  }
+
+  /* ---------- ВЕРХНЯЯ ПАНЕЛЬ ---------- */
+  #hud{
+    background:rgba(15,15,20,.82); padding:8px 10px;
+    display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;
+    font-size:10px;
+  }
+  .stat{display:flex;align-items:center;gap:6px;}
+  .hearts{display:flex;gap:3px;}
+  .heart{width:16px;height:16px;position:relative;}
+  .heart svg{width:100%;height:100%;display:block;}
+  .heart.broken{animation:break .5s forwards;}
+  @keyframes break{
+    0%{transform:scale(1.5) rotate(0);filter:brightness(2)}
+    100%{transform:scale(0) rotate(60deg);opacity:0}
+  }
+  .dia{width:15px;height:15px;background:var(--diamond);
+    clip-path:polygon(50% 0,100% 38%,50% 100%,0 38%);}
+  #comboBox{color:var(--gold);}
+  #comboBox.hot{text-shadow:0 0 8px #ff7b00, 0 0 16px #ff2d00;animation:pulse .6s infinite alternate;}
+  @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.14)}}
+
+  /* ---------- КНИГА-ЗАДАЧА ---------- */
+  #stage{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;}
+  #book{
+    width:min(760px,100%); max-height:100%; overflow:auto;
+    background:
+      linear-gradient(90deg, transparent 0 6px, rgba(0,0,0,.10) 6px 10px, transparent 10px),
+      linear-gradient(180deg,var(--paper),var(--paper-dk));
+    color:var(--ink); padding:16px 16px 14px; position:relative;
+    border:4px solid #6b4a1e;
+    box-shadow: inset 0 0 0 3px #c9ad78, 0 8px 0 rgba(0,0,0,.45);
+  }
+  #book::before{
+    content:''; position:absolute;left:0;top:0;bottom:0;width:12px;
+    background:repeating-linear-gradient(180deg,#6b4a1e 0 8px,#4d340f 8px 16px);
+  }
+  #topic{font-size:8px;color:#8a6a2f;letter-spacing:1px;margin:0 0 10px 14px;}
+  #qtext{font-size:11px;line-height:2;margin:0 0 4px 14px;}
+  #hintBox{
+    display:none;margin:12px 0 0 14px;padding:10px;font-size:9px;line-height:1.9;
+    background:#e7d093;border-left:6px solid var(--gold);color:#4a3510;
+  }
+
+  /* ---------- ВВОД ---------- */
+  #answerRow{display:flex;gap:8px;align-items:stretch;justify-content:center;}
+  #display{
+    flex:1;max-width:340px;background:#0e0e14;color:var(--diamond);
+    font-family:inherit;font-size:18px;text-align:right;padding:10px 12px;
+    border:3px solid #000;box-shadow:inset 3px 3px 0 rgba(0,0,0,.6);
+    outline:none;min-height:44px;letter-spacing:2px;
+  }
+  #display.embers{box-shadow:inset 3px 3px 0 rgba(0,0,0,.6), 0 0 0 3px #ff6a00, 0 0 22px 4px rgba(255,90,0,.75);}
+  #pad{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;width:min(300px,100%);margin:0 auto;}
+  .key{
+    background:var(--panel-lt);color:#fff;font-family:inherit;font-size:13px;
+    padding:12px 0;cursor:pointer;
+  }
+  .key:active{transform:translateY(2px);box-shadow:inset 3px 3px 0 rgba(0,0,0,.45);}
+  .key.wide{grid-column:span 1;font-size:11px;}
+
+  #actions{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;}
+  .btn{
+    font-family:inherit;font-size:9px;padding:12px 2px;cursor:pointer;color:#fff;
+    background:var(--stone);
+  }
+  .btn:active{transform:translateY(2px);}
+  .btn.go{background:var(--grass);text-shadow:1px 1px 0 #1e4a10;}
+  .btn.skip{background:#6b6b76;}
+  .btn.hint{background:#c98a1e;}
+  .btn.theory{background:#3f6fb5;}
+
+  /* ---------- ПРОГРЕСС ---------- */
+  #progressWrap{height:16px;background:#111;border:3px solid #000;}
+  #progressBar{height:100%;width:0;background:repeating-linear-gradient(90deg,var(--grass) 0 8px,var(--grass-dk) 8px 16px);transition:width .3s;}
+
+  /* ---------- МОДАЛКИ ---------- */
+  .modal{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.78);display:none;align-items:center;justify-content:center;padding:14px;}
+  .modal.show{display:flex;}
+  .sheet{
+    width:min(700px,100%);max-height:88vh;overflow:auto;background:var(--panel);padding:18px;
+  }
+  .sheet h2{font-size:13px;margin:0 0 14px;color:var(--diamond);}
+  .sheet h3{font-size:10px;margin:16px 0 6px;color:var(--gold);}
+  .sheet p{font-size:9px;line-height:2;margin:4px 0;color:#d8d8e0;}
+  .sheet code{background:#000;padding:2px 5px;color:var(--grass);}
+  #endTitle{font-size:16px;text-align:center;margin:0 0 6px;}
+  #rank{font-size:12px;text-align:center;color:var(--gold);margin:0 0 16px;}
+  .res{display:flex;justify-content:space-between;font-size:10px;padding:8px 0;border-bottom:2px dashed #3a3a45;color:#d8d8e0;}
+  .res b{color:#fff;}
+  .student-box{margin:14px 0;padding:12px;background:#111;border:3px solid #000;text-align:center;}
+  .student-name{font-size:10px;line-height:1.8;color:var(--gold);}
+  .mini-btn{margin-top:9px;padding:8px 10px;font-size:7px;}
+  .code-input{display:block;width:100%;margin:14px 0 9px;padding:14px 12px;text-align:center;
+    font-family:inherit;font-size:13px;line-height:1.5;color:#fff;text-transform:uppercase;
+    background:#0e0e14;border:3px solid #000;outline:none;user-select:text;
+    box-shadow:inset 3px 3px 0 rgba(0,0,0,.7),inset -3px -3px 0 rgba(255,255,255,.14);}
+  .code-input:focus{border-color:var(--diamond);box-shadow:inset 3px 3px 0 rgba(0,0,0,.7),0 0 15px var(--diamond);}
+  .auth-error{min-height:29px;margin:7px 0 10px;font-size:8px;line-height:1.8;color:#ff7777;}
+  .save-status{min-height:31px;margin:13px 0 0;font-size:8px;line-height:1.8;text-align:center;color:#ddd;}
+  .save-status.ok{color:#7cff6c}.save-status.offline{color:#ffdb59}
+
+  #flash{position:fixed;inset:0;z-index:6;background:#f00;opacity:0;pointer-events:none;transition:opacity .12s;}
+  #toast{
+    position:fixed;left:50%;top:22%;transform:translateX(-50%);z-index:15;
+    font-size:14px;padding:10px 16px;background:rgba(0,0,0,.8);border:3px solid #000;
+    opacity:0;transition:opacity .2s, top .2s;pointer-events:none;
+  }
+  #toast.show{opacity:1;top:18%;}
+
+  #musicBtn{background:none;border:none;color:#fff;font-family:inherit;font-size:10px;cursor:pointer;padding:2px 4px;}
+
+  @media (max-width:560px){
+    #qtext{font-size:10px;line-height:1.9;}
+    .btn{font-size:7px;padding:11px 1px;}
+    #hud{font-size:8px;}
+    .heart{width:13px;height:13px;}
+    #display{font-size:15px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important;}
+  }
+</style>
+</head>
+<body>
+<canvas id="world"></canvas>
+<canvas id="fx"></canvas>
+<div id="flash"></div>
+<div id="toast"></div>
+
+<div id="app">
+  <div id="hud" class="mc">
+    <div class="stat"><span id="qcount">1/20</span></div>
+    <div class="stat"><span class="dia"></span><span id="diaCount">0</span></div>
+    <div class="stat hearts" id="hearts"></div>
+    <div class="stat" id="comboBox">КОМБО 0 ×1</div>
+    <button id="musicBtn">♪ ВКЛ</button>
+  </div>
+
+  <div id="stage">
+    <div id="book">
+      <div id="topic">ТЕМА</div>
+      <div id="qtext">Загрузка…</div>
+      <div id="hintBox"></div>
+    </div>
+  </div>
+
+  <div id="answerRow">
+    <input id="display" inputmode="none" readonly value="0">
+  </div>
+  <div id="pad"></div>
+  <div id="actions">
+    <button class="btn go mc" id="checkBtn">ПРОВЕРИТЬ</button>
+    <button class="btn skip mc" id="skipBtn">ПРОПУСТИТЬ</button>
+    <button class="btn hint mc" id="hintBtn">ПОДСКАЗКА</button>
+    <button class="btn theory mc" id="theoryBtn">ТЕОРИЯ</button>
+  </div>
+  <div id="progressWrap"><div id="progressBar"></div></div>
+</div>
+
+<div class="modal show" id="authModal">
+  <div class="sheet mc" style="max-width:620px;text-align:center;">
+    <h2>ВХОД В МАСТЕРСКУЮ</h2>
+    <p>Введи личный код ученика, чтобы сохранить лучший результат.</p>
+    <form id="authForm">
+      <input class="code-input" id="studentCode" type="text" autocomplete="off" autocapitalize="characters"
+        spellcheck="false" maxlength="64" placeholder="КОД УЧЕНИКА" aria-label="Личный код ученика">
+      <div class="auth-error" id="authError" role="alert"></div>
+      <button class="btn go mc" id="loginBtn" type="submit" style="width:100%;font-size:11px;">ВОЙТИ ▶</button>
+    </form>
+  </div>
+</div>
+
+<div class="modal" id="startModal">
+  <div class="sheet mc" style="max-width:620px;text-align:center;">
+    <h2>КРАФТ ЗАДАЧ</h2>
+    <p>Тренажёр задания №10 ЕГЭ · 20 задач</p>
+    <div class="student-box">
+      <div class="student-name" id="studentName">👤 Ученик</div>
+      <button class="btn mini-btn mc" id="changeStudentBtn" type="button">СМЕНИТЬ УЧЕНИКА</button>
+    </div>
+    <button class="btn go mc" id="startGameBtn" type="button" style="width:100%;font-size:12px;">НАЧАТЬ ИГРУ ⛏</button>
+  </div>
+</div>
+
+<div class="modal" id="theoryModal">
+  <div class="sheet mc">
+    <h2>КНИГА ФОРМУЛ — ЗАДАНИЕ №10</h2>
+
+    <h3>Движение по прямой</h3>
+    <p><code>S = v · t</code>, <code>t = S / v</code>, <code>v = S / t</code></p>
+    <p>Навстречу: сближение со скоростью <code>v₁ + v₂</code>. Вдогонку: сближение со скоростью <code>v₂ − v₁</code>.</p>
+
+    <h3>Движение по воде</h3>
+    <p>По течению: <code>v + u</code>. Против течения: <code>v − u</code>. Плот плывёт со скоростью течения <code>u</code>.</p>
+    <p>Типовое уравнение «туда-обратно»: <code>S/(v+u) + S/(v−u) = T − t_стоянки</code></p>
+
+    <h3>Средняя скорость</h3>
+    <p><code>v_ср = S_общий / t_общий</code>. Складывать скорости и делить на количество участков — ошибка.</p>
+
+    <h3>Движение по окружности</h3>
+    <p>Догон на круге: за время между двумя встречами быстрый проходит на 1 круг больше: <code>(v₂ − v₁) · t = L</code></p>
+
+    <h3>Протяжённые тела (поезда)</h3>
+    <p>Навстречу: <code>(L₁ + L₂) = (v₁ + v₂) · t</code>. Обгон: <code>(L₁ + L₂) = (v₁ − v₂) · t</code>. Не забудь перевести км/ч в м/с: <code>·1000/3600</code>.</p>
+
+    <h3>Работа и трубы</h3>
+    <p>Работа <code>A = p · t</code>, где p — производительность. Всю работу удобно принять за 1.</p>
+    <p>Вместе: <code>p = p₁ + p₂</code>, значит <code>t = 1/(1/t₁ + 1/t₂)</code>.</p>
+    <p>Трубы — та же работа: p в литрах/мин.</p>
+
+    <h3>Смеси, сплавы, растворы</h3>
+    <p>Масса вещества <code>= масса раствора · концентрация</code>.</p>
+    <p>Главный закон: масса чистого вещества при смешивании <b>сохраняется</b>:
+    <code>c₁m₁ + c₂m₂ = c(m₁ + m₂)</code></p>
+    <p>Чистая вода — это раствор с концентрацией 0.</p>
+
+    <h3>Проценты</h3>
+    <p>«Увеличилась вдвое → доход вырос на 57%» означает, что сама часть и есть эти 57% от общего дохода.</p>
+
+    <button class="btn go mc" style="width:100%;margin-top:18px;font-size:11px;" onclick="closeModal('theoryModal')">ЗАКРЫТЬ</button>
+  </div>
+</div>
+
+<div class="modal" id="endModal">
+  <div class="sheet mc">
+    <h2 id="endTitle">ИГРА ОКОНЧЕНА</h2>
+    <div id="rank"></div>
+    <div class="res"><span>Алмазы</span><b id="rDia">0</b></div>
+    <div class="res"><span>Правильных</span><b id="rCorrect">0</b></div>
+    <div class="res"><span>Лучшее комбо</span><b id="rCombo">0</b></div>
+    <div class="res"><span>Подсказок</span><b id="rHints">0</b></div>
+    <div class="res"><span>С первой попытки</span><b id="rPercent">0%</b></div>
+    <div class="res"><span>Время</span><b id="rTime">0:00</b></div>
+    <div class="save-status" id="saveStatus" role="status"></div>
+    <button class="btn go mc" style="width:100%;margin-top:20px;font-size:12px;" id="restartBtn">НАЧАТЬ ЗАНОВО</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   УЧЕНИК И УЧЁТ РЕЗУЛЬТАТОВ
+   ============================================================ */
+const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+const TEST_META={
+  testId:'EGE-10-MIX-KRAFT-ZADACH-MINECRAFT',
+  topicId:'task-10',
+  topicName:'Текстовые задачи: смешанный тренажёр',
+  taskNumber:10,
+  schemaVersion:1
+};
+const PENDING_KEY='egePendingTestResults';
+const el=id=>document.getElementById(id);
+
+let currentStudent=null;
+let gameActive=false;
+let attemptStartMs=0;
+let currentEventId='';
+let resultSubmitted=false;
+
+function createEventId(){
+  if(window.crypto&&typeof window.crypto.randomUUID==='function') return window.crypto.randomUUID();
+  return 'evt-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12);
+}
+function localDateString(){
+  const d=new Date(),p=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+}
+function formatDuration(seconds){
+  const s=Math.max(0,Math.round(Number(seconds)||0));
+  return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+}
+function readPendingResults(){
+  try{const data=JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');return Array.isArray(data)?data:[];}
+  catch(_){return [];}
+}
+function writePendingResults(items){
+  try{localStorage.setItem(PENDING_KEY,JSON.stringify(items));}catch(_){}
+}
+function queuePendingResult(payload){
+  const queue=readPendingResults();
+  if(!queue.some(item=>item&&item.eventId===payload.eventId)) queue.push(payload);
+  writePendingResults(queue);
+}
+async function postResult(payload){
+  const response=await fetch(API_URL,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(payload),
+    redirect:'follow'
+  });
+  if(!response.ok) throw new Error('HTTP '+response.status);
+  const text=await response.text();
+  if(text){
+    let data=null;
+    try{data=JSON.parse(text);}catch(_){}
+    if(data&&data.ok===false) throw new Error(data.error||'Сервер отклонил результат');
+  }
+}
+async function flushPendingResults(){
+  if(!navigator.onLine) return;
+  const snapshot=readPendingResults();
+  if(!snapshot.length) return;
+  const ids=new Set(snapshot.map(item=>item&&item.eventId).filter(Boolean)),failed=[];
+  for(const payload of snapshot){try{await postResult(payload);}catch(_){failed.push(payload);}}
+  const additions=readPendingResults().filter(item=>item&&!ids.has(item.eventId));
+  const merged=[...failed];
+  additions.forEach(item=>{if(!merged.some(saved=>saved&&saved.eventId===item.eventId)) merged.push(item);});
+  writePendingResults(merged);
+}
+function buildResultPayload(scorePercent,durationSeconds){
+  return {
+    action:'submitTest',
+    eventId:currentEventId,
+    studentId:currentStudent.studentId,
+    testId:TEST_META.testId,
+    testDate:localDateString(),
+    topicId:TEST_META.topicId,
+    topicName:TEST_META.topicName,
+    taskNumber:TEST_META.taskNumber,
+    scorePercent,
+    durationSeconds,
+    schemaVersion:TEST_META.schemaVersion
+  };
+}
+async function submitFinalResult(scorePercent,durationSeconds){
+  if(resultSubmitted||!currentStudent) return;
+  resultSubmitted=true;
+  const payload=buildResultPayload(scorePercent,durationSeconds),status=el('saveStatus');
+  status.className='save-status';
+  status.textContent='Сохраняем результат…';
+  try{
+    await postResult(payload);
+    status.className='save-status ok';
+    status.textContent='✓ Результат сохранён';
+    flushPendingResults();
+  }catch(_){
+    queuePendingResult(payload);
+    status.className='save-status offline';
+    status.textContent='Нет связи: результат сохранён на устройстве и отправится позже';
+  }
+}
+function studentFromResponse(data,code){
+  if(!data||data.ok===false||data.success===false||data.valid===false) return null;
+  const source=data.student||data.data||data;
+  const studentId=source.studentId??source.id??data.studentId??data.id;
+  const name=source.studentName??source.name??data.studentName??data.name;
+  if(studentId===undefined||studentId===null||studentId==='') return null;
+  return {studentId:String(studentId),name:String(name||'Ученик'),code:String(code)};
+}
+function rememberStudent(student){
+  localStorage.setItem('egeStudentId',student.studentId);
+  localStorage.setItem('egeStudentName',student.name);
+  localStorage.setItem('egeStudentCode',student.code);
+}
+function enterAsStudent(student){
+  currentStudent=student;
+  el('studentName').textContent='👤 '+student.name;
+  el('authModal').classList.remove('show');
+  el('startModal').classList.add('show');
+  el('changeStudentBtn').disabled=false;
+  el('startGameBtn').focus();
+  flushPendingResults();
+}
+function showStudentLogin(prefill=''){
+  el('startModal').classList.remove('show');
+  el('endModal').classList.remove('show');
+  el('authModal').classList.add('show');
+  el('studentCode').value=prefill;
+  el('authError').textContent='';
+  el('loginBtn').disabled=false;
+  setTimeout(()=>el('studentCode').focus(),0);
+}
+function validateStudentCode(code){
+  return new Promise((resolve,reject)=>{
+    const callback='__egeCraftTasks_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const script=document.createElement('script');
+    const timeout=setTimeout(()=>finish(new Error('Сервер не ответил. Проверьте интернет.')),15000);
+    function cleanup(){
+      clearTimeout(timeout);
+      try{delete window[callback];}catch(_){window[callback]=undefined;}
+      script.remove();
+    }
+    function finish(error,value){cleanup();error?reject(error):resolve(value);}
+    window[callback]=data=>{
+      const student=studentFromResponse(data,code);
+      if(student) finish(null,student);
+      else finish(new Error((data&&(data.error||data.message))||'Код ученика не найден'));
+    };
+    script.onerror=()=>finish(new Error('Не удалось связаться с сервером'));
+    script.src=API_URL+'?'+new URLSearchParams({action:'validateStudent',code,callback}).toString();
+    document.head.appendChild(script);
+  });
+}
+async function loginWithCode(rawCode){
+  const code=String(rawCode||'').trim();
+  if(!code){el('authError').textContent='Введите личный код';return;}
+  el('loginBtn').disabled=true;
+  el('authError').textContent='Проверяем код…';
+  try{
+    const student=await validateStudentCode(code);
+    rememberStudent(student);
+    enterAsStudent(student);
+  }catch(error){
+    el('authError').textContent=error.message||'Не удалось проверить код';
+    el('loginBtn').disabled=false;
+    el('studentCode').focus();
+  }
+}
+function initializeStudent(){
+  const codeFromUrl=new URLSearchParams(location.search).get('code');
+  if(codeFromUrl){showStudentLogin(codeFromUrl);loginWithCode(codeFromUrl);return;}
+  const studentId=localStorage.getItem('egeStudentId');
+  const name=localStorage.getItem('egeStudentName');
+  const code=localStorage.getItem('egeStudentCode');
+  if(studentId&&code) enterAsStudent({studentId,name:name||'Ученик',code});
+  else showStudentLogin();
+}
+el('authForm').addEventListener('submit',event=>{
+  event.preventDefault();
+  loginWithCode(el('studentCode').value);
+});
+el('changeStudentBtn').addEventListener('click',()=>{
+  if(gameActive) return;
+  localStorage.removeItem('egeStudentId');
+  localStorage.removeItem('egeStudentName');
+  localStorage.removeItem('egeStudentCode');
+  currentStudent=null;
+  showStudentLogin();
+});
+window.addEventListener('online',flushPendingResults);
+
+/* ============================================================
+   ЗАДАЧИ — 20 штук, покрывают прототипы №10 профильного ЕГЭ
+   ============================================================ */
+const TASKS = [
+  { topic:"РАБОТА",
+    q:"Один мастер выполняет работу за 36 часов, а второй — за 18. За сколько часов они выполнят работу, работая вместе?",
+    a:12, hint:"Прими всю работу за 1. Производительности: 1/36 и 1/18. Складывай их, а время = 1 / (сумма)." },
+
+  { topic:"РАБОТА",
+    q:"Катя и Настя, работая вместе, пропалывают грядку за 24 минуты, а одна Настя — за 42 минуты. За сколько минут пропалывает грядку одна Катя?",
+    a:56, hint:"1/24 = 1/42 + 1/x. Отсюда 1/x = 1/24 − 1/42." },
+
+  { topic:"РАБОТА",
+    q:"Заказ на 88 деталей первый рабочий выполняет на 3 часа быстрее, чем второй. Сколько деталей в час делает первый рабочий, если известно, что он за час делает на 3 детали больше, чем второй?",
+    a:11, hint:"Пусть первый делает x дет/ч, тогда второй x−3. Уравнение: 88/(x−3) − 88/x = 3." },
+
+  { topic:"ТРУБЫ",
+    q:"Первая труба пропускает на 5 литров воды в минуту меньше, чем вторая. Сколько литров воды в минуту пропускает первая труба, если резервуар объёмом 104 литра она заполняет на 5 минут дольше, чем вторая труба?",
+    a:8, hint:"Пусть первая — x л/мин, вторая x+5. Тогда 104/x − 104/(x+5) = 5." },
+
+  { topic:"ТРУБЫ",
+    q:"Каждая из двух труб с одинаковой пропускной способностью может наполнить бассейн за 11 часов. Через 3 часа после того, как одна труба наполняла бассейн, подключили вторую трубу, и бассейн наполнили две трубы вместе. Сколько часов потребовалось на наполнение бассейна?",
+    a:7, hint:"Производительность одной трубы 1/11. За первые 3 часа налито 3/11. Осталось 8/11 при скорости 2/11 в час." },
+
+  { topic:"СРЕДНЯЯ СКОРОСТЬ",
+    q:"Первые 200 км автомобиль ехал со скоростью 60 км/ч, следующие 180 км — со скоростью 90 км/ч, а затем 140 км — со скоростью 120 км/ч. Найдите среднюю скорость автомобиля на протяжении всего пути. Ответ дайте в км/ч.",
+    a:80, hint:"v_ср = весь путь / всё время. Путь 200+180+140. Время: 200/60 + 180/90 + 140/120." },
+
+  { topic:"ДВИЖЕНИЕ ПО ВОДЕ",
+    q:"Теплоход проходит по течению реки до пункта назначения 255 км и после стоянки возвращается в пункт отправления. Найдите скорость теплохода в неподвижной воде, если скорость течения равна 1 км/ч, стоянка длится 2 часа, а в пункт отправления теплоход возвращается через 34 часа после отплытия из него. Ответ дайте в км/ч.",
+    a:16, hint:"Чистое время в пути = 34 − 2 = 32 ч. Уравнение: 255/(v+1) + 255/(v−1) = 32." },
+
+  { topic:"ДВИЖЕНИЕ ПО ВОДЕ",
+    q:"Лодка в 8:00 вышла из пункта A в пункт B, расположенный в 30 км от A. Пробыв в пункте B 1 час 30 минут, лодка отправилась назад и вернулась в пункт A в 22:00 того же дня. Определите (в км/ч) скорость течения реки, если известно, что скорость лодки 5 км/ч.",
+    a:1, hint:"Всего 14 ч, минус стоянка 1,5 ч → 12,5 ч в пути. Уравнение: 30/(5+u) + 30/(5−u) = 12,5." },
+
+  { topic:"ДВИЖЕНИЕ ПО ВОДЕ",
+    q:"Байдарка в 10:00 вышла из пункта A в пункт B, расположенный в 15 км от A. Пробыв в пункте B 1 час 20 минут, байдарка отправилась назад и вернулась в пункт A в 18:00 того же дня. Определите (в км/ч) собственную скорость байдарки, если известно, что скорость течения реки равна 3 км/ч.",
+    a:6, hint:"8 ч всего минус 4/3 ч стоянки = 20/3 ч. Уравнение: 15/(v+3) + 15/(v−3) = 20/3." },
+
+  { topic:"ДВИЖЕНИЕ ПО ВОДЕ",
+    q:"Теплоход, скорость которого в неподвижной воде равна 18 км/ч, проходит по течению реки и после стоянки возвращается в исходный пункт. Скорость течения равна 3 км/ч, стоянка длится 3 часа, а в исходный пункт теплоход возвращается через 39 часов после отплытия из него. Сколько километров прошёл теплоход за весь рейс?",
+    a:630, hint:"Найди S из уравнения S/21 + S/15 = 36. Вопрос про ВЕСЬ рейс — значит ответ 2S." },
+
+  { topic:"ПЛОТ И ЯХТА",
+    q:"Расстояние между пристанями A и B равно 192 км. Из A в B по течению реки отправился плот, а через 3 часа вслед за ним отправилась яхта, которая, прибыв в пункт B, тотчас повернула обратно и возвратилась в A. К этому времени плот проплыл 92 км. Найдите скорость яхты в неподвижной воде, если скорость течения реки равна 4 км/ч. Ответ дайте в км/ч.",
+    a:20, hint:"Плот идёт со скоростью течения: 92/4 = 23 ч всего с момента старта плота. Яхта была в пути 23 − 3 = 20 ч: 192/(v+4) + 192/(v−4) = 20." },
+
+  { topic:"ДОГОН",
+    q:"От пристани A к пристани B, расстояние между которыми равно 153 км, отправился с постоянной скоростью первый теплоход, а через 8 часов после этого следом за ним со скоростью на 8 км/ч большей отправился второй. Найдите скорость первого теплохода, если в пункт B оба теплохода прибыли одновременно. Ответ дайте в км/ч.",
+    a:9, hint:"Первый шёл на 8 часов дольше: 153/v − 153/(v+8) = 8." },
+
+  { topic:"ПРОБЕГ",
+    q:"Два велосипедиста одновременно отправляются в 190-километровый пробег. Первый едет со скоростью на 9 км/ч большей, чем второй, и прибывает к финишу на 9 часов раньше второго. Найдите скорость велосипедиста, пришедшего к финишу первым. Ответ дайте в км/ч.",
+    a:19, hint:"Пусть второй едет v, первый v+9. Тогда 190/v − 190/(v+9) = 9. В ответ — скорость первого." },
+
+  { topic:"ДВИЖЕНИЕ НАВСТРЕЧУ",
+    q:"Из города A в город B навстречу друг другу одновременно выехали мотоциклист и велосипедист. Мотоциклист приехал в город B на 10 часов раньше, чем велосипедист приехал в город A, а встретились они через 3 часа 45 минут после выезда. Сколько часов затратил на путь из города B в город A велосипедист?",
+    a:15, hint:"Формула встречи: t_встречи² = t₁ · t₂. Здесь 3,75² = t · (t − 10), где t — время велосипедиста." },
+
+  { topic:"ОКРУЖНОСТЬ",
+    q:"Из пункта A круговой трассы длиной 30 км выехал велосипедист, а через 30 минут следом за ним отправился мотоциклист. Через 10 минут после выезда он впервые догнал велосипедиста, а ещё через 30 минут догнал его во второй раз. Найдите скорость мотоциклиста. Ответ дайте в км/ч.",
+    a:80, hint:"Между встречами мотоциклист проходит на 1 круг больше: (v_м − v_в)·0,5 = 30. Плюс первая встреча: v_м·(1/6) = v_в·(2/3)." },
+
+  { topic:"ПРОТЯЖЁННЫЕ ТЕЛА",
+    q:"По двум параллельным железнодорожным путям навстречу друг другу следуют скорый и пассажирский поезда, скорости которых равны соответственно 85 км/ч и 35 км/ч. Длина пассажирского поезда равна 500 метрам. Найдите длину скорого поезда, если время, за которое он прошёл мимо пассажирского, равно 1 минуте. Ответ дайте в метрах.",
+    a:1500, hint:"Скорость сближения 120 км/ч = 2000 м/мин. За 1 мин пройдено L₁ + L₂ = 2000 м. Значит L₁ = 2000 − 500." },
+
+  { topic:"СМЕСИ",
+    q:"Смешали некоторое количество 19-процентного раствора некоторого вещества с таким же количеством 17-процентного раствора этого вещества. Сколько процентов составляет концентрация получившегося раствора?",
+    a:18, hint:"Массы равны — значит концентрация ровно посередине: (19 + 17)/2." },
+
+  { topic:"СПЛАВЫ",
+    q:"Имеется два сплава. Первый сплав содержит 10% меди, второй — 40% меди. Масса второго сплава больше массы первого на 3 кг. Из этих двух сплавов получили третий сплав, содержащий 30% меди. Найдите массу третьего сплава. Ответ дайте в килограммах.",
+    a:9, hint:"Пусть первый x кг, второй x+3. Медь сохраняется: 0,1x + 0,4(x+3) = 0,3(2x+3). В ответ — масса третьего, то есть 2x+3." },
+
+  { topic:"РАСТВОРЫ",
+    q:"Смешав 43-процентный и 89-процентный растворы кислоты и добавив 10 кг чистой воды, получили 69-процентный раствор кислоты. Если бы вместо 10 кг воды добавили 10 кг 50-процентного раствора той же кислоты, то получили бы 73-процентный раствор кислоты. Сколько килограммов 43-процентного раствора использовали для получения смеси?",
+    a:35, hint:"Два уравнения на x и y (массы растворов). Вычти одно из другого — масса смеси в обоих случаях одинакова (x+y+10), и разница даёт 5 = 0,04(x+y+10)." },
+
+  { topic:"ПРОЦЕНТЫ",
+    q:"Семья состоит из мужа, жены и их дочери-студентки. Если бы зарплата мужа увеличилась вдвое, общий доход семьи вырос бы на 57%. Если бы стипендия дочери уменьшилась вдвое, общий доход семьи сократился бы на 1%. Сколько процентов от общего дохода семьи составляет зарплата жены?",
+    a:41, hint:"Удвоить зарплату мужа = прибавить её целиком → муж = 57%. Уменьшить стипендию вдвое = убрать половину → дочь = 2%. Жена = 100 − 57 − 2." }
+];
+
+/* ============================================================
+   ЗВУК (Web Audio API)
+   ============================================================ */
+let AC = null, musicOn = true, musicTimer = null, musicStep = 0;
+function audio(){
+  if(!AC){ AC = new (window.AudioContext||window.webkitAudioContext)(); }
+  if(AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function beep(freq, dur, type='square', vol=.12, slide=0){
+  const ac = audio(), o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, ac.currentTime);
+  if(slide) o.frequency.linearRampToValueAtTime(freq+slide, ac.currentTime+dur);
+  g.gain.setValueAtTime(vol, ac.currentTime);
+  g.gain.exponentialRampToValueAtTime(.0001, ac.currentTime+dur);
+  o.connect(g); g.connect(ac.destination);
+  o.start(); o.stop(ac.currentTime+dur);
+}
+function sndCorrect(){ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,.14,'square',.11),i*60)); }
+function sndWrong(){ beep(90,.45,'sawtooth',.16,-40); setTimeout(()=>beep(70,.35,'square',.12),90); }
+function sndHeart(){ // "разбитое стекло" — россыпь коротких шумных всплесков
+  const ac = audio();
+  for(let i=0;i<14;i++){
+    setTimeout(()=>{
+      const o=ac.createOscillator(), g=ac.createGain(), f=ac.createBiquadFilter();
+      f.type='highpass'; f.frequency.value=2000;
+      o.type='square'; o.frequency.value=1200+Math.random()*2600;
+      g.gain.setValueAtTime(.07,ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+.09);
+      o.connect(f);f.connect(g);g.connect(ac.destination);
+      o.start();o.stop(ac.currentTime+.09);
+    }, i*22);
+  }
+}
+function sndCombo(){ [392,523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>beep(f,.1,'triangle',.13),i*45)); }
+function sndClick(){ beep(320,.04,'square',.05); }
+function sndWin(){ [523,523,784,1047,1319,1568].forEach((f,i)=>setTimeout(()=>beep(f,.22,'square',.1),i*130)); }
+function sndOver(){ [392,330,262,196].forEach((f,i)=>setTimeout(()=>beep(f,.4,'sawtooth',.12),i*220)); }
+
+// Фоновый чиптюн-луп — пентатоника до-мажор
+const MEL = [262,0,330,392,0,330,262,0, 294,0,392,440,0,392,294,0, 349,0,440,523,0,440,349,0, 294,0,392,330,0,262,0,0];
+const BASS= [131,0,0,0, 98,0,0,0, 87,0,0,0, 98,0,0,0];
+function musicTick(){
+  if(!musicOn) return;
+  const m = MEL[musicStep % MEL.length];
+  const b = BASS[Math.floor(musicStep/2) % BASS.length];
+  if(m) beep(m,.14,'square',.035);
+  if(b && musicStep%2===0) beep(b,.2,'triangle',.05);
+  musicStep++;
+}
+function startMusic(){ if(musicTimer) return; audio(); musicTimer = setInterval(musicTick,150); }
+document.getElementById('musicBtn').onclick = e => {
+  musicOn = !musicOn;
+  e.target.textContent = musicOn ? '♪ ВКЛ' : '♪ ВЫКЛ';
+  if(musicOn) startMusic();
+};
+
+/* ============================================================
+   ФОН: псевдо-3D мир Майнкрафта + Стив с киркой
+   ============================================================ */
+const world = document.getElementById('world'), wctx = world.getContext('2d');
+const fx = document.getElementById('fx'), fctx = fx.getContext('2d');
+let W=0,H=0, camX=0, bob=0, swing=0, swingTarget=0;
+
+function resize(){
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  [world,fx].forEach(c=>{
+    c.width = Math.floor(innerWidth*dpr); c.height = Math.floor(innerHeight*dpr);
+    c.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
+    c.getContext('2d').imageSmoothingEnabled = false;
+  });
+  W = innerWidth; H = innerHeight;
+}
+addEventListener('resize', resize); resize();
+
+function noise(i){ const s = Math.sin(i*127.1)*43758.5453; return s - Math.floor(s); }
+function blk(x,y,w,h,c){ wctx.fillStyle=c; wctx.fillRect(x|0,y|0,Math.ceil(w),Math.ceil(h)); }
+
+// Блок с "шумной" текстурой как в Minecraft
+function texBlock(x,y,s,base,dark,seed){
+  blk(x,y,s,s,base);
+  for(let i=0;i<5;i++){
+    const n1 = noise(seed*3+i), n2 = noise(seed*7+i*2);
+    blk(x+n1*(s-s/4), y+n2*(s-s/4), s/4, s/4, dark);
+  }
+}
+
+function drawTree(x, groundY, s, seed){
+  const th = 3 + Math.floor(noise(seed)*2);
+  for(let i=0;i<th;i++) texBlock(x, groundY-(i+1)*s, s, '#6b4a1e', '#4d340f', seed+i);
+  const top = groundY - th*s;
+  const leaf = [[-1,0],[0,0],[1,0],[-1,-1],[0,-1],[1,-1],[-2,-1],[2,-1],[0,-2],[-1,-2],[1,-2],[0,-3]];
+  leaf.forEach((p,i)=> texBlock(x+p[0]*s, top+p[1]*s-s, s, '#3f8a28','#2c6119', seed+i*5));
+}
+
+function drawSteve(){
+  const s = Math.max(9, Math.min(W,H)/44);      // размер "пикселя" Стива
+  const bx = W - s*11, by = H - s*7 + Math.sin(bob)*2;
+  const sw = Math.sin(swing) * s * 2.2;
+  const lift = -Math.abs(Math.sin(swing)) * s * 1.4;
+
+  // рука (кожа + рукав)
+  blk(bx+s*4, by+s*3, s*3, s*4, '#3b3bb0');           // рукав
+  blk(bx+s*4, by+s*1.4+lift*.3, s*3, s*2.2, '#c68642'); // кисть
+  blk(bx+s*4, by+s*1.4+lift*.3, s*.6, s*2.2, '#a06b31');
+
+  // кирка: рукоять + алмазная головка
+  const px = bx + s*5 + sw, py = by + s*1.2 + lift;
+  for(let i=0;i<5;i++) blk(px, py - i*s*0.9, s*0.9, s*0.9, i%2? '#8b5a2b':'#a0672f');
+  const hy = py - 4*s*0.9;
+  blk(px - s*1.6, hy - s*0.6, s*4.2, s*0.9, '#4aedd9');
+  blk(px - s*2.4, hy + s*0.2, s*1.1, s*0.9, '#4aedd9');
+  blk(px + s*2.6, hy + s*0.2, s*1.1, s*0.9, '#4aedd9');
+  blk(px - s*1.6, hy - s*0.6, s*4.2, s*0.3, '#9dfff2');
+}
+
+let t0 = performance.now();
+function drawWorld(now){
+  const dt = Math.min((now - t0)/1000, .05); t0 = now;
+  camX += dt * 22;                 // медленное движение вперёд
+  bob += dt * 2.6;
+  swing += (swingTarget - swing) * .18;
+  if(Math.abs(swingTarget) > .01) swingTarget *= .90;
+
+  const horizon = H*0.62 + Math.sin(bob)*2;
+
+  // небо
+  const sky = wctx.createLinearGradient(0,0,0,horizon);
+  sky.addColorStop(0,'#3f7fd6'); sky.addColorStop(.6,'#79b7f0'); sky.addColorStop(1,'#bfe3ff');
+  wctx.fillStyle = sky; wctx.fillRect(0,0,W,horizon+1);
+
+  // солнце (квадратное!)
+  const sunS = Math.max(34, W/16);
+  blk(W*0.78, H*0.12, sunS, sunS, '#fff6b0');
+  blk(W*0.78+sunS*.15, H*0.12+sunS*.15, sunS*.7, sunS*.7, '#fffde8');
+
+  // облака — параллакс x0.15
+  const cs = Math.max(8, W/110);
+  for(let i=0;i<7;i++){
+    const cx = ((i*430 - camX*0.15) % (W+420)) - 210;
+    const cy = H*0.06 + noise(i)*H*0.16;
+    const shape=[[0,0],[1,0],[2,0],[3,0],[1,-1],[2,-1],[4,0],[-1,0],[2,1],[1,1]];
+    shape.forEach(p=>blk(cx+p[0]*cs, cy+p[1]*cs, cs, cs, p[1]<0?'#ffffff':'#e2ecf7'));
+  }
+
+  // дальние холмы — параллакс x0.3, приглушённые (воздушная перспектива)
+  const fs = Math.max(10, W/70);
+  for(let i=-2;i<Math.ceil(W/fs)+2;i++){
+    const gi = Math.floor((camX*0.3)/fs) + i;
+    const h = Math.floor(noise(gi*0.6)*3.4);
+    const x = i*fs - ((camX*0.3)%fs);
+    for(let j=0;j<=h;j++) blk(x, horizon - fs*2 - j*fs, fs, fs, j===h ? '#7fae86' : '#7d9a8a');
+  }
+
+  // средний слой: земля + деревья — параллакс x0.6
+  const ms = Math.max(14, W/44);
+  for(let i=-2;i<Math.ceil(W/ms)+2;i++){
+    const gi = Math.floor((camX*0.6)/ms) + i;
+    const x = i*ms - ((camX*0.6)%ms);
+    const gy = horizon + Math.floor(noise(gi*1.3)*1.5)*ms*0.4;
+    texBlock(x, gy, ms, '#4ea033', '#3b7d26', gi);
+    if(noise(gi*9.7) > .90) drawTree(x, gy, ms*0.62, gi);
+    texBlock(x, gy+ms, ms, '#7a4f26','#5c3a1a', gi+11);
+  }
+
+  // передний план: дорожка из блоков — параллакс x1.0
+  const gs = Math.max(26, W/17);
+  for(let i=-2;i<Math.ceil(W/gs)+2;i++){
+    const gi = Math.floor(camX/gs) + i;
+    const x = i*gs - (camX%gs);
+    const y = H - gs*1.6 + Math.sin(bob)*2;
+    texBlock(x, y, gs, '#5db83c', '#489a2d', gi);            // трава
+    blk(x, y, gs, gs*0.16, '#79d456');                        // светлая кромка
+    texBlock(x, y+gs, gs, '#8b5a2b', '#5c3a1a', gi+7);        // земля
+    blk(x, y, 2, gs*2, 'rgba(0,0,0,.18)');                    // швы между блоками
+  }
+
+  // затемнение к краям — фокус на книге
+  const vig = wctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.25, W/2,H/2, Math.max(W,H)*0.75);
+  vig.addColorStop(0,'rgba(0,0,0,0)'); vig.addColorStop(1,'rgba(0,0,0,.55)');
+  wctx.fillStyle = vig; wctx.fillRect(0,0,W,H);
+
+  drawSteve();
+  requestAnimationFrame(drawWorld);
+}
+requestAnimationFrame(drawWorld);
+
+/* ============================================================
+   ЧАСТИЦЫ
+   ============================================================ */
+let parts = [];
+function burst(x,y,colors,n=46,power=7){
+  for(let i=0;i<n;i++){
+    const a = Math.random()*Math.PI*2, sp = Math.random()*power+1.5;
+    parts.push({x,y,vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-2, life:1,
+      c:colors[(Math.random()*colors.length)|0], s:Math.random()*6+3});
+  }
+}
+function fxLoop(){
+  fctx.clearRect(0,0,W,H);
+  parts = parts.filter(p=>p.life>0);
+  parts.forEach(p=>{
+    p.x+=p.vx; p.y+=p.vy; p.vy+=.22; p.vx*=.99; p.life-=.016;
+    fctx.globalAlpha = Math.max(p.life,0);
+    fctx.fillStyle = p.c;
+    fctx.fillRect(p.x|0, p.y|0, p.s, p.s);
+  });
+  fctx.globalAlpha = 1;
+  requestAnimationFrame(fxLoop);
+}
+requestAnimationFrame(fxLoop);
+
+/* ============================================================
+   ИГРОВАЯ ЛОГИКА
+   ============================================================ */
+const HEART_SVG = `<svg viewBox="0 0 11 10" shape-rendering="crispEdges"><path fill="#000" d="M1 0h3v1H1zM7 0h3v1H7zM0 1h5v1H0zM6 1h5v1H6zM0 2h11v1H0zM0 3h11v1H0zM0 4h11v1H0zM1 5h9v1H1zM2 6h7v1H2zM3 7h5v1H3zM4 8h3v1H4zM5 9h1v1H5z"/><path fill="#ff2d2d" d="M1 1h3v1H1zM7 1h3v1H7zM1 2h9v1H1zM1 3h9v1H1zM1 4h9v1H1zM2 5h7v1H2zM3 6h5v1H3zM4 7h3v1H4zM5 8h1v1H5z"/><path fill="#ff9c9c" d="M2 2h1v1H2zM7 2h2v1H7zM2 3h1v1H2z"/></svg>`;
+
+let S = {};
+let order = [];
+
+function reset(){
+  S = { idx:0, lives:5, dia:0, combo:0, maxCombo:0, correct:0, firstTryCorrect:0,
+        hints:0, hintUsed:false, val:"0", over:false, questionAttempted:false };
+  order = TASKS.map((_,i)=>i);
+  // лёгкий шафл, но первые задачи — попроще (сортировка по исходному порядку сохранена частично)
+  for(let i=order.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [order[i],order[j]]=[order[j],order[i]]; }
+  drawHearts();
+  render();
+  gameActive=true;
+  attemptStartMs=Date.now();
+  currentEventId=createEventId();
+  resultSubmitted=false;
+  el('changeStudentBtn').disabled=true;
+  el('saveStatus').className='save-status';
+  el('saveStatus').textContent='';
+  el('endModal').classList.remove('show');
+}
+
+function drawHearts(){
+  const h = el('hearts'); h.innerHTML = '';
+  for(let i=0;i<5;i++){
+    const d = document.createElement('div');
+    d.className = 'heart'; d.innerHTML = HEART_SVG;
+    if(i >= S.lives) d.style.filter = 'grayscale(1) brightness(.35)';
+    h.appendChild(d);
+  }
+}
+function breakHeart(i){
+  const hs = el('hearts').children;
+  if(hs[i]) hs[i].classList.add('broken');
+  setTimeout(drawHearts, 520);
+}
+
+function mult(){ return S.combo>=10 ? 3 : S.combo>=5 ? 2 : S.combo>=3 ? 1.5 : 1; }
+
+function cur(){ return TASKS[order[S.idx]]; }
+
+function render(){
+  const t = cur();
+  el('topic').textContent = '§ ' + t.topic;
+  el('qtext').textContent = t.q;
+  el('qcount').textContent = (S.idx+1) + '/' + TASKS.length;
+  el('diaCount').textContent = S.dia;
+  const m = mult();
+  el('comboBox').textContent = `КОМБО ${S.combo} ×${m}`;
+  el('comboBox').classList.toggle('hot', S.combo>=3);
+  el('display').classList.toggle('embers', S.combo>=3);
+  el('hintBox').style.display = 'none';
+  el('hintBox').textContent = '';
+  S.hintUsed = false; S.val = "0";
+  el('display').value = "0";
+  el('progressBar').style.width = (S.idx/TASKS.length*100) + '%';
+  el('hintBtn').disabled = false;
+}
+
+function toast(txt, color){
+  const t = el('toast');
+  t.textContent = txt; t.style.color = color || '#fff';
+  t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove('show'), 1300);
+}
+
+function check(){
+  if(!gameActive || S.over || S.questionAttempted) return;
+  startMusic();
+  const t = cur();
+  const given = parseFloat(S.val.replace(',','.'));
+  S.questionAttempted = true;
+  swingTarget = 1.1;                                  // Стив бьёт киркой
+  if(!isNaN(given) && Math.abs(given - t.a) < 1e-9){
+    S.correct++; S.firstTryCorrect++; S.combo++;
+    S.maxCombo = Math.max(S.maxCombo, S.combo);
+    let gain = Math.round(10 * mult() * (S.hintUsed ? .5 : 1));
+    S.dia += gain;
+    sndCorrect();
+    burst(W/2, H*0.45, ['#4aedd9','#9dfff2','#ffcc33','#ffffff','#5db83c'], 60, 9);
+    burst(W*0.25, H*0.5, ['#4aedd9','#ffcc33','#ffffff'], 26, 6);
+    burst(W*0.75, H*0.5, ['#4aedd9','#ffcc33','#ffffff'], 26, 6);
+    if(S.combo===3 || S.combo===5 || S.combo===10){
+      setTimeout(()=>{ sndCombo(); toast('КОМБО ×'+mult()+'!', '#ffcc33'); }, 340);
+    } else {
+      toast('+' + gain + ' ◆', '#4aedd9');
+    }
+    next();
+  } else {
+    S.combo = 0;
+    S.lives--;
+    sndWrong();
+    el('app').classList.add('shake');
+    setTimeout(()=>el('app').classList.remove('shake'), 380);
+    el('flash').style.opacity = .45;
+    setTimeout(()=>el('flash').style.opacity = 0, 130);
+    breakHeart(S.lives);
+    setTimeout(sndHeart, 160);
+    toast('Правильный ответ: ' + t.a, '#ff6666');
+    if(S.lives <= 0){ setTimeout(()=>end(false), 900); return; }
+    setTimeout(()=>{ render(); }, 1100);
+    setTimeout(()=>{
+      S.idx++;
+      S.questionAttempted=false;
+      if(S.idx >= TASKS.length){ end(true); } else render();
+    }, 1400);
+  }
+}
+
+function next(){
+  setTimeout(()=>{
+    S.idx++;
+    S.questionAttempted=false;
+    if(S.idx >= TASKS.length) end(true);
+    else render();
+  }, 750);
+}
+
+function end(finished){
+  if(!gameActive) return;
+  gameActive=false;
+  S.over = true;
+  el('changeStudentBtn').disabled=false;
+  const scorePercent=Math.round(S.firstTryCorrect/TASKS.length*100);
+  const durationSeconds=Math.max(1,Math.round((Date.now()-attemptStartMs)/1000));
+  el('progressBar').style.width = '100%';
+  const r = S.dia;
+  let rank;
+  if(!finished || S.correct < 6) rank = 'НОВИЧОК';
+  else if(S.correct < 12) rank = 'ШАХТЁР';
+  else if(S.correct < 18) rank = 'ИНЖЕНЕР';
+  else rank = 'ПОВЕЛИТЕЛЬ КРАЯ';
+
+  el('endTitle').textContent = finished ? 'РЕЙД ЗАВЕРШЁН' : 'ЖИЗНИ КОНЧИЛИСЬ';
+  el('endTitle').style.color = finished ? '#5db83c' : '#ff4444';
+  el('rank').textContent = '☆ ' + rank + ' ☆';
+  el('rDia').textContent = r;
+  el('rCorrect').textContent = S.correct + ' из ' + TASKS.length;
+  el('rCombo').textContent = S.maxCombo;
+  el('rHints').textContent = S.hints;
+  el('rPercent').textContent = scorePercent + '%';
+  el('rTime').textContent = formatDuration(durationSeconds);
+  el('endModal').classList.add('show');
+  finished ? sndWin() : sndOver();
+  if(finished) for(let i=0;i<6;i++) setTimeout(()=>burst(Math.random()*W, Math.random()*H*.6, ['#4aedd9','#ffcc33','#ff4444','#5db83c','#fff'],40,8), i*260);
+  submitFinalResult(scorePercent,durationSeconds);
+}
+
+/* ---------- клавиатура ---------- */
+const KEYS = ['7','8','9','4','5','6','1','2','3','.','0','⌫'];
+const pad = el('pad');
+KEYS.forEach(k=>{
+  const b = document.createElement('button');
+  b.className = 'key mc'; b.textContent = k;
+  b.onclick = ()=>{ press(k); sndClick(); };
+  pad.appendChild(b);
+});
+function press(k){
+  if(!gameActive || S.over || S.questionAttempted) return;
+  if(k === '⌫'){ S.val = S.val.length>1 ? S.val.slice(0,-1) : '0'; }
+  else if(k === '.'){ if(!S.val.includes('.')) S.val += '.'; }
+  else { S.val = (S.val === '0') ? k : (S.val.length<7 ? S.val + k : S.val); }
+  el('display').value = S.val;
+}
+addEventListener('keydown', e=>{
+  if(el('theoryModal').classList.contains('show') && e.key==='Escape') return closeModal('theoryModal');
+  if(/^[0-9]$/.test(e.key)) press(e.key);
+  else if(e.key === '.' || e.key === ',') press('.');
+  else if(e.key === 'Backspace') press('⌫');
+  else if(e.key === 'Enter') check();
+});
+
+/* ---------- кнопки ---------- */
+el('checkBtn').onclick = check;
+el('skipBtn').onclick = ()=>{
+  if(!gameActive || S.over || S.questionAttempted) return;
+  startMusic(); sndClick();
+  S.questionAttempted = true;
+  S.combo = 0;
+  toast('Ответ: ' + cur().a, '#aaa');
+  S.idx++;
+  if(S.idx >= TASKS.length) setTimeout(()=>end(true), 600);
+  else setTimeout(()=>{ S.questionAttempted=false; render(); }, 600);
+};
+el('hintBtn').onclick = ()=>{
+  if(!gameActive || S.over || S.hintUsed || S.questionAttempted) return;
+  startMusic(); sndClick();
+  S.hintUsed = true; S.hints++;
+  const hb = el('hintBox');
+  hb.textContent = '⛏ ' + cur().hint + '  (награда −50%)';
+  hb.style.display = 'block';
+  el('hintBtn').disabled = true;
+};
+el('theoryBtn').onclick = ()=>{ startMusic(); sndClick(); el('theoryModal').classList.add('show'); };
+el('restartBtn').onclick = ()=>{ sndClick(); reset(); };
+el('startGameBtn').onclick = ()=>{
+  sndClick();
+  el('startModal').classList.remove('show');
+  reset();
+};
+function closeModal(id){ el(id).classList.remove('show'); sndClick(); }
+el('theoryModal').onclick = e => { if(e.target.id === 'theoryModal') closeModal('theoryModal'); };
+
+// тап по миру — Стив машет киркой
+addEventListener('pointerdown', e=>{
+  if(e.target.closest('#app') || e.target.closest('.modal')) return;
+  swingTarget = 1.1; beep(140,.06,'square',.05);
+});
+
+initializeStudent();
+</script>
+</body>
+</html>
