@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#087ea4">
+<title>Подводный блиц — ЕГЭ №6</title>
+<style>
+:root{
+  --sky:#59d7e6;--water:#179fc4;--deep:#075e8c;--navy:#073e63;
+  --sand:#f4dc8e;--sand2:#d6b96e;--ink:#173948;--paper:#fffbed;
+  --yellow:#ffd83d;--orange:#f49b2c;--green:#4bc65d;--red:#f0534b;
+  --pink:#f47cb0;--purple:#9b6ad6;--wood:#a96530;--wood2:#73441f;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;font-family:"Trebuchet MS","Arial Rounded MT Bold",system-ui,sans-serif;color:var(--ink)}
+body{overflow:hidden;background:var(--deep);user-select:none}
+button,input{font:inherit}
+button{-webkit-tap-highlight-color:transparent}
+.hidden{display:none!important}
+#game{position:fixed;inset:0;overflow:hidden;background:
+  radial-gradient(circle at 17% 12%,rgba(255,255,255,.38) 0 2px,transparent 3px),
+  radial-gradient(circle at 73% 17%,rgba(255,255,255,.22) 0 3px,transparent 4px),
+  linear-gradient(180deg,var(--sky),var(--water) 43%,var(--deep))}
+#game::before{content:"";position:absolute;inset:-20% -15% 30%;pointer-events:none;
+  background:repeating-conic-gradient(from 178deg at 50% -5%,rgba(255,255,255,.15) 0 7deg,transparent 8deg 20deg);
+  filter:blur(6px);animation:rays 9s ease-in-out infinite alternate}
+@keyframes rays{to{transform:translateX(3%) skewX(4deg);opacity:.65}}
+.seafloor{position:absolute;left:-5%;right:-5%;bottom:-8%;height:27%;
+  background:linear-gradient(var(--sand),var(--sand2));border-radius:50% 45% 0 0/34% 32% 0 0;
+  box-shadow:0 -8px 25px rgba(6,63,86,.18)}
+.seafloor::before{content:"";position:absolute;inset:15% 2% 0;
+  background-image:radial-gradient(#b89850 1.5px,transparent 2px);background-size:34px 25px;opacity:.42}
+.scene{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.flower{position:absolute;width:96px;height:96px;opacity:.35;animation:drift 7s ease-in-out infinite alternate}
+.flower::before,.flower::after{content:"";position:absolute;inset:24px;border:7px solid #eaf6b0;border-radius:50%}
+.flower::after{transform:rotate(60deg);border-radius:45%}
+.f1{left:6%;top:16%;transform:scale(.8)}.f2{right:7%;top:23%;transform:scale(1.15);animation-delay:-3s}
+.f3{left:58%;top:5%;transform:scale(.5);animation-delay:-6s}
+@keyframes drift{to{translate:0 -12px;rotate:8deg}}
+.coral{position:absolute;bottom:7%;font-size:clamp(70px,10vw,150px);filter:saturate(.8);transform-origin:bottom;animation:sway 4s ease-in-out infinite alternate}
+.c1{left:2%;color:var(--pink)}.c2{right:2%;color:var(--purple);animation-delay:-2s}
+@keyframes sway{to{transform:rotate(4deg)}}
+.rock{position:absolute;bottom:9%;width:110px;height:65px;background:#8ca2a2;border:5px solid #597b7e;
+  border-radius:55% 45% 18% 20%;box-shadow:inset 12px 8px rgba(255,255,255,.16)}
+.r1{left:15%}.r2{right:18%;width:72px;height:48px}
+.bubble{position:absolute;bottom:-40px;border:2px solid rgba(255,255,255,.72);border-radius:50%;
+  background:radial-gradient(circle at 30% 25%,rgba(255,255,255,.8),transparent 45%);
+  animation:rise linear infinite}
+@keyframes rise{0%{translate:0 0;opacity:0}10%{opacity:.9}100%{translate:25px -112vh;opacity:0}}
+.jelly{position:absolute;font-size:50px;opacity:.55;animation:jelly 12s ease-in-out infinite}
+.j1{left:4%;top:42%}.j2{right:6%;top:50%;animation-delay:-6s}
+@keyframes jelly{50%{translate:20px -30px;rotate:8deg}}
+
+.hud{position:absolute;z-index:20;left:18px;right:18px;top:14px;display:grid;
+  grid-template-columns:auto minmax(170px,1fr) auto auto;align-items:center;gap:12px}
+.pill{height:48px;display:flex;align-items:center;gap:8px;padding:0 16px;border-radius:18px;
+  color:#fff;font-weight:900;background:rgba(4,58,89,.72);border:3px solid rgba(255,255,255,.45);
+  box-shadow:0 5px 0 rgba(3,45,70,.5);backdrop-filter:blur(5px)}
+.pill small{font-size:10px;letter-spacing:.08em;opacity:.72;text-transform:uppercase}
+.iconbtn{width:48px;padding:0;justify-content:center;border:0;cursor:pointer}
+
+.sign{position:absolute;z-index:9;left:50%;top:76px;translate:-50% 0;width:min(700px,88vw);
+  transform-origin:50% -35px;animation:sign 4.8s ease-in-out infinite alternate}
+@keyframes sign{from{rotate:-1deg}to{rotate:1deg}}
+.rope{position:absolute;top:-42px;width:7px;height:46px;border-radius:9px;
+  background:repeating-linear-gradient(45deg,#d4b16c 0 4px,#8e632d 4px 8px)}
+.rope.a{left:19%}.rope.b{right:19%}
+.board{position:relative;padding:13px 22px 15px;text-align:center;color:#fff6c9;
+  background:linear-gradient(165deg,#a96934,#7b4822);border:7px solid #5a341b;border-radius:18px;
+  box-shadow:inset 0 0 0 3px rgba(255,225,146,.2),0 10px 20px rgba(0,0,0,.26)}
+.board::after{content:"";position:absolute;inset:8px;border:2px dashed rgba(255,231,171,.28);border-radius:8px}
+.eyebrow{position:relative;z-index:1;font-size:11px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:#ffd94d}
+#prototype{position:relative;z-index:1;margin-top:2px;font-weight:900;font-size:clamp(15px,2.1vw,20px)}
+
+.stage{position:absolute;z-index:12;left:50%;top:30%;translate:-50% 0;width:min(860px,92vw)}
+.card{position:relative;background:linear-gradient(180deg,#fffdf3,#fff4c9);border:5px solid #ffd64a;
+  border-radius:24px;padding:22px 25px 20px;box-shadow:0 16px 0 rgba(5,60,82,.3),0 25px 44px rgba(4,42,63,.25);
+  transform-origin:center;animation:cardIn .52s cubic-bezier(.2,1.35,.5,1) both}
+.card::before{content:"";position:absolute;left:50%;top:-14px;translate:-50% 0;width:94px;height:28px;
+  background:rgba(255,233,112,.72);border:2px dashed rgba(169,116,24,.45);rotate:-2deg}
+@keyframes cardIn{from{opacity:0;transform:translate(var(--fly-x,0),var(--fly-y,-70px)) rotate(var(--fly-r,-4deg)) scale(.7)}
+  to{opacity:1;transform:none}}
+.qmeta{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#50818e;
+  font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
+.source{padding:4px 9px;border-radius:99px;background:#dff4ec;color:#23835a}
+.question{margin:12px 0 16px;font-size:clamp(16px,2.05vw,21px);font-weight:850;line-height:1.38;color:#153946}
+.formula{white-space:nowrap;font-family:Georgia,"Times New Roman",serif;font-size:1.04em}
+.answers{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.answer{position:relative;min-height:66px;padding:10px;border:3px solid #77c8d6;border-radius:17px;background:#f7ffff;
+  color:#11425a;font-weight:900;font-size:clamp(17px,2.5vw,23px);cursor:pointer;
+  box-shadow:0 6px 0 #3c98ab;transition:transform .12s,box-shadow .12s,background .15s}
+.answer::before{content:attr(data-letter);position:absolute;left:9px;top:9px;width:23px;height:23px;display:grid;
+  place-items:center;border-radius:50%;background:#d7f4f7;color:#267a8c;font-size:11px}
+.answer:hover:not(:disabled){transform:translateY(-3px);box-shadow:0 9px 0 #3c98ab}
+.answer:active:not(:disabled){transform:translateY(5px);box-shadow:0 1px 0 #3c98ab}
+.answer:disabled{cursor:default}
+.answer.correct{border-color:#35ac4c;background:#dff8d9;box-shadow:0 6px 0 #26883b;color:#1c742e}
+.answer.wrong{border-color:#e14d48;background:#ffe0d9;box-shadow:0 6px 0 #b83a35;color:#a12424;animation:shake .35s}
+@keyframes shake{20%,60%{translate:-7px 0}40%,80%{translate:7px 0}}
+.tools{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px}
+.hintbtn,.nextbtn{border:0;border-radius:14px;padding:11px 17px;font-weight:900;cursor:pointer}
+.hintbtn{color:#754812;background:#ffe17b;box-shadow:0 5px 0 #c99a2a}
+.hintbtn:active,.nextbtn:active{translate:0 4px;box-shadow:0 1px 0 rgba(0,0,0,.25)}
+.nextbtn{margin-left:auto;color:white;background:#45bd59;box-shadow:0 5px 0 #288b39}
+.feedback{display:none;margin-top:15px;padding:12px 14px;border-radius:14px;font-weight:800;line-height:1.35}
+.feedback.show{display:block;animation:open .24s ease-out}
+.feedback.good{background:#dcf7da;color:#1e7431}.feedback.bad{background:#ffe2dd;color:#9d2b29}
+.hintbox{display:none;margin-top:13px;padding:12px 14px;border-radius:14px;background:#fff1a9;
+  color:#704c13;font-weight:800;line-height:1.38;border:2px dashed #d5a83d}
+.hintbox.show{display:block;animation:open .24s ease-out}
+@keyframes open{from{opacity:0;translate:0 -6px}}
+
+.overlay{position:absolute;z-index:100;inset:0;display:grid;place-items:center;padding:24px;
+  background:radial-gradient(circle at 50% 20%,rgba(23,159,196,.57),rgba(3,49,78,.92));backdrop-filter:blur(5px)}
+.panel{width:min(590px,94vw);max-height:94vh;overflow:auto;padding:29px;border:7px solid var(--wood2);
+  border-radius:28px;background:linear-gradient(180deg,#fffdf1,#ffe6a1);text-align:center;
+  box-shadow:inset 0 0 0 4px #fff8dc,0 24px 60px rgba(0,0,0,.42)}
+.logo{font-size:58px;line-height:1;filter:drop-shadow(0 5px 0 rgba(4,67,91,.23));animation:logo 2.6s ease-in-out infinite}
+@keyframes logo{50%{translate:0 -7px;rotate:4deg}}
+h1{margin:8px 0 3px;font-size:clamp(31px,6vw,51px);line-height:.98;color:#138bb4;
+  text-shadow:0 3px 0 #fff,0 6px 0 rgba(6,86,117,.18)}
+.lead{margin:8px auto 16px;color:#3b6670;font-weight:800;line-height:1.4}
+.rules{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:17px 0}
+.rule{padding:11px 8px;border-radius:15px;background:rgba(23,144,178,.1);font-size:12px;font-weight:900;color:#315d67}
+.rule b{display:block;font-size:22px;margin-bottom:3px}
+.studentrow{display:flex;align-items:center;justify-content:center;gap:9px;margin:4px 0 16px;font-weight:900;color:#1c7996}
+.change{border:0;background:none;text-decoration:underline;color:#6d7d7d;font-size:12px;font-weight:900;cursor:pointer}
+.mainbtn{border:0;border-radius:17px;padding:14px 34px;color:white;font-size:21px;font-weight:900;cursor:pointer;
+  background:linear-gradient(#6ada72,#39b94c);box-shadow:0 8px 0 #248a35,0 13px 22px rgba(0,0,0,.18)}
+.mainbtn:hover{translate:0 -2px}.mainbtn:active{translate:0 6px;box-shadow:0 2px 0 #248a35}
+.codeLabel{display:block;text-align:left;margin:15px 2px 7px;font-weight:900;color:#41656c}
+.codeInput{width:100%;padding:13px 16px;border:3px solid #8fc9d4;border-radius:14px;background:#fff;
+  color:#17455b;text-align:center;text-transform:uppercase;font-size:23px;font-weight:900;letter-spacing:.1em;outline:0}
+.codeInput:focus{border-color:#1b9cbd;box-shadow:0 0 0 5px rgba(27,156,189,.16)}
+.authmsg{min-height:22px;margin:9px 0;font-size:13px;font-weight:800;color:#657b80}
+.authmsg.error{color:#bd3531}.authmsg.ok{color:#288c3a}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:17px 0}
+.stat{padding:12px 6px;border:3px solid #efc644;border-radius:16px;background:#fffdf6}
+.stat b{display:block;font-size:27px;color:#087fa5}.stat span{font-size:10px;color:#688087;text-transform:uppercase;font-weight:900}
+.save{margin:11px 0 16px;padding:9px;border-radius:12px;background:rgba(17,129,162,.09);font-size:13px;font-weight:900;color:#447079}
+.save.saved{background:#dff4d9;color:#287936}.save.queued{background:#fff1b9;color:#7f6116}
+.summary{margin:8px 0 17px;font-weight:800;color:#496b71;line-height:1.4}
+.streak{position:fixed;z-index:80;left:50%;top:50%;translate:-50% -50%;font-size:clamp(32px,7vw,70px);
+  font-weight:1000;color:#fff04c;-webkit-text-stroke:3px #77491c;paint-order:stroke fill;
+  pointer-events:none;animation:streak .8s ease-out forwards}
+@keyframes streak{0%{opacity:0;scale:.4;rotate:-8deg}25%{opacity:1;scale:1.15}100%{opacity:0;translate:-50% -130%;scale:.9}}
+
+@media(max-width:700px){
+  .hud{left:8px;right:8px;top:8px;gap:6px;grid-template-columns:auto 1fr auto auto}
+  .pill{height:42px;padding:0 10px;border-width:2px;border-radius:14px}.pill small{display:none}
+  .iconbtn{width:42px}
+  .sign{top:61px}.stage{top:25%;width:94vw}.card{padding:18px 15px 15px}
+  .card{max-height:72vh;overflow-y:auto}
+  .question{margin:10px 0 13px;max-height:26vh;overflow:auto}
+  .answers{grid-template-columns:1fr;gap:8px}.answer{min-height:50px;font-size:18px}
+  .tools{margin-top:11px}.panel{padding:22px 17px}.rules{grid-template-columns:1fr 1fr}
+  .rule:last-child{grid-column:1/-1}.coral{opacity:.55}
+}
+@media(max-height:700px) and (min-width:701px){
+  .sign{top:65px}.stage{top:29%}.card{padding:17px 20px 15px}
+  .question{font-size:16px;margin:8px 0 11px}.answer{min-height:52px}.tools{margin-top:11px}
+}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;animation-iteration-count:1!important}}
+
+/* Игровой режим: движущийся пузырь и иголки-ответы */
+.hud{grid-template-columns:auto auto 48px;justify-content:end}
+.arena{position:absolute;z-index:12;left:0;right:0;top:128px;bottom:154px;overflow:hidden}
+.problem-bubble{position:absolute;width:min(570px,82vw);min-height:280px;padding:50px 58px 46px;
+  display:flex;flex-direction:column;justify-content:center;isolation:isolate;
+  border:5px solid rgba(229,253,255,.92);border-radius:50%;
+  background:radial-gradient(circle at 28% 19%,rgba(255,255,255,.92) 0 3%,rgba(255,255,255,.2) 4% 10%,transparent 11%),
+    radial-gradient(circle at 50% 52%,rgba(244,255,251,.89),rgba(181,243,249,.76) 58%,rgba(68,200,224,.52));
+  box-shadow:inset 20px 17px 32px rgba(255,255,255,.72),inset -22px -24px 35px rgba(26,143,183,.28),
+    0 0 0 7px rgba(255,255,255,.16),0 22px 40px rgba(3,62,91,.3);
+  will-change:left,top;transition:filter .15s}
+.problem-bubble::before{content:"";position:absolute;z-index:-1;inset:5%;border:2px solid rgba(255,255,255,.52);
+  border-radius:50%;animation:breathe 2.2s ease-in-out infinite alternate}
+.problem-bubble::after{content:"";position:absolute;right:18%;top:13%;width:16%;height:8%;
+  border-top:7px solid rgba(255,255,255,.62);border-radius:50%;rotate:24deg}
+@keyframes breathe{to{inset:3%;opacity:.6}}
+.problem-bubble.target{filter:drop-shadow(0 0 18px #fff45c) brightness(1.08)}
+.problem-bubble.wobble{animation:bubbleWobble .42s ease}
+@keyframes bubbleWobble{20%{transform:scale(1.04) rotate(2deg)}45%{transform:scale(.97) rotate(-2deg)}75%{transform:scale(1.02)}}
+.problem-bubble.pop{animation:bubblePop .55s cubic-bezier(.1,.7,.3,1) forwards}
+@keyframes bubblePop{0%{opacity:1;transform:scale(1)}55%{opacity:.9;transform:scale(1.16)}
+  100%{opacity:0;transform:scale(1.48);filter:blur(8px)}}
+.problem-bubble .qmeta{position:relative;z-index:2;justify-content:center;margin-bottom:5px}
+.problem-bubble .source{background:rgba(255,255,255,.55)}
+.problem-bubble .question{position:relative;z-index:2;margin:7px 0 0;max-height:150px;overflow:auto;
+  text-align:center;font-size:clamp(15px,1.75vw,19px);line-height:1.35;text-shadow:0 1px rgba(255,255,255,.8)}
+.problem-bubble .hintbox{position:relative;z-index:2;margin:10px 0 0;padding:9px 12px;
+  max-height:86px;overflow:auto;text-align:center;background:rgba(255,241,169,.82);font-size:13px}
+.needle-dock{position:absolute;z-index:25;left:0;right:0;bottom:12px;display:flex;align-items:flex-end;
+  justify-content:center;gap:clamp(12px,3vw,42px);padding:0 16px;pointer-events:none}
+.needle{position:relative;pointer-events:auto;width:min(210px,28vw);height:78px;padding:9px 40px 9px 12px;
+  border:4px solid #684328;border-radius:18px 10px 10px 18px;color:#482c17;
+  background:linear-gradient(180deg,#ffd95d,#f3a82f);font-weight:1000;font-size:clamp(16px,2vw,22px);
+  box-shadow:0 7px 0 #a75d26,0 12px 20px rgba(3,51,72,.3);cursor:grab;touch-action:none;
+  transition:filter .15s,transform .15s,box-shadow .15s;transform-origin:center}
+.needle::before{content:"";position:absolute;right:-50px;top:31px;width:54px;height:8px;
+  background:linear-gradient(#f5ffff,#7f9ca4);border:2px solid #546c73;border-left:0;border-radius:0 8px 8px 0}
+.needle::after{content:"";position:absolute;right:-65px;top:28px;width:0;height:0;
+  border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:17px solid #dff7fa;
+  filter:drop-shadow(2px 0 #536b72)}
+.needle:nth-child(2){background:linear-gradient(180deg,#ff97bd,#e65b95);box-shadow:0 7px 0 #a73569,0 12px 20px rgba(3,51,72,.3)}
+.needle:nth-child(3){background:linear-gradient(180deg,#8ae585,#47bd61);box-shadow:0 7px 0 #24853c,0 12px 20px rgba(3,51,72,.3)}
+.needle:hover{transform:translateY(-3px) rotate(-1deg);filter:brightness(1.05)}
+.needle.dragging{position:fixed;z-index:200;margin:0;cursor:grabbing;transform:rotate(-8deg) scale(1.05);
+  transition:none;box-shadow:0 16px 28px rgba(0,0,0,.35)}
+.needle.snap{transition:left .32s cubic-bezier(.3,1.5,.5,1),top .32s,transform .32s}
+.needle.wrong{animation:needleWrong .4s}
+@keyframes needleWrong{25%,75%{filter:hue-rotate(135deg) saturate(1.8);transform:rotate(8deg)}50%{transform:rotate(-8deg)}}
+.game-tools{position:absolute;z-index:28;left:50%;bottom:112px;translate:-50% 0;display:flex;
+  align-items:center;justify-content:center;gap:12px}
+.game-message{min-width:210px;max-width:min(620px,70vw);padding:10px 15px;border-radius:15px;
+  background:rgba(4,58,89,.8);border:2px solid rgba(255,255,255,.45);color:white;
+  font-size:13px;font-weight:900;text-align:center;backdrop-filter:blur(5px)}
+.game-message:empty{display:none}
+.hintbtn{white-space:nowrap}
+.burst-drop{position:fixed;z-index:210;width:14px;height:14px;border:3px solid rgba(255,255,255,.8);
+  border-radius:50%;pointer-events:none;animation:dropBurst .65s ease-out forwards}
+@keyframes dropBurst{to{translate:var(--dx) var(--dy);scale:.15;opacity:0}}
+
+@media(max-width:700px){
+  .hud{grid-template-columns:auto auto 42px}
+  .arena{top:108px;bottom:230px}
+  .problem-bubble{width:91vw;min-height:300px;padding:47px 30px 42px}
+  .problem-bubble .question{max-height:158px;font-size:15px}
+  .needle-dock{bottom:10px;flex-direction:column;align-items:flex-start;gap:9px;padding-left:18px}
+  .needle{width:calc(100vw - 88px);max-width:none;height:58px;font-size:17px;padding-right:35px}
+  .needle::before{top:21px}.needle::after{top:18px}
+  .game-tools{bottom:205px;width:94vw}.game-message{max-width:58vw}
+}
+</style>
+</head>
+<body>
+<main id="game">
+  <div class="scene" aria-hidden="true">
+    <i class="flower f1"></i><i class="flower f2"></i><i class="flower f3"></i>
+    <span class="jelly j1">🪼</span><span class="jelly j2">🪼</span>
+    <span class="coral c1">♨</span><span class="coral c2">♨</span>
+    <i class="rock r1"></i><i class="rock r2"></i>
+  </div>
+  <div class="seafloor"></div>
+  <div id="bubbleLayer" class="scene" aria-hidden="true"></div>
+
+  <header class="hud">
+    <div class="pill"><small>С первой</small><span>⭐</span><span id="scoreText">0</span></div>
+    <div class="pill"><small>Лопнули</small><span>🫧</span><span id="miniProgress">0/10</span></div>
+    <button class="pill iconbtn" id="soundBtn" type="button" title="Включить или выключить звук">🔊</button>
+  </header>
+
+  <section class="sign" aria-live="polite">
+    <i class="rope a"></i><i class="rope b"></i>
+    <div class="board"><div class="eyebrow" id="progressText">Подводный блиц · 0/10</div><div id="prototype">Простейшие уравнения ЕГЭ №6</div></div>
+  </section>
+
+  <section class="arena" id="arena">
+    <article class="problem-bubble hidden" id="problemBubble">
+      <div class="qmeta"><span class="source" id="sourceText">ФИПИ · тип 1</span><span id="questionCount">1 из 10</span></div>
+      <div class="question" id="questionText"></div>
+      <div class="hintbox" id="hintBox"></div>
+    </article>
+  </section>
+  <div class="game-tools hidden" id="gameTools">
+    <button class="hintbtn" id="hintBtn" type="button">💡 Подсказка</button>
+    <div class="game-message" id="gameMessage"></div>
+  </div>
+  <div class="needle-dock hidden" id="needleDock" aria-label="Варианты ответа"></div>
+
+  <section class="overlay hidden" id="startScreen">
+    <div class="panel">
+      <div class="logo">🐠</div>
+      <h1>Подводный блиц</h1>
+      <p class="lead">10 ключевых прототипов задания №6 профильного ЕГЭ. Перетащи иголку с правильным ответом к движущемуся пузырю — только она сможет его лопнуть.</p>
+      <div class="rules">
+        <div class="rule"><b>10</b>прототипов</div>
+        <div class="rule"><b>🪡</b>3 иголки</div>
+        <div class="rule"><b>💡</b>без штрафа</div>
+      </div>
+      <div class="studentrow">⚓ <span id="studentName">Ученик</span><button class="change" id="changeStudentBtn" type="button">сменить</button></div>
+      <button class="mainbtn" id="startBtn" type="button">Ныряем!</button>
+    </div>
+  </section>
+
+  <section class="overlay" id="loginScreen">
+    <div class="panel">
+      <div class="logo">🐚</div>
+      <h1>Код ученика</h1>
+      <p class="lead">Введи личный код один раз — дальше браузер тебя запомнит.</p>
+      <label class="codeLabel" for="studentCode">Личный код</label>
+      <input class="codeInput" id="studentCode" maxlength="32" autocomplete="one-time-code"
+        autocapitalize="characters" spellcheck="false" placeholder="Например, A7K4P9">
+      <div class="authmsg" id="authMessage">Код указан в персональной ссылке или сообщении преподавателя.</div>
+      <button class="mainbtn" id="loginBtn" type="button">Продолжить</button>
+    </div>
+  </section>
+
+  <section class="overlay hidden" id="finishScreen">
+    <div class="panel">
+      <div class="logo" id="finishIcon">🏆</div>
+      <h1 id="finishTitle">Блиц завершён!</h1>
+      <p class="summary" id="finishSummary"></p>
+      <div class="stats">
+        <div class="stat"><b id="finalCorrect">0/10</b><span>с первой</span></div>
+        <div class="stat"><b id="finalPercent">0%</b><span>результат</span></div>
+        <div class="stat"><b id="finalTime">0:00</b><span>время</span></div>
+      </div>
+      <div class="save" id="saveStatus">Подготавливаем результат…</div>
+      <button class="mainbtn" id="againBtn" type="button">Пройти ещё раз</button>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+const API_URL="https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
+const TEST_META={
+  testId:"EGE-06-PODVODNYI-BLITZ-MIX",
+  topicId:"task-06",
+  topicName:"Простейшие уравнения · микс прототипов",
+  taskNumber:6,
+  schemaVersion:1
+};
+const STORE={
+  studentId:"egeStudentId",studentName:"egeStudentName",inviteCode:"egeStudentCode",
+  pending:"egePendingTestResults"
+};
+
+const QUESTIONS=[
+  {
+    source:1,prototype:"Линейное уравнение",answer:"−14",
+    options:["−14","−12","14"],
+    text:`Решите уравнение <span class="formula">(5/6)x = −35/3</span>.`,
+    hint:`Умножьте обе части уравнения на <span class="formula">6/5</span>.`,
+    explain:`<span class="formula">x = (−35/3)·(6/5) = −14</span>.`
+  },
+  {
+    source:2,prototype:"Рациональное уравнение",answer:"0,65",
+    options:["0,6","0,65","1,3"],
+    text:`Решите уравнение <span class="formula">1/(5x − 3) = 4</span>.`,
+    hint:`Знаменатель не равен нулю. Умножьте обе части на <span class="formula">5x − 3</span>.`,
+    explain:`<span class="formula">1 = 4(5x − 3)</span>, откуда <span class="formula">20x = 13</span> и <span class="formula">x = 0,65</span>.`
+  },
+  {
+    source:3,prototype:"Нечётная степень",answer:"−9",
+    options:["−9","−5","1"],
+    text:`Решите уравнение <span class="formula">(x + 4)³ = −125</span>.`,
+    hint:`Заметьте, что <span class="formula">−125 = (−5)³</span>.`,
+    explain:`<span class="formula">x + 4 = −5</span>, поэтому <span class="formula">x = −9</span>.`
+  },
+  {
+    source:4,prototype:"Равенство квадратов",answer:"0,5",
+    options:["−0,5","0","0,5"],
+    text:`Решите уравнение <span class="formula">(2x − 5)² = (2x + 3)²</span>.`,
+    hint:`Если квадраты равны, то выражения либо равны, либо противоположны. Первая возможность здесь даёт противоречие.`,
+    explain:`<span class="formula">2x − 5 = −(2x + 3)</span>. Тогда <span class="formula">4x = 2</span> и <span class="formula">x = 0,5</span>.`
+  },
+  {
+    source:5,prototype:"Квадратное уравнение специального вида",answer:"10",
+    options:["−10","5","10"],
+    text:`Решите уравнение <span class="formula">(x + 10)² = 40x</span>.`,
+    hint:`Раскройте скобки и приведите уравнение к полному квадрату.`,
+    explain:`<span class="formula">x² + 20x + 100 = 40x</span>, то есть <span class="formula">(x − 10)² = 0</span>. Поэтому <span class="formula">x = 10</span>.`
+  },
+  {
+    source:6,prototype:"Корень равен переменной",answer:"2",
+    options:["−5","2","5"],
+    text:`Решите уравнение <span class="formula">√(10 − 3x) = x</span>.`,
+    hint:`Сначала учтите <span class="formula">x ≥ 0</span>, затем возведите обе части в квадрат.`,
+    explain:`Получаем <span class="formula">x² + 3x − 10 = 0</span>, откуда <span class="formula">x = 2</span> или <span class="formula">x = −5</span>. По ОДЗ подходит только <span class="formula">2</span>.`
+  },
+  {
+    source:7,prototype:"Показательное уравнение · приведение основания",answer:"1,5",
+    options:["−1,5","1,5","4,5"],
+    text:`Решите уравнение <span class="formula">9<sup>x − 3</sup> = 1/27</span>.`,
+    hint:`Представьте обе части как степени числа 3.`,
+    explain:`<span class="formula">3<sup>2x − 6</sup> = 3<sup>−3</sup></span>. Тогда <span class="formula">2x − 6 = −3</span> и <span class="formula">x = 1,5</span>.`
+  },
+  {
+    source:8,prototype:"Показательное уравнение · x в обеих степенях",answer:"1,6",
+    options:["1,5","1,6","2,5"],
+    text:`Решите уравнение <span class="formula">2<sup>8 − 3x</sup> = 4<sup>x</sup></span>.`,
+    hint:`Замените <span class="formula">4</span> на <span class="formula">2²</span> и приравняйте показатели.`,
+    explain:`<span class="formula">8 − 3x = 2x</span>, поэтому <span class="formula">5x = 8</span> и <span class="formula">x = 1,6</span>.`
+  },
+  {
+    source:9,prototype:"Логарифмическое уравнение",answer:"5",
+    options:["4","5","6"],
+    text:`Решите уравнение <span class="formula">log₃(2x + 1) = log₃11</span>.`,
+    hint:`При одинаковых основаниях равны аргументы логарифмов. Не забудьте про ОДЗ.`,
+    explain:`<span class="formula">2x + 1 = 11</span>, поэтому <span class="formula">x = 5</span>. Условие <span class="formula">2x + 1 &gt; 0</span> выполнено.`
+  },
+  {
+    source:10,prototype:"Простейшее тригонометрическое уравнение",answer:"8",
+    options:["0","4","8"],
+    text:`Найдите наименьший положительный корень уравнения <span class="formula">sin(πx/8) = 0</span>.`,
+    hint:`Синус равен нулю, когда его аргумент равен <span class="formula">πn</span>, где <span class="formula">n</span> — целое число.`,
+    explain:`<span class="formula">πx/8 = πn</span>, значит <span class="formula">x = 8n</span>. Наименьшее положительное значение получаем при <span class="formula">n = 1</span>: <span class="formula">x = 8</span>.`
+  }
+];
+
+let STUDENT={id:"",name:"",code:""};
+const G={
+  order:[],index:0,firstTryCorrect:0,completed:0,cardHadMistake:false,running:false,busy:false,
+  startedAt:"",startedPerf:0,eventId:"",resultSent:false,
+  bx:0,by:0,vx:42,vy:28,lastMotion:0
+};
+
+function shuffle(a){
+  const out=[...a];
+  for(let i=out.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[out[i],out[j]]=[out[j],out[i]]}
+  return out;
+}
+function fmt(sec){sec=Math.max(0,Math.round(sec));return `${Math.floor(sec/60)}:${String(sec%60).padStart(2,"0")}`}
+function eventId(){
+  return window.crypto&&crypto.randomUUID?"EVT-TEST-"+crypto.randomUUID():"EVT-TEST-"+Date.now()+"-"+Math.random().toString(36).slice(2);
+}
+function jsonp(params,timeout=12000){
+  return new Promise((resolve,reject)=>{
+    const cb="__ege9_"+Date.now()+"_"+Math.random().toString(36).slice(2);
+    const script=document.createElement("script");
+    const timer=setTimeout(()=>done(new Error("Сервер не ответил")),timeout);
+    function done(err,data){clearTimeout(timer);delete window[cb];script.remove();err?reject(err):resolve(data)}
+    window[cb]=data=>done(null,data);
+    script.onerror=()=>done(new Error("Не удалось подключиться к серверу"));
+    script.src=API_URL+"?"+new URLSearchParams({...params,callback:cb});
+    document.head.appendChild(script);
+  });
+}
+function setStudent(data,code){
+  STUDENT={id:String(data.studentId||""),name:String(data.studentName||"Ученик"),code:String(code||"")};
+  localStorage.setItem(STORE.studentId,STUDENT.id);
+  localStorage.setItem(STORE.studentName,STUDENT.name);
+  if(STUDENT.code)localStorage.setItem(STORE.inviteCode,STUDENT.code);
+  $("#studentName").textContent=STUDENT.name;
+  $("#loginScreen").classList.add("hidden");
+  $("#startScreen").classList.remove("hidden");
+}
+function showLogin(message){
+  $("#startScreen").classList.add("hidden");$("#loginScreen").classList.remove("hidden");
+  const el=$("#authMessage");el.textContent=message||"Код указан в сообщении преподавателя.";el.className="authmsg";
+  setTimeout(()=>$("#studentCode").focus(),50);
+}
+async function login(){
+  const code=$("#studentCode").value.trim().toUpperCase(),btn=$("#loginBtn"),msg=$("#authMessage");
+  if(!code){msg.textContent="Введите личный код.";msg.className="authmsg error";return}
+  btn.disabled=true;msg.textContent="Проверяем код…";msg.className="authmsg";
+  try{
+    const data=await jsonp({action:"validateStudent",code});
+    if(!data||!data.ok)throw new Error(data&&data.error||"Код не найден");
+    msg.textContent="Готово!";msg.className="authmsg ok";setStudent(data,code);retryPending();
+  }catch(e){msg.textContent=e.message||"Не удалось проверить код.";msg.className="authmsg error"}
+  finally{btn.disabled=false}
+}
+function initStudent(){
+  const linkCode=new URLSearchParams(location.search).get("code");
+  if(linkCode){$("#studentCode").value=linkCode.toUpperCase();login();return}
+  const id=localStorage.getItem(STORE.studentId),name=localStorage.getItem(STORE.studentName),code=localStorage.getItem(STORE.inviteCode);
+  if(id&&name){setStudent({studentId:id,studentName:name},code);retryPending()}else showLogin();
+}
+function changeStudent(){
+  if(G.running)return;
+  [STORE.studentId,STORE.studentName,STORE.inviteCode].forEach(k=>localStorage.removeItem(k));
+  STUDENT={id:"",name:"",code:""};$("#studentCode").value="";showLogin("Введите код другого ученика.");
+}
+function pending(){try{return JSON.parse(localStorage.getItem(STORE.pending)||"[]")}catch(_){return[]}}
+function savePending(items){localStorage.setItem(STORE.pending,JSON.stringify(items.slice(-20)))}
+async function postResult(payload){
+  const response=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
+    body:JSON.stringify(payload),redirect:"follow"});
+  if(!response.ok)throw new Error("Ошибка отправки");
+  const data=await response.json();if(!data.ok)throw new Error(data.error||"Сервер отклонил результат");return data;
+}
+async function retryPending(){
+  const left=[];for(const item of pending()){try{await postResult(item)}catch(_){left.push(item)}}savePending(left);
+}
+async function sendResult(payload){
+  const status=$("#saveStatus");status.className="save";status.textContent="Сохраняем результат…";
+  try{await postResult(payload);status.className="save saved";status.textContent="✓ Результат сохранён"}
+  catch(_){
+    const items=pending();if(!items.some(x=>x.eventId===payload.eventId))items.push(payload);savePending(items);
+    status.className="save queued";status.textContent="Нет связи: результат сохранён на устройстве и отправится позже";
+  }
+}
+
+const AudioFX=(()=>{
+  let ctx,muted=false;
+  function ready(){if(!ctx)ctx=new(AudioContext||webkitAudioContext)();ctx.resume()}
+  function tone(freq,dur=.12,type="sine",vol=.12,delay=0){
+    if(muted)return;ready();const t=ctx.currentTime+delay,o=ctx.createOscillator(),g=ctx.createGain();
+    o.type=type;o.frequency.setValueAtTime(freq,t);g.gain.setValueAtTime(.001,t);
+    g.gain.exponentialRampToValueAtTime(vol,t+.015);g.gain.exponentialRampToValueAtTime(.001,t+dur);
+    o.connect(g).connect(ctx.destination);o.start(t);o.stop(t+dur+.02);
+  }
+  return{
+    toggle(){muted=!muted;return muted},
+    tap(){tone(540,.08,"sine",.08)},
+    good(){[523,659,784].forEach((f,i)=>tone(f,.2,"triangle",.16,i*.07))},
+    bad(){tone(230,.25,"sawtooth",.1);tone(160,.28,"square",.06,.05)},
+    hint(){tone(700,.12,"sine",.1);tone(980,.16,"triangle",.08,.08)},
+    finish(){[392,523,659,784,1047].forEach((f,i)=>tone(f,.28,"triangle",.14,i*.09))}
+  };
+})();
+
+function updateHUD(){
+  $("#scoreText").textContent=G.firstTryCorrect;
+  $("#miniProgress").textContent=`${G.completed}/${QUESTIONS.length}`;
+  $("#progressText").textContent=`Подводный блиц · ${G.completed}/${QUESTIONS.length}`;
+}
+function startGame(){
+  if(!STUDENT.id){showLogin("Сначала введите личный код.");return}
+  G.order=[...QUESTIONS];G.index=0;G.firstTryCorrect=0;G.completed=0;G.cardHadMistake=false;
+  G.running=true;G.busy=false;G.startedPerf=performance.now();G.startedAt=new Date().toISOString();
+  G.eventId=eventId();G.resultSent=false;G.lastMotion=performance.now();
+  $("#startScreen").classList.add("hidden");$("#finishScreen").classList.add("hidden");
+  $("#gameTools").classList.remove("hidden");$("#needleDock").classList.remove("hidden");
+  showQuestion();updateHUD();requestAnimationFrame(motionLoop);
+}
+function showQuestion(){
+  if(G.index>=G.order.length){finish();return}
+  G.busy=false;G.cardHadMistake=false;const q=G.order[G.index],bubble=$("#problemBubble");
+  bubble.className="problem-bubble hidden";
+  $("#sourceText").textContent=`ФИПИ · тип ${q.source}`;
+  $("#questionCount").textContent=`${G.index+1} из ${G.order.length}`;
+  $("#prototype").textContent=q.prototype;$("#questionText").innerHTML=q.text;
+  $("#hintBox").innerHTML="💡 "+q.hint;$("#hintBox").classList.remove("show");
+  $("#gameMessage").textContent="Перетащи иголку с правильным ответом к пузырю";
+  $("#hintBtn").disabled=false;$("#hintBtn").textContent="💡 Подсказка";
+  const box=$("#needleDock");box.innerHTML="";
+  shuffle(q.options).forEach((option,i)=>{
+    const needle=document.createElement("button");needle.className="needle";needle.type="button";
+    needle.dataset.option=option;needle.setAttribute("aria-label",`Иголка: ${option}`);
+    needle.textContent=option;bindNeedle(needle);box.appendChild(needle);
+  });
+  requestAnimationFrame(()=>{
+    bubble.classList.remove("hidden");placeBubble(true);G.vx=(Math.random()<.5?-1:1)*(38+Math.random()*24);
+    G.vy=(Math.random()<.5?-1:1)*(24+Math.random()*18);
+  });
+  updateHUD();
+}
+function placeBubble(randomize=false){
+  const arena=$("#arena"),bubble=$("#problemBubble");
+  const maxX=Math.max(0,arena.clientWidth-bubble.offsetWidth-10);
+  const maxY=Math.max(0,arena.clientHeight-bubble.offsetHeight-10);
+  if(randomize){G.bx=Math.random()*maxX;G.by=Math.random()*maxY}
+  G.bx=Math.max(5,Math.min(maxX,G.bx));G.by=Math.max(5,Math.min(maxY,G.by));
+  bubble.style.left=G.bx+"px";bubble.style.top=G.by+"px";
+}
+function motionLoop(now){
+  if(!G.running)return;
+  const bubble=$("#problemBubble"),arena=$("#arena"),dt=Math.min(.04,Math.max(0,(now-G.lastMotion)/1000));G.lastMotion=now;
+  if(!G.busy&&!bubble.classList.contains("hidden")){
+    const maxX=Math.max(5,arena.clientWidth-bubble.offsetWidth-10);
+    const maxY=Math.max(5,arena.clientHeight-bubble.offsetHeight-10);
+    G.bx+=G.vx*dt;G.by+=G.vy*dt;
+    if(G.bx<=5||G.bx>=maxX){G.vx*=-1;G.bx=Math.max(5,Math.min(maxX,G.bx))}
+    if(G.by<=5||G.by>=maxY){G.vy*=-1;G.by=Math.max(5,Math.min(maxY,G.by))}
+    bubble.style.left=G.bx+"px";bubble.style.top=G.by+"px";
+  }
+  requestAnimationFrame(motionLoop);
+}
+function showHint(){
+  if(G.busy)return;$("#hintBox").classList.add("show");$("#hintBtn").textContent="Подсказка открыта";
+  $("#hintBtn").disabled=true;$("#gameMessage").textContent="Подсказка открыта — выбери подходящую иголку";AudioFX.hint();
+}
+let DRAG=null;
+function bindNeedle(needle){
+  needle.addEventListener("pointerdown",startNeedleDrag);
+  needle.addEventListener("pointermove",moveNeedleDrag);
+  needle.addEventListener("pointerup",endNeedleDrag);
+  needle.addEventListener("pointercancel",cancelNeedleDrag);
+  needle.addEventListener("click",e=>{if(e.detail===0)attemptNeedle(needle.dataset.option,needle)});
+}
+function startNeedleDrag(e){
+  if(!G.running||G.busy)return;const needle=e.currentTarget,r=needle.getBoundingClientRect();
+  DRAG={needle,pointerId:e.pointerId,offX:e.clientX-r.left,offY:e.clientY-r.top,homeLeft:r.left,homeTop:r.top,width:r.width};
+  needle.setPointerCapture(e.pointerId);needle.classList.add("dragging");needle.style.width=r.width+"px";
+  moveNeedleDrag(e);AudioFX.tap();
+}
+function moveNeedleDrag(e){
+  if(!DRAG||DRAG.pointerId!==e.pointerId)return;
+  const needle=DRAG.needle;needle.style.left=e.clientX-DRAG.offX+"px";needle.style.top=e.clientY-DRAG.offY+"px";
+  $("#problemBubble").classList.toggle("target",needleTouchesBubble(needle));
+}
+function endNeedleDrag(e){
+  if(!DRAG||DRAG.pointerId!==e.pointerId)return;
+  const current=DRAG,hit=needleTouchesBubble(current.needle);$("#problemBubble").classList.remove("target");DRAG=null;
+  if(hit)attemptNeedle(current.needle.dataset.option,current.needle,current);else snapNeedle(current.needle,current);
+}
+function cancelNeedleDrag(){
+  if(!DRAG)return;const current=DRAG;DRAG=null;$("#problemBubble").classList.remove("target");snapNeedle(current.needle,current);
+}
+function needleTouchesBubble(needle){
+  const a=needle.getBoundingClientRect(),b=$("#problemBubble").getBoundingClientRect();
+  const tip={left:a.left,top:a.top,right:a.right+66,bottom:a.bottom};
+  return !(tip.right<b.left||tip.left>b.right||tip.bottom<b.top||tip.top>b.bottom);
+}
+function snapNeedle(needle,state=DRAG){
+  if(!state)return;needle.classList.add("snap");needle.style.left=state.homeLeft+"px";needle.style.top=state.homeTop+"px";
+  setTimeout(()=>{needle.classList.remove("dragging","snap");needle.style.left=needle.style.top=needle.style.width=""},330);
+}
+function attemptNeedle(option,needle,dragState=null){
+  if(!G.running||G.busy)return;const q=G.order[G.index],bubble=$("#problemBubble");
+  if(option!==q.answer){
+    G.cardHadMistake=true;needle.classList.add("wrong");bubble.classList.remove("wobble");void bubble.offsetWidth;
+    bubble.classList.add("wobble");$("#gameMessage").textContent="Эта иголка не подходит — пузырь не лопнул";
+    AudioFX.bad();setTimeout(()=>needle.classList.remove("wrong"),430);
+    if(dragState)snapNeedle(needle,dragState);return;
+  }
+  G.busy=true;if(!G.cardHadMistake)G.firstTryCorrect++;G.completed++;updateHUD();
+  document.querySelectorAll(".needle").forEach(n=>n.disabled=true);$("#hintBtn").disabled=true;
+  bubble.classList.remove("wobble");bubble.classList.add("pop");needle.style.opacity="0";
+  const r=bubble.getBoundingClientRect();burstBubble(r.left+r.width/2,r.top+r.height/2);
+  $("#gameMessage").innerHTML="✅ <b>Пузырь лопнул!</b> "+q.explain;AudioFX.good();pop("БУЛЬК!");
+  setTimeout(()=>{G.index++;showQuestion()},1450);
+}
+function burstBubble(x,y){
+  for(let i=0;i<24;i++){
+    const d=document.createElement("i"),angle=Math.random()*Math.PI*2,dist=45+Math.random()*130;
+    d.className="burst-drop";d.style.left=x+"px";d.style.top=y+"px";
+    d.style.setProperty("--dx",Math.cos(angle)*dist+"px");d.style.setProperty("--dy",Math.sin(angle)*dist+"px");
+    document.body.appendChild(d);setTimeout(()=>d.remove(),680);
+  }
+}
+function pop(text){
+  const el=document.createElement("div");el.className="streak";el.textContent=text;document.body.appendChild(el);setTimeout(()=>el.remove(),820);
+}
+function resultPayload(){
+  const finishedAt=new Date().toISOString();
+  return{
+    action:"submitTest",eventId:G.eventId,studentId:STUDENT.id,testId:TEST_META.testId,
+    testDate:finishedAt.slice(0,10),topicId:TEST_META.topicId,topicName:TEST_META.topicName,
+    taskNumber:TEST_META.taskNumber,scorePercent:Math.round(G.firstTryCorrect/QUESTIONS.length*100),
+    durationSeconds:Math.max(1,Math.round((performance.now()-G.startedPerf)/1000)),
+    schemaVersion:TEST_META.schemaVersion
+  };
+}
+function finish(){
+  if(!G.running)return;G.running=false;$("#problemBubble").classList.add("hidden");
+  $("#gameTools").classList.add("hidden");$("#needleDock").classList.add("hidden");
+  const percent=Math.round(G.firstTryCorrect/QUESTIONS.length*100),used=Math.round((performance.now()-G.startedPerf)/1000);
+  $("#finishIcon").textContent=percent>=80?"🏆":percent>=50?"🐡":"🛟";
+  $("#finishTitle").textContent="Все пузыри лопнули!";
+  $("#finishSummary").textContent=percent>=80?"Все основные прототипы уверенно держатся в памяти."
+    :percent>=50?"Хорошая разминка. Повтори решения, где возникли ошибки."
+    :"Прототипы стоит пройти ещё раз — подсказки уже покажут короткий путь.";
+  $("#finalCorrect").textContent=`${G.firstTryCorrect}/${QUESTIONS.length}`;$("#finalPercent").textContent=percent+"%";
+  $("#finalTime").textContent=fmt(used);$("#finishScreen").classList.remove("hidden");AudioFX.finish();
+  if(!G.resultSent){G.resultSent=true;sendResult(resultPayload())}
+}
+function makeBubbles(){
+  const layer=$("#bubbleLayer");
+  for(let i=0;i<30;i++){
+    const b=document.createElement("i"),size=5+Math.random()*20;b.className="bubble";
+    b.style.left=Math.random()*100+"%";b.style.width=b.style.height=size+"px";
+    b.style.animationDuration=7+Math.random()*11+"s";b.style.animationDelay=-Math.random()*15+"s";layer.appendChild(b);
+  }
+}
+
+$("#loginBtn").addEventListener("click",login);
+$("#studentCode").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
+$("#changeStudentBtn").addEventListener("click",changeStudent);
+$("#startBtn").addEventListener("click",startGame);
+$("#againBtn").addEventListener("click",startGame);
+$("#hintBtn").addEventListener("click",showHint);
+$("#soundBtn").addEventListener("click",function(){this.textContent=AudioFX.toggle()?"🔇":"🔊"});
+window.addEventListener("online",retryPending);
+makeBubbles();initStudent();updateHUD();
+</script>
+</body>
+</html>
