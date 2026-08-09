@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ТАБЛИЦА КРАФТА — тренажёр №10 ЕГЭ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  /* ===== СТИЛИ (полностью сохранены) ===== */
+  :root{
+    --panel:#c6c6c6; --panel-dark:#373737;
+    --stone:#8b8b8b; --stone-dark:#4d4d4d;
+    --wood:#7b5230; --wood-dark:#4a2f16; --wood-light:#a9744a;
+    --green:#5fd94a; --red:#e04a3f; --gold:#ffcc22; --diamond:#4aedd9;
+    --ink:#1d1204;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{font-family:'Press Start 2P',monospace;background:#6ba6ff;color:#fff;
+    overflow:hidden;-webkit-tap-highlight-color:transparent;image-rendering:pixelated;
+    -webkit-user-select:none;user-select:none;touch-action:manipulation;}
+  #bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block;}
+  #vignette{position:fixed;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(ellipse at center,rgba(0,0,0,0) 42%,rgba(0,0,0,.6) 100%);}
+  #game{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;
+    padding:7px;gap:6px;max-width:960px;margin:0 auto;overflow-y:auto;overflow-x:hidden;}
+
+  .mc-panel{background:var(--panel);border:4px solid #000;color:var(--ink);
+    box-shadow:inset 3px 3px 0 #fff, inset -3px -3px 0 #5a5a5a, 0 0 0 4px rgba(0,0,0,.25);}
+  .wood-panel{background:var(--wood);border:4px solid #000;
+    box-shadow:inset 3px 3px 0 var(--wood-light), inset -3px -3px 0 var(--wood-dark), 0 0 0 4px rgba(0,0,0,.25);}
+
+  #hud{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between;padding:6px 8px;font-size:9px;}
+  .hud-item{display:flex;align-items:center;gap:5px;white-space:nowrap;}
+  #combo-box{position:relative;padding:2px 5px;border:2px solid #000;background:#3a3a3a;color:var(--gold);}
+  #combo-box.hot{animation:fireGlow .5s infinite alternate;}
+  @keyframes fireGlow{from{box-shadow:0 0 6px 2px #ff9d00,0 0 12px 4px #ff3c00;}
+                      to{box-shadow:0 0 12px 5px #ffdd00,0 0 22px 9px #ff5400;}}
+  .flame{position:absolute;bottom:100%;width:5px;height:9px;background:#ff9d00;
+    animation:flameUp .6s infinite ease-out;pointer-events:none;}
+  @keyframes flameUp{0%{transform:translateY(0) scaleY(1);opacity:1;background:#ffdd00;}
+                     100%{transform:translateY(-14px) scaleY(.3);opacity:0;background:#ff2200;}}
+  .gem{width:13px;height:13px;background:var(--diamond);clip-path:polygon(50% 0,100% 35%,50% 100%,0 35%);
+       box-shadow:inset -2px -2px 0 #1e9c92;}
+
+  #task-card{padding:9px;font-size:9px;line-height:1.8;text-align:center;}
+  #task-topic{display:inline-block;background:var(--panel-dark);color:var(--gold);padding:3px 6px;
+    font-size:7px;margin-bottom:5px;border:2px solid #000;}
+  #legend{margin-top:5px;font-size:8px;color:#0d4f8b;}
+  #hint-text{margin-top:5px;font-size:8px;color:#6b3f00;display:none;line-height:1.75;}
+
+  #steps{display:flex;gap:4px;justify-content:center;font-size:7px;}
+  .step{padding:5px 6px;border:3px solid #000;background:#5a5a5a;color:#bbb;text-align:center;flex:1;
+        box-shadow:inset 2px 2px 0 rgba(255,255,255,.2);line-height:1.4;}
+  .step.active{background:#3f7d33;color:#fff;box-shadow:inset 2px 2px 0 #6fbf5c;text-shadow:2px 2px 0 rgba(0,0,0,.5);}
+  .step.done{background:#2f5fa8;color:#dbe9ff;box-shadow:inset 2px 2px 0 #5f9fe8;}
+
+  #table-wrap{padding:7px;overflow-x:auto;}
+  #table{display:grid;gap:3px;min-width:min-content;margin:0 auto;}
+  .th{background:var(--panel-dark);color:var(--gold);border:3px solid #000;padding:5px 3px;
+    font-size:7px;text-align:center;display:flex;align-items:center;justify-content:center;line-height:1.5;}
+  .rh{background:var(--wood);color:#ffe9c9;border:3px solid #000;padding:5px 5px;font-size:7px;
+    display:flex;align-items:center;line-height:1.5;text-shadow:1px 1px 0 #000;
+    box-shadow:inset 2px 2px 0 var(--wood-light), inset -2px -2px 0 var(--wood-dark);}
+  .cell{min-height:clamp(38px,9.5vw,48px);min-width:clamp(62px,16vw,100px);border:3px solid #000;
+    display:flex;align-items:center;justify-content:center;font-size:clamp(7px,1.9vw,10px);
+    padding:2px;text-align:center;line-height:1.35;position:relative;word-break:break-word;
+    background:#5a5a5a;box-shadow:inset 3px 3px 0 #3d3d3d, inset -3px -3px 0 #7d7d7d;}
+  .cell.has{background:#a8a8a8;color:var(--ink);box-shadow:inset 2px 2px 0 #d0d0d0, inset -2px -2px 0 #6f6f6f;cursor:grab;}
+  .cell.over{outline:3px solid var(--gold);outline-offset:-3px;background:#7a6a2a;}
+  .cell.armed{outline:3px dashed var(--gold);outline-offset:-3px;}
+  .cell.err{animation:cellErr .5s steps(4) 2;}
+  @keyframes cellErr{0%,100%{background:#a8a8a8;}50%{background:#d8483f;}}
+  .cell.ok-cell{box-shadow:inset 0 0 0 3px var(--green);}
+  .cell.src{cursor:pointer;}
+  .cell.src:hover{outline:3px solid var(--diamond);outline-offset:-3px;}
+
+  .tile{display:flex;align-items:center;justify-content:center;border:3px solid #000;cursor:grab;
+    padding:0 5px;min-width:clamp(40px,10vw,54px);height:clamp(34px,8.5vw,42px);
+    font-size:clamp(7px,1.9vw,10px);text-shadow:1px 1px 0 rgba(0,0,0,.7);touch-action:none;
+    box-shadow:inset 2px 2px 0 rgba(255,255,255,.4), inset -2px -2px 0 rgba(0,0,0,.5);white-space:nowrap;}
+  .tile.sel{outline:3px solid var(--gold);outline-offset:2px;transform:scale(1.08);}
+  .tile.used{opacity:.2;pointer-events:none;}
+  .tile.ghost{position:fixed;z-index:20;pointer-events:none;opacity:.92;transform:translate(-50%,-50%) scale(1.12);
+    box-shadow:0 6px 0 rgba(0,0,0,.4), inset 2px 2px 0 rgba(255,255,255,.4), inset -2px -2px 0 rgba(0,0,0,.5);}
+  .k-num{background:#c9a227;color:#fff8dc;}
+  .k-var{background:#2f8fd6;color:#eaf4ff;}
+  .k-op{background:#c14a2f;color:#ffe0d8;}
+  .k-frac{background:#7b3fbf;color:#f3e6ff;}
+  .k-paren{background:#6b6b6b;color:#fff;}
+
+  #eq-wrap{padding:7px;display:none;}
+  #eq-line{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;align-items:center;min-height:52px;
+    background:rgba(0,0,0,.35);border:3px dashed var(--wood-light);padding:5px;}
+  #eq-line.over{border-color:var(--gold);background:rgba(255,204,34,.15);}
+  #eq-empty{font-size:7px;color:#d9bfa2;}
+  .caret{width:4px;height:clamp(30px,8vw,38px);background:var(--gold);animation:blink .5s steps(2) infinite;}
+  @keyframes blink{50%{opacity:.25;}}
+
+  #bank-wrap{padding:6px;}
+  .bar-title{font-size:7px;color:#ffe9c9;text-shadow:2px 2px 0 #000;margin-bottom:5px;text-align:center;line-height:1.5;}
+  #bank{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;min-height:40px;}
+  #bank.over{outline:3px dashed var(--gold);outline-offset:3px;}
+
+  #buttons{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;}
+  .btn{font-family:inherit;font-size:8px;padding:9px 9px;cursor:pointer;color:#fff;background:var(--stone);
+    border:3px solid #000;box-shadow:inset 2px 2px 0 #b5b5b5, inset -2px -2px 0 var(--stone-dark);
+    text-shadow:2px 2px 0 rgba(0,0,0,.6);}
+  .btn:hover{background:#9c9c9c;} .btn:active{transform:translateY(1px);}
+  .btn.go{background:#3f7d33;box-shadow:inset 2px 2px 0 #6fbf5c, inset -2px -2px 0 #1f4418;}
+  .btn.hint{background:#8a6d1f;box-shadow:inset 2px 2px 0 #cfa73a, inset -2px -2px 0 #4d3c0c;}
+  .btn.skip{background:#8a3a3a;box-shadow:inset 2px 2px 0 #bf5c5c, inset -2px -2px 0 #441818;}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+
+  #progress-wrap{height:14px;padding:3px;background:var(--panel-dark);border:3px solid #000;}
+  #progress{height:100%;width:0;background:repeating-linear-gradient(90deg,#5fd94a 0 8px,#4bb83a 8px 16px);
+    transition:width .35s steps(6);}
+
+  #steve{position:fixed;right:0;bottom:0;width:140px;height:140px;z-index:3;pointer-events:none;
+    animation:bob 2.4s ease-in-out infinite;opacity:.9;}
+  @keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(5px);}}
+  #arm{position:absolute;right:11px;bottom:0;width:33px;height:88px;background:#e8b28a;border:4px solid #000;
+    box-shadow:inset -7px 0 0 #c78e66;transform-origin:bottom center;transform:rotate(8deg);}
+  #arm .sleeve{position:absolute;left:-4px;right:-4px;bottom:-4px;height:33px;background:#00a0a0;
+    border:4px solid #000;box-shadow:inset -7px 0 0 #007a7a;}
+  #pick{position:absolute;right:33px;bottom:48px;width:72px;height:72px;transform-origin:90% 90%;}
+  #pick .handle{position:absolute;right:7px;bottom:0;width:10px;height:58px;background:#8a5a2b;border:3px solid #000;
+    transform:rotate(38deg);transform-origin:bottom center;}
+  #pick .head{position:absolute;left:2px;top:2px;width:45px;height:17px;background:#4aedd9;border:3px solid #000;
+    box-shadow:inset 0 -5px 0 #1e9c92;transform:rotate(38deg);}
+  #pick .head::before{content:'';position:absolute;left:-2px;top:13px;width:13px;height:12px;background:#4aedd9;border:3px solid #000;}
+  #pick .head::after{content:'';position:absolute;right:-2px;top:13px;width:13px;height:12px;background:#4aedd9;border:3px solid #000;}
+  #steve.hit #pick{animation:swing .32s steps(3);}
+  #steve.hit #arm{animation:armSwing .32s steps(3);}
+  @keyframes swing{0%{transform:rotate(0);}45%{transform:rotate(-60deg) translate(-10px,20px);}100%{transform:rotate(0);}}
+  @keyframes armSwing{0%{transform:rotate(8deg);}45%{transform:rotate(-16deg) translateY(13px);}100%{transform:rotate(8deg);}}
+
+  .shake{animation:shake .35s;}
+  @keyframes shake{0%,100%{transform:translate(0,0);}20%{transform:translate(-8px,4px);}
+    40%{transform:translate(7px,-5px);}60%{transform:translate(-6px,-3px);}80%{transform:translate(5px,4px);}}
+  .particle{position:fixed;z-index:6;pointer-events:none;animation:pfly .9s ease-out forwards;}
+  @keyframes pfly{0%{transform:translate(0,0) scale(1) rotate(0);opacity:1;}
+    100%{transform:translate(var(--dx),var(--dy)) scale(.3) rotate(var(--rot));opacity:0;}}
+  #toast{position:fixed;left:50%;top:26%;transform:translateX(-50%);z-index:9;font-size:14px;
+    text-shadow:3px 3px 0 #000;pointer-events:none;opacity:0;white-space:nowrap;}
+  #toast.show{animation:toastPop 1.1s ease-out;}
+  @keyframes toastPop{0%{opacity:0;transform:translateX(-50%) scale(.5);}
+    25%{opacity:1;transform:translateX(-50%) scale(1.15);}
+    75%{opacity:1;transform:translateX(-50%) scale(1);}
+    100%{opacity:0;transform:translateX(-50%) translateY(-30px) scale(1);}}
+
+  .screen{position:fixed;inset:0;z-index:8;display:none;flex-direction:column;align-items:center;
+    justify-content:center;gap:11px;padding:18px;background:rgba(0,0,0,.82);text-align:center;overflow-y:auto;}
+  .screen.show{display:flex;}
+  .screen h1{font-size:clamp(13px,4.2vw,24px);color:var(--gold);text-shadow:4px 4px 0 #000;line-height:1.6;}
+  .screen h2{font-size:clamp(9px,2.8vw,13px);text-shadow:3px 3px 0 #000;line-height:1.8;}
+  .screen p{font-size:8px;line-height:2;max-width:600px;text-shadow:2px 2px 0 #000;}
+  #stats{display:grid;grid-template-columns:1fr auto;gap:7px 16px;font-size:9px;padding:14px;color:var(--ink);}
+  #stats .k{text-align:left;} #stats .v{text-align:right;color:#6b3f00;}
+  #rank{font-size:clamp(10px,3.2vw,17px);color:var(--diamond);text-shadow:3px 3px 0 #000;}
+  .legend-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;font-size:7px;}
+  .legend-row span{display:flex;align-items:center;gap:4px;}
+  .swatch{width:11px;height:11px;border:2px solid #000;}
+  .student-box{padding:11px 14px;min-width:min(92vw,460px);}
+  .student-name{font-size:9px;line-height:1.8;color:#6b3f00;}
+  .mini-btn{margin-top:9px;padding:7px 9px;font-size:7px;}
+  .code-input{display:block;width:min(92vw,540px);padding:14px 12px;text-align:center;
+    font-family:'Press Start 2P',monospace;font-size:12px;line-height:1.5;color:var(--ink);
+    text-transform:uppercase;background:var(--panel);border:4px solid #000;outline:none;user-select:text;
+    box-shadow:inset 3px 3px 0 #fff,inset -3px -3px 0 #5a5a5a;}
+  .code-input:focus{border-color:var(--diamond);box-shadow:inset 3px 3px 0 #fff,inset -3px -3px 0 #5a5a5a,0 0 15px var(--diamond);}
+  .auth-error{min-height:28px;font-size:8px;line-height:1.8;color:#ff776d;text-shadow:2px 2px 0 #000;}
+  .save-status{min-height:31px;font-size:8px;line-height:1.8;color:#fff;text-shadow:2px 2px 0 #000;}
+  .save-status.ok{color:#79ff68}.save-status.offline{color:#ffdc57}
+
+  @media (max-width:560px){
+    #steve{width:78px;height:78px;opacity:.75;}
+    #arm{width:19px;height:50px;right:4px;} #arm .sleeve{height:19px;}
+    #pick{right:19px;bottom:28px;width:42px;height:42px;}
+    #pick .handle{height:32px;width:7px;} #pick .head{width:26px;height:11px;}
+    #game{padding:4px;gap:4px;} #hud{font-size:7px;}
+    .cell{min-width:56px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;}
+  }
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div id="vignette"></div>
+
+<div id="game">
+  <div id="hud" class="mc-panel">
+    <div class="hud-item"><span id="task-no">ЗАДАЧА 1/20</span></div>
+    <div class="hud-item"><div class="gem"></div><span id="diamonds">0</span></div>
+    <div class="hud-item"><div id="combo-box">КОМБО ×<span id="combo">0</span></div></div>
+  </div>
+
+  <div id="task-card" class="mc-panel">
+    <div id="task-topic">—</div>
+    <div id="task-text">Загрузка…</div>
+    <div id="legend"></div>
+    <div id="hint-text"></div>
+  </div>
+
+  <div id="steps">
+    <div class="step active" id="step1">ШАГ 1 · ЗАПОЛНИ ТАБЛИЦУ</div>
+    <div class="step" id="step2">ШАГ 2 · СОБЕРИ УРАВНЕНИЕ</div>
+  </div>
+
+  <div id="table-wrap" class="mc-panel"><div id="table"></div></div>
+
+  <div id="eq-wrap" class="wood-panel">
+    <div class="bar-title">УРАВНЕНИЕ — тащи блоки сюда. Блок из строки можно перетащить на место или выкинуть вниз</div>
+    <div id="eq-line"><span id="eq-empty">пусто — перетащи сюда первый блок</span></div>
+  </div>
+
+  <div id="bank-wrap" class="wood-panel">
+    <div class="bar-title" id="bank-title">ЯЩИК — перетащи блоки в ячейки таблицы</div>
+    <div id="bank"></div>
+  </div>
+
+  <div id="buttons">
+    <button class="btn go" id="btn-check">ПРОВЕРИТЬ ТАБЛИЦУ</button>
+    <button class="btn" id="btn-clear">ОЧИСТИТЬ</button>
+    <button class="btn hint" id="btn-hint">ПОДСКАЗКА</button>
+    <button class="btn skip" id="btn-skip">⏭ ПРОПУСТИТЬ</button>
+  </div>
+
+  <div id="progress-wrap"><div id="progress"></div></div>
+</div>
+
+<div id="steve">
+  <div id="arm"><div class="sleeve"></div></div>
+  <div id="pick"><div class="handle"></div><div class="head"></div></div>
+</div>
+<div id="toast"></div>
+
+<div class="screen show" id="screen-auth">
+  <h1>ВХОД В МАСТЕРСКУЮ</h1>
+  <h2>ВВЕДИ ЛИЧНЫЙ КОД УЧЕНИКА</h2>
+  <form id="auth-form">
+    <input class="code-input" id="student-code" type="text" autocomplete="off" autocapitalize="characters"
+      spellcheck="false" maxlength="64" placeholder="КОД УЧЕНИКА" aria-label="Личный код ученика">
+    <div class="auth-error" id="auth-error" role="alert"></div>
+    <button class="btn go" id="login-btn" type="submit">ВОЙТИ ▶</button>
+  </form>
+</div>
+
+<div class="screen" id="screen-start">
+  <h1>ТАБЛИЦА КРАФТА</h1>
+  <h2>тренажёр №10 ЕГЭ · 20 задач · 2 шага</h2>
+  <p><b>ШАГ 1.</b> Таблица пустая целиком. Перетащи в неё все блоки из ящика: и данные условия, и выражения с иксом. Лишние блоки в ящике есть — думай. Жми ПРОВЕРИТЬ, когда таблица заполнена.</p>
+  <p><b>ШАГ 2.</b> Под таблицей появится строка уравнения и новый ящик блоков. Перетащи в строку нужные компоненты и знаки — уравнение собирается слева направо.</p>
+  <div class="legend-row">
+    <span><i class="swatch" style="background:#c9a227"></i>числа</span>
+    <span><i class="swatch" style="background:#2f8fd6"></i>с иксом</span>
+    <span><i class="swatch" style="background:#7b3fbf"></i>дроби</span>
+    <span><i class="swatch" style="background:#c14a2f"></i>знаки</span>
+  </div>
+  <p>Тащи мышью или пальцем. Короткий тап тоже работает: тап по блоку — тап по ячейке. Ошибку можно исправить — прохождение не прерывается.</p>
+  <div class="student-box mc-panel">
+    <div class="student-name" id="student-name">👤 Ученик</div>
+    <button class="btn mini-btn" id="change-student-btn" type="button">СМЕНИТЬ УЧЕНИКА</button>
+  </div>
+  <button class="btn go" id="btn-start">НАЧАТЬ</button>
+</div>
+
+<div class="screen" id="screen-end">
+  <h1 id="end-title">ИГРА ОКОНЧЕНА</h1>
+  <div id="rank">—</div>
+  <div id="stats" class="mc-panel">
+    <div class="k">Алмазы</div><div class="v" id="s-diamonds">0</div>
+    <div class="k">Решено задач</div><div class="v" id="s-correct">0</div>
+    <div class="k">Ошибок</div><div class="v" id="s-wrong">0</div>
+    <div class="k">Макс. комбо</div><div class="v" id="s-combo">0</div>
+    <div class="k">С первой попытки</div><div class="v" id="s-percent">0%</div>
+    <div class="k">Время</div><div class="v" id="s-time">0:00</div>
+  </div>
+  <div class="save-status" id="save-status" role="status"></div>
+  <button class="btn go" id="btn-again">ИГРАТЬ СНОВА</button>
+</div>
+
+<script>
+/* =========================================================
+   0. УЧЕНИК И УЧЁТ РЕЗУЛЬТАТОВ
+   ========================================================= */
+const API_URL="https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
+const TEST_META={
+  testId:"EGE-10-TABLITSA-KRAFTA-MINECRAFT",
+  topicId:"task-10",
+  topicName:"Текстовые задачи: таблица и уравнение",
+  taskNumber:10,
+  schemaVersion:1
+};
+const PENDING_KEY="egePendingTestResults";
+const $=id=>document.getElementById(id);
+
+let currentStudent=null;
+let gameActive=false;
+let attemptStartMs=0;
+let currentEventId="";
+let resultSubmitted=false;
+
+function createEventId(){
+  if(window.crypto&&typeof window.crypto.randomUUID==="function") return window.crypto.randomUUID();
+  return "evt-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,12);
+}
+function localDateString(){
+  const d=new Date(),p=n=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+}
+function formatDuration(seconds){
+  const s=Math.max(0,Math.round(Number(seconds)||0));
+  return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
+}
+function readPendingResults(){
+  try{const data=JSON.parse(localStorage.getItem(PENDING_KEY)||"[]");return Array.isArray(data)?data:[];}
+  catch(_){return [];}
+}
+function writePendingResults(items){
+  try{localStorage.setItem(PENDING_KEY,JSON.stringify(items));}catch(_){}
+}
+function queuePendingResult(payload){
+  const queue=readPendingResults();
+  if(!queue.some(item=>item&&item.eventId===payload.eventId)) queue.push(payload);
+  writePendingResults(queue);
+}
+async function postResult(payload){
+  const response=await fetch(API_URL,{
+    method:"POST",
+    headers:{"Content-Type":"text/plain;charset=utf-8"},
+    body:JSON.stringify(payload),
+    redirect:"follow"
+  });
+  if(!response.ok) throw new Error("HTTP "+response.status);
+  const text=await response.text();
+  if(text){
+    let data=null;
+    try{data=JSON.parse(text);}catch(_){}
+    if(data&&data.ok===false) throw new Error(data.error||"Сервер отклонил результат");
+  }
+}
+async function flushPendingResults(){
+  if(!navigator.onLine) return;
+  const snapshot=readPendingResults();
+  if(!snapshot.length) return;
+  const ids=new Set(snapshot.map(item=>item&&item.eventId).filter(Boolean)),failed=[];
+  for(const payload of snapshot){try{await postResult(payload);}catch(_){failed.push(payload);}}
+  const additions=readPendingResults().filter(item=>item&&!ids.has(item.eventId));
+  const merged=[...failed];
+  additions.forEach(item=>{if(!merged.some(saved=>saved&&saved.eventId===item.eventId)) merged.push(item);});
+  writePendingResults(merged);
+}
+function buildResultPayload(scorePercent,durationSeconds){
+  return {
+    action:"submitTest",
+    eventId:currentEventId,
+    studentId:currentStudent.studentId,
+    testId:TEST_META.testId,
+    testDate:localDateString(),
+    topicId:TEST_META.topicId,
+    topicName:TEST_META.topicName,
+    taskNumber:TEST_META.taskNumber,
+    scorePercent,
+    durationSeconds,
+    schemaVersion:TEST_META.schemaVersion
+  };
+}
+async function submitFinalResult(scorePercent,durationSeconds){
+  if(resultSubmitted||!currentStudent) return;
+  resultSubmitted=true;
+  const payload=buildResultPayload(scorePercent,durationSeconds),status=$("save-status");
+  status.className="save-status";
+  status.textContent="Сохраняем результат…";
+  try{
+    await postResult(payload);
+    status.className="save-status ok";
+    status.textContent="✓ Результат сохранён";
+    flushPendingResults();
+  }catch(_){
+    queuePendingResult(payload);
+    status.className="save-status offline";
+    status.textContent="Нет связи: результат сохранён на устройстве и отправится позже";
+  }
+}
+function studentFromResponse(data,code){
+  if(!data||data.ok===false||data.success===false||data.valid===false) return null;
+  const source=data.student||data.data||data;
+  const studentId=source.studentId??source.id??data.studentId??data.id;
+  const name=source.studentName??source.name??data.studentName??data.name;
+  if(studentId===undefined||studentId===null||studentId==="") return null;
+  return {studentId:String(studentId),name:String(name||"Ученик"),code:String(code)};
+}
+function rememberStudent(student){
+  localStorage.setItem("egeStudentId",student.studentId);
+  localStorage.setItem("egeStudentName",student.name);
+  localStorage.setItem("egeStudentCode",student.code);
+}
+function enterAsStudent(student){
+  currentStudent=student;
+  $("student-name").textContent="👤 "+student.name;
+  $("screen-auth").classList.remove("show");
+  $("screen-start").classList.add("show");
+  $("change-student-btn").disabled=false;
+  $("btn-start").focus();
+  flushPendingResults();
+}
+function showStudentLogin(prefill=""){
+  $("screen-start").classList.remove("show");
+  $("screen-end").classList.remove("show");
+  $("screen-auth").classList.add("show");
+  $("student-code").value=prefill;
+  $("auth-error").textContent="";
+  $("login-btn").disabled=false;
+  setTimeout(()=>$("student-code").focus(),0);
+}
+function validateStudentCode(code){
+  return new Promise((resolve,reject)=>{
+    const callback="__egeCraft_"+Date.now()+"_"+Math.random().toString(36).slice(2);
+    const script=document.createElement("script");
+    const timeout=setTimeout(()=>finish(new Error("Сервер не ответил. Проверьте интернет.")),15000);
+    function cleanup(){
+      clearTimeout(timeout);
+      try{delete window[callback];}catch(_){window[callback]=undefined;}
+      script.remove();
+    }
+    function finish(error,value){cleanup();error?reject(error):resolve(value);}
+    window[callback]=data=>{
+      const student=studentFromResponse(data,code);
+      if(student) finish(null,student);
+      else finish(new Error((data&&(data.error||data.message))||"Код ученика не найден"));
+    };
+    script.onerror=()=>finish(new Error("Не удалось связаться с сервером"));
+    script.src=API_URL+"?"+new URLSearchParams({action:"validateStudent",code,callback}).toString();
+    document.head.appendChild(script);
+  });
+}
+async function loginWithCode(rawCode){
+  const code=String(rawCode||"").trim();
+  if(!code){$("auth-error").textContent="Введите личный код";return;}
+  $("login-btn").disabled=true;
+  $("auth-error").textContent="Проверяем код…";
+  try{
+    const student=await validateStudentCode(code);
+    rememberStudent(student);
+    enterAsStudent(student);
+  }catch(error){
+    $("auth-error").textContent=error.message||"Не удалось проверить код";
+    $("login-btn").disabled=false;
+    $("student-code").focus();
+  }
+}
+function initializeStudent(){
+  const codeFromUrl=new URLSearchParams(location.search).get("code");
+  if(codeFromUrl){showStudentLogin(codeFromUrl);loginWithCode(codeFromUrl);return;}
+  const studentId=localStorage.getItem("egeStudentId");
+  const name=localStorage.getItem("egeStudentName");
+  const code=localStorage.getItem("egeStudentCode");
+  if(studentId&&code) enterAsStudent({studentId,name:name||"Ученик",code});
+  else showStudentLogin();
+}
+$("auth-form").addEventListener("submit",event=>{
+  event.preventDefault();
+  loginWithCode($("student-code").value);
+});
+$("change-student-btn").addEventListener("click",()=>{
+  if(gameActive) return;
+  localStorage.removeItem("egeStudentId");
+  localStorage.removeItem("egeStudentName");
+  localStorage.removeItem("egeStudentCode");
+  currentStudent=null;
+  showStudentLogin();
+});
+window.addEventListener("online",flushPendingResults);
+
+/* =========================================================
+   1. ЗАДАЧИ (те же, что были)
+   ========================================================= */
+const TASKS=[
+{ topic:"ДВИЖЕНИЕ ПО ТЕЧЕНИЮ",
+  text:"Лодка прошла 60 км по течению реки за 3 часа. Скорость течения 2 км/ч. Найдите собственную скорость лодки.",
+  legend:"x — собственная скорость лодки, км/ч",
+  cols:["S, км","V, км/ч","t, ч"], rows:["По течению"],
+  cells:[["60","x+2","3"]],
+  extra1:["x−2","2−x","x·2","2"],
+  eq:[["x+2","·","3","=","60"],["60","/","x+2","=","3"],["60","/","3","=","x+2"]],
+  extra2:["x−2","2","60·3"],
+  hintT:"По течению река помогает: к собственной скорости прибавляем скорость течения.",
+  hintE:"Свяжи столбцы таблицы: S = V · t." },
+
+{ topic:"ПО ТЕЧЕНИЮ И ОБРАТНО",
+  text:"Моторная лодка прошла 48 км по течению реки и вернулась обратно, затратив на весь путь 5 часов. Скорость течения 3 км/ч. Найдите собственную скорость лодки.",
+  legend:"x — собственная скорость лодки, км/ч",
+  cols:["S, км","V, км/ч","t, ч"], rows:["По течению","Против течения"],
+  cells:[["48","x+3","48/(x+3)"],
+         ["48","x−3","48/(x−3)"]],
+  extra1:["3−x","48/(3−x)","x·3","5"],
+  eq:[["48/(x+3)","+","48/(x−3)","=","5"]],
+  extra2:["48/(x·3)","x+3","x−3"],
+  hintT:"Время считается делением: t = S / V. Третий столбец заполняется через первые два.",
+  hintE:"Всё время пути 5 ч — это сумма времени туда и времени обратно." },
+
+{ topic:"ДВИЖЕНИЕ ПРОТИВ ТЕЧЕНИЯ",
+  text:"Теплоход прошёл 90 км против течения реки за 5 часов. Собственная скорость теплохода 20 км/ч. Найдите скорость течения.",
+  legend:"x — скорость течения, км/ч",
+  cols:["S, км","V, км/ч","t, ч"], rows:["Против течения"],
+  cells:[["90","20−x","5"]],
+  extra1:["20+x","x−20","20·x","20"],
+  eq:[["20−x","·","5","=","90"],["90","/","20−x","=","5"],["90","/","5","=","20−x"]],
+  extra2:["20+x","20","90·5"],
+  hintT:"Против течения река мешает: из собственной скорости вычитаем скорость течения.",
+  hintE:"S = V · t." },
+
+{ topic:"ПРОТИВ ТЕЧЕНИЯ · ПЛОТ",
+  text:"Теплоход прошёл 120 км против течения реки за 6 часов. Плот проплывает это же расстояние за 30 часов. Найдите собственную скорость теплохода.",
+  legend:"x — собственная скорость теплохода, км/ч. Плот плывёт со скоростью течения",
+  cols:["S, км","V, км/ч","t, ч"], rows:["Теплоход (против)","Плот"],
+  cells:[["120","x−4","6"],
+         ["120","4","30"]],
+  extra1:["x+4","4−x","20","5"],
+  eq:[["x−4","·","6","=","120"],["120","/","x−4","=","6"],["120","/","6","=","x−4"]],
+  extra2:["x+4","30","4"],
+  hintT:"Скорость плота найди сам: 120 / 30. Это и есть скорость течения.",
+  hintE:"Работай со строкой теплохода: S = V · t." },
+
+{ topic:"ДВИЖЕНИЕ НАВСТРЕЧУ",
+  text:"Из двух городов, расстояние между которыми 120 км, одновременно навстречу друг другу выехали два автомобиля со скоростями 50 км/ч и 70 км/ч. Через сколько часов они встретятся?",
+  legend:"x — время до встречи, ч",
+  cols:["S, км","V, км/ч","t, ч"], rows:["Первый","Второй"],
+  cells:[["50·x","50","x"],
+         ["70·x","70","x"]],
+  extra1:["50/x","70/x","120","x+70"],
+  eq:[["50·x","+","70·x","=","120"]],
+  extra2:["120·x","50","70"],
+  hintT:"Выехали одновременно — значит до встречи оба были в пути одно и то же время x. Путь = V · t.",
+  hintE:"Вместе они закрыли все 120 км: сложи их пути." },
+
+{ topic:"ДВИЖЕНИЕ НАВСТРЕЧУ",
+  text:"Расстояние между посёлками 40 км. Навстречу друг другу одновременно вышел пешеход (5 км/ч) и выехал велосипедист (15 км/ч). Через сколько часов они встретятся?",
+  legend:"x — время до встречи, ч",
+  cols:["S, км","V, км/ч","t, ч"], rows:["Пешеход","Велосипедист"],
+  cells:[["5·x","5","x"],
+         ["15·x","15","x"]],
+  extra1:["5/x","15/x","40","x+15"],
+  eq:[["5·x","+","15·x","=","40"]],
+  extra2:["40·x","20·x","5"],
+  hintT:"Время до встречи у обоих одинаковое.",
+  hintE:"Сумма их путей равна всему расстоянию." },
+
+{ topic:"ДВИЖЕНИЕ ВДОГОНКУ",
+  text:"Мотоциклист (80 км/ч) догоняет автомобиль (60 км/ч), который в момент старта находится на 40 км впереди. Через сколько часов мотоциклист догонит автомобиль?",
+  legend:"x — время до встречи, ч",
+  cols:["S, км","V, км/ч","t, ч"], rows:["Мотоциклист","Автомобиль"],
+  cells:[["80·x","80","x"],
+         ["60·x","60","x"]],
+  extra1:["80/x","60/x","40","x+60"],
+  eq:[["80·x","=","60·x","+","40"],["80·x","−","60·x","=","40"]],
+  extra2:["20·x","80","60"],
+  hintT:"Оба в пути одно и то же время x, путь каждого = V · t.",
+  hintE:"К моменту встречи мотоциклист проехал ровно на 40 км больше." },
+
+{ topic:"ВДОГОНКУ · РАЗНЫЙ СТАРТ",
+  text:"Из города выехал грузовик со скоростью 60 км/ч. Через 2 часа вслед за ним выехал автомобиль со скоростью 90 км/ч. Через сколько часов после своего выезда автомобиль догонит грузовик?",
+  legend:"x — время автомобиля в пути, ч",
+  cols:["S, км","V, км/ч","t, ч"], rows:["Грузовик","Автомобиль"],
+  cells:[["60·(x+2)","60","x+2"],
+         ["90·x","90","x"]],
+  extra1:["x−2","60·(x−2)","90·(x+2)","2"],
+  eq:[["60·(x+2)","=","90·x"]],
+  extra2:["2","90·(x+2)","60·x"],
+  hintT:"Грузовик выехал раньше, значит в пути он на 2 часа дольше: t = x + 2.",
+  hintE:"В момент встречи оба удалились от города на одинаковое расстояние." },
+
+{ topic:"СРЕДНЯЯ СКОРОСТЬ",
+  text:"Автомобиль проехал первые 120 км со скоростью 60 км/ч, а следующие 180 км — со скоростью 90 км/ч. Найдите среднюю скорость на всём пути.",
+  legend:"x — средняя скорость, км/ч",
+  cols:["S, км","V, км/ч","t, ч"], rows:["Первый участок","Второй участок","Весь путь"],
+  cells:[["120","60","2"],
+         ["180","90","2"],
+         ["300","x","4"]],
+  extra1:["3","5","75","150"],
+  eq:[["x","=","300","/","4"],["x","·","4","=","300"]],
+  extra2:["150","2","75"],
+  hintT:"Время участка = S / V. Строка «Весь путь» — это суммы столбцов S и t.",
+  hintE:"Средняя скорость = весь путь / всё время. Не среднее арифметическое скоростей!" },
+
+{ topic:"СОВМЕСТНАЯ РАБОТА",
+  text:"Первая труба наполняет бассейн за 12 часов, вторая — за 6 часов. За сколько часов трубы наполнят бассейн, работая вместе?",
+  legend:"x — время совместной работы, ч. Работа = весь бассейн = 1",
+  cols:["Работа A","Производительность P","Время t, ч"], rows:["Первая труба","Вторая труба","Вместе"],
+  cells:[["1","1/12","12"],
+         ["1","1/6","6"],
+         ["1","1/x","x"]],
+  extra1:["12/1","x/1","1/18","18"],
+  eq:[["1/12","+","1/6","=","1/x"]],
+  extra2:["12","6","x"],
+  hintT:"В каждой строке производительность = работа / время: P = A / t.",
+  hintE:"Складываются не времена, а производительности." },
+
+{ topic:"СОВМЕСТНАЯ РАБОТА",
+  text:"Двое рабочих вместе выполняют заказ за 4 часа. Первый рабочий в одиночку сделал бы его за 12 часов. За сколько часов выполнит заказ второй рабочий?",
+  legend:"x — время второго рабочего, ч. Работа = весь заказ = 1",
+  cols:["Работа A","Производительность P","Время t, ч"], rows:["Первый","Второй","Вместе"],
+  cells:[["1","1/12","12"],
+         ["1","1/x","x"],
+         ["1","1/4","4"]],
+  extra1:["4/1","x/1","1/16","8"],
+  eq:[["1/12","+","1/x","=","1/4"]],
+  extra2:["12","4","x"],
+  hintT:"В каждой строке P = A / t.",
+  hintE:"Производительности первого и второго в сумме дают общую." },
+
+{ topic:"ПРОИЗВОДИТЕЛЬНОСТЬ ТРУДА",
+  text:"Мастер изготавливает 15 деталей в час, а ученик — на 5 деталей в час меньше. Работая вместе, они изготовили 200 деталей. Сколько часов они работали?",
+  legend:"x — время работы, ч",
+  cols:["Работа A","Производительность P","Время t, ч"], rows:["Мастер","Ученик"],
+  cells:[["15·x","15","x"],
+         ["10·x","10","x"]],
+  extra1:["5·x","20","15/x","200"],
+  eq:[["15·x","+","10·x","=","200"]],
+  extra2:["25·x","200·x","5·x"],
+  hintT:"Производительность ученика посчитай сам: 15 − 5. Работа = P · t.",
+  hintE:"Детали мастера плюс детали ученика — это все 200." },
+
+{ topic:"ПРОИЗВОДИТЕЛЬНОСТЬ ТРУДА",
+  text:"Первый станок за 8 часов изготавливает 240 деталей, а второй за то же время — 320 деталей. Найдите производительность второго станка.",
+  legend:"x — производительность второго станка, деталей в час",
+  cols:["Работа A","Производительность P","Время t, ч"], rows:["Первый станок","Второй станок"],
+  cells:[["240","30","8"],
+         ["320","x","8"]],
+  extra1:["40","24","6","16"],
+  eq:[["x","·","8","=","320"],["320","/","8","=","x"],["320","/","x","=","8"]],
+  extra2:["240","30","40"],
+  hintT:"Производительность первого станка найди сам: 240 / 8.",
+  hintE:"Работа = производительность · время." },
+
+{ topic:"ПРОЦЕНТЫ · ЧАСТЬ",
+  text:"Вклад составляет 800 рублей. Банк начисляет 15% годовых. Сколько рублей составят проценты за год?",
+  legend:"x — величина процентов, рублей",
+  cols:["Целое","Доля","Часть"], rows:["Вклад"],
+  cells:[["800","15/100","x"]],
+  extra1:["100/15","85/100","15","100"],
+  eq:[["800","·","15/100","=","x"]],
+  extra2:["85/100","100","15"],
+  hintT:"Процент превращается в долю делением на 100.",
+  hintE:"Часть = целое · долю." },
+
+{ topic:"ПРОЦЕНТЫ · ЧАСТЬ",
+  text:"Товар стоил 1500 рублей. На него сделали скидку 20%. Сколько рублей стоит товар после скидки?",
+  legend:"x — новая цена, рублей",
+  cols:["Целое, р","Доля","Значение, р"], rows:["Скидка","Новая цена"],
+  cells:[["1500","20/100","1500·20/100"],
+         ["1500","80/100","x"]],
+  extra1:["120/100","20","1500·80","100/20"],
+  eq:[["1500","·","80/100","=","x"],["1500","−","1500·20/100","=","x"]],
+  extra2:["20/100","120/100","300"],
+  hintT:"Сняли 20% — значит осталось 100% − 20% = 80%. Обе строки про одно и то же целое.",
+  hintE:"Два честных пути: сразу 80% от цены либо цена минус скидка. Принимаются оба." },
+
+{ topic:"ПРОЦЕНТЫ · ЦЕЛОЕ",
+  text:"Премия в 45 рублей составила 15% от зарплаты. Найдите зарплату.",
+  legend:"x — зарплата, рублей",
+  cols:["Целое","Доля","Часть"], rows:["Зарплата"],
+  cells:[["x","15/100","45"]],
+  extra1:["100/15","85/100","15","45/100"],
+  eq:[["x","·","15/100","=","45"],["45","/","15/100","=","x"]],
+  extra2:["85/100","15","100"],
+  hintT:"Неизвестно именно целое — его и обозначаем за x.",
+  hintE:"Часть = целое · долю." },
+
+{ topic:"ПРОЦЕНТЫ · ЦЕЛОЕ",
+  text:"После снижения цены на 20% товар стал стоить 1200 рублей. Какой была цена до снижения?",
+  legend:"x — старая цена, рублей",
+  cols:["Целое","Доля","Часть"], rows:["Новая цена"],
+  cells:[["x","80/100","1200"]],
+  extra1:["20/100","120/100","80","1200/100"],
+  eq:[["x","·","80/100","=","1200"],["1200","/","80/100","=","x"]],
+  extra2:["20/100","120/100","80"],
+  hintT:"Новая цена — это 100% − 20% = 80% от старой.",
+  hintE:"Часть = целое · долю, целое здесь неизвестно." },
+
+{ topic:"СПЛАВЫ И СМЕСИ",
+  text:"Сплавили 4 кг сплава, содержащего 15% меди, и 6 кг сплава, содержащего 25% меди. Какая доля меди в получившемся сплаве?",
+  legend:"x — доля меди в новом сплаве",
+  cols:["Масса сплава, кг","Доля меди","Масса меди, кг"], rows:["Первый сплав","Второй сплав","Новый сплав"],
+  cells:[["4","0,15","0,15·4"],
+         ["6","0,25","0,25·6"],
+         ["10","x","10·x"]],
+  extra1:["15","2","0,4","24"],
+  eq:[["0,15·4","+","0,25·6","=","10·x"]],
+  extra2:["0,15","0,25","10"],
+  hintT:"Масса меди = масса сплава · долю. Массы сплавов складываются: 4 + 6.",
+  hintE:"Медь никуда не девается: медь первого плюс медь второго = медь нового." },
+
+{ topic:"СПЛАВЫ И СМЕСИ",
+  text:"К 5 кг раствора, содержащего 10% соли, добавили 3 кг воды. Какая доля соли в новом растворе?",
+  legend:"x — доля соли в новом растворе. В воде соли нет",
+  cols:["Масса, кг","Доля соли","Масса соли, кг"], rows:["Раствор","Вода","Новый раствор"],
+  cells:[["5","0,1","0,1·5"],
+         ["3","0","0"],
+         ["8","x","8·x"]],
+  extra1:["10","2","0,3","15"],
+  eq:[["0,1·5","=","8·x"]],
+  extra2:["0,1","5","8"],
+  hintT:"Вода — это раствор с долей соли 0. Масса нового раствора: 5 + 3.",
+  hintE:"Соли стало столько же, сколько было: приравняй массы соли." },
+
+{ topic:"РАССТОЯНИЕ · ВРЕМЯ · СКОРОСТЬ",
+  text:"Поезд должен был пройти 300 км со скоростью 60 км/ч, но шёл со скоростью на 10 км/ч меньше. За сколько часов поезд прошёл путь?",
+  legend:"x — фактическое время в пути, ч",
+  cols:["S, км","V, км/ч","t, ч"], rows:["По плану","Фактически"],
+  cells:[["300","60","5"],
+         ["300","50","x"]],
+  extra1:["70","6","4","10"],
+  eq:[["50","·","x","=","300"],["300","/","50","=","x"],["300","/","x","=","50"]],
+  extra2:["60","5","350"],
+  hintT:"Время по плану: 300 / 60. Фактическая скорость: 60 − 10.",
+  hintE:"Работай со строкой «Фактически»: S = V · t." }
+];
+
+/* =========================================================
+   2. ГИБКАЯ ПРОВЕРКА УРАВНЕНИЯ
+   ========================================================= */
+function stripParens(tk){
+  let t=tk.slice();
+  while(t.length>1 && t[0]==="(" && t[t.length-1]===")"){
+    let d=0,wraps=true;
+    for(let i=0;i<t.length;i++){
+      if(t[i]==="(") d++;
+      else if(t[i]===")"){ d--; if(d===0&&i<t.length-1){ wraps=false; break; } }
+    }
+    if(d!==0) return t;
+    if(wraps) t=t.slice(1,-1); else break;
+  }
+  return t;
+}
+function topSplit(tk,ops){
+  const parts=[],found=[]; let cur=[],d=0;
+  for(const tok of tk){
+    if(tok==="(") d++;
+    if(tok===")") d--;
+    if(d===0&&ops.includes(tok)&&cur.length>0){ parts.push(cur); found.push(tok); cur=[]; }
+    else cur.push(tok);
+  }
+  parts.push(cur); return {parts,ops:found};
+}
+function canon(tk){
+  const t=stripParens(tk);
+  if(t.length===0) return "";
+  const eq=topSplit(t,["="]);
+  if(eq.ops.length===1) return "EQ("+[canon(eq.parts[0]),canon(eq.parts[1])].sort().join("|")+")";
+  if(eq.ops.length>1) return "BAD";
+  const add=topSplit(t,["+","−"]);
+  if(add.ops.length>0){
+    if(add.ops.every(o=>o==="+")) return "ADD("+add.parts.map(canon).sort().join(",")+")";
+    let acc=canon(add.parts[0]);
+    for(let i=0;i<add.ops.length;i++){
+      const r=canon(add.parts[i+1]);
+      acc = add.ops[i]==="+" ? "ADD("+[acc,r].sort().join(",")+")" : "SUB("+acc+","+r+")";
+    }
+    return acc;
+  }
+  const mul=topSplit(t,["·","/"]);
+  if(mul.ops.length>0){
+    if(mul.ops.every(o=>o==="·")) return "MUL("+mul.parts.map(canon).sort().join(",")+")";
+    let acc=canon(mul.parts[0]);
+    for(let i=0;i<mul.ops.length;i++){
+      const r=canon(mul.parts[i+1]);
+      acc = mul.ops[i]==="·" ? "MUL("+[acc,r].sort().join(",")+")" : "DIV("+acc+","+r+")";
+    }
+    return acc;
+  }
+  return t.join("");
+}
+function balanced(tk){ let d=0; for(const t of tk){ if(t==="(")d++; if(t===")")d--; if(d<0) return false; } return d===0; }
+function eqOk(player,variants){
+  if(player.length===0||!balanced(player)) return false;
+  const p=canon(player);
+  if(p===""||p==="BAD") return false;
+  return variants.some(v=>canon(v)===p);
+}
+
+/* =========================================================
+   3. ЗВУКИ
+   ========================================================= */
+let AC=null;
+function ac(){ if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==="suspended") AC.resume(); return AC; }
+function tone(f,s,d,type="square",v=.12){
+  const c=ac(),o=c.createOscillator(),g=c.createGain();
+  o.type=type; o.frequency.setValueAtTime(f,c.currentTime+s);
+  g.gain.setValueAtTime(0,c.currentTime+s);
+  g.gain.linearRampToValueAtTime(v,c.currentTime+s+.012);
+  g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+s+d);
+  o.connect(g); g.connect(c.destination);
+  o.start(c.currentTime+s); o.stop(c.currentTime+s+d+.02);
+}
+function noise(s,d,v=.2,hp=800){
+  const c=ac(),len=Math.max(1,Math.floor(c.sampleRate*d));
+  const b=c.createBuffer(1,len,c.sampleRate),ch=b.getChannelData(0);
+  for(let i=0;i<len;i++) ch[i]=(Math.random()*2-1)*(1-i/len);
+  const src=c.createBufferSource(); src.buffer=b;
+  const f=c.createBiquadFilter(); f.type="highpass"; f.frequency.value=hp;
+  const g=c.createGain(); g.gain.value=v;
+  src.connect(f); f.connect(g); g.connect(c.destination);
+  src.start(c.currentTime+s);
+}
+const SFX={
+  click(){ tone(880,0,.05,"square",.06); },
+  grab(){ tone(520,0,.04,"square",.05); },
+  put(){ tone(660,0,.05,"square",.07); tone(990,.04,.05,"square",.05); },
+  drop(){ tone(300,0,.07,"square",.06); },
+  craft(){ tone(300,0,.06,"square",.09); tone(300,.07,.06,"square",.09); noise(0,.12,.08,1500); },
+  step(){ tone(784,0,.1,"triangle",.09); tone(1046,.09,.16,"triangle",.09); },
+  correct(){ tone(523.25,0,.14,"square",.1); tone(659.25,.13,.14,"square",.1); tone(987.77,.26,.3,"square",.11); },
+  wrong(){ tone(120,0,.35,"sawtooth",.14); tone(80,.05,.4,"square",.1); },
+  combo(){ tone(1046.5,0,.1,"triangle",.1); tone(1568,.09,.2,"triangle",.1); },
+  win(){ [523,659,784,1046,1318].forEach((f,i)=>tone(f,i*.13,.3,"triangle",.1)); }
+};
+
+/* =========================================================
+   4. ФОН
+   ========================================================= */
+const bg=document.getElementById("bg"), ctx=bg.getContext("2d");
+let W=0,H=0,camZ=0; const TREES=[],CLOUDS=[];
+function seedWorld(){
+  TREES.length=0;
+  for(let i=0;i<28;i++) TREES.push({x:(Math.random()*2-1)*30,z:6+Math.random()*90,h:3+Math.random()*2.2,side:Math.random()<.5?-1:1});
+  CLOUDS.length=0;
+  for(let i=0;i<7;i++) CLOUDS.push({x:Math.random(),y:.05+Math.random()*.22,w:.1+Math.random()*.18,s:.004+Math.random()*.006});
+}
+function resize(){
+  W=bg.width=Math.max(2,Math.floor(window.innerWidth/2));
+  H=bg.height=Math.max(2,Math.floor(window.innerHeight/2));
+  bg.style.width=window.innerWidth+"px"; bg.style.height=window.innerHeight+"px";
+}
+window.addEventListener("resize",resize); resize(); seedWorld();
+const FL=0.9;
+function proj(x,y,z){ const s=(H*FL)/z; return {sx:W/2+x*s, sy:H*0.52-y*s, s}; }
+function drawBg(){
+  const horizon=H*0.52;
+  const sky=ctx.createLinearGradient(0,0,0,horizon);
+  sky.addColorStop(0,"#4b8ef0"); sky.addColorStop(1,"#a8d3ff");
+  ctx.fillStyle=sky; ctx.fillRect(0,0,W,horizon);
+  ctx.fillStyle="#ffe98a"; ctx.fillRect(W*0.76,H*0.08,24,24);
+  ctx.fillStyle="rgba(255,255,200,.25)"; ctx.fillRect(W*0.76-6,H*0.08-6,36,36);
+  ctx.fillStyle="#fff";
+  for(const c of CLOUDS){
+    c.x+=c.s*0.02; if(c.x>1.25) c.x=-.25;
+    const px=c.x*W,py=c.y*H,pw=c.w*W;
+    ctx.fillRect(px,py,pw,7); ctx.fillRect(px+pw*.2,py-6,pw*.55,6); ctx.fillRect(px+pw*.15,py+7,pw*.6,5);
+  }
+  ctx.fillStyle="#3f7a2e"; ctx.fillRect(0,horizon,W,H-horizon);
+  camZ+=0.02;
+  for(let i=26;i>=1;i--){
+    const z1=i+(camZ%1), z2=z1+1;
+    const y1=proj(0,0,z1).sy, y2=proj(0,0,z2).sy;
+    if(y1>H) continue;
+    const cell=(H*FL)/z1, n=Math.ceil(W/cell)+2;
+    for(let j=-n;j<n;j++){
+      const a=proj(j,0,z1), b=proj(j+1,0,z1);
+      ctx.fillStyle=((Math.abs(j)+Math.floor(z1))%2===0)?"#4c8f36":"#3d7a2b";
+      ctx.fillRect(a.sx,y2,Math.max(1,b.sx-a.sx+1),Math.max(1,y1-y2+1));
+    }
+  }
+  for(const t of TREES.slice().sort((a,b)=>b.z-a.z)){
+    t.z-=0.02;
+    if(t.z<1.2){ t.z=95; t.x=(Math.random()*2-1)*30; }
+    if(Math.abs(t.x)<2.2) t.x+=t.side*3;
+    const base=proj(t.x,0,t.z), top=proj(t.x,t.h,t.z);
+    if(base.sx<-60||base.sx>W+60) continue;
+    const w=Math.max(2,base.s*0.42);
+    ctx.fillStyle="#5c3a1a"; ctx.fillRect(base.sx-w/2, top.sy+(base.sy-top.sy)*0.45, w, (base.sy-top.sy)*0.55);
+    const lw=Math.max(4,base.s*1.5), lh=Math.max(4,base.s*1.25);
+    ctx.fillStyle="#2f6b22"; ctx.fillRect(base.sx-lw/2, top.sy, lw, lh*0.75);
+    ctx.fillStyle="#3f8c2e"; ctx.fillRect(base.sx-lw/2, top.sy, lw, lh*0.32);
+  }
+  const fog=ctx.createLinearGradient(0,horizon,0,horizon+H*0.16);
+  fog.addColorStop(0,"rgba(168,211,255,.85)"); fog.addColorStop(1,"rgba(168,211,255,0)");
+  ctx.fillStyle=fog; ctx.fillRect(0,horizon,W,H*0.16);
+  requestAnimationFrame(drawBg);
+}
+requestAnimationFrame(drawBg);
+
+/* =========================================================
+   5. ИГРА
+   ========================================================= */
+const tableEl=$("table"), bankEl=$("bank"), eqLine=$("eq-line"), steve=$("steve");
+const SIGNS=["=","+","−","·","/"];
+let S=null;
+
+function kindOf(t){
+  t=String(t);
+  if(SIGNS.includes(t)) return "op";
+  if(t==="("||t===")") return "paren";
+  if(/x/.test(t)) return "var";
+  if(t.includes("/")) return "frac";
+  return "num";
+}
+function shuffle(a){ const r=a.slice(); for(let i=r.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [r[i],r[j]]=[r[j],r[i]];} return r; }
+
+function newGame(){
+  S={idx:0,step:1,diamonds:0,combo:0,maxCombo:0,solved:0,wrong:0,firstTryCorrect:0,
+     fills:{},bank:[],eq:[],sel:null,hintUsed:false,locked:false,firstTryEligible:true};
+  gameActive=true;
+  attemptStartMs=Date.now();
+  currentEventId=createEventId();
+  resultSubmitted=false;
+  $("change-student-btn").disabled=true;
+  $("save-status").className="save-status";
+  $("save-status").textContent="";
+  $("screen-end").classList.remove("show");
+  loadTask(); renderHUD();
+}
+function loadTask(){
+  const t=TASKS[S.idx];
+  S.step=1; S.fills={}; S.eq=[]; S.sel=null; S.hintUsed=false; S.locked=false; S.firstTryEligible=true;
+  const need=[];
+  t.cells.forEach(row=>row.forEach(v=>need.push(v)));
+  S.bank=shuffle(need.concat(t.extra1)).map((v,i)=>({id:i,v,used:false}));
+  $("task-topic").textContent=t.topic;
+  $("task-text").textContent=t.text;
+  $("legend").textContent=t.legend?("▸ "+t.legend):"";
+  $("hint-text").style.display="none";
+  $("btn-hint").disabled=false;
+  $("btn-check").textContent="ПРОВЕРИТЬ ТАБЛИЦУ";
+  $("eq-wrap").style.display="none";
+  $("bank-title").textContent="ЯЩИК — перетащи блоки в ячейки таблицы";
+  $("step1").className="step active"; $("step2").className="step";
+  renderTable(); renderBank(); renderEq(); renderHUD();
+}
+function renderHUD(){
+  $("task-no").textContent=`ЗАДАЧА ${S.idx+1}/${TASKS.length}`;
+  $("diamonds").textContent=S.diamonds;
+  const cb=$("combo-box");
+  cb.innerHTML='КОМБО ×<span id="combo">'+S.combo+'</span>';
+  cb.classList.toggle("hot",S.combo>=3);
+  if(S.combo>=3) for(let i=0;i<3;i++){
+    const f=document.createElement("i"); f.className="flame";
+    f.style.left=(12+i*22)+"%"; f.style.animationDelay=(i*.18)+"s"; cb.appendChild(f);
+  }
+  $("progress").style.width=(((S.idx+(S.step===2?0.5:0))/TASKS.length)*100)+"%";
+}
+function renderTable(){
+  const t=TASKS[S.idx];
+  tableEl.innerHTML="";
+  tableEl.style.gridTemplateColumns=`minmax(72px,auto) repeat(${t.cols.length}, minmax(62px,1fr))`;
+  const corner=document.createElement("div"); corner.className="th"; tableEl.appendChild(corner);
+  for(const c of t.cols){ const th=document.createElement("div"); th.className="th"; th.textContent=c; tableEl.appendChild(th); }
+  t.rows.forEach((rname,ri)=>{
+    const rh=document.createElement("div"); rh.className="rh"; rh.textContent=rname; tableEl.appendChild(rh);
+    t.cells[ri].forEach((_,ci)=>{
+      const key=ri+","+ci, got=S.fills[key];
+      const el=document.createElement("div");
+      el.className="cell"+(got?" has":"")+(S.step===2&&got?" src":"")+(S.step===1&&S.sel!==null&&!got?" armed":"");
+      el.textContent=got||"";
+      el.dataset.key=key; el.dataset.drop="cell";
+      if(S.step===1){
+        el.addEventListener("pointerdown",e=>{
+          if(got) startDrag(e,got,{type:"cell",key},el);
+          else tapCell(key);
+        });
+      } else if(got){
+        el.addEventListener("pointerdown",e=>startDrag(e,got,{type:"src"},el));
+      }
+      tableEl.appendChild(el);
+    });
+  });
+}
+function renderBank(){
+  bankEl.innerHTML="";
+  bankEl.dataset.drop="bank";
+  if(S.step===1){
+    for(const b of S.bank){
+      const el=document.createElement("div");
+      el.className="tile k-"+kindOf(b.v)+(b.used?" used":"")+(S.sel===b.id?" sel":"");
+      el.textContent=b.v;
+      el.addEventListener("pointerdown",e=>startDrag(e,b.v,{type:"bank",id:b.id},el));
+      bankEl.appendChild(el);
+    }
+  } else {
+    for(const v of S.bank2){
+      const el=document.createElement("div");
+      el.className="tile k-"+kindOf(v);
+      el.textContent=v;
+      el.addEventListener("pointerdown",e=>startDrag(e,v,{type:"bank2"},el));
+      bankEl.appendChild(el);
+    }
+  }
+}
+function renderEq(){
+  eqLine.innerHTML="";
+  eqLine.dataset.drop="eq";
+  if(S.eq.length===0){
+    const s=document.createElement("span"); s.id="eq-empty";
+    s.textContent="пусто — перетащи сюда первый блок"; eqLine.appendChild(s);
+    return;
+  }
+  S.eq.forEach((tok,i)=>{
+    const el=document.createElement("div");
+    el.className="tile k-"+kindOf(tok); el.textContent=tok; el.dataset.eqi=i;
+    el.addEventListener("pointerdown",e=>startDrag(e,tok,{type:"eq",i},el));
+    eqLine.appendChild(el);
+  });
+}
+
+/* ---------- DRAG & DROP ---------- */
+let drag=null, caret=null;
+function startDrag(e,val,from,srcEl){
+  if(S.locked) return;
+  e.preventDefault();
+  ac();
+  drag={val,from,srcEl,x0:e.clientX,y0:e.clientY,moved:false,ghost:null};
+  document.addEventListener("pointermove",onMove);
+  document.addEventListener("pointerup",onUp,{once:true});
+  document.addEventListener("pointercancel",onUp,{once:true});
+}
+function onMove(e){
+  if(!drag) return;
+  if(!drag.moved && Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0)>7){
+    drag.moved=true;
+    SFX.grab();
+    const g=document.createElement("div");
+    g.className="tile ghost k-"+kindOf(drag.val); g.textContent=drag.val;
+    document.body.appendChild(g); drag.ghost=g;
+    if(drag.from.type==="eq"||drag.from.type==="cell") drag.srcEl.style.opacity=".3";
+  }
+  if(!drag.moved) return;
+  drag.ghost.style.left=e.clientX+"px";
+  drag.ghost.style.top=e.clientY+"px";
+  highlight(e);
+}
+function targetAt(e){
+  drag.ghost.style.display="none";
+  const el=document.elementFromPoint(e.clientX,e.clientY);
+  drag.ghost.style.display="";
+  if(!el) return null;
+  return el.closest("[data-drop]");
+}
+function highlight(e){
+  document.querySelectorAll(".over").forEach(el=>el.classList.remove("over"));
+  const t=targetAt(e);
+  if(!t) { removeCaret(); return; }
+  if(t.dataset.drop==="cell"&&S.step===1) t.classList.add("over");
+  else if(t.dataset.drop==="eq"&&S.step===2){ t.classList.add("over"); showCaret(e); }
+  else if(t.dataset.drop==="bank") t.classList.add("over");
+  else removeCaret();
+}
+function caretIndex(e){
+  const tiles=[...eqLine.querySelectorAll(".tile")].filter(el=>el!==drag.srcEl);
+  let idx=tiles.length;
+  for(let i=0;i<tiles.length;i++){
+    const r=tiles[i].getBoundingClientRect();
+    if(e.clientY<r.bottom && e.clientX < r.left+r.width/2){ idx=i; break; }
+  }
+  return idx;
+}
+function showCaret(e){
+  if(!caret){ caret=document.createElement("div"); caret.className="caret"; }
+  const tiles=[...eqLine.querySelectorAll(".tile")];
+  const idx=caretIndex(e);
+  const ref=tiles[idx];
+  if(ref) eqLine.insertBefore(caret,ref); else eqLine.appendChild(caret);
+  drag.caretIdx=idx;
+}
+function removeCaret(){ if(caret&&caret.parentNode) caret.remove(); }
+function onUp(e){
+  document.removeEventListener("pointermove",onMove);
+  if(!drag) return;
+  if(drag.moved){
+    const t=targetAt(e);
+    drop(t,e);
+    drag.ghost.remove();
+  } else {
+    tapSelect();
+  }
+  if(drag.srcEl) drag.srcEl.style.opacity="";
+  document.querySelectorAll(".over").forEach(el=>el.classList.remove("over"));
+  removeCaret();
+  drag=null;
+}
+function drop(t,e){
+  const from=drag.from, val=drag.val;
+  if(S.step===1){
+    if(t&&t.dataset.drop==="cell"){
+      const key=t.dataset.key;
+      if(from.type==="bank"){
+        if(S.fills[key]) freeCell(key);
+        const b=S.bank.find(x=>x.id===from.id);
+        if(!b||b.used) return;
+        b.used=true; S.fills[key]=val;
+      } else if(from.type==="cell"){
+        if(from.key===key) return;
+        const moving=S.fills[from.key], target=S.fills[key];
+        S.fills[key]=moving;
+        if(target) S.fills[from.key]=target; else delete S.fills[from.key];
+      }
+      SFX.put();
+    } else if(from.type==="cell"){
+      freeCell(from.key); SFX.drop();
+    } else { SFX.drop(); }
+    S.sel=null; renderTable(); renderBank();
+  } else {
+    if(t&&t.dataset.drop==="eq"){
+      let idx=drag.caretIdx!==undefined?drag.caretIdx:S.eq.length;
+      if(from.type==="eq"){
+        S.eq.splice(from.i,1);
+        if(from.i<idx) idx--;
+      }
+      S.eq.splice(idx,0,val);
+      SFX.put();
+    } else if(from.type==="eq"){
+      S.eq.splice(from.i,1); SFX.drop();
+    } else { SFX.drop(); }
+    renderEq();
+  }
+}
+function freeCell(key){
+  const v=S.fills[key];
+  if(!v) return;
+  const b=S.bank.find(x=>x.v===v&&x.used);
+  if(b) b.used=false;
+  delete S.fills[key];
+}
+/* тап без перетаскивания */
+function tapSelect(){
+  const from=drag.from;
+  if(S.step===1){
+    if(from.type==="bank"){ S.sel=(S.sel===from.id?null:from.id); SFX.click(); renderTable(); renderBank(); }
+    else if(from.type==="cell"){ freeCell(from.key); SFX.click(); renderTable(); renderBank(); }
+  } else {
+    if(from.type==="bank2"||from.type==="src"){ S.eq.push(drag.val); SFX.put(); renderEq(); }
+    else if(from.type==="eq"){ S.eq.splice(from.i,1); SFX.click(); renderEq(); }
+  }
+}
+function tapCell(key){
+  if(S.step!==1||S.locked) return;
+  if(S.sel===null) return;
+  const b=S.bank.find(x=>x.id===S.sel);
+  if(!b||b.used) return;
+  if(S.fills[key]) freeCell(key);
+  b.used=true; S.fills[key]=b.v; S.sel=null;
+  SFX.put(); renderTable(); renderBank();
+}
+
+/* ---------- проверка ---------- */
+function checkTable(){
+  const t=TASKS[S.idx];
+  let allFilled=true, ok=true; const bad=[];
+  t.cells.forEach((row,ri)=>row.forEach((ans,ci)=>{
+    const key=ri+","+ci, got=S.fills[key];
+    if(!got){ allFilled=false; bad.push(key); }
+    else if(got!==ans){ ok=false; bad.push(key); }
+  }));
+  if(!allFilled){ SFX.wrong(); flashToast("ТАБЛИЦА НЕ ЗАПОЛНЕНА","#ffcc22"); markBad(bad); return; }
+  S.locked=true; SFX.craft(); hitSteve();
+  if(ok) setTimeout(tableSolved,220);
+  else setTimeout(()=>{ markBad(bad); registerMistake("ТАБЛИЦА НЕВЕРНА"); },220);
+}
+function markBad(keys){
+  keys.forEach(k=>{
+    const el=tableEl.querySelector(`.cell[data-key="${k}"]`);
+    if(el){ el.classList.add("err"); setTimeout(()=>el.classList.remove("err"),1000); }
+  });
+}
+function tableSolved(){
+  S.diamonds+=5; SFX.step();
+  tableEl.querySelectorAll(".cell").forEach(el=>el.classList.add("ok-cell"));
+  const r=tableEl.getBoundingClientRect();
+  sparkle(10,r.left+r.width/2,r.top+r.height/2,"#5fd94a");
+  flashToast("+5 💎  ТАБЛИЦА ВЕРНА","#5fd94a");
+  setTimeout(()=>{
+    const t=TASKS[S.idx];
+    const comp=new Set();
+    t.eq.forEach(v=>v.forEach(tok=>{ if(!SIGNS.includes(tok)) comp.add(tok); }));
+    S.bank2=shuffle([...comp].concat(t.extra2)).concat(SIGNS);
+    S.step=2; S.locked=false; S.sel=null;
+    $("step1").className="step done"; $("step2").className="step active";
+    $("btn-check").textContent="ПРОВЕРИТЬ УРАВНЕНИЕ";
+    $("bank-title").textContent="ЯЩИК УРАВНЕНИЯ — перетаскивай блоки и знаки в строку над ящиком";
+    $("eq-wrap").style.display="block";
+    if($("hint-text").style.display==="block") $("hint-text").textContent="💡 "+t.hintE;
+    renderTable(); renderBank(); renderEq(); renderHUD();
+  },900);
+}
+function checkEq(){
+  if(S.eq.length===0){ SFX.wrong(); flashToast("СТРОКА ПУСТА","#ffcc22"); return; }
+  S.locked=true; SFX.craft(); hitSteve();
+  const ok=eqOk(S.eq,TASKS[S.idx].eq);
+  setTimeout(()=> ok?onSolved():registerMistake("УРАВНЕНИЕ НЕВЕРНО"),240);
+}
+function onSolved(){
+  SFX.correct();
+  const gain=10+S.combo*2;
+  S.diamonds+=gain; S.combo++; S.solved++;
+  if(S.firstTryEligible) S.firstTryCorrect++;
+  S.maxCombo=Math.max(S.maxCombo,S.combo);
+  if(S.combo>=2) setTimeout(()=>SFX.combo(),320);
+  const r=eqLine.getBoundingClientRect();
+  sparkle(16,r.left+r.width/2,r.top,"#4aedd9");
+  flashToast(`+${gain} 💎  КОМБО ×${S.combo}`,"#4aedd9");
+  renderHUD();
+  setTimeout(()=>{
+    S.idx++;
+    if(S.idx>=TASKS.length) endGame(); else loadTask();
+  },1150);
+}
+function registerMistake(msg){
+  $("game").classList.add("shake"); SFX.wrong();
+  S.wrong++; S.combo=0; S.firstTryEligible=false;
+  flashToast(msg,"#e04a3f");
+  setTimeout(()=>{
+    $("game").classList.remove("shake");
+    renderHUD();
+    S.locked=false;
+  },900);
+}
+function skipTask(){
+  if(S.locked) return;
+  S.wrong++; S.combo=0; S.firstTryEligible=false;
+  SFX.wrong();
+  flashToast("⏭ ЗАДАЧА ПРОПУЩЕНА","#e04a3f");
+  setTimeout(()=>{
+    renderHUD();
+    S.idx++;
+    if(S.idx>=TASKS.length) endGame(); else loadTask();
+  },500);
+}
+function clearAll(){
+  if(S.locked) return;
+  if(S.step===1){ S.fills={}; S.bank.forEach(b=>b.used=false); S.sel=null; renderTable(); renderBank(); }
+  else { S.eq=[]; renderEq(); }
+  SFX.click();
+}
+function showHint(){
+  if(S.locked) return;
+  const t=TASKS[S.idx];
+  $("hint-text").style.display="block";
+  $("hint-text").textContent="💡 "+(S.step===1?t.hintT:t.hintE);
+  $("btn-hint").disabled=true;
+  if(!S.hintUsed){ S.hintUsed=true; S.diamonds=Math.max(0,S.diamonds-2); renderHUD(); flashToast("−2 💎 за подсказку","#ffcc22"); }
+  SFX.click();
+}
+function check(){ if(S.locked) return; S.step===1?checkTable():checkEq(); }
+
+/* ---------- эффекты ---------- */
+function hitSteve(){ steve.classList.remove("hit"); void steve.offsetWidth; steve.classList.add("hit"); }
+function sparkle(n,x,y,color){
+  for(let i=0;i<n;i++){
+    const p=document.createElement("div"); p.className="particle";
+    p.textContent="✦"; p.style.color=color; p.style.fontSize="13px"; p.style.textShadow="2px 2px 0 #000";
+    p.style.left=x+"px"; p.style.top=y+"px";
+    p.style.setProperty("--dx",(Math.random()*240-120)+"px");
+    p.style.setProperty("--dy",(-60-Math.random()*160)+"px");
+    p.style.setProperty("--rot",(Math.random()*720-360)+"deg");
+    document.body.appendChild(p); setTimeout(()=>p.remove(),1200);
+  }
+}
+function flashToast(text,color){
+  const t=$("toast"); t.textContent=text; t.style.color=color||"#fff";
+  t.classList.remove("show"); void t.offsetWidth; t.classList.add("show");
+}
+function rankOf(c){
+  const p=c/TASKS.length;
+  if(p>=0.95) return "ПОВЕЛИТЕЛЬ КРАЯ";
+  if(p>=0.75) return "ИНЖЕНЕР";
+  if(p>=0.45) return "ШАХТЁР";
+  return "НОВИЧОК";
+}
+function endGame(){
+  if(!gameActive) return;
+  gameActive=false;
+  S.locked=true;
+  $("change-student-btn").disabled=false;
+  const scorePercent=Math.round(S.firstTryCorrect/TASKS.length*100);
+  const durationSeconds=Math.max(1,Math.round((Date.now()-attemptStartMs)/1000));
+  $("progress").style.width=(S.idx/TASKS.length*100)+"%";
+  $("end-title").textContent="ТРЕНИРОВКА ЗАВЕРШЕНА!";
+  $("end-title").style.color="#4aedd9";
+  $("rank").textContent="ЗВАНИЕ: "+rankOf(S.solved);
+  $("s-diamonds").textContent=S.diamonds;
+  $("s-correct").textContent=S.solved+" / "+TASKS.length;
+  $("s-wrong").textContent=S.wrong;
+  $("s-combo").textContent="×"+S.maxCombo;
+  $("s-percent").textContent=scorePercent+"%";
+  $("s-time").textContent=formatDuration(durationSeconds);
+  SFX.win();
+  sparkle(28,window.innerWidth/2,window.innerHeight/2,"#ffcc22");
+  $("screen-end").classList.add("show");
+  submitFinalResult(scorePercent,durationSeconds);
+}
+
+$("btn-check").addEventListener("click",check);
+$("btn-clear").addEventListener("click",clearAll);
+$("btn-hint").addEventListener("click",showHint);
+$("btn-skip").addEventListener("click",skipTask);
+$("btn-start").addEventListener("click",()=>{ ac(); SFX.click(); $("screen-start").classList.remove("show"); newGame(); });
+$("btn-again").addEventListener("click",()=>{ SFX.click(); newGame(); });
+document.addEventListener("keydown",e=>{
+  if($("screen-auth").classList.contains("show")) return;
+  if(!S||S.locked) return;
+  if(e.key==="Enter") check();
+  if(e.key==="Backspace"){ e.preventDefault(); if(S.step===2&&S.eq.length){ S.eq.pop(); renderEq(); } }
+});
+initializeStudent();
+</script>
+</body>
+</html>
