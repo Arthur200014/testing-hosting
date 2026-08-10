@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#173e2b">
+  <title>Рюкзак пингвинов — формулы задания №1</title>
+  <style>
+    :root{
+      --jungle:#173e2b;--leaf:#2f8750;--lime:#9bd44e;--sun:#ffd75c;
+      --wood:#704125;--paper:#fff6cf;--red:#da4e3d;--blue:#39a7b9;--ink:#183326;
+      --shadow:0 18px 50px #061c1466;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;font-family:Trebuchet MS,Segoe UI,system-ui,sans-serif;color:var(--ink)}
+    body{
+      min-height:100vh;overflow-x:hidden;
+      background:
+        radial-gradient(ellipse at 50% 15%,#f9f3b7 0 4%,#75c47c 30%,transparent 50%),
+        linear-gradient(#56aa68 0 27%,#215f3f 28% 100%);
+    }
+    body:before,body:after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none}
+    body:before{
+      background:
+        radial-gradient(ellipse at 5% 30%,#123d27 0 10%,transparent 11%),
+        radial-gradient(ellipse at 95% 40%,#123d27 0 13%,transparent 14%),
+        radial-gradient(ellipse at 13% 92%,#0c301f 0 22%,transparent 23%),
+        radial-gradient(ellipse at 91% 91%,#0b311f 0 27%,transparent 28%);
+    }
+    body:after{
+      opacity:.22;
+      background:
+        repeating-linear-gradient(63deg,transparent 0 53px,#d8ff9a 54px 56px,transparent 57px 110px);
+      animation:mist 20s linear infinite
+    }
+    button,input{font:inherit}button{cursor:pointer}
+    .topbar{width:min(1280px,calc(100% - 24px));min-height:58px;margin:10px auto 0;display:flex;justify-content:space-between;align-items:center;gap:12px;color:#fff;position:relative;z-index:20}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:1000;text-shadow:0 2px 5px #0d2e20}
+    .brand-logo{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(#fff,#c9e2db);border:4px solid #111d1a;box-shadow:0 4px 0 #07120f;font-size:25px}
+    .student-box{display:none;align-items:center;gap:9px;background:#092b1fd9;border:1px solid #dfffb877;padding:7px 8px 7px 13px;border-radius:999px;backdrop-filter:blur(9px)}
+    .student-box b{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .tiny{border:1px solid #fff5;background:#fff1;color:#fff;border-radius:999px;padding:7px 10px;font-size:12px;font-weight:1000}
+    .tiny:disabled{opacity:.35;cursor:not-allowed}.sound{width:37px;height:37px;padding:0;font-size:17px}
+    #app{width:min(1280px,calc(100% - 24px));margin:8px auto 18px;position:relative;z-index:2}
+    .screen{
+      min-height:720px;position:relative;overflow:hidden;border:5px solid #392418;border-radius:28px;
+      box-shadow:var(--shadow),inset 0 0 0 5px #deb454;
+      background:
+        linear-gradient(#e8ffd7df,#fff3bee8),
+        repeating-linear-gradient(90deg,transparent 0 75px,#4b2d1712 76px 79px);
+    }
+    .screen:before,.screen:after{content:"";position:absolute;top:0;bottom:0;width:25px;background:repeating-linear-gradient(#734125 0 34px,#bc7831 35px 42px);z-index:8}
+    .screen:before{left:0}.screen:after{right:0}
+    .login,.start,.final{display:grid;grid-template-columns:1.05fr .95fr;align-items:center;gap:34px;padding:54px 65px}
+    .leaf-card{position:relative;background:linear-gradient(105deg,#e6c978,#fff8cf 9% 91%,#d7b45a);border:4px solid #684021;border-radius:16px;padding:34px;box-shadow:0 13px 0 #5e3a23,0 24px 45px #1f412b44}
+    .leaf-card:before,.leaf-card:after{content:"";position:absolute;left:-18px;right:-18px;height:17px;border-radius:20px;background:linear-gradient(#bd732d,#f1ba54 45%,#75401e 50%);border:2px solid #5b321d}
+    .leaf-card:before{top:-10px}.leaf-card:after{bottom:-10px}
+    .tag{display:inline-flex;padding:6px 10px;border-radius:7px;background:#183e2d;color:#ffe381;font-size:12px;font-weight:1000;letter-spacing:.12em;text-transform:uppercase}
+    h1{font-size:clamp(38px,5vw,68px);line-height:.9;letter-spacing:-.055em;margin:18px 0}
+    .lead{font-size:18px;line-height:1.52;margin:0 0 20px}
+    .primary,.secondary{border-radius:14px;padding:14px 20px;font-weight:1000;border:2px solid #163a29;box-shadow:0 6px 0 #392317;transition:.16s transform,.16s filter}
+    .primary{background:linear-gradient(#86cf4c,#3a944d);color:#102d20}.secondary{background:linear-gradient(#ffe276,#e79e31);color:#3d2415}
+    .primary:hover,.secondary:hover{transform:translateY(-2px);filter:brightness(1.06)}.primary:active,.secondary:active{transform:translateY(4px);box-shadow:0 2px 0 #392317}
+    .code-form{display:grid;gap:11px}.code-input{width:100%;border:3px solid #5d3923;border-radius:14px;padding:15px 16px;background:#fffdf0;font-size:20px;font-weight:1000;text-transform:uppercase;outline:none}
+    .code-input:focus{border-color:#2d8c50;box-shadow:0 0 0 4px #58b96e3f}.status{min-height:22px;font-size:14px;font-weight:1000}.status.bad{color:#aa2e27}
+    .hero-jungle{position:relative;min-height:570px;display:grid;place-items:center}
+    .sun{position:absolute;width:350px;height:350px;border-radius:50%;background:radial-gradient(circle,#fffbc9 0 22%,#ffd664 52%,#ffbb3555 70%,transparent 71%);animation:sunPulse 3s ease-in-out infinite}
+    .palm{position:absolute;bottom:12px;width:24px;height:330px;background:repeating-linear-gradient(8deg,#5b321f 0 26px,#89512b 27px 34px);border-radius:40%;transform-origin:bottom}
+    .palm:before{content:"";position:absolute;left:-90px;top:-32px;width:205px;height:104px;border-radius:100% 0 100% 0;background:radial-gradient(ellipse at 75% 68%,#4eaa4c 0 28%,#1d6a37 30% 60%,transparent 62%);box-shadow:-55px 8px 0 #277d3d,45px 15px 0 #368f42;transform:rotate(-9deg)}
+    .palm.l{left:3%;transform:rotate(-8deg)}.palm.r{right:3%;transform:rotate(9deg) scaleX(-1)}
+    .crew{position:absolute;left:3%;right:3%;bottom:5px;display:flex;align-items:end;justify-content:space-around;z-index:5}
+    .animal{--fur:#d99b3e;position:relative;width:94px;height:150px;filter:drop-shadow(0 9px 5px #0b2b1b88);animation:bob 2.5s ease-in-out infinite}
+    .animal:nth-child(2){animation-delay:-.6s}.animal:nth-child(3){animation-delay:-1.2s}.animal:nth-child(4){animation-delay:-1.8s}
+    .animal .body{position:absolute;left:22px;bottom:0;width:52px;height:88px;border-radius:48% 48% 28% 28%;background:var(--fur);border:4px solid #35251c}
+    .animal .head{position:absolute;left:13px;top:11px;width:70px;height:67px;border-radius:48%;background:var(--fur);border:4px solid #35251c}
+    .animal .head:before,.animal .head:after{content:"";position:absolute;top:21px;width:13px;height:17px;border-radius:50%;background:#fff;box-shadow:inset 0 0 0 5px #26352e}
+    .animal .head:before{left:12px}.animal .head:after{right:12px}
+    .animal .mouth{position:absolute;left:27px;top:49px;width:20px;height:8px;border-bottom:4px solid #5a2b20;border-radius:50%}
+    .animal .ear{position:absolute;top:5px;width:24px;height:27px;border-radius:50%;background:var(--fur);border:3px solid #35251c;z-index:-1}.animal .ear.l{left:9px}.animal .ear.r{right:9px}
+    .animal .limb{position:absolute;bottom:9px;width:18px;height:62px;border-radius:16px;background:var(--fur);border:3px solid #35251c;transform-origin:50% 8%;z-index:-1}.animal .limb.l{left:13px}.animal .limb.r{right:10px}
+    .animal .tail{position:absolute;right:2px;bottom:46px;width:45px;height:18px;border-radius:50%;border-top:7px solid var(--fur);transform-origin:left center;z-index:-2}
+    .animal.lion{--fur:#dda147}.animal.lion .head{box-shadow:0 0 0 16px #8b4e28}
+    .animal.zebra{--fur:#f5f3df}.animal.zebra .body,.animal.zebra .head{background:repeating-linear-gradient(75deg,#f5f3df 0 10px,#26302d 11px 15px)}
+    .animal.giraffe{--fur:#e7b955;height:225px}.animal.giraffe .body{height:150px}.animal.giraffe .head{top:2px;background:radial-gradient(circle,#73421f 0 5px,transparent 6px) 0 0/23px 24px,#e7b955}
+    .animal.hippo{--fur:#9a7aaa;width:125px}.animal.hippo .body{left:24px;width:78px}.animal.hippo .head{left:16px;width:94px;border-radius:46% 46% 38% 38%}
+    .animal.lion .head{animation:lionLook 3.3s ease-in-out infinite}.animal.lion .limb.r{animation:lionWave 1.8s ease-in-out infinite}.animal.lion .mouth{animation:smileTalk 2.2s ease-in-out infinite}
+    .animal.zebra{animation:zebraDance 1.7s ease-in-out infinite}.animal.zebra .limb.l{animation:hoofL 1.7s ease-in-out infinite}.animal.zebra .limb.r{animation:hoofR 1.7s ease-in-out infinite}.animal.zebra .tail{animation:tailSwing 1.1s ease-in-out infinite}
+    .animal.giraffe .head{animation:giraffeLook 3.2s ease-in-out infinite;transform-origin:50% 100%}.animal.giraffe .body{animation:neckSway 3.2s ease-in-out infinite;transform-origin:50% 100%}
+    .animal.hippo{animation:hippoBounce 2.1s ease-in-out infinite}.animal.hippo .limb{animation:hippoClap 2.1s ease-in-out infinite}.animal.hippo .mouth{animation:hippoLaugh 1.05s ease-in-out infinite}
+    .penguin{--ps:1;position:relative;width:190px;height:285px;z-index:7;filter:drop-shadow(0 15px 8px #102c1f77);animation:penguinIdle 2s ease-in-out infinite;transform:scale(var(--ps));transform-origin:center bottom}
+    .penguin .body{position:absolute;left:33px;top:37px;width:128px;height:210px;border-radius:49% 49% 43% 43%;background:#17201e;border:5px solid #0a0f0e}
+    .penguin .belly{position:absolute;left:51px;top:85px;width:92px;height:146px;border-radius:52% 52% 44% 44%;background:#f5f2d9;border:3px solid #c9c4aa}
+    .penguin .eye{position:absolute;top:61px;width:35px;height:43px;border-radius:50%;background:#fff;border:3px solid #121a18;z-index:3}
+    .penguin .eye:after{content:"";position:absolute;width:13px;height:16px;border-radius:50%;background:#1d2b25;left:11px;top:12px;box-shadow:inset 0 0 0 4px #5f995d}
+    .penguin .eye.l{left:54px}.penguin .eye.r{right:52px}
+    .penguin .beak{position:absolute;left:69px;top:99px;width:57px;height:36px;background:#efa837;clip-path:polygon(0 0,100% 50%,0 100%);z-index:4}
+    .penguin .wing{position:absolute;top:105px;width:43px;height:128px;border-radius:50%;background:#131b19;border:4px solid #090e0d;transform-origin:50% 10%}
+    .penguin .wing.l{left:13px;transform:rotate(20deg)}.penguin .wing.r{right:7px;transform:rotate(-25deg)}
+    .penguin .foot{position:absolute;bottom:13px;width:68px;height:29px;border-radius:55% 55% 38% 38%;background:#e9a22f;border:3px solid #6c421d}
+    .penguin .foot.l{left:26px;transform:rotate(-8deg)}.penguin .foot.r{right:18px;transform:rotate(8deg)}
+    .penguin .cap{position:absolute;left:54px;top:18px;width:90px;height:35px;border-radius:60% 60% 15% 15%;background:#355c48;border:4px solid #15291f;z-index:4}.penguin .cap:after{content:"";position:absolute;left:65px;bottom:-9px;width:49px;height:13px;border-radius:50%;background:#355c48;border:3px solid #15291f}
+    .penguin:not(.wrong):not(.right) .wing.l{animation:flipperL 2.4s ease-in-out infinite}.penguin:not(.wrong):not(.right) .wing.r{animation:flipperR 2.4s ease-in-out infinite}.penguin .eye{animation:penguinBlink 4.7s ease-in-out infinite}
+    .hero-jungle .penguin{--ps:1.12}
+    .rules{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:21px 0}.rule{border:2px solid #6f4c2b44;background:#fff9;border-radius:13px;padding:12px 8px;text-align:center;font-size:13px;font-weight:1000}.rule b{font-size:23px;display:block}
+    .game{padding:27px 36px 30px;display:grid;grid-template-rows:auto 1fr auto;gap:13px}
+    .hud{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;margin:0 9px}.counter,.score-now{font-weight:1000;background:#183e2d;color:#fff2a8;border-radius:999px;padding:8px 12px;white-space:nowrap}.score-now{background:#fff3c9;color:#21422f;border:2px solid #574025}
+    .track{height:16px;border:3px solid #4e321f;border-radius:999px;background:#c5aa69;overflow:hidden}.track i{display:block;height:100%;background:linear-gradient(90deg,#6acb54,#f5d54c);transition:.35s width}
+    .game-grid{display:grid;grid-template-columns:minmax(430px,1.13fr) minmax(390px,.87fr);gap:18px;min-height:610px}
+    .task-panel{min-width:0;background:#fff9dc;border:4px solid #624024;border-radius:20px;padding:19px;box-shadow:inset 0 0 0 4px #e5c46b;display:grid;grid-template-rows:auto auto minmax(225px,1fr) auto;gap:11px}
+    .task-head{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:13px;font-weight:1000;text-transform:uppercase;color:#326344}
+    .zone{padding:5px 9px;border-radius:8px;background:#dff0b9;border:1px solid #659049}
+    .task-text{background:linear-gradient(100deg,#e5c677,#fff8d6 9% 91%,#d9b45a);border:3px solid #7a4d24;border-radius:11px;padding:15px 19px;font-size:clamp(17px,1.7vw,23px);font-weight:1000;line-height:1.3;text-align:center}
+    .drawing{min-height:225px;border:2px solid #ac8953;border-radius:15px;background:#fffef6;overflow:hidden;display:grid;place-items:center}
+    .drawing svg{width:100%;height:100%;max-height:290px;display:block}.drawing .hot{stroke:#dd4e3e;stroke-width:6;fill:none}.drawing .edge{stroke:#254d39;stroke-width:5;fill:#9dd67625}.drawing .aux{stroke:#268fab;stroke-width:4;stroke-dasharray:9 7;fill:none}.drawing text{font:900 18px Trebuchet MS,system-ui;fill:#183326}.drawing .pulse{animation:pulseLine 1.4s ease-in-out infinite}
+    .mission{font-size:14px;font-weight:900;text-align:center;color:#56462f}.mission b{color:#9d322b}
+    .pack-panel{position:relative;border:4px solid #4e311d;border-radius:20px;overflow:hidden;background:linear-gradient(#7fc177 0 48%,#916039 49% 100%);box-shadow:inset 0 0 0 5px #d6ad56;min-height:610px;padding:18px}
+    .pack-panel:before{content:"";position:absolute;left:0;right:0;bottom:0;height:43%;background:repeating-linear-gradient(90deg,#87522f 0 58px,#6d3e25 59px 62px);opacity:.7}
+    .canopy{position:absolute;left:-4%;right:-4%;top:-22px;height:105px;background:radial-gradient(ellipse at 15% 50%,#1a6937 0 27%,transparent 29%),radial-gradient(ellipse at 48% 35%,#297d3e 0 30%,transparent 32%),radial-gradient(ellipse at 81% 50%,#155b31 0 30%,transparent 32%)}
+    .pack-panel .penguin{--ps:.82;position:absolute;left:13px;bottom:53px;transform-origin:left bottom}
+    .pack-panel .penguin.wrong{animation:penguinWrong .7s ease}.pack-panel .penguin.right{animation:penguinRight .7s ease}
+    .speech{position:absolute;left:15px;right:15px;top:72px;background:#fffbe1;border:3px solid #4d321f;border-radius:16px;padding:10px 12px;text-align:center;font-size:13px;font-weight:1000;box-shadow:0 7px 0 #4d321f;z-index:7}
+    .speech:after{content:"";position:absolute;left:70px;bottom:-16px;border:9px solid transparent;border-top-color:#4d321f}
+    .backpack{
+      position:absolute;right:24px;bottom:65px;width:205px;height:245px;border-radius:58px 58px 34px 34px;
+      background:linear-gradient(90deg,#613520,#a8642d 16% 84%,#613520);border:7px solid #3e271b;box-shadow:0 12px 0 #2c1b13;z-index:5;
+      transition:.2s transform,.2s box-shadow
+    }
+    .backpack:before{content:"";position:absolute;left:37px;right:37px;top:-48px;height:70px;border:12px solid #3d291c;border-bottom:0;border-radius:50px 50px 0 0}
+    .backpack:after{content:"ФОРМУЛЫ";position:absolute;left:19px;right:19px;bottom:24px;border-radius:16px;background:#d9a144;border:4px solid #54351f;padding:11px 5px;text-align:center;color:#3d2416;font-weight:1000;letter-spacing:.06em}
+    .backpack.over{transform:scale(1.04);box-shadow:0 12px 0 #2c1b13,0 0 35px #f5e65c}
+    .slots{position:absolute;left:16px;right:16px;top:38px;display:grid;gap:7px}
+    .slot{height:43px;border:3px dashed #e4bd78;border-radius:10px;background:#2c1a1166;color:#fbe3a0;display:grid;place-items:center;font-size:12px;font-weight:1000;text-align:center;padding:3px}.slot.filled{border-style:solid;background:#f3d479;color:#392417}
+    .options{position:absolute;left:14px;right:14px;top:158px;display:grid;grid-template-columns:1fr 1fr;gap:9px;z-index:8}
+    .formula-card{min-height:78px;border:3px solid #4e321f;border-radius:13px;background:linear-gradient(105deg,#eff5ce,#fff9df);box-shadow:0 6px 0 #4d311e;padding:8px;color:#173b2a;font-weight:1000;line-height:1.13;font-size:12px;touch-action:manipulation;transition:.18s transform,.18s filter}
+    .formula-card span{display:block;margin-top:5px;color:#9a3a2d;font-size:14px}.formula-card:hover:not(:disabled){transform:translateY(-3px);filter:brightness(1.04)}.formula-card:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #4d311e}.formula-card.wrong{animation:cardWrong .55s;background:#ffd9c8}.formula-card.packed{animation:flyPack .48s ease forwards}
+    .explain{position:absolute;inset:68px 18px 24px;background:#fff8d9;border:4px solid #5e3b22;border-radius:18px;padding:22px;z-index:12;display:none;align-content:center;text-align:center;box-shadow:0 16px 45px #13271999}.explain.show{display:grid;animation:pop .35s ease}.explain h2{font-size:28px;margin:7px}.explain p{line-height:1.45}.route-list{text-align:left;background:#fff;border:2px solid #c29a54;border-radius:12px;padding:11px 13px;margin:8px 0;font-size:13px}.route-list div+div{margin-top:7px}.next{margin-top:8px}
+    .leaves{display:grid;grid-template-columns:repeat(20,1fr);gap:5px;margin:0 8px}.leaf{height:12px;border-radius:100% 0 100% 0;background:#aa9760;border:1px solid #4d3b25;transform:rotate(-8deg);transition:.3s}.leaf.current{background:#ffe25b;box-shadow:0 0 10px #ffd73e}.leaf.good{background:#51c966}.leaf.bad{background:#d95343}
+    .final{text-align:center}.score-ring{width:190px;height:190px;border-radius:50%;display:grid;place-items:center;margin:16px auto;border:5px solid #4e301e;box-shadow:0 9px 0 #4e301e;position:relative}.score-ring:before{content:"";position:absolute;inset:22px;border-radius:50%;background:#fff5cf;border:3px solid #65452b}.score-ring b{position:relative;font-size:47px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:15px 0}.stat{padding:11px;border:2px solid #8f6638;background:#fff9;border-radius:12px}.stat b{display:block;font-size:22px;margin-top:4px}.save-status{min-height:24px;margin:13px 0;font-weight:1000}.save-status.ok{color:#08734f}.save-status.bad{color:#a3382e}.actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+    .final-scene{position:relative;min-height:540px;display:grid;place-items:center}.final-scene .penguin{--ps:1.25}.final-scene .backpack{right:5%;bottom:35px;transform:scale(.72)}
+    @keyframes mist{to{background-position:220px 0}}
+    @keyframes sunPulse{50%{transform:scale(1.05);filter:brightness(1.08)}}
+    @keyframes bob{50%{translate:0 -6px}}
+    @keyframes lionLook{25%{transform:rotate(-4deg)}65%{transform:rotate(5deg)}}
+    @keyframes lionWave{0%,100%{transform:rotate(-8deg)}45%,65%{transform:rotate(-72deg)}55%{transform:rotate(-50deg)}}
+    @keyframes smileTalk{50%{height:14px;border-radius:0 0 50% 50%;background:#6b2f25}}
+    @keyframes zebraDance{0%,100%{transform:translateY(0) rotate(-2deg)}25%{transform:translateY(-8px) rotate(5deg)}50%{transform:translateY(0) rotate(2deg)}75%{transform:translateY(-8px) rotate(-5deg)}}
+    @keyframes hoofL{25%{transform:rotate(24deg)}75%{transform:rotate(-12deg)}}@keyframes hoofR{25%{transform:rotate(-12deg)}75%{transform:rotate(24deg)}}
+    @keyframes tailSwing{50%{transform:rotate(-35deg)}}
+    @keyframes giraffeLook{25%{transform:translateX(-6px) rotate(-5deg)}70%{transform:translateX(7px) rotate(6deg)}}@keyframes neckSway{50%{transform:skewX(3deg)}}
+    @keyframes hippoBounce{0%,100%{transform:translateY(0) scaleY(1)}45%{transform:translateY(-10px) scaleY(1.03)}65%{transform:translateY(3px) scaleY(.97)}}@keyframes hippoClap{45%{transform:rotate(38deg)}65%{transform:rotate(-20deg)}}@keyframes hippoLaugh{50%{height:17px;background:#6b3347;border-radius:0 0 50% 50%}}
+    @keyframes penguinIdle{0%,100%{transform:scale(var(--ps)) translateY(0) rotate(-1deg)}50%{transform:scale(var(--ps)) translateY(-7px) rotate(2deg)}}
+    @keyframes flipperL{0%,100%{transform:rotate(20deg)}45%{transform:rotate(55deg)}60%{transform:rotate(38deg)}}@keyframes flipperR{0%,100%{transform:rotate(-25deg)}45%{transform:rotate(-58deg)}60%{transform:rotate(-40deg)}}@keyframes penguinBlink{0%,45%,49%,100%{transform:scaleY(1)}47%{transform:scaleY(.08)}}
+    @keyframes pulseLine{50%{filter:drop-shadow(0 0 6px #e7c239);opacity:.63}}
+    @keyframes penguinWrong{20%{transform:scale(.82) rotate(-10deg)}50%{transform:scale(.82) translateY(15px) rotate(11deg)}80%{transform:scale(.82) rotate(-4deg)}}
+    @keyframes penguinRight{30%{transform:scale(.82) translateY(-24px) rotate(-5deg)}70%{transform:scale(.82) rotate(7deg)}}
+    @keyframes cardWrong{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+    @keyframes flyPack{to{transform:translate(160px,190px) scale(.15) rotate(16deg);opacity:0}}
+    @keyframes pop{from{opacity:0;transform:scale(.85)}}
+    @media(max-width:930px){.login,.start,.final{grid-template-columns:1fr;padding:45px 45px}.game-grid{grid-template-columns:1fr}.pack-panel{min-height:640px}.screen{min-height:0}.hero-jungle{min-height:560px}}
+    @media(max-width:580px){.brand span:last-child{display:none}.student-box{border-radius:17px;flex-wrap:wrap;justify-content:flex-end}.screen:before,.screen:after{width:12px}.login,.start,.final{padding:36px 24px}.leaf-card{padding:27px 20px}h1{font-size:40px}.rules{grid-template-columns:1fr}.hero-jungle{transform:scale(.82);margin:-50px;min-height:610px}.game{padding:18px}.hud{grid-template-columns:1fr auto}.track{grid-column:1/-1;grid-row:2}.game-grid{display:block}.task-panel{margin-bottom:13px;padding:13px}.task-text{font-size:17px}.pack-panel{min-height:700px}.options{grid-template-columns:1fr;top:150px}.backpack{transform:scale(.78);transform-origin:right bottom;right:8px}.pack-panel .penguin{--ps:.68}.stats{grid-template-columns:1fr}}
+    @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important}}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-logo">🐧</span><span>ОПЕРАЦИЯ «РЮКЗАК» · ЕГЭ №1</span></div>
+    <div class="student-box" id="studentBox">
+      <span>Ученик: <b id="studentName"></b></span>
+      <button class="tiny" id="switchBtn">Сменить ученика</button>
+      <button class="tiny sound" id="soundBtn" aria-label="Звуки">🔊</button>
+    </div>
+  </header>
+  <main id="app"></main>
+  <script>
+  'use strict';
+  const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+  const TEST_META={testId:'EGE-01-MADAGASCAR-PENGUIN-BACKPACK-20',topicId:'task-01',topicName:'Планиметрия: первые три главы',taskNumber:1,schemaVersion:1};
+  const TOTAL=20,PENDING_KEY='egePendingTestResults',$=id=>document.getElementById(id);
+  let student=null,tasks=[],index=0,stepIndex=0,firstTryCorrect=0,questionAttempted=false,taskHadMistake=false,questionResolved=false,choiceLocked=false;
+  let startedAt=0,attemptEventId='',resultSubmitted=false,gameActive=false,muted=false,results=[],draggingId='';
+
+  const F={
+    triangleSum:{n:'Сумма углов треугольника',f:'A + B + C = 180°'},
+    isoAngles:{n:'Равнобедренный треугольник',f:'равные стороны ⇒ равные углы'},
+    exterior:{n:'Внешний угол треугольника',f:'∠внеш = сумма двух несмежных'},
+    bisector:{n:'Определение биссектрисы',f:'она делит угол пополам'},
+    rightAcute:{n:'Острые углы прямоугольного треугольника',f:'A + B = 90°'},
+    hypMedian:{n:'Медиана к гипотенузе',f:'CM = AM = BM = AB/2'},
+    rightAltitude:{n:'Высота из прямого угла',f:'создаёт треугольники, подобные исходному'},
+    rightBisector:{n:'Биссектриса прямого угла',f:'90° : 2 = 45°'},
+    paraAngles:{n:'Углы параллелограмма',f:'соседние дают 180°, противоположные равны'},
+    rhombusDiag:{n:'Диагонали ромба',f:'перпендикулярны и делят углы пополам'},
+    orthocenter:{n:'Угол при ортоцентре',f:'∠BHC = 180° − ∠A'},
+    incenter:{n:'Угол между биссектрисами',f:'∠AIB = 90° + ∠C/2'},
+    triArea:{n:'Площадь треугольника',f:'S = a·hₐ/2'},
+    paraArea:{n:'Площадь параллелограмма',f:'S = a·hₐ'},
+    sameArea:{n:'Одна площадь — разные основания',f:'a·hₐ = b·hᵦ'},
+    sineArea:{n:'Площадь через две стороны и угол',f:'S = a·b·sin C/2'},
+    pythagoras:{n:'Теорема Пифагора',f:'c² = a² + b²'},
+    equilateral:{n:'Равносторонний треугольник',f:'h = a√3/2'},
+    areaRatio:{n:'Одинаковая высота',f:'площади относятся как основания'},
+    subtractArea:{n:'Разбиение площади',f:'площадь целого минус площадь части'},
+    similarity:{n:'Подобные треугольники',f:'стороны пропорциональны'},
+    trapezoid:{n:'Площадь трапеции',f:'S = (a+b)h/2'},
+    cosine:{n:'Теорема косинусов',f:'c²=a²+b²−2ab cos C'},
+    circle:{n:'Вписанный угол',f:'равен половине дуги'}
+  };
+  const CHAPTERS={1:'Львиная саванна',2:'Зебриные заросли',3:'Жирафьи джунгли'};
+  function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+  function shuffle(a){const x=[...a];for(let i=x.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[x[i],x[j]]=[x[j],x[i]]}return x}
+  function ri(a,b){return Math.floor(Math.random()*(b-a+1))+a}
+  function pick(a){return a[Math.floor(Math.random()*a.length)]}
+  function even(a,b){let n=ri(Math.ceil(a/2),Math.floor(b/2))*2;return n}
+  function uuid(){if(window.crypto&&typeof crypto.randomUUID==='function')return crypto.randomUUID();return'evt-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)+'-'+Math.random().toString(36).slice(2)}
+  function localDate(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+  function elapsed(){return Math.max(1,Math.round((Date.now()-startedAt)/1000))}
+  function timeText(s){return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+
+  function penguin(extra=''){
+    return `<div class="penguin ${extra}" id="${extra==='agent'?'agent':''}" aria-label="Пингвин-агент"><i class="body"></i><i class="belly"></i><i class="eye l"></i><i class="eye r"></i><i class="beak"></i><i class="wing l"></i><i class="wing r"></i><i class="foot l"></i><i class="foot r"></i><i class="cap"></i></div>`
+  }
+  function animal(type){return `<div class="animal ${type}"><i class="tail"></i><i class="limb l"></i><i class="limb r"></i><i class="body"></i><i class="head"><i class="ear l"></i><i class="ear r"></i></i><i class="mouth"></i></div>`}
+  function crew(){return `<div class="crew">${animal('lion')}${animal('zebra')}${animal('giraffe')}${animal('hippo')}</div>`}
+  function hero(){return `<div class="hero-jungle"><i class="sun"></i><i class="palm l"></i><i class="palm r"></i>${penguin()}${crew()}</div>`}
+
+  function marksEqual(){return `<path class="hot" d="M108 129l14 8M281 129l-14 8"/>`}
+  function triangleSvg(d={}){
+    const labels=d.labels||{};
+    if(d.right){
+      const median=`<path class="aux pulse" d="M65 205L193 122"/><circle cx="193" cy="122" r="5" fill="#dd4e3e"/><text x="199" y="120">M</text>`;
+      const medianD=`<path class="aux pulse" d="M65 205L193 122"/><circle cx="193" cy="122" r="5" fill="#dd4e3e"/><text x="199" y="120">D</text>`;
+      const height=`<path class="aux pulse" d="M65 205L142 88"/><path class="hot" d="M136 91l11 7"/><circle cx="142" cy="88" r="4" fill="#dd4e3e"/><text x="126" y="79">H</text>`;
+      const bisector=`<path class="aux pulse" d="M65 205L166 104"/><path class="hot" d="M65 182A23 23 0 0 1 81 189M81 189A23 23 0 0 1 88 205"/><circle cx="166" cy="104" r="4" fill="#dd4e3e"/><text x="168" y="96">D</text>`;
+      const line=d.line==='medianD'?medianD:d.line==='heightMedian'?height+median:d.line==='heightBisector'?height+bisector:d.line==='bisectorMedian'?bisector+median:'';
+      return `<svg viewBox="0 0 390 245" role="img" aria-label="Прямоугольный треугольник"><path class="edge" d="M65 205H322L65 38Z"/><path class="hot" d="M65 189h16v16"/>${line}<text x="43" y="228">C 90°</text><text x="325" y="226">B ${labels.B||''}</text><text x="42" y="31">A ${labels.A||''}</text></svg>`
+    }
+    const equal=d.equal?marksEqual():'';
+    const line=d.line==='bisectorA'?`<path class="aux pulse" d="M65 205L259 120"/><path class="hot" d="M88 205A25 25 0 0 0 84 192M84 192A25 25 0 0 0 76 183"/><circle cx="259" cy="120" r="5" fill="#dd4e3e"/><text x="264" y="115">D</text>`:d.line==='median'?`<path class="aux pulse" d="M193 38V205"/><circle cx="193" cy="205" r="5" fill="#dd4e3e"/><text x="198" y="225">H</text>`:'';
+    return `<svg viewBox="0 0 390 245" role="img" aria-label="Чертёж треугольника"><path class="edge" d="M65 205H322L193 38Z"/>${equal}${line}<text x="50" y="226">A ${labels.A||''}</text><text x="325" y="226">B ${labels.B||''}</text><text x="184" y="28">C ${labels.C||''}</text>${d.external?`<path class="aux" d="M322 205h55"/><path class="hot" d="M322 205A45 45 0 0 0 350 189"/><text x="337" y="180">${d.external}°</text>`:''}</svg>`
+  }
+  function quadSvg(d={}){
+    const rhomb=d.kind==='rhomb',shape=rhomb?'M45 125L190 35L335 125L190 215Z':'M55 205H295L335 50H95Z';
+    return `<svg viewBox="0 0 390 245" role="img" aria-label="Чертёж четырёхугольника"><path class="edge" d="${shape}"/>${rhomb?`<path class="aux pulse" d="M45 125H335M190 35V215"/><circle cx="190" cy="125" r="5" fill="#dd4e3e"/><text x="198" y="120">O</text>`:''}<text x="38" y="${rhomb?135:226}">A</text><text x="${rhomb?184:298}" y="${rhomb?28:226}">B</text><text x="${rhomb?342:338}" y="${rhomb?135:45}">C</text><text x="${rhomb?184:80}" y="${rhomb?235:45}">D</text>${d.angle?`<text x="${d.angleAt==='A'?70:294}" y="${d.angleAt==='A'?151:155}" fill="#dd4e3e">${d.angle}°</text>`:''}</svg>`
+  }
+  function centerSvg(kind,angle){
+    const bis=kind==='incenter';
+    const lines=bis
+      ?`<path class="aux pulse" d="M55 205L284 80M330 205L119 80"/><circle cx="284" cy="80" r="4" fill="#dd4e3e"/><circle cx="119" cy="80" r="4" fill="#dd4e3e"/><text x="290" y="78">D</text><text x="103" y="74">E</text>`
+      :`<path class="aux pulse" d="M330 205L175 69M205 35V205"/><circle cx="175" cy="69" r="4" fill="#dd4e3e"/><circle cx="205" cy="205" r="4" fill="#dd4e3e"/><text x="158" y="62">D</text><text x="211" y="225">E</text>`;
+    return `<svg viewBox="0 0 390 245" role="img" aria-label="Треугольник с замечательной точкой"><path class="edge" d="M55 205H330L205 35Z"/>${lines}<circle cx="198" cy="${bis?127:101}" r="7" fill="#dd4e3e"/><text x="208" y="${bis?125:99}">O</text><text x="188" y="28">C ${bis?angle+'°':''}</text><text x="28" y="225">A ${bis?'':angle+'°'}</text><text x="334" y="225">B</text></svg>`
+  }
+  function areaSvg(d={}){
+    if(d.kind==='para'){
+      const altitude=d.mid?'':`<path class="aux pulse" d="M100 45V205"/><path class="hot" d="M100 190h15v15"/><circle cx="100" cy="205" r="4" fill="#dd4e3e"/><text x="105" y="225">H</text><text x="108" y="125">${d.h||'h'}</text>`;
+      return `<svg viewBox="0 0 390 245" role="img" aria-label="Параллелограмм ABCD"><path class="edge" d="M45 205H290L345 45H100Z"/>${altitude}<text x="30" y="226">A</text><text x="294" y="226">B</text><text x="350" y="42">C</text><text x="88" y="38">D</text><text x="160" y="230">${d.a||''}</text><text x="260" y="70">${d.b||''}</text>${d.mid?`<circle cx="168" cy="205" r="6" fill="#dd4e3e"/><path class="hot pulse" d="M168 205L345 45"/><text x="158" y="231">H</text>`:''}</svg>`
+    }
+    return `<svg viewBox="0 0 390 245" role="img" aria-label="Треугольник ABC с высотой CH"><path class="edge" d="M55 205H330L205 35Z"/><path class="aux pulse" d="M205 35V205"/><path class="hot" d="M205 190h15v15"/><circle cx="205" cy="205" r="4" fill="#dd4e3e"/><text x="40" y="226">A</text><text x="334" y="226">B</text><text x="196" y="28">C</text><text x="211" y="226">H</text><text x="165" y="238">${d.a||'a'}</text><text x="214" y="126">${d.h||'h'}</text><text x="120" y="110">${d.b||''}</text>${d.equal?marksEqual():''}${d.angle?`<path class="hot" d="M55 205A40 40 0 0 1 77 171"/><text x="76" y="164">${d.angle}°</text>`:''}</svg>`
+  }
+  function draw(t){
+    const d=t.fig||{};if(d.type==='quad')return quadSvg(d);if(d.type==='center')return centerSvg(d.kind,d.angle);if(d.type==='area')return areaSvg(d);return triangleSvg(d)
+  }
+
+  function makeTasks(){
+    const list=[];
+    let a=ri(28,68);list.push({c:1,title:'Равнобедренный треугольник',text:`В треугольнике ABC стороны AC и BC равны, угол A равен ${a}°. Найдите угол C.`,seq:['isoAngles','triangleSum'],why:'Равные стороны дают равные углы при основании. После этого оставшийся угол определяется суммой 180°.',fig:{type:'tri',equal:true,labels:{A:a+'°'}}});
+    let C=even(42,118);list.push({c:1,title:'Равнобедренный треугольник',text:`В треугольнике ABC стороны AC и BC равны, угол C равен ${C}°. Найдите угол A.`,seq:['triangleSum','isoAngles'],why:'Сначала находим сумму двух углов при основании, затем делим её пополам, потому что эти углы равны.',fig:{type:'tri',equal:true,labels:{C:C+'°'}}});
+    C=ri(75,115);let half=ri(8,Math.min(28,Math.floor((169-C)/2)));list.push({c:1,title:'Биссектриса',text:`В треугольнике ABC отрезок AD — биссектриса, угол C равен ${C}°, угол CAD равен ${half}°. Найдите угол B.`,seq:['bisector','triangleSum'],why:'Биссектриса удваивает известную половину угла A, а затем применяется сумма углов треугольника.',fig:{type:'tri',line:'bisectorA',labels:{C:C+'°',A:half+'°'}}});
+    let ext=ri(101,149);list.push({c:1,title:'Внешний угол',text:`В треугольнике ABC стороны AC и BC равны. Внешний угол при вершине B равен ${ext}°. Найдите угол C.`,seq:['exterior','isoAngles','triangleSum'],why:'Внешний угол связывает A и C, равные стороны дают A=B, а сумма внутренних углов завершает цепочку.',fig:{type:'tri',equal:true,external:ext}});
+    let B=ri(22,68);list.push({c:1,title:'Медиана к гипотенузе',text:`В прямоугольном треугольнике ABC угол C равен 90°, угол B равен ${B}°. CD — медиана к гипотенузе AB. Найдите угол ACD.`,seq:['rightAcute','hypMedian','isoAngles'],why:'Медиана к гипотенузе создаёт равнобедренный треугольник: CD=AD. Его углы при основании и вершине C связываются с острыми углами исходного треугольника.',fig:{type:'tri',right:true,line:'medianD',labels:{B:B+'°'}}});
+    let A=ri(56,79);B=90-A;list.push({c:1,title:'Высота и медиана',text:`Острые углы прямоугольного треугольника равны ${A}° и ${B}°. Найдите угол между высотой CH и медианой CM, проведёнными из вершины прямого угла C.`,seq:['rightAltitude','hypMedian','isoAngles'],why:'Высота и медиана создают два угла, равные острым углам исходного треугольника. Искомый угол получается как их разность.',fig:{type:'tri',right:true,line:'heightMedian',labels:{A:A+'°',B:B+'°'}}});
+    B=ri(18,38);list.push({c:1,title:'Высота и медиана',text:`Острый угол B прямоугольного треугольника ABC равен ${B}°. Найдите угол между высотой CH и медианой CM из вершины прямого угла C.`,seq:['rightAcute','rightAltitude','hypMedian'],why:'Сначала восстанавливаем второй острый угол. Высота и медиана откладывают от катета углы, связанные с двумя острыми углами.',fig:{type:'tri',right:true,line:'heightMedian',labels:{B:B+'°'}}});
+    let d=ri(7,24);list.push({c:1,title:'Высота и биссектриса',text:`Угол между высотой CH и биссектрисой CD, проведёнными из вершины прямого угла C, равен ${d}°. Найдите меньший острый угол треугольника.`,seq:['rightBisector','rightAltitude'],why:'Биссектриса прямого угла образует 45°, а высота откладывает один из острых углов. Их разность дана в условии.',fig:{type:'tri',right:true,line:'heightBisector'}});
+    d=ri(7,24);list.push({c:1,title:'Биссектриса и медиана',text:`Угол между биссектрисой CD и медианой CM прямоугольного треугольника, проведёнными из вершины прямого угла C, равен ${d}°. Найдите меньший острый угол.`,seq:['rightBisector','hypMedian','isoAngles'],why:'Биссектриса задаёт направление 45°, а медиана к гипотенузе создаёт равнобедренный треугольник.',fig:{type:'tri',right:true,line:'bisectorMedian'}});
+    B=ri(12,39);list.push({c:1,title:'Биссектриса и медиана',text:`Острый угол B прямоугольного треугольника ABC равен ${B}°. Найдите угол между биссектрисой CD и медианой CM из вершины прямого угла C.`,seq:['rightBisector','hypMedian','isoAngles'],why:'Направление биссектрисы известно сразу, а направление медианы определяется через равнобедренный треугольник у середины гипотенузы.',fig:{type:'tri',right:true,line:'bisectorMedian',labels:{B:B+'°'}}});
+
+    d=even(24,78);list.push({c:2,title:'Углы параллелограмма',text:`Один угол параллелограмма больше другого на ${d}°. Найдите больший угол.`,seq:['paraAngles'],why:'Соседние углы параллелограмма в сумме дают 180°. Вместе с известной разностью это определяет оба угла.',fig:{type:'quad',kind:'para'}});
+    A=even(104,158);list.push({c:2,title:'Диагональ ромба',text:`В ромбе ABCD угол DAB равен ${A}°. Найдите угол BDC.`,seq:['paraAngles','rhombusDiag'],why:'Сначала восстанавливается соседний угол ромба как угол параллелограмма, затем диагональ делит его пополам.',fig:{type:'quad',kind:'rhomb',angle:A,angleAt:'A'}});
+    C=even(36,92);list.push({c:2,title:'Диагональ ромба',text:`В ромбе ABCD угол BCD равен ${C}°. Найдите угол DBA.`,seq:['paraAngles','rhombusDiag'],why:'Ромб является параллелограммом, поэтому находим угол B, а диагональ BD делит его пополам.',fig:{type:'quad',kind:'rhomb',angle:C,angleAt:'C'}});
+    A=ri(36,78);list.push({c:2,title:'Ортоцентр',text:`В остроугольном треугольнике ABC угол A равен ${A}°. Высоты BD и CE пересекаются в точке O. Найдите угол DOE.`,seq:['orthocenter'],why:'Угол при пересечении высот является дополнительным к третьему углу треугольника.',fig:{type:'center',kind:'orthocenter',angle:A}});
+    C=even(40,100);list.push({c:2,title:'Центр вписанной окружности',text:`В треугольнике ABC угол C равен ${C}°. Биссектрисы AD и BE пересекаются в точке O. Найдите угол AOB.`,seq:['incenter'],why:'Для точки пересечения внутренних биссектрис используется готовое свойство: 90° плюс половина третьего угла.',fig:{type:'center',kind:'incenter',angle:C}});
+
+    let k=ri(12,45);list.push({c:3,title:'Равносторонний треугольник',text:`В равностороннем треугольнике ABC высота CH равна ${k}√3. Найдите сторону AB.`,seq:['equilateral'],why:'Высота равностороннего треугольника выражается через сторону формулой h=a√3/2.',fig:{type:'area',equal:true,h:k+'√3'}});
+    a=ri(7,16);let big=2*a,h=even(10,30);list.push({c:3,title:'Высоты параллелограмма',text:`Стороны параллелограмма равны ${a} и ${big}. Высота к меньшей стороне равна ${h}. Найдите высоту к большей стороне.`,seq:['paraArea','sameArea'],why:'Площадь одного параллелограмма записывается через каждое основание и соответствующую высоту. Эти произведения равны.',fig:{type:'area',kind:'para',a:a,h:h,b:big}});
+    k=ri(6,11);a=3*k;big=4*k;let n=ri(3,k-1);h=3*n;list.push({c:3,title:'Высоты треугольника',text:`Две стороны треугольника равны ${a} и ${big}. Высота к большей стороне равна ${h}. Найдите высоту к меньшей стороне.`,seq:['triArea','sameArea'],why:'Одна и та же площадь выражается через две пары «основание — соответствующая высота».',fig:{type:'area',a:big,h:h,b:a}});
+    let S=4*ri(18,42);list.push({c:3,title:'Часть площади',text:`Площадь параллелограмма ABCD равна ${S}. Точка H — середина стороны AB. Найдите площадь трапеции AHCD.`,seq:['areaRatio','subtractArea'],why:'Треугольник HBC и параллелограмм имеют общую высоту. Середина стороны задаёт отношение оснований, после чего площадь треугольника вычитается из площади параллелограмма.',fig:{type:'area',kind:'para',mid:true}});
+    let side=ri(8,22),angle=pick([30,60,90,120]);list.push({c:3,title:'Площадь через синус',text:`Угол при вершине равнобедренного треугольника равен ${angle}°, боковая сторона равна ${side}. Найдите площадь треугольника.`,seq:['sineArea'],why:'Даны две стороны и угол именно между ними — это прямой сигнал использовать формулу площади через синус.',fig:{type:'area',equal:true,b:side,angle}});
+    return shuffle(list)
+  }
+
+  function storedStudent(){const studentId=localStorage.getItem('egeStudentId');return studentId?{studentId,name:localStorage.getItem('egeStudentName')||'Ученик',code:localStorage.getItem('egeStudentCode')||''}:null}
+  function saveStudent(s){localStorage.setItem('egeStudentId',s.studentId);localStorage.setItem('egeStudentName',s.name);localStorage.setItem('egeStudentCode',s.code)}
+  function parseStudent(data,code){const src=(data&&(data.student||data.data))||data||{},studentId=src.studentId||src.id||(data&&data.studentId),name=src.studentName||src.name||src.fullName||(data&&(data.studentName||data.name)),bad=data&&(data.success===false||data.valid===false||data.ok===false);if(bad||!studentId)throw new Error((data&&(data.message||data.error))||'Личный код не найден');return{studentId:String(studentId),name:String(name||'Ученик'),code:String(code)}}
+  function validateStudent(code){return new Promise((resolve,reject)=>{const cb='egeValidate_'+Date.now()+'_'+Math.random().toString(36).slice(2),s=document.createElement('script');let done=false;const clean=()=>{delete window[cb];s.remove()},timer=setTimeout(()=>{if(done)return;done=true;clean();reject(new Error('Сервер не ответил. Проверь интернет'))},12000);window[cb]=data=>{if(done)return;done=true;clearTimeout(timer);clean();try{resolve(parseStudent(data,code))}catch(e){reject(e)}};s.onerror=()=>{if(done)return;done=true;clearTimeout(timer);clean();reject(new Error('Не удалось проверить код'))};s.src=API_URL+'?'+new URLSearchParams({action:'validateStudent',code,callback:cb});document.head.appendChild(s)})}
+  function updateStudent(){const box=$('studentBox');box.style.display=student?'flex':'none';if(student)$('studentName').textContent=student.name;$('switchBtn').disabled=gameActive}
+  function readQueue(){try{const q=JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');return Array.isArray(q)?q:[]}catch(_){return[]}}
+  function writeQueue(q){localStorage.setItem(PENDING_KEY,JSON.stringify(q))}
+  function queueResult(p){const q=readQueue();if(!q.some(x=>x&&x.eventId===p.eventId))q.push(p);writeQueue(q)}
+  function removeQueued(id){writeQueue(readQueue().filter(x=>!x||x.eventId!==id))}
+  async function postResult(p){const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(p),redirect:'follow'});if(!r.ok)throw new Error('submit')}
+  async function flushPending(){if(!navigator.onLine)return;for(const p of readQueue()){if(!p||!p.eventId)continue;try{await postResult(p);removeQueued(p.eventId)}catch(_){}}}
+  function setSave(cls,text){const e=$('saveStatus');if(e){e.className='save-status '+cls;e.textContent=text}}
+  async function submitOnce(scorePercent,durationSeconds){if(resultSubmitted||!student)return;resultSubmitted=true;const payload={action:'submitTest',eventId:attemptEventId,studentId:student.studentId,testId:TEST_META.testId,testDate:localDate(),topicId:TEST_META.topicId,topicName:TEST_META.topicName,taskNumber:TEST_META.taskNumber,scorePercent,durationSeconds,schemaVersion:TEST_META.schemaVersion};setSave('','Сохраняем результат…');try{if(!navigator.onLine)throw new Error('offline');await postResult(payload);removeQueued(payload.eventId);setSave('ok','✓ Результат сохранён')}catch(_){queueResult(payload);setSave('bad','Нет связи: результат сохранён на устройстве и отправится позже')}}
+
+  function renderLogin(prefill=''){
+    gameActive=false;student=null;updateStudent();
+    $('app').innerHTML=`<section class="screen login"><div class="leaf-card"><span class="tag">Секретный штаб пингвинов</span><h1>Операция «Рюкзак»</h1><p class="lead">Введи личный код ученика. Имя будет загружено автоматически.</p><form class="code-form" id="loginForm"><input class="code-input" id="codeInput" maxlength="40" autocomplete="one-time-code" placeholder="ЛИЧНЫЙ КОД" value="${esc(prefill)}"><button class="primary" id="loginBtn">Проверить код</button><div class="status" id="loginStatus"></div></form></div>${hero()}</section>`;
+    $('loginForm').addEventListener('submit',handleLogin);if(prefill)setTimeout(()=>$('loginForm').requestSubmit(),0)
+  }
+  async function handleLogin(e){e.preventDefault();const input=$('codeInput'),btn=$('loginBtn'),status=$('loginStatus'),code=input.value.trim();if(!code){status.className='status bad';status.textContent='Введи личный код';return}input.disabled=btn.disabled=true;status.textContent='Пингвины проверяют код…';try{student=await validateStudent(code);saveStudent(student);updateStudent();await flushPending();renderStart()}catch(err){status.className='status bad';status.textContent=err.message||'Код не подтверждён';input.disabled=btn.disabled=false;input.focus()}}
+  function changeStudent(){if(gameActive)return;['egeStudentId','egeStudentName','egeStudentCode'].forEach(k=>localStorage.removeItem(k));renderLogin()}
+  function renderStart(){
+    gameActive=false;updateStudent();
+    $('app').innerHTML=`<section class="screen start"><div class="leaf-card"><span class="tag">Первые три главы задания №1</span><h1>Формулы в рюкзак!</h1><p class="lead">Перед тобой 20 перемешанных задач. Не нужно считать ответ — собери в рюкзак свойства и формулы в правильном порядке.</p><div class="rules"><div class="rule"><b>20</b>задач</div><div class="rule"><b>1–3</b>шага</div><div class="rule"><b>∞</b>без таймера</div></div><p><b>Как играть:</b> перетащи подходящую карточку в рюкзак или просто нажми на неё. Вся цепочка должна быть собрана без ошибок, чтобы задача засчиталась с первой попытки.</p><button class="primary" id="startBtn">Начать экспедицию</button></div>${hero()}</section>`;
+    $('startBtn').addEventListener('click',startGame)
+  }
+  function startGame(){tasks=makeTasks();index=0;stepIndex=0;firstTryCorrect=0;startedAt=Date.now();attemptEventId=uuid();resultSubmitted=false;results=[];gameActive=true;updateStudent();sound('start');renderTask()}
+  function leaves(){return Array.from({length:TOTAL},(_,i)=>`<i class="leaf ${results[i]===true?'good':results[i]===false?'bad':i===index?'current':''}"></i>`).join('')}
+  function slots(t){return t.seq.map((id,i)=>`<div class="slot ${i<stepIndex?'filled':''}">${i<stepIndex?`${i+1}. ${esc(F[id].n)}`:`Шаг ${i+1}`}</div>`).join('')}
+  function optionIds(t){
+    const correct=t.seq[stepIndex],exclude=new Set(t.seq),pool=Object.keys(F).filter(id=>id!==correct&&!exclude.has(id));
+    return shuffle([correct,...shuffle(pool).slice(0,3)])
+  }
+  function optionMarkup(t){return optionIds(t).map(id=>`<button class="formula-card" draggable="true" data-id="${id}">${esc(F[id].n)}<span>${esc(F[id].f)}</span></button>`).join('')}
+  function renderTask(){
+    stepIndex=0;questionAttempted=false;taskHadMistake=false;questionResolved=false;choiceLocked=false;const t=tasks[index];
+    $('app').innerHTML=`<section class="screen game"><div class="hud"><span class="counter">Задача ${index+1} / ${TOTAL}</span><div class="track"><i style="width:${index/TOTAL*100}%"></i></div><span class="score-now">Без ошибок: <b id="liveScore">${firstTryCorrect}</b></span></div><div class="game-grid"><section class="task-panel"><div class="task-head"><span class="zone">${CHAPTERS[t.c]}</span><span>Глава ${t.c} · ${esc(t.title)}</span></div><div class="task-text">${esc(t.text)}</div><div class="drawing">${draw(t)}</div><div class="mission" id="mission">Выбери формулу для <b>шага 1 из ${t.seq.length}</b>. Порядок важен.</div></section><aside class="pack-panel"><i class="canopy"></i><div class="speech" id="speech">Ковальски, собираем только нужные инструменты!</div>${penguin('agent')}<div class="options" id="options">${optionMarkup(t)}</div><div class="backpack" id="backpack"><div class="slots" id="slots">${slots(t)}</div></div><div class="explain" id="explain"></div></aside></div><div class="leaves">${leaves()}</div></section>`;
+    bindOptions()
+  }
+  function bindOptions(){
+    document.querySelectorAll('.formula-card').forEach(card=>{
+      card.addEventListener('click',()=>pack(card.dataset.id,card));
+      card.addEventListener('dragstart',e=>{draggingId=card.dataset.id;e.dataTransfer.effectAllowed='move'});
+      card.addEventListener('dragend',()=>{draggingId=''})
+    });
+    const bag=$('backpack');bag.addEventListener('dragover',e=>{e.preventDefault();bag.classList.add('over')});bag.addEventListener('dragleave',()=>bag.classList.remove('over'));bag.addEventListener('drop',e=>{e.preventDefault();bag.classList.remove('over');const card=document.querySelector(`.formula-card[data-id="${draggingId}"]`);if(card)pack(draggingId,card)})
+  }
+  function registerSelection(correct){
+    questionAttempted=true;
+    if(!correct)taskHadMistake=true;
+    return{complete:correct&&stepIndex===tasks[index].seq.length-1,clean:correct&&!taskHadMistake}
+  }
+  function pack(id,card){
+    if(choiceLocked||questionResolved)return;choiceLocked=true;const t=tasks[index],correct=id===t.seq[stepIndex],state=registerSelection(correct),agent=$('agent'),speech=$('speech');
+    agent.classList.remove('wrong','right');void agent.offsetWidth;
+    if(!correct){
+      card.classList.add('wrong');card.disabled=true;agent.classList.add('wrong');speech.textContent='Не берём! Эта формула не является следующим шагом.';sound('bad');setTimeout(()=>{choiceLocked=false},560);return
+    }
+    card.classList.add('packed');agent.classList.add('right');speech.textContent='Точно по плану! Инструмент в рюкзаке.';sound('good');
+    setTimeout(()=>{
+      stepIndex++;$('slots').innerHTML=slots(t);
+      if(stepIndex>=t.seq.length){completeTask(state.clean);return}
+      $('mission').innerHTML=`Теперь выбери формулу для <b>шага ${stepIndex+1} из ${t.seq.length}</b>.`;
+      $('options').innerHTML=optionMarkup(t);choiceLocked=false;bindOptions()
+    },480)
+  }
+  function completeTask(clean){
+    questionResolved=true;if(clean)firstTryCorrect++;results[index]=clean;$('liveScore').textContent=firstTryCorrect;
+    const t=tasks[index],route=t.seq.map((id,i)=>`<div><b>${i+1}.</b> ${esc(F[id].n)} — ${esc(F[id].f)}</div>`).join('');
+    const box=$('explain');box.innerHTML=`<span class="tag">${clean?'Собрано без ошибок':'Маршрут собран после исправления'}</span><h2>${clean?'Задача засчитана!':'Задача пройдена'}</h2><div class="route-list">${route}</div><p>${esc(t.why)}</p><button class="primary next" id="nextBtn">${index===TOTAL-1?'Завершить экспедицию':'Следующая задача →'}</button>`;box.classList.add('show');$('nextBtn').addEventListener('click',nextTask)
+  }
+  function nextTask(){index++;if(index>=TOTAL)finish();else renderTask()}
+  function finish(){
+    gameActive=false;updateStudent();const seconds=elapsed(),score=Math.round(firstTryCorrect/TOTAL*100);
+    $('app').innerHTML=`<section class="screen final"><div class="leaf-card"><span class="tag">Операция завершена</span><h1>${score>=85?'Миссия выполнена!':score>=60?'Рюкзак собран!':'Нужна ещё одна экспедиция'}</h1><div class="score-ring" style="background:conic-gradient(#66c952 ${score}%,#d0bd82 0)"><b>${score}%</b></div><p><b>Успешность с первой попытки</b></p><div class="stats"><div class="stat">Цепочки без ошибок<b>${firstTryCorrect} из ${TOTAL}</b></div><div class="stat">Время прохождения<b>${timeText(seconds)}</b></div></div><div class="save-status" id="saveStatus">Сохраняем результат…</div><div class="actions"><button class="primary" id="againBtn">Пройти ещё раз</button><button class="secondary" id="homeBtn">На старт</button></div></div><div class="final-scene">${penguin()}<div class="backpack"><div class="slots"><div class="slot filled">Все формулы доставлены!</div></div></div>${crew()}</div></section>`;
+    $('againBtn').addEventListener('click',startGame);$('homeBtn').addEventListener('click',renderStart);sound('finish');submitOnce(score,seconds)
+  }
+  function sound(type){
+    if(muted)return;
+    try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;const ac=sound.ac||(sound.ac=new AC()),now=ac.currentTime,g=ac.createGain(),sets={start:[[180,.15],[360,.3]],good:[[430,.13],[720,.28]],bad:[[170,.18],[80,.34]],finish:[[300,.16],[450,.3],[680,.55]]},set=sets[type]||sets.good;g.connect(ac.destination);g.gain.setValueAtTime(.045,now);g.gain.exponentialRampToValueAtTime(.0001,now+set[set.length-1][1]+.1);set.forEach(([f,d],i)=>{const o=ac.createOscillator();o.type=type==='bad'?'sawtooth':'triangle';o.frequency.setValueAtTime(f,now+i*.04);o.connect(g);o.start(now+i*.04);o.stop(now+d+.1)})}catch(_){}
+  }
+  $('switchBtn').addEventListener('click',changeStudent);$('soundBtn').addEventListener('click',()=>{muted=!muted;$('soundBtn').textContent=muted?'🔇':'🔊'});window.addEventListener('online',flushPending);
+  async function init(){const code=new URLSearchParams(location.search).get('code');if(code){renderLogin(code);return}student=storedStudent();if(student){updateStudent();await flushPending();renderStart()}else renderLogin()}init();
+  </script>
+</body>
+</html>
