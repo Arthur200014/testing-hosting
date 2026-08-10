@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#071827">
+  <meta name="color-scheme" content="dark light">
+  <title>ЕГЭ №3 — Стереометрия | Лётная школа драконов</title>
+  <style>
+    :root{
+      --night:#071827;--night2:#102e45;--sea:#174f60;--ice:#79e3ef;--ice2:#c9f8ff;
+      --fire:#ff7838;--gold:#ffc95c;--paper:#f4ead3;--ink:#142436;--muted:#657482;
+      --wood:#573723;--wood2:#8a603b;--green:#2d7770;--line:#3e91aa;
+      --shadow:0 18px 55px rgba(0,10,20,.32);--radius:26px;
+    }
+    *{box-sizing:border-box}
+    html{min-height:100%;overflow-x:hidden;overflow-y:auto;scroll-behavior:smooth;scroll-padding-top:105px}
+    body{
+      min-height:100vh;margin:0;overflow:visible;position:relative;touch-action:pan-y;
+      color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;line-height:1.55;
+      background:
+        radial-gradient(circle at 82% 3%,rgba(121,227,239,.24),transparent 24rem),
+        linear-gradient(180deg,#071827 0,#12334c 13%,#1c5361 27%,#c8c7aa 42%,#e3d7bb 100%);
+    }
+    button,a,summary{font:inherit}button{color:inherit}svg text{font-family:Inter,system-ui,sans-serif}
+    .progress{position:fixed;z-index:120;top:0;left:0;right:0;height:9px;background:rgba(211,247,250,.2)}
+    .progress>i{display:block;width:0;height:100%;background:linear-gradient(90deg,var(--ice),var(--gold),var(--fire));box-shadow:0 0 18px rgba(121,227,239,.65)}
+    .flight-marker{
+      position:fixed;z-index:121;top:14px;left:clamp(30px,var(--progress,0%),calc(100% - 30px));
+      display:flex;align-items:center;gap:6px;padding:5px 9px;border:2px solid #07101a;border-radius:999px;
+      color:#e8fbff;background:#102536;box-shadow:0 6px 18px rgba(0,0,0,.3);font-size:10px;font-weight:950;
+      transform:translateX(-50%);transition:left .08s linear;pointer-events:none;
+    }
+    .flight-marker .dragon-dot{width:22px;height:15px;border-radius:70% 55% 65% 50%;background:#05090d;position:relative;animation:flyBob .65s ease-in-out infinite alternate}
+    .dragon-dot::before,.dragon-dot::after{content:"";position:absolute;top:3px;width:13px;height:7px;background:#05090d;clip-path:polygon(100% 50%,0 0,22% 100%)}
+    .dragon-dot::before{right:16px}.dragon-dot::after{left:16px;transform:scaleX(-1)}
+    @keyframes flyBob{to{transform:translateY(-3px) rotate(-3deg)}}
+
+    .world{position:fixed;z-index:30;inset:0;overflow:hidden;pointer-events:none}
+    .world *{pointer-events:none!important}
+    .moon{position:absolute;right:7vw;top:72px;width:115px;height:115px;border-radius:50%;opacity:.7;background:#d8fbff;box-shadow:0 0 80px rgba(121,227,239,.55);animation:moonGlow 5s ease-in-out infinite}
+    @keyframes moonGlow{50%{opacity:.9;transform:scale(1.04)}}
+    .ember{position:absolute;bottom:-20px;width:5px;height:10px;border-radius:50%;background:var(--fire);box-shadow:0 0 12px var(--gold);animation:emberRise 8s linear infinite}
+    .ember:nth-child(2){left:8%;animation-delay:-2s}.ember:nth-child(3){left:22%;animation-delay:-6s}.ember:nth-child(4){left:39%;animation-delay:-4s}
+    .ember:nth-child(5){left:58%;animation-delay:-7s}.ember:nth-child(6){left:74%;animation-delay:-1s}.ember:nth-child(7){left:91%;animation-delay:-5s}
+    @keyframes emberRise{0%{transform:translate(0,0) scale(.5);opacity:0}25%{opacity:.75}100%{transform:translate(45px,-105vh) rotate(300deg) scale(1.3);opacity:0}}
+    .cloud{position:absolute;width:190px;height:44px;border-radius:50%;opacity:.08;background:#d9fbff;filter:blur(7px);animation:cloudTravel 24s linear infinite}
+    .cloud.c1{top:18%;left:-210px}.cloud.c2{top:58%;left:-280px;animation-delay:-12s;animation-duration:31s}
+    @keyframes cloudTravel{to{transform:translateX(calc(100vw + 450px))}}
+    .flying-dragon{position:absolute;width:110px;height:55px;opacity:.22;animation:dragonCross 18s linear infinite}
+    .flying-dragon.d1{top:28%;left:-130px}.flying-dragon.d2{top:72%;left:-180px;animation-delay:-9s;animation-duration:25s;transform:scale(.65)}
+    @keyframes dragonCross{0%{translate:-20vw 0}50%{translate:55vw -50px}100%{translate:125vw 20px}}
+    .wing{transform-box:fill-box;transform-origin:center right;animation:wingbeat .72s ease-in-out infinite alternate}
+    @keyframes wingbeat{to{transform:scaleY(.35) rotate(7deg)}}
+
+    .shell{position:relative;z-index:1;width:min(1240px,calc(100% - 30px));margin:auto;padding:62px 0 80px}
+    .hero{
+      position:relative;isolation:isolate;overflow:hidden;display:grid;grid-template-columns:1fr 430px;align-items:center;
+      min-height:520px;padding:clamp(30px,6vw,76px);border:4px solid #03090e;border-radius:36px;color:#eefcff;
+      background:radial-gradient(circle at 78% 25%,rgba(121,227,239,.2),transparent 21rem),linear-gradient(135deg,#06121e,#102e45 56%,#174e5b);
+      box-shadow:0 15px 0 #06101a,0 30px 72px rgba(0,8,16,.45);
+    }
+    .hero::before{content:"";position:absolute;z-index:-1;inset:18px;border:1px solid rgba(201,248,255,.2);border-radius:25px}
+    .hero::after{content:"";position:absolute;z-index:-1;left:-4%;right:-4%;bottom:-8px;height:150px;opacity:.9;background:#06121d;clip-path:polygon(0 68%,8% 36%,14% 60%,22% 18%,31% 66%,42% 35%,52% 74%,65% 29%,73% 68%,84% 20%,91% 59%,100% 40%,100% 100%,0 100%)}
+    .hero-copy{position:relative;z-index:3}.eyebrow{display:inline-flex;padding:7px 11px;border:1px solid rgba(201,248,255,.3);border-radius:999px;color:var(--ice);background:rgba(121,227,239,.08);font-size:11px;font-weight:950;letter-spacing:.1em;text-transform:uppercase}
+    h1{margin:16px 0 12px;font-family:Georgia,"Times New Roman",serif;font-size:clamp(43px,7vw,80px);line-height:.94;letter-spacing:-.045em}
+    h1 span{color:var(--gold);text-shadow:0 0 24px rgba(255,201,92,.26)}
+    .hero-lead{max-width:630px;margin:0;color:#cdeaf0;font-size:clamp(15px,2vw,19px)}
+    .hero-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px}.hero-tags span{padding:7px 10px;border:1px solid rgba(121,227,239,.24);border-radius:999px;background:rgba(2,12,21,.38);font-size:11px;font-weight:850}
+    .hero-dragon{position:relative;z-index:2;height:390px;filter:drop-shadow(0 19px 16px rgba(0,0,0,.45));animation:heroFlight 4s ease-in-out infinite}
+    .hero-dragon svg{width:100%;height:100%}
+    @keyframes heroFlight{50%{transform:translateY(-12px) rotate(1deg)}}
+    .dragon-eye{animation:eyeGlow 2s ease-in-out infinite}@keyframes eyeGlow{50%{filter:drop-shadow(0 0 7px #8dff79)}}
+    .fire-breath{stroke-dasharray:130;stroke-dashoffset:130;animation:fireBreath 4s ease-in-out infinite}@keyframes fireBreath{35%,65%{stroke-dashoffset:0;opacity:1}0%,100%{opacity:0}}
+
+    .toc{
+      position:sticky;z-index:80;top:12px;display:flex;align-items:center;gap:7px;margin:28px 0;padding:9px;
+      border:1px solid rgba(121,227,239,.2);border-radius:18px;background:rgba(7,24,39,.93);box-shadow:0 8px 25px rgba(0,0,0,.3);
+      backdrop-filter:blur(12px);overflow-x:auto;scrollbar-width:none;touch-action:pan-x pan-y;
+    }
+    .toc::-webkit-scrollbar{display:none}.toc strong{flex:none;padding:0 8px;color:#9cdce7;font-size:10px;text-transform:uppercase;letter-spacing:.1em}
+    .toc a{flex:none;padding:8px 11px;border-radius:10px;color:#d5edf0;text-decoration:none;font-size:11px;font-weight:850;transition:.2s}
+    .toc a:hover,.toc a.active{color:#112536;background:var(--gold)}
+
+    .scroll,.chapter{
+      position:relative;overflow:hidden;margin:24px 0;padding:clamp(22px,4vw,48px);border:1px solid rgba(10,37,49,.25);border-radius:var(--radius);
+      background:linear-gradient(90deg,rgba(92,60,32,.07),transparent 6%,transparent 94%,rgba(92,60,32,.07)),var(--paper);box-shadow:var(--shadow);
+    }
+    .scroll::before,.chapter::before{content:"";position:absolute;left:20px;right:20px;top:-7px;height:14px;border:2px solid #302016;border-radius:7px;background:linear-gradient(#5a3923,#9a6c42,#4a2f1e)}
+    .chapter::after{content:attr(data-rune);position:absolute;right:13px;bottom:-35px;color:rgba(15,57,73,.035);font:900 190px/1 Georgia,serif;pointer-events:none}
+    .kicker{display:inline-flex;align-items:center;gap:8px;color:#b24e2c;font-size:11px;font-weight:950;letter-spacing:.11em;text-transform:uppercase}
+    .kicker::before{content:"";width:28px;height:3px;border-radius:99px;background:var(--fire)}
+    h2{margin:8px 0 0;font-family:Georgia,"Times New Roman",serif;font-size:clamp(31px,4.6vw,55px);line-height:1.04;letter-spacing:-.035em}
+    .intro{max-width:840px;margin:12px 0 0;color:var(--muted);font-size:15px}
+
+    .route{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:28px}
+    .route div{position:relative;padding:17px;border:1px solid #b9a87d;border-radius:15px;background:#fff8e4}
+    .route div:not(:last-child)::after{content:"➜";position:absolute;right:-23px;top:40%;z-index:3;color:var(--fire);font-size:25px;font-weight:950}
+    .route b{display:block;margin-bottom:5px;color:#163f4e}.route span{color:var(--muted);font-size:12px}
+    .legend{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:16px}.legend div{padding:13px;border-radius:12px;color:#dff5f8;background:#123b4b;font-size:12px}.legend b{color:var(--gold)}
+    .codifier-board{
+      border:3px solid #142d3d;
+      background:
+        linear-gradient(135deg,rgba(121,227,239,.09),transparent 30%),
+        linear-gradient(90deg,rgba(67,43,26,.07),transparent 6%,transparent 94%,rgba(67,43,26,.07)),
+        #f3e6c8;
+    }
+    .codifier-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+    .official-stamp{
+      flex:none;display:grid;place-items:center;width:112px;height:112px;padding:10px;border:4px double #a9432b;border-radius:50%;
+      color:#963d28;background:rgba(255,246,217,.7);font:900 11px/1.25 Georgia,serif;text-align:center;text-transform:uppercase;
+      transform:rotate(5deg);animation:stampFloat 3.8s ease-in-out infinite;
+    }
+    @keyframes stampFloat{50%{transform:translateY(-6px) rotate(2deg);box-shadow:0 0 25px rgba(255,120,56,.2)}}
+    .atlas{
+      display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:25px;
+    }
+    .atlas-card{
+      position:relative;overflow:hidden;display:grid;grid-template-columns:190px minmax(0,1fr);gap:16px;min-height:270px;padding:16px;
+      border:1px solid rgba(16,57,72,.24);border-radius:18px;background:rgba(255,253,244,.88);
+      box-shadow:0 6px 18px rgba(45,33,18,.08);
+    }
+    .atlas-card.wide{grid-column:1/-1;grid-template-columns:280px minmax(0,1fr)}
+    .atlas-sketch{position:relative;display:grid;place-items:center;min-width:0;min-height:232px;padding:8px;border:1px solid rgba(23,60,76,.16);border-radius:14px;background:radial-gradient(circle at 75% 18%,rgba(255,201,92,.25),transparent 55px),linear-gradient(145deg,#d7ebe7,#eee0c0);overflow:hidden}
+    .atlas-sketch svg{display:block;width:100%;height:220px;max-width:220px;overflow:visible}.atlas-card.wide .atlas-sketch svg{height:245px;max-width:280px}
+    .atlas-card h3{margin:0 0 9px;color:#173c4c;font-size:17px}
+    .atlas-list{display:grid;gap:7px;margin:0;padding:0;list-style:none}
+    .atlas-list li{position:relative;padding-left:19px;color:#5e6d78;font-size:11.5px;line-height:1.38}
+    .atlas-list li::before{content:"◆";position:absolute;left:0;top:1px;color:var(--fire);font-size:9px}
+    .atlas-list b{color:#173c4c}.atlas-formula{color:#9b4528;font-family:Cambria Math,Georgia,serif;font-size:13.5px;font-weight:850}
+    .atlas-source{margin-top:16px;padding:11px 14px;border-radius:12px;color:#d7f4f7;background:#123b4b;font-size:11px}
+    .atlas-source b{color:var(--gold)}
+    .orbit{transform:none;transform-origin:center;animation:none}
+    .scan{transform:none;animation:scanGlow 2.8s ease-in-out infinite}@keyframes scanGlow{50%{opacity:.64}}
+
+    .chapter-head{display:grid;grid-template-columns:64px 1fr 130px;gap:17px;align-items:start}
+    .chapter-no{display:grid;place-items:center;width:60px;height:60px;border:3px solid var(--gold);border-radius:50%;color:#fff;background:#173d50;box-shadow:0 5px 0 #071827;font:900 22px Georgia;animation:runePulse 3s ease-in-out infinite}
+    @keyframes runePulse{50%{transform:translateY(-3px);box-shadow:0 8px 0 #071827,0 0 24px rgba(121,227,239,.35)}}
+    .mentor{position:relative;width:120px;height:105px;animation:mentorBob 3s ease-in-out infinite}.mentor svg{width:100%;height:100%;filter:drop-shadow(0 7px 4px rgba(28,15,6,.24))}
+    .mentor::after{content:attr(data-say);position:absolute;right:-2px;bottom:-15px;padding:5px 8px;border:2px solid #4d321f;border-radius:9px;color:#3f2918;background:#ffe6a4;font-size:9px;font-weight:950;transform:rotate(-2deg)}
+    @keyframes mentorBob{50%{transform:translateY(-8px) rotate(-1deg)}}
+
+    .laws{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:26px}
+    .law-card{position:relative;overflow:hidden;border:1px solid rgba(16,57,72,.2);border-radius:20px;background:rgba(255,253,244,.92);transition:transform .25s ease,box-shadow .25s ease}
+    .law-card:hover{transform:translateY(-5px);box-shadow:0 15px 28px rgba(29,36,29,.13)}
+    .law-top{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:16px;padding:19px}
+    .law-number{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:9px;color:#fff;background:var(--fire);font-size:11px;font-weight:950}
+    .law-card h3{margin:8px 0 6px;font-size:18px;line-height:1.24}.formula{display:block;margin:8px 0;color:#16475a;font-family:Cambria Math,Georgia,serif;font-size:clamp(19px,2.5vw,25px);font-weight:850;line-height:1.25}
+    .plain{margin:0;color:var(--muted);font-size:13px}
+    .proof-viz{position:relative;display:grid;grid-template-rows:minmax(0,1fr) auto;place-items:center;min-height:278px;padding:8px;border:1px solid rgba(23,60,76,.16);border-radius:15px;background:radial-gradient(circle at 80% 15%,rgba(255,201,92,.25),transparent 68px),linear-gradient(145deg,#d7ece8,#efe2c4);overflow:hidden}
+    .proof-viz svg{display:block;width:100%;height:232px;max-width:310px;overflow:visible}.shape{fill:rgba(121,227,239,.08);stroke:#347d93;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}.dash{fill:none;stroke:#69838a;stroke-width:1.6;stroke-dasharray:6 5;vector-effect:non-scaling-stroke}.hot{fill:none;stroke:var(--fire);stroke-width:4;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}.gold{fill:none;stroke:#d99b28;stroke-width:4;stroke-linecap:round;vector-effect:non-scaling-stroke}.fill-hot{fill:rgba(255,120,56,.2);stroke:var(--fire);stroke-width:2;vector-effect:non-scaling-stroke}.fill-ice{fill:rgba(121,227,239,.22);stroke:#347d93;stroke-width:2;vector-effect:non-scaling-stroke}.viz-text{fill:#173343;font-size:10px;font-weight:900;paint-order:stroke;stroke:#f4e8c9;stroke-width:2.5px;stroke-linejoin:round}.draw{stroke-dasharray:500;stroke-dashoffset:500;animation:drawLine 2.8s ease-in-out infinite}.draw.delay{animation-delay:.7s}.pulse{transform:none;animation:pulseGlow 1.7s ease-in-out infinite}.spin,.lift,.slice,.wave{transform:none;animation:none}
+    @keyframes drawLine{0%,15%{stroke-dashoffset:500}70%,100%{stroke-dashoffset:0}}@keyframes pulseGlow{50%{opacity:.62}}
+    .viz-caption{position:static;width:100%;margin-top:4px;padding:6px 8px;border-radius:8px;color:#e9fbff;background:rgba(7,24,39,.82);font-size:9px;font-weight:800;text-align:center}
+    details.proof{margin:0 19px 19px;border:1px solid #c9b98f;border-radius:14px;background:#fff6d9}
+    details.proof summary{cursor:pointer;position:relative;padding:12px 42px 12px 14px;color:#5d361d;font-size:13px;font-weight:950;list-style:none}
+    details.proof summary::-webkit-details-marker{display:none}details.proof summary::after{content:"＋";position:absolute;right:14px;top:8px;color:var(--fire);font-size:21px}details[open].proof summary::after{content:"−"}
+    .proof-body{padding:0 15px 14px;color:var(--muted);font-size:12px}.proof-body ol{margin:0;padding-left:20px}.proof-body li+li{margin-top:7px}.why{color:#984426;font-weight:900}
+    .chapter-note{display:flex;gap:12px;margin-top:16px;padding:14px 16px;border-left:5px solid var(--ice);border-radius:12px;color:#dff5f8;background:#123b4b;font-size:12px}.chapter-note b{color:var(--gold)}
+    .reveal{opacity:0;transform:translateY(25px);transition:opacity .65s ease,transform .65s ease}.reveal.visible{opacity:1;transform:none}
+    .down{
+      position:fixed;z-index:110;right:18px;bottom:18px;display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 14px;
+      border:3px solid #06101a;border-radius:999px;color:#fff;background:#143e51;box-shadow:0 7px 0 #06101a,0 13px 28px rgba(0,0,0,.3);font-size:11px;font-weight:950;
+    }
+    .down span{color:var(--gold);font-size:18px;animation:down .7s ease-in-out infinite alternate}@keyframes down{to{transform:translateY(4px)}}.down.hidden{opacity:0;pointer-events:none}
+    footer{padding:22px;color:#bedfe5;text-align:center;font-size:11px}
+
+    @media(max-width:1040px){.hero{grid-template-columns:1fr}.hero-copy{text-align:center}.hero-tags{justify-content:center}.hero-dragon{height:300px}.laws{grid-template-columns:1fr}.route{grid-template-columns:repeat(2,1fr)}.route div::after{display:none}.atlas{grid-template-columns:1fr}.atlas-card.wide{grid-column:auto;grid-template-columns:190px minmax(0,1fr)}}
+    @media(max-width:720px){
+      .shell{width:calc(100% - 16px);padding-top:54px}.hero{padding:34px 18px;border-radius:24px;min-height:auto}h1{font-size:45px}.hero-dragon{height:245px}
+      .flight-marker b{display:none}.toc strong{display:none}.toc a{padding:8px 10px}.scroll,.chapter{padding:28px 15px;border-radius:18px}
+      .route,.legend{grid-template-columns:1fr}.chapter-head{grid-template-columns:1fr}.mentor{justify-self:center;margin:2px 0 10px}.chapter-no{width:50px;height:50px}
+      .law-top{grid-template-columns:1fr}.proof-viz{min-height:230px}.proof-viz svg{height:225px}.down{right:10px;bottom:10px;padding:9px 11px}.down b{display:none}.moon{width:75px;height:75px}.flying-dragon{opacity:.12}
+      .codifier-head{display:block}.official-stamp{width:90px;height:90px;margin:18px auto 0}.atlas-card,.atlas-card.wide{grid-template-columns:1fr}.atlas-sketch{min-height:225px}.atlas-sketch svg,.atlas-card.wide .atlas-sketch svg{height:210px;max-width:250px}
+    }
+    @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}.world *,.hero-dragon,.dragon-eye,.fire-breath,.chapter-no,.mentor,.proof-viz *,.down span,.dragon-dot,.official-stamp,.atlas-sketch *{animation:none!important}.reveal{opacity:1!important;transform:none!important}}
+    @media print{.progress,.flight-marker,.world,.toc,.down{display:none!important}body{background:#fff}.shell{width:100%;padding:0}.hero{min-height:0;box-shadow:none;break-after:page}.hero-dragon{display:none}.scroll,.chapter{box-shadow:none;break-inside:avoid}.reveal{opacity:1;transform:none}.laws{grid-template-columns:1fr 1fr}.proof-viz{min-height:160px}.proof-viz svg{height:155px}}
+  </style>
+</head>
+<body>
+  <div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+  <div class="flight-marker" aria-hidden="true"><span class="dragon-dot"></span><b>Маршрут</b><span id="progressValue">0%</span></div>
+  <div class="world" aria-hidden="true">
+    <span class="moon"></span>
+    <i class="ember"></i><i class="ember"></i><i class="ember"></i><i class="ember"></i><i class="ember"></i><i class="ember"></i>
+    <i class="cloud c1"></i><i class="cloud c2"></i>
+    <svg class="flying-dragon d1" viewBox="0 0 120 60"><path class="wing" d="M59 30Q22 2 3 20Q28 26 45 42Z" fill="#02070b"/><path class="wing" d="M61 30Q98 2 117 20Q92 26 75 42Z" fill="#02070b"/><ellipse cx="60" cy="35" rx="25" ry="13" fill="#02070b"/><path d="M82 34q25 4 31 18" fill="none" stroke="#02070b" stroke-width="7"/></svg>
+    <svg class="flying-dragon d2" viewBox="0 0 120 60"><path class="wing" d="M59 30Q22 2 3 20Q28 26 45 42Z" fill="#02070b"/><path class="wing" d="M61 30Q98 2 117 20Q92 26 75 42Z" fill="#02070b"/><ellipse cx="60" cy="35" rx="25" ry="13" fill="#02070b"/><path d="M82 34q25 4 31 18" fill="none" stroke="#02070b" stroke-width="7"/></svg>
+  </div>
+  <button class="down" id="downBtn" type="button" aria-label="Перейти к следующей главе"><b>Следующая глава</b><span>↓</span></button>
+
+  <main class="shell">
+    <header class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow">ЕГЭ №3 • профильная математика • теория</span>
+        <h1>Лётная школа<br><span>стереометрии</span></h1>
+        <p class="hero-lead">Не запоминаем объёмные формулы вслепую. Разбираем, из какого плоского рисунка они возникают и почему работают.</p>
+        <div class="hero-tags"><span>8 глав по исходному файлу</span><span>30 правил с доказательствами</span><span>каждое правило движется</span></div>
+      </div>
+      <div class="hero-dragon" aria-label="Чёрный дракон и юный викинг летят над островами">
+        <svg viewBox="0 0 430 390" role="img">
+          <defs><radialGradient id="fire" cx="0" cy=".5"><stop stop-color="#fff4a3"/><stop offset=".45" stop-color="#ff9b35"/><stop offset="1" stop-color="#f14228" stop-opacity="0"/></radialGradient></defs>
+          <path d="M15 333Q83 278 144 329T279 322T430 329V390H0Z" fill="#06111a"/>
+          <g transform="translate(22 58)">
+            <path class="wing" d="M177 126Q93 36 20 74Q84 103 112 150Q57 145 28 191Q105 183 163 161Z" fill="#04080b" stroke="#37616c" stroke-width="4"/>
+            <path class="wing" d="M183 126Q275 26 363 76Q285 101 239 150Q313 141 350 194Q265 181 197 161Z" fill="#04080b" stroke="#37616c" stroke-width="4"/>
+            <ellipse cx="180" cy="156" rx="72" ry="42" fill="#05090d" stroke="#47727b" stroke-width="4"/>
+            <path d="M230 144Q285 109 326 134L299 170L233 174Z" fill="#05090d" stroke="#47727b" stroke-width="4"/>
+            <path d="M273 125l17-33 5 37M227 130l14-32 8 35" fill="#05090d" stroke="#47727b" stroke-width="4"/>
+            <ellipse class="dragon-eye" cx="286" cy="140" rx="8" ry="12" fill="#91f06d"/><ellipse cx="286" cy="140" rx="2" ry="10" fill="#071827"/>
+            <path d="M122 168Q69 203 18 181M226 179Q291 230 371 213" fill="none" stroke="#05090d" stroke-width="20" stroke-linecap="round"/>
+            <path d="M365 214q32-3 43-28" fill="none" stroke="#05090d" stroke-width="12" stroke-linecap="round"/>
+            <path class="fire-breath" d="M316 150Q361 161 410 147" fill="none" stroke="url(#fire)" stroke-width="18" stroke-linecap="round"/>
+          </g>
+          <g transform="translate(160 105)">
+            <circle cx="34" cy="19" r="14" fill="#d1a37c"/><path d="M22 9L29-6L36 10M42 10L52-3L50 16" fill="#5e402e"/>
+            <path d="M18 35Q34 27 50 36L54 84H14Z" fill="#715039"/><path d="M25 35l-6 49M43 35l7 49" stroke="#bac9cb" stroke-width="6"/>
+            <path d="M16 46L0 70M51 46l19 17" stroke="#d1a37c" stroke-width="7" stroke-linecap="round"/>
+          </g>
+        </svg>
+      </div>
+    </header>
+
+    <nav class="toc" aria-label="Оглавление">
+      <strong>Карта полёта</strong>
+      <a href="#codifier">Все формулы</a><a href="#start">Основа</a><a href="#box">I</a><a href="#prism">II</a><a href="#pyramid">III</a><a href="#cone">IV</a><a href="#cylinder">V</a><a href="#sphere">VI</a><a href="#inside-cylinder">VII</a><a href="#inside-sphere">VIII</a>
+    </nav>
+
+    <section class="scroll codifier-board reveal" id="codifier" data-track>
+      <div class="codifier-head">
+        <div>
+          <span class="kicker">Полная карта линии №3</span>
+          <h2>Все факты и формулы в одной плашке</h2>
+          <p class="intro">Сюда включены элементы содержания, которые ФИПИ относит к заданию №3 профильного ЕГЭ: пространственные тела, сечения, расстояния, плоские фигуры, поверхности и объёмы.</p>
+        </div>
+        <div class="official-stamp">Сверено<br>с материалами<br>ФИПИ<br>ЕГЭ–2026</div>
+      </div>
+
+      <div class="atlas">
+        <article class="atlas-card">
+          <div class="atlas-sketch">
+            <svg viewBox="0 0 150 190" role="img" aria-label="Призма, пирамида, цилиндр, конус и шар">
+              <g class="lift"><path class="shape" d="M12 79L51 79L33 67ZM12 40L51 40L33 28ZM12 79V40M51 79V40M33 67V28"/><path class="shape" d="M81 79L119 79L100 66ZM100 27L81 79M100 27L119 79"/></g>
+              <g class="scan"><ellipse class="shape" cx="38" cy="125" rx="24" ry="7"/><ellipse class="shape" cx="38" cy="169" rx="24" ry="7"/><path class="shape" d="M14 125v44M62 125v44"/><ellipse class="shape" cx="105" cy="169" rx="27" ry="8"/><path class="shape" d="M78 169L105 110L132 169"/></g>
+              <circle class="hot pulse" cx="112" cy="61" r="21"/>
+            </svg>
+          </div>
+          <div><h3>1. Тела и их элементы</h3><ul class="atlas-list">
+            <li><b>Призма:</b> два равных параллельных основания; высота — расстояние между их плоскостями.</li>
+            <li><b>Прямая призма:</b> боковые рёбра ⟂ основаниям, поэтому боковое ребро равно высоте.</li>
+            <li><b>Правильная призма:</b> прямая призма с правильным многоугольником в основании.</li>
+            <li><b>Пирамида:</b> одно основание и общая вершина; у правильной вершина находится над центром основания.</li>
+            <li><b>Цилиндр:</b> образующая прямого цилиндра равна h. <b>Конус:</b> образующая l соединяет вершину с окружностью основания.</li>
+            <li><b>Шар</b> — тело, <b>сфера</b> — его поверхность; центральное сечение обоих — круг радиуса R.</li>
+          </ul></div>
+        </article>
+
+        <article class="atlas-card">
+          <div class="atlas-sketch">
+            <svg viewBox="0 0 150 190" role="img" aria-label="Площади плоских фигур">
+              <path class="fill-ice pulse" d="M12 66L69 66L35 17Z"/><path class="hot" d="M35 17V66"/>
+              <path class="fill-hot lift" d="M85 20H139V66H85Z"/>
+              <path class="fill-ice" d="M18 112H63L76 165H8Z"/><path class="hot" d="M18 112H63M8 165H76"/>
+              <circle class="shape orbit" cx="113" cy="138" r="31"/><path class="hot" d="M113 138L144 138M113 138L130 112"/><path class="fill-hot" d="M113 138L144 138A31 31 0 0 0 130 112Z"/>
+            </svg>
+          </div>
+          <div><h3>2. Плоские фигуры внутри тела</h3><ul class="atlas-list">
+            <li><b>Длина ломаной</b> — сумма её звеньев; <b>периметр</b> — сумма длин всех сторон многоугольника.</li>
+            <li><b>Треугольник:</b> <span class="atlas-formula">S=ah/2=ab·sinγ/2</span>; по Герону <span class="atlas-formula">S=√(p(p−a)(p−b)(p−c))</span>.</li>
+            <li><b>Равносторонний:</b> <span class="atlas-formula">h=a√3/2, S=a²√3/4, R=a/√3</span>.</li>
+            <li><b>Прямоугольник:</b> <span class="atlas-formula">S=ab</span>; <b>квадрат:</b> <span class="atlas-formula">S=a², d=a√2</span>.</li>
+            <li><b>Параллелограмм:</b> <span class="atlas-formula">S=ah=ab·sinγ</span>.</li>
+            <li><b>Трапеция:</b> <span class="atlas-formula">S=(a+b)h/2</span>.</li>
+            <li><b>Круг:</b> <span class="atlas-formula">S=πr²</span>; окружность <span class="atlas-formula">L=2πr</span>.</li>
+            <li><b>Сектор и дуга:</b> <span class="atlas-formula">S=α/360°·πr²; l=α/360°·2πr</span>.</li>
+            <li><b>Правильный шестиугольник:</b> сторона равна радиусу описанной окружности; <span class="atlas-formula">S=3√3a²/2</span>.</li>
+          </ul></div>
+        </article>
+
+        <article class="atlas-card">
+          <div class="atlas-sketch">
+            <svg viewBox="0 0 150 190" role="img" aria-label="Перпендикуляры и расстояния в пространстве">
+              <defs><marker id="atlas-arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#ff7838"/></marker></defs>
+              <path class="fill-ice" d="M12 78L90 48L139 72L61 103Z"/><circle cx="70" cy="19" r="5" fill="#ff7838"/>
+              <path class="hot draw" d="M70 19V91" marker-end="url(#atlas-arr)"/><path class="dash" d="M70 91L124 70"/>
+              <path class="shape" d="M17 136L134 113M21 172L138 149"/><path class="hot draw delay" d="M80 124L88 158"/>
+              <path class="gold" d="M38 125L121 164M24 167L132 119"/>
+            </svg>
+          </div>
+          <div><h3>3. Расстояния и углы</h3><ul class="atlas-list">
+            <li><b>От точки до прямой или плоскости</b> — длина перпендикуляра.</li>
+            <li><b>Между параллельными прямыми/плоскостями</b> — длина общего перпендикуляра; она постоянна.</li>
+            <li><b>Между скрещивающимися прямыми</b> — длина их общего перпендикуляра.</li>
+            <li><b>Угол между скрещивающимися прямыми:</b> одну линию параллельно переносят до пересечения с другой.</li>
+            <li><b>Угол линии с плоскостью</b> — угол между линией и её ортогональной проекцией.</li>
+            <li><b>Двугранный угол</b> измеряют углом между двумя прямыми, проведёнными в гранях перпендикулярно общему ребру.</li>
+            <li><b>Пифагор:</b> <span class="atlas-formula">c²=a²+b²</span>; диагональ коробки <span class="atlas-formula">d²=a²+b²+h²</span>.</li>
+          </ul></div>
+        </article>
+
+        <article class="atlas-card">
+          <div class="atlas-sketch">
+            <svg viewBox="0 0 150 190" role="img" aria-label="Развёртки поверхностей">
+              <g class="slice"><rect class="fill-ice" x="8" y="19" width="60" height="74" rx="4"/><path class="hot" d="M8 19H68M8 93H68"/><text class="viz-text" x="20" y="111">2πr × h</text></g>
+              <g class="orbit"><path class="fill-hot" d="M108 62L141 25A50 50 0 0 1 142 100Z"/><path class="hot" d="M108 62L141 25M108 62L142 100"/></g>
+              <circle class="shape pulse" cx="47" cy="151" r="29"/><path class="hot" d="M47 151H76"/>
+              <path class="fill-ice lift" d="M95 129H142V177H95Z"/>
+            </svg>
+          </div>
+          <div><h3>4. Площади поверхностей</h3><ul class="atlas-list">
+            <li><b>Куб:</b> <span class="atlas-formula">S<sub>полн</sub>=6a²</span>. <b>Параллелепипед:</b> <span class="atlas-formula">2(ab+bc+ac)</span>.</li>
+            <li><b>Прямая призма:</b> <span class="atlas-formula">S<sub>бок</sub>=P<sub>осн</sub>h; S<sub>полн</sub>=P<sub>осн</sub>h+2S<sub>осн</sub></span>.</li>
+            <li><b>Правильная пирамида:</b> <span class="atlas-formula">S<sub>бок</sub>=P<sub>осн</sub>l<sub>ап</sub>/2</span>.</li>
+            <li><b>Цилиндр:</b> <span class="atlas-formula">S<sub>бок</sub>=2πrh; S<sub>полн</sub>=2πr(h+r)</span>.</li>
+            <li><b>Конус:</b> <span class="atlas-formula">S<sub>бок</sub>=πrl; S<sub>полн</sub>=πr(l+r)</span>.</li>
+            <li><b>Сфера:</b> <span class="atlas-formula">S=4πR²</span>.</li>
+          </ul></div>
+        </article>
+
+        <article class="atlas-card">
+          <div class="atlas-sketch">
+            <svg viewBox="0 0 150 190" role="img" aria-label="Формулы объёмов">
+              <path class="shape lift" d="M9 75L57 75L75 61L28 61ZM9 75V28L57 28L75 14L28 14L9 28M57 28V75M75 14V61M28 14V61"/>
+              <path class="fill-hot pulse" d="M87 78L116 16L145 78Z"/><ellipse class="shape" cx="116" cy="78" rx="29" ry="8"/>
+              <ellipse class="shape" cx="40" cy="127" rx="28" ry="8"/><ellipse class="shape" cx="40" cy="176" rx="28" ry="8"/><path class="shape" d="M12 127v49M68 127v49"/>
+              <circle class="hot orbit" cx="115" cy="149" r="32"/><ellipse class="dash" cx="115" cy="149" rx="32" ry="10"/>
+            </svg>
+          </div>
+          <div><h3>5. Объёмы</h3><ul class="atlas-list">
+            <li><b>Куб:</b> <span class="atlas-formula">V=a³</span>. <b>Прямоугольный параллелепипед:</b> <span class="atlas-formula">V=abc</span>.</li>
+            <li><b>Призма:</b> <span class="atlas-formula">V=S<sub>осн</sub>h</span>.</li>
+            <li><b>Пирамида:</b> <span class="atlas-formula">V=S<sub>осн</sub>h/3</span>.</li>
+            <li><b>Цилиндр:</b> <span class="atlas-formula">V=πr²h</span>.</li>
+            <li><b>Конус:</b> <span class="atlas-formula">V=πr²h/3</span>.</li>
+            <li><b>Шар:</b> <span class="atlas-formula">V=4πR³/3</span>.</li>
+            <li><b>Масштаб:</b> размеры ×k ⇒ площади ×k², объёмы ×k³.</li>
+          </ul></div>
+        </article>
+
+        <article class="atlas-card">
+          <div class="atlas-sketch">
+            <svg viewBox="0 0 150 190" role="img" aria-label="Главные сечения тел">
+              <path class="shape" d="M8 75L60 75L79 60L27 60ZM8 75V25L60 25L79 10L27 10L8 25M60 25V75M79 10V60M27 10V60"/><path class="hot scan" d="M8 75L79 10L27 10Z"/>
+              <ellipse class="shape" cx="109" cy="77" rx="31" ry="9"/><path class="shape" d="M78 77L109 13L140 77"/><path class="hot" d="M78 77L109 13L140 77Z"/>
+              <circle class="shape" cx="43" cy="145" r="34"/><path class="hot scan" d="M12 145Q43 127 74 145Q43 163 12 145Z"/>
+              <ellipse class="shape" cx="112" cy="120" rx="29" ry="8"/><ellipse class="shape" cx="112" cy="174" rx="29" ry="8"/><path class="shape" d="M83 120v54M141 120v54"/><path class="fill-hot pulse" d="M83 120H141V174H83Z"/>
+            </svg>
+          </div>
+          <div><h3>6. Сечения</h3><ul class="atlas-list">
+            <li><b>Куб/призма:</b> отмечай точки на рёбрах и соединяй только точки одной грани; параллельные грани дают параллельные линии сечения.</li>
+            <li><b>Пирамида:</b> сечение, параллельное основанию, подобно основанию; при линейном коэффициенте k площадь меняется в k², объём малой пирамиды — в k³.</li>
+            <li><b>Цилиндр:</b> осевое сечение — прямоугольник <span class="atlas-formula">2r×h</span>.</li>
+            <li><b>Конус:</b> осевое сечение — равнобедренный треугольник; <span class="atlas-formula">l²=r²+h²</span>, его площадь <span class="atlas-formula">rh</span>.</li>
+            <li><b>Шар:</b> любое плоское сечение — круг; если плоскость на расстоянии d от центра, <span class="atlas-formula">ρ=√(R²−d²)</span>.</li>
+          </ul></div>
+        </article>
+
+        <article class="atlas-card wide">
+          <div class="atlas-sketch">
+            <svg viewBox="0 0 210 210" role="img" aria-label="Вписанные и описанные тела">
+              <path class="shape lift" d="M8 92L76 92L99 75L31 75ZM8 92V26L76 26L99 9L31 9L8 26M76 26V92M99 9V75M31 9V75"/><circle class="hot pulse" cx="53" cy="51" r="31"/>
+              <ellipse class="shape" cx="153" cy="28" rx="37" ry="10"/><ellipse class="shape" cx="153" cy="93" rx="37" ry="10"/><path class="shape" d="M116 28v65M190 28v65"/><circle class="hot pulse" cx="153" cy="60" r="32"/>
+              <circle class="shape orbit" cx="57" cy="160" r="41"/><path class="fill-hot" d="M16 160L98 160L58 119Z"/><path class="hot" d="M16 160H98"/>
+              <ellipse class="shape" cx="157" cy="188" rx="38" ry="10"/><path class="shape" d="M119 188L157 112L195 188"/><path class="hot scan" d="M119 188L157 112L195 188Z"/>
+            </svg>
+          </div>
+          <div><h3>7. Вписанные и описанные конструкции</h3><ul class="atlas-list">
+            <li><b>Шар в кубе:</b> <span class="atlas-formula">a=2R</span>.</li>
+            <li><b>Шар в цилиндре:</b> <span class="atlas-formula">r=R, h=2R</span>; <span class="atlas-formula">V<sub>шара</sub>/V<sub>цил</sub>=2/3</span>, так же для площади сферы и полной поверхности цилиндра.</li>
+            <li><b>Конус и цилиндр</b> с общими основанием и высотой: <span class="atlas-formula">V<sub>кон</sub>:V<sub>цил</sub>=1:3</span>.</li>
+            <li><b>Коробка около цилиндра:</b> стороны основания коробки равны диаметру <span class="atlas-formula">2r</span>.</li>
+            <li><b>Описанная окружность прямоугольного треугольника:</b> гипотенуза — диаметр, <span class="atlas-formula">R=c/2</span>.</li>
+            <li><b>Конус в шаре, r конуса = R шара:</b> основание — большой круг, h=R, <span class="atlas-formula">V<sub>кон</sub>=V<sub>шара</sub>/4</span>.</li>
+            <li><b>Центр сферы совпадает с центром основания конуса:</b> <span class="atlas-formula">r=h=R, l=R√2</span>.</li>
+          </ul></div>
+        </article>
+      </div>
+      <div class="atlas-source"><b>Охват ФИПИ:</b> определения пространственных тел; сечения; длины и расстояния; площади плоских фигур и поверхностей; объёмы; применение планиметрических фактов в пространстве.</div>
+    </section>
+
+    <section class="scroll reveal" id="start" data-track>
+      <span class="kicker">Перед взлётом</span><h2>Как видеть объёмную фигуру</h2>
+      <p class="intro">Почти вся стереометрия задания №3 сводится к трём действиям: найти правильное плоское сечение, узнать знакомую формулу и проверить масштаб.</p>
+      <div class="route">
+        <div><b>1. Назови тело</b><span>Призма, пирамида, конус, цилиндр или шар.</span></div>
+        <div><b>2. Найди плоский рисунок</b><span>Прямоугольный треугольник, прямоугольник или круг.</span></div>
+        <div><b>3. Объясни формулу</b><span>Через площадь слоя, развёртку или подобие.</span></div>
+        <div><b>4. Проверь степень</b><span>Длины меняются в k, площади в k², объёмы в k³.</span></div>
+      </div>
+      <div class="legend"><div><b>Сплошная линия</b> — видимое ребро.</div><div><b>Пунктир</b> — скрытое или вспомогательное.</div><div><b>Оранжевая линия</b> — то, что доказываем.</div></div>
+    </section>
+
+    <section class="chapter reveal" id="box" data-track data-rune="ᚦ">
+      <header class="chapter-head">
+        <div class="chapter-no">I</div>
+        <div><span class="kicker">Параллелепипед</span><h2>Три измерения и правильные сечения</h2><p class="intro">Секрет коробки — два последовательных прямоугольных треугольника и слои одинаковой площади.</p></div>
+        <div class="mentor" data-say="Ищи диагональ!"><svg viewBox="0 0 120 105" role="img" aria-label="Чёрный дракон"><ellipse cx="58" cy="60" rx="34" ry="24" fill="#071017"/><path class="wing" d="M48 55Q14 18 3 46Q27 54 43 70Z" fill="#08131b"/><path class="wing" d="M68 53Q103 17 117 44Q90 52 73 70Z" fill="#08131b"/><path d="M80 51q23-18 35-5l-14 20-23 1z" fill="#071017"/><circle cx="101" cy="50" r="4" fill="#8ff06d"/><path d="M31 72Q13 88 2 75M82 73q23 22 37 13" fill="none" stroke="#071017" stroke-width="9" stroke-linecap="round"/></svg></div>
+      </header>
+      <div class="laws">
+        <article class="law-card"><div class="law-top"><div><span class="law-number">1</span><h3>Пространственная диагональ</h3><span class="formula">d = √(a²+b²+c²)</span><p class="plain">Сначала диагональ основания, затем диагональ всей коробки.</p></div><div class="proof-viz" data-viz="box-diagonal"><span class="viz-caption">Два Пифагора складываются в одну формулу</span></div></div><details class="proof" open><summary>Почему формула такая</summary><div class="proof-body"><ol><li>В основании диагональ q образует прямоугольный треугольник: q²=a²+b².</li><li>Диагональ d, высота c и q снова образуют прямоугольный треугольник.</li><li>d²=q²+c²=a²+b²+c², значит d — корень из этой суммы.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">2</span><h3>Объём прямоугольного параллелепипеда</h3><span class="formula">V = abc = S<sub>осн</sub>h</span><p class="plain">Каждый горизонтальный слой имеет одну и ту же площадь ab.</p></div><div class="proof-viz" data-viz="box-volume"><span class="viz-caption">Одинаковые слои заполняют высоту c</span></div></div><details class="proof"><summary>Почему умножаем три ребра</summary><div class="proof-body"><ol><li>Основание содержит a·b единичных квадратов.</li><li>На каждом уровне стоит одинаковый слой площадью ab.</li><li>Таких единичных уровней c, поэтому всего ab·c кубиков.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">3</span><h3>Угол между скрещивающимися прямыми</h3><span class="formula">Перенеси одну прямую параллельно</span><p class="plain">Угол не зависит от места прямой, если её направление не меняется.</p></div><div class="proof-viz" data-viz="skew-angle"><span class="viz-caption">Параллельный перенос собирает линии в одной точке</span></div></div><details class="proof"><summary>Почему перенос разрешён</summary><div class="proof-body"><ol><li>Угол характеризует только направления двух прямых.</li><li>Параллельные прямые имеют одинаковое направление.</li><li>После переноса линии пересекаются, и нужный угол виден в плоском треугольнике.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">4</span><h3>Составное тело: сложить или вычесть</h3><span class="formula">V = ΣVᵢ, &nbsp; S = ΣS<sub>видимых</sub></span><p class="plain">Объём складывается без перекрытий, а внутренние грани в поверхность не входят.</p></div><div class="proof-viz" data-viz="decompose"><span class="viz-caption">Тело распадается на знакомые блоки</span></div></div><details class="proof"><summary>Почему метод работает</summary><div class="proof-body"><ol><li>Разрез нулевой толщины не добавляет и не убирает объём.</li><li>Поэтому объёмы непересекающихся частей можно сложить.</li><li>У поверхности общая грань частей оказывается внутри и считается дважды — её нужно убрать.</li></ol></div></details></article>
+      </div>
+      <div class="chapter-note"><b>Связь с исходным файлом:</b> диагонали, углы, сечения, объёмы отсечённых частей и составные многогранники.</div>
+    </section>
+
+    <section class="chapter reveal" id="prism" data-track data-rune="ᚱ">
+      <header class="chapter-head"><div class="chapter-no">II</div><div><span class="kicker">Призма</span><h2>Одинаковое основание на каждом уровне</h2><p class="intro">Призма — это фигура, которую можно мысленно нарезать на равные копии основания.</p></div><div class="mentor" data-say="Слои равны!"><svg viewBox="0 0 120 105" role="img" aria-label="Синий дракон"><ellipse cx="58" cy="61" rx="32" ry="23" fill="#347d93"/><path class="wing" d="M46 57Q16 20 3 48Q28 53 42 72Z" fill="#2a6d82"/><path class="wing" d="M69 56Q100 18 117 45Q91 54 74 72Z" fill="#2a6d82"/><path d="M80 52q24-20 36-3l-15 18-24 1z" fill="#347d93"/><circle cx="101" cy="51" r="4" fill="#ffe66e"/></svg></div></header>
+      <div class="laws">
+        <article class="law-card"><div class="law-top"><div><span class="law-number">1</span><h3>Объём любой прямой призмы</h3><span class="formula">V = S<sub>осн</sub>h</span><p class="plain">Форма основания не важна: важно, что она не меняется по высоте.</p></div><div class="proof-viz" data-viz="prism-volume"><span class="viz-caption">Треугольные слои поднимаются без изменения</span></div></div><details class="proof" open><summary>Доказательство слоями</summary><div class="proof-body"><ol><li>На любой высоте сечение, параллельное основанию, равно основанию.</li><li>Тонкий слой имеет объём примерно S<sub>осн</sub>·Δh.</li><li>Сумма всех слоёв на высоте h даёт S<sub>осн</sub>h.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">2</span><h3>Боковая поверхность прямой призмы</h3><span class="formula">S<sub>бок</sub> = P<sub>осн</sub>h</span><p class="plain">Развёртка боковых граней — прямоугольник высоты h и ширины, равной периметру.</p></div><div class="proof-viz" data-viz="prism-unfold"><span class="viz-caption">Грани разворачиваются в одну ленту</span></div></div><details class="proof"><summary>Почему появляется периметр</summary><div class="proof-body"><ol><li>Каждой стороне основания длины aᵢ соответствует прямоугольник aᵢ×h.</li><li>Сумма площадей равна h(a₁+a₂+…).</li><li>Сумма сторон в скобках — периметр основания.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">3</span><h3>Сечение через среднюю линию</h3><span class="formula">k=1/2 ⇒ S<sub>осн</sub> в 4 раза меньше</span><p class="plain">Средняя линия создаёт подобный треугольник с вдвое меньшими сторонами.</p></div><div class="proof-viz" data-viz="midline"><span class="viz-caption">Стороны ×½, площадь ×¼, высота призмы та же</span></div></div><details class="proof"><summary>Почему объём тоже делится на 4</summary><div class="proof-body"><ol><li>Малое основание подобно большому с коэффициентом 1/2.</li><li>Площадь меняется в квадрате: (1/2)²=1/4.</li><li>Высота призмы не меняется, значит V=S<sub>осн</sub>h также становится 1/4.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">4</span><h3>Правильный шестиугольник</h3><span class="formula">S = 6·(a²√3/4)</span><p class="plain">Шесть радиусов делят его на шесть равносторонних треугольников.</p></div><div class="proof-viz" data-viz="hexagon"><span class="viz-caption">Шесть одинаковых треугольных крыльев</span></div></div><details class="proof"><summary>Почему радиус равен стороне</summary><div class="proof-body"><ol><li>Центральный угол правильного шестиугольника равен 360°/6=60°.</li><li>Два радиуса равны, значит центральный треугольник равнобедренный с углом 60°.</li><li>Остальные углы тоже по 60°, поэтому треугольник равносторонний.</li></ol></div></details></article>
+      </div>
+    </section>
+
+    <section class="chapter reveal" id="pyramid" data-track data-rune="ᚨ">
+      <header class="chapter-head"><div class="chapter-no">III</div><div><span class="kicker">Пирамида</span><h2>Слои уменьшаются к вершине</h2><p class="intro">Здесь появляется коэффициент 1/3: верхние слои меньше основания, поэтому пирамида занимает лишь треть соответствующей призмы.</p></div><div class="mentor" data-say="Высота — в центр"><svg viewBox="0 0 120 105" role="img" aria-label="Красный дракон"><ellipse cx="58" cy="62" rx="31" ry="22" fill="#a84b31"/><path class="wing" d="M45 59Q17 21 4 49Q28 55 42 73Z" fill="#8e3e2a"/><path class="wing" d="M69 57Q98 18 116 45Q91 55 75 73Z" fill="#8e3e2a"/><path d="M79 53q23-20 36-2l-15 18-23 0z" fill="#a84b31"/><circle cx="101" cy="52" r="4" fill="#ffe56e"/></svg></div></header>
+      <div class="laws">
+        <article class="law-card"><div class="law-top"><div><span class="law-number">1</span><h3>Высота правильной пирамиды</h3><span class="formula">SO ⟂ основанию</span><p class="plain">В правильной пирамиде вершина находится точно над центром правильного основания.</p></div><div class="proof-viz" data-viz="pyramid-height"><span class="viz-caption">Равные боковые рёбра стягивают вершину над центром</span></div></div><details class="proof" open><summary>Почему основание высоты — центр</summary><div class="proof-body"><ol><li>Вершина S одинаково удалена от всех вершин основания.</li><li>Проекция S на основание должна быть равноудалена от этих вершин.</li><li>Единственная такая точка правильного многоугольника — его центр O.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">2</span><h3>Объём пирамиды</h3><span class="formula">V = ⅓S<sub>осн</sub>h</span><p class="plain">Три пирамиды с равными основаниями и высотами заполняют подходящую призму.</p></div><div class="proof-viz" data-viz="pyramid-volume"><span class="viz-caption">Три равные доли собираются в призму</span></div></div><details class="proof"><summary>Откуда берётся 1/3</summary><div class="proof-body"><ol><li>Диагонали параллелепипеда позволяют разбить его на пирамиды.</li><li>Пирамиды с равными площадями оснований и равными высотами имеют равные объёмы — у них одинаковы площади всех параллельных слоёв.</li><li>Три такие части заполняют призму объёма S<sub>осн</sub>h, значит каждая занимает треть.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">3</span><h3>Параллельное основанию сечение</h3><span class="formula">длины k, площади k², объёмы k³</span><p class="plain">Малая пирамида подобна исходной: меняется только масштаб.</p></div><div class="proof-viz" data-viz="pyramid-similar"><span class="viz-caption">Сечение поднимается — фигура уменьшается подобно</span></div></div><details class="proof"><summary>Почему степени разные</summary><div class="proof-body"><ol><li>Параллельные плоскости отсекают на боковых рёбрах пропорциональные отрезки.</li><li>Все линейные размеры малой пирамиды равны k от исходных.</li><li>Площадь содержит два линейных множителя — k², объём три — k³.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">4</span><h3>Расстояние от центра основания до вершины</h3><span class="formula">квадрат: R=a/√2; треугольник: R=a/√3; шестиугольник: R=a</span><p class="plain">Эти радиусы становятся катетом в треугольнике «высота — боковое ребро».</p></div><div class="proof-viz" data-viz="base-radii"><span class="viz-caption">Центр делит правильные основания на знакомые треугольники</span></div></div><details class="proof"><summary>Почему именно такие радиусы</summary><div class="proof-body"><ol><li>В квадрате диагональ a√2, а центр делит её пополам: R=a√2/2.</li><li>В равностороннем треугольнике медиана a√3/2, центр делит её 2:1: R=a√3/3.</li><li>В правильном шестиугольнике центральный треугольник равносторонний: R=a.</li></ol></div></details></article>
+      </div>
+    </section>
+
+    <section class="chapter reveal" id="cone" data-track data-rune="ᚲ">
+      <header class="chapter-head"><div class="chapter-no">IV</div><div><span class="kicker">Конус</span><h2>Пирамида с круглым основанием</h2><p class="intro">Осевое сечение превращает конус в равнобедренный треугольник, а параллельные сечения дают подобные конусы.</p></div><div class="mentor" data-say="Режь через ось!"><svg viewBox="0 0 120 105" role="img" aria-label="Оранжевый дракон"><ellipse cx="57" cy="62" rx="31" ry="22" fill="#d56a32"/><path class="wing" d="M45 58Q14 20 3 49Q28 55 42 73Z" fill="#bd5729"/><path class="wing" d="M68 56Q100 17 117 45Q92 55 74 73Z" fill="#bd5729"/><path d="M79 53q24-20 36-2l-15 18-23 0z" fill="#d56a32"/><circle cx="101" cy="52" r="4" fill="#ddff73"/></svg></div></header>
+      <div class="laws">
+        <article class="law-card"><div class="law-top"><div><span class="law-number">1</span><h3>Образующая, высота и радиус</h3><span class="formula">l² = h²+r²</span><p class="plain">Ось, радиус и образующая образуют прямоугольный треугольник.</p></div><div class="proof-viz" data-viz="cone-triangle"><span class="viz-caption">Половина осевого сечения — прямоугольный треугольник</span></div></div><details class="proof" open><summary>Почему угол прямой</summary><div class="proof-body"><ol><li>Высота конуса перпендикулярна всей плоскости основания.</li><li>Значит она перпендикулярна любому радиусу, проходящему через её основание.</li><li>Образующая — гипотенуза, поэтому работает теорема Пифагора.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">2</span><h3>Площадь осевого сечения</h3><span class="formula">S<sub>осев</sub> = ½·2r·h = rh</span><p class="plain">Сечение через ось — треугольник с основанием-диаметром и высотой h.</p></div><div class="proof-viz" data-viz="cone-section"><span class="viz-caption">Плоскость проходит через диаметр основания</span></div></div><details class="proof"><summary>Почему основание равно 2r</summary><div class="proof-body"><ol><li>Осевое сечение содержит ось конуса и центр круга.</li><li>Его линия в основании проходит через центр, значит является диаметром.</li><li>Диаметр равен 2r, а высота треугольника равна h.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">3</span><h3>Объём конуса</h3><span class="formula">V = ⅓πr²h</span><p class="plain">Конус — круглый аналог пирамиды.</p></div><div class="proof-viz" data-viz="cone-volume"><span class="viz-caption">Три одинаковых объёма конуса наполняют цилиндр</span></div></div><details class="proof"><summary>Почему снова 1/3</summary><div class="proof-body"><ol><li>Многоугольник с большим числом сторон всё точнее приближает круг.</li><li>Пирамида над таким многоугольником приближает конус.</li><li>В формуле пирамиды S<sub>осн</sub> стремится к πr², а множитель 1/3 сохраняется.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">4</span><h3>Параллельное сечение конуса</h3><span class="formula">r₁/r = h₁/h = k; &nbsp; S₁/S=k²; &nbsp; V₁/V=k³</span><p class="plain">Малый отсечённый конус подобен целому.</p></div><div class="proof-viz" data-viz="cone-similar"><span class="viz-caption">Круг сечения сжимается вместе с высотой</span></div></div><details class="proof"><summary>Почему радиусы пропорциональны высотам</summary><div class="proof-body"><ol><li>В осевом сечении получаются два подобных треугольника.</li><li>Их соответствующие катеты пропорциональны: r₁/r=h₁/h.</li><li>Круговые площади меняются в k², объёмы подобных тел — в k³.</li></ol></div></details></article>
+      </div>
+    </section>
+
+    <section class="chapter reveal" id="cylinder" data-track data-rune="ᛚ">
+      <header class="chapter-head"><div class="chapter-no">V</div><div><span class="kicker">Цилиндр</span><h2>Круглые слои и развёртка-лента</h2><p class="intro">Цилиндр сохраняет одинаковый круг на всей высоте, а его боковая поверхность раскатывается в прямоугольник.</p></div><div class="mentor" data-say="Разверни ленту!"><svg viewBox="0 0 120 105" role="img" aria-label="Зелёный дракон"><ellipse cx="57" cy="62" rx="31" ry="22" fill="#34766a"/><path class="wing" d="M45 58Q14 20 3 49Q28 55 42 73Z" fill="#285f56"/><path class="wing" d="M68 56Q100 17 117 45Q92 55 74 73Z" fill="#285f56"/><path d="M79 53q24-20 36-2l-15 18-23 0z" fill="#34766a"/><circle cx="101" cy="52" r="4" fill="#ffe56e"/></svg></div></header>
+      <div class="laws">
+        <article class="law-card"><div class="law-top"><div><span class="law-number">1</span><h3>Боковая поверхность цилиндра</h3><span class="formula">S<sub>бок</sub> = 2πrh</span><p class="plain">После разреза вдоль образующей оболочка становится прямоугольником.</p></div><div class="proof-viz" data-viz="cylinder-unfold"><span class="viz-caption">Окружность 2πr выпрямляется в ширину</span></div></div><details class="proof" open><summary>Доказательство развёрткой</summary><div class="proof-body"><ol><li>Высота прямоугольника-развёртки равна h.</li><li>Его ширина оборачивается вокруг основания и равна длине окружности 2πr.</li><li>Площадь прямоугольника: 2πr·h.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">2</span><h3>Объём цилиндра</h3><span class="formula">V = πr²h</span><p class="plain">Все горизонтальные слои — равные круги площади πr².</p></div><div class="proof-viz" data-viz="cylinder-volume"><span class="viz-caption">Круглые слои не меняют размер</span></div></div><details class="proof"><summary>Доказательство слоями</summary><div class="proof-body"><ol><li>Каждый тонкий слой имеет площадь основания πr².</li><li>Его малый объём равен πr²·Δh.</li><li>Суммируя слои на всей высоте h, получаем πr²h.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">3</span><h3>Погружение и переливание</h3><span class="formula">V<sub>детали</sub> = S<sub>осн</sub>·Δh</span><p class="plain">Погружённая деталь вытесняет ровно свой объём жидкости.</p></div><div class="proof-viz" data-viz="displacement"><span class="viz-caption">Деталь входит — уровень поднимается</span></div></div><details class="proof"><summary>Почему объёмы равны</summary><div class="proof-body"><ol><li>Жидкость и деталь не могут занимать одно место.</li><li>Деталь вытесняет объём, равный своей погружённой части.</li><li>В цилиндре прибавка объёма между уровнями равна S<sub>осн</sub>Δh.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">4</span><h3>Как меняется объём</h3><span class="formula">r×k, h×m ⇒ V×k²m</span><p class="plain">Радиус входит в формулу дважды, высота — один раз.</p></div><div class="proof-viz" data-viz="cylinder-scale"><span class="viz-caption">Ширина действует на площадь основания в квадрате</span></div></div><details class="proof"><summary>Почему радиус даёт квадрат</summary><div class="proof-body"><ol><li>V=πr²h.</li><li>После изменения V₂=π(kr)²(mh).</li><li>Раскрываем квадрат: V₂=k²m·πr²h=k²mV₁.</li></ol></div></details></article>
+      </div>
+    </section>
+
+    <section class="chapter reveal" id="sphere" data-track data-rune="ᛟ">
+      <header class="chapter-head"><div class="chapter-no">VI</div><div><span class="kicker">Шар</span><h2>Вся поверхность равноудалена от центра</h2><p class="intro">Формулы шара удобно понимать через цилиндр Архимеда и масштабирование.</p></div><div class="mentor" data-say="Всё от центра"><svg viewBox="0 0 120 105" role="img" aria-label="Белый ледяной дракон"><ellipse cx="57" cy="62" rx="31" ry="22" fill="#d9eef0" stroke="#6ba4ae" stroke-width="2"/><path class="wing" d="M45 58Q14 20 3 49Q28 55 42 73Z" fill="#bfe0e4"/><path class="wing" d="M68 56Q100 17 117 45Q92 55 74 73Z" fill="#bfe0e4"/><path d="M79 53q24-20 36-2l-15 18-23 0z" fill="#d9eef0" stroke="#6ba4ae" stroke-width="2"/><circle cx="101" cy="52" r="4" fill="#3b91bb"/></svg></div></header>
+      <div class="laws">
+        <article class="law-card"><div class="law-top"><div><span class="law-number">1</span><h3>Площадь поверхности сферы</h3><span class="formula">S = 4πR²</span><p class="plain">Она равна боковой поверхности цилиндра радиуса R и высоты 2R.</p></div><div class="proof-viz" data-viz="sphere-area"><span class="viz-caption">Пояса сферы разворачиваются на цилиндр</span></div></div><details class="proof" open><summary>Понятное доказательство поясами</summary><div class="proof-body"><ol><li>Разрежем сферу и описанный цилиндр на очень тонкие горизонтальные пояса одинаковой высоты.</li><li>Наклон сферы растягивает её пояс ровно настолько, насколько его окружность короче окружности цилиндра; площади поясов совпадают.</li><li>Значит площадь сферы равна боковой площади цилиндра: 2πR·2R=4πR².</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">2</span><h3>Объём шара</h3><span class="formula">V = ⁴⁄₃πR³</span><p class="plain">Шар дополняет два конуса до описанного цилиндра.</p></div><div class="proof-viz" data-viz="sphere-volume"><span class="viz-caption">На каждом уровне: круг шара + кольцо конусов = круг цилиндра</span></div></div><details class="proof"><summary>Доказательство Архимеда</summary><div class="proof-body"><ol><li>Берём цилиндр радиуса R и высоты 2R и два конуса общей вершиной в центре.</li><li>На любой высоте площади сечения шара и двух конусов в сумме равны πR² — сечению цилиндра; это следует из x²+y²=R².</li><li>Значит V<sub>шара</sub>=V<sub>цилиндра</sub>−V<sub>двух конусов</sub>=2πR³−2·⅓πR³=⁴⁄₃πR³.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">3</span><h3>Масштаб шара</h3><span class="formula">R×k ⇒ S×k², V×k³</span><p class="plain">Площадь содержит R², объём — R³.</p></div><div class="proof-viz" data-viz="sphere-scale"><span class="viz-caption">Радиус растёт линейно, поверхность — квадратом, объём — кубом</span></div></div><details class="proof"><summary>Почему степени 2 и 3</summary><div class="proof-body"><ol><li>S₂=4π(kR)²=k²·4πR².</li><li>V₂=⁴⁄₃π(kR)³=k³·⁴⁄₃πR³.</li><li>Это общий закон любых подобных фигур и тел.</li></ol></div></details></article>
+      </div>
+    </section>
+
+    <section class="chapter reveal" id="inside-cylinder" data-track data-rune="ᛞ">
+      <header class="chapter-head"><div class="chapter-no">VII</div><div><span class="kicker">Вписанный и описанный цилиндр</span><h2>Касания превращаются в равенства</h2><p class="intro">Если тело касается граней или окружности, геометрические размеры связываются напрямую.</p></div><div class="mentor" data-say="Найди касания"><svg viewBox="0 0 120 105" role="img" aria-label="Фиолетовый дракон"><ellipse cx="57" cy="62" rx="31" ry="22" fill="#705b8e"/><path class="wing" d="M45 58Q14 20 3 49Q28 55 42 73Z" fill="#5b4877"/><path class="wing" d="M68 56Q100 17 117 45Q92 55 74 73Z" fill="#5b4877"/><path d="M79 53q24-20 36-2l-15 18-23 0z" fill="#705b8e"/><circle cx="101" cy="52" r="4" fill="#afff73"/></svg></div></header>
+      <div class="laws">
+        <article class="law-card"><div class="law-top"><div><span class="law-number">1</span><h3>Конус и цилиндр с общими основанием и высотой</h3><span class="formula">V<sub>кон</sub> = ⅓V<sub>цил</sub></span><p class="plain">У них одинаково πr²h, но у конуса есть коэффициент 1/3.</p></div><div class="proof-viz" data-viz="cone-cylinder"><span class="viz-caption">Одинаковые r и h — различается только множитель 1/3</span></div></div><details class="proof" open><summary>Почему отношение всегда 1:3</summary><div class="proof-body"><ol><li>Цилиндр: V=πr²h.</li><li>Конус: V=⅓πr²h.</li><li>Деление второй формулы на первую оставляет 1/3 независимо от размеров.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">2</span><h3>Параллелепипед около цилиндра</h3><span class="formula">основание коробки: 2r × 2r</span><p class="plain">Круг касается всех четырёх сторон квадратного основания.</p></div><div class="proof-viz" data-viz="cylinder-box"><span class="viz-caption">Диаметр круга совпадает со стороной квадратной рамки</span></div></div><details class="proof"><summary>Почему сторона равна диаметру</summary><div class="proof-body"><ol><li>Две противоположные стороны основания коробки — параллельные касательные к кругу.</li><li>Расстояние между такими касательными проходит через центр.</li><li>Оно равно двум радиусам, то есть 2r.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">3</span><h3>Цилиндр около прямой треугольной призмы</h3><span class="formula">R = c/2, где c — гипотенуза</span><p class="plain">Окружность основания цилиндра описана около прямоугольного треугольника.</p></div><div class="proof-viz" data-viz="thales"><span class="viz-caption">Гипотенуза становится диаметром окружности</span></div></div><details class="proof"><summary>Почему гипотенуза — диаметр</summary><div class="proof-body"><ol><li>Вписанный угол, опирающийся на диаметр, равен 90° — теорема Фалеса.</li><li>И наоборот: если вписанный угол прямой, хорда напротив него проходит через центр.</li><li>Значит гипотенуза прямоугольного треугольника является диаметром описанной окружности.</li></ol></div></details></article>
+      </div>
+    </section>
+
+    <section class="chapter reveal" id="inside-sphere" data-track data-rune="ᛉ">
+      <header class="chapter-head"><div class="chapter-no">VIII</div><div><span class="kicker">Вписанная и описанная сфера</span><h2>Радиус читается по точкам касания</h2><p class="intro">Центральное сечение переводит пространственную конструкцию в круг, квадрат, прямоугольник или треугольник.</p></div><div class="mentor" data-say="Сделай сечение"><svg viewBox="0 0 120 105" role="img" aria-label="Золотой дракон"><ellipse cx="57" cy="62" rx="31" ry="22" fill="#c89537"/><path class="wing" d="M45 58Q14 20 3 49Q28 55 42 73Z" fill="#aa7c2c"/><path class="wing" d="M68 56Q100 17 117 45Q92 55 74 73Z" fill="#aa7c2c"/><path d="M79 53q24-20 36-2l-15 18-23 0z" fill="#c89537"/><circle cx="101" cy="52" r="4" fill="#9dff73"/></svg></div></header>
+      <div class="laws">
+        <article class="law-card"><div class="law-top"><div><span class="law-number">1</span><h3>Шар в кубе и куб около шара</h3><span class="formula">a = 2R</span><p class="plain">Шар касается каждой пары противоположных граней.</p></div><div class="proof-viz" data-viz="cube-sphere"><span class="viz-caption">От грани до центра R и от центра до другой грани ещё R</span></div></div><details class="proof" open><summary>Почему ребро равно диаметру</summary><div class="proof-body"><ol><li>Радиус к точке касания перпендикулярен грани.</li><li>Центр шара лежит посередине между противоположными гранями.</li><li>Расстояние между гранями равно R+R=2R, а в кубе это ребро a.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">2</span><h3>Шар вписан в цилиндр</h3><span class="formula">r=R, h=2R</span><p class="plain">Шар касается боковой поверхности и обоих оснований цилиндра.</p></div><div class="proof-viz" data-viz="sphere-cylinder"><span class="viz-caption">Центральное сечение: круг внутри прямоугольника 2R×2R</span></div></div><details class="proof"><summary>Какие отношения отсюда следуют</summary><div class="proof-body"><ol><li>Боковое касание даёт радиус цилиндра r=R.</li><li>Касание двух оснований даёт высоту h=2R.</li><li>V<sub>цил</sub>=2πR³, V<sub>шара</sub>=⁴⁄₃πR³, поэтому V<sub>шара</sub>/V<sub>цил</sub>=2/3; для площадей S<sub>шара</sub>/S<sub>полн.цил</sub>=2/3.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">3</span><h3>Центр сферы совпадает с центром основания конуса</h3><span class="formula">h=R, r=R, l=R√2</span><p class="plain">Основание конуса — большой круг сферы, а вершина лежит на сфере.</p></div><div class="proof-viz" data-viz="cone-sphere-center"><span class="viz-caption">Радиус основания и высота — два перпендикулярных радиуса сферы</span></div></div><details class="proof"><summary>Почему образующая равна R√2</summary><div class="proof-body"><ol><li>Центр основания O одновременно является центром сферы.</li><li>OA=R — радиус основания, OS=R — радиус сферы к вершине.</li><li>OA ⟂ OS, поэтому AS²=R²+R²=2R² и AS=R√2.</li></ol></div></details></article>
+        <article class="law-card"><div class="law-top"><div><span class="law-number">4</span><h3>Конус в шаре, радиус основания равен радиусу шара</h3><span class="formula">V<sub>кон</sub> = ¼V<sub>шара</sub></span><p class="plain">Основание становится большим кругом, а высота — радиусом шара.</p></div><div class="proof-viz" data-viz="cone-sphere-ratio"><span class="viz-caption">Одинаковый R: конус занимает четверть шара</span></div></div><details class="proof"><summary>Почему отношение 1:4</summary><div class="proof-body"><ol><li>Если радиус основания конуса равен R шара, плоскость основания проходит через центр шара.</li><li>Высота от этой плоскости до вершины сферы равна R.</li><li>V<sub>кон</sub>=⅓πR³, V<sub>шара</sub>=⁴⁄₃πR³, их отношение равно 1/4.</li></ol></div></details></article>
+      </div>
+      <div class="chapter-note"><b>Финальный приём:</b> для любой вписанной конструкции сначала рисуй центральное сечение. Объёмная задача почти всегда превращается в теорему Пифагора или равенство радиусов.</div>
+    </section>
+
+    <section class="scroll reveal" data-track>
+      <span class="kicker">Посадка</span><h2>Карта всех причин</h2>
+      <div class="legend"><div><b>Пифагор</b> объясняет диагонали, образующие и высоты.</div><div><b>Слои и развёртки</b> объясняют объёмы и поверхности.</div><div><b>Подобие</b> объясняет степени k, k² и k³.</div></div>
+      <p class="intro">Если формула забыта, восстанови её из рисунка: найди плоское сечение, назови его стороны и вспомни, что именно складывается — длины, площади или слои объёма.</p>
+    </section>
+    <footer>Автономный теоретический гайд • без внешних библиотек, изображений, звука и сетевых запросов</footer>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+      const bar=document.getElementById("progressBar");
+      const valueText=document.getElementById("progressValue");
+      const down=document.getElementById("downBtn");
+      const tracks=[...document.querySelectorAll("[data-track]")];
+      const links=[...document.querySelectorAll(".toc a")];
+
+      const wrap=(body)=>`<svg viewBox="0 0 240 205" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Чертёж и визуальное доказательство">${body}</svg>`;
+      const defs=`<defs><marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#ff7838"/></marker></defs>`;
+      const box=(extra="")=>wrap(`${defs}<path class="shape" d="M32 166L150 166L205 130L88 130ZM32 166V65L150 65L205 30L88 30L32 65M150 65V166M205 30V130M88 30V130"/><path class="dash" d="M32 65L88 30M88 130L88 30"/>${extra}`);
+      const prism=(extra="")=>wrap(`${defs}<path class="shape" d="M40 164L190 164L112 130ZM40 77L190 77L112 42ZM40 164V77M190 164V77M112 130V42"/>${extra}`);
+      const pyramid=(extra="")=>wrap(`${defs}<path class="shape" d="M35 166L150 177L205 143L91 127ZM120 25L35 166M120 25L150 177M120 25L205 143M120 25L91 127"/><path class="dash" d="M120 25V151"/>${extra}`);
+      const cone=(extra="")=>wrap(`${defs}<ellipse class="shape" cx="120" cy="166" rx="76" ry="24"/><path class="shape" d="M44 166L120 25L196 166"/><path class="dash" d="M120 25V166M44 166Q120 139 196 166"/>${extra}`);
+      const cylinder=(extra="")=>wrap(`${defs}<ellipse class="shape" cx="120" cy="48" rx="72" ry="22"/><ellipse class="shape" cx="120" cy="163" rx="72" ry="22"/><path class="shape" d="M48 48V163M192 48V163"/><path class="dash" d="M48 163Q120 138 192 163"/>${extra}`);
+      const sphere=(extra="")=>wrap(`${defs}<circle class="shape" cx="120" cy="102" r="75"/><ellipse class="dash" cx="120" cy="102" rx="75" ry="23"/><path class="dash" d="M120 27V177"/>${extra}`);
+      const label=(x,y,t)=>`<text class="viz-text" x="${x}" y="${y}">${t}</text>`;
+
+      const visuals={
+        "box-diagonal":()=>box(`<path class="gold draw" d="M32 166L205 130"/><path class="hot draw delay" d="M32 166L205 30"/>${label(103,157,"q²=a²+b²")}${label(120,92,"d²=q²+c²")}`),
+        "box-volume":()=>box(`<g class="lift"><path class="fill-ice" d="M32 132L150 132L205 96L88 96Z"/><path class="fill-ice" d="M32 99L150 99L205 63L88 63Z"/></g>${label(98,193,"ab × c слоёв")}`),
+        "skew-angle":()=>box(`<path class="hot draw" d="M32 166L150 65"/><path class="gold draw delay" d="M88 130L205 30"/><path class="hot" d="M88 130L205 130" marker-end="url(#arr)"/>${label(93,122,"перенос")}`),
+        "decompose":()=>box(`<path class="hot slice" d="M92 30V130M92 130L154 166M92 130L203 97"/><path class="gold slice" d="M32 115L150 115L205 80L88 80Z"/>${label(68,194,"V₁ + V₂")}`),
+        "prism-volume":()=>prism(`<g class="lift"><path class="fill-ice" d="M40 128L190 128L112 94Z"/><path class="fill-ice" d="M40 104L190 104L112 70Z"/></g>${label(89,192,"Sосн · h")}`),
+        "prism-unfold":()=>wrap(`<g class="slice"><path class="fill-ice" d="M20 55H220V155H20Z"/><path class="hot" d="M20 55H220M20 155H220M70 55V155M125 55V155M177 55V155"/></g>${label(94,45,"Pосн")}${label(5,108,"h")}`),
+        "midline":()=>prism(`<path class="hot draw" d="M76 147L151 147M76 60L151 60"/><path class="fill-hot" d="M76 147L151 147L112 130Z"/><text class="viz-text pulse" x="90" y="185">k=½ → S=¼</text>`),
+        "hexagon":()=>wrap(`<g class="spin"><path class="shape" d="M120 28L184 65L184 139L120 176L56 139L56 65Z"/><path class="hot" d="M120 102L120 28M120 102L184 65M120 102L184 139M120 102L120 176M120 102L56 139M120 102L56 65"/></g>${label(80,198,"6 равных △")}`),
+        "pyramid-height":()=>pyramid(`<path class="hot draw" d="M120 25V151"/><circle class="pulse" cx="120" cy="151" r="7" fill="#ff7838"/>${label(126,94,"h")}`),
+        "pyramid-volume":()=>pyramid(`<path class="hot slice" d="M35 166L150 65M150 177L91 70"/><text class="viz-text pulse" x="86" y="196">⅓ Sоснh</text>`),
+        "pyramid-similar":()=>pyramid(`<path class="fill-hot slice" d="M80 91L130 95L154 79L104 72Z"/><path class="hot slice" d="M80 91L130 95L154 79L104 72Z"/>${label(82,66,"k")}${label(153,104,"k² / k³")}`),
+        "base-radii":()=>wrap(`<g class="spin"><path class="shape" d="M30 40H95V105H30Z"/><path class="hot" d="M62 72L95 40"/><path class="shape" d="M132 105L164 40L206 105Z"/><path class="hot" d="M166 83L164 40"/><path class="shape" d="M72 129L104 148L104 183L72 201L40 183L40 148Z"/><path class="hot" d="M72 165L104 148"/></g>`),
+        "cone-triangle":()=>cone(`<path class="hot draw" d="M120 25L196 166"/><path class="gold draw delay" d="M120 25V166M120 166H196"/>${label(153,91,"l")}${label(125,103,"h")}${label(155,180,"r")}`),
+        "cone-section":()=>cone(`<path class="fill-hot pulse" d="M44 166L120 25L196 166Z"/><path class="hot" d="M44 166H196"/>${label(105,190,"2r")}`),
+        "cone-volume":()=>cylinder(`<path class="fill-hot lift" d="M48 163L120 48L192 163Z"/><text class="viz-text pulse" x="88" y="194">3 × ⅓πr²h</text>`),
+        "cone-similar":()=>cone(`<ellipse class="hot slice" cx="120" cy="91" rx="35" ry="11"/><path class="hot slice" d="M85 91L120 25L155 91"/>${label(126,64,"h₁")}${label(148,91,"r₁")}`),
+        "cylinder-unfold":()=>wrap(`<g class="slice"><path class="fill-ice" d="M25 49H215V157H25Z"/><path class="hot" d="M25 49H215M25 157H215"/></g>${label(99,40,"2πr")}${label(8,108,"h")}`),
+        "cylinder-volume":()=>cylinder(`<g class="lift"><ellipse class="fill-ice" cx="120" cy="128" rx="72" ry="22"/><ellipse class="fill-ice" cx="120" cy="94" rx="72" ry="22"/></g>${label(86,196,"πr² · h")}`),
+        "displacement":()=>cylinder(`<path class="fill-ice wave" d="M48 120Q120 94 192 120V163Q120 187 48 163Z"/><rect class="fill-hot lift" x="102" y="74" width="36" height="61" rx="5"/><path class="hot wave" d="M48 120Q120 94 192 120"/>${label(147,104,"Δh")}`),
+        "cylinder-scale":()=>wrap(`<g class="pulse"><ellipse class="shape" cx="65" cy="65" rx="36" ry="12"/><ellipse class="shape" cx="65" cy="145" rx="36" ry="12"/><path class="shape" d="M29 65v80M101 65v80"/></g><g class="pulse" style="animation-delay:.7s"><ellipse class="hot" cx="174" cy="55" rx="53" ry="16"/><ellipse class="hot" cx="174" cy="155" rx="53" ry="16"/><path class="hot" d="M121 55v100M227 55v100"/></g>${label(35,185,"r,h")}${label(157,185,"kr,mh")}`),
+        "sphere-area":()=>sphere(`<g class="lift"><ellipse class="hot" cx="120" cy="70" rx="63" ry="18"/><ellipse class="hot" cx="120" cy="103" rx="75" ry="23"/><ellipse class="hot" cx="120" cy="136" rx="63" ry="18"/></g>${label(87,198,"пояса → цилиндр")}`),
+        "sphere-volume":()=>wrap(`<circle class="shape" cx="72" cy="102" r="58"/><path class="hot" d="M14 102H130M72 44V160"/><path class="shape" d="M152 40H225V164H152Z"/><path class="fill-hot lift" d="M188 102L152 40H225Z M188 102L152 164H225Z"/>${label(24,184,"шар")}${label(158,184,"цилиндр − конусы")}`),
+        "sphere-scale":()=>wrap(`<circle class="shape pulse" cx="66" cy="107" r="39"/><circle class="hot pulse" cx="170" cy="107" r="65"/><path class="gold" d="M66 107h39M170 107h65"/>${label(52,161,"R")}${label(151,187,"kR")}`),
+        "cone-cylinder":()=>cylinder(`<path class="fill-hot lift" d="M48 163L120 48L192 163Z"/><text class="viz-text pulse" x="89" y="194">1 : 3</text>`),
+        "cylinder-box":()=>box(`<ellipse class="hot spin" cx="119" cy="132" rx="57" ry="20"/><ellipse class="hot spin" cx="119" cy="57" rx="57" ry="20"/><path class="gold" d="M62 132H176"/>${label(105,151,"2r")}`),
+        "thales":()=>wrap(`<circle class="shape spin" cx="120" cy="103" r="76"/><path class="fill-hot" d="M44 103L196 103L121 27Z"/><path class="hot" d="M44 103H196"/><path class="gold" d="M116 35l12 9-9 12"/>${label(95,122,"c=2R")}`),
+        "cube-sphere":()=>box(`<circle class="hot pulse" cx="118" cy="99" r="51"/><path class="gold" d="M67 99H169"/>${label(103,118,"2R")}`),
+        "sphere-cylinder":()=>cylinder(`<circle class="hot pulse" cx="120" cy="105" r="58"/><path class="gold" d="M120 47V163M62 105H178"/>${label(126,105,"2R")}`),
+        "cone-sphere-center":()=>sphere(`<path class="fill-hot" d="M45 102L120 27L195 102Z"/><path class="hot" d="M120 102L120 27M120 102H195M120 27L195 102"/>${label(158,62,"R√2")}`),
+        "cone-sphere-ratio":()=>sphere(`<path class="fill-hot lift" d="M45 102L120 27L195 102Z"/><text class="viz-text pulse" x="94" y="195">V = ¼ шара</text>`)
+      };
+
+      document.querySelectorAll("[data-viz]").forEach((el)=>{
+        const make=visuals[el.dataset.viz];
+        if(make) el.insertAdjacentHTML("afterbegin",make());
+      });
+
+      function updateProgress(){
+        const root=document.scrollingElement||document.documentElement;
+        const max=Math.max(1,root.scrollHeight-innerHeight);
+        const value=Math.min(100,Math.max(0,(root.scrollTop||pageYOffset||0)/max*100));
+        bar.style.width=value+"%";
+        document.documentElement.style.setProperty("--progress",value+"%");
+        valueText.textContent=Math.round(value)+"%";
+        down.classList.toggle("hidden",value>98.5);
+      }
+      const revealObserver=new IntersectionObserver((entries)=>{
+        entries.forEach((entry)=>{if(entry.isIntersecting){entry.target.classList.add("visible");revealObserver.unobserve(entry.target);}});
+      },{threshold:.06});
+      document.querySelectorAll(".reveal").forEach((item)=>revealObserver.observe(item));
+      const sectionObserver=new IntersectionObserver((entries)=>{
+        const current=entries.filter((e)=>e.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];
+        if(!current||!current.target.id)return;
+        links.forEach((link)=>link.classList.toggle("active",link.getAttribute("href")==="#"+current.target.id));
+      },{rootMargin:"-18% 0px -70% 0px",threshold:[0,.1,.3]});
+      tracks.forEach((section)=>sectionObserver.observe(section));
+      down.addEventListener("click",()=>{
+        const next=tracks.find((section)=>section.getBoundingClientRect().top>120);
+        if(next)next.scrollIntoView({behavior:"smooth",block:"start"});
+        else scrollTo({top:document.documentElement.scrollHeight,behavior:"smooth"});
+      });
+      addEventListener("scroll",updateProgress,{passive:true});addEventListener("resize",updateProgress);updateProgress();
+      requestAnimationFrame(()=>document.querySelectorAll(".reveal").forEach((item)=>{if(item.getBoundingClientRect().top<innerHeight*.95)item.classList.add("visible");}));
+    })();
+  </script>
+</body>
+</html>
