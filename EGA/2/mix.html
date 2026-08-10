@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#b52222">
+  <title>ЕГЭ №2 — Векторное додзё</title>
+  <style>
+    :root{
+      --red:#ad2025;--red2:#74151a;--gold:#f2bd37;--paper:#fff6d8;--ink:#201b17;
+      --jade:#236c50;--jade2:#164a38;--bamboo:#8bae47;--green:#2c9c64;--bad:#d64545;
+      --muted:#75695b;--shadow:0 20px 50px rgba(18,7,4,.32)
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink)}
+    body{
+      background:
+        radial-gradient(circle at 14% 10%,rgba(242,189,55,.19),transparent 24rem),
+        radial-gradient(circle at 85% 82%,rgba(139,174,71,.18),transparent 27rem),
+        linear-gradient(145deg,#2c110e,#67191b 52%,#1b2f23)
+    }
+    body:before,body:after{content:"";position:fixed;z-index:-1;bottom:-30px;width:120px;height:72vh;opacity:.2;background:repeating-linear-gradient(90deg,transparent 0 26px,#b7d668 27px 35px,transparent 36px 52px)}
+    body:before{left:0}body:after{right:0;transform:scaleX(-1)}
+    button,input{font:inherit}button{cursor:pointer}.hidden{display:none!important}
+    .screen{min-height:100vh;padding:16px}.center-screen{display:grid;place-items:center}
+    .panel{width:min(1100px,100%);border:5px solid var(--ink);border-radius:21px;background:var(--paper);box-shadow:10px 10px 0 rgba(0,0,0,.3),var(--shadow)}
+    .auth-card,.start-card,.result-card{position:relative;max-width:760px;padding:clamp(23px,4vw,44px);overflow:hidden;text-align:center}
+    .roof{height:24px;margin:-44px -44px 28px;background:linear-gradient(#3d0b0e,#7f181c);border-bottom:6px solid var(--gold);clip-path:polygon(0 0,100% 0,97% 100%,3% 100%)}
+    .eyebrow{font-size:12px;font-weight:950;letter-spacing:.18em;text-transform:uppercase;color:var(--red)}
+    h1,h2,p{margin-top:0}h1{margin-bottom:10px;font-size:clamp(38px,7vw,72px);line-height:.88;letter-spacing:-.055em}h2{font-size:clamp(28px,4vw,46px);letter-spacing:-.04em}
+    .lead{max-width:650px;margin:13px auto 22px;color:#5f554a;font-weight:680;line-height:1.5}
+    .primary,.ghost,.small-btn{border:3px solid var(--ink);border-radius:12px;font-weight:950;transition:transform .15s,box-shadow .15s}
+    .primary{padding:13px 21px;background:var(--gold);color:var(--ink);box-shadow:5px 5px 0 var(--ink)}
+    .ghost{padding:11px 17px;background:white}.small-btn{padding:6px 10px;background:white;font-size:12px}
+    .primary:hover:not(:disabled),.ghost:hover:not(:disabled),.small-btn:hover:not(:disabled){transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--ink)}
+    .code-input{width:min(390px,100%);padding:15px 18px;border:3px solid var(--ink);border-radius:13px;background:#fffdf2;text-align:center;font-size:18px;font-weight:850;letter-spacing:.08em;outline:none}
+    .code-input:focus{box-shadow:0 0 0 5px rgba(242,189,55,.55)}.auth-card .primary{display:block;min-width:190px;margin:18px auto 0}
+    .message{min-height:22px;margin:10px 0 0;font-size:13px;font-weight:800;color:var(--muted)}.message.error{color:var(--bad)}.message.ok{color:#17784b}.message.pending{color:#9a6400}
+    .panda-mark{position:relative;display:grid;place-items:center;width:130px;height:115px;margin:0 auto 15px;border:5px solid var(--ink);border-radius:50%;background:white;font-size:72px;box-shadow:7px 7px 0 var(--gold)}
+    .panda-mark:after{content:"";position:absolute;left:19px;right:19px;bottom:-9px;height:15px;border:3px solid var(--ink);border-radius:8px;background:var(--belt,#eee)}
+    .rules{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:22px 0}.rules div{padding:13px 8px;border:3px solid #d5c59f;border-radius:13px;background:#fffdf3;font-size:13px;font-weight:850}
+    .student-pill{display:inline-flex;align-items:center;gap:10px;margin:2px 0 17px;padding:8px 10px 8px 14px;border-radius:999px;background:#e3efe2;font-size:13px}
+
+    #gameScreen{display:flex;justify-content:center}.game-wrap{width:min(1240px,100%);margin:0 auto}
+    .topbar{display:flex;align-items:center;gap:13px;margin-bottom:11px;color:white}.spacer{flex:1}
+    .logo{display:flex;align-items:center;gap:10px;font-weight:950;letter-spacing:.03em}.logo small{display:block;color:#e6c9ae;font-size:10px;letter-spacing:.12em}
+    .logo-badge{display:grid;place-items:center;width:47px;height:47px;border:3px solid var(--ink);border-radius:50%;background:var(--gold);font-size:25px}
+    .sound-btn{padding:8px 11px;border:2px solid rgba(255,255,255,.52);border-radius:10px;background:rgba(255,255,255,.08);color:white;font-size:12px;font-weight:850}
+    .hud{display:grid;grid-template-columns:auto minmax(180px,1fr) auto auto;align-items:center;gap:11px;margin-bottom:11px;color:white}
+    .hud-chip{padding:8px 11px;border-radius:10px;background:rgba(255,255,255,.1);font-size:12px;font-weight:900}.progress{height:13px;border:2px solid rgba(255,255,255,.65);border-radius:999px;overflow:hidden;background:#1a0807}.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),#e5672a);transition:width .35s}
+    .dojo{width:100%;padding:14px}.mission-head{display:flex;align-items:center;gap:10px;margin-bottom:9px}.type-tag{padding:6px 10px;border-radius:9px;background:var(--jade);color:white;font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.06em}.mission-no{margin-left:auto;color:var(--muted);font-size:12px;font-weight:950}
+    .question{padding:13px 16px;border:4px solid var(--ink);border-radius:15px;background:
+      linear-gradient(90deg,rgba(242,189,55,.2),transparent 30%),
+      repeating-linear-gradient(0deg,transparent 0 23px,rgba(85,59,30,.05) 23px 24px),#fffdf2;
+      font-size:clamp(15px,1.5vw,19px);font-weight:760;line-height:1.42}
+    .question i{font-family:Georgia,serif}
+    .arena{display:grid;grid-template-columns:minmax(370px,.9fr) minmax(440px,1.1fr);gap:13px;margin-top:12px}
+    .training-stage{position:relative;display:grid;place-items:center;min-height:350px;border:4px solid var(--ink);border-radius:16px;overflow:hidden;background:
+      linear-gradient(rgba(15,57,42,.06),rgba(15,57,42,.06)),
+      repeating-linear-gradient(90deg,#ead4a0 0 54px,#ddc58e 54px 57px)}
+    .training-stage:before{content:"";position:absolute;left:0;right:0;bottom:0;height:58px;background:repeating-linear-gradient(90deg,#82502d 0 70px,#6c4024 70px 74px);border-top:5px solid var(--ink)}
+    .scroll-visual{position:relative;z-index:2;display:grid;place-items:center;width:min(360px,88%);min-height:190px;padding:22px 25px;border:4px solid #6c3d22;background:#fff1c1;box-shadow:8px 8px 0 rgba(0,0,0,.18);font-family:Georgia,serif;text-align:center}
+    .scroll-visual:before,.scroll-visual:after{content:"";position:absolute;left:-13px;right:-13px;height:18px;border:4px solid var(--ink);border-radius:10px;background:#7d4726}.scroll-visual:before{top:-12px}.scroll-visual:after{bottom:-12px}
+    .scroll-icon{font-size:56px}.scroll-title{font-size:17px;font-weight:950}.scroll-hint{margin-top:7px;font-size:13px;color:#745c3f}
+    .vector-canvas{position:relative;z-index:2;display:block;width:100%;height:350px;background:#f8ecd0}
+    .dojo-panda{position:absolute;z-index:4;left:18px;bottom:47px;font-size:66px;filter:drop-shadow(4px 5px 0 rgba(0,0,0,.25));transition:transform .28s}.dojo-panda.kick{animation:kick .62s ease}.belt{position:absolute;z-index:5;left:24px;bottom:54px;width:54px;height:10px;border:3px solid var(--ink);border-radius:6px;background:var(--belt,#eee)}
+    @keyframes kick{0%{transform:rotate(0)}45%{transform:translate(20px,-8px) rotate(-17deg) scale(1.12)}100%{transform:rotate(0)}}
+    .board{position:absolute;z-index:5;right:29px;bottom:73px;width:150px;height:52px;border:4px solid var(--ink);background:linear-gradient(#c9843c,#a65a26);box-shadow:5px 5px 0 rgba(0,0,0,.25);font-size:12px;font-weight:950;display:grid;place-items:center;color:#2c180c;transition:transform .25s}
+    .board.break{animation:boardBreak .72s ease forwards;background:linear-gradient(100deg,#c9843c 0 46%,#2b160d 47% 53%,#a65a26 54%)}.board.shake{animation:shake .45s ease}
+    @keyframes boardBreak{45%{transform:scale(1.08) rotate(-2deg)}100%{transform:translateY(55px) rotate(8deg);opacity:.2}}@keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+    .answers-panel{display:flex;flex-direction:column;min-width:0}.prompt{margin:0 0 8px;font-size:12px;font-weight:950;color:#5b4a38;letter-spacing:.06em}
+    .answers{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;flex:1}.answer-btn{display:grid;grid-template-columns:38px 1fr;align-items:center;gap:10px;min-height:105px;padding:12px;border:4px solid var(--ink);border-radius:15px;background:#fffdf3;color:var(--ink);text-align:left;box-shadow:5px 5px 0 #9c835e;transition:transform .15s,box-shadow .15s,background .2s}
+    .answer-btn:hover:not(:disabled){transform:translateY(-3px);box-shadow:5px 8px 0 #806947}.answer-btn:focus-visible{outline:5px solid var(--gold);outline-offset:2px}
+    .answer-letter{display:grid;place-items:center;width:36px;height:36px;border:3px solid var(--ink);border-radius:50%;background:var(--gold);font-weight:950}.answer-value{text-align:center;font-size:clamp(20px,2.4vw,30px);font-weight:950}
+    .answer-btn.correct{border-color:#166b45;background:#dff4e7;box-shadow:5px 5px 0 #166b45}.answer-btn.wrong{border-color:#9e2028;background:#ffdede;box-shadow:5px 5px 0 #9e2028}.answer-btn.muted{opacity:.52}
+    .feedback{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:11px;min-height:68px;margin-top:11px;padding:9px 11px;border:4px solid var(--ink);border-radius:15px;background:#f5ead0}.feedback.good{background:#dff4e7}.feedback.bad{background:#ffeab8}
+    .feedback-icon{font-size:30px}.feedback b{display:block;font-size:14px}.feedback span{font-size:12px;color:#5c5044;font-weight:720}.next-btn{padding:10px 14px}
+    .belt-track{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:15px 0}.belt-chip{padding:6px 10px;border:3px solid var(--ink);border-radius:8px;font-size:11px;font-weight:950;opacity:.35}.belt-chip.earned{opacity:1;box-shadow:3px 3px 0 var(--ink)}
+    .score-ring{display:grid;place-items:center;width:154px;height:154px;margin:11px auto 16px;border:5px solid var(--ink);border-radius:50%;background:conic-gradient(var(--gold) var(--score-angle,0deg),#e2d7bf 0);box-shadow:7px 7px 0 var(--ink)}
+    .score-ring div{display:grid;place-items:center;width:114px;height:114px;border:3px solid var(--ink);border-radius:50%;background:var(--paper)}.score-ring strong{font-size:38px;line-height:1}.score-ring span{font-size:9px;font-weight:950}
+    .rank{display:inline-block;padding:7px 12px;border-radius:9px;background:var(--jade);color:white;font-weight:950}.result-map{display:grid;grid-template-columns:repeat(15,1fr);gap:5px;margin:16px 0}.result-dot{display:grid;place-items:center;aspect-ratio:1;border:2px solid var(--ink);border-radius:7px;background:#ffd7d7;font-size:11px;font-weight:950}.result-dot.ok{background:#bce9cc}
+    .actions{display:flex;justify-content:center;gap:11px;flex-wrap:wrap;margin-top:15px}.petals{position:fixed;inset:0;pointer-events:none;overflow:hidden}.petals i{position:absolute;top:-20px;width:13px;height:10px;border-radius:70% 20% 70% 20%;background:#f3a6ac;animation:fall 3s linear forwards}@keyframes fall{to{transform:translateY(110vh) rotate(650deg)}}
+    @media(max-width:900px){.arena{grid-template-columns:1fr}.training-stage,.vector-canvas{min-height:300px;height:300px}.answers{grid-template-columns:repeat(2,1fr)}.answer-btn{min-height:86px}}
+    @media(max-width:620px){
+      .screen{padding:8px}.roof{margin:-23px -23px 21px}.auth-card,.start-card,.result-card{padding:23px}.rules{grid-template-columns:1fr}
+      .hud{grid-template-columns:auto 1fr auto}.hud .belt-hud{display:none}.logo small{display:none}.dojo{padding:9px}.question{padding:10px;font-size:13px}
+      .training-stage,.vector-canvas{min-height:255px;height:255px}.dojo-panda{font-size:50px}.board{width:115px;height:44px;right:14px}.answers{grid-template-columns:1fr}.answer-btn{min-height:64px}.feedback{grid-template-columns:auto 1fr}.feedback .next-btn{grid-column:1/-1}.result-map{grid-template-columns:repeat(8,1fr)}
+    }
+  </style>
+</head>
+<body>
+  <section id="authScreen" class="screen center-screen">
+    <div class="panel auth-card">
+      <div class="roof"></div><div class="panda-mark" style="--belt:#eee" aria-hidden="true">🐼</div>
+      <div class="eyebrow">Горный храм · ЕГЭ №2</div><h1>ВЕКТОРНОЕ<br>ДОДЗЁ</h1>
+      <p class="lead">Введите личный код, чтобы начать путь и сохранить результат тренировки.</p>
+      <input id="studentCode" class="code-input" type="text" autocomplete="off" spellcheck="false" placeholder="ЛИЧНЫЙ КОД">
+      <div id="authMessage" class="message"></div><button id="loginBtn" class="primary">Войти в додзё</button>
+    </div>
+  </section>
+
+  <section id="startScreen" class="screen center-screen hidden">
+    <div class="panel start-card">
+      <div class="roof"></div><div class="panda-mark" style="--belt:#fff" aria-hidden="true">🐼</div>
+      <div class="eyebrow">Путь пяти прототипов</div><h1>РАЗБЕЙ<br>15 ДОСОК</h1>
+      <p class="lead">Каждая тренировка создаётся заново: новые числа, новый порядок задач и новые варианты ответа.</p>
+      <div class="rules"><div>🥋 5 прототипов</div><div>🪵 15 новых задач</div><div>🐼 Пояс за прогресс</div></div>
+      <div class="student-pill">Ученик: <b id="startStudent">—</b><button id="changeStudentStart" class="small-btn">сменить</button></div><br>
+      <button id="startBtn" class="primary">▶ Начать тренировку</button>
+    </div>
+  </section>
+
+  <section id="gameScreen" class="screen hidden">
+    <div class="game-wrap">
+      <header class="topbar">
+        <div class="logo"><span class="logo-badge">🐼</span><span>ВЕКТОРНОЕ ДОДЗЁ<small>ПЯТЬ СТИЛЕЙ · ПЯТНАДЦАТЬ ДОСОК</small></span></div>
+        <span class="spacer"></span><button class="sound-btn" data-sound>♫ ЗВУК</button>
+      </header>
+      <div class="hud">
+        <div class="hud-chip">ДОСКА <b id="questionNum">1</b>/15</div><div class="progress"><i id="progressFill"></i></div>
+        <div class="hud-chip">🏆 <b id="scoreNow">0</b></div><div class="hud-chip belt-hud">🥋 <b id="beltName">Белый</b></div>
+      </div>
+      <article class="panel dojo">
+        <div class="mission-head"><span id="typeTag" class="type-tag">Прототип</span><span id="missionNo" class="mission-no">ИСПЫТАНИЕ 1</span></div>
+        <div id="questionText" class="question"></div>
+        <div class="arena">
+          <section id="trainingStage" class="training-stage">
+            <div id="scrollVisual" class="scroll-visual"><span id="scrollIcon" class="scroll-icon">📜</span><b id="scrollTitle" class="scroll-title">Векторная техника</b><span id="scrollHint" class="scroll-hint"></span></div>
+            <canvas id="vectorCanvas" class="vector-canvas hidden" width="620" height="420" aria-label="Координатный рисунок векторов"></canvas>
+            <span id="dojoPanda" class="dojo-panda" aria-hidden="true">🐼</span><i id="pandaBelt" class="belt"></i><div id="board" class="board">ДОСКА 1</div>
+          </section>
+          <section class="answers-panel"><p class="prompt">ВЫБЕРИ ПРАВИЛЬНЫЙ ОТВЕТ:</p><div id="answers" class="answers"></div></section>
+        </div>
+        <div id="feedback" class="feedback">
+          <span id="feedbackIcon" class="feedback-icon">🥋</span><div><b id="feedbackTitle">Сосредоточься на вычислении</b><span id="feedbackText">Таймера нет — сначала выбери способ решения.</span></div>
+          <button id="nextBtn" class="primary next-btn hidden">Следующая доска →</button>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section id="resultScreen" class="screen center-screen hidden">
+    <div class="panel result-card">
+      <div class="roof"></div><div id="resultPanda" class="panda-mark" aria-hidden="true">🐼</div>
+      <div class="eyebrow">Тренировка завершена</div><h2>ПУТЬ ПРОЙДЕН</h2>
+      <div id="scoreRing" class="score-ring"><div><strong id="finalScore">0/15</strong><span>ДОСОК РАЗБИТО</span></div></div>
+      <div id="rank" class="rank">УЧЕНИК ДОДЗЁ</div><p id="resultMessage" class="lead"></p>
+      <div id="beltTrack" class="belt-track"></div><div id="resultMap" class="result-map"></div><div id="saveStatus" class="message">Сохраняем результат…</div>
+      <div class="actions"><button id="againBtn" class="primary">↻ Новая тренировка</button><button id="changeStudentResult" class="ghost">Сменить ученика</button></div>
+    </div>
+  </section>
+  <div id="petals" class="petals" aria-hidden="true"></div>
+
+  <script>
+  "use strict";
+  const $=id=>document.getElementById(id);
+  const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+  const TEST_META={testId:'EGE-2-PANDA-VECTOR-DOJO-GENERATED-15',topicId:'task-2',topicName:'Векторы: смешанная генеративная тренировка',taskNumber:2,schemaVersion:1};
+  const PENDING_KEY='egePendingTestResults',HISTORY_KEY='ege2VectorGeneratedHistory';
+  const BELTS=[
+    {min:0,name:'Белый',color:'#f4f4ef'},{min:3,name:'Жёлтый',color:'#f2d23f'},{min:6,name:'Оранжевый',color:'#ed8a2f'},
+    {min:9,name:'Зелёный',color:'#39985d'},{min:12,name:'Синий',color:'#3576ba'},{min:14,name:'Чёрный',color:'#1d1d1d'}
+  ];
+  const TRIPLES=[[3,4,5],[5,12,13],[6,8,10],[8,15,17],[7,24,25],[9,12,15],[12,16,20]];
+  const VECTOR_COLORS=['#a52528','#236c50','#8b611c'];
+  const rnd=(min,max)=>Math.floor(Math.random()*(max-min+1))+min;
+  const pick=array=>array[rnd(0,array.length-1)];
+  function shuffle(array){for(let i=array.length-1;i>0;i--){const j=rnd(0,i);[array[i],array[j]]=[array[j],array[i]]}return array}
+  const nonZero=(min=-6,max=6)=>{let n=0;while(n===0)n=rnd(min,max);return n};
+  const vec=(x,y)=>({x,y});
+  const add=(a,b)=>vec(a.x+b.x,a.y+b.y),sub=(a,b)=>vec(a.x-b.x,a.y-b.y),scale=(k,a)=>vec(k*a.x,k*a.y);
+  const dot=(a,b)=>a.x*b.x+a.y*b.y,len=a=>Math.sqrt(a.x*a.x+a.y*a.y);
+  const fmt=n=>{
+    if(typeof n==='string')return n;
+    const rounded=Math.abs(n-Math.round(n))<1e-9?Math.round(n):Math.round(n*100)/100;
+    return String(rounded).replace('-', '−').replace('.',',')
+  };
+  const coord=v=>`(${fmt(v.x)}; ${fmt(v.y)})`;
+  const signedVector=(coeff,name,first=false)=>{
+    if(first)return`${coeff===-1?'−':coeff===1?'':fmt(coeff)}${name}`;
+    return coeff<0?` − ${Math.abs(coeff)===1?'':fmt(Math.abs(coeff))}${name}`:` + ${coeff===1?'':fmt(coeff)}${name}`
+  };
+  function shuffledTriple(){
+    const [a,b,h]=pick(TRIPLES);let x=Math.random()<.5?a:b,y=x===a?b:a;if(Math.random()<.5)x=-x;if(Math.random()<.5)y=-y;return{v:vec(x,y),h}
+  }
+  function plausibleOptions(answer,kind='number'){
+    const labels=[];
+    const addLabel=value=>{const label=fmt(value);if(!labels.includes(label))labels.push(label)};
+    addLabel(answer);
+    if(kind==='angle'){[30,60,90,120,150].forEach(x=>addLabel(x+'°'))}
+    else if(kind==='cos'){
+      [-1,-.8,-.6,-.28,0,.28,.6,.8,1].sort(()=>Math.random()-.5).forEach(addLabel)
+    }else if(kind==='length'){
+      [answer+1,Math.max(1,answer-1),answer+2,Math.max(1,answer-2),Math.round(answer*answer)].forEach(addLabel)
+    }else{
+      [answer+rnd(1,5),answer-rnd(1,5),-answer,answer+rnd(6,10),answer===0?2:Math.round(answer/2)].forEach(addLabel)
+    }
+    while(labels.length<4)addLabel(rnd(-20,30));
+    const correct=fmt(answer);return labels.slice(0,4).sort(()=>Math.random()-.5).map(label=>({label,correct:label===correct}))
+  }
+  function makeTask(type,question,answer,explain,extra={}){
+    const kind=extra.kind||'number',displayAnswer=kind==='angle'&&typeof answer==='number'?answer+'°':answer;
+    return{type,question,answer:fmt(displayAnswer),explain,options:plausibleOptions(displayAnswer,kind),...extra}
+  }
+  function randomVec(limit=6){return vec(nonZero(-limit,limit),nonZero(-limit,limit))}
+  function genCoordinatePoints(){
+    const t=shuffledTriple(),a=vec(rnd(-5,5),rnd(-5,5)),b=add(a,t.v);
+    return makeTask('Координаты и базовые операции',`Даны точки <i>A</i>${coord(a)} и <i>B</i>${coord(b)}. Найдите длину вектора <i>AB</i>.`,t.h,
+      `AB = ${coord(t.v)}, поэтому |AB| = √(${t.v.x}²+${t.v.y}²) = ${t.h}.`,{kind:'length',icon:'📍',hint:'Сначала вычти координаты начала из координат конца.'})
+  }
+  function genCoordinateLinear2(){
+    const a=randomVec(),b=randomVec(),m=pick([2,3,-2]),n=pick([-3,-2,-1,1,2]),r=add(scale(m,a),scale(n,b)),answer=r.x+r.y;
+    return makeTask('Координаты и базовые операции',`Даны <i>a</i>${coord(a)} и <i>b</i>${coord(b)}. Найдите сумму координат вектора ${signedVector(m,'a',true)}${signedVector(n,'b')}.`,answer,
+      `Получаем вектор ${coord(r)}. Сумма его координат: ${fmt(r.x)}+${fmt(r.y)}=${fmt(answer)}.`,{icon:'➕',hint:'Выполни операции отдельно с x- и y-координатами.'})
+  }
+  function genCoordinateLinear3(){
+    const a=randomVec(),b=randomVec(),c=randomVec(),r=sub(add(a,b),c),answer=r.x+r.y;
+    return makeTask('Координаты и базовые операции',`Даны <i>a</i>${coord(a)}, <i>b</i>${coord(b)} и <i>c</i>${coord(c)}. Найдите сумму координат вектора <i>a</i>+<i>b</i>−<i>c</i>.`,answer,
+      `a+b−c = ${coord(r)}, сумма координат равна ${fmt(answer)}.`,{icon:'🧮',hint:'Не забудь изменить знаки координат вектора c.'})
+  }
+  function lengthExpression(variant,drawing=false){
+    const target=shuffledTriple(),r=target.v;let a,b,c=null,expression,questionExpression;
+    if(variant==='sum'){a=randomVec(5);b=sub(r,a);expression=add(a,b);questionExpression='<i>a</i>+<i>b</i>'}
+    else if(variant==='a2b'){b=randomVec(4);a=sub(r,scale(2,b));expression=add(a,scale(2,b));questionExpression='<i>a</i>+2<i>b</i>'}
+    else if(variant==='2ab'){a=randomVec(5);b=sub(scale(2,a),r);expression=sub(scale(2,a),b);questionExpression='2<i>a</i>−<i>b</i>'}
+    else{a=randomVec(4);b=randomVec(4);c=sub(add(r,b),a);expression=add(sub(a,b),c);questionExpression='<i>a</i>−<i>b</i>+<i>c</i>'}
+    const vectors=[{name:'a',...a},{name:'b',...b},...(c?[{name:'c',...c}]:[])];
+    const given=drawing?'На рисунке изображены векторы '+vectors.map(v=>`<i>${v.name}</i>`).join(', ')+'.':`Даны ${vectors.map(v=>`<i>${v.name}</i>${coord(v)}`).join(', ')}.`;
+    return makeTask(drawing?'Длина вектора по рисунку':'Длина вектора по координатам',`${given} Найдите длину вектора ${questionExpression}.`,target.h,
+      `${questionExpression.replaceAll('<i>','').replaceAll('</i>','')} = ${coord(expression)}, длина равна √(${expression.x}²+${expression.y}²)=${target.h}.`,
+      {kind:'length',icon:drawing?'📐':'📏',hint:'Сначала найди координаты результирующего вектора.',vectors:drawing?vectors:null})
+  }
+  function genDotDirect(drawing=false){
+    const a=randomVec(7),b=randomVec(7),answer=dot(a,b),vectors=[{name:'a',...a},{name:'b',...b}];
+    const given=drawing?'На рисунке изображены векторы <i>a</i> и <i>b</i>.':`Даны <i>a</i>${coord(a)} и <i>b</i>${coord(b)}.`;
+    return makeTask(drawing?'Скалярное произведение по рисунку':'Скалярное произведение по данным',`${given} Найдите <i>a</i>·<i>b</i>.`,answer,
+      `a·b = ${a.x}·${b.x}+${a.y}·${b.y}=${fmt(answer)}.`,{icon:'⚔️',hint:'Перемножь одноимённые координаты и сложи.',vectors:drawing?vectors:null})
+  }
+  function genDotLengths(){
+    const la=rnd(2,12),lb=rnd(2,12),angle=pick([60,90,120]),cos=angle===60?.5:angle===90?0:-.5,answer=la*lb*cos;
+    return makeTask('Скалярное произведение по данным',`Длины векторов <i>a</i> и <i>b</i> равны ${la} и ${lb}, угол между ними ${angle}°. Найдите <i>a</i>·<i>b</i>.`,answer,
+      `a·b=|a|·|b|·cos ${angle}°=${la}·${lb}·${fmt(cos)}=${fmt(answer)}.`,{icon:'📐',hint:'Используй формулу через длины и косинус угла.'})
+  }
+  function genDotCombination(){
+    const a=randomVec(5),b=randomVec(5),c=randomVec(5),sum=add(a,b),answer=dot(sum,c);
+    return makeTask('Скалярное произведение по данным',`Даны <i>a</i>${coord(a)}, <i>b</i>${coord(b)} и <i>c</i>${coord(c)}. Найдите (<i>a</i>+<i>b</i>)·<i>c</i>.`,answer,
+      `a+b=${coord(sum)}; затем (${sum.x};${sum.y})·${coord(c)}=${fmt(answer)}.`,{icon:'🥋',hint:'Сначала сложи векторы в скобках.'})
+  }
+  function genDrawingAngle(){
+    const a=randomVec(6),b=vec(-a.y,a.x),vectors=[{name:'a',...a},{name:'b',...b}];
+    return makeTask('Угол между векторами по рисунку','На рисунке изображены векторы <i>a</i> и <i>b</i>. Найдите угол между ними.',90,
+      `a·b=${a.x}·${b.x}+${a.y}·${b.y}=0, поэтому векторы перпендикулярны и угол равен 90°.`,{kind:'angle',icon:'📐',hint:'Если скалярное произведение равно нулю, векторы перпендикулярны.',vectors})
+  }
+  function genDrawingCos(){
+    const base=pick([
+      {a:vec(3,4),b:vec(-5,0),answer:-.6},{a:vec(3,4),b:vec(0,-5),answer:-.8},
+      {a:vec(4,3),b:vec(-5,0),answer:-.8},{a:vec(4,3),b:vec(0,-5),answer:-.6}
+    ]);
+    const sx=Math.random()<.5?-1:1,sy=Math.random()<.5?-1:1,sa=rnd(1,4),sb=rnd(1,4);
+    const a=vec(base.a.x*sx*sa,base.a.y*sy*sa),b=vec(base.b.x*sx*sb,base.b.y*sy*sb),vectors=[{name:'a',...a},{name:'b',...b}];
+    return makeTask('Косинус угла по рисунку','На рисунке изображены векторы <i>a</i> и <i>b</i>. Найдите косинус угла между ними.',base.answer,
+      `cos α=(a·b)/(|a|·|b|)=${fmt(dot(a,b))}/(${fmt(len(a))}·${fmt(len(b))})=${fmt(base.answer)}.`,{kind:'cos',icon:'☯️',hint:'Найди скалярное произведение и раздели на произведение длин.',vectors})
+  }
+  function taskSignature(task){
+    const vectorCode=(task.vectors||[]).map(v=>`${v.name}:${v.x},${v.y}`).join(';');
+    return task.type+'|'+task.question.replace(/<[^>]+>/g,'')+'|'+vectorCode+'|'+task.answer
+  }
+  function mixKey(task){
+    if(task.type==='Координаты и базовые операции')return'coordinates';
+    if(task.type==='Длина вектора по координатам')return'length-data';
+    if(task.type==='Скалярное произведение по данным')return'dot-data';
+    if(task.type==='Длина вектора по рисунку')return'length-picture';
+    return'dot-picture'
+  }
+  function mixPrototypes(tasks){
+    for(let attempt=0;attempt<500;attempt++){
+      const candidate=shuffle([...tasks]);
+      if(candidate.every((task,index)=>index===0||mixKey(task)!==mixKey(candidate[index-1])))return candidate
+    }
+    return [...tasks]
+  }
+  function loadHistory(){try{const h=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');return Array.isArray(h)?h:[]}catch(_){return[]}}
+  function saveHistory(history){try{localStorage.setItem(HISTORY_KEY,JSON.stringify(history.slice(-300)))}catch(_){}}
+  function buildSessionTasks(){
+    const history=loadHistory(),used=new Set(history),factories=[
+      genCoordinatePoints,genCoordinateLinear2,genCoordinateLinear3,
+      ()=>lengthExpression('sum'),()=>lengthExpression('a2b'),()=>lengthExpression(pick(['2ab','three'])),
+      genDotDirect,genDotLengths,genDotCombination,
+      ()=>lengthExpression('sum',true),()=>lengthExpression('a2b',true),()=>lengthExpression(pick(['2ab','three']),true),
+      ()=>genDotDirect(true),genDrawingAngle,genDrawingCos
+    ],tasks=[];
+    factories.forEach(factory=>{
+      let task,signature,tries=0;do{task=factory();signature=taskSignature(task);tries++}while(used.has(signature)&&tries<80);
+      used.add(signature);history.push(signature);tasks.push(task)
+    });
+    saveHistory(history);return mixPrototypes(tasks)
+  }
+
+  let currentStudent=null;
+  const S={tasks:[],index:0,score:0,locked:false,answers:[],startedAt:0,resultSubmitted:false,sound:true};
+  function makeEventId(){if(window.crypto&&typeof window.crypto.randomUUID==='function')return window.crypto.randomUUID();return'evt-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)}
+  function localDateString(){const d=new Date();return[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')}
+  function readPendingResults(){try{const v=JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');return Array.isArray(v)?v:[]}catch(_){return[]}}
+  function writePendingResults(q){localStorage.setItem(PENDING_KEY,JSON.stringify(q))}
+  function queuePendingResult(p){const q=readPendingResults();if(!q.some(x=>x&&x.eventId===p.eventId))q.push(p);writePendingResults(q)}
+  async function postResult(payload){const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow'});if(!r.ok)throw new Error('HTTP '+r.status)}
+  async function flushPendingResults(){const q=readPendingResults();if(!q.length||!navigator.onLine)return;const sent=new Set();for(const p of q){try{await postResult(p);if(p&&p.eventId)sent.add(p.eventId)}catch(_){}}writePendingResults(readPendingResults().filter(x=>!x||!sent.has(x.eventId)))}
+  function setSaveStatus(text,kind=''){$('saveStatus').textContent=text;$('saveStatus').className='message '+kind}
+  async function submitResult(payload){try{await postResult(payload);setSaveStatus('✓ Результат сохранён','ok')}catch(_){queuePendingResult(payload);setSaveStatus('Нет связи: результат сохранён на устройстве и отправится позже','pending')}}
+  function savedStudent(){const id=localStorage.getItem('egeStudentId'),name=localStorage.getItem('egeStudentName'),code=localStorage.getItem('egeStudentCode');return id&&code?{studentId:id,name:name||'Ученик',code}:null}
+  function rememberStudent(s,code){localStorage.setItem('egeStudentId',String(s.studentId));localStorage.setItem('egeStudentName',String(s.name||'Ученик'));localStorage.setItem('egeStudentCode',String(code))}
+  function clearStudent(){localStorage.removeItem('egeStudentId');localStorage.removeItem('egeStudentName');localStorage.removeItem('egeStudentCode');currentStudent=null}
+  function studentFromResponse(data){if(!data||data.ok===false||data.success===false||data.valid===false)return null;const s=data.student||data.data||data.result||data,id=s.studentId??s.id??data.studentId??data.id,name=s.studentName??s.name??data.studentName??data.name;return id!==undefined&&id!==null&&id!==''?{studentId:String(id),name:String(name||'Ученик')}:null}
+  function validateStudentCode(code){
+    return new Promise((resolve,reject)=>{
+      const callback='__egePanda_'+Date.now()+'_'+Math.random().toString(36).slice(2),script=document.createElement('script');let settled=false;
+      const timer=setTimeout(()=>finish(new Error('Сервер не ответил. Проверьте интернет')),15000);
+      function cleanup(){clearTimeout(timer);try{delete window[callback]}catch(_){window[callback]=undefined}script.remove()}
+      function finish(error,value){if(settled)return;settled=true;cleanup();error?reject(error):resolve(value)}
+      window[callback]=data=>{const student=studentFromResponse(data);student?finish(null,student):finish(new Error((data&&(data.error||data.message))||'Код ученика не найден'))};
+      script.onerror=()=>finish(new Error('Не удалось связаться с сервером'));script.src=API_URL+'?'+new URLSearchParams({action:'validateStudent',code,callback}).toString();document.head.appendChild(script)
+    })
+  }
+  function showOnly(id){['authScreen','startScreen','gameScreen','resultScreen'].forEach(x=>$(x).classList.toggle('hidden',x!==id))}
+  function showLogin(prefill=''){showOnly('authScreen');$('studentCode').value=prefill;$('authMessage').textContent='';setTimeout(()=>$('studentCode').focus(),0)}
+  function showStart(){$('startStudent').textContent=currentStudent?currentStudent.name:'Ученик';showOnly('startScreen')}
+  function changeStudent(){clearStudent();showLogin('')}
+  async function loginStudent(){
+    const code=$('studentCode').value.trim();if(!code){$('authMessage').textContent='Введите личный код';$('authMessage').className='message error';return}
+    $('loginBtn').disabled=true;$('authMessage').textContent='Проверяем код…';$('authMessage').className='message';
+    try{currentStudent=await validateStudentCode(code);rememberStudent(currentStudent,code);showStart();flushPendingResults()}
+    catch(error){$('authMessage').textContent=error.message||'Не удалось проверить код';$('authMessage').className='message error'}finally{$('loginBtn').disabled=false}
+  }
+  const Sound=(()=>{
+    let ac=null;function tone(freq,dur=.1,type='square',gain=.05,delay=0){if(!S.sound)return;if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();const t=ac.currentTime+delay,o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+dur)}
+    return{good(){tone(180,.08,'square',.08);tone(95,.18,'triangle',.12,.06);[523,659,784].forEach((f,i)=>tone(f,.16,'triangle',.05,.13+i*.05))},bad(){tone(150,.22,'sawtooth',.06);tone(110,.25,'square',.04,.08)}}
+  })();
+  function toggleSound(){S.sound=!S.sound;document.querySelectorAll('[data-sound]').forEach(b=>b.textContent=S.sound?'♫ ЗВУК':'× БЕЗ ЗВУКА')}
+  function currentBelt(score=S.score){let belt=BELTS[0];BELTS.forEach(b=>{if(score>=b.min)belt=b});return belt}
+  function paintBelt(){const belt=currentBelt();$('beltName').textContent=belt.name;$('pandaBelt').style.background=belt.color}
+
+  function startGame(){
+    if(!currentStudent){showLogin('');return}
+    S.tasks=buildSessionTasks();S.index=0;S.score=0;S.locked=false;S.answers=[];S.startedAt=Date.now();S.resultSubmitted=false;showOnly('gameScreen');renderTask()
+  }
+  function renderTask(){
+    const task=S.tasks[S.index];S.locked=false;$('questionNum').textContent=S.index+1;$('missionNo').textContent='ИСПЫТАНИЕ '+(S.index+1);$('typeTag').textContent=task.type;$('questionText').innerHTML=task.question;
+    $('scoreNow').textContent=S.score;$('progressFill').style.width=S.index/S.tasks.length*100+'%';paintBelt();
+    $('answers').innerHTML=task.options.map((option,i)=>`<button class="answer-btn" type="button" data-option="${i}"><span class="answer-letter">${String.fromCharCode(65+i)}</span><span class="answer-value">${option.label}</span></button>`).join('');
+    document.querySelectorAll('[data-option]').forEach(button=>button.addEventListener('click',()=>chooseAnswer(Number(button.dataset.option))));
+    $('scrollIcon').textContent=task.icon;$('scrollTitle').textContent=task.type;$('scrollHint').textContent=task.hint;$('board').textContent='ДОСКА '+(S.index+1);
+    $('board').className='board';$('dojoPanda').className='dojo-panda';$('feedback').className='feedback';$('feedbackIcon').textContent='🥋';$('feedbackTitle').textContent='Сосредоточься на вычислении';$('feedbackText').textContent='Таймера нет — сначала выбери способ решения.';$('nextBtn').classList.add('hidden');
+    if(task.vectors){$('scrollVisual').classList.add('hidden');$('vectorCanvas').classList.remove('hidden');requestAnimationFrame(()=>drawVectors(task.vectors))}
+    else{$('vectorCanvas').classList.add('hidden');$('scrollVisual').classList.remove('hidden')}
+  }
+  function chooseAnswer(index){
+    if(S.locked)return;S.locked=true;const task=S.tasks[S.index],chosen=task.options[index],correct=chosen.correct;
+    if(correct){S.score++;Sound.good();$('board').classList.add('break');$('dojoPanda').classList.add('kick')}
+    else{Sound.bad();$('board').classList.add('shake')}
+    S.answers.push({type:task.type,correct,answer:task.answer});
+    document.querySelectorAll('[data-option]').forEach((button,i)=>{button.disabled=true;if(task.options[i].correct)button.classList.add('correct');else if(i===index)button.classList.add('wrong');else button.classList.add('muted')});
+    $('scoreNow').textContent=S.score;paintBelt();$('feedback').className='feedback '+(correct?'good':'bad');$('feedbackIcon').textContent=correct?'🐼':'🥟';$('feedbackTitle').textContent=correct?'Доска разбита!':'Удар не достиг цели';
+    $('feedbackText').textContent=task.explain;$('nextBtn').textContent=S.index===S.tasks.length-1?'Получить пояс →':'Следующая доска →';$('nextBtn').classList.remove('hidden')
+  }
+  function nextTask(){if(!S.locked)return;if(S.index<S.tasks.length-1){S.index++;renderTask()}else finishGame()}
+  function drawVectors(vectors){
+    const canvas=$('vectorCanvas'),ctx=canvas.getContext('2d'),rect=canvas.getBoundingClientRect(),W=Math.max(320,rect.width||620),H=Math.max(255,rect.height||350),dpr=Math.min(devicePixelRatio||1,2);
+    canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);
+    const maxAbs=Math.max(5,...vectors.flatMap(v=>[Math.abs(v.x),Math.abs(v.y)]))+1,pad=28,X=x=>pad+(x+maxAbs)/(2*maxAbs)*(W-2*pad),Y=y=>H-pad-(y+maxAbs)/(2*maxAbs)*(H-2*pad);
+    ctx.fillStyle='#f8ecd0';ctx.fillRect(0,0,W,H);ctx.strokeStyle='rgba(93,73,47,.18)';ctx.lineWidth=1;
+    for(let n=-maxAbs;n<=maxAbs;n++){ctx.beginPath();ctx.moveTo(X(n),pad);ctx.lineTo(X(n),H-pad);ctx.stroke();ctx.beginPath();ctx.moveTo(pad,Y(n));ctx.lineTo(W-pad,Y(n));ctx.stroke()}
+    ctx.strokeStyle='#30271f';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(pad,Y(0));ctx.lineTo(W-pad,Y(0));ctx.stroke();ctx.beginPath();ctx.moveTo(X(0),pad);ctx.lineTo(X(0),H-pad);ctx.stroke();
+    ctx.fillStyle='#4d4237';ctx.font='11px system-ui';for(let n=-maxAbs+1;n<maxAbs;n+=2){if(n){ctx.fillText(String(n),X(n)+2,Y(0)+13);ctx.fillText(String(n),X(0)+5,Y(n)-3)}}
+    vectors.forEach((v,i)=>{
+      const color=VECTOR_COLORS[i%VECTOR_COLORS.length],x0=X(0),y0=Y(0),x1=X(v.x),y1=Y(v.y),angle=Math.atan2(y1-y0,x1-x0);
+      ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x1-15*Math.cos(angle-.45),y1-15*Math.sin(angle-.45));ctx.lineTo(x1-15*Math.cos(angle+.45),y1-15*Math.sin(angle+.45));ctx.closePath();ctx.fill();
+      ctx.font='bold 18px Georgia';ctx.fillText(v.name,x1+(v.x>=0?8:-18),y1+(v.y>=0?-8:20))
+    })
+  }
+  function petals(){const box=$('petals');box.innerHTML='';for(let i=0;i<40;i++){const p=document.createElement('i');p.style.left=Math.random()*100+'%';p.style.animationDelay=Math.random()*.8+'s';p.style.background=i%3===0?'#f3a6ac':i%3===1?'#f2bd37':'#fff1d3';box.appendChild(p)}setTimeout(()=>box.innerHTML='',3900)}
+  function finishGame(){
+    if(S.resultSubmitted)return;S.resultSubmitted=true;const scorePercent=Math.round(S.score/S.tasks.length*100),durationSeconds=Math.max(0,Math.floor((Date.now()-S.startedAt)/1000)),belt=currentBelt();
+    $('finalScore').textContent=S.score+'/'+S.tasks.length;$('scoreRing').style.setProperty('--score-angle',scorePercent*3.6+'deg');$('resultPanda').style.setProperty('--belt',belt.color);
+    let rank,message;if(S.score===15){rank='МАСТЕР ПЯТИ СТИЛЕЙ';message='Все доски разбиты. Координаты, длины и скалярные произведения под полным контролем.'}
+    else if(S.score>=12){rank='ВОИН ДРАКОНЬЕГО СВИТКА';message='Очень сильная тренировка. Проверь лишь несколько приёмов.'}
+    else if(S.score>=8){rank='УЧЕНИК НЕФРИТОВОГО ДОДЗЁ';message='Основа освоена. Повтори задания, где доска устояла.'}
+    else{rank='НОВИЧОК ДОДЗЁ';message='Начни с координат вектора, затем переходи к длине и скалярному произведению.'}
+    $('rank').textContent=rank;$('resultMessage').textContent=`Получен пояс: ${belt.name}. ${message}`;
+    $('beltTrack').innerHTML=BELTS.map(b=>`<span class="belt-chip ${S.score>=b.min?'earned':''}" style="background:${b.color}">${b.name}</span>`).join('');
+    $('resultMap').innerHTML=S.answers.map((a,i)=>`<span class="result-dot ${a.correct?'ok':''}">${i+1}</span>`).join('');
+    setSaveStatus('Сохраняем результат…');showOnly('resultScreen');if(S.score>=12)petals();
+    submitResult({action:'submitTest',eventId:makeEventId(),studentId:currentStudent.studentId,testId:TEST_META.testId,testDate:localDateString(),topicId:TEST_META.topicId,topicName:TEST_META.topicName,taskNumber:TEST_META.taskNumber,scorePercent,durationSeconds,correctCount:S.score,totalQuestions:S.tasks.length,schemaVersion:TEST_META.schemaVersion})
+  }
+
+  $('loginBtn').onclick=loginStudent;$('studentCode').addEventListener('keydown',event=>{if(event.key==='Enter')loginStudent()});
+  $('changeStudentStart').onclick=changeStudent;$('changeStudentResult').onclick=changeStudent;$('startBtn').onclick=startGame;$('againBtn').onclick=startGame;$('nextBtn').onclick=nextTask;
+  document.querySelectorAll('[data-sound]').forEach(button=>button.onclick=toggleSound);addEventListener('online',flushPendingResults);addEventListener('resize',()=>{if(!$('gameScreen').classList.contains('hidden')&&S.tasks[S.index]?.vectors)drawVectors(S.tasks[S.index].vectors)});
+  currentStudent=savedStudent();const codeFromUrl=new URLSearchParams(location.search).get('code');
+  if(codeFromUrl){clearStudent();showLogin(codeFromUrl);loginStudent()}else if(currentStudent){showStart();flushPendingResults()}else showLogin('');
+  </script>
+</body>
+</html>
