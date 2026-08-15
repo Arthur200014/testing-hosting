@@ -1,0 +1,1301 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Управление учениками, занятиями и ДЗ</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111f;
+      --panel: rgba(15, 30, 49, .92);
+      --panel-2: rgba(22, 43, 67, .76);
+      --line: rgba(154, 190, 224, .2);
+      --text: #f6f9ff;
+      --muted: #9fb5ca;
+      --accent: #ffb52e;
+      --accent-2: #ff7a33;
+      --ok: #5be39a;
+      --bad: #ff7d89;
+      --blue: #65bfff;
+      --shadow: 0 28px 90px rgba(0, 0, 0, .42);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 24px 14px 60px;
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 15% 8%, rgba(31, 117, 190, .25), transparent 32%),
+        radial-gradient(circle at 86% 88%, rgba(255, 132, 48, .17), transparent 30%),
+        linear-gradient(145deg, #050b13, var(--bg) 58%, #081827);
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .app { width: min(1050px, 100%); margin: auto; }
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 20px;
+      margin: 0 0 20px;
+      padding: 8px 6px;
+    }
+    .eyebrow {
+      margin: 0 0 7px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 0; font-size: clamp(30px, 5vw, 48px); line-height: 1.03; }
+    .subtitle { margin: 10px 0 0; color: var(--muted); }
+    .moscow {
+      flex: none;
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(8, 20, 34, .7);
+    }
+
+    .panel {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+    .panel::before {
+      content: "";
+      position: absolute;
+      z-index: 2;
+      inset: 0 0 auto;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--blue));
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(5, 15, 26, .55);
+    }
+    .tab {
+      min-height: 54px;
+      border: 0;
+      border-radius: 15px;
+      padding: 10px 14px;
+      color: var(--muted);
+      font-weight: 850;
+      background: transparent;
+      transition: transform .18s ease, color .18s ease, background .18s ease;
+    }
+    .tab:hover { color: var(--text); background: rgba(255, 255, 255, .04); }
+    .tab.active {
+      color: #1d1405;
+      background: linear-gradient(135deg, var(--accent), #ffd373);
+      box-shadow: 0 8px 24px rgba(255, 181, 46, .18);
+    }
+    .tab span { display: block; font-size: 11px; font-weight: 700; opacity: .72; }
+
+    .view { display: none; }
+    .view.active { display: block; animation: rise .28s ease both; }
+    .section { padding: 24px 28px; border-bottom: 1px solid var(--line); }
+    .section:last-child { border-bottom: 0; }
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 15px;
+    }
+    h2 { margin: 0; font-size: 21px; }
+    .counter { color: var(--accent); font-weight: 850; }
+    .optional, .hint { color: var(--muted); font-weight: 500; }
+
+    .tools { display: grid; grid-template-columns: 1.3fr 1fr auto; gap: 10px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .full { grid-column: 1 / -1; }
+    label.field { display: grid; gap: 7px; font-size: 13px; font-weight: 800; }
+    input, select, textarea {
+      width: 100%;
+      min-height: 46px;
+      padding: 11px 13px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      color: var(--text);
+      background: rgba(4, 15, 27, .75);
+      outline: none;
+      transition: border-color .18s ease, box-shadow .18s ease;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: rgba(255, 181, 46, .75);
+      box-shadow: 0 0 0 4px rgba(255, 181, 46, .1);
+    }
+    textarea { min-height: 92px; resize: vertical; }
+
+    .ghost, .small-btn {
+      min-height: 46px;
+      padding: 10px 15px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      color: var(--text);
+      font-weight: 800;
+      background: rgba(5, 18, 31, .7);
+    }
+    .ghost:hover, .small-btn:hover { border-color: rgba(255, 181, 46, .55); }
+    .primary {
+      width: 100%;
+      min-height: 53px;
+      margin-top: 18px;
+      border: 0;
+      border-radius: 15px;
+      color: #211604;
+      font-weight: 950;
+      background: linear-gradient(135deg, var(--accent), #ffd371);
+      box-shadow: 0 13px 30px rgba(255, 166, 42, .19);
+      transition: transform .18s ease, filter .18s ease;
+    }
+    .primary:hover { filter: brightness(1.05); transform: translateY(-1px); }
+    .primary:disabled { opacity: .55; cursor: wait; transform: none; }
+
+    .group-mode {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 5px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(5, 16, 29, .5);
+    }
+    .group-mode button {
+      min-height: 42px;
+      border: 0;
+      border-radius: 10px;
+      padding: 9px;
+      color: var(--muted);
+      background: transparent;
+    }
+    .group-mode button.active {
+      color: #161006;
+      font-weight: 850;
+      background: linear-gradient(135deg, var(--accent), #ffd071);
+    }
+
+    .student-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+      max-height: 310px;
+      overflow: auto;
+      margin-top: 12px;
+      padding-right: 4px;
+    }
+    .student {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 11px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(6, 18, 31, .62);
+      transition: .16s;
+    }
+    .student:has(input:checked) {
+      border-color: rgba(255, 181, 46, .55);
+      background: rgba(255, 181, 46, .09);
+    }
+    .student input {
+      width: 19px;
+      height: 19px;
+      min-height: auto;
+      accent-color: var(--accent);
+    }
+    .student strong { display: block; }
+    .student small { color: var(--muted); }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { position: relative; }
+    .chip input { position: absolute; opacity: 0; pointer-events: none; }
+    .chip span {
+      display: grid;
+      place-items: center;
+      min-width: 42px;
+      height: 39px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      color: var(--muted);
+      font-weight: 850;
+      background: rgba(5, 17, 30, .68);
+      cursor: pointer;
+    }
+    .chip input:checked + span {
+      color: #1e1405;
+      border-color: transparent;
+      background: var(--accent);
+    }
+
+    .attendance { display: grid; gap: 9px; margin-top: 12px; }
+    .attendance-row {
+      display: grid;
+      grid-template-columns: 1fr minmax(235px, .75fr);
+      gap: 12px;
+      align-items: center;
+      padding: 11px 13px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(6, 18, 31, .6);
+    }
+    .attendance-row select { min-height: 41px; }
+    .empty {
+      padding: 20px;
+      border: 1px dashed var(--line);
+      border-radius: 14px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .status { min-height: 22px; margin: 12px 0 0; text-align: center; color: var(--muted); }
+    .status.error { color: var(--bad); }
+    .notice {
+      display: none;
+      margin-top: 16px;
+      padding: 18px;
+      border: 1px solid rgba(91, 227, 154, .32);
+      border-radius: 16px;
+      background: rgba(91, 227, 154, .08);
+    }
+    .notice.show { display: block; animation: rise .3s ease both; }
+    .notice h3 { margin: 0 0 7px; color: var(--ok); }
+    .notice p { margin: 0; color: var(--muted); white-space: pre-line; line-height: 1.55; }
+    .notice-actions { display: flex; gap: 9px; margin-top: 14px; }
+    .notice-actions button { flex: 1; }
+    .message {
+      margin-top: 12px;
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      white-space: pre-wrap;
+      line-height: 1.55;
+      background: rgba(4, 14, 25, .72);
+    }
+    .catalog-empty {
+      padding: 14px;
+      border: 1px solid rgba(255, 181, 46, .35);
+      border-radius: 13px;
+      color: #ffd783;
+      background: rgba(255, 181, 46, .08);
+    }
+    .data-warning {
+      display: none;
+      margin: 14px 28px 0;
+      padding: 13px 15px;
+      border: 1px solid rgba(255, 125, 137, .3);
+      border-radius: 13px;
+      color: #ffc3c9;
+      background: rgba(255, 125, 137, .08);
+    }
+    .data-warning.show {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .data-warning button {
+      flex: none;
+      min-height: 38px;
+      padding: 7px 12px;
+      border: 1px solid rgba(255, 195, 201, .35);
+      border-radius: 10px;
+      color: #fff;
+      font-weight: 800;
+      background: rgba(255, 255, 255, .06);
+    }
+    .cache-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 28px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      background: rgba(5, 15, 26, .35);
+    }
+    .cache-bar strong { color: #cfe8ff; }
+    .cache-bar button {
+      flex: none;
+      min-height: 34px;
+      padding: 6px 11px;
+      border: 1px solid rgba(125, 203, 255, .26);
+      border-radius: 10px;
+      color: #dff3ff;
+      font-weight: 800;
+      background: rgba(125, 203, 255, .07);
+    }
+    .code-card {
+      display: grid;
+      gap: 7px;
+      margin-top: 15px;
+      padding: 20px;
+      border: 1px solid rgba(255, 181, 46, .35);
+      border-radius: 18px;
+      background: var(--panel-2);
+    }
+    .code-card small { color: var(--muted); }
+    .invite-code {
+      font-size: clamp(28px, 6vw, 46px);
+      font-weight: 950;
+      letter-spacing: .13em;
+      color: var(--accent);
+    }
+    .student-id-line { color: var(--muted); font-size: 13px; }
+    .hidden { display: none !important; }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @media (max-width: 720px) {
+      .hero { display: block; }
+      .moscow { display: inline-block; margin-top: 14px; }
+      .tabs, .tools, .form-grid { grid-template-columns: 1fr; }
+      .section { padding: 20px 16px; }
+      .cache-bar { align-items: stretch; flex-direction: column; padding: 10px 16px; }
+      .cache-bar button { width: 100%; }
+      .data-warning { margin-left: 16px; margin-right: 16px; }
+      .data-warning.show { align-items: stretch; flex-direction: column; }
+      .full { grid-column: auto; }
+      .student-list { grid-template-columns: 1fr; }
+      .attendance-row { grid-template-columns: 1fr; }
+      .notice-actions { display: grid; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="hero">
+      <div>
+        <p class="eyebrow">База ЕГЭ · преподаватель</p>
+        <h1>Центр управления</h1>
+        <p class="subtitle">Ученики, проведённые занятия и домашние работы — в одном окне.</p>
+      </div>
+      <div id="clock" class="moscow">Москва</div>
+    </div>
+
+    <div class="panel">
+      <nav class="tabs" aria-label="Выбор функции">
+        <button class="tab active" data-view="student" type="button">
+          Новый ученик <span>добавить в базу</span>
+        </button>
+        <button class="tab" data-view="lesson" type="button">
+          Занятие <span>посещение и темы</span>
+        </button>
+        <button class="tab" data-view="homework" type="button">
+          Назначить ДЗ <span>срок и ссылка</span>
+        </button>
+      </nav>
+
+      <div class="cache-bar" role="status" aria-live="polite">
+        <span id="cacheStatus"><strong>Данные:</strong> подготавливаем кэш…</span>
+        <button id="refreshData" type="button">Обновить сейчас</button>
+      </div>
+
+      <div id="dataWarning" class="data-warning" role="status">
+        <span id="dataWarningText"></span>
+        <button id="retryData" type="button">Повторить загрузку</button>
+      </div>
+
+      <div id="studentView" class="view active">
+        <form id="studentForm" novalidate>
+          <section class="section">
+            <div class="section-head">
+              <h2>Карточка нового ученика</h2>
+            </div>
+            <div class="form-grid">
+              <label class="field full">ФИО ученика
+                <input id="studentName" autocomplete="off" maxlength="120" required
+                  placeholder="Например, Анна Петрова">
+              </label>
+
+              <label class="field">Класс
+                <select id="grade" required>
+                  <option value="">Выберите класс</option>
+                  <option value="9">9 класс</option>
+                  <option value="10">10 класс</option>
+                  <option value="11">11 класс</option>
+                  <option value="Выпускник">Выпускник</option>
+                </select>
+              </label>
+
+              <label class="field">Целевой балл <span class="optional">необязательно</span>
+                <input id="targetScore" type="number" min="0" max="100" inputmode="numeric"
+                  placeholder="Например, 85">
+              </label>
+
+              <label class="field full">Начальный балл ЕГЭ <span class="optional">необязательно</span>
+                <input id="initialScore" type="number" min="0" max="100" inputmode="numeric"
+                  placeholder="Например, 52">
+                <span class="hint">Будет записан как пробник «Входная диагностика».</span>
+              </label>
+
+              <div class="full">
+                <label class="field">Группа <span class="optional">необязательно</span></label>
+                <div class="group-mode" aria-label="Способ выбора группы">
+                  <button id="existingMode" class="active" type="button">Выбрать существующую</button>
+                  <button id="newMode" type="button">Ввести новую</button>
+                </div>
+              </div>
+
+              <label id="existingGroupWrap" class="field full">Существующая группа
+                <select id="existingGroup">
+                  <option value="">Без группы</option>
+                </select>
+              </label>
+
+              <label id="newGroupWrap" class="field full hidden">Название новой группы
+                <input id="newGroup" maxlength="80" placeholder="Например, ЕГЭ-11 · понедельник">
+              </label>
+
+              <label class="field full">Имя родителя <span class="optional">необязательно</span>
+                <input id="parentName" autocomplete="off" maxlength="120" placeholder="Например, Елена">
+              </label>
+
+              <label class="field full">Заметка <span class="optional">необязательно</span>
+                <textarea id="notes" maxlength="500"
+                  placeholder="Особенности обучения, расписание или другая полезная информация"></textarea>
+              </label>
+            </div>
+
+            <button id="createStudent" class="primary" type="submit">Создать ученика</button>
+            <p id="studentStatus" class="status" role="status" aria-live="polite"></p>
+
+            <div id="studentSuccess" class="notice" aria-live="polite">
+              <h3>Ученик добавлен</h3>
+              <p id="studentMeta"></p>
+              <div class="code-card">
+                <small>Постоянный код входа</small>
+                <div id="inviteCode" class="invite-code"></div>
+                <div id="studentId" class="student-id-line"></div>
+              </div>
+              <div class="notice-actions">
+                <button id="copyCode" class="small-btn" type="button">Скопировать код</button>
+                <button id="createAnother" class="small-btn" type="button">Добавить ещё одного</button>
+                <button id="newStudentLesson" class="small-btn" type="button">Перейти к занятию</button>
+              </div>
+            </div>
+          </section>
+        </form>
+      </div>
+
+      <section id="recipientSection" class="section hidden">
+        <div class="section-head">
+          <h2>Кому</h2>
+          <div id="selectedCount" class="counter">Выбрано: 0</div>
+        </div>
+        <div class="tools">
+          <input id="studentSearch" type="search" placeholder="Начните вводить имя…">
+          <select id="groupSelect"><option value="">Все группы</option></select>
+          <button id="selectGroup" class="ghost" type="button">Выбрать группу</button>
+        </div>
+        <div id="studentList" class="student-list">
+          <div class="empty">Загружаем учеников…</div>
+        </div>
+      </section>
+
+      <div id="lessonView" class="view">
+        <form id="lessonForm">
+          <section class="section">
+            <div class="section-head">
+              <h2>Данные занятия</h2>
+              <button id="allPresent" class="small-btn" type="button">Все присутствовали</button>
+            </div>
+            <div class="form-grid">
+              <label class="field">Дата и время по Москве
+                <input id="lessonAt" type="datetime-local" required>
+              </label>
+              <label class="field">Длительность
+                <select id="duration">
+                  <option value="60">60 минут</option>
+                  <option value="90" selected>90 минут</option>
+                  <option value="120">120 минут</option>
+                </select>
+              </label>
+              <label class="field full">Номера ЕГЭ <span class="hint">можно выбрать несколько</span>
+                <div id="taskChips" class="chips"></div>
+              </label>
+              <label class="field full">Тема или комментарий
+                <textarea id="topicComment" maxlength="500"
+                  placeholder="Например: теорема косинусов, разобрали ошибки пробника"></textarea>
+              </label>
+            </div>
+
+            <div class="section-head" style="margin-top:20px">
+              <h2>Посещаемость</h2>
+            </div>
+            <div id="attendance" class="attendance">
+              <div class="empty">Сначала выберите учеников.</div>
+            </div>
+
+            <button id="saveLesson" class="primary" type="submit">Сохранить занятие</button>
+            <p id="lessonStatus" class="status" role="status" aria-live="polite"></p>
+            <div id="lessonSuccess" class="notice">
+              <h3>Занятие сохранено</h3>
+              <p id="lessonSuccessText"></p>
+              <div class="notice-actions">
+                <button id="goHomework" class="small-btn" type="button">Назначить ДЗ этим ученикам</button>
+              </div>
+            </div>
+          </section>
+        </form>
+      </div>
+
+      <div id="homeworkView" class="view">
+        <form id="homeworkForm">
+          <section class="section">
+            <div class="section-head"><h2>Домашняя работа</h2></div>
+            <div id="catalogEmpty" class="catalog-empty hidden">
+              Каталог ДЗ пока пуст. После добавления списка здесь появятся все ссылки.
+            </div>
+            <div id="homeworkFields" class="form-grid">
+              <label class="field">Номер ЕГЭ
+                <select id="homeworkTask"><option value="">Выберите номер</option></select>
+              </label>
+              <label class="field">Конкретное ДЗ
+                <select id="homeworkId" required>
+                  <option value="">Сначала выберите номер ЕГЭ</option>
+                </select>
+              </label>
+              <label class="field full">Срок с момента назначения
+                <div class="chips">
+                  <label class="chip"><input type="radio" name="deadline" value="24" checked><span>1 день</span></label>
+                  <label class="chip"><input type="radio" name="deadline" value="48"><span>2 дня</span></label>
+                  <label class="chip"><input type="radio" name="deadline" value="72"><span>3 дня</span></label>
+                </div>
+              </label>
+            </div>
+
+            <button id="assignHomework" class="primary" type="submit">Назначить ДЗ</button>
+            <p id="homeworkStatus" class="status" role="status" aria-live="polite"></p>
+            <div id="homeworkSuccess" class="notice">
+              <h3>ДЗ назначено</h3>
+              <div id="assignmentMessage" class="message"></div>
+              <div class="notice-actions">
+                <button id="copyMessage" class="small-btn" type="button">Скопировать сообщение</button>
+              </div>
+            </div>
+          </section>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+    const TEACHER_BROWSER_CACHE_KEY = 'ege-teacher-form-data-v4';
+    const VERSION_CHECK_INTERVAL_MS = 60 * 1000;
+    // Встроенный предпросмотр ChatGPT работает в iframe и перед каждым внешним
+    // запросом показывает системное окно разрешения. На обычной странице GitHub
+    // Pages форма открывается верхним окном, поэтому там сеть остаётся включённой.
+    const IS_EMBEDDED_PREVIEW = window.self !== window.top;
+    const PREVIEW_NETWORK_MESSAGE = 'В предпросмотре сетевые запросы отключены. На опубликованной странице данные загружаются автоматически.';
+    const state = {
+      students: [],
+      groups: [],
+      catalog: [],
+      selected: new Set(),
+      attendance: {},
+      lessonId: '',
+      message: '',
+      lastCode: '',
+      lastCreatedStudentId: '',
+      dataLoaded: false,
+      dataLoadedAt: 0,
+      dataVersion: '',
+      dataLoadingPromise: null,
+      versionCheckPromise: null,
+      groupMode: 'existing'
+    };
+
+    const $ = id => document.getElementById(id);
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"]/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'
+      }[character]));
+    }
+
+    function setStatus(id, text, error = false) {
+      const element = $(id);
+      element.textContent = text;
+      element.className = 'status' + (error ? ' error' : '');
+    }
+
+    function jsonpOnce(params, timeoutMs) {
+      if (IS_EMBEDDED_PREVIEW) {
+        return Promise.reject(new Error(PREVIEW_NETWORK_MESSAGE));
+      }
+      return new Promise((resolve, reject) => {
+        const callback = '__teacher_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+        const script = document.createElement('script');
+        let done = false;
+
+        function finish(error, value) {
+          if (done) return;
+          done = true;
+          clearTimeout(timeout);
+          delete window[callback];
+          script.remove();
+          error ? reject(error) : resolve(value);
+        }
+
+        const timeout = setTimeout(
+          () => finish(new Error('Сервер запускается дольше обычного.')),
+          timeoutMs
+        );
+        window[callback] = value => finish(null, value);
+        script.onerror = () => finish(new Error('Не удалось связаться с сервером.'));
+        script.src = API_URL + '?' + new URLSearchParams({ ...params, callback });
+        document.head.appendChild(script);
+      });
+    }
+
+    function wait(milliseconds) {
+      return new Promise(resolve => setTimeout(resolve, milliseconds));
+    }
+
+    async function jsonp(params, options = {}) {
+      const attempts = options.attempts || 2;
+      const timeoutMs = options.timeoutMs || 65000;
+      let lastError;
+
+      for (let attempt = 1; attempt <= attempts; attempt++) {
+        try {
+          return await jsonpOnce(params, timeoutMs);
+        } catch (error) {
+          lastError = error;
+          if (attempt < attempts) await wait(1200);
+        }
+      }
+      throw lastError || new Error('Не удалось получить ответ сервера.');
+    }
+
+    async function post(payload) {
+      if (IS_EMBEDDED_PREVIEW) {
+        throw new Error(PREVIEW_NETWORK_MESSAGE);
+      }
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 75000);
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+          redirect: 'follow',
+          signal: controller.signal
+        });
+        const text = await response.text();
+        try {
+          return JSON.parse(text);
+        } catch (_) {
+          throw new Error('Сервер вернул непонятный ответ.');
+        }
+      } catch (error) {
+        if (error && error.name === 'AbortError') {
+          throw new Error('Сервер долго не отвечает. Повторите отправку.');
+        }
+        if (error && error.message === 'Сервер вернул непонятный ответ.') throw error;
+        throw new Error('Не удалось связаться с сервером. Проверьте новую версию Apps Script.');
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    function moscowInputNow() {
+      const parts = new Intl.DateTimeFormat('sv-SE', {
+        timeZone: 'Europe/Moscow',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false
+      }).formatToParts(new Date());
+      const get = type => parts.find(part => part.type === type).value;
+      return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
+    }
+
+    function updateClock() {
+      const text = new Intl.DateTimeFormat('ru-RU', {
+        timeZone: 'Europe/Moscow',
+        day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
+      }).format(new Date());
+      $('clock').textContent = text + ' · Москва';
+    }
+
+    function switchView(name) {
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.view === name);
+      });
+      document.querySelectorAll('.view').forEach(view => {
+        view.classList.toggle('active', view.id === name + 'View');
+      });
+      $('recipientSection').classList.toggle('hidden', name === 'student');
+
+      if (name !== 'student' && !IS_EMBEDDED_PREVIEW) {
+        if (!state.dataLoaded) {
+          loadTeacherData().catch(() => {});
+        } else {
+          checkTeacherDataVersion().catch(() => {});
+        }
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function setGroupMode(mode) {
+      state.groupMode = mode;
+      const existing = mode === 'existing';
+      $('existingMode').classList.toggle('active', existing);
+      $('newMode').classList.toggle('active', !existing);
+      $('existingGroupWrap').classList.toggle('hidden', !existing);
+      $('newGroupWrap').classList.toggle('hidden', existing);
+    }
+
+    function filteredStudents() {
+      const query = $('studentSearch').value.trim().toLowerCase();
+      const group = $('groupSelect').value;
+      return state.students.filter(student =>
+        (!query || student.studentName.toLowerCase().includes(query))
+        && (!group || student.groupId === group)
+      );
+    }
+
+    function renderStudents() {
+      const list = $('studentList');
+      const students = filteredStudents();
+      list.innerHTML = students.length ? '' : '<div class="empty">Ученики не найдены.</div>';
+
+      students.forEach(student => {
+        const label = document.createElement('label');
+        label.className = 'student';
+        label.innerHTML = `
+          <input type="checkbox" ${state.selected.has(student.studentId) ? 'checked' : ''}>
+          <span>
+            <strong>${escapeHtml(student.studentName)}</strong>
+            <small>${escapeHtml([
+              student.grade ? student.grade + (String(student.grade).match(/^\d+$/) ? ' класс' : '') : '',
+              student.groupId
+            ].filter(Boolean).join(' · '))}</small>
+          </span>`;
+        label.querySelector('input').addEventListener('change', event => {
+          event.target.checked
+            ? state.selected.add(student.studentId)
+            : state.selected.delete(student.studentId);
+          if (!state.attendance[student.studentId]) {
+            state.attendance[student.studentId] = 'Присутствовал';
+          }
+          renderSelection();
+        });
+        list.appendChild(label);
+      });
+
+      $('selectedCount').textContent = 'Выбрано: ' + state.selected.size;
+    }
+
+    function renderSelection() {
+      renderStudents();
+      renderAttendance();
+    }
+
+    function renderAttendance() {
+      const box = $('attendance');
+      const selectedStudents = state.students.filter(student => state.selected.has(student.studentId));
+      box.innerHTML = selectedStudents.length
+        ? ''
+        : '<div class="empty">Сначала выберите учеников.</div>';
+
+      selectedStudents.forEach(student => {
+        state.attendance[student.studentId] ||= 'Присутствовал';
+        const row = document.createElement('div');
+        row.className = 'attendance-row';
+        row.innerHTML = `
+          <strong>${escapeHtml(student.studentName)}</strong>
+          <select>
+            <option>Присутствовал</option>
+            <option>Отсутствовал, предупредил</option>
+            <option>Отсутствовал без предупреждения</option>
+          </select>`;
+        const select = row.querySelector('select');
+        select.value = state.attendance[student.studentId];
+        select.addEventListener('change', () => {
+          state.attendance[student.studentId] = select.value;
+        });
+        box.appendChild(row);
+      });
+    }
+
+    function renderGroups() {
+      const options = state.groups.map(group =>
+        `<option value="${escapeHtml(group)}">${escapeHtml(group)}</option>`
+      ).join('');
+      const selectedFilter = $('groupSelect').value;
+      const selectedNewStudent = $('existingGroup').value;
+      $('groupSelect').innerHTML = '<option value="">Все группы</option>' + options;
+      $('existingGroup').innerHTML = '<option value="">Без группы</option>' + options;
+      if (state.groups.includes(selectedFilter)) $('groupSelect').value = selectedFilter;
+      if (state.groups.includes(selectedNewStudent)) $('existingGroup').value = selectedNewStudent;
+    }
+
+    function renderCatalog() {
+      const tasks = [...new Set(
+        state.catalog.map(item => String(item.taskNumber)).filter(Boolean)
+      )].sort((a, b) => Number(a) - Number(b));
+      $('homeworkTask').innerHTML = '<option value="">Выберите номер</option>'
+        + tasks.map(task => `<option value="${task}">Задание №${task}</option>`).join('');
+      $('catalogEmpty').classList.toggle('hidden', state.catalog.length > 0);
+      $('homeworkFields').classList.toggle('hidden', state.catalog.length === 0);
+      $('assignHomework').classList.toggle('hidden', state.catalog.length === 0);
+      renderHomeworkOptions();
+    }
+
+    function renderHomeworkOptions() {
+      const task = $('homeworkTask').value;
+      const items = state.catalog.filter(item => !task || String(item.taskNumber) === task);
+      $('homeworkId').innerHTML = '<option value="">'
+        + (task ? 'Выберите ДЗ' : 'Сначала выберите номер ЕГЭ')
+        + '</option>'
+        + items.map(item =>
+          `<option value="${escapeHtml(item.homeworkId)}">${escapeHtml(item.homeworkName)}</option>`
+        ).join('');
+    }
+
+    function cacheTimeText(timestamp) {
+      if (!timestamp) return 'время неизвестно';
+      return new Intl.DateTimeFormat('ru-RU', {
+        timeZone: 'Europe/Moscow',
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(new Date(timestamp)) + ' мск';
+    }
+
+    function setCacheStatus(text) {
+      $('cacheStatus').innerHTML = '<strong>Данные:</strong> ' + escapeHtml(text);
+    }
+
+    function writeTeacherBrowserCache() {
+      if (!state.dataLoaded) return;
+      try {
+        localStorage.setItem(TEACHER_BROWSER_CACHE_KEY, JSON.stringify({
+          savedAt: state.dataLoadedAt || Date.now(),
+          version: state.dataVersion,
+          students: state.students,
+          groups: state.groups,
+          catalog: state.catalog
+        }));
+      } catch (_) {}
+    }
+
+    function applyTeacherData(data, savedAt, saveToBrowser) {
+      state.students = Array.isArray(data.students) ? data.students : [];
+      state.groups = Array.isArray(data.groups) ? data.groups : [];
+      state.catalog = Array.isArray(data.catalog) ? data.catalog : [];
+      state.dataVersion = String(data.version || '');
+      state.dataLoaded = true;
+      state.dataLoadedAt = Number(savedAt) || Date.now();
+
+      const validStudentIds = new Set(state.students.map(student => student.studentId));
+      state.selected = new Set(
+        [...state.selected].filter(studentId => validStudentIds.has(studentId))
+      );
+      Object.keys(state.attendance).forEach(studentId => {
+        if (!validStudentIds.has(studentId)) delete state.attendance[studentId];
+      });
+
+      renderGroups();
+      renderSelection();
+      renderCatalog();
+      if (saveToBrowser) writeTeacherBrowserCache();
+    }
+
+    function restoreTeacherBrowserCache() {
+      try {
+        const cached = JSON.parse(localStorage.getItem(TEACHER_BROWSER_CACHE_KEY) || 'null');
+        if (
+          !cached
+          || !Array.isArray(cached.students)
+          || !Array.isArray(cached.groups)
+          || !Array.isArray(cached.catalog)
+        ) return false;
+        applyTeacherData(cached, cached.savedAt, false);
+        setCacheStatus('из кэша браузера · ' + cacheTimeText(cached.savedAt));
+        return true;
+      } catch (_) {
+        try { localStorage.removeItem(TEACHER_BROWSER_CACHE_KEY); } catch (_) {}
+        return false;
+      }
+    }
+
+    async function loadTeacherData(silent = false, forceRefresh = false) {
+      if (IS_EMBEDDED_PREVIEW) {
+        $('dataWarningText').textContent = PREVIEW_NETWORK_MESSAGE;
+        $('dataWarning').classList.add('show');
+        setCacheStatus(state.dataLoaded
+          ? 'предпросмотр · используем локальный кэш ' + cacheTimeText(state.dataLoadedAt)
+          : 'предпросмотр · подключение отключено');
+        if (!state.dataLoaded) {
+          $('studentList').innerHTML = '<div class="empty">Откройте опубликованную страницу формы, чтобы загрузить учеников и каталог.</div>';
+        }
+        throw new Error(PREVIEW_NETWORK_MESSAGE);
+      }
+      if (state.dataLoadingPromise) return state.dataLoadingPromise;
+      const hadData = state.dataLoaded;
+
+      if (!silent && !hadData) {
+        $('studentList').innerHTML = '<div class="empty">Загружаем учеников…</div>';
+      }
+      setCacheStatus(forceRefresh ? 'получаем свежие данные…' : 'проверяем серверный кэш…');
+
+      state.dataLoadingPromise = (async () => {
+        try {
+          const data = await jsonp(
+            {
+              action: 'getTeacherFormData',
+              forceRefresh: forceRefresh ? '1' : '0'
+            },
+            { attempts: 2, timeoutMs: 65000 }
+          );
+          if (!data || !data.ok) {
+            throw new Error((data && data.error) || 'Не удалось загрузить данные.');
+          }
+          applyTeacherData(data, Date.now(), true);
+          $('dataWarning').classList.remove('show');
+          setCacheStatus(
+            (data.fromServerCache ? 'актуальны, из кэша сервера' : 'актуальны, из таблицы')
+            + ' · ' + cacheTimeText(state.dataLoadedAt)
+          );
+          return data;
+        } catch (error) {
+          if (!hadData) state.dataLoaded = false;
+          $('dataWarningText').textContent = hadData
+            ? 'Не удалось обновить данные. Можно продолжить с уже загруженным списком.'
+            : (error.message || 'Не удалось загрузить учеников и каталог.');
+          $('dataWarning').classList.add('show');
+          setCacheStatus(hadData
+            ? 'сервер временно недоступен · используем кэш ' + cacheTimeText(state.dataLoadedAt)
+            : 'кэш пока не создан');
+          if (!silent && !hadData) {
+            $('studentList').innerHTML = '<div class="empty">Не удалось загрузить учеников. Нажмите «Повторить загрузку».</div>';
+          }
+          throw error;
+        } finally {
+          state.dataLoadingPromise = null;
+        }
+      })();
+
+      return state.dataLoadingPromise;
+    }
+
+    async function checkTeacherDataVersion() {
+      if (IS_EMBEDDED_PREVIEW) return null;
+      if (document.hidden || state.versionCheckPromise) {
+        return state.versionCheckPromise;
+      }
+      if (!state.dataLoaded) return loadTeacherData(true, false);
+
+      state.versionCheckPromise = (async () => {
+        try {
+          const data = await jsonp(
+            { action: 'getTeacherDataVersion' },
+            { attempts: 1, timeoutMs: 30000 }
+          );
+          if (!data || !data.ok) {
+            throw new Error((data && data.error) || 'Не удалось проверить версию.');
+          }
+          const serverVersion = String(data.version || '');
+          if (!state.dataVersion || serverVersion !== state.dataVersion) {
+            await loadTeacherData(true, true);
+            return;
+          }
+          setCacheStatus('актуальны · проверено ' + cacheTimeText(Date.now()));
+        } catch (_) {
+          setCacheStatus('не удалось проверить обновления · кэш ' + cacheTimeText(state.dataLoadedAt));
+        } finally {
+          state.versionCheckPromise = null;
+        }
+      })();
+
+      return state.versionCheckPromise;
+    }
+
+    document.querySelectorAll('.tab').forEach(button => {
+      button.addEventListener('click', () => switchView(button.dataset.view));
+    });
+    $('existingMode').addEventListener('click', () => setGroupMode('existing'));
+    $('newMode').addEventListener('click', () => setGroupMode('new'));
+    $('studentSearch').addEventListener('input', renderStudents);
+    $('groupSelect').addEventListener('change', renderStudents);
+    $('homeworkTask').addEventListener('change', renderHomeworkOptions);
+    $('retryData').addEventListener('click', () => {
+      $('dataWarning').classList.remove('show');
+      loadTeacherData(false, true).catch(() => {});
+    });
+    $('refreshData').addEventListener('click', () => {
+      $('dataWarning').classList.remove('show');
+      loadTeacherData(false, true).catch(() => {});
+    });
+
+    $('selectGroup').addEventListener('click', () => {
+      const group = $('groupSelect').value;
+      if (!group) return;
+      state.students.filter(student => student.groupId === group).forEach(student => {
+        state.selected.add(student.studentId);
+        state.attendance[student.studentId] ||= 'Присутствовал';
+      });
+      renderSelection();
+    });
+
+    $('allPresent').addEventListener('click', () => {
+      state.selected.forEach(studentId => {
+        state.attendance[studentId] = 'Присутствовал';
+      });
+      renderAttendance();
+    });
+
+    $('studentForm').addEventListener('submit', async event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      if (!form.reportValidity()) return;
+
+      const button = $('createStudent');
+      const groupId = state.groupMode === 'existing'
+        ? $('existingGroup').value.trim()
+        : $('newGroup').value.trim();
+      button.disabled = true;
+      button.textContent = 'Создаём ученика…';
+      $('studentSuccess').classList.remove('show');
+      setStatus('studentStatus', 'Проверяем данные и создаём уникальный код');
+
+      try {
+        const data = await post({
+          action: 'createStudent',
+          studentName: $('studentName').value.trim(),
+          grade: $('grade').value,
+          groupId,
+          targetScore: $('targetScore').value,
+          initialScore: $('initialScore').value,
+          parentName: $('parentName').value.trim(),
+          notes: $('notes').value.trim()
+        });
+        if (!data || !data.ok) {
+          throw new Error((data && data.error) || 'Не удалось создать ученика.');
+        }
+
+        state.lastCode = data.inviteCode;
+        state.lastCreatedStudentId = data.studentId;
+        $('inviteCode').textContent = data.inviteCode;
+        $('studentId').textContent = 'ID: ' + data.studentId;
+        $('studentMeta').textContent = [
+          data.studentName,
+          data.grade ? data.grade + (String(data.grade).match(/^\d+$/) ? ' класс' : '') : '',
+          data.groupId || '',
+          data.initialMockSaved ? 'входной пробник: ' + data.initialScore + ' баллов' : ''
+        ].filter(Boolean).join(' · ');
+        $('studentSuccess').classList.add('show');
+        setStatus('studentStatus', '');
+
+        if (state.dataLoaded) {
+          const createdStudent = {
+            studentId: data.studentId,
+            studentName: data.studentName,
+            grade: data.grade || '',
+            groupId: data.groupId || ''
+          };
+          state.students = state.students
+            .filter(student => student.studentId !== data.studentId)
+            .concat(createdStudent)
+            .sort((a, b) => a.studentName.localeCompare(b.studentName, 'ru'));
+          if (createdStudent.groupId && !state.groups.includes(createdStudent.groupId)) {
+            state.groups = state.groups.concat(createdStudent.groupId)
+              .sort((a, b) => a.localeCompare(b, 'ru'));
+          }
+          state.dataVersion = String(data.teacherDataVersion || state.dataVersion);
+          state.dataLoadedAt = Date.now();
+          renderGroups();
+          renderSelection();
+          writeTeacherBrowserCache();
+          setCacheStatus('обновлены после создания ученика · ' + cacheTimeText(state.dataLoadedAt));
+        } else {
+          await loadTeacherData(true, true).catch(() => {});
+        }
+        if (state.students.some(student => student.studentId === data.studentId)) {
+          state.selected.clear();
+          state.selected.add(data.studentId);
+          state.attendance[data.studentId] = 'Присутствовал';
+          renderSelection();
+        }
+      } catch (error) {
+        setStatus('studentStatus', error.message || 'Не удалось создать ученика.', true);
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Создать ученика';
+      }
+    });
+
+    $('copyCode').addEventListener('click', async event => {
+      if (!state.lastCode) return;
+      try {
+        await navigator.clipboard.writeText(state.lastCode);
+        event.currentTarget.textContent = 'Код скопирован ✓';
+      } catch (_) {
+        window.prompt('Скопируйте код:', state.lastCode);
+      }
+    });
+
+    $('createAnother').addEventListener('click', () => {
+      $('studentForm').reset();
+      setGroupMode('existing');
+      state.lastCode = '';
+      state.lastCreatedStudentId = '';
+      $('copyCode').textContent = 'Скопировать код';
+      $('studentSuccess').classList.remove('show');
+      setStatus('studentStatus', '');
+      $('studentName').focus();
+    });
+
+    $('newStudentLesson').addEventListener('click', () => switchView('lesson'));
+
+    $('lessonForm').addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!state.selected.size) {
+        return setStatus('lessonStatus', 'Выберите учеников.', true);
+      }
+      const button = $('saveLesson');
+      button.disabled = true;
+      $('lessonSuccess').classList.remove('show');
+      setStatus('lessonStatus', 'Сохраняем занятие…');
+
+      try {
+        const taskNumbers = [...document.querySelectorAll('#taskChips input:checked')]
+          .map(input => Number(input.value));
+        const studentStatuses = [...state.selected].map(studentId => ({
+          studentId,
+          status: state.attendance[studentId] || 'Присутствовал'
+        }));
+        const data = await post({
+          action: 'saveLesson',
+          lessonAt: $('lessonAt').value + ':00+03:00',
+          durationMinutes: Number($('duration').value),
+          taskNumbers,
+          topicComment: $('topicComment').value.trim(),
+          studentStatuses
+        });
+        if (!data || !data.ok) {
+          throw new Error((data && data.error) || 'Не удалось сохранить занятие.');
+        }
+        state.lessonId = data.lessonId;
+        $('lessonSuccessText').textContent = `Записей создано: ${data.count}. Можно сразу назначить ДЗ.`;
+        $('lessonSuccess').classList.add('show');
+        setStatus('lessonStatus', '');
+      } catch (error) {
+        setStatus('lessonStatus', error.message, true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    $('goHomework').addEventListener('click', () => switchView('homework'));
+
+    $('homeworkForm').addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!state.selected.size) {
+        return setStatus('homeworkStatus', 'Выберите учеников.', true);
+      }
+      if (!$('homeworkId').value) {
+        return setStatus('homeworkStatus', 'Выберите домашнюю работу.', true);
+      }
+      const button = $('assignHomework');
+      button.disabled = true;
+      $('homeworkSuccess').classList.remove('show');
+      setStatus('homeworkStatus', 'Создаём назначения…');
+
+      try {
+        const data = await post({
+          action: 'assignHomework',
+          studentIds: [...state.selected],
+          homeworkId: $('homeworkId').value,
+          deadlineHours: Number(document.querySelector('[name="deadline"]:checked').value),
+          lessonId: state.lessonId
+        });
+        if (!data || !data.ok) {
+          throw new Error((data && data.error) || 'Не удалось назначить ДЗ.');
+        }
+        state.message = data.message;
+        $('assignmentMessage').textContent = data.message;
+        $('homeworkSuccess').classList.add('show');
+        setStatus('homeworkStatus', '');
+      } catch (error) {
+        setStatus('homeworkStatus', error.message, true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    $('copyMessage').addEventListener('click', async event => {
+      try {
+        await navigator.clipboard.writeText(state.message);
+        event.currentTarget.textContent = 'Сообщение скопировано ✓';
+      } catch (_) {
+        window.prompt('Скопируйте сообщение:', state.message);
+      }
+    });
+
+    for (let number = 1; number <= 19; number++) {
+      $('taskChips').insertAdjacentHTML('beforeend', `
+        <label class="chip">
+          <input type="checkbox" value="${number}">
+          <span>${number}</span>
+        </label>`);
+    }
+
+    $('lessonAt').value = moscowInputNow();
+    updateClock();
+    setInterval(updateClock, 30000);
+    const restoredFromCache = restoreTeacherBrowserCache();
+    if (IS_EMBEDDED_PREVIEW) {
+      $('dataWarningText').textContent = PREVIEW_NETWORK_MESSAGE;
+      $('dataWarning').classList.add('show');
+      setCacheStatus(restoredFromCache
+        ? 'предпросмотр · используем локальный кэш ' + cacheTimeText(state.dataLoadedAt)
+        : 'предпросмотр · подключение отключено');
+      $('refreshData').disabled = true;
+      $('retryData').disabled = true;
+    } else if (restoredFromCache) {
+      checkTeacherDataVersion().catch(() => {});
+    } else {
+      // Первый запуск новой версии обязан один раз прочитать саму таблицу,
+      // чтобы не получить устаревший каталог из прежнего серверного кэша.
+      loadTeacherData(true, true).catch(() => {});
+    }
+    if (!IS_EMBEDDED_PREVIEW) {
+      setInterval(() => {
+        checkTeacherDataVersion().catch(() => {});
+      }, VERSION_CHECK_INTERVAL_MS);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) checkTeacherDataVersion().catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
