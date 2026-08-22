@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Проверка Firebase</title>
+
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #10131a;
+      color: #ffffff;
+      font-family: system-ui, sans-serif;
+    }
+
+    .card {
+      width: min(620px, 88%);
+      padding: 32px;
+      border: 1px solid #334155;
+      border-radius: 24px;
+      background: #18202d;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
+    }
+
+    h1 {
+      margin-top: 0;
+    }
+
+    #status {
+      padding: 18px;
+      border-radius: 14px;
+      background: #0f172a;
+      white-space: pre-wrap;
+      line-height: 1.6;
+    }
+
+    .success {
+      color: #75f0a7;
+    }
+
+    .error {
+      color: #ff8d8d;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="card">
+    <h1>Проверка Firebase</h1>
+    <div id="status">Подключаемся…</div>
+  </main>
+
+  <script type="module">
+    import {
+      initializeApp
+    } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+
+    import {
+      getAuth,
+      signInAnonymously
+    } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
+
+    import {
+      getDatabase,
+      ref,
+      set,
+      get,
+      remove
+    } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+
+
+    /* =====================================================
+       ЗАМЕНИТЕ ВЕСЬ ЭТОТ ОБЪЕКТ НА СКОПИРОВАННЫЙ ИЗ FIREBASE
+       ===================================================== */
+
+    const firebaseConfig = {
+      apiKey: "ВСТАВЬТЕ_ТОЧНЫЙ_API_KEY",
+      authDomain: "ega-mathematica.firebaseapp.com",
+      databaseURL:
+        "https://ega-mathematica-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "ega-mathematica",
+      storageBucket: "ega-mathematica.firebasestorage.app",
+      messagingSenderId: "177632223541",
+      appId: "1:177632223541:web:fbc532216359e34665ec7c"
+    };
+
+
+    const statusElement = document.getElementById("status");
+
+    function show(message, type = "") {
+      statusElement.textContent = message;
+      statusElement.className = type;
+    }
+
+    function randomRoomCode() {
+      const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      const bytes = crypto.getRandomValues(new Uint8Array(6));
+
+      return Array.from(
+        bytes,
+        byte => alphabet[byte % alphabet.length]
+      ).join("");
+    }
+
+    async function runTest() {
+      let roomReference = null;
+
+      try {
+        show("1/5 — Инициализируем Firebase…");
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const database = getDatabase(app);
+
+        show("2/5 — Выполняем анонимный вход…");
+
+        const credential = await signInAnonymously(auth);
+        const uid = credential.user.uid;
+        const roomCode = randomRoomCode();
+
+        roomReference = ref(database, `rooms/${roomCode}`);
+
+        show(
+          "3/5 — Создаём временную комнату…\n" +
+          `Код: ${roomCode}`
+        );
+
+        await set(ref(database, `rooms/${roomCode}/meta`), {
+          hostUid: uid,
+          interactiveId: "FIREBASE-CONNECTION-TEST",
+          programId: "SYSTEM_TEST",
+          status: "lobby",
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        });
+
+        await set(ref(database, `rooms/${roomCode}/members/${uid}`), {
+          uid,
+          role: "teacher",
+          name: "Проверка Firebase",
+          online: true,
+          lastSeen: Date.now()
+        });
+
+        await set(ref(database, `rooms/${roomCode}/control`), {
+          started: false,
+          paused: false,
+          currentPhase: "test"
+        });
+
+        show("4/5 — Читаем данные из базы…");
+
+        const snapshot = await get(roomReference);
+
+        if (!snapshot.exists()) {
+          throw new Error("Комната была записана, но не прочиталась.");
+        }
+
+        const data = snapshot.val();
+
+        if (data.meta?.hostUid !== uid) {
+          throw new Error("UID преподавателя прочитан неправильно.");
+        }
+
+        show("5/5 — Удаляем временную комнату…");
+
+        await remove(roomReference);
+        roomReference = null;
+
+        show(
+          "✅ FIREBASE РАБОТАЕТ\n\n" +
+          "Анонимный вход: успешно\n" +
+          "Запись в базу: успешно\n" +
+          "Чтение из базы: успешно\n" +
+          "Security Rules: успешно\n" +
+          "Удаление комнаты: успешно\n\n" +
+          "После проверки база снова пустая.",
+          "success"
+        );
+
+      } catch (error) {
+        console.error(error);
+
+        if (roomReference) {
+          try {
+            await remove(roomReference);
+          } catch (_) {}
+        }
+
+        show(
+          "❌ ОШИБКА FIREBASE\n\n" +
+          `Код: ${error.code || "не указан"}\n\n` +
+          `Сообщение: ${error.message || error}`,
+          "error"
+        );
+      }
+    }
+
+    runTest();
+  </script>
+</body>
+</html>
