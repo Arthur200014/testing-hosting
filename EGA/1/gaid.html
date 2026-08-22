@@ -351,7 +351,7 @@
     <div class="cb-dialog">
       <button class="cb-gate-close" id="cbGateClose" type="button" aria-label="Закрыть и читать гайд">×</button>
       <div id="cbRoleView">
-        <div class="cb-kicker">SUPABASE · ОБЩИЙ ГАЙД · V7</div>
+        <div class="cb-kicker">SUPABASE · ОБЩИЙ ГАЙД · V9</div>
         <h2>Онлайн-доска мастера</h2>
         <p>Создайте общую комнату или подключитесь по коду. В комнате одновременно могут работать учитель и до шести учеников.</p>
         <div class="cb-role-grid">
@@ -1987,7 +1987,7 @@
       let mode = "", room = "", me = null, channel = null, joined = false;
       let hostState = null, localState = null, tool = "pointer", penColor = "#e53935", penWidth = 6;
       let heartbeatTimer = 0, watchdogTimer = 0, joinTimer = 0, toastTimer = 0, saveTimer = 0;
-      let lastHostSeen = 0, lastCursorSent = 0, lastScrollSent = 0, lastFormulaScrollSent = 0, sharedScroll = null;
+      let lastHostSeen = 0, lastCursorSent = 0, lastScrollSent = 0, lastFormulaScrollSent = 0, lastSnapshotRequest = 0, sharedScroll = null;
       let drawing = null, eraseHover = null, suppressUi = false, applyingFormulaState = false, scrollGuardTimer = 0, formulaScrollGuardTimer = 0, joiningSilently = false, skipAutoJoin = false, teacherAuthorized = false;
 
       function cleanName(value){return String(value || "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 32);}
@@ -2017,7 +2017,7 @@
           script.src = API_URL + "?" + new URLSearchParams({action:"validateStudent", code, callback}).toString();document.head.appendChild(script);
         });
       }
-      function newState(){return {version:1, strokes:{}, players:{}, ui:{details:{}, scroll:{anchorId:"anchor-0", ratio:0}, formulas:{open:false,scrollTop:0}, prototype:0}};}
+      function newState(){return {version:1, boardEpoch:0, strokes:{}, players:{}, ui:{details:{}, scroll:{anchorId:"anchor-0", ratio:0}, formulas:{open:false,scrollTop:0}, prototype:0}};}
       function bump(){if(hostState) hostState.version = Number(hostState.version || 0) + 1;}
 
       function setGate(view){
@@ -2069,7 +2069,7 @@
         if(tool !== "pen") return;
         event.preventDefault();event.currentTarget.setPointerCapture?.(event.pointerId);
         const point = anchorPoint(event), id = "stroke-" + randomId(14);
-        const stroke = {id, anchorId, authorId:me.id, authorName:me.name, color:penColor, width:penWidth, points:[[point.x, point.y]], done:false, rev:Date.now()};
+        const stroke = {id, anchorId, authorId:me.id, authorName:me.name, color:penColor, width:penWidth, epoch:Number(localState?.boardEpoch||0), points:[[point.x, point.y]], done:false, rev:Date.now()};
         localState.strokes[id] = stroke;renderStroke(stroke);drawing = {id, pointerId:event.pointerId, sent:1, lastSend:0};
         if(mode === "teacher") hostStrokeStart(me, stroke);else send({type:"stroke_start", user:me, stroke:clone(stroke)}).catch(() => {});
       }
@@ -2103,36 +2103,57 @@
       function flushDrawing(done){
         if(!drawing) return;const stroke = localState.strokes[drawing.id];if(!stroke) return;
         const points = stroke.points.slice(drawing.sent);drawing.sent = stroke.points.length;if(done) stroke.done = true;renderStroke(stroke);
-        if(mode === "teacher") hostStrokeAppend(me, stroke.id, points, done);
-        else send({type:"stroke_append", userId:me.id, strokeId:stroke.id, points, done, at:Date.now()}).catch(() => {});
+        if(mode === "teacher") hostStrokeAppend(me, stroke.id, points, done, Number(localState?.boardEpoch||0));
+        else send({type:"stroke_append", userId:me.id, strokeId:stroke.id, epoch:Number(localState?.boardEpoch||0), points, done, at:Date.now()}).catch(() => {});
       }
       function deleteStrokeRequest(id){
         if(!localState?.strokes?.[id]) return;delete localState.strokes[id];removeStroke(id);
-        if(mode === "teacher") hostDeleteStroke(me, id);else send({type:"stroke_delete", userId:me.id, strokeId:id, at:Date.now()}).catch(() => {});
+        if(mode === "teacher") hostDeleteStroke(me, id, Number(localState?.boardEpoch||0));else send({type:"stroke_delete", userId:me.id, strokeId:id, epoch:Number(localState?.boardEpoch||0), at:Date.now()}).catch(() => {});
       }
 
       function hostStrokeStart(user, stroke){
         if(!hostState || !user?.id || !stroke?.id) return;
-        hostState.strokes[stroke.id] = {...clone(stroke), authorId:user.id, authorName:user.name, points:clone(stroke.points || []).slice(0, 1)};bump();localState = hostState;renderStroke(hostState.strokes[stroke.id]);
-        send({type:"stroke_state", action:"start", stroke:clone(hostState.strokes[stroke.id]), version:hostState.version}).catch(() => {});scheduleSave();
+        const epoch = Number(stroke.epoch || 0), currentEpoch = Number(hostState.boardEpoch || 0);
+        if(epoch !== currentEpoch){sendSnapshot(user.id).catch(() => {});return;}
+        hostState.strokes[stroke.id] = {...clone(stroke), epoch:currentEpoch, authorId:user.id, authorName:user.name, points:clone(stroke.points || []).slice(0, 1)};bump();localState = hostState;renderStroke(hostState.strokes[stroke.id]);
+        send({type:"stroke_state", action:"start", epoch:currentEpoch, stroke:clone(hostState.strokes[stroke.id]), version:hostState.version}).catch(() => {});scheduleSave();
       }
-      function hostStrokeAppend(user, id, points, done){
-        const stroke = hostState?.strokes?.[id];if(!stroke || stroke.authorId !== user.id) return;
+      function hostStrokeAppend(user, id, points, done, epoch){
+        const currentEpoch = Number(hostState?.boardEpoch || 0);
+        if(Number(epoch || 0) !== currentEpoch){sendSnapshot(user.id).catch(() => {});return;}
+        const stroke = hostState?.strokes?.[id];if(!stroke || stroke.authorId !== user.id || Number(stroke.epoch||0) !== currentEpoch) return;
         const pointsAlreadyRenderedHere = mode === "teacher" && user.id === me?.id;
         if(points?.length && !pointsAlreadyRenderedHere) stroke.points.push(...clone(points));stroke.done = Boolean(done);stroke.rev = Date.now();bump();renderStroke(stroke);
-        send({type:"stroke_state", action:"append", strokeId:id, points:clone(points || []), done:Boolean(done), rev:stroke.rev, version:hostState.version}).catch(() => {});if(done) scheduleSave();
+        send({type:"stroke_state", action:"append", epoch:currentEpoch, strokeId:id, points:clone(points || []), done:Boolean(done), rev:stroke.rev, version:hostState.version}).catch(() => {});if(done) scheduleSave();
       }
-      function hostDeleteStroke(_user, id){
-        if(!hostState?.strokes?.[id]) return;delete hostState.strokes[id];bump();removeStroke(id);send({type:"stroke_state", action:"delete", strokeId:id, version:hostState.version}).catch(() => {});scheduleSave();
+      function hostDeleteStroke(user, id, epoch){
+        const currentEpoch = Number(hostState?.boardEpoch || 0);
+        if(Number(epoch || 0) !== currentEpoch){sendSnapshot(user.id).catch(() => {});return;}
+        if(!hostState?.strokes?.[id]) return;delete hostState.strokes[id];bump();removeStroke(id);send({type:"stroke_state", action:"delete", epoch:currentEpoch, strokeId:id, version:hostState.version}).catch(() => {});scheduleSave();
       }
       function applyStrokeState(message){
         if(!localState) return;
-        if(message.action === "start"){const existing = localState.strokes[message.stroke.id];localState.strokes[message.stroke.id] = existing && existing.authorId === me.id ? existing : message.stroke;renderStroke(localState.strokes[message.stroke.id]);}
-        if(message.action === "append"){
-          const stroke = localState.strokes[message.strokeId];if(stroke){if(stroke.authorId !== me.id && message.points?.length) stroke.points.push(...message.points);stroke.done = Boolean(message.done);stroke.rev = message.rev;renderStroke(stroke);}
+        const incomingVersion = Number(message.version || 0), currentVersion = Number(localState.version || 0);
+        const incomingEpoch = Number(message.epoch ?? message.stroke?.epoch ?? 0), currentEpoch = Number(localState.boardEpoch || 0);
+        if(incomingEpoch < currentEpoch || (incomingVersion && incomingVersion < currentVersion)) return;
+        if(incomingEpoch > currentEpoch){requestFreshSnapshot("board-epoch-gap");return;}
+        if(message.action === "start"){
+          message.stroke.epoch = incomingEpoch;
+          const existing = localState.strokes[message.stroke.id];
+          localState.strokes[message.stroke.id] = existing && existing.authorId === me.id ? existing : message.stroke;
+          renderStroke(localState.strokes[message.stroke.id]);
         }
-        if(message.action === "delete"){delete localState.strokes[message.strokeId];removeStroke(message.strokeId);}
-        localState.version = message.version;
+        if(message.action === "append"){
+          const stroke = localState.strokes[message.strokeId];
+          if(stroke && (!message.rev || Number(message.rev) > Number(stroke.rev || 0))){
+            if(stroke.authorId !== me.id && message.points?.length) stroke.points.push(...message.points);
+            stroke.done = Boolean(message.done);stroke.rev = message.rev;renderStroke(stroke);
+          }
+        }
+        if(message.action === "delete"){
+          delete localState.strokes[message.strokeId];removeStroke(message.strokeId);
+        }
+        localState.version = Math.max(currentVersion, incomingVersion);
       }
 
       function renderPlayers(){
@@ -2181,12 +2202,17 @@
         setTimeout(() => {applyingFormulaState = false;}, 60);
       }
       function publishFormulaState(open = $("formulaDialog")?.open){
-        if(applyingFormulaState || mode !== "teacher" || !joined || !channel?.isOpen || !hostState) return;
-        const dialog = $("formulaDialog"), state = {open:Boolean(open), scrollTop:Boolean(open) ? Math.max(0, dialog?.scrollTop || 0) : 0};hostState.ui.formulas = state;bump();send({type:"formula_state", state, at:Date.now()}).catch(() => {});scheduleSave();
+        if(applyingFormulaState || !joined || !channel?.isOpen || !me) return;
+        const dialog = $("formulaDialog"), state = {open:Boolean(open), scrollTop:Boolean(open) ? Math.max(0, dialog?.scrollTop || 0) : 0};
+        if(mode === "teacher"){
+          hostState.ui.formulas = state;bump();send({type:"formula_state", state, version:hostState.version, at:Date.now()}).catch(() => {});scheduleSave();
+        }else{
+          send({type:"ui_action", action:{kind:"formula",state}, userId:me.id, at:Date.now()}).catch(() => {});
+        }
       }
       function onFormulaScroll(){
-        if(applyingFormulaState) return;if(mode === "student" && joined && localState?.ui?.formulas){clearTimeout(formulaScrollGuardTimer);formulaScrollGuardTimer = setTimeout(() => applyFormulaState(localState.ui.formulas), 140);return;}
-        const now = performance.now();if(now - lastFormulaScrollSent < 85) return;lastFormulaScrollSent = now;publishFormulaState(true);
+        if(applyingFormulaState) return;
+        const now = performance.now();if(now - lastFormulaScrollSent < 100) return;lastFormulaScrollSent = now;publishFormulaState(true);
       }
       function applyDetails(details){
         suppressUi = true;Object.entries(details || {}).forEach(([id, open]) => {const node = document.getElementById(id);if(node?.tagName === "DETAILS") node.open = Boolean(open);});setTimeout(() => {suppressUi = false;}, 0);
@@ -2201,6 +2227,10 @@
         }
         if(action.kind === "prototype"){
           hostState.ui.prototype = Number(action.index) || 0;bump();if(applyLocal) applyPrototype(hostState.ui.prototype);send({type:"ui_state", action, origin, version:hostState.version}).catch(() => {});scheduleSave();
+        }
+        if(action.kind === "formula"){
+          const state = {open:Boolean(action.state?.open),scrollTop:Math.max(0,Number(action.state?.scrollTop)||0)};
+          hostState.ui.formulas = state;bump();if(applyLocal) applyFormulaState(state);send({type:"formula_state", state, version:hostState.version, at:Date.now()}).catch(() => {});scheduleSave();
         }
         if(action.kind === "replay"){bump();if(applyLocal) replayVisual(action.id);send({type:"ui_state", action, origin, version:hostState.version}).catch(() => {});}
       }
@@ -2321,14 +2351,17 @@
       function canInteract(){return Boolean(channel?.isOpen && me && (mode === "teacher" || joined));}
 
       function prepareConnected(){
-        setupAnchors();joiningSilently = false;closeGate();$("cbStart").classList.add("cb-hidden");document.body.classList.add("cb-connected");$("cbToolbar").classList.remove("cb-hidden");$("cbRoomCode").textContent = room;$("cbClearAll").classList.toggle("cb-hidden", mode !== "teacher");selectTool("pointer");renderPlayers();renderAllStrokes();
+        const firstConnection = !document.body.classList.contains("cb-connected");
+        setupAnchors();joiningSilently = false;closeGate();$("cbStart").classList.add("cb-hidden");document.body.classList.add("cb-connected");$("cbToolbar").classList.remove("cb-hidden");$("cbRoomCode").textContent = room;$("cbClearAll").classList.toggle("cb-hidden", mode !== "teacher");
+        if(firstConnection) selectTool("pointer");
+        renderPlayers();renderAllStrokes();
       }
       async function startTeacher(saved = null, clean = false){
         if(!teacherAuthorized){setGate("cbTeacherView");message("cbTeacherMessage", "Сначала введите код учителя.", "error");return;}
         message("cbRoleMessage", "Подключаем общую комнату…");try{
           await disconnect();mode = "teacher";room = saved?.room || randomId(6);me = saved?.me || {id:"T" + randomId(14), name:"Учитель", color:PLAYER_COLORS[0], role:"teacher"};
-          hostState = clean || !saved?.state ? newState() : saved.state;hostState.players ||= {};hostState.ui ||= {details:{},scroll:{anchorId:"anchor-0",ratio:0},formulas:{open:false,scrollTop:0},prototype:0};hostState.ui.details ||= {};hostState.ui.scroll ||= {anchorId:"anchor-0",ratio:0};hostState.ui.formulas ||= {open:false,scrollTop:0};hostState.ui.prototype = Number(hostState.ui.prototype)||0;Object.values(hostState.players).forEach((p) => {if(p.role === "student") p.online = false;});hostState.players[me.id] = {...me, online:true, lastSeen:Date.now()};localState = hostState;joined = true;prepareConnected();applyPrototype(hostState.ui.prototype);applyDetails(hostState.ui.details);if(saved && !clean) requestAnimationFrame(() => scrollToPayload(hostState.ui.scroll));
-          const opened = openRawChannel("shared-planimetry-guide-" + room, handleTeacherMessage, connectionStatus);channel = opened.api;await opened.ready;renderPlayers();scheduleSave(true);heartbeatTimer = setInterval(() => {markOfflinePlayers();broadcastSnapshot().catch(() => {});}, 4000);
+          hostState = clean || !saved?.state ? newState() : saved.state;hostState.boardEpoch = Number(hostState.boardEpoch||0);hostState.players ||= {};hostState.ui ||= {details:{},scroll:{anchorId:"anchor-0",ratio:0},formulas:{open:false,scrollTop:0},prototype:0};hostState.ui.details ||= {};hostState.ui.scroll ||= {anchorId:"anchor-0",ratio:0};hostState.ui.formulas ||= {open:false,scrollTop:0};hostState.ui.prototype = Number(hostState.ui.prototype)||0;Object.values(hostState.players).forEach((p) => {if(p.role === "student") p.online = false;});hostState.players[me.id] = {...me, online:true, lastSeen:Date.now()};localState = hostState;joined = true;prepareConnected();applyPrototype(hostState.ui.prototype);applyDetails(hostState.ui.details);if(saved && !clean) requestAnimationFrame(() => scrollToPayload(hostState.ui.scroll));
+          const opened = openRawChannel("shared-planimetry-guide-" + room, handleTeacherMessage, connectionStatus);channel = opened.api;await opened.ready;renderPlayers();scheduleSave(true);heartbeatTimer = setInterval(() => {markOfflinePlayers();send({type:"host_heartbeat",version:Number(hostState?.version||0),at:Date.now()}).catch(() => {});}, 3000);
         }catch(error){await disconnect();document.body.classList.remove("cb-connected");$("cbToolbar").classList.add("cb-hidden");setGate(saved ? "cbRestoreView" : "cbRoleView");message(saved ? "cbRestoreMessage" : "cbRoleMessage", error.message, "error");}
       }
       function savedStudent(code, studentId){try{const saved = JSON.parse(localStorage.getItem(STUDENT_SAVE_KEY) || "null");if(saved?.room === code && saved?.studentId === studentId) return saved;}catch(_){}return null;}
@@ -2369,35 +2402,79 @@
       }
       function sendSnapshot(target = "*"){return send({type:"snapshot", target, state:clone(hostState), at:Date.now()});}
       function broadcastSnapshot(){return sendSnapshot("*");}
-      function markOfflinePlayers(){const now = Date.now();Object.values(hostState.players).forEach((p) => {if(p.role === "student") p.online = now - Number(p.lastSeen || 0) < 9000;});renderPlayers();scheduleSave();}
+      function requestFreshSnapshot(reason = "version-gap"){
+        if(mode !== "student" || !joined || !channel?.isOpen || !me) return;
+        const now = Date.now();if(now - lastSnapshotRequest < 1200) return;lastSnapshotRequest = now;
+        send({type:"state_request",userId:me.id,player:me,knownVersion:Number(localState?.version||0),reason,at:now}).catch(() => {});
+      }
+      function markOfflinePlayers(){
+        const now = Date.now();let changed = false;
+        Object.values(hostState.players).forEach((p) => {if(p.role === "student"){const online = now - Number(p.lastSeen || 0) < 9000;if(p.online !== online){p.online = online;changed = true;}}});
+        if(changed){bump();renderPlayers();scheduleSave();}
+      }
 
       function handleTeacherMessage(message){
         if(message.type === "cursor"){renderPointer(message);return;}
         if(message.type === "join" || message.type === "ping"){
           const player = message.player;if(!player?.id) return;const existing = hostState.players[player.id];const active = Object.values(hostState.players).filter((p) => p.role === "student" && p.online !== false && Date.now() - Number(p.lastSeen || 0) < 9000);
           if(!existing && active.length >= MAX_STUDENTS){send({type:"join_rejected", target:player.id, reason:"Комната заполнена: уже подключены шесть учеников."}).catch(() => {});return;}
-          hostState.players[player.id] = {id:player.id, name:cleanName(player.name) || "Ученик", color:cleanColor(player.color || PLAYER_COLORS[1]), role:"student", online:true, lastSeen:Date.now()};bump();renderPlayers();if(message.type === "join") sendSnapshot(player.id).catch(() => {});scheduleSave();return;
+          const normalized = {id:player.id, name:cleanName(player.name) || "Ученик", color:cleanColor(player.color || PLAYER_COLORS[1]), role:"student", online:true, lastSeen:Date.now()};
+          const changed = !existing || existing.online === false || existing.name !== normalized.name || existing.color !== normalized.color;
+          hostState.players[player.id] = normalized;if(changed){bump();renderPlayers();scheduleSave();}
+          if(message.type === "join") sendSnapshot(player.id).catch(() => {});return;
         }
         if(message.type === "leave"){const player = hostState.players[message.userId];if(player){player.online = false;bump();renderPlayers();broadcastSnapshot().catch(() => {});scheduleSave();}return;}
         const player = hostState.players[message.userId || message.user?.id];if(player){player.online = true;player.lastSeen = Date.now();}
         if(message.type === "stroke_start" && player) hostStrokeStart(player, message.stroke);
-        if(message.type === "stroke_append" && player) hostStrokeAppend(player, message.strokeId, message.points, message.done);
-        if(message.type === "stroke_delete" && player) hostDeleteStroke(player, message.strokeId);
+        if(message.type === "stroke_append" && player) hostStrokeAppend(player, message.strokeId, message.points, message.done, message.epoch);
+        if(message.type === "stroke_delete" && player) hostDeleteStroke(player, message.strokeId, message.epoch);
         if(message.type === "ui_action" && player) hostUiAction(message.action, player.id, true);
+        if(message.type === "state_request" && player) sendSnapshot(player.id).catch(() => {});
       }
       function handleStudentMessage(message){
         if(message.type === "cursor"){renderPointer(message);return;}
         if(message.type === "join_rejected" && message.target === me.id){clearTimeout(joinTimer);if(joiningSilently) openGuideOffline(message.reason + " Сам гайд доступен.");else {disconnect();setGate("cbJoinView");message("cbJoinMessage", message.reason, "error");$("cbJoin").disabled = false;}return;}
         if(message.type === "snapshot" && (message.target === "*" || message.target === me.id)){
-          lastHostSeen = Date.now();joined = true;clearTimeout(joinTimer);localState = message.state;sharedScroll = localState.ui?.scroll || sharedScroll;prepareConnected();applyPrototype(localState.ui?.prototype || 0);applyDetails(localState.ui?.details || {});renderAllStrokes();renderPlayers();requestAnimationFrame(() => applySharedScroll(sharedScroll));setStatus("online");$("cbJoin").disabled = false;return;
+          lastHostSeen = Date.now();const incoming = message.state || newState();incoming.boardEpoch = Number(incoming.boardEpoch||0);const firstSnapshot = !joined;
+          const previousVersion = Number(localState?.version || 0), incomingVersion = Number(incoming.version || 0);
+          if(!firstSnapshot && incomingVersion <= previousVersion){setStatus("online");return;}
+          const prototypeChanged = firstSnapshot || Number(localState?.ui?.prototype || 0) !== Number(incoming.ui?.prototype || 0);
+          const formulasChanged = firstSnapshot || JSON.stringify(localState?.ui?.formulas || {}) !== JSON.stringify(incoming.ui?.formulas || {});
+          joined = true;clearTimeout(joinTimer);localState = incoming;sharedScroll = localState.ui?.scroll || sharedScroll;
+          if(firstSnapshot) prepareConnected();else {renderAllStrokes();renderPlayers();}
+          if(prototypeChanged) applyPrototype(localState.ui?.prototype || 0);else applyDetails(localState.ui?.details || {});
+          if(formulasChanged) applyFormulaState(localState.ui?.formulas || {open:false,scrollTop:0});
+          renderAllStrokes();renderPlayers();requestAnimationFrame(() => applySharedScroll(sharedScroll));setStatus("online");$("cbJoin").disabled = false;return;
         }
-        if(message.type === "stroke_state"){lastHostSeen = Date.now();applyStrokeState(message);return;}
-        if(message.type === "scroll_state"){lastHostSeen = Date.now();sharedScroll = message.scroll;applySharedScroll(sharedScroll);return;}
-        if(message.type === "formula_state"){lastHostSeen = Date.now();return;}
+        if(message.type === "board_clear"){
+          lastHostSeen = Date.now();const incomingEpoch = Number(message.epoch || 0), currentEpoch = Number(localState?.boardEpoch || 0);
+          if(incomingEpoch < currentEpoch) return;
+          localState.boardEpoch = incomingEpoch;localState.strokes = {};localState.version = Math.max(Number(localState.version||0),Number(message.version||0));
+          drawing = null;renderAllStrokes();return;
+        }
+        if(message.type === "host_heartbeat"){
+          lastHostSeen = Date.now();setStatus("online");
+          if(Number(message.version || 0) > Number(localState?.version || 0)) requestFreshSnapshot("heartbeat-version-gap");
+          return;
+        }
+        if(message.type === "stroke_state"){
+          lastHostSeen = Date.now();const before = Number(localState?.version || 0);applyStrokeState(message);
+          if(Number(message.version || 0) > before + 1) requestFreshSnapshot("stroke-version-gap");return;
+        }
+        if(message.type === "scroll_state"){lastHostSeen = Date.now();sharedScroll = message.scroll;if(localState?.ui) localState.ui.scroll = message.scroll;applySharedScroll(sharedScroll);return;}
+        if(message.type === "formula_state"){
+          lastHostSeen = Date.now();const incomingVersion = Number(message.version || 0), currentVersion = Number(localState?.version || 0);
+          if(incomingVersion && incomingVersion < currentVersion) return;
+          localState.ui.formulas = message.state;localState.version = Math.max(currentVersion,incomingVersion);applyFormulaState(message.state);return;
+        }
         if(message.type === "ui_state"){
-          lastHostSeen = Date.now();if(message.action?.kind === "details") applyDetails({[message.action.id]:message.action.open});
+          lastHostSeen = Date.now();const incomingVersion = Number(message.version || 0), currentVersion = Number(localState?.version || 0);
+          if(incomingVersion && incomingVersion < currentVersion) return;
+          if(message.action?.kind === "details"){localState.ui.details[message.action.id] = Boolean(message.action.open);applyDetails({[message.action.id]:message.action.open});}
           if(message.action?.kind === "prototype"){localState.ui.prototype = Number(message.action.index)||0;applyPrototype(localState.ui.prototype);}
-          if(message.action?.kind === "replay" && message.origin !== me.id) replayVisual(message.action.id);return;
+          if(message.action?.kind === "replay" && message.origin !== me.id) replayVisual(message.action.id);
+          localState.version = Math.max(currentVersion,incomingVersion);
+          if(incomingVersion > currentVersion + 1) requestFreshSnapshot("ui-version-gap");return;
         }
       }
 
@@ -2437,8 +2514,17 @@
       $("cbExit").addEventListener("click", exitRoom);document.querySelectorAll("[data-cb-tool]").forEach((button) => button.addEventListener("click", () => selectTool(button.dataset.cbTool)));
       document.querySelectorAll(".cb-swatch").forEach((button) => button.addEventListener("click", () => setColor(button.dataset.color)));$("cbColor").addEventListener("input", (event) => setColor(event.target.value));
       document.querySelectorAll("[data-pen-width]").forEach((button) => button.addEventListener("click", () => setPenWidth(button.dataset.penWidth)));
-      $("cbClearAll").addEventListener("click", () => {if(mode !== "teacher" || !confirm("Удалить все рисунки с общей доски?")) return;hostState.strokes = {};bump();localState = hostState;renderAllStrokes();send({type:"snapshot", target:"*", state:clone(hostState), at:Date.now()}).catch(() => {});scheduleSave(true);toast("Все рисунки удалены");});
+      $("cbClearAll").addEventListener("click", () => {
+        if(mode !== "teacher" || !confirm("Удалить все рисунки с общей доски у всех участников?")) return;
+        hostState.boardEpoch = Number(hostState.boardEpoch||0) + 1;hostState.strokes = {};bump();localState = hostState;drawing = null;renderAllStrokes();
+        const clearMessage = {type:"board_clear",epoch:hostState.boardEpoch,version:hostState.version,at:Date.now()};
+        send(clearMessage).catch(() => {});setTimeout(() => {if(channel?.isOpen) send(clearMessage).catch(() => {});}, 450);
+        scheduleSave(true);toast("Все записи удалены у всех участников");
+      });
       document.addEventListener("toggle", handleLocalDetails, true);document.addEventListener("click", handleLocalReplay);
+      $("openFormulas").addEventListener("click", () => setTimeout(() => publishFormulaState(true), 0));
+      $("formulaDialog").addEventListener("close", () => publishFormulaState(false));
+      $("formulaDialog").addEventListener("scroll", onFormulaScroll, {passive:true});
       window.addEventListener("planimetry:prototype-change",(event)=>{if(suppressUi||!canInteract())return;const action={kind:"prototype",index:Number(event.detail?.index)||0};if(mode==="teacher")hostUiAction(action,me.id,false);else send({type:"ui_action",action,userId:me.id}).catch(()=>{});});
       document.addEventListener("click", (event) => {if(mode === "student" && joined && event.target.closest?.(".route a")){event.preventDefault();toast("Общей прокруткой управляет учитель");}}, true);
       document.addEventListener("pointermove", (event) => {if(!canInteract() || tool !== "pointer") return;const anchor = event.target.closest?.("[data-board-anchor]");if(!anchor) return;const rect = anchor.getBoundingClientRect();sendCursor(anchor.dataset.boardAnchor, clamp((event.clientX - rect.left) / rect.width, 0, 1), clamp((event.clientY - rect.top) / rect.height, 0, 1));}, {passive:true});
