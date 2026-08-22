@@ -351,7 +351,7 @@
     <div class="cb-dialog">
       <button class="cb-gate-close" id="cbGateClose" type="button" aria-label="Закрыть и читать гайд">×</button>
       <div id="cbRoleView">
-        <div class="cb-kicker">SUPABASE · ОБЩИЙ ГАЙД</div>
+        <div class="cb-kicker">SUPABASE · ОБЩИЙ ГАЙД · V7</div>
         <h2>Онлайн-доска мастера</h2>
         <p>Создайте общую комнату или подключитесь по коду. В комнате одновременно могут работать учитель и до шести учеников.</p>
         <div class="cb-role-grid">
@@ -2215,22 +2215,108 @@
 
       function openRawChannel(topicName, onGame, onStatus){
         const socketUrl = SUPABASE_URL.replace(/^http/i, "ws") + "/realtime/v1/websocket?apikey=" + encodeURIComponent(SUPABASE_KEY) + "&vsn=1.0.0";
-        const socket = new WebSocket(socketUrl), topic = "realtime:" + topicName;let sequence = 0, joinRef = "", subscribed = false, manual = false, keepalive = 0, resolveReady, rejectReady;
-        const ready = new Promise((resolve, reject) => {resolveReady = resolve;rejectReady = reject;});
-        const timeout = setTimeout(() => {if(!subscribed){rejectReady(Error("Supabase не ответил за 12 секунд. Откройте файл в Chrome и проверьте интернет."));try{socket.close();}catch(_){}}}, 12000);
-        const frame = (event, payload, ref, frameTopic = topic, frameJoin = joinRef || null) => socket.send(JSON.stringify({topic:frameTopic,event,payload,ref,join_ref:frameJoin}));
-        const api = {
-          get isOpen(){return subscribed && socket.readyState === WebSocket.OPEN;},
-          send(message){if(!api.isOpen) throw Error("WebSocket комнаты не подключён.");frame("broadcast", {type:"broadcast",event:"game",payload:message}, String(++sequence));return Promise.resolve();},
-          close(){manual = true;clearTimeout(timeout);clearInterval(keepalive);subscribed = false;try{if(socket.readyState === WebSocket.OPEN) frame("phx_leave", {}, String(++sequence));}catch(_){}try{socket.close(1000, "done");}catch(_){}}
+        const topic = "realtime:" + topicName;
+        let socket = null, sequence = 0, joinRef = "", subscribed = false, manual = false;
+        let keepalive = 0, connectTimeout = 0, reconnectTimer = 0, attempts = 0, readyResolved = false, resolveReady;
+        const ready = new Promise((resolve) => {resolveReady = resolve;});
+
+        const clearConnectionTimers = () => {clearTimeout(connectTimeout);clearInterval(keepalive);connectTimeout = keepalive = 0;};
+        const frame = (event, payload, ref, frameTopic = topic, frameJoin = joinRef || null) => {
+          if(!socket || socket.readyState !== WebSocket.OPEN) throw Error("WebSocket комнаты не подключён.");
+          socket.send(JSON.stringify({topic:frameTopic,event,payload,ref,join_ref:frameJoin}));
         };
-        socket.addEventListener("open", () => {onStatus("CONNECTING");joinRef = String(++sequence);frame("phx_join", {config:{broadcast:{ack:false,self:false},presence:{enabled:false},private:false}}, joinRef, topic, joinRef);});
-        socket.addEventListener("message", (event) => {let data;try{data = JSON.parse(event.data);}catch(_){return;}if(data.event === "phx_reply" && String(data.ref) === joinRef){if(data.payload?.status === "ok"){subscribed = true;clearTimeout(timeout);onStatus("SUBSCRIBED");resolveReady(api);keepalive = setInterval(() => {if(socket.readyState === WebSocket.OPEN) frame("heartbeat", {}, String(++sequence), "phoenix", null);}, 25000);}else{const reason = data.payload?.response?.reason || "Вход в канал отклонён";clearTimeout(timeout);onStatus("ERROR", reason);rejectReady(Error(String(reason)));}return;}if(data.event === "broadcast" && data.payload?.event === "game"){const message = data.payload.payload;if(message?.type) onGame(message);}if(data.event === "phx_error") onStatus("ERROR", "Ошибка канала");});
-        socket.addEventListener("error", () => {onStatus("ERROR", "WebSocket заблокирован");if(!subscribed){clearTimeout(timeout);rejectReady(Error("Браузер не смог открыть WebSocket. Попробуйте Chrome или другую сеть."));}});
-        socket.addEventListener("close", (event) => {clearInterval(keepalive);subscribed = false;if(!manual) onStatus("CLOSED", event.reason || String(event.code));});return {api, ready};
+        const scheduleReconnect = (reason = "") => {
+          if(manual || reconnectTimer) return;
+          subscribed = false;attempts += 1;
+          const delay = Math.min(8000, Math.round(900 * Math.pow(1.75, Math.min(attempts - 1, 5))));
+          onStatus("RETRYING", "Восстанавливаем связь · попытка " + attempts + (reason ? " · " + reason : ""));
+          reconnectTimer = setTimeout(() => {reconnectTimer = 0;startSocket();}, delay);
+        };
+        const startSocket = () => {
+          if(manual) return;
+          clearConnectionTimers();
+          const ws = new WebSocket(socketUrl);socket = ws;subscribed = false;joinRef = "";
+          onStatus("CONNECTING", attempts ? "Повторное подключение…" : "Подключаемся…");
+          connectTimeout = setTimeout(() => {
+            if(ws !== socket || subscribed || manual) return;
+            onStatus("RETRYING", "Сервер отвечает медленно — пробуем ещё раз");
+            try{ws.close();}catch(_){}
+            setTimeout(() => {if(ws === socket && !subscribed){socket = null;scheduleReconnect("тайм-аут");}}, 250);
+          }, 12000);
+          ws.addEventListener("open", () => {
+            if(ws !== socket || manual) return;
+            joinRef = String(++sequence);
+            try{frame("phx_join", {config:{broadcast:{ack:false,self:false},presence:{enabled:false},private:false}}, joinRef, topic, joinRef);}catch(_){try{ws.close();}catch(__){}}
+          });
+          ws.addEventListener("message", (event) => {
+            if(ws !== socket || manual) return;
+            let data;try{data = JSON.parse(event.data);}catch(_){return;}
+            if(data.event === "phx_reply" && String(data.ref) === joinRef){
+              if(data.payload?.status === "ok"){
+                subscribed = true;attempts = 0;clearTimeout(connectTimeout);connectTimeout = 0;
+                onStatus("SUBSCRIBED");
+                if(!readyResolved){readyResolved = true;resolveReady(api);}
+                keepalive = setInterval(() => {if(socket === ws && ws.readyState === WebSocket.OPEN){try{frame("heartbeat", {}, String(++sequence), "phoenix", null);}catch(_){}}}, 20000);
+              }else{
+                const reason = data.payload?.response?.reason || "Вход в канал отклонён";
+                onStatus("RETRYING", "Канал отклонён · " + reason);try{ws.close();}catch(_){}
+              }
+              return;
+            }
+            if(data.event === "broadcast" && data.payload?.event === "game"){
+              const message = data.payload.payload;if(message?.type) onGame(message);
+            }
+            if(data.event === "phx_error"){
+              onStatus("RETRYING", "Ошибка канала — переподключаемся");try{ws.close();}catch(_){}
+            }
+          });
+          ws.addEventListener("error", () => {
+            if(ws !== socket || manual) return;
+            onStatus("RETRYING", "Соединение прервалось — переподключаемся");try{ws.close();}catch(_){}
+          });
+          ws.addEventListener("close", (event) => {
+            if(ws !== socket) return;
+            clearConnectionTimers();socket = null;subscribed = false;
+            if(!manual) scheduleReconnect(event.code && event.code !== 1000 ? "код " + event.code : "");
+          });
+        };
+        const api = {
+          get isOpen(){return subscribed && socket?.readyState === WebSocket.OPEN;},
+          send(message){if(!api.isOpen) throw Error("WebSocket комнаты не подключён.");frame("broadcast", {type:"broadcast",event:"game",payload:message}, String(++sequence));return Promise.resolve();},
+          reconnect(){
+            if(manual || api.isOpen) return;
+            clearTimeout(reconnectTimer);reconnectTimer = 0;
+            if(socket){try{socket.close();}catch(_){socket = null;scheduleReconnect();}}
+            else startSocket();
+          },
+          close(){
+            manual = true;clearConnectionTimers();clearTimeout(reconnectTimer);reconnectTimer = 0;subscribed = false;
+            const ws = socket;socket = null;try{if(ws?.readyState === WebSocket.OPEN){ws.send(JSON.stringify({topic,event:"phx_leave",payload:{},ref:String(++sequence),join_ref:joinRef || null}));}}catch(_){}try{ws?.close(1000, "done");}catch(_){}
+          }
+        };
+        startSocket();return {api, ready};
       }
       async function send(message){if(!channel) throw Error("Нет подключения к комнате.");return channel.send(message);}
-      function connectionStatus(status, detail = ""){if(status === "SUBSCRIBED") setStatus("online");else if(status === "ERROR" || status === "CLOSED") setStatus("error", "Нет связи" + (detail ? " · " + detail : ""));else setStatus("connecting", "Подключаемся…");}
+      function connectionStatus(status, detail = ""){
+        if(status === "SUBSCRIBED"){
+          if(mode === "student" && !joined){
+            setStatus("connecting", "Сервер подключён · ждём учителя");
+            message("cbJoinMessage", "Сервер подключён. Ждём ответ экрана учителя…");
+            setTimeout(() => {if(mode === "student" && !joined && channel?.isOpen && me) send({type:"join", player:me, at:Date.now()}).catch(() => {});}, 180);
+          }else{
+            setStatus("online");
+            if(mode === "teacher" && hostState) setTimeout(() => broadcastSnapshot().catch(() => {}), 220);
+          }
+          return;
+        }
+        if(status === "RETRYING"){
+          if(mode === "student") joined = false;
+          setStatus("connecting", detail || "Восстанавливаем связь…");
+          if(mode === "student") message("cbJoinMessage", "Связь прервалась. Автоматически переподключаемся — страницу не закрывайте.");
+          return;
+        }
+        setStatus("connecting", detail || "Подключаемся…");
+      }
       async function disconnect(){clearInterval(heartbeatTimer);clearInterval(watchdogTimer);clearTimeout(joinTimer);heartbeatTimer = watchdogTimer = joinTimer = 0;if(channel){try{channel.close();}catch(_){}}channel = null;joined = false;drawing = null;eraseHover = null;pointerNodes.forEach((node) => node.remove());pointerNodes.clear();}
       function canInteract(){return Boolean(channel?.isOpen && me && (mode === "teacher" || joined));}
 
@@ -2263,9 +2349,19 @@
         const identity = storedIdentity(), code = cleanRoom($("cbStudentRoom").value);if(!identity){openStudentEntry();return;}if(code.length !== 6){message("cbJoinMessage", "Код комнаты должен состоять из 6 символов.", "error");return;}
         $("cbJoin").disabled = true;if(!silent) message("cbJoinMessage", "Ищем экран учителя…");else {$("cbStart").classList.remove("cb-hidden");$("cbStart").textContent = "↻ Подключаемся к уроку…";}try{
           await disconnect();mode = "student";room = code;me = savedStudent(code, identity.studentId) || {id:"S" + randomId(14), studentId:identity.studentId, name:identity.name, color:PLAYER_COLORS[1 + Math.floor(Math.random() * (PLAYER_COLORS.length - 1))], role:"student"};me.name = identity.name;me.studentId = identity.studentId;localStorage.setItem(STUDENT_SAVE_KEY, JSON.stringify({...me, room}));
-          localState = newState();const opened = openRawChannel("shared-planimetry-guide-" + room, handleStudentMessage, connectionStatus);channel = opened.api;await opened.ready;await send({type:"join", player:me, at:Date.now()});
-          joiningSilently = Boolean(silent);joinTimer = setTimeout(() => {if(!joined){if(joiningSilently) openGuideOffline("Учитель пока не открыл комнату. Сам гайд доступен.");else {message("cbJoinMessage", "Учитель не ответил. Проверьте код и оставьте его экран открытым.", "error");$("cbJoin").disabled = false;}}}, 8500);
-          watchdogTimer = setInterval(() => {if(!joined || Date.now() - lastHostSeen > 8000) send({type:"join", player:me, at:Date.now()}).catch(() => {});else send({type:"ping", player:me, at:Date.now()}).catch(() => {});}, 3500);
+          localState = newState();const opened = openRawChannel("shared-planimetry-guide-" + room, handleStudentMessage, connectionStatus);channel = opened.api;await opened.ready;
+          const requestTeacher = () => {if(joined || !channel?.isOpen || !me) return Promise.resolve();return send({type:"join", player:me, at:Date.now()}).catch(() => {});};
+          await requestTeacher();joiningSilently = Boolean(silent);
+          const keepWaitingForTeacher = () => {
+            clearTimeout(joinTimer);joinTimer = setTimeout(() => {
+              if(joined) return;
+              setStatus("connecting", channel?.isOpen ? "Сервер подключён · ждём учителя" : "Восстанавливаем связь…");
+              if(!silent){message("cbJoinMessage", "Учитель пока не ответил. Соединение не закрываем и продолжаем попытки…");$("cbJoin").disabled = false;}
+              requestTeacher();keepWaitingForTeacher();
+            }, 8000);
+          };
+          keepWaitingForTeacher();
+          watchdogTimer = setInterval(() => {if(!joined || Date.now() - lastHostSeen > 8000) requestTeacher();else send({type:"ping", player:me, at:Date.now()}).catch(() => {});}, 3500);
         }catch(error){if(silent) await openGuideOffline("Комната сейчас недоступна. Сам гайд открыт.");else {await disconnect();message("cbJoinMessage", error.message, "error");$("cbJoin").disabled = false;}joiningSilently = false;}
       }
       function scheduleSave(immediate = false){
@@ -2346,7 +2442,11 @@
       window.addEventListener("planimetry:prototype-change",(event)=>{if(suppressUi||!canInteract())return;const action={kind:"prototype",index:Number(event.detail?.index)||0};if(mode==="teacher")hostUiAction(action,me.id,false);else send({type:"ui_action",action,userId:me.id}).catch(()=>{});});
       document.addEventListener("click", (event) => {if(mode === "student" && joined && event.target.closest?.(".route a")){event.preventDefault();toast("Общей прокруткой управляет учитель");}}, true);
       document.addEventListener("pointermove", (event) => {if(!canInteract() || tool !== "pointer") return;const anchor = event.target.closest?.("[data-board-anchor]");if(!anchor) return;const rect = anchor.getBoundingClientRect();sendCursor(anchor.dataset.boardAnchor, clamp((event.clientX - rect.left) / rect.width, 0, 1), clamp((event.clientY - rect.top) / rect.height, 0, 1));}, {passive:true});
-      window.addEventListener("scroll", onScrollSync, {passive:true});window.addEventListener("beforeunload", () => {if(mode === "teacher") scheduleSave(true);if(mode === "student" && channel && me) channel.send({type:"leave", userId:me.id}).catch(() => {});});
+      window.addEventListener("scroll", onScrollSync, {passive:true});
+      window.addEventListener("online", () => {if(channel && !channel.isOpen){setStatus("connecting", "Интернет появился · восстанавливаем связь…");channel.reconnect?.();}});
+      window.addEventListener("offline", () => {if(mode === "student") joined = false;setStatus("connecting", "Нет интернета · ждём восстановления…");});
+      document.addEventListener("visibilitychange", () => {if(!document.hidden && channel && !channel.isOpen) channel.reconnect?.();});
+      window.addEventListener("beforeunload", () => {if(mode === "teacher") scheduleSave(true);if(mode === "student" && channel && me) channel.send({type:"leave", userId:me.id}).catch(() => {});});
       setupAnchors();showStartup();
     })();
   </script>
