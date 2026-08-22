@@ -85,6 +85,7 @@
 
     async function runTest() {
       let roomReference = null;
+      let currentStage = "инициализация";
 
       try {
         show("1/5 — Инициализируем Firebase…");
@@ -93,6 +94,7 @@
         const auth = getAuth(app);
         const database = getDatabase(app);
 
+        currentStage = "анонимная авторизация";
         show("2/5 — Выполняем анонимный вход…");
 
         const credential = await signInAnonymously(auth);
@@ -101,6 +103,7 @@
 
         roomReference = ref(database, `rooms/${roomCode}`);
 
+        currentStage = "создание временной комнаты";
         show(`3/5 — Создаём временную комнату…\nКод: ${roomCode}`);
 
         await set(ref(database, `rooms/${roomCode}/meta`), {
@@ -126,18 +129,24 @@
           currentPhase: "test"
         });
 
-        show("4/5 — Читаем данные из базы…");
+        currentStage = "чтение разрешённых веток базы";
+        show("4/5 — Читаем разрешённые ветки базы…");
 
-        const snapshot = await get(roomReference);
-        if (!snapshot.exists()) {
-          throw new Error("Комната была записана, но не прочиталась.");
+        const [metaSnapshot, memberSnapshot, controlSnapshot] = await Promise.all([
+          get(ref(database, `rooms/${roomCode}/meta`)),
+          get(ref(database, `rooms/${roomCode}/members/${uid}`)),
+          get(ref(database, `rooms/${roomCode}/control`))
+        ]);
+
+        if (!metaSnapshot.exists() || !memberSnapshot.exists() || !controlSnapshot.exists()) {
+          throw new Error("Одна из созданных веток не прочиталась.");
         }
 
-        const data = snapshot.val();
-        if (data.meta?.hostUid !== uid) {
+        if (metaSnapshot.val()?.hostUid !== uid) {
           throw new Error("UID преподавателя прочитан неправильно.");
         }
 
+        currentStage = "удаление временной комнаты";
         show("5/5 — Удаляем временную комнату…");
         await remove(roomReference);
         roomReference = null;
@@ -163,6 +172,7 @@
 
         show(
           "❌ ОШИБКА FIREBASE\n\n" +
+          `Этап: ${currentStage}\n\n` +
           `Код: ${error.code || "не указан"}\n\n` +
           `Сообщение: ${error.message || error}`,
           "error"
