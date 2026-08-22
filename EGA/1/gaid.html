@@ -306,6 +306,8 @@
       background:rgba(10,34,29,.95);box-shadow:0 15px 44px rgba(15,34,22,.34);backdrop-filter:blur(13px)
     }
     .cb-toolbar-head{display:flex;align-items:center;gap:9px;padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.1)}
+    .cb-drag-handle{flex:none;width:30px;height:30px;padding:0;border:0;border-radius:9px;color:#dff8ec;background:#24594c;font-size:19px;font-weight:950;line-height:30px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+    .cb-drag-handle:active,.cb-toolbar.cb-dragging .cb-drag-handle{cursor:grabbing;background:#347563}.cb-toolbar.cb-dragging{transition:none!important;box-shadow:0 20px 55px rgba(0,0,0,.42)}
     .cb-live-dot{flex:none;width:9px;height:9px;border-radius:50%;background:#e0a633}
     .cb-live-dot.online{background:#49d99b;box-shadow:0 0 10px #49d99b}.cb-live-dot.error{background:#ff7081}
     .cb-room{min-width:0;flex:1}.cb-room b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.cb-room span{color:#ffe38a;font-size:10px;font-weight:900;letter-spacing:.12em}
@@ -351,7 +353,7 @@
     <div class="cb-dialog">
       <button class="cb-gate-close" id="cbGateClose" type="button" aria-label="Закрыть и читать гайд">×</button>
       <div id="cbRoleView">
-        <div class="cb-kicker">SUPABASE · ОБЩИЙ ГАЙД · V9</div>
+        <div class="cb-kicker">SUPABASE · ОБЩИЙ ГАЙД · V12</div>
         <h2>Онлайн-доска мастера</h2>
         <p>Создайте общую комнату или подключитесь по коду. В комнате одновременно могут работать учитель и до шести учеников.</p>
         <div class="cb-role-grid">
@@ -400,6 +402,7 @@
 
   <aside class="cb-toolbar cb-hidden" id="cbToolbar" aria-label="Инструменты общей доски">
     <div class="cb-toolbar-head">
+      <button class="cb-drag-handle" id="cbDragHandle" type="button" title="Перетащить панель" aria-label="Перетащить панель рисования">⠿</button>
       <i class="cb-live-dot" id="cbLiveDot"></i>
       <div class="cb-room"><b id="cbIdentity">Подключаемся…</b><span>КОМНАТА <strong id="cbRoomCode">······</strong></span></div>
       <button class="cb-collapse" id="cbCollapse" type="button" title="Свернуть панель">—</button>
@@ -1978,6 +1981,7 @@
       const MAX_STUDENTS = 6;
       const HOST_SAVE_KEY = "planimetryGuideSharedHostV1";
       const STUDENT_SAVE_KEY = "planimetryGuideSharedStudentV1";
+      const TOOLBAR_POSITION_KEY = "planimetryGuideToolbarPositionV1";
       const PLAYER_COLORS = ["#39e0c4", "#ff8aa0", "#ffd166", "#8d8bff", "#70b7ff", "#8fe388", "#ff9f5c"];
       const $ = (id) => document.getElementById(id);
       const clone = (value) => JSON.parse(JSON.stringify(value));
@@ -1989,6 +1993,7 @@
       let heartbeatTimer = 0, watchdogTimer = 0, joinTimer = 0, toastTimer = 0, saveTimer = 0;
       let lastHostSeen = 0, lastCursorSent = 0, lastScrollSent = 0, lastFormulaScrollSent = 0, lastSnapshotRequest = 0, sharedScroll = null;
       let drawing = null, eraseHover = null, suppressUi = false, applyingFormulaState = false, scrollGuardTimer = 0, formulaScrollGuardTimer = 0, joiningSilently = false, skipAutoJoin = false, teacherAuthorized = false;
+      let toolbarDrag = null;
 
       function cleanName(value){return String(value || "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 32);}
       function cleanRoom(value){return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);}
@@ -2019,6 +2024,26 @@
       }
       function newState(){return {version:1, boardEpoch:0, strokes:{}, players:{}, ui:{details:{}, scroll:{anchorId:"anchor-0", ratio:0}, formulas:{open:false,scrollTop:0}, prototype:0}};}
       function bump(){if(hostState) hostState.version = Number(hostState.version || 0) + 1;}
+
+      function clampToolbarPosition(left, top){
+        const toolbar = $("cbToolbar"), margin = 6, width = toolbar?.offsetWidth || 0, height = toolbar?.offsetHeight || 0;
+        return {left:clamp(Number(left) || margin, margin, Math.max(margin, window.innerWidth - width - margin)),top:clamp(Number(top) || margin, margin, Math.max(margin, window.innerHeight - height - margin))};
+      }
+      function applyToolbarPosition(position, persist = false){
+        const toolbar = $("cbToolbar");if(!toolbar || !position) return;const next = clampToolbarPosition(position.left, position.top);
+        toolbar.style.left = next.left + "px";toolbar.style.top = next.top + "px";toolbar.style.right = "auto";
+        if(persist){try{localStorage.setItem(TOOLBAR_POSITION_KEY, JSON.stringify(next));}catch(_){}}
+      }
+      function restoreToolbarPosition(){try{const saved = JSON.parse(localStorage.getItem(TOOLBAR_POSITION_KEY) || "null");if(saved) applyToolbarPosition(saved);}catch(_){}}
+      function beginToolbarDrag(event){
+        if(event.button !== undefined && event.button !== 0) return;const toolbar = $("cbToolbar"), handle = $("cbDragHandle");if(!toolbar || !handle) return;
+        event.preventDefault();const rect = toolbar.getBoundingClientRect();toolbarDrag = {pointerId:event.pointerId,dx:event.clientX - rect.left,dy:event.clientY - rect.top};toolbar.classList.add("cb-dragging");handle.setPointerCapture?.(event.pointerId);
+      }
+      function moveToolbar(event){if(!toolbarDrag || event.pointerId !== toolbarDrag.pointerId) return;event.preventDefault();applyToolbarPosition({left:event.clientX - toolbarDrag.dx,top:event.clientY - toolbarDrag.dy});}
+      function endToolbarDrag(event){
+        if(!toolbarDrag || event.pointerId !== toolbarDrag.pointerId) return;const toolbar = $("cbToolbar"), handle = $("cbDragHandle");toolbarDrag = null;toolbar?.classList.remove("cb-dragging");handle?.releasePointerCapture?.(event.pointerId);
+        if(toolbar){const rect = toolbar.getBoundingClientRect();applyToolbarPosition({left:rect.left,top:rect.top}, true);}
+      }
 
       function setGate(view){
         ["cbRoleView", "cbTeacherView", "cbStudentAuthView", "cbJoinView", "cbRestoreView"].forEach((id) => $(id).classList.toggle("cb-hidden", id !== view));
@@ -2190,20 +2215,17 @@
         const lineOffset = Math.min(130, window.innerHeight * .18), top = anchor.offsetTop + payload.ratio * anchor.offsetHeight - lineOffset;
         window.scrollTo({top:Math.max(0, top), behavior:"auto"});
       }
-      function applySharedScroll(payload){if(mode === "student") scrollToPayload(payload);}
-      function onScrollSync(){
-        if(mode === "teacher" && joined && channel?.isOpen){const now = performance.now();if(now - lastScrollSent > 85){lastScrollSent = now;sharedScroll = scrollPayload();hostState.ui.scroll = sharedScroll;send({type:"scroll_state", scroll:sharedScroll, at:Date.now()}).catch(() => {});scheduleSave();}}
-        if(mode === "student" && joined && sharedScroll){clearTimeout(scrollGuardTimer);scrollGuardTimer = setTimeout(() => applySharedScroll(sharedScroll), 180);}
-      }
+      function applySharedScroll(_payload){}
+      function onScrollSync(){}
       function applyFormulaState(state){
         const dialog = $("formulaDialog");if(!dialog || !state) return;applyingFormulaState = true;
-        if(state.open){if(!dialog.open){if(typeof dialog.show === "function") dialog.show();else dialog.setAttribute("open", "");}document.body.classList.add("formulas-open");requestAnimationFrame(() => {dialog.scrollTop = Math.max(0, Number(state.scrollTop || 0));});}
+        if(state.open){if(!dialog.open){if(typeof dialog.show === "function") dialog.show();else dialog.setAttribute("open", "");}document.body.classList.add("formulas-open");}
         else {if(dialog.open){if(typeof dialog.close === "function") dialog.close();else dialog.removeAttribute("open");}document.body.classList.remove("formulas-open");}
         setTimeout(() => {applyingFormulaState = false;}, 60);
       }
       function publishFormulaState(open = $("formulaDialog")?.open){
         if(applyingFormulaState || !joined || !channel?.isOpen || !me) return;
-        const dialog = $("formulaDialog"), state = {open:Boolean(open), scrollTop:Boolean(open) ? Math.max(0, dialog?.scrollTop || 0) : 0};
+        const state = {open:Boolean(open)};
         if(mode === "teacher"){
           hostState.ui.formulas = state;bump();send({type:"formula_state", state, version:hostState.version, at:Date.now()}).catch(() => {});scheduleSave();
         }else{
@@ -2226,10 +2248,21 @@
           hostState.ui.details[action.id] = Boolean(action.open);bump();if(applyLocal) applyDetails({[action.id]:action.open});send({type:"ui_state", action, origin, version:hostState.version}).catch(() => {});scheduleSave();
         }
         if(action.kind === "prototype"){
-          hostState.ui.prototype = Number(action.index) || 0;bump();if(applyLocal) applyPrototype(hostState.ui.prototype);send({type:"ui_state", action, origin, version:hostState.version}).catch(() => {});scheduleSave();
+          const nextPrototype = Number(action.index) || 0;
+          const prototypeChanged = nextPrototype !== Number(hostState.ui.prototype || 0);
+          hostState.ui.prototype = nextPrototype;action.index = nextPrototype;
+          if(prototypeChanged){
+            hostState.boardEpoch = Number(hostState.boardEpoch || 0) + 1;hostState.strokes = {};localState = hostState;drawing = null;renderAllStrokes();
+          }
+          bump();if(applyLocal) applyPrototype(hostState.ui.prototype);
+          if(prototypeChanged){
+            const clearMessage = {type:"board_clear",epoch:hostState.boardEpoch,version:hostState.version,at:Date.now()};
+            send(clearMessage).catch(() => {});setTimeout(() => {if(channel?.isOpen) send(clearMessage).catch(() => {});}, 450);
+          }
+          send({type:"ui_state", action, origin, version:hostState.version}).catch(() => {});scheduleSave(prototypeChanged);
         }
         if(action.kind === "formula"){
-          const state = {open:Boolean(action.state?.open),scrollTop:Math.max(0,Number(action.state?.scrollTop)||0)};
+          const state = {open:Boolean(action.state?.open)};
           hostState.ui.formulas = state;bump();if(applyLocal) applyFormulaState(state);send({type:"formula_state", state, version:hostState.version, at:Date.now()}).catch(() => {});scheduleSave();
         }
         if(action.kind === "replay"){bump();if(applyLocal) replayVisual(action.id);send({type:"ui_state", action, origin, version:hostState.version}).catch(() => {});}
@@ -2352,7 +2385,7 @@
 
       function prepareConnected(){
         const firstConnection = !document.body.classList.contains("cb-connected");
-        setupAnchors();joiningSilently = false;closeGate();$("cbStart").classList.add("cb-hidden");document.body.classList.add("cb-connected");$("cbToolbar").classList.remove("cb-hidden");$("cbRoomCode").textContent = room;$("cbClearAll").classList.toggle("cb-hidden", mode !== "teacher");
+        setupAnchors();joiningSilently = false;closeGate();$("cbStart").classList.add("cb-hidden");document.body.classList.add("cb-connected");$("cbToolbar").classList.remove("cb-hidden");restoreToolbarPosition();$("cbRoomCode").textContent = room;$("cbClearAll").classList.toggle("cb-hidden", mode !== "teacher");
         if(firstConnection) selectTool("pointer");
         renderPlayers();renderAllStrokes();
       }
@@ -2360,7 +2393,7 @@
         if(!teacherAuthorized){setGate("cbTeacherView");message("cbTeacherMessage", "Сначала введите код учителя.", "error");return;}
         message("cbRoleMessage", "Подключаем общую комнату…");try{
           await disconnect();mode = "teacher";room = saved?.room || randomId(6);me = saved?.me || {id:"T" + randomId(14), name:"Учитель", color:PLAYER_COLORS[0], role:"teacher"};
-          hostState = clean || !saved?.state ? newState() : saved.state;hostState.boardEpoch = Number(hostState.boardEpoch||0);hostState.players ||= {};hostState.ui ||= {details:{},scroll:{anchorId:"anchor-0",ratio:0},formulas:{open:false,scrollTop:0},prototype:0};hostState.ui.details ||= {};hostState.ui.scroll ||= {anchorId:"anchor-0",ratio:0};hostState.ui.formulas ||= {open:false,scrollTop:0};hostState.ui.prototype = Number(hostState.ui.prototype)||0;Object.values(hostState.players).forEach((p) => {if(p.role === "student") p.online = false;});hostState.players[me.id] = {...me, online:true, lastSeen:Date.now()};localState = hostState;joined = true;prepareConnected();applyPrototype(hostState.ui.prototype);applyDetails(hostState.ui.details);if(saved && !clean) requestAnimationFrame(() => scrollToPayload(hostState.ui.scroll));
+          hostState = clean || !saved?.state ? newState() : saved.state;hostState.boardEpoch = Number(hostState.boardEpoch||0);hostState.players ||= {};hostState.ui ||= {details:{},scroll:{anchorId:"anchor-0",ratio:0},formulas:{open:false,scrollTop:0},prototype:0};hostState.ui.details ||= {};hostState.ui.scroll ||= {anchorId:"anchor-0",ratio:0};hostState.ui.formulas ||= {open:false,scrollTop:0};hostState.ui.prototype = Number(hostState.ui.prototype)||0;Object.values(hostState.players).forEach((p) => {if(p.role === "student") p.online = false;});hostState.players[me.id] = {...me, online:true, lastSeen:Date.now()};localState = hostState;joined = true;prepareConnected();applyPrototype(hostState.ui.prototype);applyDetails(hostState.ui.details);
           const opened = openRawChannel("shared-planimetry-guide-" + room, handleTeacherMessage, connectionStatus);channel = opened.api;await opened.ready;renderPlayers();scheduleSave(true);heartbeatTimer = setInterval(() => {markOfflinePlayers();send({type:"host_heartbeat",version:Number(hostState?.version||0),at:Date.now()}).catch(() => {});}, 3000);
         }catch(error){await disconnect();document.body.classList.remove("cb-connected");$("cbToolbar").classList.add("cb-hidden");setGate(saved ? "cbRestoreView" : "cbRoleView");message(saved ? "cbRestoreMessage" : "cbRoleMessage", error.message, "error");}
       }
@@ -2440,11 +2473,11 @@
           if(!firstSnapshot && incomingVersion <= previousVersion){setStatus("online");return;}
           const prototypeChanged = firstSnapshot || Number(localState?.ui?.prototype || 0) !== Number(incoming.ui?.prototype || 0);
           const formulasChanged = firstSnapshot || JSON.stringify(localState?.ui?.formulas || {}) !== JSON.stringify(incoming.ui?.formulas || {});
-          joined = true;clearTimeout(joinTimer);localState = incoming;sharedScroll = localState.ui?.scroll || sharedScroll;
+          joined = true;clearTimeout(joinTimer);localState = incoming;
           if(firstSnapshot) prepareConnected();else {renderAllStrokes();renderPlayers();}
           if(prototypeChanged) applyPrototype(localState.ui?.prototype || 0);else applyDetails(localState.ui?.details || {});
           if(formulasChanged) applyFormulaState(localState.ui?.formulas || {open:false,scrollTop:0});
-          renderAllStrokes();renderPlayers();requestAnimationFrame(() => applySharedScroll(sharedScroll));setStatus("online");$("cbJoin").disabled = false;return;
+          renderAllStrokes();renderPlayers();setStatus("online");$("cbJoin").disabled = false;return;
         }
         if(message.type === "board_clear"){
           lastHostSeen = Date.now();const incomingEpoch = Number(message.epoch || 0), currentEpoch = Number(localState?.boardEpoch || 0);
@@ -2461,7 +2494,7 @@
           lastHostSeen = Date.now();const before = Number(localState?.version || 0);applyStrokeState(message);
           if(Number(message.version || 0) > before + 1) requestFreshSnapshot("stroke-version-gap");return;
         }
-        if(message.type === "scroll_state"){lastHostSeen = Date.now();sharedScroll = message.scroll;if(localState?.ui) localState.ui.scroll = message.scroll;applySharedScroll(sharedScroll);return;}
+        if(message.type === "scroll_state"){lastHostSeen = Date.now();return;}
         if(message.type === "formula_state"){
           lastHostSeen = Date.now();const incomingVersion = Number(message.version || 0), currentVersion = Number(localState?.version || 0);
           if(incomingVersion && incomingVersion < currentVersion) return;
@@ -2510,7 +2543,8 @@
       $("cbRestoreClean").addEventListener("click", () => startTeacher(readSavedHost(), true));
       $("cbRestoreCancel").addEventListener("click", () => {if(!teacherAuthorized){setGate("cbTeacherView");return;}localStorage.removeItem(HOST_SAVE_KEY);startTeacher();});
       $("cbStart").addEventListener("click", openCollaborationMenu);$("cbGateClose").addEventListener("click", () => closeGate());
-      $("cbCollapse").addEventListener("click", () => {$("cbToolbar").classList.toggle("collapsed");$("cbCollapse").textContent = $("cbToolbar").classList.contains("collapsed") ? "+" : "—";});
+      $("cbCollapse").addEventListener("click", () => {$("cbToolbar").classList.toggle("collapsed");$("cbCollapse").textContent = $("cbToolbar").classList.contains("collapsed") ? "+" : "—";setTimeout(() => {const rect = $("cbToolbar").getBoundingClientRect();applyToolbarPosition({left:rect.left,top:rect.top}, true);}, 0);});
+      $("cbDragHandle").addEventListener("pointerdown", beginToolbarDrag);$("cbDragHandle").addEventListener("pointermove", moveToolbar);$("cbDragHandle").addEventListener("pointerup", endToolbarDrag);$("cbDragHandle").addEventListener("pointercancel", endToolbarDrag);
       $("cbExit").addEventListener("click", exitRoom);document.querySelectorAll("[data-cb-tool]").forEach((button) => button.addEventListener("click", () => selectTool(button.dataset.cbTool)));
       document.querySelectorAll(".cb-swatch").forEach((button) => button.addEventListener("click", () => setColor(button.dataset.color)));$("cbColor").addEventListener("input", (event) => setColor(event.target.value));
       document.querySelectorAll("[data-pen-width]").forEach((button) => button.addEventListener("click", () => setPenWidth(button.dataset.penWidth)));
@@ -2524,12 +2558,10 @@
       document.addEventListener("toggle", handleLocalDetails, true);document.addEventListener("click", handleLocalReplay);
       $("openFormulas").addEventListener("click", () => setTimeout(() => publishFormulaState(true), 0));
       $("formulaDialog").addEventListener("close", () => publishFormulaState(false));
-      $("formulaDialog").addEventListener("scroll", onFormulaScroll, {passive:true});
       window.addEventListener("planimetry:prototype-change",(event)=>{if(suppressUi||!canInteract())return;const action={kind:"prototype",index:Number(event.detail?.index)||0};if(mode==="teacher")hostUiAction(action,me.id,false);else send({type:"ui_action",action,userId:me.id}).catch(()=>{});});
-      document.addEventListener("click", (event) => {if(mode === "student" && joined && event.target.closest?.(".route a")){event.preventDefault();toast("Общей прокруткой управляет учитель");}}, true);
       document.addEventListener("pointermove", (event) => {if(!canInteract() || tool !== "pointer") return;const anchor = event.target.closest?.("[data-board-anchor]");if(!anchor) return;const rect = anchor.getBoundingClientRect();sendCursor(anchor.dataset.boardAnchor, clamp((event.clientX - rect.left) / rect.width, 0, 1), clamp((event.clientY - rect.top) / rect.height, 0, 1));}, {passive:true});
-      window.addEventListener("scroll", onScrollSync, {passive:true});
       window.addEventListener("online", () => {if(channel && !channel.isOpen){setStatus("connecting", "Интернет появился · восстанавливаем связь…");channel.reconnect?.();}});
+      window.addEventListener("resize", () => {const toolbar = $("cbToolbar");if(toolbar?.style.left){const rect = toolbar.getBoundingClientRect();applyToolbarPosition({left:rect.left,top:rect.top}, true);}});
       window.addEventListener("offline", () => {if(mode === "student") joined = false;setStatus("connecting", "Нет интернета · ждём восстановления…");});
       document.addEventListener("visibilitychange", () => {if(!document.hidden && channel && !channel.isOpen) channel.reconnect?.();});
       window.addEventListener("beforeunload", () => {if(mode === "teacher") scheduleSave(true);if(mode === "student" && channel && me) channel.send({type:"leave", userId:me.id}).catch(() => {});});
