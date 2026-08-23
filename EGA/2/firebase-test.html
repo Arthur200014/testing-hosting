@@ -47,11 +47,6 @@
     } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
 
     import {
-      getAuth,
-      signInAnonymously
-    } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
-
-    import {
       getDatabase,
       ref,
       set,
@@ -88,23 +83,17 @@
       let currentStage = "инициализация";
 
       try {
-        show("1/5 — Инициализируем Firebase…");
+        show("1/4 — Инициализируем Firebase…");
 
         const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
         const database = getDatabase(app);
-
-        currentStage = "анонимная авторизация";
-        show("2/5 — Выполняем анонимный вход…");
-
-        const credential = await signInAnonymously(auth);
-        const uid = credential.user.uid;
+        const uid = `teacher-${crypto.randomUUID()}`;
         const roomCode = randomRoomCode();
 
         roomReference = ref(database, `rooms/${roomCode}`);
 
         currentStage = "создание временной комнаты";
-        show(`3/5 — Создаём временную комнату…\nКод: ${roomCode}`);
+        show(`2/4 — Создаём временную комнату…\nКод: ${roomCode}`);
 
         await set(ref(database, `rooms/${roomCode}/meta`), {
           hostUid: uid,
@@ -130,7 +119,7 @@
         });
 
         currentStage = "чтение разрешённых веток базы";
-        show("4/5 — Читаем разрешённые ветки базы…");
+        show("3/4 — Читаем данные из базы…");
 
         const [metaSnapshot, memberSnapshot, controlSnapshot] = await Promise.all([
           get(ref(database, `rooms/${roomCode}/meta`)),
@@ -147,16 +136,16 @@
         }
 
         currentStage = "удаление временной комнаты";
-        show("5/5 — Удаляем временную комнату…");
+        show("4/4 — Удаляем временную комнату…");
         await remove(roomReference);
         roomReference = null;
 
         show(
           "✅ FIREBASE РАБОТАЕТ\n\n" +
-          "Анонимный вход: успешно\n" +
+          "Работа без авторизации: успешно\n" +
           "Запись в базу: успешно\n" +
           "Чтение из базы: успешно\n" +
-          "Security Rules: успешно\n" +
+          "Открытые правила: успешно\n" +
           "Удаление комнаты: успешно\n\n" +
           "После проверки база снова пустая.",
           "success"
