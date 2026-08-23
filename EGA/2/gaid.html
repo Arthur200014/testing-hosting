@@ -940,9 +940,9 @@
     <div class="cb-dialog">
       <button class="cb-gate-close" id="cbGateClose" type="button" aria-label="Закрыть и читать гайд">×</button>
       <div id="cbRoleView">
-        <div class="cb-kicker">SUPABASE · ОБЩИЙ ГАЙД · V6</div>
+        <div class="cb-kicker">FIREBASE · КОДЫ И ОТДЕЛЬНЫЕ КОМНАТЫ · V15</div>
         <h2>Онлайн-доска мастера</h2>
-        <p>Создайте общую комнату или подключитесь по коду. В комнате одновременно могут работать учитель и до шести учеников.</p>
+        <p>Учитель создаёт отдельную комнату, а ученики подключаются к ней по шестизначному коду. Одновременно могут работать до 8 участников: учитель и семь учеников.</p>
         <div class="cb-role-grid">
           <button class="cb-role" id="cbOpenTeacher" type="button"><strong>🖥️</strong>Войти как учитель</button>
           <button class="cb-role" id="cbOpenJoin" type="button"><strong>✏️</strong>Войти как ученик</button>
@@ -951,8 +951,8 @@
       </div>
       <div id="cbTeacherView" class="cb-hidden">
         <div class="cb-kicker">ДОСТУП УЧИТЕЛЯ</div>
-        <h2>Создание комнаты</h2>
-        <p>Введите личный код учителя. Только после проверки можно создать или восстановить комнату.</p>
+        <h2>Создать комнату</h2>
+        <p>Введите личный код учителя. После проверки можно создать или восстановить комнату.</p>
         <label class="cb-field"><span>КОД УЧИТЕЛЯ</span><input id="cbTeacherCode" type="password" maxlength="20" placeholder="••••••" autocomplete="off"></label>
         <div class="cb-actions"><button class="cb-button" id="cbTeacherUnlock" type="button">Продолжить</button><button class="cb-button secondary" id="cbTeacherBack" type="button">Назад</button></div>
         <div class="cb-message" id="cbTeacherMessage"></div>
@@ -976,7 +976,7 @@
       <div id="cbRestoreView" class="cb-hidden">
         <div class="cb-kicker">НАЙДЕНА ПРОШЛАЯ КОМНАТА</div>
         <h2>Продолжить занятие?</h2>
-        <p>Можно восстановить рисунки и тот же код либо открыть эту комнату с чистой доской.</p>
+        <p>Можно восстановить рисунки и прежний код комнаты либо открыть её с чистой доской.</p>
         <div class="cb-restore-code" id="cbRestoreCode">······</div>
         <div class="cb-actions"><button class="cb-button" id="cbRestore" type="button">Восстановить</button><button class="cb-button warning" id="cbRestoreClean" type="button">Очистить и открыть</button></div>
         <button class="cb-button secondary" id="cbRestoreCancel" type="button" style="width:100%;margin-top:11px">Создать другую комнату</button>
@@ -1597,7 +1597,7 @@
       <p>Определи координаты → выполни действия → выбери формулу по вопросу → проверь смысл ответа.</p>
       <div class="final-mantra">«Координаты. Действие. Формула. Проверка.»</div>
     </section>
-    <footer class="footer">Совместный учебный гайд • синхронизация через Supabase Realtime</footer>
+    <footer class="footer">Совместный учебный гайд V14 • комнаты и полная синхронизация через Firebase</footer>
   </main>
 
   <script>
@@ -1749,7 +1749,7 @@
         const svg = document.getElementById("vectorLabSvg");if(!svg) return;
         const nodes = {vector:document.getElementById("labVector"),dx:document.getElementById("labDx"),dy:document.getElementById("labDy"),a:document.getElementById("labPointA"),b:document.getElementById("labPointB"),la:document.getElementById("labLabelA"),lb:document.getElementById("labLabelB")};
         const values = {a:document.getElementById("labAValue"),b:document.getElementById("labBValue"),vector:document.getElementById("labVectorValue"),length:document.getElementById("labLengthValue")};
-        const origin = {x:300,y:210}, step = 35, initial = {a:{x:-3,y:-2},b:{x:4,y:3}};let state = JSON.parse(JSON.stringify(initial)), dragging = "";
+        const origin = {x:300,y:210}, step = 35, initial = {a:{x:-3,y:-2},b:{x:4,y:3}};let state = JSON.parse(JSON.stringify(initial)), dragging = "", applyingShared = false;
         const px = (x) => origin.x + x * step, py = (y) => origin.y - y * step, signed = (n) => String(n).replace("-","−"), pair = (p) => `(${signed(p.x)}; ${signed(p.y)})`;
         function render(){
           const ax=px(state.a.x), ay=py(state.a.y), bx=px(state.b.x), by=py(state.b.y), dx=state.b.x-state.a.x, dy=state.b.y-state.a.y, square=dx*dx+dy*dy, root=Math.sqrt(square);
@@ -1761,9 +1761,11 @@
           values.length.textContent = Number.isInteger(root) ? String(root) : `√${square} ≈ ${root.toFixed(2).replace(".",",")}`;
         }
         function eventPoint(event){const rect=svg.getBoundingClientRect();return {x:(event.clientX-rect.left)*600/rect.width,y:(event.clientY-rect.top)*420/rect.height};}
-        function move(event){if(!dragging) return;event.preventDefault();const p=eventPoint(event), x=Math.max(-8,Math.min(8,Math.round((p.x-origin.x)/step))), y=Math.max(-5,Math.min(5,Math.round((origin.y-p.y)/step)));state[dragging]={x,y};render();}
+        function publish(){if(!applyingShared) window.dispatchEvent(new CustomEvent("vectorlabchange",{detail:JSON.parse(JSON.stringify(state))}));}
+        function move(event){if(!dragging) return;event.preventDefault();const p=eventPoint(event), x=Math.max(-8,Math.min(8,Math.round((p.x-origin.x)/step))), y=Math.max(-5,Math.min(5,Math.round((origin.y-p.y)/step)));state[dragging]={x,y};render();publish();}
+        window.applySharedVectorLab=(next)=>{if(!next?.a||!next?.b)return;applyingShared=true;state={a:{x:Number(next.a.x),y:Number(next.a.y)},b:{x:Number(next.b.x),y:Number(next.b.y)}};render();applyingShared=false;};
         svg.querySelectorAll(".drag-handle").forEach((handle)=>handle.addEventListener("pointerdown",(event)=>{dragging=handle.dataset.point;handle.setPointerCapture?.(event.pointerId);event.preventDefault();}));
-        svg.addEventListener("pointermove",move);window.addEventListener("pointerup",()=>{dragging="";});document.getElementById("labReset").addEventListener("click",()=>{state=JSON.parse(JSON.stringify(initial));render();});render();
+        svg.addEventListener("pointermove",move);window.addEventListener("pointerup",()=>{dragging="";});document.getElementById("labReset").addEventListener("click",()=>{state=JSON.parse(JSON.stringify(initial));render();publish();});render();
       }
 
       function setupAudio(){
@@ -1780,19 +1782,37 @@
       buildPracticeStations();restoreEditablePads();setupVectorLab();setupAudio();
     })();
   </script>
-  <script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+    import { getDatabase, ref, get, set, remove, push, onValue, onChildAdded, onDisconnect, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js";
     (() => {
       "use strict";
 
-      const SUPABASE_URL = "https://rhnvnrkdmgaxzlcxixpx.supabase.co";
-      const SUPABASE_KEY = "sb_publishable_g6HdBz53k096vrkPSKLqDw_Ohkj0VvH";
+      const firebaseConfig = {
+        apiKey: "AIzaSyBkY5utRlEfGIT_wEW6Dq7TSLr3RqBWJxo",
+        authDomain: "ega-mathematica.firebaseapp.com",
+        databaseURL: "https://ega-mathematica-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "ega-mathematica",
+        storageBucket: "ega-mathematica.firebasestorage.app",
+        messagingSenderId: "177632223541",
+        appId: "1:177632223541:web:fbc532216359e34665ec7c",
+        measurementId: "G-K9FZYGKPZS"
+      };
+      const firebaseApp = initializeApp(firebaseConfig);
+      const database = getDatabase(firebaseApp);
+      const GUIDE_ID = "ege-vectors-guide-v15";
+      const lessonRoot = () => "sharedGuides/" + GUIDE_ID + "/rooms/" + room;
+      const stateRef = () => ref(database, lessonRoot() + "/state");
+      const messagesRef = () => ref(database, lessonRoot() + "/messages");
+      const padsRef = () => ref(database, lessonRoot() + "/pads");
+      const interactionsRef = () => ref(database, lessonRoot() + "/interactions");
       const API_URL = "https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
       const TEACHER_CODE_HASH = "b0a83a3919eba1d2a99034f2d94e5a47590f1710595c04bd64b5c8f21456a7c6";
-      const MAX_STUDENTS = 6;
-      const HOST_SAVE_KEY = "vectorGuideSharedHostV1";
-      const STUDENT_SAVE_KEY = "vectorGuideSharedStudentV1";
-      const TOOLBAR_POSITION_KEY = "vectorGuideToolbarPositionV1";
-      const PLAYER_COLORS = ["#39e0c4", "#ff8aa0", "#ffd166", "#8d8bff", "#70b7ff", "#8fe388", "#ff9f5c"];
+      const MAX_STUDENTS = 7;
+      const HOST_SAVE_KEY = "vectorGuideSharedHostV15";
+      const STUDENT_SAVE_KEY = "vectorGuideSharedStudentV15";
+      const TOOLBAR_POSITION_KEY = "vectorGuideToolbarPositionV15";
+      const PLAYER_COLORS = ["#39e0c4", "#ff8aa0", "#ffd166", "#8d8bff", "#70b7ff", "#8fe388", "#ff9f5c", "#f58cff"];
       const $ = (id) => document.getElementById(id);
       const clone = (value) => JSON.parse(JSON.stringify(value));
       const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -1803,6 +1823,8 @@
       let heartbeatTimer = 0, watchdogTimer = 0, joinTimer = 0, toastTimer = 0, saveTimer = 0;
       let lastHostSeen = 0, lastCursorSent = 0, lastSnapshotRequest = 0;
       let drawing = null, eraseHover = null, suppressUi = false, joiningSilently = false, skipAutoJoin = false, teacherAuthorized = false, toolbarDrag = null;
+      let remoteStateUnsub = null, interactionsUnsub = null, padsReady = false, interactionsReady = false;
+      const padUnsubs = [];
 
       function cleanName(value){return String(value || "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 32);}
       function cleanRoom(value){return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);}
@@ -1832,6 +1854,10 @@
         });
       }
       function newState(){return {version:1, boardEpoch:0, strokes:{}, players:{}, ui:{details:{},section:"p1"}};}
+      function normalizeState(value){
+        const state = value && typeof value === "object" ? value : newState();
+        state.version = Number(state.version || 1);state.boardEpoch = Number(state.boardEpoch || 0);state.strokes ||= {};state.players ||= {};state.ui ||= {details:{},section:"p1"};state.ui.details ||= {};state.ui.section ||= "p1";return state;
+      }
       function bump(){if(hostState) hostState.version = Number(hostState.version || 0) + 1;}
 
       function clampToolbarPosition(left, top){
@@ -1905,7 +1931,7 @@
         const point = anchorPoint(event), id = "stroke-" + randomId(14);
         const stroke = {id, anchorId, authorId:me.id, authorName:me.name, color:penColor, width:penWidth, points:[[point.x, point.y]], done:false, rev:Date.now(), epoch:Number(localState?.boardEpoch || 0)};
         localState.strokes[id] = stroke;renderStroke(stroke);drawing = {id, pointerId:event.pointerId, sent:1, lastSend:0};
-        if(mode === "teacher") hostStrokeStart(me, stroke);else send({type:"stroke_start", user:me, stroke:clone(stroke)}).catch(() => {});
+        if(mode === "teacher") hostStrokeStart(me, stroke);else persistSharedStroke(stroke).catch(() => setStatus("connecting", "Рисунок сохранится после восстановления связи…"));
       }
       function boardPointerMove(event){
         const anchorId = event.currentTarget.dataset.anchorId, point = anchorPoint(event);sendCursor(anchorId, point.x, point.y);
@@ -1938,11 +1964,23 @@
         if(!drawing) return;const stroke = localState.strokes[drawing.id];if(!stroke) return;
         const points = stroke.points.slice(drawing.sent);drawing.sent = stroke.points.length;if(done) stroke.done = true;renderStroke(stroke);
         if(mode === "teacher") hostStrokeAppend(me, stroke.id, points, done, Number(stroke.epoch || 0));
-        else send({type:"stroke_append", userId:me.id, strokeId:stroke.id, points, done, epoch:Number(stroke.epoch || 0), at:Date.now()}).catch(() => {});
+        else persistSharedStroke(stroke).catch(() => setStatus("connecting", "Рисунок сохранится после восстановления связи…"));
       }
       function deleteStrokeRequest(id){
         if(!localState?.strokes?.[id]) return;delete localState.strokes[id];removeStroke(id);
-        if(mode === "teacher") hostDeleteStroke(me, id, Number(localState?.boardEpoch || 0));else send({type:"stroke_delete", userId:me.id, strokeId:id, epoch:Number(localState?.boardEpoch || 0), at:Date.now()}).catch(() => {});
+        if(mode === "teacher") hostDeleteStroke(me, id, Number(localState?.boardEpoch || 0));else deleteSharedStroke(id).catch(() => setStatus("connecting", "Стирание синхронизируется после восстановления связи…"));
+      }
+
+      async function bumpRemoteVersion(){await runTransaction(ref(database, lessonRoot() + "/state/version"), (value) => Number(value || 0) + 1);}
+      async function persistSharedStroke(stroke){await set(ref(database, lessonRoot() + "/state/strokes/" + stroke.id), clone(stroke));await bumpRemoteVersion();}
+      async function deleteSharedStroke(id){await remove(ref(database, lessonRoot() + "/state/strokes/" + id));await bumpRemoteVersion();}
+      async function persistStudentUiAction(action){
+        await runTransaction(stateRef(), (current) => {
+          const state = normalizeState(current);
+          if(action.kind === "details") state.ui.details[action.id] = Boolean(action.open);
+          if(action.kind === "section" && /^p[1-5]$/.test(String(action.sectionId || ""))){state.ui.section = String(action.sectionId);state.boardEpoch += 1;state.strokes = {};}
+          state.version += 1;return state;
+        });
       }
 
       function hostStrokeStart(user, stroke){
@@ -1990,7 +2028,7 @@
         node.style.left = (message.x * 100) + "%";node.style.top = (message.y * 100) + "%";clearTimeout(node.hideTimer);node.style.display = "block";node.hideTimer = setTimeout(() => {node.style.display = "none";}, 2600);
       }
       function sendCursor(anchorId, x, y){
-        if(!canInteract()) return;const now = performance.now();if(now - lastCursorSent < 75) return;lastCursorSent = now;
+        if(!canInteract() || !channel?.isOpen) return;const now = performance.now();if(now - lastCursorSent < 75) return;lastCursorSent = now;
         const data = {type:"cursor", userId:me.id, name:me.name, color:me.color, anchorId, x, y, at:Date.now()};renderPointer(data);send(data).catch(() => {});
       }
 
@@ -2001,27 +2039,13 @@
       function setColor(color){penColor = color;$("cbColor").value = color;document.querySelectorAll(".cb-swatch").forEach((button) => button.classList.toggle("active", button.dataset.color.toLowerCase() === color.toLowerCase()));}
       function setPenWidth(width){penWidth = clamp(Number(width) || 6, 1, 20);document.querySelectorAll("[data-pen-width]").forEach((button) => button.classList.toggle("active", Number(button.dataset.penWidth) === penWidth));}
 
-      function scrollPayload(){
-        const line = window.scrollY + Math.min(130, window.innerHeight * .18);let anchor = anchors[0];
-        anchors.forEach((item) => {if(item.offsetTop <= line) anchor = item;});
-        return {anchorId:anchor.dataset.boardAnchor, ratio:clamp((line - anchor.offsetTop) / Math.max(1, anchor.offsetHeight), 0, 1)};
-      }
-      function scrollToPayload(payload){
-        if(!payload) return;const anchor = document.querySelector('[data-board-anchor="' + payload.anchorId + '"]');if(!anchor) return;
-        const lineOffset = Math.min(130, window.innerHeight * .18), top = anchor.offsetTop + payload.ratio * anchor.offsetHeight - lineOffset;
-        window.scrollTo({top:Math.max(0, top), behavior:"auto"});
-      }
-      function applySharedScroll(_payload){}
-      function onScrollSync(){}
-      function applyDetails(details){
-        suppressUi = true;Object.entries(details || {}).forEach(([id, open]) => {const node = document.getElementById(id);if(node?.tagName === "DETAILS") node.open = Boolean(open);});setTimeout(() => {suppressUi = false;}, 0);
+      function applyDetails(details, replaceAll = false){
+        suppressUi = true;if(replaceAll) document.querySelectorAll("details[id]").forEach((node) => {node.open = false;});Object.entries(details || {}).forEach(([id, open]) => {const node = document.getElementById(id);if(node?.tagName === "DETAILS") node.open = Boolean(open);});setTimeout(() => {suppressUi = false;}, 0);
       }
       function replayVisual(replayId){const button = document.querySelector('[data-shared-replay="' + replayId + '"]');const card = button?.closest(".visual-card"), oldSvg = card?.querySelector("svg");if(oldSvg) oldSvg.replaceWith(oldSvg.cloneNode(true));}
-      function hostClearBoard(showToast = false){
-        if(mode !== "teacher" || !hostState) return;
-        hostState.boardEpoch = Number(hostState.boardEpoch || 0) + 1;hostState.strokes = {};bump();localState = hostState;drawing = null;renderAllStrokes();
-        const clearMessage = {type:"board_clear",epoch:hostState.boardEpoch,version:hostState.version,at:Date.now()};
-        send(clearMessage).catch(() => {});setTimeout(() => {if(channel?.isOpen) send(clearMessage).catch(() => {});}, 450);scheduleSave(true);
+      async function hostClearBoard(showToast = false){
+        if(!localState) return;drawing = null;localState.strokes = {};localState.boardEpoch = Number(localState.boardEpoch || 0) + 1;renderAllStrokes();
+        await runTransaction(stateRef(), (current) => {const state = normalizeState(current);state.boardEpoch += 1;state.strokes = {};state.version += 1;return state;});
         if(showToast) toast("Все записи удалены у всех участников");
       }
       function hostUiAction(action, origin, applyLocal){
@@ -2037,101 +2061,112 @@
       }
       function handleLocalDetails(event){
         if(suppressUi || !canInteract()) return;const detail = event.target;if(detail.tagName !== "DETAILS") return;const action = {kind:"details", id:detail.id, open:detail.open};
-        if(mode === "teacher") hostUiAction(action, me.id, false);else send({type:"ui_action", action, userId:me.id}).catch(() => {});
+        if(mode === "teacher") hostUiAction(action, me.id, false);else persistStudentUiAction(action).catch(() => setStatus("connecting", "Изменение синхронизируется после восстановления связи…"));
       }
       function handleLocalReplay(event){
         const button = event.target.closest?.("[data-shared-replay]");if(!button || suppressUi || !canInteract()) return;const action = {kind:"replay", id:button.dataset.sharedReplay};
-        if(mode === "teacher") hostUiAction(action, me.id, false);else send({type:"ui_action", action, userId:me.id}).catch(() => {});
+        if(mode === "teacher") hostUiAction(action, me.id, false);else send({type:"ui_state", action, origin:me.id, version:Number(localState?.version || 0)}).catch(() => {});
       }
 
-      function openRawChannel(topicName, onGame, onStatus){
-        const socketUrl = SUPABASE_URL.replace(/^http/i, "ws") + "/realtime/v1/websocket?apikey=" + encodeURIComponent(SUPABASE_KEY) + "&vsn=1.0.0";
-        const topic = "realtime:" + topicName;
-        let socket = null, sequence = 0, joinRef = "", subscribed = false, manual = false;
-        let keepalive = 0, connectTimeout = 0, reconnectTimer = 0, attempts = 0, readyResolved = false, resolveReady;
+      function openFirebaseChannel(_topicName, onGame, onStatus){
+        const openedAt = Date.now(), clientId = "client-" + randomId(18);
+        const connectedRef = ref(database, ".info/connected");
+        const memberRef = ref(database, lessonRoot() + "/members/" + clientId);
+        let connected = false, manual = false, readyResolved = false, resolveReady;
         const ready = new Promise((resolve) => {resolveReady = resolve;});
-
-        const clearConnectionTimers = () => {clearTimeout(connectTimeout);clearInterval(keepalive);connectTimeout = keepalive = 0;};
-        const frame = (event, payload, ref, frameTopic = topic, frameJoin = joinRef || null) => {
-          if(!socket || socket.readyState !== WebSocket.OPEN) throw Error("WebSocket комнаты не подключён.");
-          socket.send(JSON.stringify({topic:frameTopic,event,payload,ref,join_ref:frameJoin}));
-        };
-        const scheduleReconnect = (reason = "") => {
-          if(manual || reconnectTimer) return;
-          subscribed = false;attempts += 1;
-          const delay = Math.min(8000, Math.round(900 * Math.pow(1.75, Math.min(attempts - 1, 5))));
-          onStatus("RETRYING", "Восстанавливаем связь · попытка " + attempts + (reason ? " · " + reason : ""));
-          reconnectTimer = setTimeout(() => {reconnectTimer = 0;startSocket();}, delay);
-        };
-        const startSocket = () => {
+        const unsubscribeMessages = onChildAdded(messagesRef(), (snapshot) => {
+          const envelope = snapshot.val();
+          if(!envelope || envelope.senderId === clientId || Number(envelope.clientAt || 0) < openedAt - 5000) return;
+          if(envelope.payload?.type) onGame(envelope.payload);
+        }, (error) => onStatus("RETRYING", "Firebase: " + (error?.message || "ошибка чтения")));
+        const unsubscribeConnection = onValue(connectedRef, async (snapshot) => {
           if(manual) return;
-          clearConnectionTimers();
-          const ws = new WebSocket(socketUrl);socket = ws;subscribed = false;joinRef = "";
-          onStatus("CONNECTING", attempts ? "Повторное подключение…" : "Подключаемся…");
-          connectTimeout = setTimeout(() => {
-            if(ws !== socket || subscribed || manual) return;
-            onStatus("RETRYING", "Сервер отвечает медленно — пробуем ещё раз");
-            try{ws.close();}catch(_){}
-            setTimeout(() => {if(ws === socket && !subscribed){socket = null;scheduleReconnect("тайм-аут");}}, 250);
-          }, 12000);
-          ws.addEventListener("open", () => {
-            if(ws !== socket || manual) return;
-            joinRef = String(++sequence);
-            try{frame("phx_join", {config:{broadcast:{ack:false,self:false},presence:{enabled:false},private:false}}, joinRef, topic, joinRef);}catch(_){try{ws.close();}catch(__){}}
-          });
-          ws.addEventListener("message", (event) => {
-            if(ws !== socket || manual) return;
-            let data;try{data = JSON.parse(event.data);}catch(_){return;}
-            if(data.event === "phx_reply" && String(data.ref) === joinRef){
-              if(data.payload?.status === "ok"){
-                subscribed = true;attempts = 0;clearTimeout(connectTimeout);connectTimeout = 0;
-                onStatus("SUBSCRIBED");
-                if(!readyResolved){readyResolved = true;resolveReady(api);}
-                keepalive = setInterval(() => {if(socket === ws && ws.readyState === WebSocket.OPEN){try{frame("heartbeat", {}, String(++sequence), "phoenix", null);}catch(_){}}}, 20000);
-              }else{
-                const reason = data.payload?.response?.reason || "Вход в канал отклонён";
-                onStatus("RETRYING", "Канал отклонён · " + reason);try{ws.close();}catch(_){}
-              }
-              return;
-            }
-            if(data.event === "broadcast" && data.payload?.event === "game"){
-              const message = data.payload.payload;if(message?.type) onGame(message);
-            }
-            if(data.event === "phx_error"){
-              onStatus("RETRYING", "Ошибка канала — переподключаемся");try{ws.close();}catch(_){}
-            }
-          });
-          ws.addEventListener("error", () => {
-            if(ws !== socket || manual) return;
-            onStatus("RETRYING", "Соединение прервалось — переподключаемся");try{ws.close();}catch(_){}
-          });
-          ws.addEventListener("close", (event) => {
-            if(ws !== socket) return;
-            clearConnectionTimers();socket = null;subscribed = false;
-            if(!manual) scheduleReconnect(event.code && event.code !== 1000 ? "код " + event.code : "");
-          });
-        };
-        const api = {
-          get isOpen(){return subscribed && socket?.readyState === WebSocket.OPEN;},
-          send(message){if(!api.isOpen) throw Error("WebSocket комнаты не подключён.");frame("broadcast", {type:"broadcast",event:"game",payload:message}, String(++sequence));return Promise.resolve();},
-          reconnect(){
-            if(manual || api.isOpen) return;
-            clearTimeout(reconnectTimer);reconnectTimer = 0;
-            if(socket){try{socket.close();}catch(_){socket = null;scheduleReconnect();}}
-            else startSocket();
-          },
-          close(){
-            manual = true;clearConnectionTimers();clearTimeout(reconnectTimer);reconnectTimer = 0;subscribed = false;
-            const ws = socket;socket = null;try{if(ws?.readyState === WebSocket.OPEN){ws.send(JSON.stringify({topic,event:"phx_leave",payload:{},ref:String(++sequence),join_ref:joinRef || null}));}}catch(_){}try{ws?.close(1000, "done");}catch(_){}
+          const online = snapshot.val() === true;connected = online;
+          if(online){
+            try{
+              await onDisconnect(memberRef).update({online:false,lastSeen:serverTimestamp()});
+              await set(memberRef, {online:true,userId:me?.id || "",name:me?.name || "Участник",role:mode || "",lastSeen:serverTimestamp()});
+            }catch(error){onStatus("RETRYING", "Firebase: проверьте правила базы данных");return;}
+            onStatus("SUBSCRIBED");
+            if(!readyResolved){readyResolved = true;resolveReady(api);}
+          }else{
+            onStatus(readyResolved ? "RETRYING" : "CONNECTING", readyResolved ? "Нет интернета · Firebase восстановит связь автоматически" : "Подключаемся к Firebase…");
           }
+        }, (error) => onStatus("RETRYING", "Firebase: " + (error?.message || "ошибка подключения")));
+        const api = {
+          get isOpen(){return connected && !manual;},
+          async send(message){
+            if(manual) throw Error("Подключение к общему уроку закрыто.");
+            const messageRef = push(messagesRef());
+            await set(messageRef, {senderId:clientId,clientAt:Date.now(),serverAt:serverTimestamp(),payload:message});
+            setTimeout(() => remove(messageRef).catch(() => {}), 120000);
+          },
+          reconnect(){if(!manual) onStatus("CONNECTING", "Firebase восстанавливает связь…");},
+          close(){manual = true;connected = false;unsubscribeMessages();unsubscribeConnection();remove(memberRef).catch(() => {});}
         };
-        startSocket();return {api, ready};
+        return {api, ready};
       }
-      async function send(message){if(!channel) throw Error("Нет подключения к комнате.");return channel.send(message);}
+      function attachRemoteState(){
+        remoteStateUnsub?.();
+        remoteStateUnsub = onValue(stateRef(), (snapshot) => {
+          if(!snapshot.exists() || !me) return;
+          const incoming = normalizeState(snapshot.val()), firstSnapshot = !joined;
+          if(mode === "teacher"){
+            hostState = incoming;hostState.players[me.id] = {...me,online:true,lastSeen:Date.now()};localState = hostState;
+          }else{
+            localState = incoming;joined = true;lastHostSeen = Date.now();
+          }
+          if(firstSnapshot) prepareConnected();
+          applyDetails(localState.ui?.details || {}, true);renderAllStrokes();renderPlayers();setStatus("online");
+        }, (error) => setStatus("error", "Firebase: " + (error?.message || "нет доступа к состоянию")));
+      }
+      function setupSharedPads(){
+        if(padsReady) return;padsReady = true;
+        document.querySelectorAll("[data-pad-id]").forEach((pad) => {
+          const padId = String(pad.dataset.padId || "pad").replace(/[.#$\[\]\/]/g, "-");
+          const padRef = ref(database, lessonRoot() + "/pads/" + padId);let timer = 0;
+          padUnsubs.push(onValue(padRef, (snapshot) => {
+            if(!snapshot.exists()){if(document.activeElement !== pad) pad.innerText = "";return;}
+            const data = snapshot.val(), text = typeof data === "string" ? data : data?.text;
+            if(typeof text !== "string" || document.activeElement === pad && data?.updatedBy === me?.id) return;
+            if(pad.innerText !== text) pad.innerText = text;
+          }));
+          if(pad.dataset.firebasePadBound) return;pad.dataset.firebasePadBound = "1";
+          pad.addEventListener("input", () => {
+            clearTimeout(timer);timer = setTimeout(() => {
+              if(!me || !channel) return;
+              set(ref(database, lessonRoot() + "/pads/" + padId), {text:pad.innerText.slice(0,12000),updatedBy:me.id,updatedAt:serverTimestamp()}).catch(() => setStatus("connecting", "Запись сохранится после восстановления связи…"));
+            }, 180);
+          });
+        });
+      }
+      function applyPracticeOpen(values){
+        document.querySelectorAll(".practice-station").forEach((block) => {const button = block.querySelector(".practice-toggle");block.classList.remove("open");if(button){button.setAttribute("aria-expanded","false");button.textContent="Открыть поле в клетку";}});
+        Object.entries(values || {}).forEach(([sectionId, open]) => {
+          const block = document.getElementById(sectionId + "-practice"), button = block?.querySelector(".practice-toggle");if(!block || !button) return;
+          block.classList.toggle("open", Boolean(open));button.setAttribute("aria-expanded", String(Boolean(open)));button.textContent = open ? "Скрыть поле" : "Открыть поле в клетку";
+        });
+      }
+      function setupSharedInteractions(){
+        if(interactionsReady) return;interactionsReady = true;
+        interactionsUnsub = onValue(interactionsRef(), (snapshot) => {
+          const state = snapshot.val() || {};applyPracticeOpen(state.practiceOpen || {});
+          if(state.vectorLab?.value && state.vectorLab.updatedBy !== me?.id) window.applySharedVectorLab?.(state.vectorLab.value);else if(!state.vectorLab?.value) window.applySharedVectorLab?.({a:{x:-3,y:-2},b:{x:4,y:3}});
+        }, (error) => setStatus("error", "Firebase: " + (error?.message || "нет доступа к интерактивам")));
+        if(document.documentElement.dataset.sharedInteractionsBound) return;document.documentElement.dataset.sharedInteractionsBound = "1";
+        document.addEventListener("click", (event) => {
+          const button = event.target.closest?.(".practice-toggle");if(!button || !me) return;
+          setTimeout(() => {const block = button.closest(".practice-station"), sectionId = String(block?.id || "").replace(/-practice$/, "");if(sectionId) set(ref(database, lessonRoot() + "/interactions/practiceOpen/" + sectionId), block.classList.contains("open")).catch(() => {});}, 0);
+        });
+        let labTimer = 0;window.addEventListener("vectorlabchange", (event) => {
+          const next = clone(event.detail);clearTimeout(labTimer);labTimer = setTimeout(() => {if(!me) return;set(ref(database, lessonRoot() + "/interactions/vectorLab"), {value:next,updatedBy:me.id,updatedAt:serverTimestamp()}).catch(() => {});}, 55);
+        });
+      }
+      async function send(message){if(!channel) throw Error("Нет подключения к общему уроку.");return channel.send(message);}
       function connectionStatus(status, detail = ""){
         if(status === "SUBSCRIBED"){
           if(mode === "student" && !joined){
-            setStatus("connecting", "Сервер подключён · ждём учителя");message("cbJoinMessage", "Сервер подключён. Ждём ответ экрана учителя…");
+            setStatus("connecting", "Firebase подключён · загружаем общий урок");message("cbJoinMessage", "Firebase подключён. Загружаем общее состояние…");
             setTimeout(() => {if(mode === "student" && !joined && channel?.isOpen && me) send({type:"join", player:me, at:Date.now()}).catch(() => {});}, 180);
           }else{
             setStatus("online");if(mode === "teacher" && hostState) setTimeout(() => broadcastSnapshot().catch(() => {}), 220);
@@ -2140,28 +2175,31 @@
         }
         if(status === "RETRYING"){
           if(mode === "student") joined = false;setStatus("connecting", detail || "Восстанавливаем связь…");
-          if(mode === "student") message("cbJoinMessage", "Связь прервалась. Автоматически переподключаемся — страницу не закрывайте.");return;
+          if(mode === "student") message("cbJoinMessage", "Связь прервалась. Firebase автоматически переподключится — заново создавать урок не нужно.");return;
         }
         setStatus("connecting", detail || "Подключаемся…");
       }
-      async function disconnect(){clearInterval(heartbeatTimer);clearInterval(watchdogTimer);clearTimeout(joinTimer);heartbeatTimer = watchdogTimer = joinTimer = 0;if(channel){try{channel.close();}catch(_){}}channel = null;joined = false;drawing = null;eraseHover = null;pointerNodes.forEach((node) => node.remove());pointerNodes.clear();}
-      function canInteract(){return Boolean(channel?.isOpen && me && (mode === "teacher" || joined));}
+      async function disconnect(){clearInterval(heartbeatTimer);clearInterval(watchdogTimer);clearTimeout(joinTimer);heartbeatTimer = watchdogTimer = joinTimer = 0;remoteStateUnsub?.();remoteStateUnsub = null;interactionsUnsub?.();interactionsUnsub = null;padUnsubs.splice(0).forEach((unsubscribe) => unsubscribe());padsReady = false;interactionsReady = false;if(channel){try{channel.close();}catch(_){}}channel = null;joined = false;drawing = null;eraseHover = null;pointerNodes.forEach((node) => node.remove());pointerNodes.clear();}
+      function canInteract(){return Boolean(me && joined);}
 
       function prepareConnected(){
         const firstConnection = !document.body.classList.contains("cb-connected");
-        setupAnchors();joiningSilently = false;closeGate();$("cbStart").classList.add("cb-hidden");document.body.classList.add("cb-connected");$("cbToolbar").classList.remove("cb-hidden");restoreToolbarPosition();$("cbRoomCode").textContent = room;$("cbClearAll").classList.toggle("cb-hidden", mode !== "teacher");if(firstConnection) selectTool("pointer");renderPlayers();renderAllStrokes();
+        setupAnchors();setupSharedPads();setupSharedInteractions();joiningSilently = false;closeGate();$("cbStart").classList.add("cb-hidden");document.body.classList.add("cb-connected");$("cbToolbar").classList.remove("cb-hidden");$("cbExit").classList.remove("cb-hidden");restoreToolbarPosition();$("cbRoomCode").textContent = room;$("cbClearAll").classList.toggle("cb-hidden", mode !== "teacher");if(firstConnection) selectTool("pointer");renderPlayers();renderAllStrokes();
       }
       async function startTeacher(saved = null, clean = false){
         if(!teacherAuthorized){setGate("cbTeacherView");message("cbTeacherMessage", "Сначала введите код учителя.", "error");return;}
-        message("cbRoleMessage", "Подключаем общую комнату…");try{
-          await disconnect();mode = "teacher";room = saved?.room || randomId(6);me = saved?.me || {id:"T" + randomId(14), name:"Учитель", color:PLAYER_COLORS[0], role:"teacher"};
-          hostState = clean || !saved?.state ? newState() : saved.state;hostState.boardEpoch = Number(hostState.boardEpoch || 0);hostState.players ||= {};hostState.ui ||= {details:{},section:"p1"};hostState.ui.details ||= {};hostState.ui.section ||= "p1";Object.values(hostState.players).forEach((p) => {if(p.role === "student") p.online = false;});hostState.players[me.id] = {...me, online:true, lastSeen:Date.now()};localState = hostState;joined = true;prepareConnected();applyDetails(hostState.ui.details);
-          const opened = openRawChannel("shared-vector-guide-" + room, handleTeacherMessage, connectionStatus);channel = opened.api;await opened.ready;renderPlayers();scheduleSave(true);heartbeatTimer = setInterval(() => {markOfflinePlayers();send({type:"host_heartbeat",version:Number(hostState?.version || 0),at:Date.now()}).catch(() => {});}, 3000);
+        message("cbRoleMessage", "Подключаем единый урок Firebase…");try{
+          await disconnect();mode = "teacher";room = cleanRoom(saved?.room) || randomId(6);me = saved?.me || {id:"T" + randomId(14), name:"Учитель", color:PLAYER_COLORS[0], role:"teacher"};
+          const remoteSnapshot = await get(stateRef()), remoteState = remoteSnapshot.exists() ? normalizeState(remoteSnapshot.val()) : null;
+          hostState = normalizeState(clean ? newState() : remoteState || saved?.state || newState());
+          if(clean){await Promise.all([remove(padsRef()),remove(interactionsRef())]);document.querySelectorAll("[data-pad-id]").forEach((pad) => {pad.innerText = "";});}
+          Object.values(hostState.players).forEach((p) => {if(p.role === "student") p.online = false;});hostState.players[me.id] = {...me, online:true, lastSeen:Date.now()};localState = hostState;joined = true;
+          const opened = openFirebaseChannel(room, handleTeacherMessage, connectionStatus);channel = opened.api;await opened.ready;await set(stateRef(), hostState);prepareConnected();applyDetails(hostState.ui.details, true);attachRemoteState();renderPlayers();scheduleSave(true);heartbeatTimer = setInterval(() => {markOfflinePlayers();send({type:"host_heartbeat",version:Number(hostState?.version || 0),at:Date.now()}).catch(() => {});}, 3000);
         }catch(error){await disconnect();document.body.classList.remove("cb-connected");$("cbToolbar").classList.add("cb-hidden");setGate(saved ? "cbRestoreView" : "cbRoleView");message(saved ? "cbRestoreMessage" : "cbRoleMessage", error.message, "error");}
       }
       function savedStudent(code, studentId){try{const saved = JSON.parse(localStorage.getItem(STUDENT_SAVE_KEY) || "null");if(saved?.room === code && saved?.studentId === studentId) return saved;}catch(_){}return null;}
       function readSavedStudent(){try{const saved = JSON.parse(localStorage.getItem(STUDENT_SAVE_KEY) || "null"), identity = storedIdentity();return saved?.room?.length === 6 && saved?.name && saved?.id && identity?.studentId === saved.studentId ? saved : null;}catch(_){return null;}}
-      function showStudentJoin(identity = storedIdentity()){if(!identity){setGate("cbStudentAuthView");return;}$("cbJoinStudentName").textContent = identity.name;setGate("cbJoinView");setTimeout(() => $("cbStudentRoom").focus(), 30);}
+      function showStudentJoin(identity = storedIdentity()){if(!identity){setGate("cbStudentAuthView");return;}$("cbJoinStudentName").textContent = identity.name;setGate("cbJoinView");setTimeout(() => $("cbStudentRoom").focus(),30);}
       function openStudentEntry(){const identity = storedIdentity();if(identity) showStudentJoin(identity);else {message("cbStudentAuthMessage", "");setGate("cbStudentAuthView");setTimeout(() => $("cbStudentCode").focus(), 30);}}
       async function validateStudentIdentity(){
         const input = $("cbStudentCode"), button = $("cbStudentValidate"), code = String(input.value || "").trim().toUpperCase();if(!code){message("cbStudentAuthMessage", "Введите личный код ученика.", "error");return;}
@@ -2169,30 +2207,24 @@
         input.disabled = button.disabled = true;message("cbStudentAuthMessage", "Проверяем код в базе…");try{const identity = await validateStudentCode(code);saveIdentity(identity);message("cbStudentAuthMessage", "Имя найдено: " + identity.name, "ok");setTimeout(() => showStudentJoin(identity), 350);}catch(error){message("cbStudentAuthMessage", error.message || "Код не подтверждён.", "error");input.disabled = button.disabled = false;input.focus();return;}input.disabled = button.disabled = false;
       }
       function changeStudentIdentity(){clearIdentity();$("cbStudentCode").value = "";$("cbStudentRoom").value = "";message("cbStudentAuthMessage", "");setGate("cbStudentAuthView");setTimeout(() => $("cbStudentCode").focus(), 30);}
-      async function openGuideOffline(text = "Гайд открыт без совместной комнаты"){
+      async function openGuideOffline(text = "Гайд открыт без подключения к общему уроку"){
         await disconnect();joiningSilently = false;document.body.classList.remove("cb-connected");$("cbToolbar").classList.add("cb-hidden");$("cbStart").classList.remove("cb-hidden");$("cbStart").textContent = "👥 Совместный урок";mode = "";room = "";me = null;hostState = localState = null;selectTool("pointer");closeGate();if(text) toast(text);
       }
       async function joinRoom(silent = false){
         joiningSilently = Boolean(silent);
         const identity = storedIdentity(), code = cleanRoom($("cbStudentRoom").value);if(!identity){openStudentEntry();return;}if(code.length !== 6){message("cbJoinMessage", "Код комнаты должен состоять из 6 символов.", "error");return;}
-        $("cbJoin").disabled = true;if(!silent) message("cbJoinMessage", "Ищем экран учителя…");else {$("cbStart").classList.remove("cb-hidden");$("cbStart").textContent = "↻ Подключаемся к уроку…";}try{
+        $("cbJoin").disabled = true;if(!silent) message("cbJoinMessage", "Подключаемся к комнате…");else {$("cbStart").classList.remove("cb-hidden");$("cbStart").textContent = "↻ Подключаемся к уроку…";}try{
           await disconnect();mode = "student";room = code;me = savedStudent(code, identity.studentId) || {id:"S" + randomId(14), studentId:identity.studentId, name:identity.name, color:PLAYER_COLORS[1 + Math.floor(Math.random() * (PLAYER_COLORS.length - 1))], role:"student"};me.name = identity.name;me.studentId = identity.studentId;localStorage.setItem(STUDENT_SAVE_KEY, JSON.stringify({...me, room}));
-          localState = newState();const opened = openRawChannel("shared-vector-guide-" + room, handleStudentMessage, connectionStatus);channel = opened.api;await opened.ready;
-          const requestTeacher = () => {if(joined || !channel?.isOpen || !me) return Promise.resolve();return send({type:"join", player:me, at:Date.now()}).catch(() => {});};
-          await requestTeacher();joiningSilently = Boolean(silent);
-          const keepWaitingForTeacher = () => {
-            clearTimeout(joinTimer);joinTimer = setTimeout(() => {
-              if(joined) return;setStatus("connecting", channel?.isOpen ? "Сервер подключён · ждём учителя" : "Восстанавливаем связь…");
-              if(!silent){message("cbJoinMessage", "Учитель пока не ответил. Соединение не закрываем и продолжаем попытки…");$("cbJoin").disabled = false;}
-              requestTeacher();keepWaitingForTeacher();
-            }, 8000);
-          };
-          keepWaitingForTeacher();
-          watchdogTimer = setInterval(() => {if(!joined || Date.now() - lastHostSeen > 8000) requestTeacher();else send({type:"ping", player:me, at:Date.now()}).catch(() => {});}, 3500);
-        }catch(error){if(silent) await openGuideOffline("Комната сейчас недоступна. Сам гайд открыт.");else {await disconnect();message("cbJoinMessage", error.message, "error");$("cbJoin").disabled = false;}joiningSilently = false;}
+          localState = newState();const opened = openFirebaseChannel(room, handleStudentMessage, connectionStatus);channel = opened.api;await opened.ready;
+          const stateSnapshot = await get(stateRef());if(!stateSnapshot.exists()){throw Error("Комната не найдена. Проверьте код и убедитесь, что учитель её открыл.");}
+          const roomState = normalizeState(stateSnapshot.val()), activeStudents = Object.values(roomState.players || {}).filter((player) => player.role === "student" && player.online !== false && player.id !== me.id);if(!roomState.players?.[me.id] && activeStudents.length >= MAX_STUDENTS) throw Error("Комната заполнена: уже подключены семь учеников.");
+          await set(ref(database, lessonRoot() + "/state/players/" + me.id), {...me,online:true,lastSeen:Date.now()});await bumpRemoteVersion();
+          joined = true;prepareConnected();attachRemoteState();await send({type:"join",player:me,at:Date.now()}).catch(() => {});setStatus("online");$("cbJoin").disabled = false;
+          watchdogTimer = setInterval(() => send({type:"ping",player:me,at:Date.now()}).catch(() => {}), 5000);
+        }catch(error){if(silent) await openGuideOffline("Firebase сейчас недоступен. Сам гайд открыт.");else {await disconnect();message("cbJoinMessage", error.message || "Не удалось подключиться к Firebase.", "error");$("cbJoin").disabled = false;}joiningSilently = false;}
       }
       function scheduleSave(immediate = false){
-        if(mode !== "teacher" || !hostState || !me || !room) return;clearTimeout(saveTimer);const save = () => {try{localStorage.setItem(HOST_SAVE_KEY, JSON.stringify({room, me, state:hostState, savedAt:Date.now()}));}catch(_){toast("Не удалось сохранить резервную копию комнаты");}};if(immediate) save();else saveTimer = setTimeout(save, 220);
+        if(mode !== "teacher" || !hostState || !me || !room) return;clearTimeout(saveTimer);const save = () => {try{localStorage.setItem(HOST_SAVE_KEY, JSON.stringify({room, me, state:hostState, savedAt:Date.now()}));}catch(_){toast("Не удалось сохранить локальную резервную копию");}set(stateRef(), clone(hostState)).catch(() => setStatus("connecting", "Состояние сохранится после восстановления связи…"));};if(immediate) save();else saveTimer = setTimeout(save, 220);
       }
       function sendSnapshot(target = "*"){return send({type:"snapshot", target, state:clone(hostState), at:Date.now()});}
       function broadcastSnapshot(){return sendSnapshot("*");}
@@ -2209,9 +2241,10 @@
 
       function handleTeacherMessage(message){
         if(message.type === "cursor"){renderPointer(message);return;}
+        if(message.type === "ui_state" && message.action?.kind === "replay"){replayVisual(message.action.id);return;}
         if(message.type === "join" || message.type === "ping"){
           const player = message.player;if(!player?.id) return;const existing = hostState.players[player.id];const active = Object.values(hostState.players).filter((p) => p.role === "student" && p.online !== false && Date.now() - Number(p.lastSeen || 0) < 9000);
-          if(!existing && active.length >= MAX_STUDENTS){send({type:"join_rejected", target:player.id, reason:"Комната заполнена: уже подключены шесть учеников."}).catch(() => {});return;}
+          if(!existing && active.length >= MAX_STUDENTS){send({type:"join_rejected", target:player.id, reason:"В общем уроке уже подключены семь учеников."}).catch(() => {});return;}
           const normalized = {id:player.id, name:cleanName(player.name) || "Ученик", color:cleanColor(player.color || PLAYER_COLORS[1]), role:"student", online:true, lastSeen:Date.now()};
           const changed = !existing || existing.online === false || existing.name !== normalized.name || existing.color !== normalized.color;
           hostState.players[player.id] = normalized;if(changed){bump();renderPlayers();scheduleSave();}if(message.type === "join") sendSnapshot(player.id).catch(() => {});return;
@@ -2231,7 +2264,7 @@
           lastHostSeen = Date.now();const incoming = message.state || newState();incoming.boardEpoch = Number(incoming.boardEpoch || 0);incoming.ui ||= {details:{},section:"p1"};incoming.ui.details ||= {};incoming.ui.section ||= "p1";const firstSnapshot = !joined;
           const previousVersion = Number(localState?.version || 0), incomingVersion = Number(incoming.version || 0);
           if(!firstSnapshot && incomingVersion <= previousVersion){setStatus("online");return;}
-          joined = true;clearTimeout(joinTimer);localState = incoming;if(firstSnapshot) prepareConnected();applyDetails(localState.ui?.details || {});renderAllStrokes();renderPlayers();setStatus("online");$("cbJoin").disabled = false;return;
+          joined = true;clearTimeout(joinTimer);localState = incoming;if(firstSnapshot) prepareConnected();applyDetails(localState.ui?.details || {}, true);renderAllStrokes();renderPlayers();setStatus("online");$("cbJoin").disabled = false;return;
         }
         if(message.type === "board_clear"){
           lastHostSeen = Date.now();const incomingEpoch = Number(message.epoch || 0), currentEpoch = Number(localState?.boardEpoch || 0);
@@ -2243,7 +2276,6 @@
         if(message.type === "stroke_state"){
           lastHostSeen = Date.now();const before = Number(localState?.version || 0);applyStrokeState(message);if(Number(message.version || 0) > before + 1) requestFreshSnapshot("stroke-version-gap");return;
         }
-        if(message.type === "scroll_state"){lastHostSeen = Date.now();return;}
         if(message.type === "ui_state"){
           lastHostSeen = Date.now();const incomingVersion = Number(message.version || 0), currentVersion = Number(localState?.version || 0);if(incomingVersion && incomingVersion < currentVersion) return;
           if(message.action?.kind === "details"){localState.ui.details[message.action.id] = Boolean(message.action.open);applyDetails({[message.action.id]:message.action.open});}
@@ -2264,43 +2296,40 @@
       async function unlockTeacher(){
         const button = $("cbTeacherUnlock"), code = String($("cbTeacherCode").value || "").trim().toUpperCase();if(!code){message("cbTeacherMessage", "Введите код учителя.", "error");return;}
         button.disabled = true;message("cbTeacherMessage", "Проверяем код…");try{
-          if(await hashText(code) !== TEACHER_CODE_HASH){message("cbTeacherMessage", "Неверный код. Создание комнаты недоступно.", "error");return;}
+          if(await hashText(code) !== TEACHER_CODE_HASH){message("cbTeacherMessage", "Неверный код. Вход учителя недоступен.", "error");return;}
           teacherAuthorized = true;$("cbTeacherCode").value = "";const savedHost = readSavedHost();
           if(savedHost?.room?.length === 6 && savedHost?.state){$("cbRestoreCode").textContent = savedHost.room;$("cbRestoreView").dataset.saved = "1";setGate("cbRestoreView");}
           else await startTeacher();
         }finally{button.disabled = false;}
       }
-      function openCollaborationMenu(){
-        const savedStudentData = readSavedStudent();if(savedStudentData) $("cbStudentRoom").value = savedStudentData.room;setGate("cbRoleView");
-      }
+      function openCollaborationMenu(){const savedStudentData = readSavedStudent();if(savedStudentData) $("cbStudentRoom").value = savedStudentData.room;setGate("cbRoleView");}
 
       $("cbOpenTeacher").addEventListener("click", () => {message("cbTeacherMessage", "");setGate("cbTeacherView");setTimeout(() => $("cbTeacherCode").focus(), 30);});
       $("cbTeacherUnlock").addEventListener("click", unlockTeacher);$("cbTeacherCode").addEventListener("keydown", (event) => {if(event.key === "Enter") unlockTeacher();});$("cbTeacherBack").addEventListener("click", () => setGate("cbRoleView"));
       $("cbOpenJoin").addEventListener("click", openStudentEntry);
       $("cbStudentValidate").addEventListener("click", validateStudentIdentity);$("cbStudentCode").addEventListener("keydown", (event) => {if(event.key === "Enter") validateStudentIdentity();});$("cbStudentAuthBack").addEventListener("click", () => setGate("cbRoleView"));$("cbChangeStudent").addEventListener("click", changeStudentIdentity);
-      $("cbJoinBack").addEventListener("click", () => setGate("cbRoleView"));$("cbJoin").addEventListener("click", () => joinRoom(false));
-      $("cbStudentRoom").addEventListener("keydown", (event) => {if(event.key === "Enter") joinRoom(false);});
+      $("cbJoinBack").addEventListener("click", () => setGate("cbRoleView"));$("cbJoin").addEventListener("click", () => joinRoom(false));$("cbStudentRoom").addEventListener("keydown", (event) => {if(event.key === "Enter") joinRoom(false);});
       $("cbRestore").addEventListener("click", () => startTeacher(readSavedHost(), false));
       $("cbRestoreClean").addEventListener("click", () => startTeacher(readSavedHost(), true));
-      $("cbRestoreCancel").addEventListener("click", () => {if(!teacherAuthorized){setGate("cbTeacherView");return;}localStorage.removeItem(HOST_SAVE_KEY);startTeacher();});
+      $("cbRestoreCancel").addEventListener("click", () => {if(!teacherAuthorized){setGate("cbTeacherView");return;}localStorage.removeItem(HOST_SAVE_KEY);startTeacher(null, true);});
       $("cbStart").addEventListener("click", openCollaborationMenu);$("cbGateClose").addEventListener("click", () => closeGate());
       $("cbCollapse").addEventListener("click", () => {$("cbToolbar").classList.toggle("collapsed");$("cbCollapse").textContent = $("cbToolbar").classList.contains("collapsed") ? "+" : "—";setTimeout(() => {const rect = $("cbToolbar").getBoundingClientRect();applyToolbarPosition({left:rect.left,top:rect.top}, true);}, 0);});
       $("cbDragHandle").addEventListener("pointerdown", beginToolbarDrag);$("cbDragHandle").addEventListener("pointermove", moveToolbar);$("cbDragHandle").addEventListener("pointerup", endToolbarDrag);$("cbDragHandle").addEventListener("pointercancel", endToolbarDrag);
       $("cbExit").addEventListener("click", exitRoom);document.querySelectorAll("[data-cb-tool]").forEach((button) => button.addEventListener("click", () => selectTool(button.dataset.cbTool)));
       document.querySelectorAll(".cb-swatch").forEach((button) => button.addEventListener("click", () => setColor(button.dataset.color)));$("cbColor").addEventListener("input", (event) => setColor(event.target.value));
       document.querySelectorAll("[data-pen-width]").forEach((button) => button.addEventListener("click", () => setPenWidth(button.dataset.penWidth)));
-      $("cbClearAll").addEventListener("click", () => {if(mode !== "teacher" || !confirm("Удалить все рисунки с общей доски у всех участников?")) return;hostClearBoard(true);});
+      $("cbClearAll").addEventListener("click", () => {if(mode !== "teacher" || !confirm("Удалить все рисунки с общей доски у всех участников?")) return;hostClearBoard(true).catch(() => toast("Не удалось очистить общую доску"));});
       document.addEventListener("toggle", handleLocalDetails, true);document.addEventListener("click", handleLocalReplay);
       document.addEventListener("click", (event) => {
         const link = event.target.closest?.('a[href^="#p"]');if(!link || !canInteract()) return;const sectionId = String(link.getAttribute("href") || "").slice(1);
-        if(!/^p[1-5]$/.test(sectionId)) return;const action = {kind:"section",sectionId};if(mode === "teacher") hostUiAction(action,me.id,false);else send({type:"ui_action",action,userId:me.id}).catch(() => {});
+        if(!/^p[1-5]$/.test(sectionId)) return;const action = {kind:"section",sectionId};if(mode === "teacher") hostUiAction(action,me.id,false);else persistStudentUiAction(action).catch(() => setStatus("connecting", "Переход синхронизируется после восстановления связи…"));
       });
       document.addEventListener("pointermove", (event) => {if(!canInteract() || tool !== "pointer") return;const anchor = event.target.closest?.("[data-board-anchor]");if(!anchor) return;const rect = anchor.getBoundingClientRect();sendCursor(anchor.dataset.boardAnchor, clamp((event.clientX - rect.left) / rect.width, 0, 1), clamp((event.clientY - rect.top) / rect.height, 0, 1));}, {passive:true});
       window.addEventListener("resize", () => {const toolbar = $("cbToolbar");if(toolbar?.style.left){const rect = toolbar.getBoundingClientRect();applyToolbarPosition({left:rect.left,top:rect.top}, true);}});
       window.addEventListener("online", () => {if(channel && !channel.isOpen){setStatus("connecting", "Интернет появился · восстанавливаем связь…");channel.reconnect?.();}});
-      window.addEventListener("offline", () => {if(mode === "student") joined = false;setStatus("connecting", "Нет интернета · ждём восстановления…");});
+      window.addEventListener("offline", () => {setStatus("connecting", "Нет интернета · изменения отправятся после восстановления…");});
       document.addEventListener("visibilitychange", () => {if(!document.hidden && channel && !channel.isOpen) channel.reconnect?.();});
-      window.addEventListener("beforeunload", () => {if(mode === "teacher") scheduleSave(true);if(mode === "student" && channel && me) channel.send({type:"leave", userId:me.id}).catch(() => {});});
+      window.addEventListener("beforeunload", () => {if(mode === "teacher") scheduleSave(true);if(mode === "student" && channel && me) channel.send({type:"leave",userId:me.id}).catch(() => {});});
       setupAnchors();showStartup();
     })();
   </script>
