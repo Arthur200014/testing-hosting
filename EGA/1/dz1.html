@@ -578,28 +578,95 @@
     };
     const equalAnswer=(a,b)=>Number.isFinite(a)&&Math.abs(a-b)<=1e-6;
     const byId=id=>document.getElementById(id);
-    const svgFor=kind=>{
-      const labels=(a,b,c)=>'<text x="10" y="99">'+a+'</text><text x="95" y="99">'+b+'</text><text x="53" y="15">'+c+'</text>';
-      const tri='<path class="shape" d="M14 88L96 88L55 20Z"/>'+labels("A","B","C");
-      const right='<path class="shape" d="M18 88L95 88L18 20Z"/><path class="aux" d="M18 78h10v10"/>'+labels("C","B","A");
-      const circle='<circle class="shape" cx="55" cy="55" r="39"/><path class="aux" d="M23 75L73 20L88 72Z"/><circle cx="55" cy="55" r="2.5" fill="#ef633f"/>';
-      const map={
-        iso:'<path class="shape" d="M13 88L97 88L55 20Z"/><path class="aux" d="M31 62l6 4M79 62l-6 4"/>'+labels("A","B","C"),
-        right,lines:tri+'<path class="aux" d="M55 20L38 88M55 20L55 88M55 20L72 88"/>',
-        orthocenter:tri+'<path class="aux" d="M14 88L72 49M96 88L38 49"/><circle cx="55" cy="61" r="3" fill="#ef633f"/>',
-        incenter:tri+'<path class="aux" d="M14 88L72 49M96 88L38 49"/><circle cx="55" cy="58" r="3" fill="#ef633f"/>',
-        para:'<path class="shape" d="M18 78L80 78L97 34L36 34Z"/>',
-        rhombus:'<path class="shape" d="M16 56L55 18L96 56L55 95Z"/><path class="aux" d="M16 56L96 56M55 18L55 95"/>',
-        area:'<path class="shape" d="M18 78L80 78L97 34L36 34Z"/><path class="aux" d="M36 34L36 78M36 68h10v10"/>',
-        triangle:tri+'<path class="aux" d="M55 20L55 88M55 78h10v10"/>',
-        similar:tri+'<path class="aux" d="M34 53L77 53"/>',
-        trapezoid:'<path class="shape" d="M14 88L96 88L77 28L34 28Z"/><path class="aux" d="M24 58L87 58M14 88L77 28"/>',
-        circle,circle2:circle,tangent:circle+'<path class="aux" d="M23 27L104 55M86 84L104 55"/>',
-        incircle:'<path class="shape" d="M15 86L92 86L79 25L31 25Z"/><circle class="aux" cx="55" cy="59" r="26"/>',
-        cyclic:circle+'<path class="shape" d="M24 31L76 20L89 69L38 89Z"/>',
-        sine:circle+'<path class="shape" d="M20 37L84 35L65 14Z"/>'
-      };
-      return '<svg viewBox="0 0 110 110" aria-hidden="true">'+(map[kind]||tri)+'</svg>';
+    const svgFor=task=>{
+      const P=Math.PI/180, f=v=>Number(v.toFixed(2));
+      const T=(x,y,s,anchor="middle",extra="")=>'<text x="'+f(x)+'" y="'+f(y)+'" text-anchor="'+anchor+'" '+extra+'>'+s+'</text>';
+      const line=(a,b,cls="aux")=>'<path class="'+cls+'" d="M'+f(a.x)+' '+f(a.y)+'L'+f(b.x)+' '+f(b.y)+'"/>';
+      const poly=(pts,cls="shape")=>'<path class="'+cls+'" d="M'+pts.map(p=>f(p.x)+' '+f(p.y)).join('L')+'Z"/>';
+      const dot=(p,r=2.4)=>'<circle cx="'+f(p.x)+'" cy="'+f(p.y)+'" r="'+r+'" fill="#ef633f"/>';
+      const mid=(a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
+      const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+      const foot=(p,a,b)=>{const dx=b.x-a.x,dy=b.y-a.y,t=((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy);return{x:a.x+t*dx,y:a.y+t*dy};};
+      const intersect=(a,b,c,d)=>{const A1=b.y-a.y,B1=a.x-b.x,C1=A1*a.x+B1*a.y,A2=d.y-c.y,B2=c.x-d.x,C2=A2*c.x+B2*c.y,det=A1*B2-A2*B1;if(Math.abs(det)<1e-9)return mid(a,b);return{x:(B2*C1-B1*C2)/det,y:(A1*C2-A2*C1)/det};};
+      const tick=(a,b,t=.5)=>{const p={x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t},dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy)||1,nx=-dy/L*3.4,ny=dx/L*3.4;return '<path class="aux" d="M'+f(p.x-nx)+' '+f(p.y-ny)+'L'+f(p.x+nx)+' '+f(p.y+ny)+'"/>';};
+      const rightBox=(C,ux,uy,size=7)=>{const L=Math.hypot(ux.x,ux.y)||1,M=Math.hypot(uy.x,uy.y)||1,u={x:ux.x/L*size,y:ux.y/L*size},v={x:uy.x/M*size,y:uy.y/M*size},p1={x:C.x+u.x,y:C.y+u.y},p2={x:p1.x+v.x,y:p1.y+v.y},p3={x:C.x+v.x,y:C.y+v.y};return '<path class="aux" d="M'+f(p1.x)+' '+f(p1.y)+'L'+f(p2.x)+' '+f(p2.y)+'L'+f(p3.x)+' '+f(p3.y)+'"/>';};
+      const wrap=inner=>'<svg viewBox="0 0 110 110" role="img" aria-label="Схема к условию задачи">'+inner+'</svg>';
+      const triLabels=(A,B,C)=>T(A.x-3,A.y+10,'A','end')+T(B.x+3,B.y+10,'B','start')+T(C.x,C.y-5,'C');
+      const rightGeom=b=>{const R=80,C={x:13,y:94},B={x:13+R*Math.cos(b*P),y:94},A={x:13,y:94-R*Math.sin(b*P)};return{A,B,C};};
+      const isoGeom=baseAngle=>{const s=Math.sin(baseAngle*P),c=Math.cos(baseAngle*P),L=Math.min(74/Math.max(s,.05),43/Math.max(c,.05)),A={x:55-L*c,y:94},B={x:55+L*c,y:94},C={x:55,y:94-L*s};return{A,B,C};};
+      const isoTicks=(A,B,C)=>tick(A,C,.52)+tick(B,C,.52);
+
+      if(task.id==='isoBase'||task.id==='isoApex'||task.id==='isoExterior'){
+        const baseAngle=task.id==='isoBase'?(180-task.answer)/2:task.id==='isoApex'?task.answer:(180-task.answer)/2;
+        let {A,B,C}=isoGeom(baseAngle),inner=poly([A,B,C])+isoTicks(A,B,C)+triLabels(A,B,C);
+        if(task.id==='isoBase')inner+=T(A.x+10,A.y-5,fmt(baseAngle)+'°','start');
+        if(task.id==='isoApex')inner+=T(C.x,C.y+15,fmt(180-2*baseAngle)+'°');
+        if(task.id==='isoExterior'){
+          const ext=180-baseAngle,shift=Math.max(0,B.x-82);if(shift){A.x-=shift;B.x-=shift;C.x-=shift;inner=poly([A,B,C])+isoTicks(A,B,C)+triLabels(A,B,C);}
+          const X={x:106,y:B.y};inner+=line(B,X)+T(B.x+10,B.y-7,fmt(ext)+'°','start');
+        }
+        return wrap(inner);
+      }
+
+      if(task.id==='rightMedian'){
+        const b=90-task.answer,{A,B,C}=rightGeom(b),D=mid(A,B);
+        let inner=poly([A,B,C])+line(C,D)+rightBox(C,{x:1,y:0},{x:0,y:-1})+tick(A,D,.55)+tick(D,B,.45)+triLabels(A,B,C)+T(D.x+4,D.y-3,'D','start')+T(B.x-9,B.y-7,fmt(b)+'°','end');
+        return wrap(inner);
+      }
+
+      if(task.id==='bisectorMedian'){
+        const b=45-task.answer,{A,B,C}=rightGeom(b),D=mid(A,B),ray={x:C.x+70,y:C.y-70},E=intersect(C,ray,A,B);
+        let inner=poly([A,B,C])+line(C,D)+line(C,E)+rightBox(C,{x:1,y:0},{x:0,y:-1})+tick(A,D,.55)+tick(D,B,.45)+triLabels(A,B,C)+T(D.x+4,D.y-2,'D','start')+T(E.x-3,E.y-4,'E','end')+T(B.x-8,B.y-7,fmt(b)+'°','end');
+        inner+=T(C.x+25,C.y-19,'бисс.','start','font-size="6"')+T(C.x+27,C.y-5,'мед.','start','font-size="6"');
+        return wrap(inner);
+      }
+
+      if(task.id==='heightBisector'){
+        const small=task.answer,d=45-small,{A,B,C}=rightGeom(small),H=foot(C,A,B),ray={x:C.x+70,y:C.y-70},E=intersect(C,ray,A,B);
+        let inner=poly([A,B,C])+line(C,H)+line(C,E)+rightBox(C,{x:1,y:0},{x:0,y:-1})+triLabels(A,B,C)+T(H.x+3,H.y-3,'H','start')+T(E.x-3,E.y-3,'E','end')+T(C.x+25,C.y-18,fmt(d)+'°','start');
+        inner+=T((C.x+H.x)/2+4,(C.y+H.y)/2,'h','start','font-size="7"')+T((C.x+E.x)/2-3,(C.y+E.y)/2-2,'бисс.','end','font-size="6"');
+        return wrap(inner);
+      }
+
+      if(task.id==='heightMedian'){
+        const small=(90-task.answer)/2,{A,B,C}=rightGeom(small),H=foot(C,A,B),D=mid(A,B);
+        let inner=poly([A,B,C])+line(C,H)+line(C,D)+rightBox(C,{x:1,y:0},{x:0,y:-1})+tick(A,D,.55)+tick(D,B,.45)+triLabels(A,B,C)+T(H.x+3,H.y-3,'H','start')+T(D.x-3,D.y+8,'D','end');
+        inner+=T(C.x+25,C.y-16,fmt(task.answer)+'°','start');
+        return wrap(inner);
+      }
+
+      if(task.id==='orthocenter'){
+        const a=180-task.answer,L=78,A={x:14,y:94},B={x:92,y:94},C={x:14+L*Math.cos(a*P),y:94-L*Math.sin(a*P)},D=foot(B,A,C),E=foot(C,A,B),O=intersect(B,D,C,E);
+        let inner=poly([A,B,C])+line(B,D)+line(C,E)+triLabels(A,B,C)+dot(O)+T(D.x-4,D.y-3,'D','end')+T(E.x+3,E.y+9,'E','start')+T(O.x+4,O.y-4,'O','start')+T(A.x+13,A.y-7,fmt(a)+'°','start');
+        inner+=T(D.x+4,D.y+8,'⊥','start','font-size="8"')+rightBox(E,{x:1,y:0},{x:0,y:-1},5.5);
+        return wrap(inner);
+      }
+
+      if(task.id==='incenter'){
+        const c=2*(task.answer-90),half=c/2,s=Math.sin(half*P),co=Math.cos(half*P),L=Math.min(43/Math.max(s,.05),78/Math.max(co,.05)),C={x:55,y:94-L*co},A={x:55-L*s,y:94},B={x:55+L*s,y:94};
+        const aLen=dist(B,C),bLen=dist(A,C),cLen=dist(A,B),sum=aLen+bLen+cLen,O={x:(aLen*A.x+bLen*B.x+cLen*C.x)/sum,y:(aLen*A.y+bLen*B.y+cLen*C.y)/sum};
+        const D=intersect(A,O,B,C),E=intersect(B,O,A,C);
+        let inner=poly([A,B,C])+line(A,D)+line(B,E)+triLabels(A,B,C)+dot(O)+T(D.x+4,D.y,'D','start')+T(E.x-4,E.y,'E','end')+T(O.x+4,O.y-3,'O','start')+T(C.x,C.y+14,fmt(c)+'°');
+        return wrap(inner);
+      }
+
+      if(task.id==='parallelogram'){
+        const big=task.answer,small=180-big,d=big-small,s=37,A={x:48,y:88},B={x:94,y:88},v={x:s*Math.cos(big*P),y:-s*Math.sin(big*P)},D={x:A.x+v.x,y:A.y+v.y},C={x:B.x+v.x,y:B.y+v.y};
+        let inner=poly([A,B,C,D])+T(A.x-4,A.y+10,'A','end')+T(B.x+3,B.y+10,'B','start')+T(C.x+3,C.y-4,'C','start')+T(D.x-3,D.y-4,'D','end');
+        inner+=T(55,13,'x − y = '+fmt(d)+'°','middle','font-size="7"')+T(A.x+8,A.y-6,'x','start')+T(B.x-8,B.y-6,'y','end');
+        return wrap(inner);
+      }
+
+      if(task.id==='rhombusA'||task.id==='rhombusC'){
+        const angle=180-2*task.answer,ca=Math.cos(angle*P),sa=Math.sin(angle*P),side=Math.min(46,86/(1+Math.abs(ca))),rawA={x:0,y:0},rawB={x:side,y:0},rawD={x:side*ca,y:-side*sa},rawC={x:side+side*ca,y:-side*sa},xs=[rawA.x,rawB.x,rawC.x,rawD.x],minX=Math.min(...xs),maxX=Math.max(...xs),tx=55-(minX+maxX)/2,ty=88;
+        const A={x:rawA.x+tx,y:rawA.y+ty},B={x:rawB.x+tx,y:rawB.y+ty},C={x:rawC.x+tx,y:rawC.y+ty},D={x:rawD.x+tx,y:rawD.y+ty};
+        let inner=poly([A,B,C,D])+line(B,D)+tick(A,B,.5)+tick(B,C,.5)+tick(C,D,.5)+tick(D,A,.5)+T(A.x-4,A.y+9,'A','end')+T(B.x+4,B.y+9,'B','start')+T(C.x+4,C.y-4,'C','start')+T(D.x-4,D.y-4,'D','end');
+        if(task.id==='rhombusA')inner+=T(A.x+10,A.y-7,fmt(angle)+'°','start');
+        else inner+=T(C.x-8,C.y+11,fmt(angle)+'°','end');
+        return wrap(inner);
+      }
+
+      return wrap('<path class="shape" d="M14 88L96 88L55 20Z"/>'+T(11,100,'A','start')+T(99,100,'B','end')+T(55,15,'C'));
     };
     const formatTime=s=>String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
     const monthKey=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");};
@@ -641,7 +708,7 @@
       const grid=byId("taskGrid");grid.textContent="";
       TASKS.forEach((task,index)=>{
         const card=document.createElement("article");card.className="task-card";card.dataset.index=String(index);
-        const sketch=document.createElement("div");sketch.className="sketch";sketch.innerHTML=svgFor(task.kind);
+        const sketch=document.createElement("div");sketch.className="sketch";sketch.innerHTML=svgFor(task);
         const content=document.createElement("div");content.className="task-content";
         const top=document.createElement("div");top.className="task-top";
         const no=document.createElement("span");no.className="task-no";no.textContent=String(index+1);
