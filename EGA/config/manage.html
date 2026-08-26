@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Управление учениками, занятиями и ДЗ</title>
+  <title>Центр управления и статистика учеников</title>
   <style>
     :root {
       color-scheme: dark;
@@ -86,7 +86,7 @@
 
     .tabs {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 7px;
       padding: 10px;
       border-bottom: 1px solid var(--line);
@@ -364,7 +364,265 @@
       color: var(--accent);
     }
     .student-id-line { color: var(--muted); font-size: 13px; }
+
+    .stats-tools {
+      display: grid;
+      grid-template-columns: minmax(210px, 1.25fr) minmax(150px, .6fr) auto;
+      gap: 10px;
+      align-items: center;
+    }
+    .period-switch {
+      display: flex;
+      gap: 5px;
+      padding: 5px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(5, 16, 29, .55);
+    }
+    .period-switch button {
+      min-height: 36px;
+      border: 0;
+      border-radius: 9px;
+      padding: 7px 12px;
+      color: var(--muted);
+      font-weight: 850;
+      white-space: nowrap;
+      background: transparent;
+    }
+    .period-switch button.active {
+      color: #1d1405;
+      background: linear-gradient(135deg, var(--accent), #ffd373);
+    }
+    .stats-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin: 16px 0;
+    }
+    .stat-kpi {
+      min-height: 93px;
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: rgba(5, 18, 31, .58);
+    }
+    .stat-kpi small { display: block; color: var(--muted); font-weight: 750; }
+    .stat-kpi strong { display: block; margin-top: 7px; font-size: 25px; line-height: 1; }
+    .stat-kpi span { display: block; margin-top: 7px; color: var(--muted); font-size: 12px; }
+    .table-shell {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: rgba(4, 14, 25, .52);
+    }
+    .stats-table { width: 100%; min-width: 850px; border-collapse: collapse; }
+    .stats-table th, .stats-table td {
+      padding: 12px 13px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: middle;
+    }
+    .stats-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      background: #0b1b2d;
+    }
+    .stats-table tbody tr:last-child td { border-bottom: 0; }
+    .stats-table tbody tr:hover { background: rgba(101, 191, 255, .055); }
+    .student-link {
+      border: 0;
+      padding: 0;
+      color: var(--text);
+      text-align: left;
+      font-weight: 850;
+      background: transparent;
+    }
+    .student-link:hover { color: var(--accent); }
+    .student-link small { display: block; margin-top: 3px; color: var(--muted); font-weight: 650; }
+    .metric-main { font-weight: 900; }
+    .metric-sub { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 27px;
+      padding: 4px 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: #d9ebfb;
+      font-size: 11px;
+      font-weight: 850;
+      background: rgba(101, 191, 255, .07);
+    }
+    .badge.ege { color: #ffe3a8; border-color: rgba(255, 181, 46, .3); background: rgba(255, 181, 46, .08); }
+    .badge.oge { color: #bfe7ff; border-color: rgba(101, 191, 255, .3); }
+    .score-pill {
+      display: inline-grid;
+      min-width: 48px;
+      place-items: center;
+      padding: 5px 8px;
+      border-radius: 999px;
+      font-weight: 900;
+      background: rgba(159, 181, 202, .12);
+    }
+    .score-pill.good { color: var(--ok); background: rgba(91, 227, 154, .1); }
+    .score-pill.mid { color: #ffd26d; background: rgba(255, 181, 46, .1); }
+    .score-pill.low { color: #ff9ca6; background: rgba(255, 125, 137, .1); }
+    .profile-head { align-items: flex-start; }
+    .profile-head p { margin: 6px 0 0; color: var(--muted); }
+    .profile-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(260px, .8fr);
+      gap: 14px;
+      margin: 16px 0;
+    }
+    .profile-card {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(5, 18, 31, .58);
+    }
+    .profile-card h3 { margin: 0 0 13px; font-size: 16px; }
+    .mock-chart { min-height: 150px; }
+    .mock-chart svg { width: 100%; height: 130px; overflow: visible; }
+    .chart-labels { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 10px; }
+    .topic-table { min-width: 730px; }
+    .topic-table tr.no-data { opacity: .48; }
+    .history-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .history-list { display: grid; gap: 7px; max-height: 300px; overflow: auto; }
+    .history-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      padding: 10px 11px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(4, 14, 25, .52);
+    }
+    .history-item strong { display: block; font-size: 13px; }
+    .history-item small { display: block; margin-top: 3px; color: var(--muted); }
+    .history-value { color: var(--accent); font-weight: 900; white-space: nowrap; }
+    .inline-empty { padding: 12px; color: var(--muted); text-align: center; }
     .hidden { display: none !important; }
+
+    .date-range-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: end;
+      margin: 14px 0 2px;
+      padding: 16px;
+      border: 1px solid rgba(255, 181, 46, .24);
+      border-radius: 17px;
+      background:
+        linear-gradient(135deg, rgba(255, 181, 46, .08), rgba(101, 191, 255, .045)),
+        rgba(5, 18, 31, .58);
+    }
+    .date-range-card label { display: grid; gap: 7px; color: var(--muted); font-size: 12px; font-weight: 850; }
+    .date-range-card input { min-height: 48px; color-scheme: dark; }
+    .date-range-actions { display: flex; gap: 8px; align-items: stretch; }
+    .date-range-actions button { min-height: 48px; white-space: nowrap; }
+    .date-range-note { grid-column: 1 / -1; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .date-range-note strong { color: #ffe0a0; }
+
+    .calendar-card { margin: 16px 0; padding: 18px; }
+    .calendar-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 13px;
+    }
+    .calendar-toolbar h3 { margin: 0; font-size: 19px; }
+    .calendar-toolbar p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+    .calendar-nav { display: flex; align-items: center; gap: 8px; flex: none; }
+    .calendar-nav input { width: 165px; min-height: 42px; padding: 8px 10px; color-scheme: dark; }
+    .calendar-nav button { min-width: 42px; min-height: 42px; padding: 7px 11px; }
+    .calendar-legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 13px; }
+    .legend-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      background: rgba(4, 14, 25, .52);
+    }
+    .legend-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--blue); }
+    .legend-dot.present { background: var(--ok); }
+    .legend-dot.absent { background: var(--bad); }
+    .legend-dot.homework { background: var(--accent); }
+    .legend-dot.mock { background: #b993ff; }
+    .calendar-scroll { overflow-x: auto; padding-bottom: 3px; }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(130px, 1fr));
+      gap: 7px;
+      min-width: 980px;
+    }
+    .calendar-weekday {
+      padding: 7px 9px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .calendar-day {
+      min-height: 132px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(4, 14, 25, .58);
+    }
+    .calendar-day.blank { opacity: .28; background: rgba(4, 14, 25, .25); }
+    .calendar-day.today { border-color: rgba(255, 181, 46, .7); box-shadow: inset 0 0 0 1px rgba(255, 181, 46, .18); }
+    .calendar-day-number {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 15px;
+      font-weight: 950;
+    }
+    .calendar-day.today .calendar-day-number::after {
+      content: "сегодня";
+      padding: 3px 6px;
+      border-radius: 999px;
+      color: #211604;
+      font-size: 9px;
+      background: var(--accent);
+    }
+    .calendar-events { display: grid; gap: 5px; }
+    .calendar-event {
+      display: block;
+      padding: 6px 7px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      color: #eaf5ff;
+      font-size: 10.5px;
+      font-weight: 850;
+      line-height: 1.25;
+      background: rgba(101, 191, 255, .08);
+    }
+    .calendar-event.present { color: #bdffd9; border-color: rgba(91, 227, 154, .32); background: rgba(91, 227, 154, .1); }
+    .calendar-event.absent { color: #ffc3c9; border-color: rgba(255, 125, 137, .34); background: rgba(255, 125, 137, .1); }
+    .calendar-event.homework { color: #ffe0a0; border-color: rgba(255, 181, 46, .34); background: rgba(255, 181, 46, .1); }
+    .calendar-event.mock { color: #e3d5ff; border-color: rgba(185, 147, 255, .36); background: rgba(185, 147, 255, .1); }
+    .calendar-empty-note { color: rgba(159, 181, 202, .55); font-size: 10px; }
 
     @keyframes rise {
       from { opacity: 0; transform: translateY(8px); }
@@ -374,7 +632,9 @@
     @media (max-width: 720px) {
       .hero { display: block; }
       .moscow { display: inline-block; margin-top: 14px; }
-      .tabs, .tools, .form-grid { grid-template-columns: 1fr; }
+      .tabs, .tools, .form-grid, .stats-tools, .profile-grid, .history-grid { grid-template-columns: 1fr; }
+      .tabs { grid-template-columns: repeat(2, 1fr); }
+      .stats-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .section { padding: 20px 16px; }
       .cache-bar { align-items: stretch; flex-direction: column; padding: 10px 16px; }
       .cache-bar button { width: 100%; }
@@ -384,6 +644,12 @@
       .student-list { grid-template-columns: 1fr; }
       .attendance-row { grid-template-columns: 1fr; }
       .notice-actions { display: grid; }
+      .date-range-card { grid-template-columns: 1fr; }
+      .date-range-note { grid-column: auto; }
+      .date-range-actions { display: grid; grid-template-columns: 1fr 1fr; }
+      .calendar-toolbar { align-items: stretch; flex-direction: column; }
+      .calendar-nav { width: 100%; }
+      .calendar-nav input { flex: 1; width: auto; }
     }
   </style>
 </head>
@@ -393,14 +659,17 @@
       <div>
         <p class="eyebrow">База ЕГЭ · преподаватель</p>
         <h1>Центр управления</h1>
-        <p class="subtitle">Ученики, проведённые занятия и домашние работы — в одном окне.</p>
+        <p class="subtitle">Статистика, ученики, занятия и домашние работы — в одном окне.</p>
       </div>
       <div id="clock" class="moscow">Москва</div>
     </div>
 
     <div class="panel">
       <nav class="tabs" aria-label="Выбор функции">
-        <button class="tab active" data-view="student" type="button">
+        <button class="tab active" data-view="stats" type="button">
+          Статистика <span>сводка и профиль</span>
+        </button>
+        <button class="tab" data-view="student" type="button">
           Новый ученик <span>добавить в базу</span>
         </button>
         <button class="tab" data-view="lesson" type="button">
@@ -421,7 +690,130 @@
         <button id="retryData" type="button">Повторить загрузку</button>
       </div>
 
-      <div id="studentView" class="view active">
+      <div id="statsView" class="view active">
+        <section class="section">
+          <div class="section-head">
+            <div>
+              <h2>Сводка по ученикам</h2>
+              <span id="statsPeriodLabel" class="hint">Текущий месяц</span>
+            </div>
+            <span id="statsGeneratedAt" class="badge">подготавливаем данные</span>
+          </div>
+          <div class="stats-tools">
+            <input id="statsSearch" type="search" placeholder="Найти ученика…">
+            <select id="statsProgram" aria-label="Фильтр по программе">
+              <option value="">ЕГЭ и ОГЭ</option>
+              <option value="EGE_MATH">Только ЕГЭ</option>
+              <option value="OGE_MATH">Только ОГЭ</option>
+            </select>
+            <div class="period-switch" aria-label="Период статистики">
+              <button class="active" data-stats-period="month" type="button">Этот месяц</button>
+              <button data-stats-period="last30" type="button">30 дней</button>
+              <button data-stats-period="allTime" type="button">Весь срок</button>
+            </div>
+          </div>
+          <div class="date-range-card" aria-label="Выбор периода статистики">
+            <label>Дата начала
+              <input id="statsDateFrom" type="date">
+            </label>
+            <label>Дата окончания
+              <input id="statsDateTo" type="date">
+            </label>
+            <div class="date-range-actions">
+              <button id="applyStatsRange" class="small-btn" type="button">Показать период</button>
+              <button id="last30Days" class="small-btn" type="button">30 дней</button>
+            </div>
+            <div id="statsRangeHint" class="date-range-note">Можно выбрать любой период — сводка, профиль и история пересчитаются по этим датам.</div>
+          </div>
+          <div id="statsTotals" class="stats-kpis"></div>
+          <div class="table-shell">
+            <table class="stats-table">
+              <thead>
+                <tr>
+                  <th>Ученик</th>
+                  <th>Тесты</th>
+                  <th>ДЗ</th>
+                  <th>Освоение</th>
+                  <th>Последний пробник</th>
+                  <th>Посещение</th>
+                  <th>Активность</th>
+                </tr>
+              </thead>
+              <tbody id="statsTableBody">
+                <tr><td colspan="7"><div class="inline-empty">Загружаем статистику…</div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="studentProfile" class="section hidden">
+          <div class="section-head profile-head">
+            <div>
+              <h2 id="profileName">Профиль ученика</h2>
+              <p id="profileMeta"></p>
+            </div>
+            <button id="closeProfile" class="small-btn" type="button">Закрыть профиль</button>
+          </div>
+          <div id="profileKpis" class="stats-kpis"></div>
+          <div class="profile-card calendar-card">
+            <div class="calendar-toolbar">
+              <div>
+                <h3>Календарь активности</h3>
+                <p id="calendarSubtitle">Посещение, назначенные ДЗ и пробники по дням.</p>
+              </div>
+              <div class="calendar-nav" aria-label="Выбор месяца календаря">
+                <button id="calendarPrev" class="small-btn" type="button" aria-label="Предыдущий месяц">←</button>
+                <input id="calendarMonth" type="month" aria-label="Месяц календаря">
+                <button id="calendarNext" class="small-btn" type="button" aria-label="Следующий месяц">→</button>
+              </div>
+            </div>
+            <div class="calendar-legend" aria-label="Обозначения календаря">
+              <span class="legend-chip"><span class="legend-dot present"></span>Был на занятии</span>
+              <span class="legend-chip"><span class="legend-dot absent"></span>Не был</span>
+              <span class="legend-chip"><span class="legend-dot homework"></span>ДЗ задано</span>
+              <span class="legend-chip"><span class="legend-dot mock"></span>Пробник</span>
+            </div>
+            <div class="calendar-scroll"><div id="activityCalendar" class="calendar-grid"></div></div>
+          </div>
+          <div class="profile-grid">
+            <div class="profile-card">
+              <h3>Динамика пробников</h3>
+              <div id="mockChart" class="mock-chart"></div>
+            </div>
+            <div class="profile-card">
+              <h3>Что требует внимания</h3>
+              <div id="growthPoints" class="history-list"></div>
+            </div>
+          </div>
+          <div class="profile-card">
+            <h3>Освоение заданий и тем</h3>
+            <div class="table-shell">
+              <table class="stats-table topic-table">
+                <thead>
+                  <tr>
+                    <th>№</th>
+                    <th>Тема</th>
+                    <th>Тесты</th>
+                    <th>ДЗ</th>
+                    <th>Пробники</th>
+                    <th>Освоение 70/30</th>
+                    <th>Статус</th>
+                  </tr>
+                </thead>
+                <tbody id="topicStatsBody"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="history-grid">
+            <div class="profile-card"><h3>Последние тесты</h3><div id="testHistory" class="history-list"></div></div>
+            <div class="profile-card"><h3>Домашние работы</h3><div id="homeworkHistory" class="history-list"></div></div>
+            <div class="profile-card"><h3>Пробники</h3><div id="mockHistory" class="history-list"></div></div>
+            <div class="profile-card"><h3>Занятия и посещение</h3><div id="lessonHistory" class="history-list"></div></div>
+          </div>
+        </section>
+      </div>
+
+      <div id="studentView" class="view">
         <form id="studentForm" novalidate>
           <section class="section">
             <div class="section-head">
@@ -607,7 +999,7 @@
 
   <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
-    const TEACHER_BROWSER_CACHE_KEY = 'ege-teacher-form-data-v4';
+    const TEACHER_BROWSER_CACHE_KEY = 'ege-teacher-form-data-v6';
     const VERSION_CHECK_INTERVAL_MS = 60 * 1000;
     // Встроенный предпросмотр ChatGPT работает в iframe и перед каждым внешним
     // запросом показывает системное окно разрешения. На обычной странице GitHub
@@ -618,6 +1010,12 @@
       students: [],
       groups: [],
       catalog: [],
+      statistics: { currentMonth: '', generatedAt: '', students: {} },
+      statsPeriod: 'month',
+      statsDateFrom: '',
+      statsDateTo: '',
+      calendarMonth: '',
+      statsStudentId: '',
       selected: new Set(),
       attendance: {},
       lessonId: '',
@@ -750,7 +1148,10 @@
       document.querySelectorAll('.view').forEach(view => {
         view.classList.toggle('active', view.id === name + 'View');
       });
-      $('recipientSection').classList.toggle('hidden', name === 'student');
+      $('recipientSection').classList.toggle(
+        'hidden',
+        name !== 'lesson' && name !== 'homework'
+      );
 
       if (name !== 'student' && !IS_EMBEDDED_PREVIEW) {
         if (!state.dataLoaded) {
@@ -879,6 +1280,486 @@
         ).join('');
     }
 
+    function statsStudentData(studentId) {
+      return state.statistics
+        && state.statistics.students
+        && state.statistics.students[studentId]
+        ? state.statistics.students[studentId]
+        : { summary: { month: {}, allTime: {} }, topics: [], tests: [], homework: [], mocks: [], lessons: [] };
+    }
+
+    function dateKey(value) {
+      const text = String(value || '');
+      const direct = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (direct) return `${direct[1]}-${direct[2]}-${direct[3]}`;
+      const date = new Date(text);
+      if (Number.isNaN(date.getTime())) return '';
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit'
+      }).formatToParts(date);
+      const get = type => parts.find(part => part.type === type)?.value || '';
+      return `${get('year')}-${get('month')}-${get('day')}`;
+    }
+
+    function todayDateKeyMoscow() {
+      return dateKey(new Date().toISOString());
+    }
+
+    function addDaysDateKey(key, days) {
+      const match = String(key || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!match) return '';
+      const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + Number(days || 0)));
+      return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+    }
+
+    function monthBounds(monthKey) {
+      const match = String(monthKey || '').match(/^(\d{4})-(\d{2})$/);
+      if (!match) return { from: '', to: '' };
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
+      return { from: `${match[1]}-${match[2]}-01`, to: `${match[1]}-${match[2]}-${String(last).padStart(2, '0')}` };
+    }
+
+    function periodBounds() {
+      if (state.statsPeriod === 'allTime') return { from: '', to: '' };
+      if (state.statsPeriod === 'month') return monthBounds(state.statistics.currentMonth);
+      if (state.statsPeriod === 'last30') {
+        const to = todayDateKeyMoscow();
+        return { from: addDaysDateKey(to, -29), to };
+      }
+      return { from: state.statsDateFrom, to: state.statsDateTo };
+    }
+
+    function formatDateKey(key) {
+      const match = String(key || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      return match ? `${match[3]}.${match[2]}.${match[1]}` : String(key || '');
+    }
+
+    function periodLabelText() {
+      if (state.statsPeriod === 'month') return 'Текущий месяц · ' + monthTitle(state.statistics.currentMonth);
+      if (state.statsPeriod === 'allTime') return 'Весь период обучения';
+      if (state.statsPeriod === 'last30') {
+        const bounds = periodBounds();
+        return `Последние 30 дней · ${formatDateKey(bounds.from)} — ${formatDateKey(bounds.to)}`;
+      }
+      const bounds = periodBounds();
+      return `Период · ${formatDateKey(bounds.from)} — ${formatDateKey(bounds.to)}`;
+    }
+
+    function homeworkIsSubmitted(item) {
+      return !!item.submittedAt
+        || hasNumber(item.scorePercent)
+        || /сдан|выполн|провер/i.test(String(item.status || ''));
+    }
+
+    function masteryFromAverages(testAverage, homeworkAverage) {
+      const hasTests = hasNumber(testAverage);
+      const hasHomework = hasNumber(homeworkAverage);
+      if (hasTests && hasHomework) return Math.round(Number(testAverage) * .7 + Number(homeworkAverage) * .3);
+      if (hasTests) return Math.round(Number(testAverage));
+      if (hasHomework) return Math.round(Number(homeworkAverage));
+      return null;
+    }
+
+    function sortByDateDesc(items, getter) {
+      return [...items].sort((a, b) => String(dateKey(getter(b))).localeCompare(String(dateKey(getter(a)))));
+    }
+
+    function derivedStatsSummary(studentId) {
+      const data = statsStudentData(studentId);
+      const tests = (data.tests || []).filter(item => entryInStatsPeriod(item.date));
+      const homework = (data.homework || []).filter(item => entryInStatsPeriod(item.assignedAt || item.submittedAt));
+      const mocks = (data.mocks || []).filter(item => entryInStatsPeriod(item.date));
+      const lessons = (data.lessons || []).filter(item => entryInStatsPeriod(item.lessonAt));
+      const submittedHomework = homework.filter(homeworkIsSubmitted);
+      const testAverage = numericAverage(tests.map(item => item.scorePercent));
+      const homeworkAverage = numericAverage(submittedHomework.map(item => item.scorePercent));
+      const presentCount = lessons.filter(item => /присутствовал/i.test(String(item.attendanceStatus || ''))).length;
+      const attendanceRate = lessons.length ? Math.round(presentCount * 100 / lessons.length) : null;
+      const latestMock = sortByDateDesc(mocks, item => item.date)[0] || null;
+      const activityDates = [
+        ...tests.map(item => item.date),
+        ...homework.map(item => item.submittedAt || item.assignedAt),
+        ...mocks.map(item => item.date),
+        ...lessons.map(item => item.lessonAt)
+      ].map(dateKey).filter(Boolean).sort();
+      const topicNumbers = new Set([
+        ...tests.map(item => String(item.taskNumber || '')).filter(Boolean),
+        ...homework.map(item => String(item.taskNumber || '')).filter(Boolean)
+      ]);
+      return {
+        mastery: masteryFromAverages(testAverage, homeworkAverage),
+        topicsWithData: topicNumbers.size,
+        testAverage,
+        testCount: tests.length,
+        homeworkAssigned: homework.length,
+        homeworkSubmitted: submittedHomework.length,
+        homeworkAverage,
+        latestMock,
+        attendanceRate,
+        lessonCount: lessons.length,
+        lastActivityAt: activityDates.length ? activityDates[activityDates.length - 1] : ''
+      };
+    }
+
+    function statsSummary(studentId) {
+      const data = statsStudentData(studentId);
+      if (state.statsPeriod === 'month' || state.statsPeriod === 'allTime') {
+        return (data.summary && data.summary[state.statsPeriod]) || {};
+      }
+      return derivedStatsSummary(studentId);
+    }
+
+    function statsVisibleStudents() {
+      const query = $('statsSearch').value.trim().toLowerCase();
+      const program = $('statsProgram').value;
+      return state.students.filter(student =>
+        (!query || student.studentName.toLowerCase().includes(query))
+        && (!program || student.programId === program)
+      );
+    }
+
+    function numericAverage(values) {
+      const numbers = values.filter(hasNumber).map(Number);
+      return numbers.length
+        ? Math.round(numbers.reduce((sum, value) => sum + value, 0) / numbers.length)
+        : null;
+    }
+
+    function hasNumber(value) {
+      return value !== null
+        && value !== undefined
+        && value !== ''
+        && Number.isFinite(Number(value));
+    }
+
+    function scoreClass(value) {
+      if (!hasNumber(value)) return '';
+      if (Number(value) >= 80) return 'good';
+      if (Number(value) >= 60) return 'mid';
+      return 'low';
+    }
+
+    function scorePill(value, suffix = '%') {
+      return hasNumber(value)
+        ? `<span class="score-pill ${scoreClass(value)}">${Math.round(Number(value))}${suffix}</span>`
+        : '<span class="metric-sub">—</span>';
+    }
+
+    function statsDate(value, withTime = false) {
+      const text = String(value || '');
+      if (!text) return '—';
+      const match = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (!withTime && match) return `${match[3]}.${match[2]}.${match[1]}`;
+      const date = new Date(text);
+      if (Number.isNaN(date.getTime())) return text;
+      return new Intl.DateTimeFormat('ru-RU', {
+        timeZone: 'Europe/Moscow',
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
+        ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {})
+      }).format(date);
+    }
+
+    function durationText(seconds) {
+      const value = Number(seconds) || 0;
+      if (!value) return '';
+      const minutes = Math.max(1, Math.round(value / 60));
+      return minutes + ' мин';
+    }
+
+    function mockText(mock) {
+      if (!mock || mock.displayValue === '' || mock.displayValue === undefined) return '—';
+      return `${mock.displayValue} ${mock.displayUnit || ''}`.trim();
+    }
+
+    function renderStatistics() {
+      const visible = statsVisibleStudents();
+      const periodLabel = periodLabelText();
+      $('statsPeriodLabel').textContent = periodLabel;
+      $('statsRangeHint').innerHTML = state.statsPeriod === 'custom'
+        ? `<strong>Сейчас:</strong> ${escapeHtml(periodLabel)}. Все показатели ниже пересчитаны по выбранным датам.`
+        : `Можно выбрать любой период — сводка, профиль и история пересчитаются по этим датам. <strong>Сейчас: ${escapeHtml(periodLabel)}</strong>`;
+      $('statsGeneratedAt').textContent = state.statistics.generatedAt
+        ? 'обновлено ' + statsDate(state.statistics.generatedAt, true)
+        : 'данные из кэша';
+
+      const summaries = visible.map(student => statsSummary(student.studentId));
+      const mastery = numericAverage(summaries.map(item => item.mastery));
+      const testCount = summaries.reduce((sum, item) => sum + (Number(item.testCount) || 0), 0);
+      const homeworkAssigned = summaries.reduce((sum, item) => sum + (Number(item.homeworkAssigned) || 0), 0);
+      const homeworkSubmitted = summaries.reduce((sum, item) => sum + (Number(item.homeworkSubmitted) || 0), 0);
+      $('statsTotals').innerHTML = [
+        statKpiHtml('Ученики', visible.length, 'в выбранном фильтре'),
+        statKpiHtml('Среднее освоение', mastery === null ? '—' : mastery + '%', '70% тесты + 30% ДЗ'),
+        statKpiHtml('Тесты', testCount, 'сохранённых лучших результатов'),
+        statKpiHtml('ДЗ сдано', `${homeworkSubmitted}/${homeworkAssigned}`, 'сдано / назначено')
+      ].join('');
+
+      $('statsTableBody').innerHTML = visible.length
+        ? visible.map(student => {
+            const summary = statsSummary(student.studentId);
+            const testAverage = summary.testAverage;
+            const homeworkAverage = summary.homeworkAverage;
+            const programLabel = student.programId === 'OGE_MATH' ? 'ОГЭ' : 'ЕГЭ';
+            const mock = summary.latestMock;
+            return `<tr>
+              <td><button class="student-link" data-profile-id="${escapeHtml(student.studentId)}" type="button">
+                ${escapeHtml(student.studentName)}
+                <small>${escapeHtml([student.grade ? student.grade + ' класс' : '', student.groupId].filter(Boolean).join(' · '))}</small>
+              </button> <span class="badge ${programLabel.toLowerCase()}">${programLabel}</span></td>
+              <td><span class="metric-main">${testAverage === null || testAverage === undefined ? '—' : Math.round(testAverage) + '%'}</span>
+                <span class="metric-sub">результатов: ${Number(summary.testCount) || 0}</span></td>
+              <td><span class="metric-main">${Number(summary.homeworkSubmitted) || 0}/${Number(summary.homeworkAssigned) || 0}</span>
+                <span class="metric-sub">качество: ${homeworkAverage === null || homeworkAverage === undefined ? '—' : Math.round(homeworkAverage) + '%'}</span></td>
+              <td>${scorePill(summary.mastery)}</td>
+              <td><span class="metric-main">${escapeHtml(mockText(mock))}</span>
+                <span class="metric-sub">${mock ? statsDate(mock.date) : 'нет данных'}</span></td>
+              <td>${summary.attendanceRate === null || summary.attendanceRate === undefined ? '—' : Math.round(summary.attendanceRate) + '%'}
+                <span class="metric-sub">занятий: ${Number(summary.lessonCount) || 0}</span></td>
+              <td>${statsDate(summary.lastActivityAt)}</td>
+            </tr>`;
+          }).join('')
+        : '<tr><td colspan="7"><div class="inline-empty">Ученики не найдены.</div></td></tr>';
+
+      if (state.statsStudentId) renderStudentProfile();
+    }
+
+    function statKpiHtml(label, value, note) {
+      return `<div class="stat-kpi"><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong><span>${escapeHtml(note)}</span></div>`;
+    }
+
+    function monthTitle(monthKey) {
+      const match = String(monthKey || '').match(/^(\d{4})-(\d{2})$/);
+      if (!match) return 'текущий месяц';
+      const months = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+      return `${months[Number(match[2]) - 1]} ${match[1]}`;
+    }
+
+    function entryInStatsPeriod(value) {
+      if (state.statsPeriod === 'allTime') return true;
+      const key = dateKey(value);
+      const bounds = periodBounds();
+      if (!key || !bounds.from || !bounds.to) return false;
+      return key >= bounds.from && key <= bounds.to;
+    }
+
+    function renderStudentProfile() {
+      const student = state.students.find(item => item.studentId === state.statsStudentId);
+      if (!student) {
+        $('studentProfile').classList.add('hidden');
+        state.statsStudentId = '';
+        return;
+      }
+      const data = statsStudentData(student.studentId);
+      const summary = statsSummary(student.studentId);
+      $('studentProfile').classList.remove('hidden');
+      $('profileName').textContent = student.studentName;
+      $('profileMeta').textContent = [
+        student.programId === 'OGE_MATH' ? 'ОГЭ' : 'ЕГЭ',
+        student.grade ? student.grade + ' класс' : '',
+        student.groupId || '',
+        periodLabelText()
+      ].filter(Boolean).join(' · ');
+      $('profileKpis').innerHTML = [
+        statKpiHtml('Освоение', summary.mastery === null || summary.mastery === undefined ? '—' : summary.mastery + '%', `тем с данными: ${Number(summary.topicsWithData) || 0}`),
+        statKpiHtml('Тесты', summary.testAverage === null || summary.testAverage === undefined ? '—' : summary.testAverage + '%', `результатов: ${Number(summary.testCount) || 0}`),
+        statKpiHtml('Домашние работы', `${Number(summary.homeworkSubmitted) || 0}/${Number(summary.homeworkAssigned) || 0}`, `среднее: ${summary.homeworkAverage === null || summary.homeworkAverage === undefined ? '—' : summary.homeworkAverage + '%'}`),
+        statKpiHtml('Последний пробник', mockText(summary.latestMock), summary.latestMock ? statsDate(summary.latestMock.date) : 'нет данных'),
+        statKpiHtml('Посещение', summary.attendanceRate === null || summary.attendanceRate === undefined ? '—' : summary.attendanceRate + '%', `занятий: ${Number(summary.lessonCount) || 0}`)
+      ].join('');
+      renderActivityCalendar(data);
+      renderMockChart(data.mocks || []);
+      renderGrowthPoints(data.topics || [], data);
+      renderTopicStats(data.topics || [], data);
+      renderHistories(data);
+    }
+
+    function ensureCalendarMonth() {
+      if (state.calendarMonth && /^\d{4}-\d{2}$/.test(state.calendarMonth)) return;
+      const bounds = periodBounds();
+      state.calendarMonth = (bounds.to || todayDateKeyMoscow()).slice(0, 7);
+    }
+
+    function shiftCalendarMonth(delta) {
+      ensureCalendarMonth();
+      const match = state.calendarMonth.match(/^(\d{4})-(\d{2})$/);
+      if (!match) return;
+      const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1 + delta, 1));
+      state.calendarMonth = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+      $('calendarMonth').value = state.calendarMonth;
+      if (state.statsStudentId) renderStudentProfile();
+    }
+
+    function calendarEventHtml(cssClass, text, title = '') {
+      return `<span class="calendar-event ${cssClass}"${title ? ` title="${escapeHtml(title)}"` : ''}>${escapeHtml(text)}</span>`;
+    }
+
+    function renderActivityCalendar(data) {
+      ensureCalendarMonth();
+      $('calendarMonth').value = state.calendarMonth;
+      $('calendarSubtitle').textContent = `${monthTitle(state.calendarMonth)} · посещение, ДЗ и пробники. Месяц можно листать независимо от периода статистики.`;
+      const match = state.calendarMonth.match(/^(\d{4})-(\d{2})$/);
+      if (!match) {
+        $('activityCalendar').innerHTML = '<div class="inline-empty">Не удалось определить месяц.</div>';
+        return;
+      }
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+      const firstWeekday = (new Date(Date.UTC(year, month - 1, 1)).getUTCDay() + 6) % 7;
+      const today = todayDateKeyMoscow();
+      const events = new Map();
+      const pushEvent = (key, html) => {
+        if (!key || key.slice(0, 7) !== state.calendarMonth) return;
+        if (!events.has(key)) events.set(key, []);
+        events.get(key).push(html);
+      };
+
+      (data.lessons || []).forEach(item => {
+        const key = dateKey(item.lessonAt);
+        const status = String(item.attendanceStatus || '');
+        const present = /присутствовал/i.test(status);
+        const label = present
+          ? `✓ Был${item.durationMinutes ? ' · ' + item.durationMinutes + ' мин' : ''}`
+          : '✕ Не был';
+        const details = [status, item.taskNumbers ? 'Задания: ' + item.taskNumbers : '', item.topicComment || ''].filter(Boolean).join(' · ');
+        pushEvent(key, calendarEventHtml(present ? 'present' : 'absent', label, details));
+      });
+
+      (data.homework || []).forEach(item => {
+        const key = dateKey(item.assignedAt);
+        const label = item.taskNumber
+          ? `ДЗ задано · №${item.taskNumber}`
+          : `ДЗ задано · ${item.homeworkName || 'работа'}`;
+        const details = [item.homeworkName || '', item.status || ''].filter(Boolean).join(' · ');
+        pushEvent(key, calendarEventHtml('homework', label, details));
+      });
+
+      (data.mocks || []).forEach(item => {
+        const key = dateKey(item.date);
+        const result = mockText(item);
+        pushEvent(key, calendarEventHtml('mock', `Пробник${result !== '—' ? ' · ' + result : ''}`, item.variantName || 'Пробник'));
+      });
+
+      const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+      let html = weekdays.map(day => `<div class="calendar-weekday">${day}</div>`).join('');
+      for (let blank = 0; blank < firstWeekday; blank++) html += '<div class="calendar-day blank"></div>';
+      for (let day = 1; day <= daysInMonth; day++) {
+        const key = `${match[1]}-${match[2]}-${String(day).padStart(2, '0')}`;
+        const dayEvents = events.get(key) || [];
+        html += `<div class="calendar-day ${key === today ? 'today' : ''}">
+          <div class="calendar-day-number"><span>${day}</span></div>
+          <div class="calendar-events">${dayEvents.length ? dayEvents.join('') : '<span class="calendar-empty-note">нет событий</span>'}</div>
+        </div>`;
+      }
+      const totalCells = firstWeekday + daysInMonth;
+      for (let blank = totalCells; blank % 7 !== 0; blank++) html += '<div class="calendar-day blank"></div>';
+      $('activityCalendar').innerHTML = html;
+    }
+
+    function topicValuesForPeriod(topic, data) {
+      if (state.statsPeriod === 'month' || state.statsPeriod === 'allTime') return topic[state.statsPeriod] || {};
+      const taskNumber = String(topic.taskNumber || '');
+      const tests = (data.tests || []).filter(item => entryInStatsPeriod(item.date) && String(item.taskNumber || '') === taskNumber);
+      const homework = (data.homework || []).filter(item => entryInStatsPeriod(item.assignedAt || item.submittedAt) && String(item.taskNumber || '') === taskNumber);
+      const submittedHomework = homework.filter(homeworkIsSubmitted);
+      const testAverage = numericAverage(tests.map(item => item.scorePercent));
+      const homeworkAverage = numericAverage(submittedHomework.map(item => item.scorePercent));
+      const mastery = masteryFromAverages(testAverage, homeworkAverage);
+      return {
+        testAverage,
+        testCount: tests.length,
+        homeworkAverage,
+        homeworkCount: homework.length,
+        mockAccuracy: null,
+        mockAttempts: 0,
+        mastery,
+        status: mastery === null ? 'Нет данных' : mastery >= 80 ? 'Освоено' : mastery >= 60 ? 'В работе' : 'Требует внимания'
+      };
+    }
+
+    function renderMockChart(items) {
+      const points = items.filter(item => entryInStatsPeriod(item.date) && hasNumber(item.scorePercent))
+        .slice(0, 12)
+        .reverse();
+      if (!points.length) {
+        $('mockChart').innerHTML = '<div class="inline-empty">Пробников за период пока нет.</div>';
+        return;
+      }
+      const width = 620;
+      const height = 130;
+      const pad = 18;
+      const step = points.length > 1 ? (width - pad * 2) / (points.length - 1) : 0;
+      const coordinates = points.map((item, index) => ({
+        x: points.length === 1 ? width / 2 : pad + index * step,
+        y: height - pad - Number(item.scorePercent) * (height - pad * 2) / 100,
+        item
+      }));
+      const polyline = coordinates.map(point => `${point.x},${point.y}`).join(' ');
+      $('mockChart').innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Динамика результатов пробников">
+        <line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}" stroke="rgba(154,190,224,.25)" />
+        <line x1="${pad}" y1="${height / 2}" x2="${width - pad}" y2="${height / 2}" stroke="rgba(154,190,224,.12)" stroke-dasharray="5 5" />
+        <polyline fill="none" stroke="#ffb52e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="${polyline}" />
+        ${coordinates.map(point => `<circle cx="${point.x}" cy="${point.y}" r="5" fill="#07111f" stroke="#ffb52e" stroke-width="3"><title>${escapeHtml(statsDate(point.item.date))}: ${Math.round(point.item.scorePercent)}%</title></circle>`).join('')}
+      </svg>
+      <div class="chart-labels"><span>${statsDate(points[0].date)}</span><span>шкала 0–100%</span><span>${statsDate(points[points.length - 1].date)}</span></div>`;
+    }
+
+    function renderGrowthPoints(topics, data) {
+      const items = topics.map(topic => ({ topic, values: topicValuesForPeriod(topic, data) }))
+        .filter(item => hasNumber(item.values.mastery) && Number(item.values.mastery) < 80)
+        .sort((a, b) => Number(a.values.mastery) - Number(b.values.mastery))
+        .slice(0, 5);
+      $('growthPoints').innerHTML = items.length
+        ? items.map(item => `<div class="history-item"><div><strong>№${item.topic.taskNumber} · ${escapeHtml(item.topic.topicName)}</strong><small>${escapeHtml(item.values.status || '')}</small></div><span class="history-value">${Math.round(item.values.mastery)}%</span></div>`).join('')
+        : '<div class="inline-empty">Нет тем ниже 80% за выбранный период.</div>';
+    }
+
+    function renderTopicStats(topics, data) {
+      $('topicStatsBody').innerHTML = topics.map(topic => {
+        const values = topicValuesForPeriod(topic, data);
+        const noData = values.mastery === null || values.mastery === undefined;
+        return `<tr class="${noData ? 'no-data' : ''}">
+          <td><strong>${topic.taskNumber}</strong></td>
+          <td>${escapeHtml(topic.topicName)}</td>
+          <td>${values.testAverage === null || values.testAverage === undefined ? '—' : values.testAverage + '%'}<span class="metric-sub">${Number(values.testCount) || 0} рез.</span></td>
+          <td>${values.homeworkAverage === null || values.homeworkAverage === undefined ? '—' : values.homeworkAverage + '%'}<span class="metric-sub">${Number(values.homeworkCount) || 0} ДЗ</span></td>
+          <td>${values.mockAccuracy === null || values.mockAccuracy === undefined ? '—' : values.mockAccuracy + '%'}<span class="metric-sub">${Number(values.mockAttempts) || 0} заданий</span></td>
+          <td>${scorePill(values.mastery)}</td>
+          <td>${escapeHtml(values.status || 'Нет данных')}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function historyHtml(items, formatter, emptyText) {
+      const filtered = items.filter(item => entryInStatsPeriod(formatter.date(item))).slice(0, 12);
+      return filtered.length
+        ? filtered.map(formatter.item).join('')
+        : `<div class="inline-empty">${escapeHtml(emptyText)}</div>`;
+    }
+
+    function renderHistories(data) {
+      $('testHistory').innerHTML = historyHtml(data.tests || [], {
+        date: item => item.date,
+        item: item => `<div class="history-item"><div><strong>№${item.taskNumber} · ${escapeHtml(item.topicName || 'Тест')}</strong><small>${statsDate(item.date)}${item.durationSeconds ? ' · ' + durationText(item.durationSeconds) : ''}</small></div><span class="history-value">${item.scorePercent}%</span></div>`
+      }, 'Тестов за период нет.');
+      $('homeworkHistory').innerHTML = historyHtml(data.homework || [], {
+        date: item => item.assignedAt || item.submittedAt,
+        item: item => `<div class="history-item"><div><strong>${item.taskNumber ? '№' + item.taskNumber + ' · ' : ''}${escapeHtml(item.homeworkName || 'ДЗ')}</strong><small>${statsDate(item.assignedAt || item.submittedAt)} · ${escapeHtml(item.status || '')}</small></div><span class="history-value">${item.scorePercent === null || item.scorePercent === undefined ? '—' : item.scorePercent + '%'}</span></div>`
+      }, 'Домашних работ за период нет.');
+      $('mockHistory').innerHTML = historyHtml(data.mocks || [], {
+        date: item => item.date,
+        item: item => `<div class="history-item"><div><strong>${escapeHtml(item.variantName || 'Пробник')}</strong><small>${statsDate(item.date)}${item.primaryScore !== null && item.primaryScore !== undefined ? ' · первичный ' + item.primaryScore : ''}</small></div><span class="history-value">${escapeHtml(mockText(item))}</span></div>`
+      }, 'Пробников за период нет.');
+      $('lessonHistory').innerHTML = historyHtml(data.lessons || [], {
+        date: item => item.lessonAt,
+        item: item => `<div class="history-item"><div><strong>${escapeHtml(item.taskNumbers ? 'Задания: ' + item.taskNumbers : item.topicComment || 'Занятие')}</strong><small>${statsDate(item.lessonAt, true)} · ${escapeHtml(item.attendanceStatus || '')}</small></div><span class="history-value">${item.durationMinutes || 0} мин</span></div>`
+      }, 'Занятий за период нет.');
+    }
+
     function cacheTimeText(timestamp) {
       if (!timestamp) return 'время неизвестно';
       return new Intl.DateTimeFormat('ru-RU', {
@@ -902,7 +1783,8 @@
           version: state.dataVersion,
           students: state.students,
           groups: state.groups,
-          catalog: state.catalog
+          catalog: state.catalog,
+          statistics: state.statistics
         }));
       } catch (_) {}
     }
@@ -911,6 +1793,19 @@
       state.students = Array.isArray(data.students) ? data.students : [];
       state.groups = Array.isArray(data.groups) ? data.groups : [];
       state.catalog = Array.isArray(data.catalog) ? data.catalog : [];
+      state.statistics = data.statistics && typeof data.statistics === 'object'
+        ? data.statistics
+        : { currentMonth: '', generatedAt: '', students: {} };
+      if (!state.statistics.students) state.statistics.students = {};
+      if (!state.statsDateFrom || !state.statsDateTo) {
+        const initialBounds = monthBounds(state.statistics.currentMonth || todayDateKeyMoscow().slice(0, 7));
+        state.statsDateFrom = initialBounds.from;
+        state.statsDateTo = initialBounds.to;
+        $('statsDateFrom').value = state.statsDateFrom;
+        $('statsDateTo').value = state.statsDateTo;
+      }
+      if (!state.calendarMonth) state.calendarMonth = (state.statistics.currentMonth || todayDateKeyMoscow().slice(0, 7));
+      $('calendarMonth').value = state.calendarMonth;
       state.dataVersion = String(data.version || '');
       state.dataLoaded = true;
       state.dataLoadedAt = Number(savedAt) || Date.now();
@@ -926,6 +1821,7 @@
       renderGroups();
       renderSelection();
       renderCatalog();
+      renderStatistics();
       if (saveToBrowser) writeTeacherBrowserCache();
     }
 
@@ -937,6 +1833,7 @@
           || !Array.isArray(cached.students)
           || !Array.isArray(cached.groups)
           || !Array.isArray(cached.catalog)
+          || !cached.statistics
         ) return false;
         applyTeacherData(cached, cached.savedAt, false);
         setCacheStatus('из кэша браузера · ' + cacheTimeText(cached.savedAt));
@@ -1039,8 +1936,75 @@
       return state.versionCheckPromise;
     }
 
+    function refreshTeacherDataSoon() {
+      if (IS_EMBEDDED_PREVIEW) return;
+      setTimeout(() => loadTeacherData(true, true).catch(() => {}), 80);
+    }
+
     document.querySelectorAll('.tab').forEach(button => {
       button.addEventListener('click', () => switchView(button.dataset.view));
+    });
+    $('statsSearch').addEventListener('input', renderStatistics);
+    $('statsProgram').addEventListener('change', renderStatistics);
+    function setStatsPeriod(period) {
+      state.statsPeriod = period;
+      document.querySelectorAll('[data-stats-period]').forEach(item => {
+        item.classList.toggle('active', item.dataset.statsPeriod === period);
+      });
+      if (period === 'month') {
+        const bounds = monthBounds(state.statistics.currentMonth || todayDateKeyMoscow().slice(0, 7));
+        state.statsDateFrom = bounds.from;
+        state.statsDateTo = bounds.to;
+        state.calendarMonth = (state.statistics.currentMonth || todayDateKeyMoscow().slice(0, 7));
+      } else if (period === 'last30') {
+        const bounds = periodBounds();
+        state.statsDateFrom = bounds.from;
+        state.statsDateTo = bounds.to;
+        state.calendarMonth = bounds.to.slice(0, 7);
+      }
+      $('statsDateFrom').value = state.statsDateFrom;
+      $('statsDateTo').value = state.statsDateTo;
+      $('calendarMonth').value = state.calendarMonth;
+      renderStatistics();
+    }
+
+    document.querySelectorAll('[data-stats-period]').forEach(button => {
+      button.addEventListener('click', () => setStatsPeriod(button.dataset.statsPeriod));
+    });
+    $('applyStatsRange').addEventListener('click', () => {
+      const from = $('statsDateFrom').value;
+      const to = $('statsDateTo').value;
+      if (!from || !to) {
+        $('statsRangeHint').innerHTML = '<strong>Укажите обе даты:</strong> начало и окончание периода.';
+        return;
+      }
+      if (from > to) {
+        $('statsRangeHint').innerHTML = '<strong>Проверьте даты:</strong> начало периода не может быть позже окончания.';
+        return;
+      }
+      state.statsDateFrom = from;
+      state.statsDateTo = to;
+      state.calendarMonth = to.slice(0, 7);
+      setStatsPeriod('custom');
+    });
+    $('last30Days').addEventListener('click', () => setStatsPeriod('last30'));
+    $('calendarPrev').addEventListener('click', () => shiftCalendarMonth(-1));
+    $('calendarNext').addEventListener('click', () => shiftCalendarMonth(1));
+    $('calendarMonth').addEventListener('change', event => {
+      if (!/^\d{4}-\d{2}$/.test(event.target.value)) return;
+      state.calendarMonth = event.target.value;
+      if (state.statsStudentId) renderStudentProfile();
+    });
+    $('statsTableBody').addEventListener('click', event => {
+      const button = event.target.closest('[data-profile-id]');
+      if (!button) return;
+      state.statsStudentId = button.dataset.profileId;
+      renderStudentProfile();
+      $('studentProfile').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    $('closeProfile').addEventListener('click', () => {
+      state.statsStudentId = '';
+      $('studentProfile').classList.add('hidden');
     });
     $('existingMode').addEventListener('click', () => setGroupMode('existing'));
     $('newMode').addEventListener('click', () => setGroupMode('new'));
@@ -1120,7 +2084,8 @@
             studentId: data.studentId,
             studentName: data.studentName,
             grade: data.grade || '',
-            groupId: data.groupId || ''
+            groupId: data.groupId || '',
+            programId: data.programId || 'EGE_MATH'
           };
           state.students = state.students
             .filter(student => student.studentId !== data.studentId)
@@ -1136,6 +2101,7 @@
           renderSelection();
           writeTeacherBrowserCache();
           setCacheStatus('обновлены после создания ученика · ' + cacheTimeText(state.dataLoadedAt));
+          renderStatistics();
         } else {
           await loadTeacherData(true, true).catch(() => {});
         }
@@ -1145,6 +2111,7 @@
           state.attendance[data.studentId] = 'Присутствовал';
           renderSelection();
         }
+        refreshTeacherDataSoon();
       } catch (error) {
         setStatus('studentStatus', error.message || 'Не удалось создать ученика.', true);
       } finally {
@@ -1208,6 +2175,7 @@
         $('lessonSuccessText').textContent = `Записей создано: ${data.count}. Можно сразу назначить ДЗ.`;
         $('lessonSuccess').classList.add('show');
         setStatus('lessonStatus', '');
+        refreshTeacherDataSoon();
       } catch (error) {
         setStatus('lessonStatus', error.message, true);
       } finally {
@@ -1245,6 +2213,7 @@
         $('assignmentMessage').textContent = data.message;
         $('homeworkSuccess').classList.add('show');
         setStatus('homeworkStatus', '');
+        refreshTeacherDataSoon();
       } catch (error) {
         setStatus('homeworkStatus', error.message, true);
       } finally {
