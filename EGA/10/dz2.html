@@ -101,6 +101,40 @@
     }
     @media(max-width:520px){.avatar{display:none}.sky{min-height:220px}.task{padding:16px}.hero-wrap{padding-top:25px}}
     @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+
+    /* ===== V4: ЕГЭ-модель решения + режим снимка ===== */
+    .solution-theory{margin:12px 0;padding:12px 14px;background:#1a3520;border:3px solid #496949;color:#eaf7e6;line-height:1.48}
+    .solution-theory b{color:var(--gold)}
+    .model-table-wrap{margin:14px 0;border:4px solid #0a1309;background:#f4edda;color:#172018;box-shadow:5px 5px 0 #071006}
+    .model-table-title{padding:10px 12px;background:#315b35;color:#fff;font-weight:900;text-transform:uppercase;letter-spacing:.03em}
+    .model-table-scroll{overflow-x:auto}
+    .model-table{width:100%;border-collapse:collapse;margin:0;font-size:.95rem;background:#f8f1df;color:#172018}
+    .model-table th,.model-table td{border:2px solid #7e745f;padding:8px 9px;text-align:center;vertical-align:middle}
+    .model-table th{background:#d7c79f;color:#20301d}.model-table td:first-child,.model-table th:first-child{text-align:left;font-weight:900}
+    .equation-box{margin:12px 0;padding:13px 15px;background:#081407;border:3px solid #5a7b50;border-left:7px solid var(--gold);font:900 1.02rem/1.5 Georgia,serif;color:#fff4ad;overflow-x:auto}
+    .equation-line+.equation-line{margin-top:5px;padding-top:5px;border-top:1px dashed #ffffff35}
+    .compact-solution{margin:10px 0 0;padding:12px 14px;background:#20391e;border-left:6px solid #72d13a;line-height:1.55}
+    .model-link{margin:0;padding:9px 12px;background:#e5dbc2;color:#394431;border-top:2px dashed #988b70;font-weight:800;font-size:.9rem}
+    .solution .tip{margin-top:10px}
+
+    #captureBtn{white-space:nowrap}
+    .capture-sheet{position:fixed;inset:0;z-index:120;background:#f6f0df;color:#171b15;padding:10px 12px 12px;display:grid;grid-template-rows:auto minmax(0,1fr);gap:8px;overflow:hidden}
+    .capture-head{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:3px solid #273122;padding:0 3px 7px}
+    .capture-head b{font:900 clamp(15px,1.5vw,23px)/1 Impact,"Arial Black",sans-serif;letter-spacing:.035em;text-transform:uppercase;color:#182116}
+    .capture-head span{font-size:11px;font-weight:900;color:#596354;white-space:nowrap}
+    .capture-grid{min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(4,minmax(0,1fr));gap:7px}
+    .capture-task{min-height:0;overflow:hidden;border:2px solid #30392c;background:#fffdf5;padding:7px 9px;display:grid;grid-template-columns:31px minmax(0,1fr);gap:7px;align-content:start;box-shadow:2px 2px 0 #b8ad92}
+    .capture-num{width:29px;height:29px;display:grid;place-items:center;background:#6c4828;color:#fff;border:2px solid #2f2116;font-weight:1000;font-size:13px}
+    .capture-copy{min-width:0}.capture-meta{font-size:9px;font-weight:1000;text-transform:uppercase;letter-spacing:.035em;color:#537044;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .capture-copy h3{margin:0 0 3px;color:#20261d;font:900 clamp(10px,1.05vw,15px)/1.05 Impact,"Arial Black",sans-serif;letter-spacing:.015em}
+    .capture-copy p{margin:0;color:#171b15;font-size:clamp(9px,.88vw,13px);line-height:1.18;font-weight:750}
+    .capture-task.long .capture-copy p{font-size:clamp(8px,.78vw,11.5px);line-height:1.14}
+    .capture-answer{margin-top:4px;font-size:9px;font-weight:900;color:#596354}
+    body.capture-open{overflow:hidden}
+    @media(max-height:760px){.capture-sheet{padding:7px 9px}.capture-grid{gap:5px}.capture-task{padding:5px 7px}.capture-copy p{font-size:clamp(8px,.78vw,11px);line-height:1.12}.capture-copy h3{font-size:clamp(9px,.9vw,12px)}.capture-meta,.capture-answer{font-size:8px}}
+    @media(max-width:760px){.capture-sheet{padding:5px}.capture-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}.capture-task{grid-template-columns:23px 1fr;padding:4px}.capture-num{width:22px;height:22px;font-size:10px}.capture-copy p{font-size:7.5px}.capture-copy h3{font-size:8.5px}.capture-head b{font-size:12px}.capture-head span{font-size:8px}}
+
   </style>
 </head>
 <body>
@@ -127,7 +161,8 @@
     <div class="topbar-inner">
       <div class="student-chip">⛏️ <span id="studentLabel">Ученик</span></div>
       <div class="mini-progress" aria-label="Прогресс заполнения"><i id="progressFill"></i></div>
-      <button class="icon-btn" id="soundBtn" type="button">🔊 Звук</button>
+      <button class="icon-btn" id="captureBtn" type="button">📸 Скриншот</button>
+       <button class="icon-btn" id="soundBtn" type="button">🔊 Звук</button>
     </div>
   </div>
 
@@ -182,6 +217,12 @@
   </main>
 
   <div class="toast" id="toast" role="status"></div><div class="confetti" id="confetti"></div>
+
+  <section class="capture-sheet hidden" id="captureSheet" aria-label="Режим снимка">
+    <div class="capture-head"><b id="captureTitle">ЕГЭ №10 · Домашняя работа</b><span>Esc — выйти из режима снимка</span></div>
+    <div class="capture-grid" id="captureGrid"></div>
+  </section>
+
   <footer>Оригинальная процедурная музыка · автономный HTML · ответы не отправляются в таблицу</footer>
 
   <script>
@@ -542,6 +583,121 @@
       const el=$("loginStatus");el.textContent=msg;el.className=`status ${type}`;el.classList.remove("hidden");
     }
     function toast(msg){const el=$("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),3300)}
+
+    const GUIDE_THEORY={
+      "Проценты, сплавы и смеси":`Для смесей и сплавов основной объект — масса нужного вещества: mвещ = mсмеси·c. После смешивания масса вещества складывается; у воды c=0. При сушке сохраняется сухое вещество, а не вода.`,
+      "Движение по прямой":`Каждый участник или участок — отдельная строка таблицы S–v–t. Зависимый столбец заполняем по t=S/v или S=v·t, а уравнение берём из фразы о разности времён, задержке или из формулы vср=ΣS/Σt.`,
+      "Сложное движение":`Сначала фиксируем события: старт → встреча/догонка → разворот → финиш. Для каждого этапа записываем путь, скорость и время; одинаковые промежутки времени дают вторую связь. Навстречу скорости складываются, при догонке — вычитаются.`,
+      "Движение протяжённых тел":`Сначала переводим км/ч в м/с. При полном прохождении учитывается сумма длин. Для встречного движения относительная скорость v1+v2, для обгона — vбыстр−vмедл.`,
+      "Движение по воде":`По течению скорость равна vсоб+vтеч, против течения — vсоб−vтеч. В таблице отдельно записываем путь, скорость и время каждого участка; стоянка добавляется только к общему времени.`,
+      "Производительность и разница во времени":`Это та же таблица «объём–скорость–время»: t=A/p. Удобно обозначить меньшую производительность x, большую — x+d, а затем записать указанную в условии разность времён.`,
+      "Совместная работа":`Всю работу принимаем за 1. Производительность исполнителя равна 1/t, а при совместной работе складываются именно производительности: pобщ=p1+p2, а не времена.`
+    };
+    const numList=s=>[...String(s).matchAll(/-?\d+(?:[.,]\d+)?/g)].map(m=>Number(m[0].replace(",",".")));
+    const eqFromSteps=t=>{
+      const s=t.steps.find(x=>/^Уравнение:/.test(x));
+      return s?s.replace(/^Уравнение:\s*/,"").replace(/\.$/,""):"";
+    };
+    const compactCalc=t=>{
+      const lines=t.steps.filter(s=>!/^Ответ:/.test(s)).slice(-3);
+      return lines.join(" ").replace(/\s+/g," ");
+    };
+    function modelFor(t){
+      const n=numList(t.prompt), A=t.answer;
+      const base={headers:[],rows:[],equations:[],link:"",summary:compactCalc(t)};
+      if(t.id==="dilution"){
+        const [v,p,add]=n,total=v+add;
+        return {...base,headers:["Часть","Объём, л","Концентрация","Растворённое вещество"],rows:[["Исходный раствор",v,`${p}%`,`${v}·${p}/100`],["Добавленная вода",add,"0%","0"],["Итог",total,"x%",`${total}·x/100`]],equations:[`${v}·${p}/100 = ${total}·x/100`],link:"Масса растворённого вещества до и после добавления воды одинакова.",summary:`Из баланса вещества получаем x=${fmt(A)}%.`};
+      }
+      if(t.id==="equalMix"){
+        const [m1,c1,m2,c2]=n,total=m1+m2;
+        return {...base,headers:["Раствор","Масса, кг","Доля","Масса вещества"],rows:[["Первый",m1,`${c1}/100`,`${m1}·${c1}/100`],["Второй",m2,`${c2}/100`,`${m2}·${c2}/100`],["Смесь",total,"x/100",`${total}·x/100`]],equations:[`${m1}·${c1}/100 + ${m2}·${c2}/100 = ${total}·x/100`],link:"Сумма массы вещества в исходных растворах равна массе вещества в смеси.",summary:`Решение этого баланса даёт x=${fmt(A)}%. При равных массах это совпадает со средним арифметическим концентраций.`};
+      }
+      if(t.id==="drying"){
+        const [w1,w2,m2]=n;
+        return {...base,headers:["Состояние","Масса, кг","Доля сухого вещества","Сухое вещество"],rows:[["Свежие ягоды","x",`${100-w1}%`,`x·${100-w1}/100`],["Сушёные ягоды",m2,`${100-w2}%`,`${m2}·${100-w2}/100`]],equations:[`x·${100-w1}/100 = ${m2}·${100-w2}/100`],link:"При сушке сохраняется масса сухого вещества.",summary:`Из равенства сухого вещества получаем x=${fmt(A)} кг.`};
+      }
+      if(t.id==="alloyDifference"){
+        const [c1,c2,d,c]=n, firstMore=/Масса первого сплава больше/.test(t.prompt); const m1=firstMore?`x+${d}`:"x",m2=firstMore?"x":`x+${d}`;
+        return {...base,headers:["Сплав","Масса, кг","Доля металла","Масса металла"],rows:[["Первый",m1,`${c1}/100`,`${m1}·${c1}/100`],["Второй",m2,`${c2}/100`,`${m2}·${c2}/100`],["Итог",`2x+${d}`,`${c}/100`,`(2x+${d})·${c}/100`]],equations:[`${m1}·${c1}/100 + ${m2}·${c2}/100 = (2x+${d})·${c}/100`],link:"Баланс строится только по массе чистого металла; разность масс уже учтена в x и x+d.",summary:compactCalc(t)};
+      }
+      if(t.id==="avgTimed"){
+        const [t1,v1,t2,v2]=n,s1=t1*v1,s2=t2*v2;
+        return {...base,headers:["Участок","S, км","v, км/ч","t, ч"],rows:[["1",s1,v1,t1],["2",s2,v2,t2],["Итого",s1+s2,"—",t1+t2]],equations:[`vср = (${s1}+${s2}) / (${t1}+${t2})`],link:"Средняя скорость — весь путь, делённый на всё время.",summary:`vср=${fmt(A)} км/ч.`};
+      }
+      if(t.id==="delayedMeet"){
+        const [D,h,v2,xmeet]=n;
+        return {...base,headers:["Участник","S до встречи, км","v, км/ч","t до встречи, ч"],rows:[["Первый",xmeet,"x",`${xmeet}/x`],["Второй",D-xmeet,v2,`${D-xmeet}/${v2}`]],equations:[`${xmeet}/x − ${D-xmeet}/${v2} = ${h}`],link:"Первый стартовал раньше, поэтому его время до встречи больше на величину задержки.",summary:`Решая уравнение времени, получаем x=${fmt(A)} км/ч.`};
+      }
+      if(t.id==="cyclistGap"){
+        const [D,d,gap]=n;
+        return {...base,headers:["Участник","S, км","v, км/ч","t, ч"],rows:[["Медленный",D,"x",`${D}/x`],["Быстрый",D,`x+${d}`,`${D}/(x+${d})`]],equations:[`${D}/x − ${D}/(x+${d}) = ${gap}`],link:"Одинаковый путь; медленный затратил на Δt часов больше.",summary:`Положительное решение: x=${fmt(A)} км/ч.`};
+      }
+      if(t.id==="meetTotals"){
+        const dm=t.prompt.match(/на\s+([\d,.]+)\s+ч быстрее/),d=dm?Number(dm[1].replace(",",".")):0; const sm=t.steps.join(" ").match(/1\/([\d,]+)\s*=\s*1\/x/),meet=sm?sm[1]:"t";
+        return {...base,headers:["Участник","Полное время маршрута","Доля маршрута за 1 ч","Доля до встречи"],rows:[["Быстрый","x","1/x",`${meet}/x`],["Медленный",`x+${fmt(d)}`,`1/(x+${fmt(d)})`,`${meet}/(x+${fmt(d)})`]],equations:[`${meet}/x + ${meet}/(x+${fmt(d)}) = 1`],link:"К моменту встречи вместе пройдена одна полная длина маршрута.",summary:compactCalc(t)};
+      }
+      if(t.id==="chaseTurn"||t.id==="chaseTurn2"){
+        const [D,h,v]=n;
+        return {...base,headers:["Этап","Автомобиль","Мотоциклист","Связь"],rows:[["До встречи C","S=x, v=u, t=x/u",`S=x, v=${v}, t=x/${v}`,`x/u = ${h}+x/${v}`],["После встречи",`S=${D}−x, v=u, t=(${D}−x)/u`,`S=x, v=${v}, t=x/${v}`,`(${D}−x)/u = x/${v}`]],equations:[`x/u = ${h} + x/${v}`,`(${D}−x)/u = x/${v}`],link:"Первая связь — догонка с задержкой; вторая — одинаковое время от встречи до одновременного финиша.",summary:compactCalc(t)};
+      }
+      if(t.id==="trainPlatform"){
+        const [P,time,speed]=n,ms=speed/3.6;
+        return {...base,headers:["Ситуация","Пройденный путь, м","v, м/с","t, c"],rows:[["Полное прохождение платформы",`L+${P}`,fmt(ms),time]],equations:[`L + ${P} = ${fmt(ms)}·${time}`],link:"Локомотив проходит длину платформы и собственную длину поезда.",summary:`L=${fmt(A)} м.`};
+      }
+      if(t.id==="trainsOpposite"){
+        const [v1,v2,L2,time]=n,rel=(v1+v2)/3.6;
+        return {...base,headers:["Относительное движение","Путь, м","vотн, м/с","t, c"],rows:[["Поезда навстречу",`L+${L2}`,`(${v1}+${v2})/3,6 = ${fmt(rel)}`,time]],equations:[`L + ${L2} = ${fmt(rel)}·${time}`],link:"При встрече скорости складываются, а пройти нужно сумму длин поездов.",summary:`L=${fmt(A)} м.`};
+      }
+      if(t.id==="trainsSame"){
+        const [vf,vs,Ls,time]=n,rel=(vf-vs)/3.6;
+        return {...base,headers:["Относительное движение","Путь, м","vотн, м/с","t, c"],rows:[["Обгон",`L+${Ls}`,`(${vf}−${vs})/3,6 = ${fmt(rel)}`,time]],equations:[`L + ${Ls} = ${fmt(rel)}·${time}`],link:"При обгоне скорости вычитаются, но относительный путь равен сумме длин.",summary:`L=${fmt(A)} м.`};
+      }
+      if(t.id==="trainPole"){
+        const [speed,time]=n,ms=speed/3.6;
+        return {...base,headers:["Ситуация","Путь, м","v, м/с","t, c"],rows:[["Мимо точки/наблюдателя","L",fmt(ms),time]],equations:[`L = ${fmt(ms)}·${time}`],link:"У наблюдателя нет собственной длины, поэтому поезд проходит только свою длину.",summary:`L=${fmt(A)} м.`};
+      }
+      if(t.id==="riverDifference"){
+        const [D,diff,u]=n;
+        return {...base,headers:["Направление","S, км","v, км/ч","t, ч"],rows:[["Против течения",D,`x−${u}`,`${D}/(x−${u})`],["По течению",D,`x+${u}`,`${D}/(x+${u})`]],equations:[`${D}/(x−${u}) − ${D}/(x+${u}) = ${diff}`,`x>${u}`],link:"Против течения время больше на указанную в условии величину.",summary:`Допустимый положительный корень: x=${fmt(A)} км/ч.`};
+      }
+      if(t.id==="riverRoundDistance"){
+        const [v,u,stop]=n,eq=eqFromSteps(t)||`S/(${v}+${u}) + S/(${v}−${u}) = T−${stop}`;
+        return {...base,headers:["Этап","S, км","v, км/ч","t, ч"],rows:[["По течению","S",v+u,`S/${v+u}`],["Против течения","S",v-u,`S/${v-u}`],["Стоянка","—","—",stop]],equations:[eq],link:"Из полного времени сначала отделяется стоянка; оставшееся время — сумма двух дробей.",summary:compactCalc(t)};
+      }
+      if(t.id==="riverCurrent"){
+        const [v,D,stop]=n,eq=eqFromSteps(t)||`${D}/(${v}+x)+${D}/(${v}−x)+${stop}=T`;
+        return {...base,headers:["Этап","S, км","v, км/ч","t, ч"],rows:[["По течению",D,`${v}+x`,`${D}/(${v}+x)`],["Против течения",D,`${v}−x`,`${D}/(${v}−x)`],["Стоянка","—","—",stop]],equations:[eq,`0<x<${v}`],link:"x — скорость течения; собственная скорость баржи уже известна.",summary:compactCalc(t)};
+      }
+      if(t.id==="workerOrder"){
+        const [d,N,gap]=n;
+        return {...base,headers:["Рабочий","Объём A, деталей","p, дет./ч","t=A/p, ч"],rows:[["Второй (медленнее)",N,"x",`${N}/x`],["Первый",N,`x+${d}`,`${N}/(x+${d})`]],equations:[`${N}/x − ${N}/(x+${d}) = ${gap}`],link:"Медленный рабочий тратит на Δt часов больше.",summary:`Положительный корень x=${fmt(A)} дет./ч.`};
+      }
+      if(t.id==="pipeDifference"){
+        const [p1,d,gap]=n;
+        return {...base,headers:["Труба","Объём A, л","p, л/мин","t=A/p, мин"],rows:[["Первая","V",p1,`V/${p1}`],["Вторая","V",p1+d,`V/${p1+d}`]],equations:[`V/${p1} − V/${p1+d} = ${gap}`],link:"Первая труба медленнее, поэтому её время больше.",summary:`Линейное уравнение даёт V=${fmt(A)} л.`};
+      }
+      if(t.id==="jointTwo"){
+        const [a,b]=n;
+        return {...base,headers:["Исполнитель","Вся работа A","Время","Производительность"],rows:[["Первый","1",`${a} ч`,`1/${a}`],["Второй","1",`${b} ч`,`1/${b}`],["Вместе","1","T","1/T"]],equations:[`1/${a} + 1/${b} = 1/T`],link:"При совместной работе складываются производительности.",summary:`T=${fmt(A)} ч.`};
+      }
+      if(t.id==="jointKnown"){
+        const [together,second]=n;
+        return {...base,headers:["Исполнитель","Вся работа A","Время, мин","Производительность"],rows:[["Первый","1","x","1/x"],["Второй","1",second,`1/${second}`],["Вместе","1",together,`1/${together}`]],equations:[`1/x + 1/${second} = 1/${together}`],link:"Совместная производительность равна сумме производительностей двух насосов.",summary:`Из уравнения получаем x=${fmt(A)} мин.`};
+      }
+      return {...base,headers:["Модель","Запись"],rows:[["Основная формула",t.formulas.join("; ")]],equations:[eqFromSteps(t)||t.formulas[0]],link:t.recall,summary:compactCalc(t)};
+    }
+    function modelTableHTML(m){
+      return `<div class="model-table-wrap"><div class="model-table-title">Заполняем модель задачи</div><div class="model-table-scroll"><table class="model-table"><thead><tr>${m.headers.map(h=>`<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${m.rows.map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="model-link"><b>Фраза-связка:</b> ${esc(m.link)}</p></div>`;
+    }
+    function renderCaptureSheet(){
+      if(!tasks.length)return;
+      $("captureTitle").textContent=`ЕГЭ №10 · ДЗ ${WORK_CONFIG.part}/3 · ${WORK_CONFIG.title}`;
+      $("captureGrid").innerHTML=tasks.map((t,i)=>`<article class="capture-task ${t.prompt.length>155?"long":""}"><div class="capture-num">${i+1}</div><div class="capture-copy"><div class="capture-meta">${esc(t.prototype)}</div><h3>${esc(t.title)}</h3><p>${esc(t.prompt)}</p><div class="capture-answer">Ответ: __________________</div></div></article>`).join("");
+    }
+    function openCapture(){renderCaptureSheet();$("captureSheet").classList.remove("hidden");document.body.classList.add("capture-open")}
+    function closeCapture(){$("captureSheet").classList.add("hidden");document.body.classList.remove("capture-open")}
+
     function renderShell(){
       document.title=`ЕГЭ №10 · ДЗ ${WORK_CONFIG.part}/3 · ${WORK_CONFIG.title}`;
       $("partHero").textContent=$("partBadge").textContent=WORK_CONFIG.part;
@@ -629,14 +785,16 @@
     }
     function renderSolutions(){
       $("solutions").innerHTML=tasks.map((t,i)=>{
-        const good=isCorrect(userAnswers[i],t.answer);
+        const good=isCorrect(userAnswers[i],t.answer),m=modelFor(t),theory=GUIDE_THEORY[t.prototype]||t.recall;
         return `<article class="solution ${good?"good":"bad"}">
           <h3>Задача ${i+1}. ${esc(t.title)} · ${good?"✓ верно":"✗ ошибка"}</h3>
           <p><b>Ваш ответ:</b> ${esc(userAnswers[i])} · <b>Правильный:</b> ${fmt(t.answer)}${t.unit?` ${esc(t.unit)}`:""}</p>
-          <h4>Вспомним</h4><p>${esc(t.recall)}</p>
-          <h4>Формулы</h4>${t.formulas.map(f=>`<div class="formula">${esc(f)}</div>`).join("")}
-          <h4>Лайфхак</h4><div class="tip">💡 ${esc(t.lifehack)}</div>
-          <h4>Пошаговое решение</h4><ol class="steps">${t.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>
+          <div class="solution-theory"><b>Как распознать модель.</b> ${esc(theory)}</div>
+          ${modelTableHTML(m)}
+          <h4>Составляем выражение / уравнение</h4>
+          <div class="equation-box">${m.equations.map(x=>`<div class="equation-line">${esc(x)}</div>`).join("")}</div>
+          <h4>Краткое решение</h4><p class="compact-solution">${esc(m.summary)}</p>
+          <div class="tip">💡 <b>Контроль:</b> ${esc(t.lifehack)}</div>
         </article>`}).join("");
       $("solutions").classList.remove("hidden");$("reviewBtn").disabled=true;$("solutions").scrollIntoView({behavior:"smooth"});audio.click(true);
     }
@@ -653,10 +811,12 @@
       renderShell();
       $("loginForm").addEventListener("submit",e=>{e.preventDefault();const code=$("studentCode").value.trim();if(code)doLogin(code)});
       $("homeworkForm").addEventListener("submit",submitHomework);
+      $("captureBtn").addEventListener("click",openCapture);
       $("soundBtn").addEventListener("click",()=>audio.toggle());
       $("reviewBtn").addEventListener("click",renderSolutions);
       $("topBtn").addEventListener("click",()=>scrollTo({top:0,behavior:"smooth"}));
       $("switchBtn").addEventListener("click",()=>{if(submitted||confirm("Сменить ученика? Введённые, но не отправленные ответы будут потеряны.")){clearStudent();location.reload()}});
+      document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("captureSheet").classList.contains("hidden"))closeCapture()});
       addEventListener("online",flushPending);
       const linked=new URLSearchParams(location.search).get("code"),saved=readStudent();
       if(linked){$("studentCode").value=linked;doLogin(linked)}
