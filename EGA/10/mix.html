@@ -3,989 +3,611 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>КРАФТ ЗАДАЧ — тренажёр №10 ЕГЭ</title>
+<title>ТАБЛИЦА КРАФТА — итоговый тренажёр №10 ЕГЭ · currentSession</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
+  /* ===== СТИЛИ (полностью сохранены) ===== */
   :root{
-    --grass:#5db83c; --grass-dk:#3f8a28;
-    --dirt:#8b5a2b; --dirt-dk:#5c3a1a;
-    --stone:#7f7f7f; --stone-dk:#4f4f4f;
-    --wood:#a0672f;
-    --paper:#f3e3bb; --paper-dk:#d9c391; --ink:#3a2a12;
-    --diamond:#4aedd9; --redstone:#ff4444;
-    --gold:#ffcc33;
-    --panel:#1d1d24; --panel-lt:#3a3a45;
+    --panel:#c6c6c6; --panel-dark:#373737;
+    --stone:#8b8b8b; --stone-dark:#4d4d4d;
+    --wood:#7b5230; --wood-dark:#4a2f16; --wood-light:#a9744a;
+    --green:#5fd94a; --red:#e04a3f; --gold:#ffcc22; --diamond:#4aedd9;
+    --ink:#1d1204;
   }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{height:100%;margin:0;overflow:hidden;}
-  body{
-    font-family:'Press Start 2P', 'Courier New', monospace;
-    background:#0b0b10; color:#fff;
-    image-rendering:pixelated;
-    user-select:none;
-    touch-action:manipulation;
-  }
-  canvas#world{position:fixed;inset:0;width:100%;height:100%;z-index:0;image-rendering:pixelated;}
-  canvas#fx{position:fixed;inset:0;width:100%;height:100%;z-index:5;pointer-events:none;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{font-family:'Press Start 2P',monospace;background:#6ba6ff;color:#fff;
+    overflow:hidden;-webkit-tap-highlight-color:transparent;image-rendering:pixelated;
+    -webkit-user-select:none;user-select:none;touch-action:manipulation;}
+  #bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block;}
+  #vignette{position:fixed;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(ellipse at center,rgba(0,0,0,0) 42%,rgba(0,0,0,.6) 100%);}
+  #game{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;
+    padding:7px;gap:6px;max-width:960px;margin:0 auto;overflow-y:auto;overflow-x:hidden;}
 
-  #app{position:relative;z-index:3;height:100%;display:flex;flex-direction:column;padding:8px;gap:8px;}
-  #app.shake{animation:shake .35s;}
-  @keyframes shake{
-    0%,100%{transform:translate(0,0)}
-    15%{transform:translate(-10px,4px)} 30%{transform:translate(9px,-6px)}
-    45%{transform:translate(-7px,-3px)} 60%{transform:translate(6px,5px)}
-    80%{transform:translate(-3px,2px)}
-  }
+  .mc-panel{background:var(--panel);border:4px solid #000;color:var(--ink);
+    box-shadow:inset 3px 3px 0 #fff, inset -3px -3px 0 #5a5a5a, 0 0 0 4px rgba(0,0,0,.25);}
+  .wood-panel{background:var(--wood);border:4px solid #000;
+    box-shadow:inset 3px 3px 0 var(--wood-light), inset -3px -3px 0 var(--wood-dark), 0 0 0 4px rgba(0,0,0,.25);}
 
-  .mc{ /* блочная рамка в стиле Minecraft */
-    border:3px solid #000;
-    box-shadow: inset 3px 3px 0 rgba(255,255,255,.28), inset -3px -3px 0 rgba(0,0,0,.45);
-  }
+  #hud{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between;padding:6px 8px;font-size:9px;}
+  .hud-item{display:flex;align-items:center;gap:5px;white-space:nowrap;}
+  #combo-box{position:relative;padding:2px 5px;border:2px solid #000;background:#3a3a3a;color:var(--gold);}
+  #combo-box.hot{animation:fireGlow .5s infinite alternate;}
+  @keyframes fireGlow{from{box-shadow:0 0 6px 2px #ff9d00,0 0 12px 4px #ff3c00;}
+                      to{box-shadow:0 0 12px 5px #ffdd00,0 0 22px 9px #ff5400;}}
+  .flame{position:absolute;bottom:100%;width:5px;height:9px;background:#ff9d00;
+    animation:flameUp .6s infinite ease-out;pointer-events:none;}
+  @keyframes flameUp{0%{transform:translateY(0) scaleY(1);opacity:1;background:#ffdd00;}
+                     100%{transform:translateY(-14px) scaleY(.3);opacity:0;background:#ff2200;}}
+  .gem{width:13px;height:13px;background:var(--diamond);clip-path:polygon(50% 0,100% 35%,50% 100%,0 35%);
+       box-shadow:inset -2px -2px 0 #1e9c92;}
 
-  /* ---------- ВЕРХНЯЯ ПАНЕЛЬ ---------- */
-  #hud{
-    background:rgba(15,15,20,.82); padding:8px 10px;
-    display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;
-    font-size:10px;
-  }
-  .stat{display:flex;align-items:center;gap:6px;}
-  .hearts{display:flex;gap:3px;}
-  .heart{width:16px;height:16px;position:relative;}
-  .heart svg{width:100%;height:100%;display:block;}
-  .heart.broken{animation:break .5s forwards;}
-  @keyframes break{
-    0%{transform:scale(1.5) rotate(0);filter:brightness(2)}
-    100%{transform:scale(0) rotate(60deg);opacity:0}
-  }
-  .dia{width:15px;height:15px;background:var(--diamond);
-    clip-path:polygon(50% 0,100% 38%,50% 100%,0 38%);}
-  #comboBox{color:var(--gold);}
-  #comboBox.hot{text-shadow:0 0 8px #ff7b00, 0 0 16px #ff2d00;animation:pulse .6s infinite alternate;}
-  @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.14)}}
+  #task-card{padding:9px;font-size:9px;line-height:1.8;text-align:center;}
+  #task-topic{display:inline-block;background:var(--panel-dark);color:var(--gold);padding:3px 6px;
+    font-size:7px;margin-bottom:5px;border:2px solid #000;}
+  #legend{margin-top:5px;font-size:8px;color:#0d4f8b;}
+  #hint-text{margin-top:5px;font-size:8px;color:#6b3f00;display:none;line-height:1.75;}
 
-  /* ---------- КНИГА-ЗАДАЧА ---------- */
-  #stage{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;}
-  #book{
-    width:min(760px,100%); max-height:100%; overflow:auto;
-    background:
-      linear-gradient(90deg, transparent 0 6px, rgba(0,0,0,.10) 6px 10px, transparent 10px),
-      linear-gradient(180deg,var(--paper),var(--paper-dk));
-    color:var(--ink); padding:16px 16px 14px; position:relative;
-    border:4px solid #6b4a1e;
-    box-shadow: inset 0 0 0 3px #c9ad78, 0 8px 0 rgba(0,0,0,.45);
-  }
-  #book::before{
-    content:''; position:absolute;left:0;top:0;bottom:0;width:12px;
-    background:repeating-linear-gradient(180deg,#6b4a1e 0 8px,#4d340f 8px 16px);
-  }
-  #topic{font-size:8px;color:#8a6a2f;letter-spacing:1px;margin:0 0 10px 14px;}
-  #qtext{font-size:11px;line-height:2;margin:0 0 4px 14px;}
-  #hintBox{
-    display:none;margin:12px 0 0 14px;padding:10px;font-size:9px;line-height:1.9;
-    background:#e7d093;border-left:6px solid var(--gold);color:#4a3510;
-  }
+  #steps{display:flex;gap:4px;justify-content:center;font-size:7px;}
+  .step{padding:5px 6px;border:3px solid #000;background:#5a5a5a;color:#bbb;text-align:center;flex:1;
+        box-shadow:inset 2px 2px 0 rgba(255,255,255,.2);line-height:1.4;}
+  .step.active{background:#3f7d33;color:#fff;box-shadow:inset 2px 2px 0 #6fbf5c;text-shadow:2px 2px 0 rgba(0,0,0,.5);}
+  .step.done{background:#2f5fa8;color:#dbe9ff;box-shadow:inset 2px 2px 0 #5f9fe8;}
 
-  /* ---------- ВВОД ---------- */
-  #answerRow{display:flex;gap:8px;align-items:stretch;justify-content:center;}
-  #display{
-    flex:1;max-width:340px;background:#0e0e14;color:var(--diamond);
-    font-family:inherit;font-size:18px;text-align:right;padding:10px 12px;
-    border:3px solid #000;box-shadow:inset 3px 3px 0 rgba(0,0,0,.6);
-    outline:none;min-height:44px;letter-spacing:2px;
-  }
-  #display.embers{box-shadow:inset 3px 3px 0 rgba(0,0,0,.6), 0 0 0 3px #ff6a00, 0 0 22px 4px rgba(255,90,0,.75);}
-  #pad{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;width:min(300px,100%);margin:0 auto;}
-  .key{
-    background:var(--panel-lt);color:#fff;font-family:inherit;font-size:13px;
-    padding:12px 0;cursor:pointer;
-  }
-  .key:active{transform:translateY(2px);box-shadow:inset 3px 3px 0 rgba(0,0,0,.45);}
-  .key.wide{grid-column:span 1;font-size:11px;}
+  #table-wrap{padding:7px;overflow-x:auto;}
+  #table{display:grid;gap:3px;min-width:min-content;margin:0 auto;}
+  .th{background:var(--panel-dark);color:var(--gold);border:3px solid #000;padding:5px 3px;
+    font-size:7px;text-align:center;display:flex;align-items:center;justify-content:center;line-height:1.5;}
+  .rh{background:var(--wood);color:#ffe9c9;border:3px solid #000;padding:5px 5px;font-size:7px;
+    display:flex;align-items:center;line-height:1.5;text-shadow:1px 1px 0 #000;
+    box-shadow:inset 2px 2px 0 var(--wood-light), inset -2px -2px 0 var(--wood-dark);}
+  .cell{min-height:clamp(38px,9.5vw,48px);min-width:clamp(62px,16vw,100px);border:3px solid #000;
+    display:flex;align-items:center;justify-content:center;font-size:clamp(7px,1.9vw,10px);
+    padding:2px;text-align:center;line-height:1.35;position:relative;word-break:break-word;
+    background:#5a5a5a;box-shadow:inset 3px 3px 0 #3d3d3d, inset -3px -3px 0 #7d7d7d;}
+  .cell.has{background:#a8a8a8;color:var(--ink);box-shadow:inset 2px 2px 0 #d0d0d0, inset -2px -2px 0 #6f6f6f;cursor:grab;}
+  .cell.over{outline:3px solid var(--gold);outline-offset:-3px;background:#7a6a2a;}
+  .cell.armed{outline:3px dashed var(--gold);outline-offset:-3px;}
+  .cell.err{animation:cellErr .5s steps(4) 2;}
+  @keyframes cellErr{0%,100%{background:#a8a8a8;}50%{background:#d8483f;}}
+  .cell.ok-cell{box-shadow:inset 0 0 0 3px var(--green);}
+  .cell.src{cursor:pointer;}
+  .cell.src:hover{outline:3px solid var(--diamond);outline-offset:-3px;}
 
-  #actions{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;}
-  .btn{
-    font-family:inherit;font-size:9px;padding:12px 2px;cursor:pointer;color:#fff;
-    background:var(--stone);
-  }
-  .btn:active{transform:translateY(2px);}
-  .btn.go{background:var(--grass);text-shadow:1px 1px 0 #1e4a10;}
-  .btn.skip{background:#6b6b76;}
-  .btn.hint{background:#c98a1e;}
-  .btn.theory{background:#3f6fb5;}
+  .tile{display:flex;align-items:center;justify-content:center;border:3px solid #000;cursor:grab;
+    padding:0 5px;min-width:clamp(40px,10vw,54px);height:clamp(34px,8.5vw,42px);
+    font-size:clamp(7px,1.9vw,10px);text-shadow:1px 1px 0 rgba(0,0,0,.7);touch-action:none;
+    box-shadow:inset 2px 2px 0 rgba(255,255,255,.4), inset -2px -2px 0 rgba(0,0,0,.5);white-space:nowrap;}
+  .tile.sel{outline:3px solid var(--gold);outline-offset:2px;transform:scale(1.08);}
+  .tile.used{opacity:.2;pointer-events:none;}
+  .tile.ghost{position:fixed;z-index:20;pointer-events:none;opacity:.92;transform:translate(-50%,-50%) scale(1.12);
+    box-shadow:0 6px 0 rgba(0,0,0,.4), inset 2px 2px 0 rgba(255,255,255,.4), inset -2px -2px 0 rgba(0,0,0,.5);}
+  .k-num{background:#c9a227;color:#fff8dc;}
+  .k-var{background:#2f8fd6;color:#eaf4ff;}
+  .k-op{background:#c14a2f;color:#ffe0d8;}
+  .k-frac{background:#7b3fbf;color:#f3e6ff;}
+  .k-paren{background:#6b6b6b;color:#fff;}
 
-  /* ---------- ПРОГРЕСС ---------- */
-  #progressWrap{height:16px;background:#111;border:3px solid #000;}
-  #progressBar{height:100%;width:0;background:repeating-linear-gradient(90deg,var(--grass) 0 8px,var(--grass-dk) 8px 16px);transition:width .3s;}
+  #eq-wrap{padding:7px;display:none;}
+  #eq-line{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;align-items:center;min-height:52px;
+    background:rgba(0,0,0,.35);border:3px dashed var(--wood-light);padding:5px;}
+  #eq-line.over{border-color:var(--gold);background:rgba(255,204,34,.15);}
+  #eq-empty{font-size:7px;color:#d9bfa2;}
+  .caret{width:4px;height:clamp(30px,8vw,38px);background:var(--gold);animation:blink .5s steps(2) infinite;}
+  @keyframes blink{50%{opacity:.25;}}
 
-  /* ---------- МОДАЛКИ ---------- */
-  .modal{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.78);display:none;align-items:center;justify-content:center;padding:14px;}
-  .modal.show{display:flex;}
-  .sheet{
-    width:min(700px,100%);max-height:88vh;overflow:auto;background:var(--panel);padding:18px;
-  }
-  .sheet h2{font-size:13px;margin:0 0 14px;color:var(--diamond);}
-  .sheet h3{font-size:10px;margin:16px 0 6px;color:var(--gold);}
-  .sheet p{font-size:9px;line-height:2;margin:4px 0;color:#d8d8e0;}
-  .sheet code{background:#000;padding:2px 5px;color:var(--grass);}
-  #endTitle{font-size:16px;text-align:center;margin:0 0 6px;}
-  #rank{font-size:12px;text-align:center;color:var(--gold);margin:0 0 16px;}
-  .res{display:flex;justify-content:space-between;font-size:10px;padding:8px 0;border-bottom:2px dashed #3a3a45;color:#d8d8e0;}
-  .res b{color:#fff;}
-  .student-box{margin:14px 0;padding:12px;background:#111;border:3px solid #000;text-align:center;}
-  .student-name{font-size:10px;line-height:1.8;color:var(--gold);}
-  .mini-btn{margin-top:9px;padding:8px 10px;font-size:7px;}
-  .code-input{display:block;width:100%;margin:14px 0 9px;padding:14px 12px;text-align:center;
-    font-family:inherit;font-size:13px;line-height:1.5;color:#fff;text-transform:uppercase;
-    background:#0e0e14;border:3px solid #000;outline:none;user-select:text;
-    box-shadow:inset 3px 3px 0 rgba(0,0,0,.7),inset -3px -3px 0 rgba(255,255,255,.14);}
-  .code-input:focus{border-color:var(--diamond);box-shadow:inset 3px 3px 0 rgba(0,0,0,.7),0 0 15px var(--diamond);}
-  .auth-error{min-height:29px;margin:7px 0 10px;font-size:8px;line-height:1.8;color:#ff7777;}
-  .save-status{min-height:31px;margin:13px 0 0;font-size:8px;line-height:1.8;text-align:center;color:#ddd;}
-  .save-status.ok{color:#7cff6c}.save-status.offline{color:#ffdb59}
+  #bank-wrap{padding:6px;}
+  .bar-title{font-size:7px;color:#ffe9c9;text-shadow:2px 2px 0 #000;margin-bottom:5px;text-align:center;line-height:1.5;}
+  #bank{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;min-height:40px;}
+  #bank.over{outline:3px dashed var(--gold);outline-offset:3px;}
 
-  #flash{position:fixed;inset:0;z-index:6;background:#f00;opacity:0;pointer-events:none;transition:opacity .12s;}
-  #toast{
-    position:fixed;left:50%;top:22%;transform:translateX(-50%);z-index:15;
-    font-size:14px;padding:10px 16px;background:rgba(0,0,0,.8);border:3px solid #000;
-    opacity:0;transition:opacity .2s, top .2s;pointer-events:none;
-  }
-  #toast.show{opacity:1;top:18%;}
+  #buttons{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;}
+  .btn{font-family:inherit;font-size:8px;padding:9px 9px;cursor:pointer;color:#fff;background:var(--stone);
+    border:3px solid #000;box-shadow:inset 2px 2px 0 #b5b5b5, inset -2px -2px 0 var(--stone-dark);
+    text-shadow:2px 2px 0 rgba(0,0,0,.6);}
+  .btn:hover{background:#9c9c9c;} .btn:active{transform:translateY(1px);}
+  .btn.go{background:#3f7d33;box-shadow:inset 2px 2px 0 #6fbf5c, inset -2px -2px 0 #1f4418;}
+  .btn.hint{background:#8a6d1f;box-shadow:inset 2px 2px 0 #cfa73a, inset -2px -2px 0 #4d3c0c;}
+  .btn.skip{background:#8a3a3a;box-shadow:inset 2px 2px 0 #bf5c5c, inset -2px -2px 0 #441818;}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
 
-  #musicBtn{background:none;border:none;color:#fff;font-family:inherit;font-size:10px;cursor:pointer;padding:2px 4px;}
+  #progress-wrap{height:14px;padding:3px;background:var(--panel-dark);border:3px solid #000;}
+  #progress{height:100%;width:0;background:repeating-linear-gradient(90deg,#5fd94a 0 8px,#4bb83a 8px 16px);
+    transition:width .35s steps(6);}
+
+  #steve{position:fixed;right:0;bottom:0;width:140px;height:140px;z-index:3;pointer-events:none;
+    animation:bob 2.4s ease-in-out infinite;opacity:.9;}
+  @keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(5px);}}
+  #arm{position:absolute;right:11px;bottom:0;width:33px;height:88px;background:#e8b28a;border:4px solid #000;
+    box-shadow:inset -7px 0 0 #c78e66;transform-origin:bottom center;transform:rotate(8deg);}
+  #arm .sleeve{position:absolute;left:-4px;right:-4px;bottom:-4px;height:33px;background:#00a0a0;
+    border:4px solid #000;box-shadow:inset -7px 0 0 #007a7a;}
+  #pick{position:absolute;right:33px;bottom:48px;width:72px;height:72px;transform-origin:90% 90%;}
+  #pick .handle{position:absolute;right:7px;bottom:0;width:10px;height:58px;background:#8a5a2b;border:3px solid #000;
+    transform:rotate(38deg);transform-origin:bottom center;}
+  #pick .head{position:absolute;left:2px;top:2px;width:45px;height:17px;background:#4aedd9;border:3px solid #000;
+    box-shadow:inset 0 -5px 0 #1e9c92;transform:rotate(38deg);}
+  #pick .head::before{content:'';position:absolute;left:-2px;top:13px;width:13px;height:12px;background:#4aedd9;border:3px solid #000;}
+  #pick .head::after{content:'';position:absolute;right:-2px;top:13px;width:13px;height:12px;background:#4aedd9;border:3px solid #000;}
+  #steve.hit #pick{animation:swing .32s steps(3);}
+  #steve.hit #arm{animation:armSwing .32s steps(3);}
+  @keyframes swing{0%{transform:rotate(0);}45%{transform:rotate(-60deg) translate(-10px,20px);}100%{transform:rotate(0);}}
+  @keyframes armSwing{0%{transform:rotate(8deg);}45%{transform:rotate(-16deg) translateY(13px);}100%{transform:rotate(8deg);}}
+
+  .shake{animation:shake .35s;}
+  @keyframes shake{0%,100%{transform:translate(0,0);}20%{transform:translate(-8px,4px);}
+    40%{transform:translate(7px,-5px);}60%{transform:translate(-6px,-3px);}80%{transform:translate(5px,4px);}}
+  .particle{position:fixed;z-index:6;pointer-events:none;animation:pfly .9s ease-out forwards;}
+  @keyframes pfly{0%{transform:translate(0,0) scale(1) rotate(0);opacity:1;}
+    100%{transform:translate(var(--dx),var(--dy)) scale(.3) rotate(var(--rot));opacity:0;}}
+  #toast{position:fixed;left:50%;top:26%;transform:translateX(-50%);z-index:9;font-size:14px;
+    text-shadow:3px 3px 0 #000;pointer-events:none;opacity:0;white-space:nowrap;}
+  #toast.show{animation:toastPop 1.1s ease-out;}
+  @keyframes toastPop{0%{opacity:0;transform:translateX(-50%) scale(.5);}
+    25%{opacity:1;transform:translateX(-50%) scale(1.15);}
+    75%{opacity:1;transform:translateX(-50%) scale(1);}
+    100%{opacity:0;transform:translateX(-50%) translateY(-30px) scale(1);}}
+
+  .screen{position:fixed;inset:0;z-index:8;display:none;flex-direction:column;align-items:center;
+    justify-content:center;gap:11px;padding:18px;background:rgba(0,0,0,.82);text-align:center;overflow-y:auto;}
+  .screen.show{display:flex;}
+  .screen h1{font-size:clamp(13px,4.2vw,24px);color:var(--gold);text-shadow:4px 4px 0 #000;line-height:1.6;}
+  .screen h2{font-size:clamp(9px,2.8vw,13px);text-shadow:3px 3px 0 #000;line-height:1.8;}
+  .screen p{font-size:8px;line-height:2;max-width:600px;text-shadow:2px 2px 0 #000;}
+  #stats{display:grid;grid-template-columns:1fr auto;gap:7px 16px;font-size:9px;padding:14px;color:var(--ink);}
+  #stats .k{text-align:left;} #stats .v{text-align:right;color:#6b3f00;}
+  #rank{font-size:clamp(10px,3.2vw,17px);color:var(--diamond);text-shadow:3px 3px 0 #000;}
+  .legend-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;font-size:7px;}
+  .legend-row span{display:flex;align-items:center;gap:4px;}
+  .swatch{width:11px;height:11px;border:2px solid #000;}
+  .student-box{padding:11px 14px;min-width:min(92vw,460px);}
+  .student-name{font-size:9px;line-height:1.8;color:#6b3f00;}
+  .mini-btn{margin-top:9px;padding:7px 9px;font-size:7px;}
+  .code-input{display:block;width:min(92vw,540px);padding:14px 12px;text-align:center;
+    font-family:'Press Start 2P',monospace;font-size:12px;line-height:1.5;color:var(--ink);
+    text-transform:uppercase;background:var(--panel);border:4px solid #000;outline:none;user-select:text;
+    box-shadow:inset 3px 3px 0 #fff,inset -3px -3px 0 #5a5a5a;}
+  .code-input:focus{border-color:var(--diamond);box-shadow:inset 3px 3px 0 #fff,inset -3px -3px 0 #5a5a5a,0 0 15px var(--diamond);}
+  .auth-error{min-height:28px;font-size:8px;line-height:1.8;color:#ff776d;text-shadow:2px 2px 0 #000;}
+  .save-status{min-height:31px;font-size:8px;line-height:1.8;color:#fff;text-shadow:2px 2px 0 #000;}
+  .save-status.ok{color:#79ff68}.save-status.offline{color:#ffdc57}
 
   @media (max-width:560px){
-    #qtext{font-size:10px;line-height:1.9;}
-    .btn{font-size:7px;padding:11px 1px;}
-    #hud{font-size:8px;}
-    .heart{width:13px;height:13px;}
-    #display{font-size:15px;}
+    #steve{width:78px;height:78px;opacity:.75;}
+    #arm{width:19px;height:50px;right:4px;} #arm .sleeve{height:19px;}
+    #pick{right:19px;bottom:28px;width:42px;height:42px;}
+    #pick .handle{height:32px;width:7px;} #pick .head{width:26px;height:11px;}
+    #game{padding:4px;gap:4px;} #hud{font-size:7px;}
+    .cell{min-width:56px;}
   }
   @media (prefers-reduced-motion:reduce){
-    *{animation:none!important;transition:none!important;}
+    *{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;}
   }
+
+
+  /* ===== Совместный урок · currentSession · Minecraft ===== */
+  #game{position:relative}
+  .system-row{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;padding:1px 0 2px}
+  .sys-finish{background:#8a3a3a!important;box-shadow:inset 2px 2px 0 #bf5c5c,inset -2px -2px 0 #441818!important}
+  .session-panel{position:fixed;left:9px;bottom:9px;z-index:82;display:none;align-items:center;gap:7px;max-width:min(780px,calc(100vw - 18px));padding:7px 9px;background:#373737;color:#fff;border:3px solid #000;box-shadow:inset 2px 2px 0 #777,inset -2px -2px 0 #181818,4px 4px 0 #0008;font-size:7px;line-height:1.55}
+  .session-panel.show{display:flex}.session-panel b{color:var(--gold)}.session-panel small{color:#d8d8d8}.session-dot{width:9px;height:9px;border:2px solid #000;background:#d34d49}.session-dot.on{background:#5fd94a;box-shadow:0 0 7px #5fd94a}.sys-mini{font-family:inherit;font-size:7px;padding:6px 7px;cursor:pointer;border:3px solid #000;background:#777;color:#fff;box-shadow:inset 2px 2px #aaa,inset -2px -2px #3a3a3a}.sys-mini.danger{background:#8a3a3a;box-shadow:inset 2px 2px #bf5c5c,inset -2px -2px #441818}
+  .lesson-modal{position:fixed;inset:0;z-index:100;display:none;place-items:center;padding:15px;background:rgba(0,0,0,.82)}.lesson-modal.open{display:grid}.lesson-card{position:relative;width:min(620px,96vw);padding:18px;background:var(--panel);color:var(--ink);border:5px solid #000;box-shadow:inset 4px 4px #fff,inset -4px -4px #5a5a5a,8px 8px 0 #0008;text-align:center}.lesson-card h2{font-size:clamp(11px,3vw,18px);line-height:1.6;color:#382300}.lesson-card p{font-size:8px;line-height:1.8;color:#574b3d}.modal-x{position:absolute;right:7px;top:7px;width:32px;height:32px;border:3px solid #000;background:#8b8b8b;color:#fff;font:900 16px/1 monospace;box-shadow:inset 2px 2px #bbb,inset -2px -2px #444}.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.role-choice{min-height:112px;padding:12px;border:4px solid #000;background:#8b8b8b;color:#fff;text-align:left;font-family:inherit;box-shadow:inset 3px 3px #bbb,inset -3px -3px #444}.role-choice b{display:block;color:var(--gold);font-size:10px;line-height:1.5}.role-choice small{display:block;margin-top:7px;font-size:7px;line-height:1.65}.code-form{display:grid;gap:9px;margin-top:12px}.code-form .code{width:100%;padding:12px;border:4px solid #000;background:#fff;color:#24180c;text-align:center;font-family:inherit;font-size:10px;outline:none;user-select:text}.code-form .code:focus{border-color:var(--diamond)}.status{min-height:25px;color:#654517;font-size:7px;line-height:1.7}.status.bad{color:#a72f28}.native-actions{display:flex;justify-content:center;gap:7px;flex-wrap:wrap;margin-top:12px}.seat-list{display:grid;gap:7px;margin:12px 0}.seat{display:flex;align-items:center;gap:9px;padding:8px;border:3px dashed #555;background:#aaa;color:#20150a;font-size:8px;text-align:left}.seat.filled{border-style:solid;background:#b9dcae}.seat-no{display:grid;place-items:center;width:30px;height:30px;background:var(--gold);border:3px solid #000;color:#24180c}.waiting-box{padding:12px;background:#373737;border:4px solid #000;color:#fff;font-size:8px;line-height:1.8}.waiting-box b{color:var(--gold)}
+  .result-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:min(720px,96vw)}.result-card{padding:12px;background:var(--panel);color:var(--ink);border:4px solid #000;box-shadow:inset 3px 3px #fff,inset -3px -3px #5a5a5a;text-align:left}.result-card span{display:block;color:#6b3f00;font-size:8px}.result-card strong{display:block;margin:4px 0;font-size:20px;color:#1d1204}.result-card small{display:block;font-size:7px;line-height:1.7}.result-card em{display:block;margin-top:7px;color:#23752e;font-size:7px;font-style:normal;line-height:1.6}
+  #boardHost{position:fixed;inset:0;z-index:60;pointer-events:none}.shared-board{position:absolute;inset:0;width:100%;height:100%;touch-action:none}.board-toolbar{position:fixed;z-index:91;display:none;width:300px;background:#373737;color:#fff;border:4px solid #000;box-shadow:inset 3px 3px #6d6d6d,inset -3px -3px #1a1a1a,6px 6px 0 #0008;user-select:none}.board-toolbar.show{display:block}.board-toolbar.collapsed .board-tools{display:none}.board-head{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:#5a5a5a;cursor:move;font-size:8px}.board-tools{display:grid;grid-template-columns:repeat(3,38px) 42px minmax(80px,1fr);gap:5px;align-items:center;padding:8px}.board-tools button{height:34px;border:3px solid #000;background:#777;color:#fff;font-family:inherit;font-size:8px;box-shadow:inset 2px 2px #aaa,inset -2px -2px #444}.board-tools button.active{background:var(--gold);color:#261900}.board-tools input[type=color]{width:40px;height:34px;padding:0;border:2px solid #000}.board-tools input[type=range]{min-width:70px;width:100%}.board-clear{grid-column:1/-1;width:100%;height:36px!important;background:#8a3a3a!important}.teacher-cursor{position:fixed;z-index:95;display:none;pointer-events:none;translate:-5px -5px}.teacher-cursor.show{display:block}.teacher-cursor:before{content:"";display:block;width:15px;height:22px;background:#ffcc22;clip-path:polygon(0 0,100% 70%,58% 70%,77% 100%,60% 100%,42% 72%,0 100%);filter:drop-shadow(2px 2px #000)}.teacher-cursor:after{content:"УЧИТЕЛЬ";position:absolute;left:14px;top:12px;padding:3px 5px;background:#373737;border:2px solid #000;color:#fff;font-size:6px;white-space:nowrap}.global-toast{position:fixed;left:50%;bottom:18px;z-index:110;max-width:min(650px,calc(100vw - 20px));padding:9px 12px;background:#373737;color:#fff;border:3px solid #000;box-shadow:4px 4px 0 #0008;transform:translate(-50%,30px);opacity:0;pointer-events:none;transition:.2s;font-size:8px;line-height:1.6}.global-toast.show{transform:translate(-50%,0);opacity:1}.global-toast.bad{background:#8a3a3a}.global-toast.good{background:#3f7d33}.turn-chip{color:var(--diamond)!important}.btn.next{background:#2f5fa8;box-shadow:inset 2px 2px #5f9fe8,inset -2px -2px #18345f}.btn.next[hidden]{display:none!important}
+  @media(max-width:700px){.role-grid,.result-cards{grid-template-columns:1fr}.session-panel{left:5px;right:5px;bottom:5px;max-width:none;flex-wrap:wrap}.session-panel small{flex:1 1 150px}.board-toolbar{width:min(290px,calc(100vw - 10px))}}
+
 </style>
 </head>
 <body>
-<canvas id="world"></canvas>
-<canvas id="fx"></canvas>
-<div id="flash"></div>
+<canvas id="bg"></canvas>
+<div id="vignette"></div>
+
+<div id="game">
+  <div id="hud" class="mc-panel">
+    <div class="hud-item"><span id="task-no">ЗАДАЧА 1/10</span></div><div class="hud-item turn-chip"><span id="turn-name">—</span></div>
+    <div class="hud-item"><div class="gem"></div><span id="diamonds">0</span></div>
+    <div class="hud-item"><div id="combo-box">КОМБО ×<span id="combo">0</span></div></div>
+  </div>
+
+  <div id="task-card" class="mc-panel">
+    <div id="task-topic">—</div>
+    <div id="task-text">Загрузка…</div>
+    <div id="legend"></div>
+    <div id="hint-text"></div>
+  </div>
+
+  <div id="steps">
+    <div class="step active" id="step1">ШАГ 1 · ЗАПОЛНИ ТАБЛИЦУ</div>
+    <div class="step" id="step2">ШАГ 2 · СОБЕРИ УРАВНЕНИЕ</div>
+  </div>
+
+  <div id="table-wrap" class="mc-panel"><div id="table"></div></div>
+
+  <div id="eq-wrap" class="wood-panel">
+    <div class="bar-title">УРАВНЕНИЕ — тащи блоки сюда. Блок из строки можно перетащить на место или выкинуть вниз</div>
+    <div id="eq-line"><span id="eq-empty">пусто — перетащи сюда первый блок</span></div>
+  </div>
+
+  <div id="bank-wrap" class="wood-panel">
+    <div class="bar-title" id="bank-title">ЯЩИК — перетащи блоки в ячейки таблицы</div>
+    <div id="bank"></div>
+  </div>
+
+  <div id="buttons">
+    <button class="btn go" id="btn-check">ПРОВЕРИТЬ ТАБЛИЦУ</button>
+    <button class="btn" id="btn-clear">ОЧИСТИТЬ</button>
+    <button class="btn hint" id="btn-hint">ПОДСКАЗКА</button>
+    <button class="btn skip" id="btn-skip">⏭ ПРОПУСТИТЬ</button>
+    <button class="btn next" id="btn-next" hidden>СЛЕДУЮЩАЯ ЗАДАЧА ▶</button>
+  </div>
+
+  <div class="system-row" id="game-system-row"></div>
+  <div id="progress-wrap"><div id="progress"></div></div>
+</div>
+
+<div id="steve">
+  <div id="arm"><div class="sleeve"></div></div>
+  <div id="pick"><div class="handle"></div><div class="head"></div></div>
+</div>
 <div id="toast"></div>
 
-<div id="app">
-  <div id="hud" class="mc">
-    <div class="stat"><span id="qcount">1/20</span></div>
-    <div class="stat"><span class="dia"></span><span id="diaCount">0</span></div>
-    <div class="stat hearts" id="hearts"></div>
-    <div class="stat" id="comboBox">КОМБО 0 ×1</div>
-    <button id="musicBtn">♪ ВКЛ</button>
-  </div>
+<div class="screen show" id="screen-auth"><h1>ТАБЛИЦА КРАФТА</h1><h2>ИТОГОВЫЙ ТРЕНАЖЁР №10</h2><p>Загрузка совместного урока…</p></div>
 
-  <div id="stage">
-    <div id="book">
-      <div id="topic">ТЕМА</div>
-      <div id="qtext">Загрузка…</div>
-      <div id="hintBox"></div>
-    </div>
-  </div>
+<div class="screen" id="screen-start"><h1>ТАБЛИЦА КРАФТА</h1><h2>10 задач на ученика · все прототипы №10</h2><p>Подготовка занятия…</p></div>
 
-  <div id="answerRow">
-    <input id="display" inputmode="none" readonly value="0">
-  </div>
-  <div id="pad"></div>
-  <div id="actions">
-    <button class="btn go mc" id="checkBtn">ПРОВЕРИТЬ</button>
-    <button class="btn skip mc" id="skipBtn">ПРОПУСТИТЬ</button>
-    <button class="btn hint mc" id="hintBtn">ПОДСКАЗКА</button>
-    <button class="btn theory mc" id="theoryBtn">ТЕОРИЯ</button>
-  </div>
-  <div id="progressWrap"><div id="progressBar"></div></div>
-</div>
+<div class="screen" id="screen-end"><h1>ТРЕНИРОВКА ЗАВЕРШЕНА</h1><p>Подготовка результатов…</p></div>
 
-<div class="modal show" id="authModal">
-  <div class="sheet mc" style="max-width:620px;text-align:center;">
-    <h2>ВХОД В МАСТЕРСКУЮ</h2>
-    <p>Введи личный код ученика, чтобы сохранить лучший результат.</p>
-    <form id="authForm">
-      <input class="code-input" id="studentCode" type="text" autocomplete="off" autocapitalize="characters"
-        spellcheck="false" maxlength="64" placeholder="КОД УЧЕНИКА" aria-label="Личный код ученика">
-      <div class="auth-error" id="authError" role="alert"></div>
-      <button class="btn go mc" id="loginBtn" type="submit" style="width:100%;font-size:11px;">ВОЙТИ ▶</button>
-    </form>
-  </div>
-</div>
+<div class="session-panel" id="sessionPanel"></div>
+<div class="lesson-modal" id="lessonModal" aria-live="polite"></div>
+<div id="boardHost" data-board-anchor="main-screen"></div>
+<div class="board-toolbar" id="boardToolbar"></div>
+<div class="teacher-cursor" id="teacherCursor"></div>
+<div class="global-toast" id="globalToast"></div>
 
-<div class="modal" id="startModal">
-  <div class="sheet mc" style="max-width:620px;text-align:center;">
-    <h2>КРАФТ ЗАДАЧ</h2>
-    <p>Тренажёр задания №10 ЕГЭ · 20 задач</p>
-    <div class="student-box">
-      <div class="student-name" id="studentName">👤 Ученик</div>
-      <button class="btn mini-btn mc" id="changeStudentBtn" type="button">СМЕНИТЬ УЧЕНИКА</button>
-    </div>
-    <button class="btn go mc" id="startGameBtn" type="button" style="width:100%;font-size:12px;">НАЧАТЬ ИГРУ ⛏</button>
-  </div>
-</div>
+<script type="module">
 
-<div class="modal" id="theoryModal">
-  <div class="sheet mc">
-    <h2>КНИГА ФОРМУЛ — ЗАДАНИЕ №10</h2>
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import { getDatabase, ref, get, set, update, onValue, onDisconnect, runTransaction } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js";
 
-    <h3>Движение по прямой</h3>
-    <p><code>S = v · t</code>, <code>t = S / v</code>, <code>v = S / t</code></p>
-    <p>Навстречу: сближение со скоростью <code>v₁ + v₂</code>. Вдогонку: сближение со скоростью <code>v₂ − v₁</code>.</p>
+const firebaseConfig={apiKey:"AIzaSyBkY5utRlEfGIT_wEW6Dq7TSLr3RqBWJxo",authDomain:"ega-mathematica.firebaseapp.com",databaseURL:"https://ega-mathematica-default-rtdb.europe-west1.firebasedatabase.app",projectId:"ega-mathematica",storageBucket:"ega-mathematica.firebasestorage.app",messagingSenderId:"177632223541",appId:"1:177632223541:web:fbc532216359e34665ec7c",measurementId:"G-K9FZYGKPZS"};
+const firebaseApp=initializeApp(firebaseConfig),database=getDatabase(firebaseApp);
+const API_URL="https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
+const APP_ID='ege-task10-craft-table-all-prototypes-current-v3';
+const FIXED_SESSION_ID='currentSession';
+const SCHEMA_VERSION=5;
+const TASKS_PER_STUDENT=10;
+const TEACHER_CODE_HASH='b0a83a3919eba1d2a99034f2d94e5a47590f1710595c04bd64b5c8f21456a7c6';
+const TEST_META={testId:'EGE-10-TABLITSA-KRAFTA-MINECRAFT',testName:'Таблица крафта — полное повторение задания №10',topicId:'task-10',topicName:'Текстовые задачи: таблица и уравнение',taskNumber:10,schemaVersion:1};
+const PENDING_RESULTS_KEY=`${APP_ID}:pendingTestResults`,STUDENT_SAVE_KEY=`${APP_ID}:student`,CLIENT_ID_KEY=`${APP_ID}:client`,TOOLBAR_POSITION_KEY=`${APP_ID}:toolbar`;
+const $=id=>document.getElementById(id),clone=v=>JSON.parse(JSON.stringify(v)),rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a,pick=a=>a[Math.floor(Math.random()*a.length)];
+function shuffle(a){const r=a.slice();for(let i=r.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[r[i],r[j]]=[r[j],r[i]]}return r}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function uuid(){if(window.crypto&&typeof crypto.randomUUID==='function')return crypto.randomUUID();return'evt-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)+'-'+Math.random().toString(36).slice(2)}
+function localDate(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function nowIso(ms=Date.now()){return new Date(ms).toISOString()}
+function timeText(s){s=Math.max(0,Number(s)||0);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+function playerKey(studentId){let h=2166136261;for(const ch of String(studentId)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return'p_'+(h>>>0).toString(36)}
+function getBrowserClientId(){let v=sessionStorage.getItem(CLIENT_ID_KEY);if(!v){v='c_'+uuid();sessionStorage.setItem(CLIENT_ID_KEY,v)}return v}
+function storedStudent(){const studentId=localStorage.getItem('egeStudentId');if(studentId)return{studentId,name:localStorage.getItem('egeStudentName')||'Ученик',code:localStorage.getItem('egeStudentCode')||''};try{const s=JSON.parse(localStorage.getItem(STUDENT_SAVE_KEY)||'null');return s?.studentId?s:null}catch{return null}}
+function saveStudent(s){if(!s?.studentId)return;localStorage.setItem('egeStudentId',String(s.studentId));localStorage.setItem('egeStudentName',String(s.name||'Ученик'));localStorage.setItem('egeStudentCode',String(s.code||''));localStorage.setItem(STUDENT_SAVE_KEY,JSON.stringify(s))}
+function clearStoredStudent(){['egeStudentId','egeStudentName','egeStudentCode',STUDENT_SAVE_KEY].forEach(k=>localStorage.removeItem(k))}
+function sha256(text){return crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)).then(b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''))}
 
-    <h3>Движение по воде</h3>
-    <p>По течению: <code>v + u</code>. Против течения: <code>v − u</code>. Плот плывёт со скоростью течения <code>u</code>.</p>
-    <p>Типовое уравнение «туда-обратно»: <code>S/(v+u) + S/(v−u) = T − t_стоянки</code></p>
+const lessonRoot=()=>`sharedInteractives/${APP_ID}/${FIXED_SESSION_ID}`,sessionRef=()=>ref(database,lessonRoot()),stateRef=()=>ref(database,`${lessonRoot()}/state`),membersRef=()=>ref(database,`${lessonRoot()}/members`),messagesRef=()=>ref(database,`${lessonRoot()}/messages`),memberRef=id=>ref(database,`${lessonRoot()}/members/${id}`);
+let role='',teacherAuthenticated=false,student=storedStudent(),participantId='',participantName='',participantPlayerKey='',browserClientId=getBrowserClientId(),serverState=null,membersSnapshot={},stateUnsub=null,membersUnsub=null,messagesUnsub=null,online=navigator.onLine,submissionInFlight=new Set(),remoteTeacherCursor=null;
+let boardTool='cursor',boardColor='#e53935',boardWidth=5,toolbarCollapsed=false,activeStroke=null,lastStrokePush=0,lastCursorPush=0;
+let drag=null,caret=null,feedbackConsumedAt=0;
+const SIGNS=["=","+","−","·","/"];
 
-    <h3>Средняя скорость</h3>
-    <p><code>v_ср = S_общий / t_общий</code>. Складывать скорости и делить на количество участков — ошибка.</p>
+function showToast(text,type=''){const t=$('globalToast');if(!t)return;t.textContent=text;t.className='global-toast '+type;void t.offsetWidth;t.classList.add('show');clearTimeout(showToast.tm);showToast.tm=setTimeout(()=>t.classList.remove('show'),2200)}
+function showOnly(id){['screen-auth','screen-start','screen-end'].forEach(x=>$(x)?.classList.toggle('show',x===id));$('game').style.display=id==='game'?'flex':'none'}
+function setConnectedUI(on){$('sessionPanel')?.classList.toggle('show',!!on);$('boardToolbar')?.classList.toggle('show',!!on);syncBoardToolbarRole()}
 
-    <h3>Движение по окружности</h3>
-    <p>Догон на круге: за время между двумя встречами быстрый проходит на 1 круг больше: <code>(v₂ − v₁) · t = L</code></p>
-
-    <h3>Протяжённые тела (поезда)</h3>
-    <p>Навстречу: <code>(L₁ + L₂) = (v₁ + v₂) · t</code>. Обгон: <code>(L₁ + L₂) = (v₁ − v₂) · t</code>. Не забудь перевести км/ч в м/с: <code>·1000/3600</code>.</p>
-
-    <h3>Работа и трубы</h3>
-    <p>Работа <code>A = p · t</code>, где p — производительность. Всю работу удобно принять за 1.</p>
-    <p>Вместе: <code>p = p₁ + p₂</code>, значит <code>t = 1/(1/t₁ + 1/t₂)</code>.</p>
-    <p>Трубы — та же работа: p в литрах/мин.</p>
-
-    <h3>Смеси, сплавы, растворы</h3>
-    <p>Масса вещества <code>= масса раствора · концентрация</code>.</p>
-    <p>Главный закон: масса чистого вещества при смешивании <b>сохраняется</b>:
-    <code>c₁m₁ + c₂m₂ = c(m₁ + m₂)</code></p>
-    <p>Чистая вода — это раствор с концентрацией 0.</p>
-
-    <h3>Проценты</h3>
-    <p>«Увеличилась вдвое → доход вырос на 57%» означает, что сама часть и есть эти 57% от общего дохода.</p>
-
-    <button class="btn go mc" style="width:100%;margin-top:18px;font-size:11px;" onclick="closeModal('theoryModal')">ЗАКРЫТЬ</button>
-  </div>
-</div>
-
-<div class="modal" id="endModal">
-  <div class="sheet mc">
-    <h2 id="endTitle">ИГРА ОКОНЧЕНА</h2>
-    <div id="rank"></div>
-    <div class="res"><span>Алмазы</span><b id="rDia">0</b></div>
-    <div class="res"><span>Правильных</span><b id="rCorrect">0</b></div>
-    <div class="res"><span>Лучшее комбо</span><b id="rCombo">0</b></div>
-    <div class="res"><span>Подсказок</span><b id="rHints">0</b></div>
-    <div class="res"><span>С первой попытки</span><b id="rPercent">0%</b></div>
-    <div class="res"><span>Время</span><b id="rTime">0:00</b></div>
-    <div class="save-status" id="saveStatus" role="status"></div>
-    <button class="btn go mc" style="width:100%;margin-top:20px;font-size:12px;" id="restartBtn">НАЧАТЬ ЗАНОВО</button>
-  </div>
-</div>
-
-<script>
-/* ============================================================
-   УЧЕНИК И УЧЁТ РЕЗУЛЬТАТОВ
-   ============================================================ */
-const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
-const TEST_META={
-  testId:'EGE-10-MIX-KRAFT-ZADACH-MINECRAFT',
-  topicId:'task-10',
-  topicName:'Текстовые задачи: смешанный тренажёр',
-  taskNumber:10,
-  schemaVersion:1
+/* ===== ГЕНЕРАТОРЫ: 8 обязательных семейств + дополнительные подтипы ===== */
+function taskDef(family,proto,topic,text,legend,cols,rows,cells,extra1,eq,extra2,hintT,hintE){return{family,proto,topic,text,legend,cols,rows,cells,extra1,eq,extra2,hintT,hintE}}
+const GEN={
+ pctPart(){const whole=pick([600,800,1200,1500,2000,2400]),p=pick([10,15,20,25,30]),part=whole*p/100;return taskDef('percent','Проценты от величины','ПРОЦЕНТЫ · ЧАСТЬ',`Величина равна ${whole}. Найдите ${p}% от неё.`,'x — искомая часть', ['Целое','Доля','Часть'],['Величина'],[[String(whole),`${p}/100`,'x']],[`${100-p}/100`,String(p),'100'],[[String(whole),'·',`${p}/100`,'=','x']],[`${100-p}/100`,String(part)],'Процент преврати в долю делением на 100.','Часть = целое · долю.')},
+ pctReverse(){const p=pick([10,20,25,30]),old=pick([1000,1200,1600,2000,2400]),now=old*(100-p)/100;if(!Number.isInteger(now))return GEN.pctReverse();return taskDef('percent','Исходная величина после снижения','ПРОЦЕНТЫ · ЦЕЛОЕ',`После снижения цены на ${p}% товар стал стоить ${now} рублей. Какой была цена до снижения?`,'x — старая цена, рублей',['Целое','Доля','Часть'],['Новая цена'],[['x',`${100-p}/100`,String(now)]],[`${p}/100`,`${100+p}/100`,String(100-p)],[[ 'x','·',`${100-p}/100`,'=',String(now)],[String(now),'/',`${100-p}/100`,'=','x']],[`${p}/100`,String(old)],`Новая цена — это ${100-p}% от старой.`,'Часть = целое · долю; целое неизвестно.')},
+ pctChange(){const old=pick([800,1000,1200,1500]),p=pick([10,20,25]),up=Math.round(old*(100+p)/100);return taskDef('percent','Увеличение величины','ПРОЦЕНТЫ · ИЗМЕНЕНИЕ',`Товар стоил ${old} рублей и подорожал на ${p}%. Найдите новую цену.`,'x — новая цена, рублей',['Старая цена','Коэффициент','Новая цена'],['Цена'],[[String(old),`${100+p}/100`,'x']],[`${p}/100`,`${100-p}/100`,String(up-old)],[[String(old),'·',`${100+p}/100`,'=','x']],[`${p}/100`,String(up)],`После роста остаётся ${100+p}% исходной цены.`,'Новое = старое · коэффициент изменения.')},
+ mixWater(){const m=pick([8,10,12,15,20]),pct=pick([20,30,40]),w=pick([3,5,8,10]),total=m+w,dec=String(pct/100).replace('.',',');return taskDef('mixture','Добавление воды','СМЕСИ · ДОБАВЛЕНИЕ ВОДЫ',`К ${m} кг ${pct}%-го раствора добавили ${w} кг воды. Найдите долю вещества в новом растворе.`,'x — доля вещества в новом растворе',['Масса, кг','Доля вещества','Масса вещества'],['Раствор','Вода','Новый раствор'],[[String(m),dec,`${dec}·${m}`],[String(w),'0','0'],[String(total),'x',`${total}·x`]],[String(pct),String(total-m),'1'],[[`${dec}·${m}`,'=',`${total}·x`]],[dec,String(total)],'У воды доля вещества равна 0; общая масса увеличилась.','Масса вещества до и после добавления воды одинакова.')},
+ mixTwo(){const variants=[[10,20,15,40],[12,25,8,50],[20,15,10,45],[15,20,5,50]],v=pick(variants),[m1,p1,m2,p2]=v,total=m1+m2,d1=String(p1/100).replace('.',','),d2=String(p2/100).replace('.',',');return taskDef('mixture','Смешивание двух концентраций','СПЛАВЫ И СМЕСИ',`Смешали ${m1} кг ${p1}%-го раствора и ${m2} кг ${p2}%-го раствора. Найдите долю вещества в смеси.`,'x — доля вещества в новой смеси',['Масса, кг','Доля вещества','Масса вещества'],['Первая смесь','Вторая смесь','Новая смесь'],[[String(m1),d1,`${d1}·${m1}`],[String(m2),d2,`${d2}·${m2}`],[String(total),'x',`${total}·x`]],[String(p1),String(p2),'0'],[[`${d1}·${m1}`,'+',`${d2}·${m2}`,'=',`${total}·x`]],[d1,d2,String(total)],'Для каждой исходной смеси найди массу нужного вещества.','Сумма вещества в исходных смесях равна его массе в новой.')},
+ straightMeet(){const v1=pick([40,50,60]),v2=pick([60,70,80]),t=pick([2,3,4]),S=(v1+v2)*t;return taskDef('straight','Движение навстречу','ДВИЖЕНИЕ НАВСТРЕЧУ',`Из двух городов, расстояние между которыми ${S} км, одновременно навстречу выехали автомобили со скоростями ${v1} и ${v2} км/ч. Через сколько часов они встретятся?`,'x — время до встречи, ч',['S, км','V, км/ч','t, ч'],['Первый','Второй'],[[`${v1}·x`,String(v1),'x'],[`${v2}·x`,String(v2),'x']],[`${v1}/x`,`${v2}/x`,String(S)],[[`${v1}·x`,'+',`${v2}·x`,'=',String(S)]],[String(v1+v2),String(t)],'До встречи время движения одинаково; путь каждого равен v·x.','Сумма пройденных путей равна расстоянию между городами.')},
+ straightAverage(){const a=pick([[120,60,180,90],[150,50,240,80],[180,60,120,40]]),[s1,v1,s2,v2]=a,t1=s1/v1,t2=s2/v2,S=s1+s2,T=t1+t2;return taskDef('straight','Средняя скорость','СРЕДНЯЯ СКОРОСТЬ',`Автомобиль проехал ${s1} км со скоростью ${v1} км/ч, затем ${s2} км со скоростью ${v2} км/ч. Найдите среднюю скорость на всём пути.`,'x — средняя скорость, км/ч',['S, км','V, км/ч','t, ч'],['Первый участок','Второй участок','Весь путь'],[[String(s1),String(v1),String(t1)],[String(s2),String(v2),String(t2)],[String(S),'x',String(T)]],[String((v1+v2)/2),String(t1+t2+1),String(S/2)],[[ 'x','·',String(T),'=',String(S)],[ 'x','=',String(S),'/',String(T)]],[String(S/T),String(T)],'Сначала найди время каждого участка, затем сложи путь и время.','Средняя скорость = весь путь / всё время.')},
+ complexDelay(){const v1=pick([40,50,60]),d=pick([1,2,3]),v2=pick([80,90,100]),x=v1*d/(v2-v1);if(!Number.isInteger(x)||x<=0)return GEN.complexDelay();return taskDef('complex','Догонка с разным стартом','СЛОЖНОЕ ДВИЖЕНИЕ · ДОГОНКА',`Грузовик выехал со скоростью ${v1} км/ч. Через ${d} ч вслед за ним выехал автомобиль со скоростью ${v2} км/ч. Через сколько часов после своего старта автомобиль догонит грузовик?`,'x — время автомобиля в пути, ч',['S, км','V, км/ч','t, ч'],['Грузовик','Автомобиль'],[[`${v1}·(x+${d})`,String(v1),`x+${d}`],[`${v2}·x`,String(v2),'x']],[`x−${d}`,`${v1}·x`,`${v2}·(x+${d})`,String(d)],[[`${v1}·(x+${d})`,'=',`${v2}·x`]],[String(x),String(v2-v1)],`Первый участник в пути на ${d} ч дольше: x+${d}.`,'В момент догонки расстояния от старта одинаковы.')},
+ complexMeetRatio(){const ratios=pick([[1,2],[2,3],[3,4]]),[a,b]=ratios,t=pick([2,3,4]),full=(a+b)*t/a;return taskDef('complex','Встреча и полный маршрут','СЛОЖНОЕ ДВИЖЕНИЕ · ВСТРЕЧА',`Скорости двух участников относятся как ${a}:${b}. Они одновременно выехали навстречу и встретились через ${t} ч. Сколько часов затратит более медленный участник на весь маршрут?`,'x — полное время более медленного участника',['Отн. скорость','Время','Путь в долях'],['Медленный · весь путь','Быстрый · до встречи','Вместе · до встречи'],[[String(a),'x',`${a}·x`],[String(b),String(t),`${b}·${t}`],[String(a+b),String(t),`${a+b}·${t}`]],[String(b-a),String(a+b),String(t+1)],[[`${a}·x`,'=',`${a+b}·${t}`]],[String(full),String(a+b)],'Возьми скорости как a и b одинаковых условных единиц.','Весь путь равен сумме путей обоих участников до встречи.')},
+ trainPlatform(){const v=pick([54,72,90,108]),vm=v/3.6,L=pick([200,300,400]),P=pick([200,300,500]),t=(L+P)/vm;if(!Number.isInteger(t))return GEN.trainPlatform();return taskDef('train','Поезд и платформа','ПРОТЯЖЁННЫЕ ТЕЛА · ПЛАТФОРМА',`Поезд проходит платформу длиной ${P} м за ${t} с со скоростью ${v} км/ч. Найдите длину поезда.`,'x — длина поезда, м',['Путь, м','V, м/с','t, с'],['Полное прохождение'],[[`x+${P}`,String(vm),String(t)]],[String(v),String(P),String(L+P)],[[String(vm),'·',String(t),'=',`x+${P}`]],[String(L),String(L+P)],`Скорость переведи в м/с: ${v}:3,6=${vm}.`,'За время прохождения поезд преодолевает свою длину плюс длину платформы.')},
+ trainMeet(){const v1=pick([54,72,90]),v2=pick([54,72]),m1=v1/3.6,m2=v2/3.6,L1=pick([200,300,400]),x=pick([250,350,450]),t=(L1+x)/(m1+m2);if(!Number.isInteger(t))return GEN.trainMeet();return taskDef('train','Два поезда навстречу','ПРОТЯЖЁННЫЕ ТЕЛА · ДВА ПОЕЗДА',`Два поезда движутся навстречу со скоростями ${v1} и ${v2} км/ч и полностью проходят друг мимо друга за ${t} с. Длина первого ${L1} м. Найдите длину второго.`,'x — длина второго поезда, м',['Сумма длин, м','Vотн, м/с','t, с'],['Встречное движение'],[[`${L1}+x`,String(m1+m2),String(t)]],[String(m1),String(m2),String(L1)],[[String(m1+m2),'·',String(t),'=',`${L1}+x`]],[String(x),String(L1+x)],'При встречном движении скорости в м/с складываются.','За время полного прохождения относительный путь равен сумме длин поездов.')},
+ waterOne(){const own=pick([12,16,20,24]),c=pick([2,3,4]),t=pick([2,3,4]),S=(own+c)*t;return taskDef('water','По течению','ДВИЖЕНИЕ ПО ВОДЕ · ПО ТЕЧЕНИЮ',`Лодка прошла ${S} км по течению за ${t} ч. Собственная скорость лодки ${own} км/ч. Найдите скорость течения.`,'x — скорость течения, км/ч',['S, км','V, км/ч','t, ч'],['По течению'],[[String(S),`${own}+x`,String(t)]],[`${own}−x`,String(own),String(c)],[[`${own}+x`,'·',String(t),'=',String(S)]],[String(c),String(own+c)],'По течению скорости лодки и течения складываются.','Используй S=V·t для движения по течению.')},
+ waterRound(){const a=pick([[16,4,120],[10,2,96],[15,3,90],[20,5,150]]),[own,c,S]=a,T=S/(own+c)+S/(own-c);if(!Number.isInteger(T))return GEN.waterRound();return taskDef('water','Туда и обратно по реке','ДВИЖЕНИЕ ПО ВОДЕ · ТУДА И ОБРАТНО',`Лодка прошла ${S} км по течению и вернулась обратно. Скорость течения ${c} км/ч, всё движение заняло ${T} ч. Найдите собственную скорость лодки.`,'x — собственная скорость лодки, км/ч',['S, км','V, км/ч','t, ч'],['По течению','Против течения'],[[String(S),`x+${c}`,`${S}/(x+${c})`],[String(S),`x−${c}`,`${S}/(x−${c})`]],[`${c}−x`,String(T),String(S*2)],[[`${S}/(x+${c})`,'+',`${S}/(x−${c})`,'=',String(T)]],[String(own),String(c)],'Время = S/V; по течению скорость x+c, против — x−c.','Сумма времён туда и обратно равна общему времени.')},
+ productivityDiff(){const a=pick([[270,15,3],[480,20,4],[672,24,4],[216,12,6]]),[A,p,d]=a,delta=A/p-A/(p+d);if(!Number.isInteger(delta)||delta<=0)return GEN.productivityDiff();return taskDef('productivity','Разница во времени','ПРОИЗВОДИТЕЛЬНОСТЬ · РАЗНИЦА ВРЕМЕНИ',`Заказ на ${A} деталей медленный рабочий выполняет на ${delta} ч дольше. Быстрый делает на ${d} детали в час больше. Найдите производительность медленного.`,'x — производительность медленного, дет/ч',['Работа A','Производительность P','Время t'],['Медленный','Быстрый'],[[String(A),'x',`${A}/x`],[String(A),`x+${d}`,`${A}/(x+${d})`]],[String(d),String(delta),String(A/(p+d))],[[`${A}/x`,'−',`${A}/(x+${d})`,'=',String(delta)]],[String(p),String(p+d)],'Время выполнения одинакового заказа равно A/P.','Время медленного минус время быстрого равно указанной разнице.')},
+ productivityTogether(){const p1=pick([12,15,18]),d=pick([3,4,5]),p2=p1-d,t=pick([4,5,6]),A=(p1+p2)*t;return taskDef('productivity','Суммарная производительность','ПРОИЗВОДИТЕЛЬНОСТЬ ТРУДА',`Мастер делает ${p1} деталей в час, ученик — на ${d} деталей в час меньше. Вместе они изготовили ${A} деталей. Сколько часов они работали?`,'x — время совместной работы, ч',['Работа A','Производительность P','Время t'],['Мастер','Ученик'],[[`${p1}·x`,String(p1),'x'],[`${p2}·x`,String(p2),'x']],[`${d}·x`,String(p1+d),String(A)],[[`${p1}·x`,'+',`${p2}·x`,'=',String(A)]],[String(t),String(p1+p2)],`Производительность ученика: ${p1}−${d}=${p2}.`,'Сумма выполненных деталей равна всему заказу.')},
+ jointPipes(){const a=pick([[12,6,4],[8,8,4],[15,10,6],[20,5,4],[18,9,6],[30,15,10]]),[t1,t2,ans]=a;return taskDef('joint','Два исполнителя вместе','СОВМЕСТНАЯ РАБОТА',`Первая труба наполняет бассейн за ${t1} ч, вторая — за ${t2} ч. За сколько часов они наполнят бассейн вместе?`,'x — время совместной работы, ч; вся работа = 1',['Работа A','Производительность P','Время t'],['Первая труба','Вторая труба','Вместе'],[['1',`1/${t1}`,String(t1)],['1',`1/${t2}`,String(t2)],['1','1/x','x']],[`${t1}/1`,`${t2}/1`,String(t1+t2)],[[`1/${t1}`,'+',`1/${t2}`,'=','1/x']],[String(ans),String(t1)],'Производительность равна 1/t.','При совместной полезной работе производительности складываются.')},
+ jointFindSecond(){const a=pick([[12,4,6],[18,6,9],[24,8,12],[30,10,15]]),[t1,together,t2]=a;return taskDef('joint','Найти время второго исполнителя','СОВМЕСТНАЯ РАБОТА · НЕИЗВЕСТНЫЙ ИСПОЛНИТЕЛЬ',`Двое рабочих вместе выполняют заказ за ${together} ч. Первый один выполнил бы его за ${t1} ч. За сколько часов выполнит заказ второй?`,'x — время второго рабочего, ч; вся работа = 1',['Работа A','Производительность P','Время t'],['Первый','Второй','Вместе'],[['1',`1/${t1}`,String(t1)],['1','1/x','x'],['1',`1/${together}`,String(together)]],[`${together}/1`,`${t1}/1`,String(together+t1)],[[`1/${t1}`,'+','1/x','=',`1/${together}`]],[String(t2),String(together)],'Переведи времена в производительности 1/t.','Производительности первого и второго в сумме дают общую.')}
 };
-const PENDING_KEY='egePendingTestResults';
-const el=id=>document.getElementById(id);
+const FAMILY_GENERATORS={percent:['pctPart','pctReverse','pctChange'],mixture:['mixWater','mixTwo'],straight:['straightMeet','straightAverage'],complex:['complexDelay','complexMeetRatio'],train:['trainPlatform','trainMeet'],water:['waterOne','waterRound'],productivity:['productivityDiff','productivityTogether'],joint:['jointPipes','jointFindSecond']};
+function prepareTask(raw,id){const t=clone(raw);t.id=id;t.bank=shuffle(t.cells.flat().concat(t.extra1)).map((v,i)=>({id:'b'+i,val:String(v),used:false}));const comp=[];t.eq.forEach(v=>v.forEach(tok=>{if(!SIGNS.includes(tok)&&!comp.includes(tok))comp.push(tok)}));t.bank2=shuffle(comp.concat(t.extra2).map(String)).concat(SIGNS);t.fills={};t.eqLine=[];t.step=1;t.selectedBankId='';t.hintUsed=false;t.firstTryEligible=true;t.resolved=false;t.skipped=false;t.feedback=null;return t}
+function makeTaskPack(variant=0){const chosen=[];for(const [family,names] of Object.entries(FAMILY_GENERATORS)){const name=pick(names);chosen.push({family,name})}const used=new Set(chosen.map(x=>x.name)),extras=shuffle(Object.entries(FAMILY_GENERATORS).flatMap(([family,names])=>names.filter(n=>!used.has(n)).map(name=>({family,name})))).slice(0,2);const defs=shuffle(chosen.concat(extras));return defs.map((d,i)=>prepareTask(GEN[d.name](),`v${variant}-${i}-${d.name}-${uuid().slice(0,5)}`))}
+function makeDeck(order){const packs={};order.forEach((pk,i)=>packs[pk]=makeTaskPack(i));if(order.length===1)return packs[order[0]].map((task,i)=>({ownerKey:order[0],ownerTask:i+1,task}));const deck=[];for(let i=0;i<TASKS_PER_STUDENT;i++)for(const pk of order)deck.push({ownerKey:pk,ownerTask:i+1,task:packs[pk][i]});return deck}
 
-let currentStudent=null;
-let gameActive=false;
-let attemptStartMs=0;
-let currentEventId='';
-let resultSubmitted=false;
-
-function createEventId(){
-  if(window.crypto&&typeof window.crypto.randomUUID==='function') return window.crypto.randomUUID();
-  return 'evt-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12);
-}
-function localDateString(){
-  const d=new Date(),p=n=>String(n).padStart(2,'0');
-  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
-}
-function formatDuration(seconds){
-  const s=Math.max(0,Math.round(Number(seconds)||0));
-  return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
-}
-function readPendingResults(){
-  try{const data=JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');return Array.isArray(data)?data:[];}
-  catch(_){return [];}
-}
-function writePendingResults(items){
-  try{localStorage.setItem(PENDING_KEY,JSON.stringify(items));}catch(_){}
-}
-function queuePendingResult(payload){
-  const queue=readPendingResults();
-  if(!queue.some(item=>item&&item.eventId===payload.eventId)) queue.push(payload);
-  writePendingResults(queue);
-}
-async function postResult(payload){
-  const response=await fetch(API_URL,{
-    method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify(payload),
-    redirect:'follow'
-  });
-  if(!response.ok) throw new Error('HTTP '+response.status);
-  const text=await response.text();
-  if(text){
-    let data=null;
-    try{data=JSON.parse(text);}catch(_){}
-    if(data&&data.ok===false) throw new Error(data.error||'Сервер отклонил результат');
-  }
-}
-async function flushPendingResults(){
-  if(!navigator.onLine) return;
-  const snapshot=readPendingResults();
-  if(!snapshot.length) return;
-  const ids=new Set(snapshot.map(item=>item&&item.eventId).filter(Boolean)),failed=[];
-  for(const payload of snapshot){try{await postResult(payload);}catch(_){failed.push(payload);}}
-  const additions=readPendingResults().filter(item=>item&&!ids.has(item.eventId));
-  const merged=[...failed];
-  additions.forEach(item=>{if(!merged.some(saved=>saved&&saved.eventId===item.eventId)) merged.push(item);});
-  writePendingResults(merged);
-}
-function buildResultPayload(scorePercent,durationSeconds){
-  return {
-    action:'submitTest',
-    eventId:currentEventId,
-    studentId:currentStudent.studentId,
-    testId:TEST_META.testId,
-    testDate:localDateString(),
-    topicId:TEST_META.topicId,
-    topicName:TEST_META.topicName,
-    taskNumber:TEST_META.taskNumber,
-    scorePercent,
-    durationSeconds,
-    schemaVersion:TEST_META.schemaVersion
-  };
-}
-async function submitFinalResult(scorePercent,durationSeconds){
-  if(resultSubmitted||!currentStudent) return;
-  resultSubmitted=true;
-  const payload=buildResultPayload(scorePercent,durationSeconds),status=el('saveStatus');
-  status.className='save-status';
-  status.textContent='Сохраняем результат…';
-  try{
-    await postResult(payload);
-    status.className='save-status ok';
-    status.textContent='✓ Результат сохранён';
-    flushPendingResults();
-  }catch(_){
-    queuePendingResult(payload);
-    status.className='save-status offline';
-    status.textContent='Нет связи: результат сохранён на устройстве и отправится позже';
-  }
-}
-function studentFromResponse(data,code){
-  if(!data||data.ok===false||data.success===false||data.valid===false) return null;
-  const source=data.student||data.data||data;
-  const studentId=source.studentId??source.id??data.studentId??data.id;
-  const name=source.studentName??source.name??data.studentName??data.name;
-  if(studentId===undefined||studentId===null||studentId==='') return null;
-  return {studentId:String(studentId),name:String(name||'Ученик'),code:String(code)};
-}
-function rememberStudent(student){
-  localStorage.setItem('egeStudentId',student.studentId);
-  localStorage.setItem('egeStudentName',student.name);
-  localStorage.setItem('egeStudentCode',student.code);
-}
-function enterAsStudent(student){
-  currentStudent=student;
-  el('studentName').textContent='👤 '+student.name;
-  el('authModal').classList.remove('show');
-  el('startModal').classList.add('show');
-  el('changeStudentBtn').disabled=false;
-  el('startGameBtn').focus();
-  flushPendingResults();
-}
-function showStudentLogin(prefill=''){
-  el('startModal').classList.remove('show');
-  el('endModal').classList.remove('show');
-  el('authModal').classList.add('show');
-  el('studentCode').value=prefill;
-  el('authError').textContent='';
-  el('loginBtn').disabled=false;
-  setTimeout(()=>el('studentCode').focus(),0);
-}
-function validateStudentCode(code){
-  return new Promise((resolve,reject)=>{
-    const callback='__egeCraftTasks_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-    const script=document.createElement('script');
-    const timeout=setTimeout(()=>finish(new Error('Сервер не ответил. Проверьте интернет.')),15000);
-    function cleanup(){
-      clearTimeout(timeout);
-      try{delete window[callback];}catch(_){window[callback]=undefined;}
-      script.remove();
+/* =========================================================
+   2. ГИБКАЯ ПРОВЕРКА УРАВНЕНИЯ
+   ========================================================= */
+function stripParens(tk){
+  let t=tk.slice();
+  while(t.length>1 && t[0]==="(" && t[t.length-1]===")"){
+    let d=0,wraps=true;
+    for(let i=0;i<t.length;i++){
+      if(t[i]==="(") d++;
+      else if(t[i]===")"){ d--; if(d===0&&i<t.length-1){ wraps=false; break; } }
     }
-    function finish(error,value){cleanup();error?reject(error):resolve(value);}
-    window[callback]=data=>{
-      const student=studentFromResponse(data,code);
-      if(student) finish(null,student);
-      else finish(new Error((data&&(data.error||data.message))||'Код ученика не найден'));
-    };
-    script.onerror=()=>finish(new Error('Не удалось связаться с сервером'));
-    script.src=API_URL+'?'+new URLSearchParams({action:'validateStudent',code,callback}).toString();
-    document.head.appendChild(script);
-  });
-}
-async function loginWithCode(rawCode){
-  const code=String(rawCode||'').trim();
-  if(!code){el('authError').textContent='Введите личный код';return;}
-  el('loginBtn').disabled=true;
-  el('authError').textContent='Проверяем код…';
-  try{
-    const student=await validateStudentCode(code);
-    rememberStudent(student);
-    enterAsStudent(student);
-  }catch(error){
-    el('authError').textContent=error.message||'Не удалось проверить код';
-    el('loginBtn').disabled=false;
-    el('studentCode').focus();
+    if(d!==0) return t;
+    if(wraps) t=t.slice(1,-1); else break;
   }
+  return t;
 }
-function initializeStudent(){
-  const codeFromUrl=new URLSearchParams(location.search).get('code');
-  if(codeFromUrl){showStudentLogin(codeFromUrl);loginWithCode(codeFromUrl);return;}
-  const studentId=localStorage.getItem('egeStudentId');
-  const name=localStorage.getItem('egeStudentName');
-  const code=localStorage.getItem('egeStudentCode');
-  if(studentId&&code) enterAsStudent({studentId,name:name||'Ученик',code});
-  else showStudentLogin();
-}
-el('authForm').addEventListener('submit',event=>{
-  event.preventDefault();
-  loginWithCode(el('studentCode').value);
-});
-el('changeStudentBtn').addEventListener('click',()=>{
-  if(gameActive) return;
-  localStorage.removeItem('egeStudentId');
-  localStorage.removeItem('egeStudentName');
-  localStorage.removeItem('egeStudentCode');
-  currentStudent=null;
-  showStudentLogin();
-});
-window.addEventListener('online',flushPendingResults);
-
-/* ============================================================
-   ЗАДАЧИ — 20 штук, покрывают прототипы №10 профильного ЕГЭ
-   ============================================================ */
-const TASKS = [
-  { topic:"РАБОТА",
-    q:"Один мастер выполняет работу за 36 часов, а второй — за 18. За сколько часов они выполнят работу, работая вместе?",
-    a:12, hint:"Прими всю работу за 1. Производительности: 1/36 и 1/18. Складывай их, а время = 1 / (сумма)." },
-
-  { topic:"РАБОТА",
-    q:"Катя и Настя, работая вместе, пропалывают грядку за 24 минуты, а одна Настя — за 42 минуты. За сколько минут пропалывает грядку одна Катя?",
-    a:56, hint:"1/24 = 1/42 + 1/x. Отсюда 1/x = 1/24 − 1/42." },
-
-  { topic:"РАБОТА",
-    q:"Заказ на 88 деталей первый рабочий выполняет на 3 часа быстрее, чем второй. Сколько деталей в час делает первый рабочий, если известно, что он за час делает на 3 детали больше, чем второй?",
-    a:11, hint:"Пусть первый делает x дет/ч, тогда второй x−3. Уравнение: 88/(x−3) − 88/x = 3." },
-
-  { topic:"ТРУБЫ",
-    q:"Первая труба пропускает на 5 литров воды в минуту меньше, чем вторая. Сколько литров воды в минуту пропускает первая труба, если резервуар объёмом 104 литра она заполняет на 5 минут дольше, чем вторая труба?",
-    a:8, hint:"Пусть первая — x л/мин, вторая x+5. Тогда 104/x − 104/(x+5) = 5." },
-
-  { topic:"ТРУБЫ",
-    q:"Каждая из двух труб с одинаковой пропускной способностью может наполнить бассейн за 11 часов. Через 3 часа после того, как одна труба наполняла бассейн, подключили вторую трубу, и бассейн наполнили две трубы вместе. Сколько часов потребовалось на наполнение бассейна?",
-    a:7, hint:"Производительность одной трубы 1/11. За первые 3 часа налито 3/11. Осталось 8/11 при скорости 2/11 в час." },
-
-  { topic:"СРЕДНЯЯ СКОРОСТЬ",
-    q:"Первые 200 км автомобиль ехал со скоростью 60 км/ч, следующие 180 км — со скоростью 90 км/ч, а затем 140 км — со скоростью 120 км/ч. Найдите среднюю скорость автомобиля на протяжении всего пути. Ответ дайте в км/ч.",
-    a:80, hint:"v_ср = весь путь / всё время. Путь 200+180+140. Время: 200/60 + 180/90 + 140/120." },
-
-  { topic:"ДВИЖЕНИЕ ПО ВОДЕ",
-    q:"Теплоход проходит по течению реки до пункта назначения 255 км и после стоянки возвращается в пункт отправления. Найдите скорость теплохода в неподвижной воде, если скорость течения равна 1 км/ч, стоянка длится 2 часа, а в пункт отправления теплоход возвращается через 34 часа после отплытия из него. Ответ дайте в км/ч.",
-    a:16, hint:"Чистое время в пути = 34 − 2 = 32 ч. Уравнение: 255/(v+1) + 255/(v−1) = 32." },
-
-  { topic:"ДВИЖЕНИЕ ПО ВОДЕ",
-    q:"Лодка в 8:00 вышла из пункта A в пункт B, расположенный в 30 км от A. Пробыв в пункте B 1 час 30 минут, лодка отправилась назад и вернулась в пункт A в 22:00 того же дня. Определите (в км/ч) скорость течения реки, если известно, что скорость лодки 5 км/ч.",
-    a:1, hint:"Всего 14 ч, минус стоянка 1,5 ч → 12,5 ч в пути. Уравнение: 30/(5+u) + 30/(5−u) = 12,5." },
-
-  { topic:"ДВИЖЕНИЕ ПО ВОДЕ",
-    q:"Байдарка в 10:00 вышла из пункта A в пункт B, расположенный в 15 км от A. Пробыв в пункте B 1 час 20 минут, байдарка отправилась назад и вернулась в пункт A в 18:00 того же дня. Определите (в км/ч) собственную скорость байдарки, если известно, что скорость течения реки равна 3 км/ч.",
-    a:6, hint:"8 ч всего минус 4/3 ч стоянки = 20/3 ч. Уравнение: 15/(v+3) + 15/(v−3) = 20/3." },
-
-  { topic:"ДВИЖЕНИЕ ПО ВОДЕ",
-    q:"Теплоход, скорость которого в неподвижной воде равна 18 км/ч, проходит по течению реки и после стоянки возвращается в исходный пункт. Скорость течения равна 3 км/ч, стоянка длится 3 часа, а в исходный пункт теплоход возвращается через 39 часов после отплытия из него. Сколько километров прошёл теплоход за весь рейс?",
-    a:630, hint:"Найди S из уравнения S/21 + S/15 = 36. Вопрос про ВЕСЬ рейс — значит ответ 2S." },
-
-  { topic:"ПЛОТ И ЯХТА",
-    q:"Расстояние между пристанями A и B равно 192 км. Из A в B по течению реки отправился плот, а через 3 часа вслед за ним отправилась яхта, которая, прибыв в пункт B, тотчас повернула обратно и возвратилась в A. К этому времени плот проплыл 92 км. Найдите скорость яхты в неподвижной воде, если скорость течения реки равна 4 км/ч. Ответ дайте в км/ч.",
-    a:20, hint:"Плот идёт со скоростью течения: 92/4 = 23 ч всего с момента старта плота. Яхта была в пути 23 − 3 = 20 ч: 192/(v+4) + 192/(v−4) = 20." },
-
-  { topic:"ДОГОН",
-    q:"От пристани A к пристани B, расстояние между которыми равно 153 км, отправился с постоянной скоростью первый теплоход, а через 8 часов после этого следом за ним со скоростью на 8 км/ч большей отправился второй. Найдите скорость первого теплохода, если в пункт B оба теплохода прибыли одновременно. Ответ дайте в км/ч.",
-    a:9, hint:"Первый шёл на 8 часов дольше: 153/v − 153/(v+8) = 8." },
-
-  { topic:"ПРОБЕГ",
-    q:"Два велосипедиста одновременно отправляются в 190-километровый пробег. Первый едет со скоростью на 9 км/ч большей, чем второй, и прибывает к финишу на 9 часов раньше второго. Найдите скорость велосипедиста, пришедшего к финишу первым. Ответ дайте в км/ч.",
-    a:19, hint:"Пусть второй едет v, первый v+9. Тогда 190/v − 190/(v+9) = 9. В ответ — скорость первого." },
-
-  { topic:"ДВИЖЕНИЕ НАВСТРЕЧУ",
-    q:"Из города A в город B навстречу друг другу одновременно выехали мотоциклист и велосипедист. Мотоциклист приехал в город B на 10 часов раньше, чем велосипедист приехал в город A, а встретились они через 3 часа 45 минут после выезда. Сколько часов затратил на путь из города B в город A велосипедист?",
-    a:15, hint:"Формула встречи: t_встречи² = t₁ · t₂. Здесь 3,75² = t · (t − 10), где t — время велосипедиста." },
-
-  { topic:"ОКРУЖНОСТЬ",
-    q:"Из пункта A круговой трассы длиной 30 км выехал велосипедист, а через 30 минут следом за ним отправился мотоциклист. Через 10 минут после выезда он впервые догнал велосипедиста, а ещё через 30 минут догнал его во второй раз. Найдите скорость мотоциклиста. Ответ дайте в км/ч.",
-    a:80, hint:"Между встречами мотоциклист проходит на 1 круг больше: (v_м − v_в)·0,5 = 30. Плюс первая встреча: v_м·(1/6) = v_в·(2/3)." },
-
-  { topic:"ПРОТЯЖЁННЫЕ ТЕЛА",
-    q:"По двум параллельным железнодорожным путям навстречу друг другу следуют скорый и пассажирский поезда, скорости которых равны соответственно 85 км/ч и 35 км/ч. Длина пассажирского поезда равна 500 метрам. Найдите длину скорого поезда, если время, за которое он прошёл мимо пассажирского, равно 1 минуте. Ответ дайте в метрах.",
-    a:1500, hint:"Скорость сближения 120 км/ч = 2000 м/мин. За 1 мин пройдено L₁ + L₂ = 2000 м. Значит L₁ = 2000 − 500." },
-
-  { topic:"СМЕСИ",
-    q:"Смешали некоторое количество 19-процентного раствора некоторого вещества с таким же количеством 17-процентного раствора этого вещества. Сколько процентов составляет концентрация получившегося раствора?",
-    a:18, hint:"Массы равны — значит концентрация ровно посередине: (19 + 17)/2." },
-
-  { topic:"СПЛАВЫ",
-    q:"Имеется два сплава. Первый сплав содержит 10% меди, второй — 40% меди. Масса второго сплава больше массы первого на 3 кг. Из этих двух сплавов получили третий сплав, содержащий 30% меди. Найдите массу третьего сплава. Ответ дайте в килограммах.",
-    a:9, hint:"Пусть первый x кг, второй x+3. Медь сохраняется: 0,1x + 0,4(x+3) = 0,3(2x+3). В ответ — масса третьего, то есть 2x+3." },
-
-  { topic:"РАСТВОРЫ",
-    q:"Смешав 43-процентный и 89-процентный растворы кислоты и добавив 10 кг чистой воды, получили 69-процентный раствор кислоты. Если бы вместо 10 кг воды добавили 10 кг 50-процентного раствора той же кислоты, то получили бы 73-процентный раствор кислоты. Сколько килограммов 43-процентного раствора использовали для получения смеси?",
-    a:35, hint:"Два уравнения на x и y (массы растворов). Вычти одно из другого — масса смеси в обоих случаях одинакова (x+y+10), и разница даёт 5 = 0,04(x+y+10)." },
-
-  { topic:"ПРОЦЕНТЫ",
-    q:"Семья состоит из мужа, жены и их дочери-студентки. Если бы зарплата мужа увеличилась вдвое, общий доход семьи вырос бы на 57%. Если бы стипендия дочери уменьшилась вдвое, общий доход семьи сократился бы на 1%. Сколько процентов от общего дохода семьи составляет зарплата жены?",
-    a:41, hint:"Удвоить зарплату мужа = прибавить её целиком → муж = 57%. Уменьшить стипендию вдвое = убрать половину → дочь = 2%. Жена = 100 − 57 − 2." }
-];
-
-/* ============================================================
-   ЗВУК (Web Audio API)
-   ============================================================ */
-let AC = null, musicOn = true, musicTimer = null, musicStep = 0;
-function audio(){
-  if(!AC){ AC = new (window.AudioContext||window.webkitAudioContext)(); }
-  if(AC.state === 'suspended') AC.resume();
-  return AC;
-}
-function beep(freq, dur, type='square', vol=.12, slide=0){
-  const ac = audio(), o = ac.createOscillator(), g = ac.createGain();
-  o.type = type; o.frequency.setValueAtTime(freq, ac.currentTime);
-  if(slide) o.frequency.linearRampToValueAtTime(freq+slide, ac.currentTime+dur);
-  g.gain.setValueAtTime(vol, ac.currentTime);
-  g.gain.exponentialRampToValueAtTime(.0001, ac.currentTime+dur);
-  o.connect(g); g.connect(ac.destination);
-  o.start(); o.stop(ac.currentTime+dur);
-}
-function sndCorrect(){ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,.14,'square',.11),i*60)); }
-function sndWrong(){ beep(90,.45,'sawtooth',.16,-40); setTimeout(()=>beep(70,.35,'square',.12),90); }
-function sndHeart(){ // "разбитое стекло" — россыпь коротких шумных всплесков
-  const ac = audio();
-  for(let i=0;i<14;i++){
-    setTimeout(()=>{
-      const o=ac.createOscillator(), g=ac.createGain(), f=ac.createBiquadFilter();
-      f.type='highpass'; f.frequency.value=2000;
-      o.type='square'; o.frequency.value=1200+Math.random()*2600;
-      g.gain.setValueAtTime(.07,ac.currentTime);
-      g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+.09);
-      o.connect(f);f.connect(g);g.connect(ac.destination);
-      o.start();o.stop(ac.currentTime+.09);
-    }, i*22);
+function topSplit(tk,ops){
+  const parts=[],found=[]; let cur=[],d=0;
+  for(const tok of tk){
+    if(tok==="(") d++;
+    if(tok===")") d--;
+    if(d===0&&ops.includes(tok)&&cur.length>0){ parts.push(cur); found.push(tok); cur=[]; }
+    else cur.push(tok);
   }
+  parts.push(cur); return {parts,ops:found};
 }
-function sndCombo(){ [392,523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>beep(f,.1,'triangle',.13),i*45)); }
-function sndClick(){ beep(320,.04,'square',.05); }
-function sndWin(){ [523,523,784,1047,1319,1568].forEach((f,i)=>setTimeout(()=>beep(f,.22,'square',.1),i*130)); }
-function sndOver(){ [392,330,262,196].forEach((f,i)=>setTimeout(()=>beep(f,.4,'sawtooth',.12),i*220)); }
+function canon(tk){
+  const t=stripParens(tk);
+  if(t.length===0) return "";
+  const eq=topSplit(t,["="]);
+  if(eq.ops.length===1) return "EQ("+[canon(eq.parts[0]),canon(eq.parts[1])].sort().join("|")+")";
+  if(eq.ops.length>1) return "BAD";
+  const add=topSplit(t,["+","−"]);
+  if(add.ops.length>0){
+    if(add.ops.every(o=>o==="+")) return "ADD("+add.parts.map(canon).sort().join(",")+")";
+    let acc=canon(add.parts[0]);
+    for(let i=0;i<add.ops.length;i++){
+      const r=canon(add.parts[i+1]);
+      acc = add.ops[i]==="+" ? "ADD("+[acc,r].sort().join(",")+")" : "SUB("+acc+","+r+")";
+    }
+    return acc;
+  }
+  const mul=topSplit(t,["·","/"]);
+  if(mul.ops.length>0){
+    if(mul.ops.every(o=>o==="·")) return "MUL("+mul.parts.map(canon).sort().join(",")+")";
+    let acc=canon(mul.parts[0]);
+    for(let i=0;i<mul.ops.length;i++){
+      const r=canon(mul.parts[i+1]);
+      acc = mul.ops[i]==="·" ? "MUL("+[acc,r].sort().join(",")+")" : "DIV("+acc+","+r+")";
+    }
+    return acc;
+  }
+  return t.join("");
+}
+function balanced(tk){ let d=0; for(const t of tk){ if(t==="(")d++; if(t===")")d--; if(d<0) return false; } return d===0; }
+function eqOk(player,variants){
+  if(player.length===0||!balanced(player)) return false;
+  const p=canon(player);
+  if(p===""||p==="BAD") return false;
+  return variants.some(v=>canon(v)===p);
+}
 
-// Фоновый чиптюн-луп — пентатоника до-мажор
-const MEL = [262,0,330,392,0,330,262,0, 294,0,392,440,0,392,294,0, 349,0,440,523,0,440,349,0, 294,0,392,330,0,262,0,0];
-const BASS= [131,0,0,0, 98,0,0,0, 87,0,0,0, 98,0,0,0];
-function musicTick(){
-  if(!musicOn) return;
-  const m = MEL[musicStep % MEL.length];
-  const b = BASS[Math.floor(musicStep/2) % BASS.length];
-  if(m) beep(m,.14,'square',.035);
-  if(b && musicStep%2===0) beep(b,.2,'triangle',.05);
-  musicStep++;
+
+/* =========================================================
+   3. ЗВУКИ
+   ========================================================= */
+let AC=null;
+function ac(){ if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==="suspended") AC.resume(); return AC; }
+function tone(f,s,d,type="square",v=.12){
+  const c=ac(),o=c.createOscillator(),g=c.createGain();
+  o.type=type; o.frequency.setValueAtTime(f,c.currentTime+s);
+  g.gain.setValueAtTime(0,c.currentTime+s);
+  g.gain.linearRampToValueAtTime(v,c.currentTime+s+.012);
+  g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+s+d);
+  o.connect(g); g.connect(c.destination);
+  o.start(c.currentTime+s); o.stop(c.currentTime+s+d+.02);
 }
-function startMusic(){ if(musicTimer) return; audio(); musicTimer = setInterval(musicTick,150); }
-document.getElementById('musicBtn').onclick = e => {
-  musicOn = !musicOn;
-  e.target.textContent = musicOn ? '♪ ВКЛ' : '♪ ВЫКЛ';
-  if(musicOn) startMusic();
+function noise(s,d,v=.2,hp=800){
+  const c=ac(),len=Math.max(1,Math.floor(c.sampleRate*d));
+  const b=c.createBuffer(1,len,c.sampleRate),ch=b.getChannelData(0);
+  for(let i=0;i<len;i++) ch[i]=(Math.random()*2-1)*(1-i/len);
+  const src=c.createBufferSource(); src.buffer=b;
+  const f=c.createBiquadFilter(); f.type="highpass"; f.frequency.value=hp;
+  const g=c.createGain(); g.gain.value=v;
+  src.connect(f); f.connect(g); g.connect(c.destination);
+  src.start(c.currentTime+s);
+}
+const SFX={
+  click(){ tone(880,0,.05,"square",.06); },
+  grab(){ tone(520,0,.04,"square",.05); },
+  put(){ tone(660,0,.05,"square",.07); tone(990,.04,.05,"square",.05); },
+  drop(){ tone(300,0,.07,"square",.06); },
+  craft(){ tone(300,0,.06,"square",.09); tone(300,.07,.06,"square",.09); noise(0,.12,.08,1500); },
+  step(){ tone(784,0,.1,"triangle",.09); tone(1046,.09,.16,"triangle",.09); },
+  correct(){ tone(523.25,0,.14,"square",.1); tone(659.25,.13,.14,"square",.1); tone(987.77,.26,.3,"square",.11); },
+  wrong(){ tone(120,0,.35,"sawtooth",.14); tone(80,.05,.4,"square",.1); },
+  combo(){ tone(1046.5,0,.1,"triangle",.1); tone(1568,.09,.2,"triangle",.1); },
+  win(){ [523,659,784,1046,1318].forEach((f,i)=>tone(f,i*.13,.3,"triangle",.1)); }
 };
 
-/* ============================================================
-   ФОН: псевдо-3D мир Майнкрафта + Стив с киркой
-   ============================================================ */
-const world = document.getElementById('world'), wctx = world.getContext('2d');
-const fx = document.getElementById('fx'), fctx = fx.getContext('2d');
-let W=0,H=0, camX=0, bob=0, swing=0, swingTarget=0;
 
+/* =========================================================
+   4. ФОН
+   ========================================================= */
+const bg=document.getElementById("bg"), ctx=bg.getContext("2d");
+let W=0,H=0,camZ=0; const TREES=[],CLOUDS=[];
+function seedWorld(){
+  TREES.length=0;
+  for(let i=0;i<28;i++) TREES.push({x:(Math.random()*2-1)*30,z:6+Math.random()*90,h:3+Math.random()*2.2,side:Math.random()<.5?-1:1});
+  CLOUDS.length=0;
+  for(let i=0;i<7;i++) CLOUDS.push({x:Math.random(),y:.05+Math.random()*.22,w:.1+Math.random()*.18,s:.004+Math.random()*.006});
+}
 function resize(){
-  const dpr = Math.min(window.devicePixelRatio||1, 2);
-  [world,fx].forEach(c=>{
-    c.width = Math.floor(innerWidth*dpr); c.height = Math.floor(innerHeight*dpr);
-    c.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
-    c.getContext('2d').imageSmoothingEnabled = false;
-  });
-  W = innerWidth; H = innerHeight;
+  W=bg.width=Math.max(2,Math.floor(window.innerWidth/2));
+  H=bg.height=Math.max(2,Math.floor(window.innerHeight/2));
+  bg.style.width=window.innerWidth+"px"; bg.style.height=window.innerHeight+"px";
 }
-addEventListener('resize', resize); resize();
-
-function noise(i){ const s = Math.sin(i*127.1)*43758.5453; return s - Math.floor(s); }
-function blk(x,y,w,h,c){ wctx.fillStyle=c; wctx.fillRect(x|0,y|0,Math.ceil(w),Math.ceil(h)); }
-
-// Блок с "шумной" текстурой как в Minecraft
-function texBlock(x,y,s,base,dark,seed){
-  blk(x,y,s,s,base);
-  for(let i=0;i<5;i++){
-    const n1 = noise(seed*3+i), n2 = noise(seed*7+i*2);
-    blk(x+n1*(s-s/4), y+n2*(s-s/4), s/4, s/4, dark);
+window.addEventListener("resize",resize); resize(); seedWorld();
+const FL=0.9;
+function proj(x,y,z){ const s=(H*FL)/z; return {sx:W/2+x*s, sy:H*0.52-y*s, s}; }
+function drawBg(){
+  const horizon=H*0.52;
+  const sky=ctx.createLinearGradient(0,0,0,horizon);
+  sky.addColorStop(0,"#4b8ef0"); sky.addColorStop(1,"#a8d3ff");
+  ctx.fillStyle=sky; ctx.fillRect(0,0,W,horizon);
+  ctx.fillStyle="#ffe98a"; ctx.fillRect(W*0.76,H*0.08,24,24);
+  ctx.fillStyle="rgba(255,255,200,.25)"; ctx.fillRect(W*0.76-6,H*0.08-6,36,36);
+  ctx.fillStyle="#fff";
+  for(const c of CLOUDS){
+    c.x+=c.s*0.02; if(c.x>1.25) c.x=-.25;
+    const px=c.x*W,py=c.y*H,pw=c.w*W;
+    ctx.fillRect(px,py,pw,7); ctx.fillRect(px+pw*.2,py-6,pw*.55,6); ctx.fillRect(px+pw*.15,py+7,pw*.6,5);
   }
-}
-
-function drawTree(x, groundY, s, seed){
-  const th = 3 + Math.floor(noise(seed)*2);
-  for(let i=0;i<th;i++) texBlock(x, groundY-(i+1)*s, s, '#6b4a1e', '#4d340f', seed+i);
-  const top = groundY - th*s;
-  const leaf = [[-1,0],[0,0],[1,0],[-1,-1],[0,-1],[1,-1],[-2,-1],[2,-1],[0,-2],[-1,-2],[1,-2],[0,-3]];
-  leaf.forEach((p,i)=> texBlock(x+p[0]*s, top+p[1]*s-s, s, '#3f8a28','#2c6119', seed+i*5));
-}
-
-function drawSteve(){
-  const s = Math.max(9, Math.min(W,H)/44);      // размер "пикселя" Стива
-  const bx = W - s*11, by = H - s*7 + Math.sin(bob)*2;
-  const sw = Math.sin(swing) * s * 2.2;
-  const lift = -Math.abs(Math.sin(swing)) * s * 1.4;
-
-  // рука (кожа + рукав)
-  blk(bx+s*4, by+s*3, s*3, s*4, '#3b3bb0');           // рукав
-  blk(bx+s*4, by+s*1.4+lift*.3, s*3, s*2.2, '#c68642'); // кисть
-  blk(bx+s*4, by+s*1.4+lift*.3, s*.6, s*2.2, '#a06b31');
-
-  // кирка: рукоять + алмазная головка
-  const px = bx + s*5 + sw, py = by + s*1.2 + lift;
-  for(let i=0;i<5;i++) blk(px, py - i*s*0.9, s*0.9, s*0.9, i%2? '#8b5a2b':'#a0672f');
-  const hy = py - 4*s*0.9;
-  blk(px - s*1.6, hy - s*0.6, s*4.2, s*0.9, '#4aedd9');
-  blk(px - s*2.4, hy + s*0.2, s*1.1, s*0.9, '#4aedd9');
-  blk(px + s*2.6, hy + s*0.2, s*1.1, s*0.9, '#4aedd9');
-  blk(px - s*1.6, hy - s*0.6, s*4.2, s*0.3, '#9dfff2');
-}
-
-let t0 = performance.now();
-function drawWorld(now){
-  const dt = Math.min((now - t0)/1000, .05); t0 = now;
-  camX += dt * 22;                 // медленное движение вперёд
-  bob += dt * 2.6;
-  swing += (swingTarget - swing) * .18;
-  if(Math.abs(swingTarget) > .01) swingTarget *= .90;
-
-  const horizon = H*0.62 + Math.sin(bob)*2;
-
-  // небо
-  const sky = wctx.createLinearGradient(0,0,0,horizon);
-  sky.addColorStop(0,'#3f7fd6'); sky.addColorStop(.6,'#79b7f0'); sky.addColorStop(1,'#bfe3ff');
-  wctx.fillStyle = sky; wctx.fillRect(0,0,W,horizon+1);
-
-  // солнце (квадратное!)
-  const sunS = Math.max(34, W/16);
-  blk(W*0.78, H*0.12, sunS, sunS, '#fff6b0');
-  blk(W*0.78+sunS*.15, H*0.12+sunS*.15, sunS*.7, sunS*.7, '#fffde8');
-
-  // облака — параллакс x0.15
-  const cs = Math.max(8, W/110);
-  for(let i=0;i<7;i++){
-    const cx = ((i*430 - camX*0.15) % (W+420)) - 210;
-    const cy = H*0.06 + noise(i)*H*0.16;
-    const shape=[[0,0],[1,0],[2,0],[3,0],[1,-1],[2,-1],[4,0],[-1,0],[2,1],[1,1]];
-    shape.forEach(p=>blk(cx+p[0]*cs, cy+p[1]*cs, cs, cs, p[1]<0?'#ffffff':'#e2ecf7'));
-  }
-
-  // дальние холмы — параллакс x0.3, приглушённые (воздушная перспектива)
-  const fs = Math.max(10, W/70);
-  for(let i=-2;i<Math.ceil(W/fs)+2;i++){
-    const gi = Math.floor((camX*0.3)/fs) + i;
-    const h = Math.floor(noise(gi*0.6)*3.4);
-    const x = i*fs - ((camX*0.3)%fs);
-    for(let j=0;j<=h;j++) blk(x, horizon - fs*2 - j*fs, fs, fs, j===h ? '#7fae86' : '#7d9a8a');
-  }
-
-  // средний слой: земля + деревья — параллакс x0.6
-  const ms = Math.max(14, W/44);
-  for(let i=-2;i<Math.ceil(W/ms)+2;i++){
-    const gi = Math.floor((camX*0.6)/ms) + i;
-    const x = i*ms - ((camX*0.6)%ms);
-    const gy = horizon + Math.floor(noise(gi*1.3)*1.5)*ms*0.4;
-    texBlock(x, gy, ms, '#4ea033', '#3b7d26', gi);
-    if(noise(gi*9.7) > .90) drawTree(x, gy, ms*0.62, gi);
-    texBlock(x, gy+ms, ms, '#7a4f26','#5c3a1a', gi+11);
-  }
-
-  // передний план: дорожка из блоков — параллакс x1.0
-  const gs = Math.max(26, W/17);
-  for(let i=-2;i<Math.ceil(W/gs)+2;i++){
-    const gi = Math.floor(camX/gs) + i;
-    const x = i*gs - (camX%gs);
-    const y = H - gs*1.6 + Math.sin(bob)*2;
-    texBlock(x, y, gs, '#5db83c', '#489a2d', gi);            // трава
-    blk(x, y, gs, gs*0.16, '#79d456');                        // светлая кромка
-    texBlock(x, y+gs, gs, '#8b5a2b', '#5c3a1a', gi+7);        // земля
-    blk(x, y, 2, gs*2, 'rgba(0,0,0,.18)');                    // швы между блоками
-  }
-
-  // затемнение к краям — фокус на книге
-  const vig = wctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.25, W/2,H/2, Math.max(W,H)*0.75);
-  vig.addColorStop(0,'rgba(0,0,0,0)'); vig.addColorStop(1,'rgba(0,0,0,.55)');
-  wctx.fillStyle = vig; wctx.fillRect(0,0,W,H);
-
-  drawSteve();
-  requestAnimationFrame(drawWorld);
-}
-requestAnimationFrame(drawWorld);
-
-/* ============================================================
-   ЧАСТИЦЫ
-   ============================================================ */
-let parts = [];
-function burst(x,y,colors,n=46,power=7){
-  for(let i=0;i<n;i++){
-    const a = Math.random()*Math.PI*2, sp = Math.random()*power+1.5;
-    parts.push({x,y,vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-2, life:1,
-      c:colors[(Math.random()*colors.length)|0], s:Math.random()*6+3});
-  }
-}
-function fxLoop(){
-  fctx.clearRect(0,0,W,H);
-  parts = parts.filter(p=>p.life>0);
-  parts.forEach(p=>{
-    p.x+=p.vx; p.y+=p.vy; p.vy+=.22; p.vx*=.99; p.life-=.016;
-    fctx.globalAlpha = Math.max(p.life,0);
-    fctx.fillStyle = p.c;
-    fctx.fillRect(p.x|0, p.y|0, p.s, p.s);
-  });
-  fctx.globalAlpha = 1;
-  requestAnimationFrame(fxLoop);
-}
-requestAnimationFrame(fxLoop);
-
-/* ============================================================
-   ИГРОВАЯ ЛОГИКА
-   ============================================================ */
-const HEART_SVG = `<svg viewBox="0 0 11 10" shape-rendering="crispEdges"><path fill="#000" d="M1 0h3v1H1zM7 0h3v1H7zM0 1h5v1H0zM6 1h5v1H6zM0 2h11v1H0zM0 3h11v1H0zM0 4h11v1H0zM1 5h9v1H1zM2 6h7v1H2zM3 7h5v1H3zM4 8h3v1H4zM5 9h1v1H5z"/><path fill="#ff2d2d" d="M1 1h3v1H1zM7 1h3v1H7zM1 2h9v1H1zM1 3h9v1H1zM1 4h9v1H1zM2 5h7v1H2zM3 6h5v1H3zM4 7h3v1H4zM5 8h1v1H5z"/><path fill="#ff9c9c" d="M2 2h1v1H2zM7 2h2v1H7zM2 3h1v1H2z"/></svg>`;
-
-let S = {};
-let order = [];
-
-function reset(){
-  S = { idx:0, lives:5, dia:0, combo:0, maxCombo:0, correct:0, firstTryCorrect:0,
-        hints:0, hintUsed:false, val:"0", over:false, questionAttempted:false };
-  order = TASKS.map((_,i)=>i);
-  // лёгкий шафл, но первые задачи — попроще (сортировка по исходному порядку сохранена частично)
-  for(let i=order.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [order[i],order[j]]=[order[j],order[i]]; }
-  drawHearts();
-  render();
-  gameActive=true;
-  attemptStartMs=Date.now();
-  currentEventId=createEventId();
-  resultSubmitted=false;
-  el('changeStudentBtn').disabled=true;
-  el('saveStatus').className='save-status';
-  el('saveStatus').textContent='';
-  el('endModal').classList.remove('show');
-}
-
-function drawHearts(){
-  const h = el('hearts'); h.innerHTML = '';
-  for(let i=0;i<5;i++){
-    const d = document.createElement('div');
-    d.className = 'heart'; d.innerHTML = HEART_SVG;
-    if(i >= S.lives) d.style.filter = 'grayscale(1) brightness(.35)';
-    h.appendChild(d);
-  }
-}
-function breakHeart(i){
-  const hs = el('hearts').children;
-  if(hs[i]) hs[i].classList.add('broken');
-  setTimeout(drawHearts, 520);
-}
-
-function mult(){ return S.combo>=10 ? 3 : S.combo>=5 ? 2 : S.combo>=3 ? 1.5 : 1; }
-
-function cur(){ return TASKS[order[S.idx]]; }
-
-function render(){
-  const t = cur();
-  el('topic').textContent = '§ ' + t.topic;
-  el('qtext').textContent = t.q;
-  el('qcount').textContent = (S.idx+1) + '/' + TASKS.length;
-  el('diaCount').textContent = S.dia;
-  const m = mult();
-  el('comboBox').textContent = `КОМБО ${S.combo} ×${m}`;
-  el('comboBox').classList.toggle('hot', S.combo>=3);
-  el('display').classList.toggle('embers', S.combo>=3);
-  el('hintBox').style.display = 'none';
-  el('hintBox').textContent = '';
-  S.hintUsed = false; S.val = "0";
-  el('display').value = "0";
-  el('progressBar').style.width = (S.idx/TASKS.length*100) + '%';
-  el('hintBtn').disabled = false;
-}
-
-function toast(txt, color){
-  const t = el('toast');
-  t.textContent = txt; t.style.color = color || '#fff';
-  t.classList.add('show');
-  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove('show'), 1300);
-}
-
-function check(){
-  if(!gameActive || S.over || S.questionAttempted) return;
-  startMusic();
-  const t = cur();
-  const given = parseFloat(S.val.replace(',','.'));
-  S.questionAttempted = true;
-  swingTarget = 1.1;                                  // Стив бьёт киркой
-  if(!isNaN(given) && Math.abs(given - t.a) < 1e-9){
-    S.correct++; S.firstTryCorrect++; S.combo++;
-    S.maxCombo = Math.max(S.maxCombo, S.combo);
-    let gain = Math.round(10 * mult() * (S.hintUsed ? .5 : 1));
-    S.dia += gain;
-    sndCorrect();
-    burst(W/2, H*0.45, ['#4aedd9','#9dfff2','#ffcc33','#ffffff','#5db83c'], 60, 9);
-    burst(W*0.25, H*0.5, ['#4aedd9','#ffcc33','#ffffff'], 26, 6);
-    burst(W*0.75, H*0.5, ['#4aedd9','#ffcc33','#ffffff'], 26, 6);
-    if(S.combo===3 || S.combo===5 || S.combo===10){
-      setTimeout(()=>{ sndCombo(); toast('КОМБО ×'+mult()+'!', '#ffcc33'); }, 340);
-    } else {
-      toast('+' + gain + ' ◆', '#4aedd9');
+  ctx.fillStyle="#3f7a2e"; ctx.fillRect(0,horizon,W,H-horizon);
+  camZ+=0.02;
+  for(let i=26;i>=1;i--){
+    const z1=i+(camZ%1), z2=z1+1;
+    const y1=proj(0,0,z1).sy, y2=proj(0,0,z2).sy;
+    if(y1>H) continue;
+    const cell=(H*FL)/z1, n=Math.ceil(W/cell)+2;
+    for(let j=-n;j<n;j++){
+      const a=proj(j,0,z1), b=proj(j+1,0,z1);
+      ctx.fillStyle=((Math.abs(j)+Math.floor(z1))%2===0)?"#4c8f36":"#3d7a2b";
+      ctx.fillRect(a.sx,y2,Math.max(1,b.sx-a.sx+1),Math.max(1,y1-y2+1));
     }
-    next();
-  } else {
-    S.combo = 0;
-    S.lives--;
-    sndWrong();
-    el('app').classList.add('shake');
-    setTimeout(()=>el('app').classList.remove('shake'), 380);
-    el('flash').style.opacity = .45;
-    setTimeout(()=>el('flash').style.opacity = 0, 130);
-    breakHeart(S.lives);
-    setTimeout(sndHeart, 160);
-    toast('Правильный ответ: ' + t.a, '#ff6666');
-    if(S.lives <= 0){ setTimeout(()=>end(false), 900); return; }
-    setTimeout(()=>{ render(); }, 1100);
-    setTimeout(()=>{
-      S.idx++;
-      S.questionAttempted=false;
-      if(S.idx >= TASKS.length){ end(true); } else render();
-    }, 1400);
   }
+  for(const t of TREES.slice().sort((a,b)=>b.z-a.z)){
+    t.z-=0.02;
+    if(t.z<1.2){ t.z=95; t.x=(Math.random()*2-1)*30; }
+    if(Math.abs(t.x)<2.2) t.x+=t.side*3;
+    const base=proj(t.x,0,t.z), top=proj(t.x,t.h,t.z);
+    if(base.sx<-60||base.sx>W+60) continue;
+    const w=Math.max(2,base.s*0.42);
+    ctx.fillStyle="#5c3a1a"; ctx.fillRect(base.sx-w/2, top.sy+(base.sy-top.sy)*0.45, w, (base.sy-top.sy)*0.55);
+    const lw=Math.max(4,base.s*1.5), lh=Math.max(4,base.s*1.25);
+    ctx.fillStyle="#2f6b22"; ctx.fillRect(base.sx-lw/2, top.sy, lw, lh*0.75);
+    ctx.fillStyle="#3f8c2e"; ctx.fillRect(base.sx-lw/2, top.sy, lw, lh*0.32);
+  }
+  const fog=ctx.createLinearGradient(0,horizon,0,horizon+H*0.16);
+  fog.addColorStop(0,"rgba(168,211,255,.85)"); fog.addColorStop(1,"rgba(168,211,255,0)");
+  ctx.fillStyle=fog; ctx.fillRect(0,horizon,W,H*0.16);
+  requestAnimationFrame(drawBg);
 }
+requestAnimationFrame(drawBg);
 
-function next(){
-  setTimeout(()=>{
-    S.idx++;
-    S.questionAttempted=false;
-    if(S.idx >= TASKS.length) end(true);
-    else render();
-  }, 750);
-}
 
-function end(finished){
-  if(!gameActive) return;
-  gameActive=false;
-  S.over = true;
-  el('changeStudentBtn').disabled=false;
-  const scorePercent=Math.round(S.firstTryCorrect/TASKS.length*100);
-  const durationSeconds=Math.max(1,Math.round((Date.now()-attemptStartMs)/1000));
-  el('progressBar').style.width = '100%';
-  const r = S.dia;
-  let rank;
-  if(!finished || S.correct < 6) rank = 'НОВИЧОК';
-  else if(S.correct < 12) rank = 'ШАХТЁР';
-  else if(S.correct < 18) rank = 'ИНЖЕНЕР';
-  else rank = 'ПОВЕЛИТЕЛЬ КРАЯ';
 
-  el('endTitle').textContent = finished ? 'РЕЙД ЗАВЕРШЁН' : 'ЖИЗНИ КОНЧИЛИСЬ';
-  el('endTitle').style.color = finished ? '#5db83c' : '#ff4444';
-  el('rank').textContent = '☆ ' + rank + ' ☆';
-  el('rDia').textContent = r;
-  el('rCorrect').textContent = S.correct + ' из ' + TASKS.length;
-  el('rCombo').textContent = S.maxCombo;
-  el('rHints').textContent = S.hints;
-  el('rPercent').textContent = scorePercent + '%';
-  el('rTime').textContent = formatDuration(durationSeconds);
-  el('endModal').classList.add('show');
-  finished ? sndWin() : sndOver();
-  if(finished) for(let i=0;i<6;i++) setTimeout(()=>burst(Math.random()*W, Math.random()*H*.6, ['#4aedd9','#ffcc33','#ff4444','#5db83c','#fff'],40,8), i*260);
-  submitFinalResult(scorePercent,durationSeconds);
-}
+/* ===== СОСТОЯНИЕ currentSession ===== */
+function normalizeStats(st){return{firstTryCorrect:Number(st?.firstTryCorrect)||0,completed:Number(st?.completed)||0,solved:Number(st?.solved)||0,wrong:Number(st?.wrong)||0,hints:Number(st?.hints)||0,attemptCount:Number(st?.attemptCount)||0,diamonds:Number(st?.diamonds)||0,combo:Number(st?.combo)||0,maxCombo:Number(st?.maxCombo)||0}}
+function newGameState(studentLimit=1){const limit=Number(studentLimit)===2?2:1;return{version:1,schemaVersion:SCHEMA_VERSION,boardEpoch:0,strokes:{},game:{status:'lobby',studentLimit:limit,players:{},playerOrder:[],turnKey:'',deck:[],index:0,stats:{},eventIds:{},submissions:{},sessionId:uuid(),startedAt:0,finishedAt:0,endedEarly:false}}}
+function normalizeTask(t){if(!t||typeof t!=='object')return null;t.fills=t.fills||{};t.eqLine=Array.isArray(t.eqLine)?t.eqLine:[];t.bank=Array.isArray(t.bank)?t.bank:[];t.bank2=Array.isArray(t.bank2)?t.bank2:[];t.step=Number(t.step)===2?2:1;t.selectedBankId=t.selectedBankId||'';t.hintUsed=!!t.hintUsed;t.firstTryEligible=t.firstTryEligible!==false;t.resolved=!!t.resolved;t.skipped=!!t.skipped;t.feedback=t.feedback||null;return t}
+function normalizeState(input){const s=input&&typeof input==='object'?clone(input):newGameState(1);s.version=Number(s.version)||1;s.schemaVersion=Number(s.schemaVersion)||SCHEMA_VERSION;s.boardEpoch=Number(s.boardEpoch)||0;s.strokes=s.strokes||{};const g=s.game||(s.game={});g.status=g.status||'lobby';g.studentLimit=Number(g.studentLimit)===2?2:1;g.players=g.players||{};g.playerOrder=Array.isArray(g.playerOrder)?g.playerOrder:[];g.turnKey=g.turnKey||'';g.deck=Array.isArray(g.deck)?g.deck:[];g.deck=g.deck.map(x=>({ownerKey:x.ownerKey||'',ownerTask:Number(x.ownerTask)||1,task:normalizeTask(x.task)}));g.index=Math.max(0,Math.min(Math.max(0,g.deck.length-1),Number(g.index)||0));g.stats=g.stats||{};for(const pk of Object.keys(g.stats))g.stats[pk]=normalizeStats(g.stats[pk]);g.eventIds=g.eventIds||{};g.submissions=g.submissions||{};g.sessionId=g.sessionId||uuid();g.startedAt=Number(g.startedAt)||0;g.finishedAt=Number(g.finishedAt)||0;g.endedEarly=!!g.endedEarly;return s}
+function currentEntry(s=serverState){return s?.game?.deck?.[s.game.index]||null}
+function currentTask(s=serverState){return currentEntry(s)?.task||null}
+function assignedTotal(){return TASKS_PER_STUDENT}
 
-/* ---------- клавиатура ---------- */
-const KEYS = ['7','8','9','4','5','6','1','2','3','.','0','⌫'];
-const pad = el('pad');
-KEYS.forEach(k=>{
-  const b = document.createElement('button');
-  b.className = 'key mc'; b.textContent = k;
-  b.onclick = ()=>{ press(k); sndClick(); };
-  pad.appendChild(b);
-});
-function press(k){
-  if(!gameActive || S.over || S.questionAttempted) return;
-  if(k === '⌫'){ S.val = S.val.length>1 ? S.val.slice(0,-1) : '0'; }
-  else if(k === '.'){ if(!S.val.includes('.')) S.val += '.'; }
-  else { S.val = (S.val === '0') ? k : (S.val.length<7 ? S.val + k : S.val); }
-  el('display').value = S.val;
-}
-addEventListener('keydown', e=>{
-  if(el('theoryModal').classList.contains('show') && e.key==='Escape') return closeModal('theoryModal');
-  if(/^[0-9]$/.test(e.key)) press(e.key);
-  else if(e.key === '.' || e.key === ',') press('.');
-  else if(e.key === 'Backspace') press('⌫');
-  else if(e.key === 'Enter') check();
-});
+function renderPublic(){showOnly('screen-auth');setConnectedUI(false);const el=$('screen-auth');el.innerHTML=`<h1>ТАБЛИЦА КРАФТА</h1><h2>ИТОГОВЫЙ ТРЕНАЖЁР №10 · 10 ЗАДАЧ НА УЧЕНИКА</h2><p>Каждый набор обязательно охватывает все 8 семейств задания №10. Числа и порядок создаются заново при новом занятии.</p><button class="btn go" id="lessonJoinBtn">СОВМЕСТНЫЙ УРОК ▶</button>`;$('lessonJoinBtn').onclick=openRoleModal}
+function renderWaitingTeacher(){showOnly('screen-start');$('screen-start').innerHTML=`<h1>ЖДЁМ УЧИТЕЛЯ</h1><div class="waiting-box">Личный код сохранён. Как только учитель создаст занятие, место закрепится автоматически.</div>`;setConnectedUI(true);updateSessionPanel()}
+function renderLobby(s){const g=s.game,players=Object.entries(g.players).sort((a,b)=>(a[1].slot||9)-(b[1].slot||9)),onlineIds=new Set(Object.values(membersSnapshot).filter(m=>m&&m.online&&m.role==='student'&&m.studentId).map(m=>String(m.studentId))),ready=players.length>=g.studentLimit&&players.slice(0,g.studentLimit).every(([,p])=>onlineIds.has(String(p.studentId)));const seats=Array.from({length:g.studentLimit},(_,i)=>{const row=players.find(([,p])=>p.slot===i+1),isOn=row&&onlineIds.has(String(row[1].studentId));return`<div class="seat ${row?'filled':''}"><span class="seat-no">${i+1}</span><span>${row?esc(row[1].name)+(isOn?' · онлайн':' · не в сети'):'Свободное место'}</span></div>`}).join('');showOnly('screen-start');$('screen-start').innerHTML=`<h1>МАСТЕРСКАЯ ГОТОВА</h1><h2>${g.studentLimit===2?'2 УЧЕНИКА · ПО 10 ЗАДАЧ':'1 УЧЕНИК · 10 ЗАДАЧ'}</h2><p>В каждой десятке: проценты, смеси/сплавы, прямое и сложное движение, поезда, вода, производительность и совместная работа + 2 дополнительных подтипа.</p><div class="seat-list">${seats}</div>${role==='teacher'?`<div class="native-actions"><button class="btn go" id="hostStartBtn" ${ready?'':'disabled'}>${ready?'НАЧАТЬ ИГРУ':'ЖДЁМ УЧЕНИКОВ'}</button><button class="btn" id="hostNewBtn">НОВОЕ ЗАНЯТИЕ</button></div>`:'<div class="waiting-box">Место закреплено. Учитель запустит тренировку.</div>'}`;if($('hostStartBtn'))$('hostStartBtn').onclick=hostStartGame;if($('hostNewBtn'))$('hostNewBtn').onclick=openNewSessionChooser;setConnectedUI(true);updateSessionPanel()}
+function renderWaitingTurn(s){const g=s.game,me=normalizeStats(g.stats[participantPlayerKey]),who=g.players[g.turnKey]?.name||'другой ученик',entry=currentEntry(s);showOnly('screen-start');$('screen-start').innerHTML=`<h1>СЕЙЧАС ХОД<br>${esc(who).toUpperCase()}</h1><div class="waiting-box">Чужая задача скрыта. Твой прогресс: <b>${me.completed}/10</b> задач. После завершения задачи №${entry?.ownerTask||1} ход автоматически вернётся к тебе.</div>`;setConnectedUI(true);updateSessionPanel()}
+function renderFinal(s){const g=s.game,order=g.playerOrder.length?g.playerOrder:Object.keys(g.players).sort((a,b)=>(g.players[a]?.slot||9)-(g.players[b]?.slot||9));showOnly('screen-end');const cards=order.map(pk=>{const p=g.players[pk],st=normalizeStats(g.stats[pk]),max=g.endedEarly?st.completed:TASKS_PER_STUDENT,percent=max?Math.round(st.firstTryCorrect/max*100):0,sub=g.submissions[pk];return`<div class="result-card"><span>${esc(p?.name||'Ученик')}</span><strong>${percent}%</strong><small>${st.firstTryCorrect} из ${max} с первой попытки · решено ${st.solved} · ошибок ${st.wrong} · подсказок ${st.hints}</small><em>${sub?.status==='saved'?'✓ результат сохранён':sub?.status==='sending'?'сохраняем…':sub?.status==='queued'?'ожидает связи':'готов к отправке'}</em></div>`}).join('');$('screen-end').innerHTML=`<h1>${g.endedEarly?'ЗАНЯТИЕ ЗАВЕРШЕНО УЧИТЕЛЕМ':'ТРЕНИРОВКА ЗАВЕРШЕНА'}</h1><div class="result-cards">${cards}</div><p>Результат каждого ученика учитывается отдельно. ${g.endedEarly?'Незавершённая текущая задача в знаменатель не вошла.':''}</p>${role==='teacher'?'<button class="btn go" id="newAfterFinish">НОВОЕ ЗАНЯТИЕ</button>':'<button class="btn" id="switchAfterFinish">СМЕНИТЬ УЧЕНИКА</button>'}`;if($('newAfterFinish'))$('newAfterFinish').onclick=openNewSessionChooser;if($('switchAfterFinish'))$('switchAfterFinish').onclick=switchStudent;setConnectedUI(true);updateSessionPanel();if(role==='teacher')order.forEach(ensureSubmission);if(role==='student'&&participantPlayerKey)ensureSubmission(participantPlayerKey)}
+function renderError(msg){showOnly('screen-start');$('screen-start').innerHTML=`<h1>ОШИБКА</h1><div class="waiting-box">${esc(msg)}</div>`;setConnectedUI(!!role)}
 
-/* ---------- кнопки ---------- */
-el('checkBtn').onclick = check;
-el('skipBtn').onclick = ()=>{
-  if(!gameActive || S.over || S.questionAttempted) return;
-  startMusic(); sndClick();
-  S.questionAttempted = true;
-  S.combo = 0;
-  toast('Ответ: ' + cur().a, '#aaa');
-  S.idx++;
-  if(S.idx >= TASKS.length) setTimeout(()=>end(true), 600);
-  else setTimeout(()=>{ S.questionAttempted=false; render(); }, 600);
-};
-el('hintBtn').onclick = ()=>{
-  if(!gameActive || S.over || S.hintUsed || S.questionAttempted) return;
-  startMusic(); sndClick();
-  S.hintUsed = true; S.hints++;
-  const hb = el('hintBox');
-  hb.textContent = '⛏ ' + cur().hint + '  (награда −50%)';
-  hb.style.display = 'block';
-  el('hintBtn').disabled = true;
-};
-el('theoryBtn').onclick = ()=>{ startMusic(); sndClick(); el('theoryModal').classList.add('show'); };
-el('restartBtn').onclick = ()=>{ sndClick(); reset(); };
-el('startGameBtn').onclick = ()=>{
-  sndClick();
-  el('startModal').classList.remove('show');
-  reset();
-};
-function closeModal(id){ el(id).classList.remove('show'); sndClick(); }
-el('theoryModal').onclick = e => { if(e.target.id === 'theoryModal') closeModal('theoryModal'); };
+function kindOf(t){t=String(t);if(SIGNS.includes(t))return'op';if(t==='('||t===')')return'paren';if(/x/.test(t))return'var';if(t.includes('/'))return'frac';return'num'}
+function taskCanAnswer(entry){return role==='student'&&participantPlayerKey===entry?.ownerKey&&serverState?.game?.turnKey===participantPlayerKey&&!entry.task.resolved}
+function renderGame(s){const g=s.game,entry=currentEntry(s);if(!entry?.task){renderError('Не удалось восстановить текущую задачу.');return}if(role==='student'&&participantPlayerKey!==entry.ownerKey){renderWaitingTurn(s);return}showOnly('game');setConnectedUI(true);const t=entry.task,pk=entry.ownerKey,st=normalizeStats(g.stats[pk]),canAnswer=taskCanAnswer(entry),canAdvance=role==='student'&&participantPlayerKey===pk&&t.resolved;$('turn-name').textContent=(g.players[pk]?.name||'Ученик').toUpperCase();$('task-no').textContent=`ЗАДАЧА ${entry.ownerTask}/10`;$('diamonds').textContent=st.diamonds;const cb=$('combo-box');cb.innerHTML='КОМБО ×<span id="combo">'+st.combo+'</span>';cb.classList.toggle('hot',st.combo>=3);$('progress').style.width=(st.completed/TASKS_PER_STUDENT*100)+'%';$('task-topic').textContent=t.topic+' · '+t.proto;$('task-text').textContent=t.text;$('legend').textContent=t.legend?'▸ '+t.legend:'';$('hint-text').style.display=t.hintUsed?'block':'none';$('hint-text').textContent=t.hintUsed?'💡 '+(t.step===1?t.hintT:t.hintE):'';$('step1').className='step '+(t.step===1?'active':'done');$('step2').className='step '+(t.step===2?'active':'');$('eq-wrap').style.display=t.step===2?'block':'none';$('bank-title').textContent=t.step===1?'ЯЩИК — перетащи блоки в ячейки таблицы':'ЯЩИК УРАВНЕНИЯ — собери равенство из блоков';$('btn-check').textContent=t.step===1?'ПРОВЕРИТЬ ТАБЛИЦУ':'ПРОВЕРИТЬ УРАВНЕНИЕ';$('btn-check').disabled=!canAnswer;$('btn-clear').disabled=!canAnswer;$('btn-hint').disabled=!canAnswer||t.hintUsed;$('btn-skip').disabled=!canAnswer;$('btn-next').hidden=!t.resolved;$('btn-next').disabled=!canAdvance;$('btn-next').textContent=(g.index===g.deck.length-1?'ЗАВЕРШИТЬ ИГРУ ▶':'СЛЕДУЮЩАЯ ЗАДАЧА ▶');renderTable(t,canAnswer);renderBank(t,canAnswer);renderEq(t,canAnswer);const row=$('game-system-row');row.innerHTML=role==='teacher'?'<button class="btn sys-finish" id="teacherFinishInline">⏹ ЗАВЕРШИТЬ ЗАНЯТИЕ</button>':'';if($('teacherFinishInline'))$('teacherFinishInline').onclick=teacherFinishLesson;updateSessionPanel();attachBoardLayer();consumeFeedback(t.feedback)}
+function renderTable(t,canAnswer){const tableEl=$('table');tableEl.innerHTML='';tableEl.style.gridTemplateColumns=`minmax(72px,auto) repeat(${t.cols.length}, minmax(62px,1fr))`;const corner=document.createElement('div');corner.className='th';tableEl.appendChild(corner);for(const c of t.cols){const th=document.createElement('div');th.className='th';th.textContent=c;tableEl.appendChild(th)}t.rows.forEach((rname,ri)=>{const rh=document.createElement('div');rh.className='rh';rh.textContent=rname;tableEl.appendChild(rh);t.cells[ri].forEach((_,ci)=>{const key=ri+','+ci,fill=t.fills[key],got=fill?.val||'';const el=document.createElement('div');el.className='cell'+(got?' has':'')+(t.step===2&&got?' src':'')+(t.step===1&&t.selectedBankId&&!got?' armed':'');el.textContent=got;el.dataset.key=key;el.dataset.drop='cell';if(canAnswer&&t.step===1){el.addEventListener('pointerdown',e=>{if(got)startDrag(e,got,{type:'cell',key},el);else tapCellShared(key)})}else if(canAnswer&&t.step===2&&got){el.addEventListener('pointerdown',e=>startDrag(e,got,{type:'src'},el))}tableEl.appendChild(el)})})}
+function renderBank(t,canAnswer){const bankEl=$('bank');bankEl.innerHTML='';bankEl.dataset.drop='bank';if(t.step===1){for(const b of t.bank){const el=document.createElement('div');el.className='tile k-'+kindOf(b.val)+(b.used?' used':'')+(t.selectedBankId===b.id?' sel':'');el.textContent=b.val;if(canAnswer&&!b.used)el.addEventListener('pointerdown',e=>startDrag(e,b.val,{type:'bank',id:b.id},el));bankEl.appendChild(el)}}else{for(const v of t.bank2){const el=document.createElement('div');el.className='tile k-'+kindOf(v);el.textContent=v;if(canAnswer)el.addEventListener('pointerdown',e=>startDrag(e,v,{type:'bank2'},el));bankEl.appendChild(el)}}}
+function renderEq(t,canAnswer){const eqLine=$('eq-line');eqLine.innerHTML='';eqLine.dataset.drop='eq';if(!t.eqLine.length){const s=document.createElement('span');s.id='eq-empty';s.textContent='пусто — перетащи сюда первый блок';eqLine.appendChild(s);return}t.eqLine.forEach((tok,i)=>{const el=document.createElement('div');el.className='tile k-'+kindOf(tok);el.textContent=tok;el.dataset.eqi=i;if(canAnswer)el.addEventListener('pointerdown',e=>startDrag(e,tok,{type:'eq',i},el));eqLine.appendChild(el)})}
+function renderFromState(){if(!role){renderPublic();return}if(!serverState){if(role==='student')renderWaitingTeacher();return}const s=normalizeState(serverState);serverState=s;if(s.game.status==='lobby')renderLobby(s);else if(s.game.status==='playing')renderGame(s);else if(s.game.status==='finished')renderFinal(s);else renderError('Неизвестное состояние занятия.');renderBoardStrokes();updateTeacherCursor()}
 
-// тап по миру — Стив машет киркой
-addEventListener('pointerdown', e=>{
-  if(e.target.closest('#app') || e.target.closest('.modal')) return;
-  swingTarget = 1.1; beep(140,.06,'square',.05);
-});
+/* ===== DnD с сохранением в Firebase ===== */
+function startDrag(e,val,from,srcEl){if(!taskCanAnswer(currentEntry()))return;e.preventDefault();drag={val,from,srcEl,x0:e.clientX,y0:e.clientY,moved:false,ghost:null};document.addEventListener('pointermove',onMove);document.addEventListener('pointerup',onUp,{once:true});document.addEventListener('pointercancel',onUp,{once:true})}
+function onMove(e){if(!drag)return;if(!drag.moved&&Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0)>7){drag.moved=true;SFX.grab();const g=document.createElement('div');g.className='tile ghost k-'+kindOf(drag.val);g.textContent=drag.val;document.body.appendChild(g);drag.ghost=g;if(drag.from.type==='eq'||drag.from.type==='cell')drag.srcEl.style.opacity='.3'}if(!drag.moved)return;drag.ghost.style.left=e.clientX+'px';drag.ghost.style.top=e.clientY+'px';highlight(e)}
+function targetAt(e){if(!drag?.ghost)return null;drag.ghost.style.display='none';const el=document.elementFromPoint(e.clientX,e.clientY);drag.ghost.style.display='';return el?.closest('[data-drop]')||null}
+function highlight(e){document.querySelectorAll('.over').forEach(el=>el.classList.remove('over'));const t=targetAt(e),task=currentTask();if(!t||!task){removeCaret();return}if(t.dataset.drop==='cell'&&task.step===1)t.classList.add('over');else if(t.dataset.drop==='eq'&&task.step===2){t.classList.add('over');showCaret(e)}else if(t.dataset.drop==='bank')t.classList.add('over');else removeCaret()}
+function caretIndex(e){const tiles=[...$('eq-line').querySelectorAll('.tile')].filter(el=>el!==drag.srcEl);let idx=tiles.length;for(let i=0;i<tiles.length;i++){const r=tiles[i].getBoundingClientRect();if(e.clientY<r.bottom&&e.clientX<r.left+r.width/2){idx=i;break}}return idx}
+function showCaret(e){if(!caret){caret=document.createElement('div');caret.className='caret'}const tiles=[...$('eq-line').querySelectorAll('.tile')],idx=caretIndex(e),refEl=tiles[idx];if(refEl)$('eq-line').insertBefore(caret,refEl);else $('eq-line').appendChild(caret);drag.caretIdx=idx}
+function removeCaret(){if(caret?.parentNode)caret.remove()}
+async function onUp(e){document.removeEventListener('pointermove',onMove);if(!drag)return;try{if(drag.moved){const t=targetAt(e);await applyDropShared(t,e);drag.ghost?.remove()}else await tapSelectShared()}finally{if(drag?.srcEl)drag.srcEl.style.opacity='';document.querySelectorAll('.over').forEach(el=>el.classList.remove('over'));removeCaret();drag=null}}
+function freeCellInTask(t,key){const fill=t.fills[key];if(!fill)return;const b=t.bank.find(x=>x.id===fill.id);if(b)b.used=false;delete t.fills[key]}
+async function mutateCurrentTask(mutator){if(!serverState)return;const initial=clone(serverState);await runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(initial)),g=s.game,entry=g.deck[g.index];if(g.status!=='playing'||!entry||entry.ownerKey!==participantPlayerKey||g.turnKey!==participantPlayerKey||entry.task.resolved)return s;mutator(s,entry.task,g.stats[participantPlayerKey]||(g.stats[participantPlayerKey]=normalizeStats()));s.version++;return s})}
+async function applyDropShared(target){const from=drag.from,val=drag.val,caretIdx=drag.caretIdx;await mutateCurrentTask((s,t)=>{if(t.step===1){if(target?.dataset.drop==='cell'){const key=target.dataset.key;if(from.type==='bank'){const b=t.bank.find(x=>x.id===from.id);if(!b||b.used)return;if(t.fills[key])freeCellInTask(t,key);b.used=true;t.fills[key]={id:b.id,val:b.val}}else if(from.type==='cell'){if(from.key===key)return;const moving=t.fills[from.key],other=t.fills[key];t.fills[key]=moving;if(other)t.fills[from.key]=other;else delete t.fills[from.key]}}else if(from.type==='cell')freeCellInTask(t,from.key);t.selectedBankId=''}else{if(target?.dataset.drop==='eq'){let idx=Number.isInteger(caretIdx)?caretIdx:t.eqLine.length;if(from.type==='eq'){t.eqLine.splice(from.i,1);if(from.i<idx)idx--}t.eqLine.splice(Math.max(0,idx),0,val)}else if(from.type==='eq')t.eqLine.splice(from.i,1)}});SFX.put()}
+async function tapSelectShared(){const from=drag.from,val=drag.val;if(from.type==='bank'){await mutateCurrentTask((s,t)=>{if(t.step!==1)return;t.selectedBankId=t.selectedBankId===from.id?'':from.id});SFX.click()}else if(from.type==='cell'){await mutateCurrentTask((s,t)=>{if(t.step===1)freeCellInTask(t,from.key)});SFX.click()}else if(from.type==='bank2'||from.type==='src'){await mutateCurrentTask((s,t)=>{if(t.step===2)t.eqLine.push(val)});SFX.put()}else if(from.type==='eq'){await mutateCurrentTask((s,t)=>{if(t.step===2)t.eqLine.splice(from.i,1)});SFX.click()}}
+async function tapCellShared(key){await mutateCurrentTask((s,t)=>{if(t.step!==1||!t.selectedBankId)return;const b=t.bank.find(x=>x.id===t.selectedBankId);if(!b||b.used)return;if(t.fills[key])freeCellInTask(t,key);b.used=true;t.fills[key]={id:b.id,val:b.val};t.selectedBankId='' });SFX.put()}
 
-initializeStudent();
+function tableCheck(t){let all=true,ok=true,bad=[];t.cells.forEach((row,ri)=>row.forEach((ans,ci)=>{const key=ri+','+ci,got=t.fills[key]?.val;if(!got){all=false;bad.push(key)}else if(got!==ans){ok=false;bad.push(key)}}));return{all,ok,bad}}
+async function checkShared(){const e=currentEntry();if(!taskCanAnswer(e))return;const t=e.task;if(t.step===1)await checkTableShared();else await checkEqShared()}
+async function checkTableShared(){let outcome='';await mutateCurrentTask((s,t,st)=>{const c=tableCheck(t);if(!c.all){t.feedback={kind:'incomplete',text:'ТАБЛИЦА НЕ ЗАПОЛНЕНА',bad:c.bad,at:Date.now()};outcome='incomplete';return}st.attemptCount++;if(!c.ok){st.wrong++;st.combo=0;t.firstTryEligible=false;t.feedback={kind:'badTable',text:'ТАБЛИЦА НЕВЕРНА',bad:c.bad,at:Date.now()};outcome='bad';return}st.diamonds+=5;t.step=2;t.selectedBankId='';t.feedback={kind:'tableOk',text:'+5 💎 · ТАБЛИЦА ВЕРНА',at:Date.now()};outcome='good'});if(outcome==='bad')SFX.wrong();else if(outcome==='good')SFX.step();else SFX.wrong()}
+async function checkEqShared(){let outcome='';await mutateCurrentTask((s,t,st)=>{if(!t.eqLine.length){t.feedback={kind:'emptyEq',text:'СТРОКА ПУСТА',at:Date.now()};outcome='empty';return}st.attemptCount++;if(!eqOk(t.eqLine,t.eq)){st.wrong++;st.combo=0;t.firstTryEligible=false;t.feedback={kind:'badEq',text:'УРАВНЕНИЕ НЕВЕРНО',at:Date.now()};outcome='bad';return}const gain=10+st.combo*2;st.diamonds+=gain;st.combo++;st.maxCombo=Math.max(st.maxCombo,st.combo);st.solved++;st.completed++;if(t.firstTryEligible)st.firstTryCorrect++;t.resolved=true;t.feedback={kind:'solved',text:`+${gain} 💎 · ЗАДАЧА СОБРАНА`,at:Date.now()};outcome='good'});if(outcome==='good')SFX.correct();else SFX.wrong()}
+async function clearShared(){await mutateCurrentTask((s,t)=>{if(t.step===1){t.fills={};t.bank.forEach(b=>b.used=false);t.selectedBankId=''}else t.eqLine=[]});SFX.click()}
+async function hintShared(){await mutateCurrentTask((s,t,st)=>{if(t.hintUsed)return;t.hintUsed=true;t.firstTryEligible=false;st.hints++;st.diamonds=Math.max(0,st.diamonds-2);t.feedback={kind:'hint',text:'−2 💎 · ПОДСКАЗКА ОТКРЫТА',at:Date.now()}});SFX.click()}
+async function skipShared(){await mutateCurrentTask((s,t,st)=>{st.wrong++;st.combo=0;st.completed++;t.firstTryEligible=false;t.resolved=true;t.skipped=true;t.feedback={kind:'skipped',text:'ЗАДАЧА ПРОПУЩЕНА',at:Date.now()}});SFX.wrong()}
+async function advanceTask(){if(!serverState)return;const initial=clone(serverState);await runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(initial)),g=s.game,entry=g.deck[g.index];if(g.status!=='playing'||!entry||entry.ownerKey!==participantPlayerKey||g.turnKey!==participantPlayerKey||!entry.task.resolved)return s;if(g.index>=g.deck.length-1){g.status='finished';g.finishedAt=Date.now()}else{g.index++;g.turnKey=g.deck[g.index].ownerKey}g.version=(Number(g.version)||0)+1;s.version++;return s});SFX.click()}
+function consumeFeedback(f){if(!f?.at||f.at<=feedbackConsumedAt)return;feedbackConsumedAt=f.at;const bad=['badTable','badEq','incomplete','emptyEq','skipped'].includes(f.kind);showToast(f.text,bad?'bad':f.kind==='solved'||f.kind==='tableOk'?'good':'');if(f.bad?.length){f.bad.forEach(k=>{const el=$('table')?.querySelector(`.cell[data-key="${k}"]`);if(el){el.classList.add('err');setTimeout(()=>el.classList.remove('err'),900)}})}if(f.kind==='solved'){hitSteve();const r=$('eq-line').getBoundingClientRect();sparkle(16,r.left+r.width/2,r.top,'#4aedd9')}if(f.kind==='tableOk'){hitSteve();const r=$('table').getBoundingClientRect();sparkle(10,r.left+r.width/2,r.top+r.height/2,'#5fd94a')}}
+function hitSteve(){const steve=$('steve');steve.classList.remove('hit');void steve.offsetWidth;steve.classList.add('hit')}
+function sparkle(n,x,y,color){for(let i=0;i<n;i++){const p=document.createElement('div');p.className='particle';p.textContent='✦';p.style.color=color;p.style.fontSize='13px';p.style.textShadow='2px 2px 0 #000';p.style.left=x+'px';p.style.top=y+'px';p.style.setProperty('--dx',(Math.random()*240-120)+'px');p.style.setProperty('--dy',(-60-Math.random()*160)+'px');p.style.setProperty('--rot',(Math.random()*720-360)+'deg');document.body.appendChild(p);setTimeout(()=>p.remove(),1200)}}
+
+/* ===== ЛОББИ / ПРИСОЕДИНЕНИЕ ===== */
+function openLessonModal(content){const m=$('lessonModal');m.innerHTML=`<div class="lesson-card">${content}</div>`;m.classList.add('open')}
+function closeLessonModal(){$('lessonModal').classList.remove('open')}
+function openRoleModal(){openLessonModal(`<button class="modal-x" id="modalClose">×</button><h2>СОВМЕСТНЫЙ УРОК</h2><p>Выбери роль. Комнат нет: используется одна активная currentSession.</p><div class="role-grid"><button class="role-choice" id="roleTeacher"><b>УЧИТЕЛЬ</b><small>Создать занятие на 1 или 2 учеников, видеть ход работы и завершить урок.</small></button><button class="role-choice" id="roleStudent"><b>УЧЕНИК</b><small>Войти по личному коду. Код сохранится в браузере.</small></button></div>`);$('modalClose').onclick=closeLessonModal;$('roleTeacher').onclick=openTeacherLogin;$('roleStudent').onclick=openStudentLogin}
+function openTeacherLogin(){openLessonModal(`<button class="modal-x" id="modalClose">×</button><h2>ВХОД УЧИТЕЛЯ</h2><form class="code-form" id="teacherForm"><input class="code" id="teacherCodeInput" type="password" autocomplete="off" placeholder="КОД УЧИТЕЛЯ"><div class="status" id="teacherLoginStatus"></div><button class="btn go" type="submit">ВОЙТИ</button></form>`);$('modalClose').onclick=closeLessonModal;$('teacherForm').onsubmit=handleTeacherLogin}
+function openStudentLogin(){const saved=storedStudent();openLessonModal(`<button class="modal-x" id="modalClose">×</button><h2>ВХОД УЧЕНИКА</h2>${saved?.studentId?`<p>Сохранён: <b>${esc(saved.name)}</b></p><div class="native-actions"><button class="btn go" id="useSavedStudent">ПРОДОЛЖИТЬ</button><button class="btn" id="otherStudent">ДРУГОЙ УЧЕНИК</button></div>`:`<form class="code-form" id="studentForm"><input class="code" id="studentCodeInput" autocomplete="off" placeholder="ЛИЧНЫЙ КОД"><div class="status" id="studentLoginStatus"></div><button class="btn go" type="submit">ВОЙТИ</button></form>`}`);$('modalClose').onclick=closeLessonModal;if(saved?.studentId){$('useSavedStudent').onclick=()=>connectStudent(saved);$('otherStudent').onclick=()=>{clearStoredStudent();student=null;openStudentLogin()}}else $('studentForm').onsubmit=handleStudentLogin}
+function openNewSessionChooser(){openLessonModal(`<button class="modal-x" id="modalClose">×</button><h2>НОВОЕ ЗАНЯТИЕ</h2><p>Сколько учеников будет работать?</p><div class="role-grid"><button class="role-choice" data-limit="1"><b>1 УЧЕНИК</b><small>10 задач · все 8 семейств №10</small></button><button class="role-choice" data-limit="2"><b>2 УЧЕНИКА</b><small>по 10 каждому · строгая очередь</small></button></div>`);$('modalClose').onclick=closeLessonModal;document.querySelectorAll('[data-limit]').forEach(b=>b.onclick=()=>createFreshSession(Number(b.dataset.limit)))}
+function openTeacherResume(){const g=serverState?.game;if(!g){openNewSessionChooser();return}openLessonModal(`<button class="modal-x" id="modalClose">×</button><h2>АКТИВНОЕ ЗАНЯТИЕ НАЙДЕНО</h2><p>Статус: ${g.status==='playing'?'игра идёт':g.status==='finished'?'завершено':'лобби'} · режим ${g.studentLimit} учен.</p><div class="native-actions"><button class="btn go" id="resumeTeacher">ПРОДОЛЖИТЬ</button><button class="btn" id="newTeacher">НОВОЕ ЗАНЯТИЕ</button></div>`);$('modalClose').onclick=closeLessonModal;$('resumeTeacher').onclick=()=>{closeLessonModal();renderFromState()};$('newTeacher').onclick=openNewSessionChooser}
+async function handleTeacherLogin(e){e.preventDefault();const input=$('teacherCodeInput'),status=$('teacherLoginStatus'),btn=e.submitter;input.disabled=btn.disabled=true;status.textContent='Проверяем…';try{if(await sha256(input.value.trim())!==TEACHER_CODE_HASH)throw new Error('Неверный код учителя');teacherAuthenticated=true;role='teacher';participantName='Учитель';startSessionListeners();const snap=await get(stateRef());serverState=snap.exists()?normalizeState(snap.val()):null;await registerPresence();setConnectedUI(true);if(serverState&&serverState.schemaVersion===SCHEMA_VERSION)openTeacherResume();else openNewSessionChooser()}catch(err){status.className='status bad';status.textContent=err.message||'Не удалось войти';input.disabled=btn.disabled=false}}
+function validateStudentCode(code){return new Promise((resolve,reject)=>{const cb='egeCb_'+Date.now()+'_'+Math.floor(Math.random()*9000+1000),script=document.createElement('script'),timer=setTimeout(()=>finish(new Error('Сервер не ответил')),12000);function finish(err,data){clearTimeout(timer);delete window[cb];script.remove();err?reject(err):resolve(data)}window[cb]=data=>{if(data&&data.ok&&data.student)finish(null,data.student);else finish(new Error(data?.message||'Код не найден'))};script.onerror=()=>finish(new Error('Не удалось связаться с сервером'));script.src=API_URL+'?'+new URLSearchParams({action:'validateStudent',code,callback:cb});document.head.appendChild(script)})}
+async function handleStudentLogin(e){e.preventDefault();const code=$('studentCodeInput').value.trim(),status=$('studentLoginStatus'),btn=e.submitter;if(!code){status.className='status bad';status.textContent='Введите личный код';return}btn.disabled=true;status.textContent='Проверяем код…';try{const s=await validateStudentCode(code);await connectStudent({...s,code})}catch(err){status.className='status bad';status.textContent=err.message||'Не удалось войти';btn.disabled=false}}
+async function connectStudent(s){student={studentId:String(s.studentId),name:s.name||'Ученик',code:s.code||localStorage.getItem('egeStudentCode')||''};saveStudent(student);role='student';participantName=student.name;participantPlayerKey=playerKey(student.studentId);closeLessonModal();setConnectedUI(true);startSessionListeners();await tryJoinStudent();if(!serverState)renderWaitingTeacher()}
+async function switchStudent(){if(serverState?.game?.status==='playing'){showToast('Во время игры менять ученика нельзя.','bad');return}await cleanupPresence();stopSessionListeners();role='';participantId='';participantPlayerKey='';clearStoredStudent();student=null;setConnectedUI(false);renderPublic();openStudentLogin()}
+async function createFreshSession(limit){if(!teacherAuthenticated)return;openLessonModal('<h2>СОЗДАЁМ ЗАНЯТИЕ…</h2><p>Очищаем прошлое состояние currentSession.</p>');const fresh=newGameState(limit),session={meta:{sessionId:fresh.game.sessionId,appId:APP_ID,schemaVersion:SCHEMA_VERSION,openedAt:Date.now()},state:fresh,members:{},messages:{}};try{await set(sessionRef(),session);serverState=fresh;await registerPresence();closeLessonModal();renderFromState()}catch{openLessonModal('<h2>ОШИБКА</h2><p>Не удалось создать занятие.</p><button class="btn go" id="retryNew">ПОВТОРИТЬ</button>');$('retryNew').onclick=openNewSessionChooser}}
+async function tryJoinStudent(){if(role!=='student'||!student)return;const snap=await get(stateRef());if(!snap.exists()){serverState=null;renderWaitingTeacher();return}const initial=normalizeState(snap.val());await runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(initial)),g=s.game,pk=playerKey(student.studentId),existing=g.players[pk];if(existing){existing.name=student.name;existing.code=student.code||existing.code||'';return s}if(g.status!=='lobby')return s;const taken=new Set(Object.values(g.players).map(p=>Number(p.slot)));let slot=0;for(let i=1;i<=g.studentLimit;i++)if(!taken.has(i)){slot=i;break}if(!slot)return s;g.players[pk]={studentId:student.studentId,name:student.name,code:student.code||'',slot,joinedAt:Date.now()};s.version++;return s});participantPlayerKey=playerKey(student.studentId);await registerPresence()}
+async function hostStartGame(){if(role!=='teacher'||!serverState)return;const initial=clone(serverState);await runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(initial)),g=s.game;if(g.status!=='lobby')return s;const order=Object.keys(g.players).sort((a,b)=>(g.players[a]?.slot||9)-(g.players[b]?.slot||9)).slice(0,g.studentLimit);if(order.length<g.studentLimit)return s;g.playerOrder=order;g.stats={};g.eventIds={};g.submissions={};order.forEach(pk=>{g.stats[pk]=normalizeStats();g.eventIds[pk]=uuid()});g.deck=makeDeck(order);g.index=0;g.turnKey=g.deck[0]?.ownerKey||order[0];g.status='playing';g.startedAt=Date.now();g.finishedAt=0;g.endedEarly=false;s.version++;return s});SFX.click()}
+async function teacherFinishLesson(){if(role!=='teacher'||serverState?.game?.status!=='playing')return;if(!confirm('Завершить занятие сейчас? Незавершённая текущая задача не войдёт в знаменатель.'))return;const initial=clone(serverState);await runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(initial));if(s.game.status!=='playing')return s;s.game.status='finished';s.game.finishedAt=Date.now();s.game.endedEarly=true;s.version++;return s});SFX.win()}
+
+/* ===== presence / listeners ===== */
+async function registerPresence(){if(!role)return;participantId=role==='teacher'?'teacher_'+browserClientId:`student_${participantPlayerKey}_${browserClientId}`;const payload={role,online:true,name:role==='teacher'?'Учитель':student?.name||'Ученик',studentId:role==='student'?student?.studentId||'':'',clientId:browserClientId,at:Date.now()};try{await set(memberRef(participantId),payload);onDisconnect(memberRef(participantId)).update({online:false,at:Date.now()})}catch{}}
+async function cleanupPresence(){if(participantId)try{await update(memberRef(participantId),{online:false,at:Date.now()})}catch{}}
+function startSessionListeners(){stopSessionListeners();stateUnsub=onValue(stateRef(),snap=>{serverState=snap.exists()?normalizeState(snap.val()):null;if(role==='student'&&serverState&&!serverState.game.players[participantPlayerKey])tryJoinStudent().catch(()=>{});renderFromState()});membersUnsub=onValue(membersRef(),snap=>{membersSnapshot=snap.exists()?snap.val()||{}:{};updateSessionPanel();if(serverState?.game?.status==='lobby')renderFromState()});messagesUnsub=onValue(messagesRef(),snap=>{const m=snap.exists()?snap.val()||{}:{};remoteTeacherCursor=m.teacherCursor||null;updateTeacherCursor()})}
+function stopSessionListeners(){stateUnsub?.();membersUnsub?.();messagesUnsub?.();stateUnsub=membersUnsub=messagesUnsub=null}
+function updateSessionPanel(){const p=$('sessionPanel');if(!p)return;if(!role){p.classList.remove('show');return}const onlineStudents=Object.values(membersSnapshot).filter(m=>m&&m.online&&m.role==='student').length,status=!online?'офлайн':serverState?.game?.status==='playing'?'игра идёт':serverState?.game?.status==='finished'?'завершено':serverState?'лобби':'ждём учителя',finish=role==='teacher'&&serverState?.game?.status==='playing'?'<button class="sys-mini danger" id="panelFinishLesson">ЗАВЕРШИТЬ</button>':'';p.innerHTML=`<span class="session-dot ${online?'on':''}"></span><b>${role==='teacher'?'УЧИТЕЛЬ':esc(student?.name||'УЧЕНИК')}</b><small>${status}${serverState?` · онлайн учеников: ${onlineStudents}`:''}</small>${finish}${role==='student'?'<button class="sys-mini" id="panelSwitchStudent">СМЕНИТЬ УЧЕНИКА</button>':''}`;if($('panelSwitchStudent'))$('panelSwitchStudent').onclick=switchStudent;if($('panelFinishLesson'))$('panelFinishLesson').onclick=teacherFinishLesson}
+
+/* ===== результаты: контракт вкладки «Тесты» ===== */
+function readQueue(){try{const q=JSON.parse(localStorage.getItem(PENDING_RESULTS_KEY)||'[]');return Array.isArray(q)?q:[]}catch{return[]}}
+function writeQueue(q){try{localStorage.setItem(PENDING_RESULTS_KEY,JSON.stringify(q.slice(-50)))}catch{}}
+function queueResult(payload,pk){const q=readQueue();if(!q.some(x=>x?.payload?.eventId===payload.eventId))q.push({payload,playerKey:pk});writeQueue(q)}
+function removeQueued(eventId){writeQueue(readQueue().filter(x=>x?.payload?.eventId!==eventId))}
+async function postResult(payload){const response=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow'});let answer;try{answer=await response.json()}catch{throw new Error('Система результатов не ответила.')}if(!response.ok||!answer?.ok)throw new Error(answer?.error||'Результат не принят.');return answer}
+function resultPayload(s,pk){const g=s.game,p=g.players[pk],st=normalizeStats(g.stats[pk]),completed=st.completed,score=st.firstTryCorrect,maxScore=g.endedEarly?completed:TASKS_PER_STUDENT,percent=maxScore?Math.round(score/maxScore*100):0,finished=g.finishedAt||Date.now(),started=g.startedAt||finished,duration=Math.max(1,Math.round((finished-started)/1000));return{action:'submitTest',programId:'EGE_MATH',eventId:g.eventIds[pk]||`${g.sessionId}-${pk}`,studentId:p?.studentId||'',studentName:p?.name||'',studentCode:p?.code||'',testId:TEST_META.testId,testName:TEST_META.testName,testDate:localDate(),topicId:TEST_META.topicId,topicName:TEST_META.topicName,taskNumber:TEST_META.taskNumber,correctCount:score,totalCount:maxScore,score,maxScore,percent,scorePercent:percent,startedAt:nowIso(started),finishedAt:nowIso(finished),durationSec:duration,durationSeconds:duration,answeredCount:completed,attemptCount:st.attemptCount,studentMode:g.studentLimit,mode:g.studentLimit===2?'two':'one',schemaVersion:TEST_META.schemaVersion,roomCode:FIXED_SESSION_ID}}
+async function claimSubmission(pk){const eventId=serverState?.game?.eventIds?.[pk];if(!eventId)return false;const r=ref(database,`${lessonRoot()}/state/game/submissions/${pk}`),res=await runTransaction(r,current=>{if(current?.status==='saved')return;if(current?.status==='sending'&&Date.now()-(Number(current.updatedAt)||0)<8000)return;return{eventId,status:'sending',updatedAt:Date.now()}});return res.committed}
+async function markSubmission(pk,status,error=''){try{await update(ref(database,`${lessonRoot()}/state/game/submissions/${pk}`),{status,error,updatedAt:Date.now()})}catch{}}
+async function ensureSubmission(pk){if(!pk||submissionInFlight.has(pk)||!serverState||serverState.game.status!=='finished'||serverState.game.submissions?.[pk]?.status==='saved')return;submissionInFlight.add(pk);const snapshot=clone(serverState),payload=resultPayload(snapshot,pk);try{const claimed=await claimSubmission(pk);if(!claimed)return;if(!navigator.onLine)throw new Error('offline');await postResult(payload);removeQueued(payload.eventId);await markSubmission(pk,'saved','')}catch(err){queueResult(payload,pk);await markSubmission(pk,'queued',String(err?.message||'offline'))}finally{submissionInFlight.delete(pk)}}
+async function flushPendingResults(){if(!navigator.onLine)return;for(const item of readQueue()){const payload=item?.payload,pk=item?.playerKey;if(!payload?.eventId)continue;try{await postResult(payload);removeQueued(payload.eventId);if(serverState?.game?.eventIds?.[pk]===payload.eventId)await markSubmission(pk,'saved','')}catch{}}}
+
+/* ===== общая доска ===== */
+function attachBoardLayer(){const host=$('boardHost');if(!host)return;let board=$('sharedBoard');if(board)board.remove();board=document.createElementNS('http://www.w3.org/2000/svg','svg');board.id='sharedBoard';board.setAttribute('viewBox','0 0 1000 1000');board.setAttribute('preserveAspectRatio','none');board.classList.add('shared-board');host.appendChild(board);setBoardPointerMode();renderBoardStrokes();board.addEventListener('pointerdown',boardPointerDown);board.addEventListener('pointermove',boardPointerMove);board.addEventListener('pointerup',boardPointerUp);board.addEventListener('pointercancel',boardPointerUp);updateTeacherCursor()}
+function setBoardPointerMode(){const host=$('boardHost'),b=$('sharedBoard');if(host)host.style.pointerEvents=boardTool==='cursor'?'none':'auto';if(b)b.style.pointerEvents=boardTool==='cursor'?'none':'auto';document.querySelectorAll('[data-board-tool]').forEach(x=>x.classList.toggle('active',x.dataset.boardTool===boardTool))}
+function pointFromEvent(e){return[e.clientX/innerWidth,e.clientY/innerHeight]}
+function boardPointerDown(e){if(boardTool==='cursor'||!serverState)return;e.preventDefault();const p=pointFromEvent(e);if(boardTool==='eraser'){eraseNearest(p);return}activeStroke={id:'stroke-'+uuid(),authorId:participantId||role,authorName:participantName||role,color:boardColor,width:boardWidth,points:[p],done:false,epoch:serverState.boardEpoch||0,rev:Date.now()};e.currentTarget.setPointerCapture(e.pointerId);pushStroke()}
+function boardPointerMove(e){if(!activeStroke||boardTool!=='pencil')return;const p=pointFromEvent(e),last=activeStroke.points[activeStroke.points.length-1];if(Math.hypot(p[0]-last[0],p[1]-last[1])<.002)return;activeStroke.points.push(p);activeStroke.rev=Date.now();renderBoardStrokes();if(Date.now()-lastStrokePush>70){lastStrokePush=Date.now();pushStroke()}}
+function boardPointerUp(){if(!activeStroke)return;activeStroke.done=true;activeStroke.rev=Date.now();pushStroke();activeStroke=null}
+async function pushStroke(){if(!activeStroke||!serverState)return;try{await set(ref(database,`${lessonRoot()}/state/strokes/${activeStroke.id}`),clone(activeStroke))}catch{}}
+function renderBoardStrokes(){const b=$('sharedBoard');if(!b||!serverState)return;const epoch=serverState.boardEpoch||0,strokes=Object.values(serverState.strokes||{}).filter(s=>s&&s.epoch===epoch);if(activeStroke&&!strokes.some(s=>s.id===activeStroke.id))strokes.push(activeStroke);b.innerHTML=strokes.map(s=>{const pts=(s.points||[]).map(([x,y])=>`${Math.max(0,Math.min(1,x))*1000},${Math.max(0,Math.min(1,y))*1000}`).join(' ');return pts?`<polyline points="${pts}" fill="none" stroke="${esc(s.color||'#e53935')}" stroke-width="${Math.max(1,Number(s.width)||5)*2.2}" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`:''}).join('')}
+async function eraseNearest(p){if(!serverState)return;const entries=Object.entries(serverState.strokes||{}).filter(([,s])=>s?.epoch===(serverState.boardEpoch||0));let best=null,bestD=.04;for(const [id,s] of entries)for(const q of s.points||[]){const d=Math.hypot(p[0]-q[0],p[1]-q[1]);if(d<bestD){bestD=d;best=id}}if(best)try{await set(ref(database,`${lessonRoot()}/state/strokes/${best}`),null)}catch{}}
+async function clearBoard(){if(role!=='teacher'||!serverState)return;const initial=clone(serverState);await runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(initial));s.boardEpoch=(Number(s.boardEpoch)||0)+1;s.strokes={};s.version++;return s})}
+function initBoardToolbar(){const tb=$('boardToolbar');let pos={right:12,bottom:12};try{pos={...pos,...JSON.parse(localStorage.getItem(TOOLBAR_POSITION_KEY)||'{}')}}catch{}tb.style.right=(pos.right??12)+'px';tb.style.bottom=(pos.bottom??12)+'px';tb.innerHTML=`<div class="board-head" id="boardDragHandle"><b>ДОСКА</b><button class="sys-mini" id="boardCollapse">−</button></div><div class="board-tools"><button data-board-tool="cursor">↖</button><button data-board-tool="pencil">✎</button><button data-board-tool="eraser">⌫</button><input id="boardColor" type="color" value="${boardColor}"><input id="boardWidth" type="range" min="2" max="12" value="${boardWidth}"><button class="board-clear" id="boardClear">🗑 ОЧИСТИТЬ ВСЁ</button></div>`;document.querySelectorAll('[data-board-tool]').forEach(b=>b.onclick=()=>{boardTool=b.dataset.boardTool;setBoardPointerMode()});$('boardColor').oninput=e=>boardColor=e.target.value;$('boardWidth').oninput=e=>boardWidth=Number(e.target.value);$('boardClear').onclick=clearBoard;$('boardCollapse').onclick=()=>{toolbarCollapsed=!toolbarCollapsed;tb.classList.toggle('collapsed',toolbarCollapsed);$('boardCollapse').textContent=toolbarCollapsed?'+':'−'};makeToolbarDraggable(tb,$('boardDragHandle'));syncBoardToolbarRole();setBoardPointerMode()}
+function syncBoardToolbarRole(){if($('boardClear'))$('boardClear').style.display=role==='teacher'?'block':'none'}
+function makeToolbarDraggable(tb,handle){let sx=0,sy=0,startR=0,startB=0,moving=false;handle.addEventListener('pointerdown',e=>{if(e.target.tagName==='BUTTON')return;moving=true;sx=e.clientX;sy=e.clientY;const r=tb.getBoundingClientRect();startR=innerWidth-r.right;startB=innerHeight-r.bottom;handle.setPointerCapture(e.pointerId)});handle.addEventListener('pointermove',e=>{if(!moving)return;const nr=Math.max(0,Math.min(innerWidth-tb.offsetWidth,startR-(e.clientX-sx))),nb=Math.max(0,Math.min(innerHeight-tb.offsetHeight,startB-(e.clientY-sy)));tb.style.right=nr+'px';tb.style.bottom=nb+'px'});handle.addEventListener('pointerup',()=>{if(!moving)return;moving=false;localStorage.setItem(TOOLBAR_POSITION_KEY,JSON.stringify({right:parseFloat(tb.style.right)||0,bottom:parseFloat(tb.style.bottom)||0}))})}
+function updateTeacherCursor(){const c=$('teacherCursor');if(!c)return;if(role!=='student'||!remoteTeacherCursor?.visible){c.classList.remove('show');return}c.style.left=(remoteTeacherCursor.x*innerWidth)+'px';c.style.top=(remoteTeacherCursor.y*innerHeight)+'px';c.classList.add('show')}
+window.addEventListener('pointermove',e=>{if(role!=='teacher'||boardTool!=='cursor'||!serverState||Date.now()-lastCursorPush<75)return;lastCursorPush=Date.now();update(ref(database,`${lessonRoot()}/messages/teacherCursor`),{x:e.clientX/innerWidth,y:e.clientY/innerHeight,at:Date.now(),visible:true}).catch(()=>{})});window.addEventListener('blur',()=>{if(role==='teacher')update(ref(database,`${lessonRoot()}/messages/teacherCursor`),{visible:false,at:Date.now()}).catch(()=>{})});
+
+$('btn-check').onclick=checkShared;$('btn-clear').onclick=clearShared;$('btn-hint').onclick=hintShared;$('btn-skip').onclick=skipShared;$('btn-next').onclick=advanceTask;
+window.addEventListener('online',async()=>{online=true;updateSessionPanel();await flushPendingResults();if(role==='student'&&serverState&&!serverState.game.players[participantPlayerKey])tryJoinStudent().catch(()=>{});renderFromState()});window.addEventListener('offline',()=>{online=false;updateSessionPanel();renderFromState()});window.addEventListener('pagehide',cleanupPresence);window.addEventListener('resize',updateTeacherCursor);
+initBoardToolbar();renderPublic();flushPendingResults();
+
 </script>
 </body>
 </html>
