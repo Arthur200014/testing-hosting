@@ -230,6 +230,7 @@ let muted=false;
 let lastRenderedKey='';
 let lastFeedbackAt=0;
 let activeStroke=null,boardTool='cursor',boardColor='#e53935',boardWidth=6,toolbarCollapsed=false,lastStrokePush=0,lastCursorPush=0,remoteTeacherCursor=null;
+let boardPointerId=null,boardErasing=false,lastErasePoint=null,erasingStrokeIds=new Set();
 let submissionInFlight=new Set(),teacherBackupTimer=null,partialSent=false;
 
 const PROTO_LABELS={
@@ -710,12 +711,42 @@ function updateSessionPanel(){ const p=$('sessionPanel'); if(!p) return; if(!rol
 function attachBoardLayer(){ const anchor=document.querySelector('[data-board-anchor="main-screen"]'); if(!anchor) return; let board=$('sharedBoard'); if(board) board.remove(); board=document.createElementNS('http://www.w3.org/2000/svg','svg'); board.id='sharedBoard'; board.setAttribute('viewBox','0 0 1000 1000'); board.setAttribute('preserveAspectRatio','none'); board.classList.add('shared-board'); anchor.appendChild(board); setBoardPointerMode(); renderBoardStrokes(); board.addEventListener('pointerdown',boardPointerDown); board.addEventListener('pointermove',boardPointerMove); board.addEventListener('pointerup',boardPointerUp); board.addEventListener('pointercancel',boardPointerUp); installTeacherCursorTracking(anchor); updateTeacherCursor(); }
 function setBoardPointerMode(){ const b=$('sharedBoard'); if(b) b.style.pointerEvents=boardTool==='cursor'?'none':'auto'; document.querySelectorAll('[data-board-tool]').forEach(x=>x.classList.toggle('active',x.dataset.boardTool===boardTool)); }
 function pointFromEvent(e){ const anchor=document.querySelector('[data-board-anchor="main-screen"]'),r=anchor.getBoundingClientRect(); return [(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height]; }
-function boardPointerDown(e){ if(boardTool==='cursor'||!serverState) return; e.preventDefault(); const p=pointFromEvent(e); if(boardTool==='eraser'){ eraseNearest(p); return; } activeStroke={id:'stroke-'+uuid(),anchorId:'main-screen',authorId:participantId||role,authorName:participantName||role,color:boardColor,width:boardWidth,points:[p],done:false,epoch:serverState.boardEpoch||0,rev:Date.now()}; e.currentTarget.setPointerCapture(e.pointerId); pushStroke(); }
-function boardPointerMove(e){ if(!activeStroke||boardTool!=='pencil') return; const p=pointFromEvent(e),last=activeStroke.points[activeStroke.points.length-1]; if(Math.hypot(p[0]-last[0],p[1]-last[1])<.002) return; activeStroke.points.push(p); activeStroke.rev=Date.now(); renderBoardStrokes(); if(Date.now()-lastStrokePush>70){ lastStrokePush=Date.now(); pushStroke(); } }
-function boardPointerUp(){ if(!activeStroke) return; activeStroke.done=true; activeStroke.rev=Date.now(); pushStroke(); activeStroke=null; }
-async function pushStroke(){ if(!activeStroke||!serverState) return; try{ await set(ref(database,`${lessonRoot()}/state/strokes/${activeStroke.id}`),clone(activeStroke)); }catch{} }
-function renderBoardStrokes(){ const b=$('sharedBoard'); if(!b||!serverState) return; const epoch=serverState.boardEpoch||0, strokes=Object.values(serverState.strokes||{}).filter(s=>s&&s.epoch===epoch); if(activeStroke&&!strokes.some(s=>s.id===activeStroke.id)) strokes.push(activeStroke); b.innerHTML=strokes.map(s=>{ const pts=(s.points||[]).map(([x,y])=>`${Math.max(0,Math.min(1,x))*1000},${Math.max(0,Math.min(1,y))*1000}`).join(' '); return pts?`<polyline points="${pts}" fill="none" stroke="${esc(s.color||'#e53935')}" stroke-width="${Math.max(1,Number(s.width)||6)*2.2}" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`:''; }).join(''); }
-async function eraseNearest(p){ if(!serverState) return; const entries=Object.entries(serverState.strokes||{}).filter(([,s])=>s?.epoch===(serverState.boardEpoch||0)); let best=null,bestD=.04; for(const [id,s] of entries) for(const q of s.points||[]){ const d=Math.hypot(p[0]-q[0],p[1]-q[1]); if(d<bestD){ bestD=d; best=id; } } if(best) try{ await set(ref(database,`${lessonRoot()}/state/strokes/${best}`),null);}catch{} }
+function boardPointerDown(e){
+  if(boardTool==='cursor'||!serverState)return;
+  e.preventDefault();const p=pointFromEvent(e);boardPointerId=e.pointerId;e.currentTarget.setPointerCapture(e.pointerId);
+  if(boardTool==='eraser'){boardErasing=true;lastErasePoint=p;eraseBoardAlong(p,p);return}
+  boardErasing=false;activeStroke={id:'stroke-'+uuid(),anchorId:'main-screen',authorId:participantId||role,authorName:participantName||role,color:boardColor,width:boardWidth,points:[p],done:false,epoch:serverState.boardEpoch||0,rev:Date.now(),tool:'pencil'};lastStrokePush=Date.now();renderBoardStrokes();pushStroke(activeStroke);
+}
+function boardPointerMove(e){
+  if(boardPointerId!==e.pointerId)return;
+  const p=pointFromEvent(e);
+  if(boardErasing){e.preventDefault();eraseBoardAlong(lastErasePoint||p,p);lastErasePoint=p;return}
+  if(!activeStroke||boardTool!=='pencil')return;
+  const last=activeStroke.points[activeStroke.points.length-1];if(Math.hypot(p[0]-last[0],p[1]-last[1])<.001)return;
+  e.preventDefault();activeStroke.points.push(p);activeStroke.rev=Date.now();renderBoardStrokes();const now=Date.now();if(now-lastStrokePush>=50){lastStrokePush=now;pushStroke(activeStroke)}
+}
+function boardPointerUp(e){
+  if(boardPointerId!==e.pointerId)return;
+  try{e.currentTarget.releasePointerCapture(e.pointerId)}catch{}boardPointerId=null;lastErasePoint=null;
+  if(boardErasing){boardErasing=false;return}
+  if(!activeStroke)return;activeStroke.done=true;activeStroke.rev=Date.now();const finished=clone(activeStroke);activeStroke=null;renderBoardStrokes();pushStroke(finished);
+}
+async function pushStroke(stroke=activeStroke){if(!stroke||!serverState)return;try{await set(ref(database,`${lessonRoot()}/state/strokes/${stroke.id}`),clone(stroke))}catch{}}
+function renderBoardStrokes(){
+  const b=$('sharedBoard');if(!b||!serverState)return;const epoch=serverState.boardEpoch||0;
+  for(const id of [...erasingStrokeIds])if(!serverState.strokes?.[id])erasingStrokeIds.delete(id);
+  const strokes=Object.values(serverState.strokes||{}).filter(s=>s&&s.epoch===epoch&&!erasingStrokeIds.has(s.id)&&s.id!==activeStroke?.id);if(activeStroke)strokes.push(activeStroke);
+  b.innerHTML=strokes.map(s=>{const pts=(s.points||[]).map(([x,y])=>`${Math.max(0,Math.min(1,x))*1000},${Math.max(0,Math.min(1,y))*1000}`).join(' ');return pts?`<polyline points="${pts}" fill="none" stroke="${esc(s.color||'#e53935')}" stroke-width="${Math.max(1,Number(s.width)||6)*2.2}" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`:''}).join('');
+}
+function boardPointSegmentDistancePx(p,a,b,rect){const px=p[0]*rect.width,py=p[1]*rect.height,ax=a[0]*rect.width,ay=a[1]*rect.height,bx=b[0]*rect.width,by=b[1]*rect.height,dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy;if(!l2)return Math.hypot(px-ax,py-ay);const t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/l2));return Math.hypot(px-(ax+t*dx),py-(ay+t*dy))}
+function boardStrokeTouchesPoint(st,p,radius,rect){const points=st?.points||[];if(!points.length)return false;if(points.length===1)return boardPointSegmentDistancePx(p,points[0],points[0],rect)<=radius;for(let i=1;i<points.length;i++)if(boardPointSegmentDistancePx(p,points[i-1],points[i],rect)<=radius+Math.max(1,Number(st.width)||6)/2)return true;return false}
+function eraseBoardAlong(from,to){
+  if(!serverState)return;const b=$('sharedBoard');if(!b)return;const rect=b.getBoundingClientRect(),radius=Math.max(14,boardWidth*2.5),distance=Math.hypot((to[0]-from[0])*rect.width,(to[1]-from[1])*rect.height),steps=Math.max(1,Math.ceil(distance/Math.max(5,radius*.45))),samples=[];
+  for(let i=0;i<=steps;i++){const t=i/steps;samples.push([from[0]+(to[0]-from[0])*t,from[1]+(to[1]-from[1])*t])}
+  const epoch=serverState.boardEpoch||0,ids=[];for(const [id,st] of Object.entries(serverState.strokes||{})){if(!st||st.epoch!==epoch||erasingStrokeIds.has(id))continue;if(samples.some(p=>boardStrokeTouchesPoint(st,p,radius,rect)))ids.push(id)}
+  if(!ids.length)return;const removals={};for(const id of ids){erasingStrokeIds.add(id);removals[id]=null}renderBoardStrokes();
+  update(ref(database,`${lessonRoot()}/state/strokes`),removals).catch(()=>{for(const id of ids)erasingStrokeIds.delete(id);renderBoardStrokes()});
+}
 async function clearBoard(){ if(role!=='teacher'||!serverState) return; const initial=clone(serverState); await runTransaction(stateRef(),current=>{ const s=normalizeState(current||clone(initial)); s.boardEpoch=(Number(s.boardEpoch)||0)+1; s.strokes={}; s.version++; return s; }); }
 function initBoardToolbar(){ const tb=$('boardToolbar'); let pos={right:18,bottom:18}; try{ pos={...pos,...JSON.parse(localStorage.getItem(TOOLBAR_POSITION_KEY)||'{}')}; }catch{} tb.style.right=(pos.right??18)+'px'; tb.style.bottom=(pos.bottom??18)+'px'; tb.innerHTML=`<div class="board-head" id="boardDragHandle"><b>Доска</b><button class="tiny" id="boardCollapse">−</button></div><div class="board-tools"><button data-board-tool="cursor" title="Курсор">↖</button><button data-board-tool="pencil" title="Карандаш">✎</button><button data-board-tool="eraser" title="Ластик">⌫</button><input id="boardColor" type="color" value="${boardColor}" title="Цвет"><input id="boardWidth" type="range" min="2" max="12" value="${boardWidth}" title="Толщина"><button class="board-clear" id="boardClear" title="Очистить всю общую доску">🗑 Очистить всё</button></div>`; document.querySelectorAll('[data-board-tool]').forEach(b=>b.onclick=()=>{boardTool=b.dataset.boardTool; setBoardPointerMode();}); $('boardColor').oninput=e=>boardColor=e.target.value; $('boardWidth').oninput=e=>boardWidth=Number(e.target.value); $('boardClear').onclick=()=>{ if(role==='teacher') clearBoard(); else showToast('Полностью очищать доску может только учитель.','bad'); }; $('boardCollapse').onclick=()=>{ toolbarCollapsed=!toolbarCollapsed; tb.classList.toggle('collapsed',toolbarCollapsed); $('boardCollapse').textContent=toolbarCollapsed?'+':'−'; }; makeToolbarDraggable(tb,$('boardDragHandle')); setBoardPointerMode(); }
 function makeToolbarDraggable(tb,handle){ let sx=0,sy=0,startR=0,startB=0,drag=false; handle.addEventListener('pointerdown',e=>{ if(e.target.tagName==='BUTTON') return; drag=true; sx=e.clientX; sy=e.clientY; const r=tb.getBoundingClientRect(); startR=innerWidth-r.right; startB=innerHeight-r.bottom; handle.setPointerCapture(e.pointerId); }); handle.addEventListener('pointermove',e=>{ if(!drag) return; const nr=Math.max(0,Math.min(innerWidth-tb.offsetWidth,startR-(e.clientX-sx))), nb=Math.max(0,Math.min(innerHeight-tb.offsetHeight,startB-(e.clientY-sy))); tb.style.right=nr+'px'; tb.style.bottom=nb+'px'; }); handle.addEventListener('pointerup',()=>{ if(!drag) return; drag=false; localStorage.setItem(TOOLBAR_POSITION_KEY,JSON.stringify({right:parseFloat(tb.style.right)||0,bottom:parseFloat(tb.style.bottom)||0})); }); }
