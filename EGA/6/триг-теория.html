@@ -225,6 +225,22 @@ svg.circle{display:block;touch-action:none;width:min(460px,88vw);height:auto;}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none !important;}}
 </style>
+
+<style>
+/* ===== Совместный гайд currentSession ===== */
+.identity-overlay{display:none!important}
+.collab-launch{position:fixed;left:14px;top:14px;z-index:260;border:2px solid #3a2b18;border-radius:10px;padding:9px 13px;background:#f6eed6;color:#3a2b18;font:700 16px "Caveat",cursive;box-shadow:2px 3px 0 rgba(58,43,24,.45)}
+.collab-launch.connected{background:#dcebd5;border-color:#3f7a3a}
+.collab-overlay{position:fixed;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(38,28,17,.72);backdrop-filter:blur(5px)}
+.collab-overlay.hidden{display:none}.collab-card{width:min(560px,96vw);max-height:90vh;overflow:auto;background:#f6eed6;color:#3a2b18;border:3px solid #3a2b18;border-radius:12px;padding:24px;box-shadow:7px 9px 0 rgba(58,43,24,.45)}
+.collab-card h2{font-size:28px}.collab-card p{font-family:"Caveat",cursive;font-size:19px;color:#6d573a}.collab-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}.collab-pane{margin-top:14px;padding-top:14px;border-top:1px dashed #a98a5c}.collab-pane.hidden{display:none}
+.collab-input{width:min(320px,94%)!important;padding:10px 12px!important;font-size:21px!important;text-transform:uppercase}.collab-msg{min-height:26px;margin:8px 0;font-family:"Caveat",cursive;font-size:18px;font-weight:700;color:#b0392b}.collab-msg.ok{color:#3f7a3a}
+.session-strip{position:fixed;left:14px;top:62px;z-index:250;display:none;max-width:min(520px,92vw);background:#f6eed6;border:2px solid #3a2b18;border-radius:9px;padding:7px 10px;box-shadow:2px 3px 0 rgba(58,43,24,.35);font:700 14px "Caveat",cursive}.session-strip.show{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.participant{padding:3px 8px;border:1px solid #a98a5c;border-radius:999px;background:#efe3c6}.participant.teacher{border-color:#b8860b}.participant.student{border-color:#1f7a7a}
+.guide-fx{position:fixed;inset:0;z-index:390;pointer-events:none;display:grid;place-items:center;opacity:0}.guide-fx.show{animation:guideFx .72s ease-out}.guide-fx.good{background:radial-gradient(circle,rgba(63,122,58,.36),rgba(184,134,11,.12),transparent 72%)}.guide-fx.bad{background:radial-gradient(circle,rgba(176,57,43,.40),rgba(176,57,43,.08),transparent 72%)}.guide-fx span{font:900 clamp(34px,8vw,88px) "Cinzel Decorative";text-shadow:0 4px 18px #fff8;color:#3f7a3a}.guide-fx.bad span{color:#b0392b}@keyframes guideFx{0%{opacity:0;transform:scale(.92)}18%{opacity:1;transform:scale(1.03)}100%{opacity:0;transform:scale(1)}}
+.shared-board{position:relative;z-index:2;width:min(1080px,94vw);margin:26px auto 60px;background:#f6eed6;border:3px solid #3a2b18;border-radius:12px;padding:14px;box-shadow:4px 6px 0 rgba(58,43,24,.34)}.shared-board h2{text-align:center;margin-bottom:4px}.shared-board p{text-align:center;margin:0 0 10px;font-family:"Caveat",cursive;font-size:17px;color:#6d573a}.board-tools{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin-bottom:10px}.board-tools button,.board-tools select,.board-tools input{border:2px solid #3a2b18;border-radius:7px;background:#efe3c6;color:#3a2b18;padding:6px 9px;font:700 15px "Caveat",cursive}.board-tools button.active{background:#e7b84e}.board-clear.teacher-only{display:none}.board-clear.teacher-only.show{display:inline-block}.shared-board-pad{position:relative;height:430px;border:2px solid #8e7754;border-radius:8px;overflow:hidden;touch-action:none;background-color:#fbf5e3;background-image:linear-gradient(rgba(58,43,24,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(58,43,24,.10) 1px,transparent 1px);background-size:24px 24px}.shared-board-svg{position:absolute;inset:0;width:100%;height:100%;touch-action:none}.board-note{font-size:14px;color:#6d573a;text-align:center;margin-top:7px;font-family:"Caveat",cursive}
+#result .result-stats,#result .save-status{display:none!important}#result .stars{font-size:34px}
+@media(max-width:650px){.collab-launch{top:auto;bottom:14px}.session-strip{top:auto;bottom:62px}.shared-board-pad{height:360px}}
+</style>
 </head>
 <body>
 
@@ -357,784 +373,192 @@ svg.circle{display:block;touch-action:none;width:min(460px,88vw);height:auto;}
   </div>
 </section>
 
-<script>
-/* =======================================================================
-   СИСТЕМА УЧЁТА РЕЗУЛЬТАТОВ
-   ======================================================================= */
+
+
+<button class="collab-launch" id="collabLaunch" type="button">👥 Совместный гайд</button>
+<div class="session-strip" id="sessionStrip"><span id="sessionStatus">Не подключено</span><span id="participantsList"></span><button class="student-switch" id="leaveSession" type="button">Выйти</button></div>
+<div class="collab-overlay hidden" id="collabOverlay">
+  <div class="collab-card">
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><h2>Совместный гайд</h2><p>Один общий экран, общие интерактивы и одна доска. Комнат и кодов комнат нет.</p></div><button class="btn ghost" id="collabClose" type="button">✕</button></div>
+    <div id="rolePane" class="collab-pane">
+      <div class="collab-actions"><button class="btn gold" id="teacherRole" type="button">Я учитель</button><button class="btn" id="studentRole" type="button">Я ученик</button></div>
+    </div>
+    <div id="teacherPane" class="collab-pane hidden"><h3>Вход учителя</h3><input class="collab-input" id="teacherCode" type="password" placeholder="КОД УЧИТЕЛЯ"><div class="collab-msg" id="teacherMsg"></div><div class="collab-actions"><button class="btn gold" id="teacherUnlock" type="button">Продолжить</button><button class="btn ghost backRole" type="button">← Назад</button></div></div>
+    <div id="restorePane" class="collab-pane hidden"><h3>Текущий гайд найден</h3><p>Можно продолжить тот же экран или начать новый общий гайд с главного меню.</p><div class="collab-actions"><button class="btn gold" id="teacherContinue" type="button">Продолжить текущий</button><button class="btn" id="teacherNew" type="button">Новый гайд</button><button class="btn ghost backRole" type="button">← Назад</button></div></div>
+    <div id="studentPane" class="collab-pane hidden"><h3>Вход ученика</h3><p id="savedStudentText"></p><input class="collab-input" id="collabStudentCode" type="text" placeholder="ЛИЧНЫЙ КОД" autocomplete="one-time-code"><div class="collab-msg" id="studentMsg"></div><div class="collab-actions"><button class="btn gold" id="studentJoin" type="button">Подключиться</button><button class="btn ghost backRole" type="button">← Назад</button></div></div>
+  </div>
+</div>
+<div class="guide-fx" id="guideFx"><span id="guideFxText"></span></div>
+<section class="shared-board" id="sharedBoard">
+  <h2>Общее поле для записи</h2><p>Писать и стирать могут учитель и оба ученика одновременно. Очереди здесь нет.</p>
+  <div class="board-tools"><button id="toolPen" class="active" type="button">✏️ Карандаш</button><button id="toolEraser" type="button">🧽 Ластик</button><input id="penColor" type="color" value="#b0392b" title="Цвет"><select id="penWidth"><option value="3">Тонко</option><option value="6" selected>Средне</option><option value="10">Толсто</option></select><button id="clearBoard" class="board-clear teacher-only" type="button">Очистить всё</button></div>
+  <div class="shared-board-pad" id="boardPad"><svg class="shared-board-svg" id="boardSvg" viewBox="0 0 1000 430" preserveAspectRatio="none"></svg></div>
+  <div class="board-note" id="boardStatus">Доска работает локально, пока совместный режим не подключён.</div>
+</section>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import { getDatabase, ref, get, set, update, remove, push, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js";
+
+const firebaseConfig={apiKey:"AIzaSyBkY5utRlEfGIT_wEW6Dq7TSLr3RqBWJxo",authDomain:"ega-mathematica.firebaseapp.com",databaseURL:"https://ega-mathematica-default-rtdb.europe-west1.firebasedatabase.app",projectId:"ega-mathematica",storageBucket:"ega-mathematica.firebasestorage.app",messagingSenderId:"177632223541",appId:"1:177632223541:web:fbc532216359e34665ec7c",measurementId:"G-K9FZYGKPZS"};
+const firebaseApp=initializeApp(firebaseConfig), database=getDatabase(firebaseApp);
+const GUIDE_ID='ege13-trig-diary-shared-guide-v1', FIXED_SESSION_ID='currentSession';
+const lessonRoot=()=>`sharedGuides/${GUIDE_ID}/${FIXED_SESSION_ID}`, stateRef=()=>ref(database,lessonRoot()+'/state'), participantsRef=()=>ref(database,lessonRoot()+'/participants'), strokesRef=()=>ref(database,lessonRoot()+'/strokes');
 const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
-const TEST_META={
-  testId:'EGE-13-DNEVNIK-TRIGONOMETRA',
-  topicId:'task-13',
-  topicName:'Тригонометрические уравнения',
-  taskNumber:13,
-  schemaVersion:1
-};
-const PENDING_RESULTS_KEY='egePendingTestResults';
-let currentStudent=null,gameActive=false,displayedEventId=null;
+const TEACHER_CODE_HASH='b0a83a3919eba1d2a99034f2d94e5a47590f1710595c04bd64b5c8f21456a7c6', MAX_STUDENTS=2;
+const $=id=>document.getElementById(id), clone=v=>JSON.parse(JSON.stringify(v)), clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
-function loadStoredStudent(){
-  const id=localStorage.getItem('egeStudentId');
-  const name=localStorage.getItem('egeStudentName');
-  const code=localStorage.getItem('egeStudentCode');
-  return id&&name&&code?{id,name,code}:null;
-}
-function saveStudent(student){
-  localStorage.setItem('egeStudentId',student.id);
-  localStorage.setItem('egeStudentName',student.name);
-  localStorage.setItem('egeStudentCode',student.code);
-}
-function extractStudent(data,code){
-  const source=data&&(data.student||data.data)||data||{};
-  const id=source.studentId||source.id||(data&&data.studentId);
-  const name=source.studentName||source.name||(data&&data.studentName);
-  const ok=data&&(data.success===true||data.valid===true||data.ok===true||data.status==='success'||id);
-  return ok&&id&&name?{id:String(id),name:String(name),code}:null;
-}
-function validateStudentCode(code){
-  return new Promise((resolve,reject)=>{
-    const callbackName='egeValidate_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-    const script=document.createElement('script');
-    const cleanup=()=>{delete window[callbackName];script.remove();clearTimeout(timeout);};
-    const timeout=setTimeout(()=>{cleanup();reject(new Error('timeout'));},12000);
-    window[callbackName]=data=>{cleanup();resolve(data);};
-    script.onerror=()=>{cleanup();reject(new Error('network'));};
-    script.src=API_URL+'?action=validateStudent&code='+encodeURIComponent(code)+'&callback='+encodeURIComponent(callbackName);
-    document.head.appendChild(script);
-  });
-}
-function setIdentityMessage(text,ok=false){
-  const el=document.getElementById('identityMsg');
-  el.textContent=text;el.className='identity-msg'+(ok?' ok':'');
-}
-function showStudent(){
-  document.getElementById('studentName').textContent=currentStudent?currentStudent.name:'—';
-  document.getElementById('switchStudent').disabled=gameActive;
-}
-async function acceptStudentCode(rawCode){
-  const code=String(rawCode||'').trim();
-  if(!code){setIdentityMessage('Введите личный код.');return;}
-  const button=document.getElementById('identityBtn');
-  button.disabled=true;setIdentityMessage('Проверяем код…');
-  try{
-    const data=await validateStudentCode(code);
-    const student=extractStudent(data,code);
-    if(!student){setIdentityMessage((data&&data.message)||'Код не найден. Проверьте и попробуйте снова.');return;}
-    currentStudent=student;saveStudent(student);showStudent();
-    setIdentityMessage('Код принят.',true);
-    document.getElementById('identityOverlay').classList.add('hidden');
-    flushPendingResults();
-  }catch(error){setIdentityMessage('Нет связи. Проверьте интернет и попробуйте снова.');}
-  finally{button.disabled=false;}
-}
-document.getElementById('identityForm').addEventListener('submit',event=>{
-  event.preventDefault();acceptStudentCode(document.getElementById('studentCodeInput').value);
-});
-document.getElementById('switchStudent').addEventListener('click',()=>{
-  if(gameActive)return;
-  currentStudent=null;
-  localStorage.removeItem('egeStudentId');
-  localStorage.removeItem('egeStudentName');
-  localStorage.removeItem('egeStudentCode');
-  showStudent();document.getElementById('studentCodeInput').value='';setIdentityMessage('');
-  document.getElementById('identityOverlay').classList.remove('hidden');
-  document.getElementById('studentCodeInput').focus();
-});
-function makeEventId(){
-  if(typeof crypto!=='undefined'&&typeof crypto.randomUUID==='function')return crypto.randomUUID();
-  return 'evt-'+Date.now()+'-'+Math.random().toString(16).slice(2)+'-'+Math.random().toString(16).slice(2);
-}
-function localDateString(){
-  const now=new Date();
-  return [now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
-}
-function readPendingResults(){
-  try{const parsed=JSON.parse(localStorage.getItem(PENDING_RESULTS_KEY)||'[]');return Array.isArray(parsed)?parsed:[];}
-  catch(error){return [];}
-}
-function writePendingResults(items){localStorage.setItem(PENDING_RESULTS_KEY,JSON.stringify(items));}
-function queueResult(payload){
-  const queue=readPendingResults();
-  if(!queue.some(item=>item&&item.eventId===payload.eventId))queue.push(payload);
-  writePendingResults(queue);
-}
-async function postResult(payload){
-  const response=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify(payload),redirect:'follow'});
-  if(!response.ok)throw new Error('HTTP '+response.status);
-}
-function setSaveStatus(text,type='',eventId=null){
-  if(eventId&&displayedEventId!==eventId)return;
-  const el=document.getElementById('saveStatus');
-  el.textContent=text;el.className='save-status'+(type?' '+type:'');
-}
-async function submitResult(payload){
-  setSaveStatus('Сохраняем результат…','',payload.eventId);
-  try{
-    await postResult(payload);
-    writePendingResults(readPendingResults().filter(item=>item&&item.eventId!==payload.eventId));
-    setSaveStatus('✓ Результат сохранён','ok',payload.eventId);
-  }catch(error){
-    queueResult(payload);
-    setSaveStatus('Нет связи: результат сохранён на устройстве и отправится позже','offline',payload.eventId);
-  }
-}
-async function flushPendingResults(){
-  const queue=readPendingResults();if(!queue.length)return;
-  const failed=[];
-  for(const payload of queue){try{await postResult(payload);}catch(error){failed.push(payload);}}
-  writePendingResults(failed);
-}
-addEventListener('online',flushPendingResults);
-
-/* =======================================================================
-   ДАННЫЕ: 10 уравнений (правильные ответы для проверки).
-   axis: 'X'(cos) | 'Y'(sin) | 'T'(линия тангенсов) | 'C'(линия котангенсов)
-   ======================================================================= */
-const EQUATIONS = [
-  {tex:'sin x = 1/2',   func:'sin', axis:'Y', value:0.5,            vlabel:'1/2',  angles:[30,150], rad:['π/6','5π/6'],  sol:'x = (−1)ⁿ · π/6 + πn',
-    h2:'sin 30° = 1/2. Ищи отметку 1/2 на оси Y — это середина между 0 и 1.',
-    h4:'У точек высота (sin) = 1/2. Симметрия относительно оси Y: 30° и 150°.'},
-  {tex:'cos x = √3/2',  func:'cos', axis:'X', value:Math.sqrt(3)/2, vlabel:'√3/2', angles:[30,330], rad:['π/6','−π/6'],  sol:'x = ± π/6 + 2πn',
-    h2:'cos — координата по оси X. √3/2 ≈ 0,87 — почти у самого края.',
-    h4:'Косинус одинаков в I и IV четвертях: 30° и −30° (330°).'},
-  {tex:'tg x = 1',      func:'tg',  axis:'T', value:1,              vlabel:'1',    angles:[45,225], rad:['π/4','5π/4'],  sol:'x = π/4 + πn',
-    h2:'Тангенс — на линии тангенсов (вертикаль справа). Отметка 1 — вровень с верхом окружности.',
-    h4:'tg = 1 значит sin = cos — биссектрисы I и III четвертей: 45° и 225°.'},
-  {tex:'sin x = √2/2',  func:'sin', axis:'Y', value:Math.SQRT1_2,  vlabel:'√2/2', angles:[45,135], rad:['π/4','3π/4'],  sol:'x = (−1)ⁿ · π/4 + πn',
-    h2:'sin 45° = √2/2 ≈ 0,71 — между 1/2 и √3/2.',
-    h4:'Одинаковая высота в I и II четвертях: 45° и 135°.'},
-  {tex:'cos x = 1/2',   func:'cos', axis:'X', value:0.5,            vlabel:'1/2',  angles:[60,300], rad:['π/3','−π/3'],  sol:'x = ± π/3 + 2πn',
-    h2:'cos 60° = 1/2. Отметка 1/2 на оси X — середина вправо.',
-    h4:'Косинус положителен в I и IV четвертях: 60° и −60° (300°).'},
-  {tex:'ctg x = 1',     func:'ctg', axis:'C', value:1,              vlabel:'1',    angles:[45,225], rad:['π/4','5π/4'],  sol:'x = π/4 + πn',
-    h2:'Котангенс — на линии котангенсов (горизонталь сверху). Отметка 1 — вровень с правым краем.',
-    h4:'ctg = 1 значит cos = sin — те же 45° и 225°.'},
-  {tex:'sin x = −1/2',  func:'sin', axis:'Y', value:-0.5,           vlabel:'−1/2', angles:[210,330], rad:['7π/6','11π/6'], sol:'x = (−1)ⁿ⁺¹ · π/6 + πn',
-    h2:'Значение отрицательное — отметка −1/2 ниже центра оси Y.',
-    h4:'Отрицательный синус — III и IV четверти: 210° и 330°.'},
-  {tex:'cos x = −√3/2', func:'cos', axis:'X', value:-Math.sqrt(3)/2,vlabel:'−√3/2',angles:[150,210], rad:['5π/6','7π/6'], sol:'x = ± 5π/6 + 2πn',
-    h2:'Отрицательный cos — отметка −√3/2 слева от центра.',
-    h4:'Отрицательный косинус — II и III четверти: 150° и 210°.'},
-  {tex:'tg x = −1',     func:'tg',  axis:'T', value:-1,             vlabel:'−1',   angles:[135,315], rad:['3π/4','7π/4'], sol:'x = −π/4 + πn',
-    h2:'Отрицательный тангенс — отметка −1 ниже точки (1;0).',
-    h4:'tg < 0 в II и IV четвертях: 135° и 315°.'},
-  {tex:'sin x = 0',     func:'sin', axis:'Y', value:0,             vlabel:'0',    angles:[0,180], rad:['0','π'],   sol:'x = πn',
-    h2:'sin = 0 — отметка 0 в самом центре оси (на уровне оси X).',
-    h4:'Синус равен нулю на оси X: 0° и 180°.'}
+/* ================= DATA ================= */
+const EQUATIONS=[
+ {tex:'sin x = 1/2',func:'sin',axis:'Y',value:.5,vlabel:'1/2',angles:[30,150],rad:['π/6','5π/6'],sol:'x = (−1)ⁿ · π/6 + πn',h2:'sin 30° = 1/2. Ищи отметку 1/2 на оси Y — это середина между 0 и 1.',h4:'У точек высота (sin) = 1/2. Симметрия относительно оси Y: 30° и 150°.'},
+ {tex:'cos x = √3/2',func:'cos',axis:'X',value:Math.sqrt(3)/2,vlabel:'√3/2',angles:[30,330],rad:['π/6','−π/6'],sol:'x = ± π/6 + 2πn',h2:'cos — координата по оси X. √3/2 ≈ 0,87 — почти у самого края.',h4:'Косинус одинаков в I и IV четвертях: 30° и −30° (330°).'},
+ {tex:'tg x = 1',func:'tg',axis:'T',value:1,vlabel:'1',angles:[45,225],rad:['π/4','5π/4'],sol:'x = π/4 + πn',h2:'Тангенс — на линии тангенсов (вертикаль справа). Отметка 1 — вровень с верхом окружности.',h4:'tg = 1 значит sin = cos — биссектрисы I и III четвертей: 45° и 225°.'},
+ {tex:'sin x = √2/2',func:'sin',axis:'Y',value:Math.SQRT1_2,vlabel:'√2/2',angles:[45,135],rad:['π/4','3π/4'],sol:'x = (−1)ⁿ · π/4 + πn',h2:'sin 45° = √2/2 ≈ 0,71 — между 1/2 и √3/2.',h4:'Одинаковая высота в I и II четвертях: 45° и 135°.'},
+ {tex:'cos x = 1/2',func:'cos',axis:'X',value:.5,vlabel:'1/2',angles:[60,300],rad:['π/3','−π/3'],sol:'x = ± π/3 + 2πn',h2:'cos 60° = 1/2. Отметка 1/2 на оси X — середина вправо.',h4:'Косинус положителен в I и IV четвертях: 60° и −60° (300°).'},
+ {tex:'ctg x = 1',func:'ctg',axis:'C',value:1,vlabel:'1',angles:[45,225],rad:['π/4','5π/4'],sol:'x = π/4 + πn',h2:'Котангенс — на линии котангенсов (горизонталь сверху). Отметка 1 — вровень с правым краем.',h4:'ctg = 1 значит cos = sin — те же 45° и 225°.'},
+ {tex:'sin x = −1/2',func:'sin',axis:'Y',value:-.5,vlabel:'−1/2',angles:[210,330],rad:['7π/6','11π/6'],sol:'x = (−1)ⁿ⁺¹ · π/6 + πn',h2:'Значение отрицательное — отметка −1/2 ниже центра оси Y.',h4:'Отрицательный синус — III и IV четверти: 210° и 330°.'},
+ {tex:'cos x = −√3/2',func:'cos',axis:'X',value:-Math.sqrt(3)/2,vlabel:'−√3/2',angles:[150,210],rad:['5π/6','7π/6'],sol:'x = ± 5π/6 + 2πn',h2:'Отрицательный cos — отметка −√3/2 слева от центра.',h4:'Отрицательный косинус — II и III четверти: 150° и 210°.'},
+ {tex:'tg x = −1',func:'tg',axis:'T',value:-1,vlabel:'−1',angles:[135,315],rad:['3π/4','7π/4'],sol:'x = −π/4 + πn',h2:'Отрицательный тангенс — отметка −1 ниже точки (1;0).',h4:'tg < 0 в II и IV четвертях: 135° и 315°.'},
+ {tex:'sin x = 0',func:'sin',axis:'Y',value:0,vlabel:'0',angles:[0,180],rad:['0','π'],sol:'x = πn',h2:'sin = 0 — отметка 0 в самом центре оси (на уровне оси X).',h4:'Синус равен нулю на оси X: 0° и 180°.'}
 ];
-
-/* Уровни */
-const LEVELS = [
-  {n:1, name:'Выбери ось',       goal:'Определи ось/линию для sin, cos, tg, ctg.',        steps:[1]},
-  {n:2, name:'Найди координату', goal:'Выбери правильную отметку значения на оси.',       steps:[2]},
-  {n:3, name:'Проведи прямую',   goal:'Проведи перпендикуляр и найди точки пересечения.', steps:[3]},
-  {n:4, name:'Найди углы',       goal:'Определи углы (корни) по точкам окружности.',       steps:[4]},
-  {n:5, name:'Полный цикл',      goal:'Реши уравнение целиком — все 4 шага подряд.',       steps:[1,2,3,4]}
+const LEVELS=[
+ {n:1,name:'Выбери ось',goal:'Определи ось/линию для sin, cos, tg, ctg.',steps:[1]},
+ {n:2,name:'Найди координату',goal:'Выбери правильную отметку значения на оси.',steps:[2]},
+ {n:3,name:'Проведи прямую',goal:'Проведи перпендикуляр и найди точки пересечения.',steps:[3]},
+ {n:4,name:'Найди углы',goal:'Определи углы (корни) по точкам окружности.',steps:[4]},
+ {n:5,name:'Полный цикл',goal:'Реши уравнение целиком — все 4 шага подряд.',steps:[1,2,3,4]}
 ];
-
-/* Геометрия */
-const CX=250, CY=250, R=200;
-const toX = v => ({x:CX+v*R, y:CY});
-const toY = v => ({x:CX,     y:CY-v*R});
-const toT = v => ({x:CX+R,   y:CY-v*R});
-const toC = v => ({x:CX+v*R, y:CY-R});
-const onCircle = deg => {const a=deg*Math.PI/180; return {x:CX+R*Math.cos(a), y:CY-R*Math.sin(a)};};
-
-/* Табличные значения для осей sin/cos */
-const TAB_LIN=[
-  {v:-1,label:'−1'},{v:-Math.sqrt(3)/2,label:'−√3/2'},{v:-Math.SQRT1_2,label:'−√2/2'},
-  {v:-0.5,label:'−1/2'},{v:0,label:'0'},{v:0.5,label:'1/2'},
-  {v:Math.SQRT1_2,label:'√2/2'},{v:Math.sqrt(3)/2,label:'√3/2'},{v:1,label:'1'}
-];
-/* Табличные значения для линий tg/ctg (в пределах окружности) */
-const TAB_TAN=[
-  {v:-1,label:'−1'},{v:-Math.sqrt(3)/3,label:'−√3/3'},{v:0,label:'0'},
-  {v:Math.sqrt(3)/3,label:'√3/3'},{v:1,label:'1'}
-];
-function valueTable(axis){ return (axis==='T'||axis==='C') ? TAB_TAN : TAB_LIN; }
-
-/* Стандартные углы для опорных засечек (не подписаны) */
-const REF_ANGLES=[0,30,45,60,90,120,135,150,180,210,225,240,270,300,315,330];
-
-/* =======================================================================
-   ЗВУК (Web Audio API)
-   ======================================================================= */
-let audioCtx=null, soundOn=true, bgTimer=null;
-function ac(){ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
-function beep(freq,start,dur,type='sine',vol=0.16){
-  if(!soundOn) return;
-  const ctx=ac(),o=ctx.createOscillator(),g=ctx.createGain();
-  o.type=type; o.frequency.value=freq; o.connect(g); g.connect(ctx.destination);
-  const t=ctx.currentTime+start;
-  g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(vol,t+0.02);
-  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-  o.start(t); o.stop(t+dur+0.05);
-}
-const sCorrect =()=>{beep(660,0,.12,'sine',.18); beep(990,.1,.16,'sine',.18);};
-const sWrong   =()=>{beep(170,0,.3,'sawtooth',.14);};
-const sHint    =()=>{beep(1320,0,.25,'triangle',.11); beep(1760,.08,.2,'triangle',.07);};
-const sLevelUp =()=>{[523,659,784].forEach((f,i)=>beep(f,i*.1,.18,'sine',.16));};
-const sWin     =()=>{[523,587,659,784,1046].forEach((f,i)=>beep(f,i*.13,.22,'sine',.18));};
-const sError   =()=>{beep(140,0,.18,'square',.12);};
-const sPlace   =()=>{beep(440,0,.08,'sine',.11);};
-function startBgMusic(){
-  if(bgTimer) return;
-  const notes=[261.6,329.6,392.0,523.3,392.0,329.6]; let i=0;
-  const loop=()=>{ if(soundOn){beep(notes[i%notes.length],0,.9,'sine',.035); beep(notes[i%notes.length]/2,0,.9,'sine',.025);} i++; bgTimer=setTimeout(loop,700); };
-  loop();
-}
-function stopBgMusic(){ if(bgTimer){clearTimeout(bgTimer); bgTimer=null;} }
-document.getElementById('btnSound').addEventListener('click',()=>{
-  soundOn=!soundOn;
-  document.getElementById('btnSound').textContent=soundOn?'🔊':'🔇';
-  if(soundOn) startBgMusic(); else stopBgMusic();
-});
-
-/* =======================================================================
-   ПАРСЕР УГЛОВ (для шага 4)
-   ======================================================================= */
-function parseAngle(str){
-  if(str==null) return null;
-  let s=(''+str).trim().toLowerCase();
-  if(s==='') return null;
-  s=s.replace(/град\.?|°|degrees|deg/g,'').replace(/,/g,'.').replace(/−/g,'-');
-  if(/π|pi/.test(s)){
-    s=s.replace(/π/g,'(PI)').replace(/pi/g,'(PI)');
-    s=s.replace(/(\d)\s*\(/g,'$1*(').replace(/\)\s*\(/g,')*(').replace(/PI/g,'Math.PI');
-    if(!/^[-+*/(). \dMathPI]+$/.test(s)) return null;
-    try{ return Function('"use strict";return('+s+')')()*180/Math.PI; }catch(e){ return null; }
-  }
-  const v=parseFloat(s); return isNaN(v)?null:v;
-}
-const norm360=a=>((a%360)+360)%360;
-
-/* =======================================================================
-   СОСТОЯНИЕ
-   ======================================================================= */
-let G=null;
-function newSession(n){
-  return {level:n, lvl:LEVELS[n-1], cardIndex:0, total:EQUATIONS.length,
-    stepPtr:0, correct:0, hints:0, startTime:Date.now(), autoHint:null, solvedStep:false,
-    questionFailed:Array(EQUATIONS.length).fill(false),firstTryCorrect:0,resultFinalized:false};
-}
-function show(id){
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  document.getElementById('btnHome').classList.toggle('hidden', id==='menu');
-}
-function goHome(){ gameActive=false;showStudent();stopBgMusic();if(soundOn)startBgMusic();show('menu'); }
-document.getElementById('btnHome').addEventListener('click',goHome);
-
-function openLevels(){
-  const grid=document.getElementById('levelsGrid'); grid.innerHTML='';
-  LEVELS.forEach(l=>{
-    const d=document.createElement('div'); d.className='level-card';
-    d.innerHTML=`<div class="num">СТРАНИЦА ${l.n}</div><h3>«${l.name}»</h3><p>${l.goal}</p>`;
-    d.onclick=()=>startLevel(l.n); grid.appendChild(d);
-  });
-  show('levels');
-}
-
-/* =======================================================================
-   ЗАПУСК
-   ======================================================================= */
-function startLevel(n){
-  if(!currentStudent)return;
-  if(!audioCtx) ac();
-  if(soundOn) startBgMusic();
-  G=newSession(n);
-  gameActive=true;displayedEventId=null;showStudent();setSaveStatus('');
-  document.getElementById('lvlName').textContent=`Уровень ${n}: «${LEVELS[n-1].name}»`;
-  show('game'); loadCard();
-}
-function loadCard(){
-  G.stepPtr=0; G.solvedStep=false;
-  document.getElementById('cardLabel').textContent=`Уравнение ${G.cardIndex+1}/${G.total}`;
-  const eq=EQUATIONS[G.cardIndex];
-  document.getElementById('eq').innerHTML=eq.tex.replace('x','<span class="var">x</span>');
-  document.getElementById('solution').classList.add('hidden');
-  drawBaseCircle('svg');
-  loadStep();
-}
-function curStep(){ return G.lvl.steps[G.stepPtr]; }
-function updateProgress(){
-  const steps=G.lvl.steps;
-  document.getElementById('stepLabel').textContent = steps.length>1 ? `Шаг ${curStep()}/4` : `Задание ${G.cardIndex+1}/${G.total}`;
-  const per=(G.cardIndex+(G.stepPtr)/steps.length)/G.total*100;
-  document.getElementById('barFill').style.width=per+'%';
-}
-function resetControls(){
-  document.getElementById('controls').innerHTML='';
-  document.getElementById('angleInputs').innerHTML='';
-  document.getElementById('angleInputs').classList.add('hidden');
-  const f=document.getElementById('feedback'); f.textContent=''; f.className='feedback';
-  document.getElementById('hintbox').classList.add('hidden');
-  document.getElementById('btnCheck').classList.add('hidden');
-  document.getElementById('btnNext').classList.add('hidden');
-  G.solvedStep=false;
-}
-
-/* =======================================================================
-   ЗАГРУЗКА ШАГА
-   ======================================================================= */
-function loadStep(){
-  resetControls(); updateProgress();
-  const eq=EQUATIONS[G.cardIndex];
-  const step=curStep();
-  const stTitle=document.getElementById('stTitle');
-  const stDesc=document.getElementById('stDesc');
-
-  if(step===1){
-    stTitle.textContent='Шаг 1 — Определи ось';
-    stDesc.innerHTML=`Функция <b>${eq.func}</b>. Нажми на ось или линию, где откладывается её значение.`;
-  }
-  else if(step===2){
-    stTitle.textContent='Шаг 2 — Найди координату';
-    stDesc.innerHTML=`Значение <b>${eq.vlabel}</b>. Нажми на нужную <b>отметку</b> прямо на оси.`;
-    highlightAxis(eq.axis,'sel-ok');
-    renderValuePicker(eq.axis, eq.value);   // показываем табличные значения — выбери верное
-  }
-  else if(step===3){
-    stTitle.textContent='Шаг 3 — Проведи прямую';
-    stDesc.innerHTML=`Через отмеченную точку проведи перпендикуляр. Опорные засечки помогут увидеть, где он пересечёт окружность.`;
-    highlightAxis(eq.axis,'sel-ok');
-    drawValuePoint(eq.axis, eq.value, '#b0392b', eq.vlabel);
-    document.getElementById('controls').innerHTML=`<button class="btn gold" onclick="drawPerp()">Провести прямую</button>`;
-  }
-  else if(step===4){
-    stTitle.textContent='Шаг 4 — Определи углы';
-    stDesc.innerHTML=`Точки пересечения подсвечены. Считай по опорным засечкам и введи угол (градусы «30» или радианы «π/6»).`;
-    highlightAxis(eq.axis,'sel-ok');
-    drawValuePoint(eq.axis, eq.value, '#b0392b', eq.vlabel);
-    drawPerpSilent(true);
-    buildAngleInputs(eq);
-    document.getElementById('btnCheck').classList.remove('hidden');
-  }
-}
-
-function buildAngleInputs(eq){
-  const box=document.getElementById('angleInputs');
-  box.classList.remove('hidden'); box.innerHTML='';
-  eq.angles.forEach((a,i)=>{
-    const row=document.createElement('div'); row.className='angle-row';
-    row.innerHTML=`<span class="dot"></span><label>Точка ${i+1}:</label>
-      <input type="text" class="angInput" data-i="${i}" placeholder="напр. 30 или π/6">`;
-    box.appendChild(row);
-  });
-  box.querySelectorAll('.angInput').forEach(inp=>inp.addEventListener('keydown',e=>{if(e.key==='Enter')checkStep();}));
-}
-
-/* =======================================================================
-   ПРОВЕРКА / ПЕРЕХОДЫ
-   ======================================================================= */
-function feedback(msg,ok){ const f=document.getElementById('feedback'); f.textContent=msg; f.className='feedback '+(ok?'ok':'bad'); }
-function failCurrentQuestion(){
-  if(G&&G.level===5)G.questionFailed[G.cardIndex]=true;
-}
-function passStep(){
-  if(G.solvedStep)return;
-  G.solvedStep=true; sCorrect(); burstParticles();
-  document.getElementById('btnCheck').classList.add('hidden');
-  if(G.stepPtr < G.lvl.steps.length-1){
-    document.getElementById('btnNext').classList.remove('hidden');
-  } else {
-    G.correct++;
-    if(G.level===5&&!G.questionFailed[G.cardIndex])G.firstTryCorrect++;
-    const eq=EQUATIONS[G.cardIndex];
-    const sol=document.getElementById('solution'); sol.classList.remove('hidden');
-    sol.innerHTML=`<b>Готово!</b> Корни: ${eq.angles.map((a,i)=>`${a}° (${eq.rad[i]})`).join(', ')}.<br>Общее решение: <b>${eq.sol}</b>`;
-    document.getElementById('btnNext').classList.remove('hidden');
-  }
-}
-function checkStep(){
-  if(G.solvedStep)return;
-  const eq=EQUATIONS[G.cardIndex];
-  if(curStep()===4){
-    const inputs=[...document.querySelectorAll('.angInput')];
-    const vals=inputs.map(i=>parseAngle(i.value));
-    if(vals.some(v=>v===null)){failCurrentQuestion();feedback('Заполни оба угла: числом или через π.',false);sError();return;}
-    const expected=eq.angles.slice(); const used=expected.map(()=>false); let allGood=true;
-    vals.forEach(v=>{
-      let matched=false;
-      expected.forEach((e,idx)=>{
-        if(!used[idx]&&!matched){ const a=norm360(v),d=Math.abs(norm360(e)-a); if(Math.min(d,360-d)<=1.5){used[idx]=true;matched=true;} }
-      });
-      if(!matched) allGood=false;
-    });
-    if(allGood&&used.every(u=>u)){ feedback('Оба корня найдены. Превосходно!',true); passStep(); }
-    else {failCurrentQuestion();feedback('Пока не всё верно. Считай засечки по 30°.',false);sWrong();shakeStage();G.autoHint=eq.h4;}
-  }
-}
-function nextStep(){
-  if(G.stepPtr < G.lvl.steps.length-1){ G.stepPtr++; sLevelUp(); loadStep(); }
-  else { G.cardIndex++; if(G.cardIndex>=G.total) finishLevel(); else { sLevelUp(); loadCard(); } }
-}
-
-/* =======================================================================
-   ПОДСКАЗКИ
-   ======================================================================= */
-function showHint(){
-  if(G.solvedStep)return;
-  failCurrentQuestion();
-  const eq=EQUATIONS[G.cardIndex]; const step=curStep(); let text='';
-  if(step===1) text=eq.func==='sin'?'Синус — высота точки, ось Y.':eq.func==='cos'?'Косинус — горизонталь, ось X.':eq.func==='tg'?'Тангенс — линия тангенсов (вертикаль справа).':'Котангенс — линия котангенсов (горизонталь сверху).';
-  else if(step===2) text=eq.h2;
-  else if(step===3) text='Перпендикуляр к выбранной оси через отмеченную точку пересечёт окружность в двух точках — это будущие корни.';
-  else if(step===4) text=eq.h4;
-  if(G.autoHint){ text=G.autoHint; G.autoHint=null; }
-  const box=document.getElementById('hintbox'); box.textContent='💡 '+text; box.classList.remove('hidden');
-  G.hints++; sHint();
-}
-
-/* =======================================================================
-   SVG-ХЕЛПЕРЫ
-   ======================================================================= */
+const CX=250,CY=250,R=200,toX=v=>({x:CX+v*R,y:CY}),toY=v=>({x:CX,y:CY-v*R}),toT=v=>({x:CX+R,y:CY-v*R}),toC=v=>({x:CX+v*R,y:CY-R}),onCircle=deg=>{const a=deg*Math.PI/180;return{x:CX+R*Math.cos(a),y:CY-R*Math.sin(a)}};
+const TAB_LIN=[{v:-1,label:'−1'},{v:-Math.sqrt(3)/2,label:'−√3/2'},{v:-Math.SQRT1_2,label:'−√2/2'},{v:-.5,label:'−1/2'},{v:0,label:'0'},{v:.5,label:'1/2'},{v:Math.SQRT1_2,label:'√2/2'},{v:Math.sqrt(3)/2,label:'√3/2'},{v:1,label:'1'}];
+const TAB_TAN=[{v:-1,label:'−1'},{v:-Math.sqrt(3)/3,label:'−√3/3'},{v:0,label:'0'},{v:Math.sqrt(3)/3,label:'√3/3'},{v:1,label:'1'}];
+const valueTable=axis=>(axis==='T'||axis==='C')?TAB_TAN:TAB_LIN,REF_ANGLES=[0,30,45,60,90,120,135,150,180,210,225,240,270,300,315,330];
+const ASM=[{deg:0,a:'0°',c:'(1; 0)'},{deg:30,a:'30°',c:'(√3/2; 1/2)'},{deg:45,a:'45°',c:'(√2/2; √2/2)'},{deg:90,a:'90°',c:'(0; 1)'},{deg:180,a:'180°',c:'(−1; 0)'},{deg:270,a:'270°',c:'(0; −1)'}];
+const SORT_VALUES=[{label:'−1',v:-1},{label:'−√3/2',v:-Math.sqrt(3)/2},{label:'−√2/2',v:-Math.SQRT1_2},{label:'−1/2',v:-.5},{label:'0',v:0},{label:'1/2',v:.5},{label:'√2/2',v:Math.SQRT1_2},{label:'√3/2',v:Math.sqrt(3)/2},{label:'1',v:1}];
 const SVGNS='http://www.w3.org/2000/svg';
-function el(tag,attrs){ const e=document.createElementNS(SVGNS,tag); for(const k in attrs) e.setAttribute(k,attrs[k]); return e; }
-function addText(svg,t,x,y,color,size,cls){
-  const e=el('text',{x,y,fill:color,'font-size':size,'text-anchor':'middle'});
-  if(cls) e.setAttribute('class',cls); else e.setAttribute('font-family','IM Fell English, serif');
-  e.textContent=t; svg.appendChild(e);
-}
 
-/* Базовая окружность + ОПОРНЫЕ ЗАСЕЧКИ (углы и координаты, без подписей) */
-function drawBaseCircle(id){
-  const svg=document.getElementById(id); svg.innerHTML='';
-  svg.appendChild(el('circle',{cx:CX,cy:CY,r:R,fill:'none',stroke:'#b8860b','stroke-width':2.5}));
+/* ================= SOUND + FX ================= */
+let audioCtx=null,soundOn=true,bgTimer=null,lastFxId='';
+function ac(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx}
+function beep(freq,start,dur,type='sine',vol=.16){if(!soundOn)return;const c=ac(),o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.value=freq;o.connect(g);g.connect(c.destination);const t=c.currentTime+start;g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(vol,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.start(t);o.stop(t+dur+.05)}
+const sCorrect=()=>{beep(660,0,.12);beep(990,.1,.16)},sWrong=()=>beep(170,0,.3,'sawtooth',.14),sHint=()=>{beep(1320,0,.25,'triangle',.11);beep(1760,.08,.2,'triangle',.07)},sPlace=()=>beep(440,0,.08,'sine',.11),sWin=()=>[523,587,659,784,1046].forEach((f,i)=>beep(f,i*.13,.22,'sine',.18));
+function startBgMusic(){if(bgTimer)return;const notes=[261.6,329.6,392,523.3,392,329.6];let i=0;const loop=()=>{if(soundOn){beep(notes[i%notes.length],0,.9,'sine',.035);beep(notes[i%notes.length]/2,0,.9,'sine',.025)}i++;bgTimer=setTimeout(loop,700)};loop()}
+function stopBgMusic(){if(bgTimer){clearTimeout(bgTimer);bgTimer=null}}
+$('btnSound').onclick=()=>{soundOn=!soundOn;$('btnSound').textContent=soundOn?'🔊':'🔇';if(soundOn)startBgMusic();else stopBgMusic()};
+function playFx(effect){if(!effect?.id||effect.id===lastFxId)return;lastFxId=effect.id;const node=$('guideFx'),txt=$('guideFxText');node.className='guide-fx '+(effect.kind==='bad'?'bad':'good');txt.textContent=effect.kind==='bad'?'НЕВЕРНО':'ВЕРНО';void node.offsetWidth;node.classList.add('show');effect.kind==='bad'?sWrong():sCorrect();setTimeout(()=>node.classList.remove('show'),760)}
 
-  // опорные засечки углов по окружности (пункт 4 — видно расположение)
-  REF_ANGLES.forEach(deg=>{
-    const a=deg*Math.PI/180;
-    const p1={x:CX+(R-9)*Math.cos(a), y:CY-(R-9)*Math.sin(a)};
-    const p2={x:CX+(R+3)*Math.cos(a), y:CY-(R+3)*Math.sin(a)};
-    svg.appendChild(el('line',{x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y,class:'refdash','data-deg':deg}));
-  });
-  // опорные засечки координат на осях (без подписей)
-  TAB_LIN.forEach(t=>{
-    if(t.v===0) return;
-    const px=toX(t.v), py=toY(t.v);
-    svg.appendChild(el('line',{x1:px.x,y1:CY-5,x2:px.x,y2:CY+5,class:'reftick'}));
-    svg.appendChild(el('line',{x1:CX-5,y1:py.y,x2:CX+5,y2:py.y,class:'reftick'}));
-  });
+/* ================= SHARED STATE ================= */
+function blankGame(level=5){return{level,cardIndex:0,stepPtr:0,solvedStep:false,feedback:null,hint:null,badAxis:null,selectedAxis:null,badValue:null,selectedValue:null,perpDrawn:false,angleInputs:[],solutionVisible:false}}
+function newState(){return{version:1,screen:'menu',game:null,assemble:null,sort:null,effect:null}}
+function normalizeState(v){const s=v&&typeof v==='object'?v:newState();s.version=Number(s.version||1);s.screen=['menu','levels','game','assemble','sort','result'].includes(s.screen)?s.screen:'menu';return s}
+let sharedState=newState(),connected=false,role='',me=null,stateUnsub=null,participantUnsub=null,participants={},renderSig='';
+const curGameStep=g=>LEVELS[(g?.level||1)-1].steps[g?.stepPtr||0];
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const shuffled=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+function effect(kind){return{id:uid(),kind}}
+function resetTransient(g){g.solvedStep=false;g.feedback=null;g.hint=null;g.badAxis=null;g.selectedAxis=null;g.badValue=null;g.selectedValue=null;g.perpDrawn=false;g.angleInputs=[];g.solutionVisible=false}
+function parseAngle(str){if(str==null)return null;let s=(''+str).trim().toLowerCase();if(!s)return null;s=s.replace(/град\.?|°|degrees|deg/g,'').replace(/,/g,'.').replace(/−/g,'-');if(/π|pi/.test(s)){s=s.replace(/π/g,'(PI)').replace(/pi/g,'(PI)').replace(/(\d)\s*\(/g,'$1*(').replace(/\)\s*\(/g,')*(').replace(/PI/g,'Math.PI');if(!/^[-+*/(). \dMathPI]+$/.test(s))return null;try{return Function('"use strict";return('+s+')')()*180/Math.PI}catch{return null}}const v=parseFloat(s);return isNaN(v)?null:v}
+const norm360=a=>((a%360)+360)%360;
+function applyAction(state,a){state=normalizeState(clone(state));state.version++;
+ if(a.type==='screen'){state.screen=a.screen;if(a.screen!=='game')state.game=state.game;return state}
+ if(a.type==='home'){state.screen='menu';return state}
+ if(a.type==='levels'){state.screen='levels';return state}
+ if(a.type==='startLevel'){state.screen='game';state.game=blankGame(clamp(Number(a.level)||1,1,5));return state}
+ if(a.type==='axis'&&state.screen==='game'){const g=state.game,eq=EQUATIONS[g.cardIndex];if(curGameStep(g)!==1||g.solvedStep)return state;g.selectedAxis=a.axis;if(a.axis===eq.axis){g.feedback={text:`Верно — это ${{X:'ось X (cos)',Y:'ось Y (sin)',T:'линия тангенсов',C:'линия котангенсов'}[a.axis]}!`,ok:true};g.solvedStep=true;g.badAxis=null;state.effect=effect('good')}else{g.badAxis=a.axis;g.feedback={text:'Не та ось. Где откладывается '+eq.func+'?',ok:false};state.effect=effect('bad')}return state}
+ if(a.type==='value'&&state.screen==='game'){const g=state.game,eq=EQUATIONS[g.cardIndex];if(curGameStep(g)!==2||g.solvedStep)return state;g.selectedValue=Number(a.value);if(Math.abs(Number(a.value)-eq.value)<.02){g.badValue=null;g.feedback={text:`Верно! ${a.label} — на месте.`,ok:true};g.solvedStep=true;state.effect=effect('good')}else{g.badValue=Number(a.value);g.feedback={text:Math.abs(Number(a.value))>Math.abs(eq.value)?'Слишком далеко от центра.':'Не та отметка — сравни с табличным значением.',ok:false};state.effect=effect('bad')}return state}
+ if(a.type==='perp'&&state.screen==='game'){const g=state.game;if(curGameStep(g)!==3||g.solvedStep)return state;g.perpDrawn=true;g.solvedStep=true;g.feedback={text:'Прямая проведена — точки пересечения найдены!',ok:true};state.effect=effect('good');return state}
+ if(a.type==='angles'&&state.screen==='game'){const g=state.game;if(curGameStep(g)!==4||g.solvedStep)return state;g.angleInputs=Array.isArray(a.values)?a.values.slice(0,2):[];const eq=EQUATIONS[g.cardIndex],vals=g.angleInputs.map(parseAngle);if(vals.length<eq.angles.length||vals.some(v=>v===null)){g.feedback={text:'Заполни оба угла: числом или через π.',ok:false};state.effect=effect('bad');return state}const used=eq.angles.map(()=>false);let all=true;for(const v of vals){let matched=false;eq.angles.forEach((e,i)=>{if(!used[i]&&!matched){const d=Math.abs(norm360(e)-norm360(v));if(Math.min(d,360-d)<=1.5){used[i]=true;matched=true}}});if(!matched)all=false}if(all&&used.every(Boolean)){g.feedback={text:'Оба корня найдены. Превосходно!',ok:true};g.solvedStep=true;state.effect=effect('good')}else{g.feedback={text:'Пока не всё верно. Считай засечки по 30°.',ok:false};state.effect=effect('bad')}return state}
+ if(a.type==='hint'&&state.screen==='game'){const g=state.game,eq=EQUATIONS[g.cardIndex],step=curGameStep(g);let text='';if(step===1)text=eq.func==='sin'?'Синус — высота точки, ось Y.':eq.func==='cos'?'Косинус — горизонталь, ось X.':eq.func==='tg'?'Тангенс — линия тангенсов (вертикаль справа).':'Котангенс — линия котангенсов (горизонталь сверху).';else if(step===2)text=eq.h2;else if(step===3)text='Перпендикуляр к выбранной оси через отмеченную точку пересечёт окружность в двух точках — это будущие корни.';else text=eq.h4;g.hint=text;return state}
+ if(a.type==='next'&&state.screen==='game'){const g=state.game,lvl=LEVELS[g.level-1];if(!g.solvedStep)return state;if(g.stepPtr<lvl.steps.length-1){g.stepPtr++;resetTransient(g)}else if(g.cardIndex<EQUATIONS.length-1){g.cardIndex++;g.stepPtr=0;resetTransient(g)}else{state.screen='result';state.result={level:g.level,title:`Страница «${lvl.name}» пройдена!`};state.effect=effect('good')}return state}
+ if(a.type==='startAssemble'){state.screen='assemble';const order=Array.isArray(a.order)?a.order:[];state.assemble={order,placed:{},feedback:''};return state}
+ if(a.type==='placeChip'&&state.screen==='assemble'){const as=state.assemble||{placed:{}};as.placed||={};if(as.placed[a.id])return state;const [kind,degStr]=String(a.id).split('-'),deg=Number(degStr);if(kind===a.slotKind&&deg===Number(a.slotDeg)){as.placed[a.id]=true;as.feedback=Object.keys(as.placed).length===ASM.length*2?'🎉 Окружность собрана! Углы и координаты на своих местах.':'';state.effect=effect('good')}else state.effect=effect('bad');state.assemble=as;return state}
+ if(a.type==='startSort'){state.screen='sort';state.sort={order:(a.order||[]).slice(),picked:null,checked:null};return state}
+ if(a.type==='shuffleSort'&&state.screen==='sort'){state.sort={order:(a.order||[]).slice(),picked:null,checked:null};return state}
+ if(a.type==='pickSort'&&state.screen==='sort'){const s=state.sort;if(!s)return state;const i=Number(a.index);s.checked=null;if(s.picked===null||s.picked===undefined)s.picked=i;else if(s.picked===i)s.picked=null;else{[s.order[s.picked],s.order[i]]=[s.order[i],s.order[s.picked]];s.picked=null}return state}
+ if(a.type==='checkSort'&&state.screen==='sort'){const s=state.sort;if(!s)return state;const vals=s.order.map(i=>SORT_VALUES[i].v),ok=vals.every((v,i)=>i===0||vals[i-1]<=v);s.checked=ok;state.effect=effect(ok?'good':'bad');return state}
+ return state}
+async function dispatch(action){if(!connected){sharedState=applyAction(sharedState,action);renderFromState();return}try{await runTransaction(stateRef(),cur=>applyAction(cur||newState(),action))}catch(e){toast('Не удалось синхронизировать действие. Повтори ещё раз.')}}
 
-  // линии тангенсов и котангенсов
-  svg.appendChild(el('line',{x1:CX+R,y1:30,x2:CX+R,y2:470,class:'tang-line',id:'lineT'}));
-  svg.appendChild(el('line',{x1:30,y1:CY-R,x2:470,y2:CY-R,class:'tang-line',id:'lineC'}));
-  // оси
-  svg.appendChild(el('line',{x1:20,y1:CY,x2:480,y2:CY,class:'axis-line',id:'axisX'}));
-  svg.appendChild(el('line',{x1:CX,y1:480,x2:CX,y2:20,class:'axis-line',id:'axisY'}));
-  svg.appendChild(el('polygon',{points:`482,${CY} 470,${CY-6} 470,${CY+6}`,fill:'#3a2b18'}));
-  svg.appendChild(el('polygon',{points:`${CX},18 ${CX-6},30 ${CX+6},30`,fill:'#3a2b18'}));
-  addText(svg,'X',492,CY+6,'#3a2b18',18,'svglabel');
-  addText(svg,'Y',CX,20,'#3a2b18',18,'svglabel');
-  addText(svg,'0',CX-13,CY+18,'#6d573a',15);
-  addText(svg,'tg',CX+R,26,'#8a7448',14);
-  addText(svg,'ctg',36,CY-R-6,'#8a7448',14);
-  // кликабельные зоны выбора оси
-  makeHit(svg,'hitX',20,CY-14,462,28,()=>chooseAxis('X'));
-  makeHit(svg,'hitY',CX-14,20,28,462,()=>chooseAxis('Y'));
-  makeHit(svg,'hitT',CX+R-14,30,28,440,()=>chooseAxis('T'));
-  makeHit(svg,'hitC',30,CY-R-14,440,28,()=>chooseAxis('C'));
-  svg.appendChild(el('circle',{cx:CX,cy:CY,r:3.5,fill:'#3a2b18'}));
-}
-function makeHit(svg,id,x,y,w,h,cb){
-  const r=el('rect',{id,x,y,width:w,height:h,fill:'transparent',class:'hit'});
-  r.addEventListener('click',cb); svg.appendChild(r);
-}
-function highlightAxis(axis,cls){
-  ['axisX','axisY','lineT','lineC'].forEach(id=>{const e=document.getElementById(id); if(e)e.classList.remove('sel-ok','sel-bad');});
-  const map={X:'axisX',Y:'axisY',T:'lineT',C:'lineC'}; const e=document.getElementById(map[axis]); if(e)e.classList.add(cls);
-}
+/* ================= SCREEN RENDER ================= */
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id)?.classList.add('active');$('btnHome').classList.toggle('hidden',id==='menu')}
+function renderFromState(){const s=normalizeState(sharedState);show(s.screen);playFx(s.effect);if(s.screen==='levels')renderLevels();if(s.screen==='game')renderGame(s.game);if(s.screen==='assemble')renderAssemble(s.assemble);if(s.screen==='sort')renderSort(s.sort);if(s.screen==='result')renderResult(s.result);updateIdentityLabel()}
+function renderLevels(){const grid=$('levelsGrid');if(grid.dataset.ready==='1')return;grid.innerHTML='';LEVELS.forEach(l=>{const d=document.createElement('div');d.className='level-card';d.innerHTML=`<div class="num">СТРАНИЦА ${l.n}</div><h3>«${l.name}»</h3><p>${l.goal}</p>`;d.onclick=()=>dispatch({type:'startLevel',level:l.n});grid.appendChild(d)});grid.dataset.ready='1'}
+function openLevels(){dispatch({type:'levels'})}function goHome(){dispatch({type:'home'})}function startLevel(n){dispatch({type:'startLevel',level:n})}
+window.openLevels=openLevels;window.goHome=goHome;window.startLevel=startLevel;
 
-/* Шаг 1: выбор оси */
-function chooseAxis(axis){
-  if(curStep()!==1||G.solvedStep)return;
-  const eq=EQUATIONS[G.cardIndex];
-  if(axis===eq.axis){
-    highlightAxis(axis,'sel-ok');
-    const names={X:'ось X (cos)',Y:'ось Y (sin)',T:'линия тангенсов',C:'линия котангенсов'};
-    feedback(`Верно — это ${names[axis]}!`,true); passStep();
-  } else {
-    failCurrentQuestion();
-    highlightAxis(axis,'sel-bad');
-    feedback('Не та ось. Где откладывается '+eq.func+'?',false); sWrong(); shakeStage();
-    setTimeout(()=>{const e=document.getElementById({X:'axisX',Y:'axisY',T:'lineT',C:'lineC'}[axis]); if(e)e.classList.remove('sel-bad');},600);
-  }
+function el(tag,attrs){const e=document.createElementNS(SVGNS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);return e}
+function addText(svg,t,x,y,color,size,cls){const e=el('text',{x,y,fill:color,'font-size':size,'text-anchor':'middle'});if(cls)e.setAttribute('class',cls);else e.setAttribute('font-family','IM Fell English, serif');e.textContent=t;svg.appendChild(e)}
+function makeHit(svg,id,x,y,w,h,cb){const r=el('rect',{id,x,y,width:w,height:h,fill:'transparent',class:'hit'});r.addEventListener('click',cb);svg.appendChild(r)}
+function drawBaseCircle(id){const svg=$(id);svg.innerHTML='';svg.appendChild(el('circle',{cx:CX,cy:CY,r:R,fill:'none',stroke:'#b8860b','stroke-width':2.5}));REF_ANGLES.forEach(deg=>{const a=deg*Math.PI/180,p1={x:CX+(R-9)*Math.cos(a),y:CY-(R-9)*Math.sin(a)},p2={x:CX+(R+3)*Math.cos(a),y:CY-(R+3)*Math.sin(a)};svg.appendChild(el('line',{x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y,class:'refdash','data-deg':deg}))});TAB_LIN.forEach(t=>{if(t.v===0)return;const px=toX(t.v),py=toY(t.v);svg.appendChild(el('line',{x1:px.x,y1:CY-5,x2:px.x,y2:CY+5,class:'reftick'}));svg.appendChild(el('line',{x1:CX-5,y1:py.y,x2:CX+5,y2:py.y,class:'reftick'}))});svg.appendChild(el('line',{x1:CX+R,y1:30,x2:CX+R,y2:470,class:'tang-line',id:'lineT'}));svg.appendChild(el('line',{x1:30,y1:CY-R,x2:470,y2:CY-R,class:'tang-line',id:'lineC'}));svg.appendChild(el('line',{x1:20,y1:CY,x2:480,y2:CY,class:'axis-line',id:'axisX'}));svg.appendChild(el('line',{x1:CX,y1:480,x2:CX,y2:20,class:'axis-line',id:'axisY'}));svg.appendChild(el('polygon',{points:`482,${CY} 470,${CY-6} 470,${CY+6}`,fill:'#3a2b18'}));svg.appendChild(el('polygon',{points:`${CX},18 ${CX-6},30 ${CX+6},30`,fill:'#3a2b18'}));addText(svg,'X',492,CY+6,'#3a2b18',18,'svglabel');addText(svg,'Y',CX,20,'#3a2b18',18,'svglabel');addText(svg,'0',CX-13,CY+18,'#6d573a',15);addText(svg,'tg',CX+R,26,'#8a7448',14);addText(svg,'ctg',36,CY-R-6,'#8a7448',14);makeHit(svg,'hitX',20,CY-14,462,28,()=>dispatch({type:'axis',axis:'X'}));makeHit(svg,'hitY',CX-14,20,28,462,()=>dispatch({type:'axis',axis:'Y'}));makeHit(svg,'hitT',CX+R-14,30,28,440,()=>dispatch({type:'axis',axis:'T'}));makeHit(svg,'hitC',30,CY-R-14,440,28,()=>dispatch({type:'axis',axis:'C'}));svg.appendChild(el('circle',{cx:CX,cy:CY,r:3.5,fill:'#3a2b18'}))}
+function highlightAxis(axis,cls){['axisX','axisY','lineT','lineC'].forEach(id=>$(id)?.classList.remove('sel-ok','sel-bad'));const map={X:'axisX',Y:'axisY',T:'lineT',C:'lineC'};$(map[axis])?.classList.add(cls)}
+function drawValuePoint(axis,v,color){const svg=$('svg'),p=axis==='X'?toX(v):axis==='Y'?toY(v):axis==='T'?toT(v):toC(v);svg.querySelectorAll('.shared-value-point').forEach(n=>n.remove());svg.appendChild(el('circle',{cx:p.x,cy:p.y,r:7,fill:color,stroke:'#3a2b18','stroke-width':1.5,class:'shared-value-point'}))}
+function renderValuePicker(axis,target,gstate){const svg=$('svg');svg.querySelectorAll('.picker').forEach(n=>n.remove());valueTable(axis).forEach((t,idx)=>{let p,tickA,tickB,lx,ly,anchor='middle';if(axis==='Y'){p=toY(t.v);tickA={x:CX-8,y:p.y};tickB={x:CX+8,y:p.y};lx=CX+16;ly=p.y+6;anchor='start'}else if(axis==='X'){p=toX(t.v);tickA={x:p.x,y:CY-8};tickB={x:p.x,y:CY+8};lx=p.x;ly=idx%2?CY+40:CY+24}else if(axis==='T'){p=toT(t.v);tickA={x:CX+R-8,y:p.y};tickB={x:CX+R+8,y:p.y};lx=CX+R+14;ly=p.y+6;anchor='start'}else{p=toC(t.v);tickA={x:p.x,y:CY-R-8};tickB={x:p.x,y:CY-R+8};lx=p.x;ly=CY-R-14}const group=el('g',{class:'picker hit','data-v':t.v});const tick=el('line',{x1:tickA.x,y1:tickA.y,x2:tickB.x,y2:tickB.y,class:'picktick'}),lbl=el('text',{x:lx,y:ly,class:'picklabel','text-anchor':anchor});lbl.textContent=t.label;group.appendChild(tick);group.appendChild(lbl);group.appendChild(el('circle',{cx:p.x,cy:p.y,r:15,fill:'transparent'}));if(gstate?.badValue!==null&&Math.abs(Number(gstate.badValue)-t.v)<.001){tick.setAttribute('stroke','#b0392b');lbl.setAttribute('fill','#b0392b')}if(gstate?.solvedStep&&Math.abs(t.v-target)<.02){tick.setAttribute('stroke','#3f7a3a');tick.setAttribute('stroke-width','5');lbl.setAttribute('fill','#3f7a3a')}group.addEventListener('click',()=>dispatch({type:'value',value:t.v,label:t.label}));svg.appendChild(group)})}
+function drawPerpSilent(eq){const svg=$('svg');svg.querySelectorAll('.perp,.cross-pt').forEach(n=>n.remove());let line;if(eq.axis==='Y'){const y=CY-eq.value*R;line=el('line',{x1:40,y1:y,x2:460,y2:y,class:'perp'})}else if(eq.axis==='X'){const x=CX+eq.value*R;line=el('line',{x1:x,y1:40,x2:x,y2:460,class:'perp'})}else{const p=onCircle(eq.angles[0]),dx=p.x-CX,dy=p.y-CY;line=el('line',{x1:CX-dx*1.3,y1:CY-dy*1.3,x2:CX+dx*1.3,y2:CY+dy*1.3,class:'perp'})}svg.appendChild(line);eq.angles.forEach(a=>{svg.querySelectorAll('.refdash').forEach(d=>{if(+d.getAttribute('data-deg')===norm360(a))d.classList.add('glow')});const p=onCircle(a);svg.appendChild(el('circle',{cx:p.x,cy:p.y,r:8,fill:'#1f7a7a',stroke:'#3a2b18','stroke-width':1.5,class:'cross-pt'}))})}
+function renderGame(g){if(!g)return;const lvl=LEVELS[g.level-1],eq=EQUATIONS[g.cardIndex],step=curGameStep(g),sig=`${g.level}:${g.cardIndex}:${g.stepPtr}`;gameActiveUi=true;$('lvlName').textContent=`Уровень ${g.level}: «${lvl.name}»`;$('cardLabel').textContent=`Уравнение ${g.cardIndex+1}/${EQUATIONS.length}`;$('stepLabel').textContent=lvl.steps.length>1?`Шаг ${step}/4`:`Задание ${g.cardIndex+1}/${EQUATIONS.length}`;$('barFill').style.width=((g.cardIndex+g.stepPtr/lvl.steps.length)/EQUATIONS.length*100)+'%';$('eq').innerHTML=eq.tex.replace('x','<span class="var">x</span>');drawBaseCircle('svg');$('controls').innerHTML='';$('angleInputs').innerHTML='';$('angleInputs').classList.add('hidden');$('btnCheck').classList.add('hidden');$('btnNext').classList.toggle('hidden',!g.solvedStep);$('hintbox').classList.toggle('hidden',!g.hint);$('hintbox').textContent=g.hint?'💡 '+g.hint:'';$('solution').classList.add('hidden');const fb=$('feedback');fb.textContent=g.feedback?.text||'';fb.className='feedback'+(g.feedback?' '+(g.feedback.ok?'ok':'bad'):'');
+ if(step===1){$('stTitle').textContent='Шаг 1 — Определи ось';$('stDesc').innerHTML=`Функция <b>${eq.func}</b>. Нажми на ось или линию, где откладывается её значение.`;if(g.badAxis)highlightAxis(g.badAxis,'sel-bad');if(g.solvedStep)highlightAxis(eq.axis,'sel-ok')}
+ if(step===2){$('stTitle').textContent='Шаг 2 — Найди координату';$('stDesc').innerHTML=`Значение <b>${eq.vlabel}</b>. Нажми на нужную <b>отметку</b> прямо на оси.`;highlightAxis(eq.axis,'sel-ok');renderValuePicker(eq.axis,eq.value,g);if(g.solvedStep)drawValuePoint(eq.axis,eq.value,'#3f7a3a')}
+ if(step===3){$('stTitle').textContent='Шаг 3 — Проведи прямую';$('stDesc').innerHTML='Через отмеченную точку проведи перпендикуляр. Опорные засечки помогут увидеть, где он пересечёт окружность.';highlightAxis(eq.axis,'sel-ok');drawValuePoint(eq.axis,eq.value,'#b0392b');$('controls').innerHTML='<button class="btn gold" id="sharedPerpBtn">Провести прямую</button>';$('sharedPerpBtn').onclick=()=>dispatch({type:'perp'});if(g.perpDrawn||g.solvedStep)drawPerpSilent(eq)}
+ if(step===4){$('stTitle').textContent='Шаг 4 — Определи углы';$('stDesc').innerHTML='Точки пересечения подсвечены. Введи угол (градусы «30» или радианы «π/6»).';highlightAxis(eq.axis,'sel-ok');drawValuePoint(eq.axis,eq.value,'#b0392b');drawPerpSilent(eq);const box=$('angleInputs');box.classList.remove('hidden');eq.angles.forEach((_,i)=>{const row=document.createElement('div');row.className='angle-row';row.innerHTML=`<span class="dot"></span><label>Точка ${i+1}:</label><input type="text" class="angInput" data-i="${i}" placeholder="напр. 30 или π/6">`;box.appendChild(row)});box.querySelectorAll('.angInput').forEach((inp,i)=>{inp.value=g.angleInputs?.[i]||'';inp.addEventListener('keydown',e=>{if(e.key==='Enter')checkAnglesFromDom()})});$('btnCheck').classList.remove('hidden')}
+ if(g.solvedStep&&g.stepPtr===lvl.steps.length-1){const sol=$('solution');sol.classList.remove('hidden');sol.innerHTML=`<b>Готово!</b> Корни: ${eq.angles.map((a,i)=>`${a}° (${eq.rad[i]})`).join(', ')}.<br>Общее решение: <b>${eq.sol}</b>`}
 }
+function checkAnglesFromDom(){dispatch({type:'angles',values:[...document.querySelectorAll('.angInput')].map(i=>i.value)})}
+window.checkStep=checkAnglesFromDom;window.nextStep=()=>dispatch({type:'next'});window.showHint=()=>{sHint();dispatch({type:'hint'})};
 
-/* =======================================================================
-   ШАГ 2: ВЫБОР КООРДИНАТЫ ИЗ ТАБЛИЧНЫХ ОТМЕТОК (пункт 2)
-   Все табличные значения показаны на оси; игрок кликает по правильной.
-   ======================================================================= */
-function renderValuePicker(axis, target){
-  const svg=document.getElementById('svg');
-  svg.querySelectorAll('.picker').forEach(n=>n.remove());
-  const table=valueTable(axis);
-  table.forEach((t,idx)=>{
-    let p, tickA, tickB, lx, ly, anchor='middle';
-    if(axis==='Y'){ p=toY(t.v); tickA={x:CX-8,y:p.y}; tickB={x:CX+8,y:p.y}; lx=CX+16; ly=p.y+6; anchor='start'; }
-    else if(axis==='X'){ p=toX(t.v); tickA={x:p.x,y:CY-8}; tickB={x:p.x,y:CY+8}; lx=p.x; ly=(idx%2? CY+40:CY+24); }
-    else if(axis==='T'){ p=toT(t.v); tickA={x:CX+R-8,y:p.y}; tickB={x:CX+R+8,y:p.y}; lx=CX+R+14; ly=p.y+6; anchor='start'; }
-    else { p=toC(t.v); tickA={x:p.x,y:CY-R-8}; tickB={x:p.x,y:CY-R+8}; lx=p.x; ly=CY-R-14; }
+function renderResult(result){$('resTitle').textContent=result?.title||'Страница пройдена!';$('resStars').textContent='✦ ✦ ✦';const lvl=result?.level||5;$('resRetry').onclick=()=>dispatch({type:'startLevel',level:lvl})}
 
-    const g=el('g',{class:'picker hit','data-v':t.v}); g.style.cursor='pointer';
-    g.appendChild(el('line',{x1:tickA.x,y1:tickA.y,x2:tickB.x,y2:tickB.y,class:'picktick'}));
-    const lbl=el('text',{x:lx,y:ly,class:'picklabel','text-anchor':anchor}); lbl.textContent=t.label; g.appendChild(lbl);
-    // невидимая крупная зона клика
-    g.appendChild(el('circle',{cx:p.x,cy:p.y,r:15,fill:'transparent'}));
-    g.addEventListener('click',()=>pickValue(g,t.v,target,axis,t.label));
-    svg.appendChild(g);
-  });
-}
-function pickValue(g,v,target,axis,label){
-  if(G.solvedStep)return;
-  if(Math.abs(v-target)<0.02){
-    g.querySelector('.picktick').setAttribute('stroke','#3f7a3a');
-    g.querySelector('.picktick').setAttribute('stroke-width','5');
-    g.querySelector('.picklabel').setAttribute('fill','#3f7a3a');
-    drawValuePoint(axis, target, '#3f7a3a', label);
-    feedback(`Верно! ${label} — на месте.`,true); passStep();
-  } else {
-    failCurrentQuestion();
-    g.querySelector('.picktick').setAttribute('stroke','#b0392b');
-    g.querySelector('.picklabel').setAttribute('fill','#b0392b');
-    feedback(Math.abs(v)>Math.abs(target)?'Слишком далеко от центра.':'Не та отметка — сравни с табличным значением.',false);
-    sWrong(); shakeStage();
-    G.autoHint=EQUATIONS[G.cardIndex].h2;
-    setTimeout(()=>{ g.querySelector('.picktick').setAttribute('stroke','#3a2b18'); g.querySelector('.picktick').setAttribute('stroke-width','2.5'); g.querySelector('.picklabel').setAttribute('fill','#3a2b18'); },700);
-  }
-}
+/* ================= ASSEMBLE ================= */
+const coordPos=deg=>{const a=deg*Math.PI/180;return{x:CX+(R+40)*Math.cos(a),y:CY-(R+40)*Math.sin(a)}};
+function startAssemble(){const ids=[];ASM.forEach(pt=>{ids.push(`a-${pt.deg}`,`c-${pt.deg}`)});dispatch({type:'startAssemble',order:shuffled(ids)})}window.startAssemble=startAssemble;
+function renderAssemble(as){as=as||{order:[],placed:{}};const svg=$('asvg');svg.innerHTML='';svg.appendChild(el('circle',{cx:CX,cy:CY,r:R,fill:'none',stroke:'#b8860b','stroke-width':2.5}));svg.appendChild(el('line',{x1:20,y1:CY,x2:480,y2:CY,stroke:'#3a2b18','stroke-width':2}));svg.appendChild(el('line',{x1:CX,y1:480,x2:CX,y2:20,stroke:'#3a2b18','stroke-width':2}));addText(svg,'X',492,CY+6,'#3a2b18',18,'svglabel');addText(svg,'Y',CX,20,'#3a2b18',18,'svglabel');ASM.forEach(pt=>{const p=onCircle(pt.deg),aId=`a-${pt.deg}`,cp=coordPos(pt.deg),cId=`c-${pt.deg}`;svg.appendChild(el('circle',{cx:p.x,cy:p.y,r:11,fill:as.placed?.[aId]?'#98c98e':'#f7efd8',stroke:as.placed?.[aId]?'#3f7a3a':'#a98a5c','stroke-width':2,class:'slot','data-kind':'a','data-deg':pt.deg}));svg.appendChild(el('circle',{cx:cp.x,cy:cp.y,r:13,fill:as.placed?.[cId]?'#a9d3ca':'#eaf3f0',stroke:as.placed?.[cId]?'#3f7a3a':'#8ab5ac','stroke-width':2,class:'slot','data-kind':'c','data-deg':pt.deg}))});const tray=$('tray');tray.innerHTML='';(as.order||[]).forEach(id=>{if(as.placed?.[id])return;const [kind,degStr]=id.split('-'),pt=ASM.find(x=>x.deg===Number(degStr)),chip=document.createElement('div');chip.className='chip'+(kind==='c'?' kind-c':'');chip.textContent=kind==='c'?pt.c:pt.a;chip.dataset.id=id;chip.dataset.kind=kind;chip.dataset.deg=degStr;makeDraggable(chip);tray.appendChild(chip)});$('aFeedback').innerHTML=as.feedback?`<span style="color:#3f7a3a">${as.feedback}</span>`:''}
+function makeDraggable(chip){let dragging=false,ox=0,oy=0;chip.addEventListener('pointerdown',e=>{dragging=true;chip.classList.add('dragging');const r=chip.getBoundingClientRect();ox=e.clientX-r.left;oy=e.clientY-r.top;chip.style.position='fixed';chip.style.left=r.left+'px';chip.style.top=r.top+'px';chip.style.width=r.width+'px';chip.setPointerCapture(e.pointerId)});chip.addEventListener('pointermove',e=>{if(!dragging)return;chip.style.left=e.clientX-ox+'px';chip.style.top=e.clientY-oy+'px'});chip.addEventListener('pointerup',e=>{if(!dragging)return;dragging=false;chip.classList.remove('dragging');dropChip(chip,e.clientX,e.clientY)})}
+function dropChip(chip,px,py){const svg=$('asvg'),rect=svg.getBoundingClientRect(),slots=[...svg.querySelectorAll('.slot')];let near=null,best=1e9;slots.forEach(s=>{const sx=rect.left+parseFloat(s.getAttribute('cx'))/500*rect.width,sy=rect.top+parseFloat(s.getAttribute('cy'))/500*rect.height,d=Math.hypot(px-sx,py-sy);if(d<best){best=d;near=s}});chip.style.position='';chip.style.left='';chip.style.top='';chip.style.width='';if(near&&best<42)dispatch({type:'placeChip',id:chip.dataset.id,slotKind:near.dataset.kind,slotDeg:near.dataset.deg});else{sharedState.effect=effect('bad');playFx(sharedState.effect)}}
 
-/* Красная/зелёная точка значения на оси + её подпись */
-let valuePointEl=null, valueLabelEl=null;
-function drawValuePoint(axis,v,color,label){
-  const svg=document.getElementById('svg');
-  if(valuePointEl){valuePointEl.remove();valuePointEl=null;}
-  if(valueLabelEl){valueLabelEl.remove();valueLabelEl=null;}
-  let p = axis==='X'?toX(v):axis==='Y'?toY(v):axis==='T'?toT(v):toC(v);
-  valuePointEl=el('circle',{cx:p.x,cy:p.y,r:7,fill:color,stroke:'#3a2b18','stroke-width':1.5});
-  valuePointEl.appendChild(el('animate',{attributeName:'r',values:'3;8;7',dur:'0.4s'}));
-  svg.appendChild(valuePointEl);
-}
+/* ================= SORT ================= */
+function startSort(){dispatch({type:'startSort',order:shuffled(SORT_VALUES.map((_,i)=>i))})}window.startSort=startSort;
+function shuffleSort(){dispatch({type:'shuffleSort',order:shuffled(SORT_VALUES.map((_,i)=>i))})}window.shuffleSort=shuffleSort;
+function renderSort(s){s=s||{order:[],picked:null,checked:null};const row=$('sortRow');row.innerHTML='';(s.order||[]).forEach((idx,i)=>{const c=document.createElement('div');c.className='sort-card'+(s.picked===i?' picked':'')+(s.checked===true?' ok':'');c.textContent=SORT_VALUES[idx].label;c.onclick=()=>dispatch({type:'pickSort',index:i});row.appendChild(c)});const fb=$('sortFeedback');fb.innerHTML=s.checked===true?'<span style="color:#3f7a3a">✅ Верно! Значения расположены по возрастанию.</span>':s.checked===false?'<span style="color:#b0392b">❌ Порядок пока неверный. Сравни отрицательные значения внимательнее.</span>':''}
+window.checkSort=()=>dispatch({type:'checkSort'});
 
-/* =======================================================================
-   ШАГ 3: ПЕРПЕНДИКУЛЯР + подсветка засечек (пункты 3,4)
-   ======================================================================= */
-function drawPerp(){if(G.solvedStep)return;drawPerpSilent(false);feedback('Прямая проведена — точки пересечения найдены!',true);passStep();}
-function drawPerpSilent(silent){
-  const eq=EQUATIONS[G.cardIndex];
-  const svg=document.getElementById('svg');
-  svg.querySelectorAll('.perp,.cross-pt').forEach(n=>n.remove());
-  let line;
-  if(eq.axis==='Y'){ const y=CY-eq.value*R; line=el('line',{x1:40,y1:y,x2:460,y2:y,class:'perp'}); }
-  else if(eq.axis==='X'){ const x=CX+eq.value*R; line=el('line',{x1:x,y1:40,x2:x,y2:460,class:'perp'}); }
-  else { const p=onCircle(eq.angles[0]); const dx=p.x-CX,dy=p.y-CY; line=el('line',{x1:CX-dx*1.3,y1:CY-dy*1.3,x2:CX+dx*1.3,y2:CY+dy*1.3,class:'perp'}); }
-  svg.appendChild(line);
+/* ================= SESSION / AUTH ================= */
+async function hashText(v){const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(String(v||'')));return[...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('')}
+function storedStudent(){const studentId=localStorage.getItem('egeStudentId'),name=localStorage.getItem('egeStudentName'),code=localStorage.getItem('egeStudentCode');return studentId&&code?{studentId,name:name||'Ученик',code}:null}
+function saveStudent(s){localStorage.setItem('egeStudentId',s.studentId);localStorage.setItem('egeStudentName',s.name);localStorage.setItem('egeStudentCode',s.code)}
+function parseStudent(data,code){const d=data&&(data.student||data.data)||data||{},studentId=d.studentId||d.id||data?.studentId,name=d.studentName||d.name||d.fullName||data?.studentName||'Ученик';if(data?.ok===false||data?.valid===false||!studentId)throw Error(data?.message||'Код ученика не найден.');return{studentId:String(studentId),name:String(name),code:String(code)}}
+function validateStudentCode(code){return new Promise((resolve,reject)=>{const cb='trigGuide_'+Date.now()+'_'+Math.random().toString(36).slice(2),sc=document.createElement('script');let done=false;const clean=()=>{delete window[cb];sc.remove()};const to=setTimeout(()=>{if(done)return;done=true;clean();reject(Error('Сервер не ответил в течение 60 секунд.'))},60000);window[cb]=data=>{if(done)return;done=true;clearTimeout(to);clean();try{resolve(parseStudent(data,code))}catch(e){reject(e)}};sc.onerror=()=>{if(done)return;done=true;clearTimeout(to);clean();reject(Error('Не удалось проверить код ученика.'))};sc.src=API_URL+'?action=validateStudent&code='+encodeURIComponent(code)+'&callback='+encodeURIComponent(cb);document.head.appendChild(sc)})}
+function pane(id){['rolePane','teacherPane','restorePane','studentPane'].forEach(x=>$(x).classList.toggle('hidden',x!==id))}
+function openCollab(){pane('rolePane');$('collabOverlay').classList.remove('hidden')}function closeCollab(){$('collabOverlay').classList.add('hidden')}
+$('collabLaunch').onclick=openCollab;$('collabClose').onclick=closeCollab;document.querySelectorAll('.backRole').forEach(b=>b.onclick=()=>pane('rolePane'));
+$('teacherRole').onclick=()=>{pane('teacherPane');$('teacherMsg').textContent='';setTimeout(()=>$('teacherCode').focus(),30)};
+$('studentRole').onclick=()=>{pane('studentPane');const s=storedStudent();$('savedStudentText').textContent=s?`Сохранён ученик: ${s.name}. Код проверится автоматически.`:'Введите личный код ученика.';$('collabStudentCode').value=s?.code||'';if(s?.code)setTimeout(()=>joinStudent(),60)};
+$('teacherUnlock').onclick=async()=>{const code=$('teacherCode').value.trim().toUpperCase();$('teacherMsg').textContent='Проверяем…';if(await hashText(code)!==TEACHER_CODE_HASH){$('teacherMsg').textContent='Неверный код учителя.';return}const snap=await get(stateRef());if(snap.exists())pane('restorePane');else await connectTeacher(true)};
+$('teacherContinue').onclick=()=>connectTeacher(false);$('teacherNew').onclick=()=>connectTeacher(true);$('studentJoin').onclick=()=>joinStudent();
+async function connectTeacher(fresh){if(fresh){await remove(ref(database,lessonRoot()));await set(stateRef(),newState())}role='teacher';me={id:'teacher',name:'Учитель',role:'teacher'};await set(ref(database,lessonRoot()+'/participants/teacher'),{name:'Учитель',role:'teacher',online:true,lastSeen:serverTimestamp()});await onDisconnect(ref(database,lessonRoot()+'/participants/teacher')).update({online:false,lastSeen:serverTimestamp()});connectRealtime();closeCollab()}
+async function joinStudent(){const code=$('collabStudentCode').value.trim();if(!code)return;$('studentMsg').textContent='Проверяем код…';let key='';try{const s=await validateStudentCode(code);saveStudent(s);const sessionSnap=await get(stateRef());if(!sessionSnap.exists())throw Error('Учитель ещё не создал совместный гайд.');key='s_'+(await hashText(s.studentId)).slice(0,16);const r=await runTransaction(participantsRef(),cur=>{cur=cur||{};const existing=cur[key],students=Object.entries(cur).filter(([k,v])=>v?.role==='student'&&v?.online!==false&&k!==key);if(!existing&&students.length>=MAX_STUDENTS)return;cur[key]={studentId:s.studentId,name:s.name,role:'student',online:true,lastSeen:Date.now()};return cur});if(!r.committed)throw Error('В совместном гайде уже два ученика.');role='student';me={id:key,name:s.name,role:'student',studentId:s.studentId};await onDisconnect(ref(database,lessonRoot()+'/participants/'+key)).remove();connectRealtime();closeCollab()}catch(e){if(key)remove(ref(database,lessonRoot()+'/participants/'+key)).catch(()=>{});$('studentMsg').textContent=e.message||'Не удалось подключиться.'}}
+function connectRealtime(){connected=true;$('collabLaunch').classList.add('connected');$('collabLaunch').textContent='🟢 Совместный гайд';$('sessionStrip').classList.add('show');$('clearBoard').classList.toggle('show',role==='teacher');$('boardStatus').textContent='Живая общая доска подключена.';stateUnsub?.();participantUnsub?.();stateUnsub=onValue(stateRef(),snap=>{sharedState=normalizeState(snap.val()||newState());renderFromState()});participantUnsub=onValue(participantsRef(),snap=>{participants=snap.val()||{};renderParticipants()});attachStrokeListeners();updateIdentityLabel()}
+async function leaveSession(){if(me?.id)await remove(ref(database,lessonRoot()+'/participants/'+me.id)).catch(()=>{});connected=false;role='';me=null;stateUnsub?.();participantUnsub?.();detachStrokeListeners();$('sessionStrip').classList.remove('show');$('collabLaunch').classList.remove('connected');$('collabLaunch').textContent='👥 Совместный гайд';$('clearBoard').classList.remove('show');$('boardStatus').textContent='Доска работает локально, пока совместный режим не подключён.';updateIdentityLabel()}
+$('leaveSession').onclick=leaveSession;
+function renderParticipants(){const vals=Object.values(participants||{}).filter(p=>p&&p.online!==false);$('participantsList').innerHTML=vals.map(p=>`<span class="participant ${p.role}">${p.name}${p.role==='teacher'?' · учитель':''}</span>`).join('')}
+function updateIdentityLabel(){$('studentName').textContent=connected?(me?.name||'Участник'):'локальный режим';$('switchStudent').textContent=connected?'Совместный режим':'Подключить совместный режим';$('switchStudent').onclick=openCollab}
 
-  // подсветить опорные засечки, совпадающие с корнями (пункт 3)
-  eq.angles.forEach(a=>{
-    svg.querySelectorAll('.refdash').forEach(d=>{ if(+d.getAttribute('data-deg')===norm360(a)) d.classList.add('glow'); });
-    const p=onCircle(a);
-    const c=el('circle',{cx:p.x,cy:p.y,r:8,fill:'#1f7a7a',stroke:'#3a2b18','stroke-width':1.5,class:'cross-pt'});
-    c.appendChild(el('animate',{attributeName:'r',values:'2;9;8',dur:'0.5s'}));
-    svg.appendChild(c);
-  });
-}
-function shakeStage(){ const s=document.querySelector('#game .stage'); s.classList.add('shake'); setTimeout(()=>s.classList.remove('shake'),450); }
+/* ================= SHARED BOARD ================= */
+let boardTool='pen',penColor='#b0392b',penWidth=6,drawing=null,strokeCache=new Map(),strokeUnsubs=[];
+function boardPoint(e){const r=$('boardPad').getBoundingClientRect();return{x:clamp((e.clientX-r.left)/r.width,0,1),y:clamp((e.clientY-r.top)/r.height,0,1)}}
+function renderStroke(st){let p=$('boardSvg').querySelector(`path[data-id="${CSS.escape(st.id)}"]`);if(!p){p=el('path',{'data-id':st.id,fill:'none','stroke-linecap':'round','stroke-linejoin':'round'});$('boardSvg').appendChild(p)}p.setAttribute('stroke',st.color||'#b0392b');p.setAttribute('stroke-width',st.width||6);const pts=st.points||[];p.setAttribute('d',pts.map((q,i)=>(i?'L':'M')+(q.x*1000).toFixed(1)+' '+(q.y*430).toFixed(1)).join(' '))}
+function removeStrokeNode(id){$('boardSvg').querySelector(`path[data-id="${CSS.escape(id)}"]`)?.remove()}
+function detachStrokeListeners(){strokeUnsubs.forEach(f=>f());strokeUnsubs=[]}
+function attachStrokeListeners(){detachStrokeListeners();strokeCache.clear();$('boardSvg').innerHTML='';if(!connected)return;strokeUnsubs.push(onChildAdded(strokesRef(),s=>{const st=s.val();if(st){st.id=s.key;strokeCache.set(s.key,st);renderStroke(st)}}));strokeUnsubs.push(onChildChanged(strokesRef(),s=>{const st=s.val();if(st){st.id=s.key;strokeCache.set(s.key,st);renderStroke(st)}}));strokeUnsubs.push(onChildRemoved(strokesRef(),s=>{strokeCache.delete(s.key);removeStrokeNode(s.key)}))}
+$('toolPen').onclick=()=>{boardTool='pen';$('toolPen').classList.add('active');$('toolEraser').classList.remove('active')};$('toolEraser').onclick=()=>{boardTool='eraser';$('toolEraser').classList.add('active');$('toolPen').classList.remove('active')};$('penColor').oninput=e=>penColor=e.target.value;$('penWidth').onchange=e=>penWidth=Number(e.target.value)||6;
+function pointSegDist(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,l=dx*dx+dy*dy;if(!l)return Math.hypot(p.x-a.x,p.y-a.y);let t=((p.x-a.x)*dx+(p.y-a.y)*dy)/l;t=clamp(t,0,1);return Math.hypot(p.x-(a.x+t*dx),p.y-(a.y+t*dy))}
+async function eraseAt(p){const threshold=.025;for(const [id,st] of strokeCache){const pts=st.points||[];let hit=false;for(let i=1;i<pts.length;i++){if(pointSegDist(p,pts[i-1],pts[i])<threshold){hit=true;break}}if(hit){strokeCache.delete(id);removeStrokeNode(id);if(connected)remove(ref(database,lessonRoot()+'/strokes/'+id)).catch(()=>{});return}}}
+$('boardPad').addEventListener('pointerdown',async e=>{if(boardTool==='eraser'){await eraseAt(boardPoint(e));return}const id=(me?.id||'local')+'_'+uid(),st={id,color:penColor,width:penWidth,points:[boardPoint(e)],done:false,rev:1};strokeCache.set(id,st);renderStroke(st);drawing={id,pointerId:e.pointerId,lastSend:0};$('boardPad').setPointerCapture(e.pointerId);if(connected)set(ref(database,lessonRoot()+'/strokes/'+id),clone({...st,id:undefined})).catch(()=>{})});
+$('boardPad').addEventListener('pointermove',e=>{if(boardTool==='eraser'&&e.buttons){eraseAt(boardPoint(e));return}if(!drawing||drawing.pointerId!==e.pointerId)return;const st=strokeCache.get(drawing.id);if(!st)return;const p=boardPoint(e),last=st.points[st.points.length-1];if(Math.hypot(p.x-last.x,p.y-last.y)<.002)return;st.points.push(p);st.rev++;renderStroke(st);const now=performance.now();if(connected&&now-drawing.lastSend>50){drawing.lastSend=now;update(ref(database,lessonRoot()+'/strokes/'+st.id),{points:st.points,rev:st.rev,done:false}).catch(()=>{})}});
+async function endDraw(e){if(!drawing||drawing.pointerId!==e.pointerId)return;const st=strokeCache.get(drawing.id);drawing=null;if(st&&connected)await update(ref(database,lessonRoot()+'/strokes/'+st.id),{points:st.points,rev:st.rev,done:true}).catch(()=>{})}
+$('boardPad').addEventListener('pointerup',endDraw);$('boardPad').addEventListener('pointercancel',endDraw);$('clearBoard').onclick=()=>{if(role==='teacher'&&confirm('Очистить общую доску у всех?'))remove(strokesRef())};
 
-/* =======================================================================
-   РЕЗУЛЬТАТ
-   ======================================================================= */
-function finishLevel(){
-  sWin();
-  const secs=Math.max(0,Math.floor((Date.now()-G.startTime)/1000));
-  const mm=Math.floor(secs/60), ss=(secs%60).toString().padStart(2,'0');
-  const ratio=G.correct/G.total; let stars=1;
-  if(ratio>=0.5)stars=2; if(ratio>=0.7)stars=3; if(ratio>=0.9&&G.hints<=5)stars=4; if(ratio>=1&&G.hints<=2)stars=5;
-  document.getElementById('resTitle').textContent=`Уровень ${G.level} пройден!`;
-  document.getElementById('resStars').textContent='★'.repeat(stars)+'☆'.repeat(5-stars);
-  document.getElementById('resCorrectLabel').textContent=G.level===5?'Успешность с первой попытки':'Правильных ответов';
-  const scorePercent=G.level===5?Math.round(G.firstTryCorrect/G.total*100):null;
-  document.getElementById('resCorrect').textContent=G.level===5?scorePercent+'%':`${G.correct} / ${G.total}`;
-  document.getElementById('resTime').textContent=`${mm}:${ss}`;
-  document.getElementById('resHints').textContent=G.hints;
-  const lvl=G.level; document.getElementById('resRetry').onclick=()=>startLevel(lvl);
-  gameActive=false;showStudent();
-  show('result');
-  if(G.level===5&&!G.resultFinalized){
-    G.resultFinalized=true;
-    const eventId=makeEventId();displayedEventId=eventId;
-    submitResult({
-      action:'submitTest',
-      eventId,
-      studentId:currentStudent.id,
-      testId:TEST_META.testId,
-      testDate:localDateString(),
-      topicId:TEST_META.topicId,
-      topicName:TEST_META.topicName,
-      taskNumber:TEST_META.taskNumber,
-      scorePercent,
-      durationSeconds:secs,
-      schemaVersion:TEST_META.schemaVersion
-    });
-  }else if(G.level!==5){
-    setSaveStatus('Тренировочный уровень — результат не отправляется.');
-  }
-}
-
-/* =======================================================================
-   ЧАСТИЦЫ
-   ======================================================================= */
-const pcanvas=document.getElementById('particles'), pctx=pcanvas.getContext('2d');
-let particles=[];
-function resizeCanvas(){ pcanvas.width=innerWidth; pcanvas.height=innerHeight; }
-resizeCanvas(); addEventListener('resize',resizeCanvas);
-function burstParticles(){
-  const cx=innerWidth*0.35, cy=innerHeight*0.45;
-  for(let i=0;i<24;i++) particles.push({x:cx,y:cy,vx:(Math.random()-.5)*7,vy:(Math.random()-.5)*7-2,life:1,size:2+Math.random()*3,color:['#b8860b','#3f7a3a','#1f7a7a','#b0392b'][i%4]});
-}
-function loopParticles(){
-  pctx.clearRect(0,0,pcanvas.width,pcanvas.height);
-  particles=particles.filter(p=>p.life>0);
-  particles.forEach(p=>{ p.x+=p.vx;p.y+=p.vy;p.vy+=.15;p.life-=.02; pctx.globalAlpha=Math.max(p.life,0); pctx.fillStyle=p.color;
-    pctx.beginPath(); pctx.moveTo(p.x,p.y-p.size); pctx.lineTo(p.x+p.size,p.y); pctx.lineTo(p.x,p.y+p.size); pctx.lineTo(p.x-p.size,p.y); pctx.closePath(); pctx.fill(); });
-  pctx.globalAlpha=1; requestAnimationFrame(loopParticles);
-}
-loopParticles();
-
-/* =======================================================================
-   БОНУС 1: «СОБЕРИ ОКРУЖНОСТЬ» — углы И координаты (пункт 5)
-   ======================================================================= */
-const ASM=[
-  {deg:0,   a:'0°',   c:'(1; 0)'},
-  {deg:30,  a:'30°',  c:'(√3/2; 1/2)'},
-  {deg:45,  a:'45°',  c:'(√2/2; √2/2)'},
-  {deg:90,  a:'90°',  c:'(0; 1)'},
-  {deg:180, a:'180°', c:'(−1; 0)'},
-  {deg:270, a:'270°', c:'(0; −1)'}
-];
-const coordPos = deg => { const a=deg*Math.PI/180; return {x:CX+(R+40)*Math.cos(a), y:CY-(R+40)*Math.sin(a)}; };
-let aPlaced=0, aTotal=0;
-function startAssemble(){
-  if(!currentStudent)return;
-  gameActive=true;showStudent();
-  if(!audioCtx) ac(); if(soundOn) startBgMusic();
-  aPlaced=0; aTotal=ASM.length*2;
-  const svg=document.getElementById('asvg'); svg.innerHTML='';
-  svg.appendChild(el('circle',{cx:CX,cy:CY,r:R,fill:'none',stroke:'#b8860b','stroke-width':2.5}));
-  svg.appendChild(el('line',{x1:20,y1:CY,x2:480,y2:CY,stroke:'#3a2b18','stroke-width':2}));
-  svg.appendChild(el('line',{x1:CX,y1:480,x2:CX,y2:20,stroke:'#3a2b18','stroke-width':2}));
-  addText(svg,'X',492,CY+6,'#3a2b18',18,'svglabel');
-  addText(svg,'Y',CX,20,'#3a2b18',18,'svglabel');
-  // слоты для углов (на окружности) и координат (снаружи)
-  ASM.forEach(pt=>{
-    const p=onCircle(pt.deg);
-    svg.appendChild(el('circle',{cx:p.x,cy:p.y,r:11,fill:'#f7efd8',stroke:'#a98a5c','stroke-width':2,class:'slot','data-kind':'a','data-deg':pt.deg}));
-    const cp=coordPos(pt.deg);
-    svg.appendChild(el('circle',{cx:cp.x,cy:cp.y,r:13,fill:'#eaf3f0',stroke:'#8ab5ac','stroke-width':2,class:'slot','data-kind':'c','data-deg':pt.deg}));
-  });
-  // фишки в лоток
-  const tray=document.getElementById('tray'); tray.innerHTML='';
-  document.getElementById('aFeedback').textContent='';
-  const chips=[];
-  ASM.forEach(pt=>{ chips.push({kind:'a',deg:pt.deg,label:pt.a}); chips.push({kind:'c',deg:pt.deg,label:pt.c}); });
-  chips.sort(()=>Math.random()-0.5).forEach(cd=>{
-    const chip=document.createElement('div');
-    chip.className='chip'+(cd.kind==='c'?' kind-c':'');
-    chip.textContent=cd.label; chip.dataset.kind=cd.kind; chip.dataset.deg=cd.deg;
-    makeDraggable(chip); tray.appendChild(chip);
-  });
-  show('assemble');
-}
-function makeDraggable(chip){
-  let dragging=false, ox=0, oy=0;
-  chip.addEventListener('pointerdown',e=>{
-    if(chip.classList.contains('locked')) return;
-    dragging=true; chip.classList.add('dragging');
-    const r=chip.getBoundingClientRect(); ox=e.clientX-r.left; oy=e.clientY-r.top;
-    chip.style.position='fixed'; chip.style.left=r.left+'px'; chip.style.top=r.top+'px'; chip.style.width=r.width+'px';
-    chip.setPointerCapture(e.pointerId);
-  });
-  chip.addEventListener('pointermove',e=>{ if(!dragging)return; chip.style.left=(e.clientX-ox)+'px'; chip.style.top=(e.clientY-oy)+'px'; });
-  chip.addEventListener('pointerup',e=>{ if(!dragging)return; dragging=false; chip.classList.remove('dragging'); dropChip(chip,e.clientX,e.clientY); });
-}
-function dropChip(chip,px,py){
-  const svg=document.getElementById('asvg'); const rect=svg.getBoundingClientRect();
-  const slots=[...svg.querySelectorAll('.slot')]; let nearest=null, best=1e9;
-  slots.forEach(s=>{
-    const sx=rect.left+parseFloat(s.getAttribute('cx'))/500*rect.width;
-    const sy=rect.top +parseFloat(s.getAttribute('cy'))/500*rect.height;
-    const d=Math.hypot(px-sx,py-sy); if(d<best){best=d;nearest=s;}
-  });
-  const ok = nearest && best<42 && !nearest.classList.contains('filled')
-    && nearest.getAttribute('data-kind')===chip.dataset.kind
-    && nearest.getAttribute('data-deg')===chip.dataset.deg;
-  if(ok){
-    nearest.classList.add('filled');
-    nearest.setAttribute('fill', chip.dataset.kind==='c'?'#a9d3ca':'#98c98e');
-    nearest.setAttribute('stroke','#3f7a3a');
-    chip.classList.add('locked');
-    chip.style.position='';chip.style.left='';chip.style.top='';chip.style.width='';
-    sPlace(); sCorrect(); aPlaced++;
-    if(aPlaced===aTotal){ document.getElementById('aFeedback').innerHTML='<span style="color:#3f7a3a">🎉 Окружность собрана! Ты знаешь и углы, и координаты!</span>'; sWin(); for(let k=0;k<3;k++) setTimeout(burstParticles,k*200); }
-  } else {
-    chip.classList.add('wrong'); chip.style.position='';chip.style.left='';chip.style.top='';chip.style.width='';
-    sWrong(); setTimeout(()=>chip.classList.remove('wrong'),450);
-  }
-}
-
-/* =======================================================================
-   БОНУС 2: «ТАБЛИЦА ЗНАЧЕНИЙ» — с отрицательными (пункт 6)
-   ======================================================================= */
-const SORT_VALUES=[
-  {label:'−1',v:-1},{label:'−√3/2',v:-Math.sqrt(3)/2},{label:'−√2/2',v:-Math.SQRT1_2},
-  {label:'−1/2',v:-0.5},{label:'0',v:0},{label:'1/2',v:0.5},
-  {label:'√2/2',v:Math.SQRT1_2},{label:'√3/2',v:Math.sqrt(3)/2},{label:'1',v:1}
-];
-let sortOrder=[], pickedIndex=null;
-function startSort(){
-  if(!currentStudent)return;
-  gameActive=true;showStudent();
-  if(!audioCtx)ac();if(soundOn)startBgMusic();shuffleSort();show('sort');
-}
-function shuffleSort(){ sortOrder=[...SORT_VALUES].sort(()=>Math.random()-0.5); pickedIndex=null; document.getElementById('sortFeedback').textContent=''; renderSort(); }
-function renderSort(){
-  const row=document.getElementById('sortRow'); row.innerHTML='';
-  sortOrder.forEach((item,i)=>{
-    const c=document.createElement('div'); c.className='sort-card'+(pickedIndex===i?' picked':'');
-    c.textContent=item.label; c.onclick=()=>pickCard(i); row.appendChild(c);
-  });
-}
-function pickCard(i){
-  if(pickedIndex===null){ pickedIndex=i; sPlace(); }
-  else if(pickedIndex===i){ pickedIndex=null; }
-  else { [sortOrder[pickedIndex],sortOrder[i]]=[sortOrder[i],sortOrder[pickedIndex]]; pickedIndex=null; sPlace(); }
-  renderSort();
-}
-function checkSort(){
-  const ok=sortOrder.every((item,i)=> i===0 || sortOrder[i-1].v<=item.v);
-  const fb=document.getElementById('sortFeedback');
-  if(ok){ fb.innerHTML='<span style="color:#3f7a3a">✅ Верно! −1 → −√3/2 → … → 0 → … → 1</span>';
-    document.querySelectorAll('.sort-card').forEach(c=>c.classList.add('ok')); sWin(); burstParticles(); }
-  else { fb.innerHTML='<span style="color:#b0392b">❌ Порядок неверный. Помни: −√3/2 ≈ −0,87 меньше, чем −1/2.</span>';
-    sWrong(); document.querySelectorAll('.sort-card').forEach(c=>{c.classList.add('shake'); setTimeout(()=>c.classList.remove('shake'),450);}); }
-}
-
-/* разблокировка звука при первом касании */
-document.body.addEventListener('pointerdown',()=>{ if(!audioCtx) ac(); },{once:true});
-
-/* =======================================================================
-   ВХОД ПРИ ОТКРЫТИИ
-   ======================================================================= */
-const codeFromUrl=new URLSearchParams(location.search).get('code');
-if(codeFromUrl){
-  document.getElementById('studentCodeInput').value=codeFromUrl;
-  showStudent();acceptStudentCode(codeFromUrl);
-}else{
-  currentStudent=loadStoredStudent();showStudent();
-  if(currentStudent){document.getElementById('identityOverlay').classList.add('hidden');flushPendingResults();}
-  else setTimeout(()=>document.getElementById('studentCodeInput').focus(),0);
-}
+/* ================= INIT ================= */
+let gameActiveUi=false;
+$('switchStudent').onclick=openCollab;$('btnHome').onclick=goHome;document.body.addEventListener('pointerdown',()=>{if(!audioCtx)ac()},{once:true});
+// кнопки в исходной разметке используют window-функции
+window.startAssemble=startAssemble;window.startSort=startSort;window.checkSort=()=>dispatch({type:'checkSort'});window.shuffleSort=shuffleSort;
+sharedState=newState();renderFromState();updateIdentityLabel();startBgMusic();
 </script>
 </body>
 </html>
