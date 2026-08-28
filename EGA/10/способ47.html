@@ -168,7 +168,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
 import {
-  getDatabase, ref, get, set, update, onValue, onDisconnect,
+  getDatabase, ref, get, set, update, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect,
   runTransaction, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js";
 
@@ -212,6 +212,7 @@ const sessionRef=()=>ref(database,lessonRoot());
 const stateRef=()=>ref(database,`${lessonRoot()}/state`);
 const membersRef=()=>ref(database,`${lessonRoot()}/members`);
 const messagesRef=()=>ref(database,`${lessonRoot()}/messages`);
+const strokesRef=()=>ref(database,`${lessonRoot()}/state/strokes`);
 const memberRef=id=>ref(database,`${lessonRoot()}/members/${id}`);
 
 let role='';
@@ -224,6 +225,8 @@ let browserClientId=getBrowserClientId();
 let serverState=null;
 let membersSnapshot={};
 let stateUnsub=null,membersUnsub=null,messagesUnsub=null;
+let strokeAddedUnsub=null,strokeChangedUnsub=null,strokeRemovedUnsub=null;
+let liveStrokes={};
 let joinInFlight=false,presencePath=null;
 let online=navigator.onLine;
 let muted=false;
@@ -703,7 +706,47 @@ async function handleStudentLogin(e){ e.preventDefault(); const input=$('student
 async function connectStudent(st){ role='student'; student=st; startSessionListeners(); closeLessonModal(); tryJoinStudent().catch(()=>{}); }
 async function tryJoinStudent(){ if(joinInFlight||role!=='student'||!student) return; joinInFlight=true; try{ const ss=await get(stateRef()); if(!ss.exists()){ serverState=null; renderWaitingTeacher(); return; } const initial=normalizeState(ss.val()); serverState=initial; const ms=await get(membersRef()); const members=ms.exists()?ms.val()||{}:{}; const activeIds=new Set(Object.values(members).filter(m=>m&&m.online&&m.role==='student'&&m.studentId).map(m=>String(m.studentId))); const pk=playerKey(student.studentId), candidateEventId=uuid(), now=Date.now(); const result=await runTransaction(stateRef(),current=>{ const s=normalizeState(current||clone(initial)),g=s.game; const existingKey=Object.keys(g.players).find(k=>String(g.players[k]?.studentId)===String(student.studentId)); if(existingKey){ const p=g.players[existingKey]; p.name=student.name; p.code=student.code; p.lastSeen=now; g.eventIds[existingKey]=g.eventIds[existingKey]||candidateEventId; s.version++; return s; } if(g.status!=='lobby') return; for(const [key,p] of Object.entries(g.players)){ const stale=!activeIds.has(String(p.studentId))&&now-(Number(p.lastSeen)||Number(p.joinedAt)||0)>10000; if(stale&&g.status==='lobby'){ delete g.players[key]; delete g.stats[key]; delete g.attempts[key]; delete g.eventIds[key]; delete g.submissions[key]; } } if(Object.keys(g.players).length>=g.studentLimit) return; const used=new Set(Object.values(g.players).map(p=>Number(p.slot))); let slot=1; while(used.has(slot)&&slot<=g.studentLimit) slot++; if(slot>g.studentLimit) return; g.players[pk]={studentId:student.studentId,name:student.name,code:student.code,slot,joinedAt:now,lastSeen:now}; g.stats[pk]={firstTryCorrect:0,completed:0,attemptCount:0}; g.attempts[pk]={}; g.eventIds[pk]=candidateEventId; s.version++; return s; }); if(!result.committed){ const reread=await get(stateRef()); if(!reread.exists()){ serverState=null; renderWaitingTeacher(); return; } const after=normalizeState(reread.val()), found=Object.keys(after.game.players).find(k=>String(after.game.players[k]?.studentId)===String(student.studentId)); if(found){ participantPlayerKey=found; serverState=after; await registerPresence(); renderFromState(true); return; } if(after.game.status!=='lobby'){ showToast('Игра уже началась. Войти новым участником сейчас нельзя.','bad'); return; } showToast('Свободных мест нет.','bad'); return; } const after=normalizeState(result.snapshot.val()); participantPlayerKey=Object.keys(after.game.players).find(k=>String(after.game.players[k]?.studentId)===String(student.studentId))||pk; serverState=after; await registerPresence(); renderFromState(true); }catch{ showToast('Не удалось подключить ученика.','bad'); } finally{ joinInFlight=false; } }
 async function registerPresence(){ if(!role) return; participantId=role==='teacher'?'teacher':participantPlayerKey||playerKey(student?.studentId||''); participantName=role==='teacher'?'Учитель':student?.name||'Ученик'; const mref=memberRef(browserClientId); presencePath=mref; try{ await onDisconnect(mref).update({online:false,lastSeen:serverTimestamp()}); await set(mref,{id:browserClientId,userId:participantId,studentId:role==='student'?student.studentId:'',name:participantName,role,online:true,lastSeen:serverTimestamp()}); }catch{} }
-function startSessionListeners(){ if(stateUnsub) stateUnsub(); if(membersUnsub) membersUnsub(); if(messagesUnsub) messagesUnsub(); stateUnsub=onValue(stateRef(),snap=>{ serverState=snap.exists()?normalizeState(snap.val()):null; if(role==='student'&&serverState&&!serverState.game.players[participantPlayerKey]&&serverState.game.status==='lobby'&&!joinInFlight) tryJoinStudent().catch(()=>{}); renderFromState(); }); membersUnsub=onValue(membersRef(),snap=>{ membersSnapshot=snap.exists()?snap.val()||{}:{}; updateSessionPanel(); if(!role||serverState?.game?.status==='lobby') renderFromState(true); }); messagesUnsub=onValue(messagesRef(),snap=>{ const m=snap.exists()?snap.val()||{}:{}; remoteTeacherCursor=m.teacherCursor||null; updateTeacherCursor(); }); }
+function applyLiveStroke(id,value){
+  if(!id||!value)return;
+  const incoming=clone(value), old=liveStrokes[id];
+  const inRev=Number(incoming.rev)||0, oldRev=Number(old?.rev)||0;
+  if(old&&oldRev>inRev)return;
+  liveStrokes[id]=incoming;
+  if(serverState){serverState.strokes=serverState.strokes||{};serverState.strokes[id]=clone(incoming)}
+  renderBoardStrokes();
+}
+function removeLiveStroke(id){
+  if(!id)return;
+  delete liveStrokes[id];
+  if(serverState?.strokes)delete serverState.strokes[id];
+  erasingStrokeIds.delete(id);
+  renderBoardStrokes();
+}
+function stopStrokeListeners(){
+  [strokeAddedUnsub,strokeChangedUnsub,strokeRemovedUnsub].forEach(fn=>{try{fn?.()}catch{}});
+  strokeAddedUnsub=strokeChangedUnsub=strokeRemovedUnsub=null;
+}
+function startStrokeListeners(){
+  stopStrokeListeners();
+  liveStrokes={};
+  const sr=strokesRef();
+  strokeAddedUnsub=onChildAdded(sr,snap=>applyLiveStroke(snap.key,snap.val()));
+  strokeChangedUnsub=onChildChanged(sr,snap=>applyLiveStroke(snap.key,snap.val()));
+  strokeRemovedUnsub=onChildRemoved(sr,snap=>removeLiveStroke(snap.key));
+}
+function startSessionListeners(){
+  if(stateUnsub)stateUnsub();if(membersUnsub)membersUnsub();if(messagesUnsub)messagesUnsub();stopStrokeListeners();
+  stateUnsub=onValue(stateRef(),snap=>{
+    serverState=snap.exists()?normalizeState(snap.val()):null;
+    if(serverState?.strokes){for(const [id,st] of Object.entries(serverState.strokes))if(st)applyLiveStroke(id,st)}
+    if(role==='student'&&serverState&&!serverState.game.players[participantPlayerKey]&&serverState.game.status==='lobby'&&!joinInFlight)tryJoinStudent().catch(()=>{});
+    renderFromState();
+    renderBoardStrokes();
+  });
+  membersUnsub=onValue(membersRef(),snap=>{membersSnapshot=snap.exists()?snap.val()||{}:{};updateSessionPanel();if(!role||serverState?.game?.status==='lobby')renderFromState(true);});
+  messagesUnsub=onValue(messagesRef(),snap=>{const m=snap.exists()?snap.val()||{}:{};remoteTeacherCursor=m.teacherCursor||null;updateTeacherCursor();});
+  startStrokeListeners();
+}
 function switchStudent(){ if(serverState?.game?.status==='playing'){ showToast('Во время занятия нельзя сменить ученика.','bad'); return; } clearStoredStudent(); role=''; participantPlayerKey=''; student=null; updateSessionPanel(); openStudentLoginForm(); }
 function updateSessionPanel(){ const p=$('sessionPanel'); if(!p) return; if(!role){ p.classList.remove('show'); return; } const onlineStudents=Object.values(membersSnapshot).filter(m=>m&&m.online&&m.role==='student').length; const status=!online?'офлайн':serverState?.game?.status==='playing'?'игра идёт':serverState?.game?.status==='finished'?'завершено':serverState?'лобби':'ждём учителя'; const finish=role==='teacher'&&serverState?.game?.status==='playing'?'<button class="sys-mini danger" id="panelFinishLesson">Завершить</button>':''; p.innerHTML=`<span class="session-dot ${online?'on':''}"></span><b>${role==='teacher'?'Учитель':esc(student?.name||'Ученик')}</b><small>${status}${serverState?` · онлайн учеников: ${onlineStudents}`:''}</small>${finish}${role==='student'?'<button class="sys-mini" id="panelSwitchStudent">Сменить ученика</button>':''}`; p.classList.add('show'); if($('panelSwitchStudent')) $('panelSwitchStudent').onclick=switchStudent; if($('panelFinishLesson')) $('panelFinishLesson').onclick=teacherFinishLesson; }
 
@@ -723,19 +766,24 @@ function boardPointerMove(e){
   if(boardErasing){e.preventDefault();eraseBoardAlong(lastErasePoint||p,p);lastErasePoint=p;return}
   if(!activeStroke||boardTool!=='pencil')return;
   const last=activeStroke.points[activeStroke.points.length-1];if(Math.hypot(p[0]-last[0],p[1]-last[1])<.001)return;
-  e.preventDefault();activeStroke.points.push(p);activeStroke.rev=Date.now();renderBoardStrokes();const now=Date.now();if(now-lastStrokePush>=50){lastStrokePush=now;pushStroke(activeStroke)}
+  e.preventDefault();activeStroke.points.push(p);activeStroke.rev=Math.max(Date.now(),(Number(activeStroke.rev)||0)+1);renderBoardStrokes();const now=Date.now();if(now-lastStrokePush>=45){lastStrokePush=now;pushStroke(activeStroke)}
 }
 function boardPointerUp(e){
   if(boardPointerId!==e.pointerId)return;
   try{e.currentTarget.releasePointerCapture(e.pointerId)}catch{}boardPointerId=null;lastErasePoint=null;
   if(boardErasing){boardErasing=false;return}
-  if(!activeStroke)return;activeStroke.done=true;activeStroke.rev=Date.now();const finished=clone(activeStroke);activeStroke=null;renderBoardStrokes();pushStroke(finished);
+  if(!activeStroke)return;activeStroke.done=true;activeStroke.rev=Math.max(Date.now(),(Number(activeStroke.rev)||0)+1);const finished=clone(activeStroke);liveStrokes[finished.id]=clone(finished);if(serverState){serverState.strokes=serverState.strokes||{};serverState.strokes[finished.id]=clone(finished)}activeStroke=null;renderBoardStrokes();pushStroke(finished);
 }
-async function pushStroke(stroke=activeStroke){if(!stroke||!serverState)return;try{await set(ref(database,`${lessonRoot()}/state/strokes/${stroke.id}`),clone(stroke))}catch{}}
+async function pushStroke(stroke=activeStroke){
+  if(!stroke||!serverState)return;
+  const copy=clone(stroke);liveStrokes[copy.id]=copy;serverState.strokes=serverState.strokes||{};serverState.strokes[copy.id]=clone(copy);renderBoardStrokes();
+  try{await set(ref(database,`${lessonRoot()}/state/strokes/${copy.id}`),copy)}catch{}
+}
+function boardStrokeSource(){return {...(serverState?.strokes||{}),...liveStrokes}}
 function renderBoardStrokes(){
-  const b=$('sharedBoard');if(!b||!serverState)return;const epoch=serverState.boardEpoch||0;
-  for(const id of [...erasingStrokeIds])if(!serverState.strokes?.[id])erasingStrokeIds.delete(id);
-  const strokes=Object.values(serverState.strokes||{}).filter(s=>s&&s.epoch===epoch&&!erasingStrokeIds.has(s.id)&&s.id!==activeStroke?.id);if(activeStroke)strokes.push(activeStroke);
+  const b=$('sharedBoard');if(!b||!serverState)return;const epoch=serverState.boardEpoch||0,source=boardStrokeSource();
+  for(const id of [...erasingStrokeIds])if(!source[id])erasingStrokeIds.delete(id);
+  const strokes=Object.values(source).filter(s=>s&&s.epoch===epoch&&!erasingStrokeIds.has(s.id)&&s.id!==activeStroke?.id);if(activeStroke)strokes.push(activeStroke);
   b.innerHTML=strokes.map(s=>{const pts=(s.points||[]).map(([x,y])=>`${Math.max(0,Math.min(1,x))*1000},${Math.max(0,Math.min(1,y))*1000}`).join(' ');return pts?`<polyline points="${pts}" fill="none" stroke="${esc(s.color||'#e53935')}" stroke-width="${Math.max(1,Number(s.width)||6)*2.2}" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`:''}).join('');
 }
 function boardPointSegmentDistancePx(p,a,b,rect){const px=p[0]*rect.width,py=p[1]*rect.height,ax=a[0]*rect.width,ay=a[1]*rect.height,bx=b[0]*rect.width,by=b[1]*rect.height,dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy;if(!l2)return Math.hypot(px-ax,py-ay);const t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/l2));return Math.hypot(px-(ax+t*dx),py-(ay+t*dy))}
@@ -743,11 +791,11 @@ function boardStrokeTouchesPoint(st,p,radius,rect){const points=st?.points||[];i
 function eraseBoardAlong(from,to){
   if(!serverState)return;const b=$('sharedBoard');if(!b)return;const rect=b.getBoundingClientRect(),radius=Math.max(14,boardWidth*2.5),distance=Math.hypot((to[0]-from[0])*rect.width,(to[1]-from[1])*rect.height),steps=Math.max(1,Math.ceil(distance/Math.max(5,radius*.45))),samples=[];
   for(let i=0;i<=steps;i++){const t=i/steps;samples.push([from[0]+(to[0]-from[0])*t,from[1]+(to[1]-from[1])*t])}
-  const epoch=serverState.boardEpoch||0,ids=[];for(const [id,st] of Object.entries(serverState.strokes||{})){if(!st||st.epoch!==epoch||erasingStrokeIds.has(id))continue;if(samples.some(p=>boardStrokeTouchesPoint(st,p,radius,rect)))ids.push(id)}
-  if(!ids.length)return;const removals={};for(const id of ids){erasingStrokeIds.add(id);removals[id]=null}renderBoardStrokes();
-  update(ref(database,`${lessonRoot()}/state/strokes`),removals).catch(()=>{for(const id of ids)erasingStrokeIds.delete(id);renderBoardStrokes()});
+  const epoch=serverState.boardEpoch||0,ids=[],source=boardStrokeSource();for(const [id,st] of Object.entries(source)){if(!st||st.epoch!==epoch||erasingStrokeIds.has(id))continue;if(samples.some(p=>boardStrokeTouchesPoint(st,p,radius,rect)))ids.push(id)}
+  if(!ids.length)return;const removals={};for(const id of ids){erasingStrokeIds.add(id);removals[id]=null;delete liveStrokes[id];if(serverState?.strokes)delete serverState.strokes[id]}renderBoardStrokes();
+  update(strokesRef(),removals).catch(()=>{for(const id of ids)erasingStrokeIds.delete(id);renderBoardStrokes()});
 }
-async function clearBoard(){ if(role!=='teacher'||!serverState) return; const initial=clone(serverState); await runTransaction(stateRef(),current=>{ const s=normalizeState(current||clone(initial)); s.boardEpoch=(Number(s.boardEpoch)||0)+1; s.strokes={}; s.version++; return s; }); }
+async function clearBoard(){ if(role!=='teacher'||!serverState) return; const initial=clone(serverState); const result=await runTransaction(stateRef(),current=>{ const s=normalizeState(current||clone(initial)); s.boardEpoch=(Number(s.boardEpoch)||0)+1; s.strokes={}; s.version++; return s; }); if(result.committed){liveStrokes={};erasingStrokeIds.clear();renderBoardStrokes()} }
 function initBoardToolbar(){ const tb=$('boardToolbar'); let pos={right:18,bottom:18}; try{ pos={...pos,...JSON.parse(localStorage.getItem(TOOLBAR_POSITION_KEY)||'{}')}; }catch{} tb.style.right=(pos.right??18)+'px'; tb.style.bottom=(pos.bottom??18)+'px'; tb.innerHTML=`<div class="board-head" id="boardDragHandle"><b>Доска</b><button class="tiny" id="boardCollapse">−</button></div><div class="board-tools"><button data-board-tool="cursor" title="Курсор">↖</button><button data-board-tool="pencil" title="Карандаш">✎</button><button data-board-tool="eraser" title="Ластик">⌫</button><input id="boardColor" type="color" value="${boardColor}" title="Цвет"><input id="boardWidth" type="range" min="2" max="12" value="${boardWidth}" title="Толщина"><button class="board-clear" id="boardClear" title="Очистить всю общую доску">🗑 Очистить всё</button></div>`; document.querySelectorAll('[data-board-tool]').forEach(b=>b.onclick=()=>{boardTool=b.dataset.boardTool; setBoardPointerMode();}); $('boardColor').oninput=e=>boardColor=e.target.value; $('boardWidth').oninput=e=>boardWidth=Number(e.target.value); $('boardClear').onclick=()=>{ if(role==='teacher') clearBoard(); else showToast('Полностью очищать доску может только учитель.','bad'); }; $('boardCollapse').onclick=()=>{ toolbarCollapsed=!toolbarCollapsed; tb.classList.toggle('collapsed',toolbarCollapsed); $('boardCollapse').textContent=toolbarCollapsed?'+':'−'; }; makeToolbarDraggable(tb,$('boardDragHandle')); setBoardPointerMode(); }
 function makeToolbarDraggable(tb,handle){ let sx=0,sy=0,startR=0,startB=0,drag=false; handle.addEventListener('pointerdown',e=>{ if(e.target.tagName==='BUTTON') return; drag=true; sx=e.clientX; sy=e.clientY; const r=tb.getBoundingClientRect(); startR=innerWidth-r.right; startB=innerHeight-r.bottom; handle.setPointerCapture(e.pointerId); }); handle.addEventListener('pointermove',e=>{ if(!drag) return; const nr=Math.max(0,Math.min(innerWidth-tb.offsetWidth,startR-(e.clientX-sx))), nb=Math.max(0,Math.min(innerHeight-tb.offsetHeight,startB-(e.clientY-sy))); tb.style.right=nr+'px'; tb.style.bottom=nb+'px'; }); handle.addEventListener('pointerup',()=>{ if(!drag) return; drag=false; localStorage.setItem(TOOLBAR_POSITION_KEY,JSON.stringify({right:parseFloat(tb.style.right)||0,bottom:parseFloat(tb.style.bottom)||0})); }); }
 function installTeacherCursorTracking(anchor){ anchor.onpointermove=role==='teacher'?e=>{ if(boardTool!=='cursor'||Date.now()-lastCursorPush<75) return; lastCursorPush=Date.now(); const r=anchor.getBoundingClientRect(),x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height; update(ref(database,`${lessonRoot()}/messages/teacherCursor`),{x,y,at:Date.now(),visible:true}).catch(()=>{}); }:null; anchor.onpointerleave=role==='teacher'?()=>update(ref(database,`${lessonRoot()}/messages/teacherCursor`),{visible:false,at:Date.now()}).catch(()=>{}):null; }
