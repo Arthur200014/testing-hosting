@@ -1,488 +1,522 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
-<title>Карта Дневника · Задание 6 ЕГЭ</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preconnect" href="https://script.google.com">
-<link rel="preconnect" href="https://ega-mathematica-default-rtdb.europe-west1.firebasedatabase.app">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=EB+Garamond:ital@0;1&family=Special+Elite&display=swap" rel="stylesheet">
-<style>
-/* ═══════════ ПАЛИТРА: ночной лес + старинная карта ═══════════ */
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><meta name="theme-color" content="#087ea4"><title>Подводный блиц · выбор способа · ЕГЭ №9</title><style>
 :root{
-  --night:#0a1512; --night2:#102420; --pine:#173229;
-  --map:#e9d6a8; --map2:#dcc48a; --map-line:#b58e4e; --map-ink:#5a3b1c;
-  --gold:#e0a83f; --gold-br:#ffcf6b; --gold-d:#a9761f;
-  --crim:#c0392b; --crim-d:#7a1e12; --cyan:#5fc7b8;
-  --safe:#3f8a52; --safe-lt:#79cf86;
-  --edge:rgba(224,168,63,.32);
+  --sky:#59d7e6;--water:#179fc4;--deep:#075e8c;--navy:#073e63;
+  --sand:#f4dc8e;--sand2:#d6b96e;--ink:#173948;--paper:#fffbed;
+  --yellow:#ffd83d;--orange:#f49b2c;--green:#4bc65d;--red:#f0534b;
+  --pink:#f47cb0;--purple:#9b6ad6;--wood:#a96530;--wood2:#73441f;
 }
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;min-height:100%;font-family:'EB Garamond',Georgia,serif;color:#f0e6cf;
-  background:#0a1512;user-select:none;overflow-x:hidden}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;font-family:"Trebuchet MS","Arial Rounded MT Bold",system-ui,sans-serif;color:var(--ink)}
+body{overflow:hidden;background:var(--deep);user-select:none}
+button,input{font:inherit}
+button{-webkit-tap-highlight-color:transparent}
+.hidden{display:none!important}
+#game{position:fixed;inset:0;overflow:hidden;background:
+  radial-gradient(circle at 17% 12%,rgba(255,255,255,.38) 0 2px,transparent 3px),
+  radial-gradient(circle at 73% 17%,rgba(255,255,255,.22) 0 3px,transparent 4px),
+  linear-gradient(180deg,var(--sky),var(--water) 43%,var(--deep))}
+#game::before{content:"";position:absolute;inset:-20% -15% 30%;pointer-events:none;
+  background:repeating-conic-gradient(from 178deg at 50% -5%,rgba(255,255,255,.15) 0 7deg,transparent 8deg 20deg);
+  filter:blur(6px);animation:rays 9s ease-in-out infinite alternate}
+@keyframes rays{to{transform:translateX(3%) skewX(4deg);opacity:.65}}
+.seafloor{position:absolute;left:-5%;right:-5%;bottom:-8%;height:27%;
+  background:linear-gradient(var(--sand),var(--sand2));border-radius:50% 45% 0 0/34% 32% 0 0;
+  box-shadow:0 -8px 25px rgba(6,63,86,.18)}
+.seafloor::before{content:"";position:absolute;inset:15% 2% 0;
+  background-image:radial-gradient(#b89850 1.5px,transparent 2px);background-size:34px 25px;opacity:.42}
+.scene{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.flower{position:absolute;width:96px;height:96px;opacity:.35;animation:drift 7s ease-in-out infinite alternate}
+.flower::before,.flower::after{content:"";position:absolute;inset:24px;border:7px solid #eaf6b0;border-radius:50%}
+.flower::after{transform:rotate(60deg);border-radius:45%}
+.f1{left:6%;top:16%;transform:scale(.8)}.f2{right:7%;top:23%;transform:scale(1.15);animation-delay:-3s}
+.f3{left:58%;top:5%;transform:scale(.5);animation-delay:-6s}
+@keyframes drift{to{translate:0 -12px;rotate:8deg}}
+.coral{position:absolute;bottom:7%;font-size:clamp(70px,10vw,150px);filter:saturate(.8);transform-origin:bottom;animation:sway 4s ease-in-out infinite alternate}
+.c1{left:2%;color:var(--pink)}.c2{right:2%;color:var(--purple);animation-delay:-2s}
+@keyframes sway{to{transform:rotate(4deg)}}
+.rock{position:absolute;bottom:9%;width:110px;height:65px;background:#8ca2a2;border:5px solid #597b7e;
+  border-radius:55% 45% 18% 20%;box-shadow:inset 12px 8px rgba(255,255,255,.16)}
+.r1{left:15%}.r2{right:18%;width:72px;height:48px}
+.bubble{position:absolute;bottom:-40px;border:2px solid rgba(255,255,255,.72);border-radius:50%;
+  background:radial-gradient(circle at 30% 25%,rgba(255,255,255,.8),transparent 45%);
+  animation:rise linear infinite}
+@keyframes rise{0%{translate:0 0;opacity:0}10%{opacity:.9}100%{translate:25px -112vh;opacity:0}}
+.jelly{position:absolute;font-size:50px;opacity:.55;animation:jelly 12s ease-in-out infinite}
+.j1{left:4%;top:42%}.j2{right:6%;top:50%;animation-delay:-6s}
+@keyframes jelly{50%{translate:20px -30px;rotate:8deg}}
 
-/* ─────────── ЗАГАДОЧНЫЙ ФОН ─────────── */
-.bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;
-  background:radial-gradient(130% 100% at 50% -20%,#1a3b33 0%,#102420 42%,#0a1512 100%)}
-#stars{position:absolute;inset:0}
-.moon{position:absolute;top:6%;right:8%;width:120px;height:120px;border-radius:50%;
-  background:radial-gradient(circle at 38% 36%,#fff7e0,#f0dfa8 55%,#cdb87e 100%);
-  box-shadow:0 0 60px rgba(255,240,200,.35),inset -14px -10px 26px rgba(120,100,60,.4);opacity:.8}
-.moon::after{content:"";position:absolute;inset:0;border-radius:50%;
-  background:radial-gradient(circle at 62% 30%,rgba(150,130,90,.5) 0 6%,transparent 7%),
-   radial-gradient(circle at 40% 62%,rgba(150,130,90,.45) 0 8%,transparent 9%),
-   radial-gradient(circle at 68% 66%,rgba(150,130,90,.4) 0 5%,transparent 6%)}
-.fog{position:absolute;inset:-20%;background:
-   radial-gradient(50% 40% at 20% 80%,rgba(31,74,64,.5),transparent 60%),
-   radial-gradient(45% 35% at 85% 70%,rgba(20,50,44,.5),transparent 60%);filter:blur(10px);
-   animation:fog 26s ease-in-out infinite alternate}
-@keyframes fog{from{transform:translateX(-3%)}to{transform:translateX(4%)}}
-.trees{position:absolute;bottom:0;left:0;width:100%;height:28vh;opacity:.75;
-  background:linear-gradient(transparent,rgba(5,13,11,.92)),
-   url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='300' viewBox='0 0 240 300'><g fill='%23081511'><path d='M60 300 L60 120 L36 170 L52 170 L28 210 L45 210 L20 250 L40 250 L40 300Z M60 120 L84 170 L68 170 L92 210 L75 210 L100 250 L80 250 L80 300 L60 300Z'/><path d='M176 300 L176 96 L148 148 L166 148 L138 195 L156 195 L128 240 L150 240 L150 300Z M176 96 L204 148 L186 148 L214 195 L196 195 L224 240 L202 240 L202 300 L176 300Z'/></g></svg>") repeat-x bottom/260px auto}
-.ember{position:absolute;bottom:-10px;border-radius:50%;background:radial-gradient(var(--gold-br),transparent 70%);animation:rise linear infinite}
-@keyframes rise{0%{transform:translateY(0);opacity:0}10%{opacity:.9}90%{opacity:.6}100%{transform:translateY(-108vh) translateX(40px);opacity:0}}
-.sym{position:absolute;font-family:'Cinzel';color:var(--gold);opacity:.09;text-shadow:0 0 14px rgba(224,168,63,.4);animation:drift linear infinite}
-@keyframes drift{0%{transform:translateY(8vh) rotate(0);opacity:0}15%{opacity:.14}85%{opacity:.11}100%{transform:translateY(-112vh) rotate(220deg);opacity:0}}
+.hud{position:absolute;z-index:20;left:18px;right:18px;top:14px;display:grid;
+  grid-template-columns:auto minmax(170px,1fr) auto auto;align-items:center;gap:12px}
+.pill{height:48px;display:flex;align-items:center;gap:8px;padding:0 16px;border-radius:18px;
+  color:#fff;font-weight:900;background:rgba(4,58,89,.72);border:3px solid rgba(255,255,255,.45);
+  box-shadow:0 5px 0 rgba(3,45,70,.5);backdrop-filter:blur(5px)}
+.pill small{font-size:10px;letter-spacing:.08em;opacity:.72;text-transform:uppercase}
+.iconbtn{width:48px;padding:0;justify-content:center;border:0;cursor:pointer}
 
-/* ─────────── ШАПКА ─────────── */
-.wrap{position:relative;z-index:10;max-width:1180px;margin:0 auto;padding:14px 14px 40px}
-header{text-align:center;margin:4px 0 8px}
-.kicker{font-family:'Special Elite';letter-spacing:.26em;text-transform:uppercase;color:var(--cyan);font-size:12px}
-h1{font-family:'Cinzel';font-weight:900;font-size:clamp(26px,5vw,48px);margin:.08em 0;color:#f4e8cd;
-  text-shadow:0 2px 0 #000,0 0 34px rgba(224,168,63,.22)}
-.subtitle{font-family:'Special Elite';color:#c9ba96;font-size:14px}
+.sign{position:absolute;z-index:9;left:50%;top:76px;translate:-50% 0;width:min(700px,88vw);
+  transform-origin:50% -35px;animation:sign 4.8s ease-in-out infinite alternate}
+@keyframes sign{from{rotate:-1deg}to{rotate:1deg}}
+.rope{position:absolute;top:-42px;width:7px;height:46px;border-radius:9px;
+  background:repeating-linear-gradient(45deg,#d4b16c 0 4px,#8e632d 4px 8px)}
+.rope.a{left:19%}.rope.b{right:19%}
+.board{position:relative;padding:13px 22px 15px;text-align:center;color:#fff6c9;
+  background:linear-gradient(165deg,#a96934,#7b4822);border:7px solid #5a341b;border-radius:18px;
+  box-shadow:inset 0 0 0 3px rgba(255,225,146,.2),0 10px 20px rgba(0,0,0,.26)}
+.board::after{content:"";position:absolute;inset:8px;border:2px dashed rgba(255,231,171,.28);border-radius:8px}
+.eyebrow{position:relative;z-index:1;font-size:11px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:#ffd94d}
+#prototype{position:relative;z-index:1;margin-top:2px;font-weight:900;font-size:clamp(15px,2.1vw,20px)}
 
-.stats{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:10px 0}
-.stat{background:rgba(12,26,23,.6);border:1px solid var(--edge);border-radius:999px;padding:7px 16px;
-  font-family:'Special Elite';font-size:13px;display:flex;align-items:center;gap:8px;backdrop-filter:blur(3px)}
-.stat b{color:var(--gold-br);font-family:'Cinzel'}
-.stat.btn{cursor:pointer;transition:.2s}.stat.btn:hover{border-color:var(--gold);color:var(--gold-br)}
+.stage{position:absolute;z-index:12;left:50%;top:30%;translate:-50% 0;width:min(860px,92vw)}
+.card{position:relative;background:linear-gradient(180deg,#fffdf3,#fff4c9);border:5px solid #ffd64a;
+  border-radius:24px;padding:22px 25px 20px;box-shadow:0 16px 0 rgba(5,60,82,.3),0 25px 44px rgba(4,42,63,.25);
+  transform-origin:center;animation:cardIn .52s cubic-bezier(.2,1.35,.5,1) both}
+.card::before{content:"";position:absolute;left:50%;top:-14px;translate:-50% 0;width:94px;height:28px;
+  background:rgba(255,233,112,.72);border:2px dashed rgba(169,116,24,.45);rotate:-2deg}
+@keyframes cardIn{from{opacity:0;transform:translate(var(--fly-x,0),var(--fly-y,-70px)) rotate(var(--fly-r,-4deg)) scale(.7)}
+  to{opacity:1;transform:none}}
+.qmeta{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#50818e;
+  font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
+.source{padding:4px 9px;border-radius:99px;background:#dff4ec;color:#23835a}
+.question{margin:12px 0 16px;font-size:clamp(16px,2.05vw,21px);font-weight:850;line-height:1.38;color:#153946}
+.formula{white-space:nowrap;font-family:Georgia,"Times New Roman",serif;font-size:1.04em}
+.answers{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.answer{position:relative;min-height:66px;padding:10px;border:3px solid #77c8d6;border-radius:17px;background:#f7ffff;
+  color:#11425a;font-weight:900;font-size:clamp(17px,2.5vw,23px);cursor:pointer;
+  box-shadow:0 6px 0 #3c98ab;transition:transform .12s,box-shadow .12s,background .15s}
+.answer::before{content:attr(data-letter);position:absolute;left:9px;top:9px;width:23px;height:23px;display:grid;
+  place-items:center;border-radius:50%;background:#d7f4f7;color:#267a8c;font-size:11px}
+.answer:hover:not(:disabled){transform:translateY(-3px);box-shadow:0 9px 0 #3c98ab}
+.answer:active:not(:disabled){transform:translateY(5px);box-shadow:0 1px 0 #3c98ab}
+.answer:disabled{cursor:default}
+.answer.correct{border-color:#35ac4c;background:#dff8d9;box-shadow:0 6px 0 #26883b;color:#1c742e}
+.answer.wrong{border-color:#e14d48;background:#ffe0d9;box-shadow:0 6px 0 #b83a35;color:#a12424;animation:shake .35s}
+@keyframes shake{20%,60%{translate:-7px 0}40%,80%{translate:7px 0}}
+.tools{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px}
+.hintbtn,.nextbtn{border:0;border-radius:14px;padding:11px 17px;font-weight:900;cursor:pointer}
+.hintbtn{color:#754812;background:#ffe17b;box-shadow:0 5px 0 #c99a2a}
+.hintbtn:active,.nextbtn:active{translate:0 4px;box-shadow:0 1px 0 rgba(0,0,0,.25)}
+.nextbtn{margin-left:auto;color:white;background:#45bd59;box-shadow:0 5px 0 #288b39}
+.feedback{display:none;margin-top:15px;padding:12px 14px;border-radius:14px;font-weight:800;line-height:1.35}
+.feedback.show{display:block;animation:open .24s ease-out}
+.feedback.good{background:#dcf7da;color:#1e7431}.feedback.bad{background:#ffe2dd;color:#9d2b29}
+.hintbox{display:none;margin-top:13px;padding:12px 14px;border-radius:14px;background:#fff1a9;
+  color:#704c13;font-weight:800;line-height:1.38;border:2px dashed #d5a83d}
+.hintbox.show{display:block;animation:open .24s ease-out}
+@keyframes open{from{opacity:0;translate:0 -6px}}
 
-/* ─────────── РАСКЛАДКА ─────────── */
-.game{display:flex;gap:24px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+.overlay{position:absolute;z-index:100;inset:0;display:grid;place-items:center;padding:24px;
+  background:radial-gradient(circle at 50% 20%,rgba(23,159,196,.57),rgba(3,49,78,.92));backdrop-filter:blur(5px)}
+.panel{width:min(590px,94vw);max-height:94vh;overflow:auto;padding:29px;border:7px solid var(--wood2);
+  border-radius:28px;background:linear-gradient(180deg,#fffdf1,#ffe6a1);text-align:center;
+  box-shadow:inset 0 0 0 4px #fff8dc,0 24px 60px rgba(0,0,0,.42)}
+.logo{font-size:58px;line-height:1;filter:drop-shadow(0 5px 0 rgba(4,67,91,.23));animation:logo 2.6s ease-in-out infinite}
+@keyframes logo{50%{translate:0 -7px;rotate:4deg}}
+h1{margin:8px 0 3px;font-size:clamp(31px,6vw,51px);line-height:.98;color:#138bb4;
+  text-shadow:0 3px 0 #fff,0 6px 0 rgba(6,86,117,.18)}
+.lead{margin:8px auto 16px;color:#3b6670;font-weight:800;line-height:1.4}
+.rules{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:17px 0}
+.rule{padding:11px 8px;border-radius:15px;background:rgba(23,144,178,.1);font-size:12px;font-weight:900;color:#315d67}
+.rule b{display:block;font-size:22px;margin-bottom:3px}
+.studentrow{display:flex;align-items:center;justify-content:center;gap:9px;margin:4px 0 16px;font-weight:900;color:#1c7996}
+.change{border:0;background:none;text-decoration:underline;color:#6d7d7d;font-size:12px;font-weight:900;cursor:pointer}
+.mainbtn{border:0;border-radius:17px;padding:14px 34px;color:white;font-size:21px;font-weight:900;cursor:pointer;
+  background:linear-gradient(#6ada72,#39b94c);box-shadow:0 8px 0 #248a35,0 13px 22px rgba(0,0,0,.18)}
+.mainbtn:hover{translate:0 -2px}.mainbtn:active{translate:0 6px;box-shadow:0 2px 0 #248a35}
+.codeLabel{display:block;text-align:left;margin:15px 2px 7px;font-weight:900;color:#41656c}
+.codeInput{width:100%;padding:13px 16px;border:3px solid #8fc9d4;border-radius:14px;background:#fff;
+  color:#17455b;text-align:center;text-transform:uppercase;font-size:23px;font-weight:900;letter-spacing:.1em;outline:0}
+.codeInput:focus{border-color:#1b9cbd;box-shadow:0 0 0 5px rgba(27,156,189,.16)}
+.authmsg{min-height:22px;margin:9px 0;font-size:13px;font-weight:800;color:#657b80}
+.authmsg.error{color:#bd3531}.authmsg.ok{color:#288c3a}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:17px 0}
+.stat{padding:12px 6px;border:3px solid #efc644;border-radius:16px;background:#fffdf6}
+.stat b{display:block;font-size:27px;color:#087fa5}.stat span{font-size:10px;color:#688087;text-transform:uppercase;font-weight:900}
+.save{margin:11px 0 16px;padding:9px;border-radius:12px;background:rgba(17,129,162,.09);font-size:13px;font-weight:900;color:#447079}
+.save.saved{background:#dff4d9;color:#287936}.save.queued{background:#fff1b9;color:#7f6116}
+.summary{margin:8px 0 17px;font-weight:800;color:#496b71;line-height:1.4}
+.streak{position:fixed;z-index:80;left:50%;top:50%;translate:-50% -50%;font-size:clamp(32px,7vw,70px);
+  font-weight:1000;color:#fff04c;-webkit-text-stroke:3px #77491c;paint-order:stroke fill;
+  pointer-events:none;animation:streak .8s ease-out forwards}
+@keyframes streak{0%{opacity:0;scale:.4;rotate:-8deg}25%{opacity:1;scale:1.15}100%{opacity:0;translate:-50% -130%;scale:.9}}
 
-/* ─────────── КАРТА-ПОЛЕ 8×8 ─────────── */
-.boardWrap{flex:0 0 auto}
-.board{position:relative;display:grid;grid-template-columns:repeat(9,1fr);gap:4px;
-  width:min(94vw,640px);aspect-ratio:9/8;padding:16px;border-radius:12px;
-  background:
-   radial-gradient(120% 120% at 15% 10%,rgba(255,255,255,.15),transparent 40%),
-   radial-gradient(60% 60% at 85% 90%,rgba(120,80,30,.25),transparent 60%),
-   linear-gradient(160deg,var(--map),var(--map2));
-  border:12px solid #b98a4a;outline:3px solid #8a5c28;
-  box-shadow:0 20px 50px rgba(0,0,0,.6),inset 0 0 60px rgba(120,80,30,.35)}
-/* лёгкая «истёртость» карты по краям */
-.board::before{content:"";position:absolute;inset:0;border-radius:6px;pointer-events:none;
-  box-shadow:inset 0 0 26px rgba(90,59,28,.5);z-index:1}
-/* компас-роза в углу карты */
-.compassRose{position:absolute;right:16px;bottom:14px;width:64px;height:64px;opacity:.5;z-index:1;
-  animation:spinC 40s linear infinite}
-@keyframes spinC{to{transform:rotate(360deg)}}
-.mapdoodle{position:absolute;opacity:.28;z-index:1;pointer-events:none}
+@media(max-width:700px){
+  .hud{left:8px;right:8px;top:8px;gap:6px;grid-template-columns:auto 1fr auto auto}
+  .pill{height:42px;padding:0 10px;border-width:2px;border-radius:14px}.pill small{display:none}
+  .iconbtn{width:42px}
+  .sign{top:61px}.stage{top:25%;width:94vw}.card{padding:18px 15px 15px}
+  .card{max-height:72vh;overflow-y:auto}
+  .question{margin:10px 0 13px;max-height:26vh;overflow:auto}
+  .answers{grid-template-columns:1fr;gap:8px}.answer{min-height:50px;font-size:18px}
+  .tools{margin-top:11px}.panel{padding:22px 17px}.rules{grid-template-columns:1fr 1fr}
+  .rule:last-child{grid-column:1/-1}.coral{opacity:.55}
+}
+@media(max-height:700px) and (min-width:701px){
+  .sign{top:65px}.stage{top:29%}.card{padding:17px 20px 15px}
+  .question{font-size:16px;margin:8px 0 11px}.answer{min-height:52px}.tools{margin-top:11px}
+}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;animation-iteration-count:1!important}}
 
-.cell{position:relative;border-radius:6px;background:rgba(255,248,225,.28);
-  border:1px dashed rgba(120,80,30,.4);display:grid;place-items:center;z-index:2;
-  font-family:'Cinzel';color:rgba(74,48,22,.8);transition:background .35s,box-shadow .35s,border-color .35s}
-.cell .rune{opacity:.7;font-size:14px}
-.cell.safe{background:rgba(95,191,122,.34);border:1px solid var(--safe-lt);border-style:solid;
-  box-shadow:inset 0 0 10px rgba(63,138,82,.5)}
-.cell.safe .rune{content:"";}
-.cell.safe::after{content:"•";position:absolute;color:#2f6d40;font-size:20px;font-weight:900}
-.cell.start{background:rgba(63,138,82,.5);border:2px solid var(--safe-lt)}
-.cell.start .rune{font-size:20px;color:#123d1c;opacity:1}
-.cell.finish{background:radial-gradient(circle,#ffe6a0,#e0a83f);border:2px solid var(--crim);
-  box-shadow:0 0 22px rgba(224,168,63,.6);animation:finishPulse 1.8s ease-in-out infinite}
-@keyframes finishPulse{50%{box-shadow:0 0 34px rgba(255,207,107,.95)}}
-.cell.finish .rune{font-size:24px;color:var(--crim-d);opacity:1;font-weight:900}
-.cell.current{border-color:var(--gold-br);box-shadow:0 0 0 2px var(--gold-br),0 0 18px rgba(255,207,107,.7);animation:cur 1.2s infinite}
-@keyframes cur{50%{box-shadow:0 0 0 2px var(--gold-br),0 0 28px rgba(255,207,107,.95)}}
-.cell.boom{animation:boomFlash .6s}
-@keyframes boomFlash{0%,100%{background:rgba(255,248,225,.28)}20%{background:#ff5b3a}50%{background:#7a1e12}}
-.cell .bomb{position:absolute;font-size:24px;animation:pop .4s ease-out;z-index:6}
-@keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+/* Игровой режим: движущийся пузырь и иголки-ответы */
+.hud{grid-template-columns:auto auto 48px;justify-content:end}
+.arena{position:absolute;z-index:12;left:0;right:0;top:128px;bottom:154px;overflow:hidden}
+.problem-bubble{position:absolute;width:min(570px,82vw);min-height:280px;padding:50px 58px 46px;
+  display:flex;flex-direction:column;justify-content:center;isolation:isolate;
+  border:5px solid rgba(229,253,255,.92);border-radius:50%;
+  background:radial-gradient(circle at 28% 19%,rgba(255,255,255,.92) 0 3%,rgba(255,255,255,.2) 4% 10%,transparent 11%),
+    radial-gradient(circle at 50% 52%,rgba(244,255,251,.89),rgba(181,243,249,.76) 58%,rgba(68,200,224,.52));
+  box-shadow:inset 20px 17px 32px rgba(255,255,255,.72),inset -22px -24px 35px rgba(26,143,183,.28),
+    0 0 0 7px rgba(255,255,255,.16),0 22px 40px rgba(3,62,91,.3);
+  will-change:left,top;transition:filter .15s}
+.problem-bubble::before{content:"";position:absolute;z-index:-1;inset:5%;border:2px solid rgba(255,255,255,.52);
+  border-radius:50%;animation:breathe 2.2s ease-in-out infinite alternate}
+.problem-bubble::after{content:"";position:absolute;right:18%;top:13%;width:16%;height:8%;
+  border-top:7px solid rgba(255,255,255,.62);border-radius:50%;rotate:24deg}
+@keyframes breathe{to{inset:3%;opacity:.6}}
+.problem-bubble.target{filter:drop-shadow(0 0 18px #fff45c) brightness(1.08)}
+.problem-bubble.wobble{animation:bubbleWobble .42s ease}
+@keyframes bubbleWobble{20%{transform:scale(1.04) rotate(2deg)}45%{transform:scale(.97) rotate(-2deg)}75%{transform:scale(1.02)}}
+.problem-bubble.pop{animation:bubblePop .55s cubic-bezier(.1,.7,.3,1) forwards}
+@keyframes bubblePop{0%{opacity:1;transform:scale(1)}55%{opacity:.9;transform:scale(1.16)}
+  100%{opacity:0;transform:scale(1.48);filter:blur(8px)}}
+.problem-bubble .qmeta{position:relative;z-index:2;justify-content:center;margin-bottom:5px}
+.problem-bubble .source{background:rgba(255,255,255,.55)}
+.problem-bubble .question{position:relative;z-index:2;margin:7px 0 0;max-height:150px;overflow:auto;
+  text-align:center;font-size:clamp(15px,1.75vw,19px);line-height:1.35;text-shadow:0 1px rgba(255,255,255,.8)}
+.problem-bubble .hintbox{position:relative;z-index:2;margin:10px 0 0;padding:9px 12px;
+  max-height:86px;overflow:auto;text-align:center;background:rgba(255,241,169,.82);font-size:13px}
+.needle-dock{position:absolute;z-index:25;left:0;right:0;bottom:12px;display:flex;align-items:flex-end;
+  justify-content:center;gap:clamp(12px,3vw,42px);padding:0 16px;pointer-events:none}
+.needle{position:relative;pointer-events:auto;width:min(210px,28vw);height:78px;padding:9px 40px 9px 12px;
+  border:4px solid #684328;border-radius:18px 10px 10px 18px;color:#482c17;
+  background:linear-gradient(180deg,#ffd95d,#f3a82f);font-weight:1000;font-size:clamp(16px,2vw,22px);
+  box-shadow:0 7px 0 #a75d26,0 12px 20px rgba(3,51,72,.3);cursor:grab;touch-action:none;
+  transition:filter .15s,transform .15s,box-shadow .15s;transform-origin:center}
+.needle::before{content:"";position:absolute;right:-50px;top:31px;width:54px;height:8px;
+  background:linear-gradient(#f5ffff,#7f9ca4);border:2px solid #546c73;border-left:0;border-radius:0 8px 8px 0}
+.needle::after{content:"";position:absolute;right:-65px;top:28px;width:0;height:0;
+  border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:17px solid #dff7fa;
+  filter:drop-shadow(2px 0 #536b72)}
+.needle:nth-child(2){background:linear-gradient(180deg,#ff97bd,#e65b95);box-shadow:0 7px 0 #a73569,0 12px 20px rgba(3,51,72,.3)}
+.needle:nth-child(3){background:linear-gradient(180deg,#8ae585,#47bd61);box-shadow:0 7px 0 #24853c,0 12px 20px rgba(3,51,72,.3)}
+.needle:hover{transform:translateY(-3px) rotate(-1deg);filter:brightness(1.05)}
+.needle.dragging{position:fixed;z-index:200;margin:0;cursor:grabbing;transform:rotate(-8deg) scale(1.05);
+  transition:none;box-shadow:0 16px 28px rgba(0,0,0,.35)}
+.needle.snap{transition:left .32s cubic-bezier(.3,1.5,.5,1),top .32s,transform .32s}
+.needle.wrong{animation:needleWrong .4s}
+@keyframes needleWrong{25%,75%{filter:hue-rotate(135deg) saturate(1.8);transform:rotate(8deg)}50%{transform:rotate(-8deg)}}
+.game-tools{position:absolute;z-index:28;left:50%;bottom:112px;translate:-50% 0;display:flex;
+  align-items:center;justify-content:center;gap:12px}
+.game-message{min-width:210px;max-width:min(620px,70vw);padding:10px 15px;border-radius:15px;
+  background:rgba(4,58,89,.8);border:2px solid rgba(255,255,255,.45);color:white;
+  font-size:13px;font-weight:900;text-align:center;backdrop-filter:blur(5px)}
+.game-message:empty{display:none}
+.hintbtn{white-space:nowrap}
+.burst-drop{position:fixed;z-index:210;width:14px;height:14px;border:3px solid rgba(255,255,255,.8);
+  border-radius:50%;pointer-events:none;animation:dropBurst .65s ease-out forwards}
+@keyframes dropBurst{to{translate:var(--dx) var(--dy);scale:.15;opacity:0}}
 
-/* фишка — красная булавка на карте */
-.token{position:absolute;width:30px;height:36px;left:0;top:0;transform:translate(-50%,-72%);
-  transition:left .45s cubic-bezier(.5,1.4,.5,1),top .45s cubic-bezier(.5,1.4,.5,1);z-index:7;
-  filter:drop-shadow(0 4px 4px rgba(0,0,0,.5))}
-.token.hurt{animation:hurt .5s}
-@keyframes hurt{0%,100%{transform:translate(-50%,-72%)}25%{transform:translate(-60%,-72%) rotate(-14deg)}75%{transform:translate(-40%,-72%) rotate(14deg)}}
+@media(max-width:700px){
+  .hud{grid-template-columns:auto auto 42px}
+  .arena{top:108px;bottom:230px}
+  .problem-bubble{width:91vw;min-height:300px;padding:47px 30px 42px}
+  .problem-bubble .question{max-height:158px;font-size:15px}
+  .needle-dock{bottom:10px;flex-direction:column;align-items:flex-start;gap:9px;padding-left:18px}
+  .needle{width:calc(100vw - 88px);max-width:none;height:58px;font-size:17px;padding-right:35px}
+  .needle::before{top:21px}.needle::after{top:18px}
+  .game-tools{bottom:205px;width:94vw}.game-message{max-width:58vw}
+}
 
-/* ─────────── ПУЛЬТ: КРУПНЫЙ пример + стрелки ─────────── */
-.panel{flex:1 1 400px;max-width:480px;min-width:300px}
-.quest{background:linear-gradient(180deg,rgba(18,36,32,.94),rgba(10,21,18,.96));color:#f0e6cf;border-radius:16px;
-  padding:20px 22px;box-shadow:0 14px 34px rgba(0,0,0,.5);border:3px solid var(--gold-d);position:relative;
-  background-image:repeating-linear-gradient(rgba(224,168,63,.05) 0 31px,rgba(224,168,63,.09) 31px 32px)}
-.quest .qtag{font-family:'Special Elite';font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
-.quest .qtxt{font-size:clamp(22px,3.4vw,32px);font-weight:700;line-height:1.35;font-family:'EB Garamond';color:#f6ecd2;text-shadow:0 1px 2px rgba(0,0,0,.5)}
-.quest .qtxt sup{font-size:.7em}
-.quest .frac{display:inline-flex;vertical-align:middle;flex-direction:column;text-align:center;line-height:1.05;margin:0 .12em;font-size:.9em}
-.quest .frac span:first-child{border-bottom:1.5px solid currentColor;padding:0 .16em .05em}
-.quest .frac span:last-child{padding:.05em .16em 0}
-.quest .qask{margin-top:8px;font-family:'Special Elite';font-size:13px;color:#c9ba96}
 
-.dpad{margin-top:16px;display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:auto auto auto;gap:10px;align-items:center;justify-items:center}
-.arrow{width:100%;min-height:66px;background:linear-gradient(180deg,rgba(23,50,41,.9),rgba(10,21,18,.95));
-  border:2px solid var(--edge);border-radius:12px;color:#f0e6cf;cursor:pointer;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:.15s;font-family:'Cinzel'}
-.arrow:hover{border-color:var(--gold);box-shadow:0 0 18px rgba(224,168,63,.35);transform:translateY(-2px)}
-.arrow:active{transform:translateY(0)}
-.arrow .dir{font-size:20px;color:var(--gold-br);line-height:1}
-.arrow .val{font-size:26px;font-weight:700}
-.arrow.up{grid-column:2;grid-row:1}.arrow.left{grid-column:1;grid-row:2}
-.arrow.right{grid-column:3;grid-row:2}.arrow.down{grid-column:2;grid-row:3}
-.mini{grid-column:2;grid-row:2;width:66px;height:66px;border-radius:50%;
-  background:radial-gradient(circle,rgba(224,168,63,.15),transparent 70%);border:1px dashed var(--edge);
-  display:grid;place-items:center;font-size:26px;animation:spinC 22s linear infinite}
-.arrow.correct{border-color:var(--safe-lt);box-shadow:0 0 20px rgba(121,207,134,.6);background:linear-gradient(180deg,#2f7d4c,#1d5533)}
-.arrow.wrong{border-color:var(--crim);box-shadow:0 0 20px rgba(192,57,43,.7);animation:shake .4s}
-@keyframes shake{25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
-.hint{font-family:'Special Elite';font-size:12px;color:#c9ba96;text-align:center;margin-top:12px}
-kbd{background:rgba(236,217,181,.15);border:1px solid var(--edge);border-radius:5px;padding:1px 6px;font-family:'Special Elite';font-size:11px}
+/* ===== currentSession / выбор способа ===== */
+body{overflow:hidden}
+#game{isolation:isolate}
+.scene-top{position:fixed;inset:0;z-index:7;pointer-events:none;overflow:hidden}
+.swim-fish{position:absolute;left:-120px;top:var(--y);font-size:var(--s);opacity:.68;filter:drop-shadow(0 4px 4px #075e8c55);animation:fishAcross var(--d) linear infinite;animation-delay:var(--delay)}
+.swim-fish.rev{left:auto;right:-120px;animation-name:fishAcrossR}
+@keyframes fishAcross{from{transform:translateX(-10vw) scaleX(1)}to{transform:translateX(125vw) scaleX(1)}}
+@keyframes fishAcrossR{from{transform:translateX(10vw) scaleX(-1)}to{transform:translateX(-125vw) scaleX(-1)}}
+.fx-bubble{position:absolute;bottom:-30px;border:2px solid #ffffffcc;border-radius:50%;background:radial-gradient(circle at 28% 23%,#fff 0 8%,#ffffff30 12%,transparent 56%);animation:fxRise var(--d) linear infinite;animation-delay:var(--delay);opacity:.72}
+@keyframes fxRise{from{transform:translate(0,0) scale(.8);opacity:0}10%{opacity:.72}to{transform:translate(var(--drift),-115vh) scale(1.25);opacity:0}}
 
-/* ─────────── ОВЕРЛЕИ ─────────── */
-.overlay{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;
-  background:radial-gradient(circle at 50% 35%,rgba(12,40,32,.55),rgba(4,12,10,.92));backdrop-filter:blur(4px)}
-.overlay.hidden{display:none}
-.modal{background:linear-gradient(180deg,rgba(233,214,168,.98),rgba(220,196,138,.98));color:#3a2410;
-  border:3px solid var(--gold-d);border-radius:22px;padding:30px 30px;max-width:540px;width:100%;text-align:center;
-  box-shadow:0 22px 50px rgba(0,0,0,.6);
-  background-image:repeating-linear-gradient(rgba(120,80,30,.05) 0 30px,rgba(120,80,30,.09) 30px 31px)}
-.modal h2{font-family:'Cinzel';font-weight:900;font-size:clamp(26px,5vw,42px);margin:0 0 8px;color:#7a3f1a}
-.modal h2.boom{color:var(--crim-d)}
-.modal p{font-size:17px;color:#5a3b1c;line-height:1.55;margin:6px 0}
-.modal .rules{text-align:left;background:rgba(120,80,30,.1);border-radius:12px;padding:14px 18px;font-size:15px;line-height:1.7;margin:14px 0;color:#4a3016}
-.modal .rules b{color:#a9531c}
-.statwin{display:flex;gap:14px;justify-content:center;margin:14px 0;flex-wrap:wrap}
-.statwin div{background:rgba(120,80,30,.1);border:1px solid var(--gold-d);border-radius:12px;padding:10px 18px;min-width:92px}
-.statwin .n{font-family:'Cinzel';font-weight:900;font-size:26px;color:#7a3f1a}
-.statwin .l{font-family:'Special Elite';font-size:11px;color:#8a5a2c;text-transform:uppercase}
-.btn{cursor:pointer;border:none;font-family:'Cinzel';font-weight:700;font-size:18px;letter-spacing:.04em;color:#20140a;
-  background:linear-gradient(180deg,var(--gold),var(--gold-d));border-radius:12px;padding:13px 34px;
-  box-shadow:0 8px 22px rgba(224,168,63,.4);transition:.12s}
-.btn:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(224,168,63,.55)}
-.btn:active{transform:translateY(1px)}
-.studentLine{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:10px 0 2px;
-  font-family:'Special Elite';font-size:13px;color:#5a3b1c}
-.studentLine strong{color:#7a3f1a;font-family:'Cinzel'}
-.studentSwitch{cursor:pointer;border:1px dashed var(--gold-d);border-radius:8px;padding:5px 9px;
-  background:rgba(120,80,30,.08);color:#7a3f1a;font-family:'Special Elite'}
-.studentSwitch:disabled{opacity:.4;cursor:not-allowed}
-.codeOverlay{z-index:220}
-.codeInput{width:min(320px,92%);padding:11px 13px;margin:8px 0 2px;text-align:center;text-transform:uppercase;
-  border:2px solid var(--gold-d);border-radius:10px;background:#fff8e7;color:#3a2410;
-  font:700 21px 'Special Elite'}
-.codeMsg{min-height:26px;margin:7px 0;font-size:16px;font-weight:700;color:var(--crim-d)}
-.codeMsg.ok{color:var(--safe)}
-.saveStatus{min-height:25px;margin:8px 0 2px;font-family:'Special Elite';font-size:13px;color:#5a3b1c}
-.saveStatus.ok{color:#216b39}.saveStatus.offline{color:#8a5a2c}
+/* публичная комната / лобби */
+.system-overlay{position:absolute;z-index:105;inset:0;display:grid;place-items:center;padding:18px;background:radial-gradient(circle at 50% 15%,rgba(53,200,225,.48),rgba(3,49,78,.9));backdrop-filter:blur(5px)}
+.system-overlay.hidden{display:none!important}
+.system-panel{width:min(720px,95vw);max-height:92vh;overflow:auto;padding:26px;border:7px solid var(--wood2);border-radius:28px;background:linear-gradient(180deg,#fffdf1,#ffe6a1);box-shadow:inset 0 0 0 4px #fff8dc,0 24px 60px #0006;text-align:center}
+.system-panel h1{font-size:clamp(30px,6vw,50px)}
+.session-kicker{display:inline-block;padding:6px 10px;border-radius:99px;background:#0f89ad;color:white;font-size:11px;font-weight:1000;letter-spacing:.08em;text-transform:uppercase}
+.seats{display:grid;gap:9px;margin:17px 0}.seat{display:flex;align-items:center;gap:11px;padding:10px 12px;border:3px dashed #79aeb5;border-radius:14px;background:#ffffff91;text-align:left;font-weight:900}.seat.filled{border-style:solid;background:#dff8f1}.seat b{display:grid;place-items:center;min-width:34px;height:34px;border:3px solid #154b5b;border-radius:10px;background:var(--yellow)}
+.session-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:13px 0}.session-summary>div{padding:9px;border:2px solid #b9d5d6;border-radius:12px;background:#fff9;font-size:11px;font-weight:800}.session-summary b{display:block;margin-top:3px;color:#087fa5;font-size:15px}
+.native-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:14px}
+.sys-btn{border:3px solid #16495a;border-radius:13px;padding:10px 15px;background:linear-gradient(#f8ffff,#dff5f5);color:#17455b;font-weight:1000;box-shadow:4px 4px 0 #16495a;cursor:pointer}.sys-btn.primary{background:linear-gradient(#6ada72,#39b94c);color:#fff;border-color:#216e35;box-shadow:4px 4px 0 #216e35}.sys-btn.danger{background:linear-gradient(#ff8179,#df423e);color:#fff;border-color:#7f2825;box-shadow:4px 4px 0 #7f2825}.sys-btn:disabled{opacity:.45;cursor:not-allowed}.sys-btn:hover:not(:disabled){transform:translate(-1px,-1px)}
 
-@media (prefers-reduced-motion:reduce){*{animation-duration:.001s!important}}
-@media(max-width:520px){.arrow{min-height:56px}.arrow .val{font-size:22px}}
+/* вход */
+.lesson-fab{position:fixed;z-index:120;right:14px;top:14px;border:3px solid #16495a;border-radius:14px;padding:10px 14px;background:linear-gradient(#ffe66a,#ffc933);color:#17455b;font-weight:1000;box-shadow:4px 4px 0 #16495a;cursor:pointer}.lesson-fab.hidden{display:none}
+.lesson-modal{position:fixed;z-index:160;inset:0;display:none;place-items:center;padding:18px;background:#002b46cf;backdrop-filter:blur(8px)}.lesson-modal.open{display:grid}.lesson-card{position:relative;width:min(620px,96vw);max-height:92vh;overflow:auto;padding:24px;border:5px solid #16495a;border-radius:22px;background:linear-gradient(180deg,#fffdf1,#ffe6a1);box-shadow:10px 10px 0 #12394b,0 25px 70px #0008}.lesson-card h2{margin:6px 0 9px;color:#087fa5}.modal-x{position:absolute;right:10px;top:9px;width:38px;height:38px;border:3px solid #16495a;border-radius:11px;background:#fff;font-size:23px;font-weight:1000;cursor:pointer}.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}.role-choice{min-height:120px;padding:15px;border:3px solid #16495a;border-radius:15px;background:linear-gradient(145deg,#fff7d9,#dff7f1);color:#17455b;text-align:left;font-weight:900;box-shadow:4px 4px 0 #16495a;cursor:pointer}.role-choice b{display:block;font-size:23px}.role-choice small{display:block;margin-top:6px;line-height:1.35;color:#53747b}.code-form{display:grid;gap:10px;margin-top:14px}.code-form input{width:100%;padding:13px 15px;border:3px solid #8fc9d4;border-radius:13px;background:#fff;text-align:center;font-weight:1000;font-size:19px;letter-spacing:.08em}.status{min-height:20px;font-size:13px;font-weight:900;color:#5e767c}.status.bad{color:#c13531}.status.good{color:#278c3b}
 
-/* ===== Новая система совместного урока · currentSession ===== */
-#codeScr,#startScr,#boomScr,#winScr{display:none!important}
-.turn-stat{border-color:rgba(95,199,184,.65)!important}.turn-stat b{color:#86eadb!important}
-.players-strip{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:8px 0 12px}
-.player-chip{min-width:190px;padding:8px 12px;border:1px solid var(--edge);border-radius:12px;background:rgba(12,26,23,.72);font-family:'Special Elite';font-size:12px;color:#d8caae;backdrop-filter:blur(4px)}
-.player-chip.active{border-color:var(--gold-br);box-shadow:0 0 16px rgba(255,207,107,.23)}
-.player-chip b{display:block;margin-top:3px;color:#fff2cf;font-family:'Cinzel';font-size:15px}.player-chip em{font-style:normal;color:var(--safe-lt)}
-.arrow:disabled{opacity:.48;cursor:not-allowed;transform:none!important}.arrow.locked-observer{filter:saturate(.55)}
-.observer-note{margin-top:10px;padding:9px 11px;border:1px solid rgba(95,199,184,.35);border-radius:10px;background:rgba(95,199,184,.08);font-family:'Special Elite';font-size:12px;color:#c8e8e0;text-align:center}
-.player-token{position:absolute;width:34px;height:42px;left:0;top:0;transform:translate(-50%,-72%);transition:left .45s cubic-bezier(.5,1.4,.5,1),top .45s cubic-bezier(.5,1.4,.5,1);z-index:8;filter:drop-shadow(0 4px 4px rgba(0,0,0,.55));pointer-events:none}
-.player-token svg{display:block;width:34px;height:42px}.player-token .token-label{position:absolute;left:50%;top:31px;transform:translateX(-50%);white-space:nowrap;padding:2px 5px;border-radius:999px;background:#0c1c18;color:#fff;font:700 9px 'Special Elite';border:1px solid rgba(255,255,255,.28)}
-.player-token.slot1 path{fill:#c0392b;stroke:#7a1e12}.player-token.slot2 path{fill:#2f86b7;stroke:#124866}.player-token.teacher-token path{fill:#d9a62e;stroke:#7c5811}
-.lesson-fab{position:fixed;right:16px;top:16px;z-index:150;border:2px solid var(--gold-d);border-radius:12px;padding:10px 14px;background:linear-gradient(#f4c95e,#b77d1d);color:#24160a;font:700 14px 'Cinzel';box-shadow:0 7px 22px rgba(0,0,0,.35)}
-.session-panel{position:fixed;right:16px;top:68px;z-index:149;display:none;align-items:center;gap:8px;max-width:min(680px,calc(100vw - 32px));padding:9px 11px;border:2px solid var(--gold-d);border-radius:13px;background:rgba(7,17,14,.94);box-shadow:0 12px 28px rgba(0,0,0,.4);font:12px 'Special Elite';color:#efe1bf}.session-panel.show{display:flex;flex-wrap:wrap}.session-dot{width:9px;height:9px;border-radius:50%;background:#b33}.session-dot.on{background:#62d78f;box-shadow:0 0 8px #62d78f}.session-panel b{color:var(--gold-br)}
-.sys-mini{border:1px solid var(--gold-d);border-radius:8px;padding:6px 8px;background:#f3d790;color:#3a2410;font:700 11px 'Special Elite'}.sys-mini.danger{background:#a83d35;color:#fff;border-color:#e77d70}
-.lesson-modal{position:fixed;inset:0;z-index:260;display:none;place-items:center;padding:18px;background:rgba(4,12,10,.82);backdrop-filter:blur(6px)}.lesson-modal.open{display:grid}.lesson-card{position:relative;width:min(610px,96vw);max-height:92vh;overflow:auto;padding:26px;border:3px solid var(--gold-d);border-radius:20px;background:linear-gradient(180deg,#ead8ac,#d8bd7f);color:#3b2714;box-shadow:0 24px 70px rgba(0,0,0,.55);text-align:center}.lesson-card h2{margin:5px 0 10px;font:900 clamp(26px,5vw,40px) 'Cinzel';color:#704018}.lesson-card p{font-size:16px;line-height:1.5}.modal-x{position:absolute;right:10px;top:9px;width:34px;height:34px;border:1px solid #765124;border-radius:50%;background:#fff6;color:#51300e;font-size:21px}.role-grid,.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.role-choice,.mode-choice{min-height:105px;padding:15px;border:2px solid #8a5c28;border-radius:14px;background:#fff8e6;color:#42270f;text-align:left;font-family:'EB Garamond';box-shadow:0 5px 0 rgba(90,59,28,.28)}.role-choice b,.mode-choice b{display:block;font:800 22px 'Cinzel';color:#6d3817}.role-choice small,.mode-choice small{display:block;margin-top:5px;font-size:14px;line-height:1.3}.code-form{display:grid;gap:9px;margin-top:14px}.code-form input{width:100%;padding:12px;border:2px solid #8a5c28;border-radius:10px;background:#fff9e9;color:#3a2410;text-align:center;font:700 18px 'Special Elite';text-transform:uppercase}.status{min-height:24px;font:700 13px 'Special Elite';color:#6b431d}.status.bad{color:#9f2f25}.status.ok{color:#287043}.native-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:13px}.system-btn{border:2px solid #765124;border-radius:10px;padding:10px 14px;background:linear-gradient(#f2cc62,#c5912d);color:#321e0d;font:800 14px 'Cinzel'}.system-btn.secondary{background:#f4ead1}.system-btn.danger{background:#b54b40;color:#fff}.system-btn:disabled{opacity:.45;cursor:not-allowed}
-.seat-list{display:grid;gap:7px;margin:13px 0}.seat{display:flex;align-items:center;gap:8px;padding:9px;border:1px dashed #896636;border-radius:10px;background:#fff5d9;text-align:left}.seat.filled{border-style:solid;background:#e9f5d9}.seat-no{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#c8942f;color:#fff;font:800 12px 'Cinzel'}
-.answer-fx{position:fixed;inset:0;z-index:230;display:none;place-items:center;pointer-events:none;overflow:hidden}.answer-fx.show{display:grid;animation:fxFade .95s ease both}.answer-fx.good{background:radial-gradient(circle,rgba(255,223,118,.55),rgba(20,45,34,.1) 55%,transparent 75%)}.answer-fx.bad{background:radial-gradient(circle,rgba(210,55,42,.62),rgba(60,10,8,.32) 55%,transparent 78%)}.fx-card{padding:22px 34px;border:3px solid rgba(255,255,255,.72);border-radius:18px;background:rgba(7,17,14,.83);color:#fff;text-align:center;box-shadow:0 18px 60px rgba(0,0,0,.45)}.fx-card strong{display:block;font:900 clamp(38px,8vw,72px) 'Cinzel';text-shadow:0 3px 0 #000}.fx-card span{display:block;margin-top:6px;font:700 16px 'Special Elite';color:#f5e7c0}@keyframes fxFade{0%{opacity:0}12%,82%{opacity:1}100%{opacity:0}}body.fx-shake{animation:screenShake .55s}@keyframes screenShake{20%{transform:translateX(-8px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(4px)}}
-.shared-work{display:none;position:relative;max-width:1180px;margin:24px auto 0;padding:0 14px 36px;z-index:20}.shared-work.show{display:block}.work-title{text-align:center;margin-bottom:10px}.work-title h2{margin:0;font:900 26px 'Cinzel';color:#f1dfb5}.work-title p{margin:5px 0 0;color:#bda986;font:13px 'Special Elite'}.work-field{position:relative;height:520px;min-height:420px;border:5px solid #8a5c28;border-radius:18px;overflow:hidden;background-color:#f9f0d4;background-image:linear-gradient(rgba(61,103,128,.17) 1px,transparent 1px),linear-gradient(90deg,rgba(61,103,128,.17) 1px,transparent 1px);background-size:24px 24px;box-shadow:inset 0 0 38px rgba(96,62,26,.16),0 15px 38px rgba(0,0,0,.35)}
-.shared-board{position:absolute;inset:0;width:100%;height:100%;touch-action:none;z-index:3}.board-toolbar{position:fixed;z-index:210;display:none;width:310px;border:2px solid var(--gold-d);border-radius:12px;background:#0b1a16ee;color:#fff;box-shadow:0 14px 35px rgba(0,0,0,.5);overflow:hidden;user-select:none}.board-toolbar.show{display:block}.board-toolbar.collapsed .board-tools{display:none}.board-head{display:flex;justify-content:space-between;align-items:center;padding:7px 9px;background:#173229;cursor:move;font:700 12px 'Special Elite'}.board-tools{display:grid;grid-template-columns:repeat(3,40px) 43px minmax(85px,1fr);gap:6px;align-items:center;padding:9px}.board-tools button{height:38px;border:1px solid #fff4;border-radius:8px;background:#fff1;color:#fff;font-weight:900}.board-tools button.active{background:#ffd36a;color:#30200b}.board-tools input[type=color]{width:42px;height:38px;padding:0;border:0;background:none}.board-tools input[type=range]{width:100%;min-width:80px}.board-clear{grid-column:1/-1;width:100%;height:38px!important;background:#8c2f3a!important;color:#fff!important}
-.final-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:15px 0}.final-player{padding:13px;border:1px solid #977044;border-radius:12px;background:#fff5d9;text-align:left}.final-player b{display:block;font:800 18px 'Cinzel';color:#704018}.final-player strong{font:900 30px 'Cinzel';color:#7a3f1a}.final-player small{display:block;margin-top:4px;font-size:13px}.save-line{margin-top:5px;font:700 11px 'Special Elite';color:#356f45}
-@media(max-width:720px){.role-grid,.mode-grid,.final-grid{grid-template-columns:1fr}.session-panel{left:8px;right:8px;top:64px;max-width:none}.lesson-fab{top:auto;bottom:14px}.work-field{height:430px}.board-toolbar{width:min(294px,calc(100vw - 12px))}.player-chip{min-width:min(100%,260px)}}
+/* игровая сцена */
+.hud{grid-template-columns:auto auto auto 48px;justify-content:end;z-index:30}.pill.turn-pill{max-width:290px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pill.teacher-stop{cursor:pointer;background:#a53d39}.pill.teacher-stop.hidden{display:none}
+.arena{top:130px;bottom:185px}
+.problem-bubble{width:min(660px,86vw);min-height:300px;padding:48px 62px 44px}.problem-bubble .question{max-height:175px;font-size:clamp(14px,1.55vw,18px)}
+.needle-dock{bottom:10px;gap:clamp(9px,1.5vw,20px);align-items:stretch}.needle{width:min(31vw,430px);height:auto;min-height:116px;padding:12px 37px 12px 14px;font-size:clamp(11px,1.2vw,14px);line-height:1.27;text-align:left;white-space:normal}.needle strong{display:block;margin-bottom:4px;font-size:1.02em}.needle::before{top:50%;transform:translateY(-50%)}.needle::after{top:calc(50% - 7px)}
+.game-tools{bottom:140px}.game-message{max-width:min(720px,72vw)}
+.wait-turn{position:absolute;z-index:50;inset:110px 7% 100px;display:grid;place-items:center;text-align:center}.wait-card{width:min(620px,95%);padding:28px;border:6px solid #5a341b;border-radius:24px;background:linear-gradient(180deg,#fffdf1,#ffe6a1);box-shadow:0 18px 50px #002b4677}.wait-card .big{font-size:72px}.wait-card h2{color:#087fa5}
 
-</style>
-</head>
+/* панель занятия */
+.session-panel{position:fixed;z-index:125;left:13px;bottom:13px;display:none;align-items:center;gap:8px;max-width:min(850px,calc(100vw - 26px));padding:8px 10px;border:3px solid #16495a;border-radius:13px;background:#075e8cf2;color:white;box-shadow:4px 4px 0 #073e63}.session-panel.show{display:flex}.session-dot{width:11px;height:11px;border:2px solid #fff;border-radius:50%;background:#d34d49}.session-dot.on{background:#42d46e;box-shadow:0 0 9px #42d46e}.session-panel b{white-space:nowrap}.session-panel small{font-weight:800;opacity:.92}.session-panel button{padding:5px 8px;border:2px solid #fff;border-radius:8px;background:#ffffff20;color:#fff;font-weight:900;cursor:pointer}.session-panel button.danger{background:#a53d39}
+
+/* доска */
+#boardHost{position:fixed;z-index:58;inset:0;pointer-events:none}.shared-board{position:absolute;inset:0;width:100%;height:100%;touch-action:none;pointer-events:none}.board-toolbar{position:fixed;z-index:130;display:none;width:306px;border:3px solid #16495a;border-radius:14px;background:#075e8cf5;color:#fff;box-shadow:5px 5px 0 #073e63,0 12px 35px #0006;overflow:hidden;user-select:none}.board-toolbar.show{display:block}.board-toolbar.collapsed .board-tools{display:none}.board-head{display:flex;align-items:center;justify-content:space-between;padding:7px 9px;background:#064a70;cursor:move}.board-head button{border:0;border-radius:7px;background:#fff2;color:#fff;font-weight:1000}.board-tools{display:grid;grid-template-columns:repeat(3,38px) 42px minmax(82px,1fr);gap:6px;align-items:center;padding:9px}.board-tools button{height:36px;border:2px solid #ffffff88;border-radius:8px;background:#ffffff1f;color:#fff;font-weight:1000}.board-tools button.active{background:var(--yellow);color:#17455b;border-color:#16495a}.board-tools input[type=color]{width:40px;height:36px;border:0;background:none}.board-tools input[type=range]{width:100%}.board-clear{grid-column:1/-1;width:100%;background:#a53d39!important}.teacher-cursor{position:fixed;z-index:129;display:none;pointer-events:none;transform:translate(-4px,-4px)}.teacher-cursor.show{display:block}.teacher-cursor:before{content:'➤';font-size:25px;color:#ffd83d;text-shadow:2px 2px #073e63}.teacher-cursor:after{content:'Учитель';position:absolute;left:18px;top:17px;padding:2px 5px;border-radius:5px;background:#075e8c;color:#fff;font-size:10px;font-weight:900}
+
+/* красная ошибка */
+#errorFlash{position:fixed;z-index:220;inset:0;pointer-events:none;background:#ff1717;opacity:0}.bad-feedback #errorFlash{animation:redFlash .8s ease}.bad-feedback #game{animation:screenQuake .75s linear}
+@keyframes redFlash{0%,100%{opacity:0}14%,42%,70%{opacity:.47}28%,56%{opacity:.08}}
+@keyframes screenQuake{0%,100%{transform:none}10%{transform:translate(-13px,7px) rotate(-.7deg)}20%{transform:translate(13px,-8px) rotate(.7deg)}30%{transform:translate(-11px,-4px)}40%{transform:translate(10px,8px)}50%{transform:translate(-7px,4px)}60%{transform:translate(7px,-4px)}75%{transform:translate(-4px,2px)}90%{transform:translate(3px,-2px)}}
+/* положительный эффект после правильного способа */
+#methodFlash{position:fixed;z-index:225;inset:0;pointer-events:none;opacity:0;background:radial-gradient(circle at 50% 45%,rgba(219,255,232,.88) 0 9%,rgba(63,225,163,.48) 28%,rgba(26,190,208,.23) 52%,transparent 74%)}
+#methodFlash .method-ok-word{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%) scale(.55);white-space:nowrap;font-size:clamp(30px,6vw,74px);font-weight:1000;color:#f3ff8a;-webkit-text-stroke:3px #08745f;paint-order:stroke fill;text-shadow:0 8px 24px #003c4f88;opacity:0}
+.good-step-feedback #methodFlash{animation:methodScreenFlash 1.05s ease-out}.good-step-feedback #methodFlash .method-ok-word{animation:methodWord 1.05s cubic-bezier(.2,1.25,.45,1)}.good-step-feedback #game{animation:goodWave 1.05s ease-out}
+@keyframes methodScreenFlash{0%{opacity:0}13%{opacity:1}38%{opacity:.72}100%{opacity:0}}
+@keyframes methodWord{0%{opacity:0;transform:translate(-50%,-50%) scale(.45) rotate(-5deg)}22%{opacity:1;transform:translate(-50%,-50%) scale(1.12) rotate(2deg)}58%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-66%) scale(.9)}}
+@keyframes goodWave{0%,100%{filter:none;transform:none}20%{filter:saturate(1.35) brightness(1.12);transform:scale(1.008)}45%{filter:saturate(1.2) brightness(1.05);transform:scale(.996)}70%{transform:scale(1.003)}}
+
+/* полноэкранное лопанье 3 секунды */
+#successFx{position:fixed;z-index:230;inset:0;display:none;pointer-events:none;overflow:hidden;background:radial-gradient(circle at center,#eaffff99,transparent 45%)}#successFx.show{display:block;animation:successBg 3s ease forwards}.mega-bubble{position:absolute;left:50%;top:50%;width:160px;height:160px;border:8px solid #efffff;border-radius:50%;background:radial-gradient(circle at 30% 25%,#fff 0 6%,#ffffff4d 7% 18%,#7ee8f0aa 55%,#169ec4aa);box-shadow:inset 20px 17px 35px #fff9,0 0 80px #dffeff;transform:translate(-50%,-50%) scale(.35)}#successFx.show .mega-bubble{animation:megaPop 3s cubic-bezier(.15,.8,.2,1) forwards}.pop-ring{position:absolute;left:50%;top:50%;width:100px;height:100px;border:10px solid #fff;border-radius:50%;transform:translate(-50%,-50%) scale(.2);opacity:0}#successFx.show .r1{animation:ringPop 2.1s .55s ease-out forwards}#successFx.show .r2{animation:ringPop 2.4s .8s ease-out forwards}.success-word{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%) scale(.5);font-size:clamp(44px,9vw,110px);font-weight:1000;color:#fff04c;-webkit-text-stroke:4px #075e8c;paint-order:stroke fill;opacity:0}#successFx.show .success-word{animation:wordPop 2.5s .55s ease forwards}.splash-drop{position:absolute;left:50%;top:50%;width:18px;height:18px;border:4px solid #fff;border-radius:50%;background:#5ddce9;opacity:0}#successFx.show .splash-drop{animation:splash 1.8s var(--delay) ease-out forwards}
+@keyframes successBg{0%{background:#dfffff00}18%{background:#dfffff88}55%{background:#ffffffdd}72%{background:#8be8f0aa}100%{background:#dfffff00}}
+@keyframes megaPop{0%{transform:translate(-50%,-50%) scale(.3);opacity:0}15%{opacity:1}42%{transform:translate(-50%,-50%) scale(2.2);opacity:1}50%{transform:translate(-50%,-50%) scale(3);opacity:.1;filter:blur(4px)}100%{transform:translate(-50%,-50%) scale(4);opacity:0}}
+@keyframes ringPop{0%{opacity:.9;transform:translate(-50%,-50%) scale(.3)}100%{opacity:0;transform:translate(-50%,-50%) scale(8)}}
+@keyframes wordPop{0%{opacity:0;transform:translate(-50%,-50%) scale(.4) rotate(-7deg)}18%{opacity:1;transform:translate(-50%,-50%) scale(1.2) rotate(3deg)}60%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-80%) scale(.85)}}
+@keyframes splash{0%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(.25)}}
+
+.toast{position:fixed;z-index:250;left:50%;bottom:18px;translate:-50% 30px;opacity:0;pointer-events:none;max-width:min(650px,calc(100vw - 30px));padding:10px 14px;border:3px solid #16495a;border-radius:12px;background:#075e8c;color:#fff;font-weight:900;transition:.2s}.toast.show{translate:-50% 0;opacity:1}.toast.bad{background:#9d3430}
+
+@media(max-width:820px){.role-grid{grid-template-columns:1fr}.session-summary{grid-template-columns:1fr 1fr}.needle-dock{flex-direction:column;align-items:flex-start;bottom:8px;gap:7px;padding-left:13px}.needle{width:calc(100vw - 92px);min-height:68px;font-size:11px}.arena{top:112px;bottom:268px}.problem-bubble{width:92vw;min-height:280px;padding:45px 30px 40px}.game-tools{bottom:240px;width:94vw}.game-message{max-width:60vw}.hud{left:7px;right:7px;gap:5px}.pill.turn-pill{max-width:160px}.session-panel{left:7px;right:7px;bottom:7px;max-width:none;flex-wrap:wrap}.board-toolbar{width:min(290px,calc(100vw - 14px))}}
+
+/* v4: два этапа, читаемые варианты выше системных кнопок */
+.phase-badge{padding:4px 9px;border-radius:99px;background:#fff1a9;color:#73520d;font-weight:1000;white-space:nowrap}
+.needle-dock{bottom:142px;align-items:stretch;gap:clamp(8px,1.2vw,14px);max-height:37vh;overflow-y:auto;overflow-x:visible;padding:8px 72px 12px 18px;scrollbar-width:thin}
+.game-tools{bottom:18px;z-index:31;align-items:center;max-width:min(920px,94vw)}
+.game-message{max-width:min(700px,72vw)}
+.needle{width:min(31vw,440px);min-height:104px;height:auto;padding:12px 42px 12px 14px;font-size:clamp(11px,1.1vw,14px);line-height:1.3;text-align:left;white-space:normal}
+.needle .method-title{display:block;margin-bottom:7px;font-size:1.03em;color:#3e2716}
+.needle .method-steps{margin:0;padding-left:20px;display:grid;gap:4px;font-weight:850}
+.needle .method-steps li{padding-left:2px}
+.needle.answer-choice{min-height:72px;display:grid;place-items:center;text-align:center;font-size:clamp(18px,2vw,25px);font-weight:1000}
+.needle.answer-choice::before{top:50%;transform:translateY(-50%)}
+.needle.answer-choice::after{top:calc(50% - 7px)}
+@media(max-width:820px){
+  .needle-dock{bottom:210px;max-height:36vh;padding:6px 72px 8px 10px;gap:6px}
+  .needle{width:calc(100vw - 98px);min-height:82px;font-size:10.5px}
+  .needle.answer-choice{min-height:54px;font-size:18px}
+  .game-tools{bottom:70px;width:94vw;flex-wrap:wrap;gap:6px}.game-message{max-width:100%;width:100%;order:-1}
+  .arena{top:112px;bottom:345px}.problem-bubble{min-height:250px;padding:42px 28px 36px}
+}
+
+</style></head>
 <body>
-<div class="bg" aria-hidden="true">
-  <canvas id="stars"></canvas>
-  <div class="moon"></div>
-  <div class="fog"></div>
-  <div id="embers"></div>
-  <div id="symbols"></div>
-  <div class="trees"></div>
-</div>
-
-<div class="wrap">
-  <header>
-    <div class="kicker">Тайная карта · дневник исследователя</div>
-    <h1>КАРТА ДНЕВНИКА</h1>
-    <div class="subtitle">Веди метку по карте: верный ответ — шаг к сокровищу. Ошибка — ловушка.</div>
-  </header>
-
-  <div class="stats">
-    <div class="stat">🧭 Пройдено: <b id="scoreTxt">0</b>/<span id="totalTxt">15</span></div>
-    <div class="stat">⏱ Время: <b id="timeTxt">0:00</b></div>
-    <div class="stat">💥 Попыток: <b id="triesTxt">1</b></div>
-    <div class="stat btn" id="soundBtn">🔊 Звук</div>
-    <div class="stat turn-stat">👤 Ход: <b id="turnTxt">—</b></div>
-  </div>
-  <div class="players-strip" id="playersStrip"></div>
-
-  <div class="game">
-    <div class="boardWrap">
-      <div class="board" id="board">
-        <svg class="compassRose" viewBox="0 0 100 100">
-          <g fill="none" stroke="#7a4a1c" stroke-width="2">
-            <circle cx="50" cy="50" r="40"/><circle cx="50" cy="50" r="30" stroke-dasharray="2 5"/></g>
-          <polygon points="50,6 58,50 50,44 42,50" fill="#c0392b"/>
-          <polygon points="50,94 42,50 50,56 58,50" fill="#7a4a1c"/>
-          <polygon points="6,50 50,42 44,50 50,58" fill="#7a4a1c"/>
-          <polygon points="94,50 50,58 56,50 50,42" fill="#7a4a1c"/>
-          <text x="50" y="20" font-size="10" fill="#7a4a1c" text-anchor="middle" font-family="Cinzel" font-weight="700">С</text>
-        </svg>
-        <svg class="mapdoodle" style="left:20px;top:24px" width="60" height="34" viewBox="0 0 60 34"><path d="M2 32 L16 8 L26 24 L34 12 L48 32Z" fill="none" stroke="#7a4a1c" stroke-width="2"/></svg>
-        <svg class="mapdoodle" style="right:80px;top:60px" width="30" height="42" viewBox="0 0 30 42"><path d="M15 42 V22" stroke="#5a7a2c" stroke-width="3"/><path d="M15 4 L26 24 H4Z M15 14 L24 30 H6Z" fill="#5a7a2c"/></svg>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="quest">
-        <div class="qtag" id="qTag">Задача 1</div>
-        <div class="qtxt" id="qTxt">…</div>
-        <div class="qask">выбери стрелку с верным ответом ↓</div>
-      </div>
-      <div class="dpad" id="dpad">
-        <button class="arrow up"    data-dir="up"><span class="dir">▲</span><span class="val">?</span></button>
-        <button class="arrow left"  data-dir="left"><span class="dir">◀</span><span class="val">?</span></button>
-        <div class="mini">🗺️</div>
-        <button class="arrow right" data-dir="right"><span class="dir">▶</span><span class="val">?</span></button>
-        <button class="arrow down"  data-dir="down"><span class="dir">▼</span><span class="val">?</span></button>
-      </div>
-      <div class="hint">Клик по стрелке · или клавиши <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></div>
-    </div>
-  </div>
-</div>
-
-
-<div class="shared-work" id="sharedWorkArea">
-  <div class="work-title"><h2>✎ ОБЩЕЕ ПОЛЕ ДЛЯ ЗАПИСИ</h2><p>Одна доска для учителя и обоих учеников · карандаш и ластик работают независимо от хода</p></div>
-  <div class="work-field" id="boardHost"></div>
-</div>
-<button class="lesson-fab" id="lessonJoinBtn" type="button">Совместный урок</button>
+<main id="game" data-board-anchor="main-screen">
+  <div class="scene" aria-hidden="true"><i class="flower f1"></i><i class="flower f2"></i><i class="flower f3"></i><span class="jelly j1">🪼</span><span class="jelly j2">🪼</span><span class="coral c1">♨</span><span class="coral c2">♨</span><i class="rock r1"></i><i class="rock r2"></i></div><div class="seafloor"></div><div id="bubbleLayer" class="scene" aria-hidden="true"></div><div id="sceneTop" class="scene-top" aria-hidden="true"></div>
+  <header class="hud" id="hud"><div class="pill turn-pill"><small>Ход</small><span>🐠</span><span id="turnName">—</span></div><div class="pill"><small>С первой</small><span>⭐</span><span id="scoreText">0</span></div><div class="pill"><small>Пройдено</small><span>🫧</span><span id="miniProgress">0/10</span></div><button class="pill iconbtn" id="soundBtn" type="button">🔊</button></header>
+  <section class="sign"><i class="rope a"></i><i class="rope b"></i><div class="board"><div class="eyebrow" id="progressText">2 этапа · 0/10</div><div id="prototype">Прикладные задачи ЕГЭ №9</div></div></section>
+  <section class="arena" id="arena"><article class="problem-bubble hidden" id="problemBubble"><div class="qmeta"><span class="source" id="sourceText">Прототип</span><span class="phase-badge" id="phaseBadge">Этап 1/2 · способ</span><span id="questionCount">1 из 10</span></div><div class="question" id="questionText"></div><div class="hintbox" id="hintBox"></div></article><div class="wait-turn hidden" id="waitTurn"><div class="wait-card"><div class="big">🪸</div><h2>ЖДИ СВОЕГО ХОДА</h2><p id="waitText"></p></div></div></section>
+  <div class="game-tools hidden" id="gameTools"><button class="hintbtn" id="hintBtn" type="button">💡 Подсказка</button><div class="game-message" id="gameMessage"></div></div><div class="needle-dock hidden" id="needleDock"></div>
+  <section class="system-overlay" id="publicScreen"><div class="system-panel" id="publicPanel"></div></section>
+  <section class="system-overlay hidden" id="lobbyScreen"><div class="system-panel" id="lobbyPanel"></div></section>
+  <section class="system-overlay hidden" id="finishScreen"><div class="system-panel" id="finishPanel"></div></section>
+</main>
+<button class="lesson-fab" id="lessonJoinBtn">СОВМЕСТНЫЙ УРОК</button>
+<div class="lesson-modal" id="lessonModal"><div class="lesson-card" id="lessonCard"></div></div>
 <div class="session-panel" id="sessionPanel"></div>
-<div class="lesson-modal" id="lessonModal"></div>
-<div class="board-toolbar" id="boardToolbar"></div>
-<div class="answer-fx" id="answerFx"><div class="fx-card"><strong id="fxTitle"></strong><span id="fxText"></span></div></div>
-
-<!-- идентификация ученика -->
-<div class="overlay codeOverlay" id="codeScr">
-  <form class="modal" id="codeForm">
-    <h2>🧭 Доступ к карте</h2>
-    <p>Введи личный код ученика, чтобы результат сохранился в журнале.</p>
-    <input class="codeInput" id="studentCodeInput" type="text" placeholder="ЛИЧНЫЙ КОД" autocomplete="one-time-code" required>
-    <div class="codeMsg" id="codeMsg" aria-live="polite"></div>
-    <button class="btn" id="codeBtn" type="submit">Открыть карту</button>
-  </form>
-</div>
-
-<!-- старт -->
-<div class="overlay" id="startScr">
-  <div class="modal">
-    <h2>🗺️ Карта Дневника</h2>
-    <p>Задание №6 профильного ЕГЭ — как поход по тайной карте.</p>
-    <div class="studentLine">
-      <span>Ученик: <strong id="studentName">—</strong></span>
-      <button class="studentSwitch" id="switchStudent" type="button">Сменить ученика</button>
-    </div>
-    <div class="rules">
-      🧭 На каждой клетке — <b>задача</b>. Вокруг четыре стрелки с числами.<br>
-      ✅ Верный ответ спрятан на стрелке, ведущей к <b>сокровищу</b> ✗ (вправо-вверх). Нажми её — сделаешь шаг по тропе.<br>
-      💥 Ошибёшься — <b>ловушка взрывается</b>, карта тасуется заново.<br>
-      🔢 При новой попытке числа изменятся, а порядок прототипов останется прежним.<br>
-      🏴‍☠️ Пройди все <b>15 задач</b> и доберись до клада!
-    </div>
-    <button class="btn" id="startBtn">В путь по карте →</button>
-  </div>
-</div>
-
-<!-- взрыв -->
-<div class="overlay hidden" id="boomScr">
-  <div class="modal">
-    <h2 class="boom">💥 Ловушка!</h2>
-    <p>Ответ неверный — тропа обрушилась. Карта перетасовала маршрут.</p>
-    <p id="boomWhich" style="font-family:'Special Elite';font-size:14px"></p>
-    <button class="btn" id="boomBtn">Начать заново</button>
-  </div>
-</div>
-
-<!-- победа -->
-<div class="overlay hidden" id="winScr">
-  <div class="modal">
-    <h2>🏴‍☠️ Клад найден!</h2>
-    <p>Ты прошёл всю карту и добрался до сокровища. Тайна дневника раскрыта!</p>
-    <div class="statwin">
-      <div><div class="n" id="winScore">0%</div><div class="l">с первой попытки</div></div>
-      <div><div class="n" id="winTime">0:00</div><div class="l">время</div></div>
-      <div><div class="n" id="winTries">1</div><div class="l">попыток</div></div>
-    </div>
-    <div class="saveStatus" id="saveStatus" aria-live="polite"></div>
-    <button class="btn" id="winBtn">Пройти снова</button>
-  </div>
-</div>
-
+<div id="boardHost"></div><div class="board-toolbar" id="boardToolbar"></div><div class="teacher-cursor" id="teacherCursor"></div>
+<div id="errorFlash"></div><div id="methodFlash"><div class="method-ok-word">✓ СПОСОБ ВЕРНЫЙ</div></div><div id="successFx"><div class="mega-bubble"></div><div class="pop-ring r1"></div><div class="pop-ring r2"></div><div class="success-word">БУЛЬК!</div></div><div class="toast" id="toast"></div>
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
-import { getDatabase, ref, get, set, update, remove, push, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, runTransaction } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js";
-
+import {initializeApp} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import {getDatabase,ref,get,set,update,onValue,onDisconnect,runTransaction,serverTimestamp} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js";
 const firebaseConfig={apiKey:"AIzaSyBkY5utRlEfGIT_wEW6Dq7TSLr3RqBWJxo",authDomain:"ega-mathematica.firebaseapp.com",databaseURL:"https://ega-mathematica-default-rtdb.europe-west1.firebasedatabase.app",projectId:"ega-mathematica",storageBucket:"ega-mathematica.firebasestorage.app",messagingSenderId:"177632223541",appId:"1:177632223541:web:fbc532216359e34665ec7c",measurementId:"G-K9FZYGKPZS"};
-const firebaseApp=initializeApp(firebaseConfig),database=getDatabase(firebaseApp);
-const API_URL="https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
-const APP_ID='ege06-diary-map-mix15-current-v1',FIXED_SESSION_ID='currentSession',SCHEMA_VERSION=2,TOTAL=15;
+const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+const APP_ID='ege09-underwater-method-answer-10-v1', FIXED_SESSION_ID='currentSession', SCHEMA_VERSION=6, TASKS_PER_STUDENT=10;
 const TEACHER_CODE_HASH='b0a83a3919eba1d2a99034f2d94e5a47590f1710595c04bd64b5c8f21456a7c6';
-const TEST_META={testId:'EGE-06-KARTA-DNEVNIKA-PROTOTYPES-MIX-15',testName:'Карта Дневника — 15 простейших уравнений',topicId:'task-06',topicName:'Простейшие уравнения · микс прототипов',taskNumber:6,schemaVersion:1};
+const TEST_META={testId:'EGE-09-PODVODNYI-METHOD-ANSWER-10',testName:'Подводный блиц — способ решения + конечный ответ, 10 задач',topicId:'task-09',topicName:'Прикладные задачи: способ решения и конечный ответ',taskNumber:9,schemaVersion:1};
+const app=initializeApp(firebaseConfig),database=getDatabase(app);
+const lessonRoot=()=>`sharedInteractives/${APP_ID}/${FIXED_SESSION_ID}`,sessionRef=()=>ref(database,lessonRoot()),stateRef=()=>ref(database,`${lessonRoot()}/state`),strokesRef=()=>ref(database,`${lessonRoot()}/state/strokes`),membersRef=()=>ref(database,`${lessonRoot()}/members`),messagesRef=()=>ref(database,`${lessonRoot()}/messages`),memberRef=id=>ref(database,`${lessonRoot()}/members/${id}`);
 const STUDENT_SAVE_KEY=`${APP_ID}:student`,CLIENT_ID_KEY=`${APP_ID}:client`,TOOLBAR_POSITION_KEY=`${APP_ID}:toolbar`,PENDING_RESULTS_KEY=`${APP_ID}:pendingTestResults`;
-const $=s=>document.querySelector(s),$$=(s,c=document)=>[...c.querySelectorAll(s)],clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
-const lessonRoot=()=>`sharedInteractives/${APP_ID}/${FIXED_SESSION_ID}`,sessionRef=()=>ref(database,lessonRoot()),stateRef=()=>ref(database,`${lessonRoot()}/state`),gameRef=()=>ref(database,`${lessonRoot()}/state/game`),membersRef=()=>ref(database,`${lessonRoot()}/members`),memberRef=id=>ref(database,`${lessonRoot()}/members/${id}`),strokesRef=()=>ref(database,`${lessonRoot()}/strokes`);
-const DIRS={up:{dr:-1,dc:0},down:{dr:1,dc:0},left:{dr:0,dc:-1},right:{dr:0,dc:1}},DIR_ORDER=['up','left','right','down'];
-const ROWS=8,COLS=9,START={r:ROWS-1,c:0},FINISH={r:0,c:COLS-1},RUNES=["✦","△","∴","☾","※","⚸","✧","⬡","☉","♆","∷","⋔"];
-const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const uuid=()=>crypto?.randomUUID?.()||`id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
-const nowIso=ms=>new Date(ms??Date.now()).toISOString();
-const localDate=()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
-const fmtTime=ms=>{const s=Math.max(0,Math.floor(ms/1000));return`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`};
-const playerKey=id=>`student_${String(id).replace(/[^a-zA-Z0-9_-]/g,'_')}`;
+const $=id=>document.getElementById(id),clone=v=>v==null?v:JSON.parse(JSON.stringify(v)),esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+const QUESTIONS=[
+ {id:'q01',source:1,prototype:'Квадратный корень · перевод единиц',text:`Расстояние до горизонта вычисляется по формуле <span class="formula">l = √(2Rh)</span>, где <span class="formula">R = 6400 км</span>. У подножия площадки горизонт виден на 4 км. На сколько метров нужно подняться, чтобы расстояние увеличилось до 28 км?`,hint:'Не вычисляй ответ сразу: сначала вырази высоту h через l и R, затем сравни две высоты.',correct:`<strong>Выразить высоту из формулы</strong>h = l²/(2R) → отдельно получить h для 28 км и 4 км → найти разность высот → в самом конце перевести километры в метры.`,wrong:[`<strong>Сначала найти среднее расстояние</strong>(28+4)/2 → подставить его вместо l → из одной высоты сразу получить требуемый подъём.`,`<strong>Возвести разность расстояний в квадрат</strong>(28−4)² → разделить на 2R → считать это сразу разностью высот.`]},
+ {id:'q02',source:2,prototype:'Рациональное неравенство · эффект Доплера',text:`Частота сигнала равна <span class="formula">f = 170·(c + 12)/(c − 6)</span>. При какой максимальной скорости <span class="formula">c</span> частота будет не меньше 180 Гц?`,hint:'Сначала зафиксируй область c > 6 и знак знаменателя.',correct:`<strong>Учесть c &gt; 6</strong>по смыслу знаменатель c−6 положителен → домножить неравенство на c−6 без смены знака → собрать c в одной части → получить допустимый промежуток и взять его максимальную границу.`,wrong:[`<strong>Сразу приравнять f к 180</strong>решить только уравнение и любой найденный корень объявить ответом, не рассматривая неравенство и максимальную границу.`,`<strong>Перенести всё в одну дробь</strong>затем автоматически считать, что знаменатель отрицателен, поменять знак неравенства и выбрать минимальную границу.`]},
+ {id:'q03',source:3,prototype:'Показательная зависимость · полураспад',text:`Масса изотопа меняется по закону <span class="formula">m(t) = 50·2<sup>−t/5</sup></span>. Через сколько минут масса станет равной 12,5 мг?`,hint:'После деления обеих частей на 50 справа получится простая степень двойки.',correct:`<strong>Оставить степень одну</strong>разделить равенство на 50 → представить 12,5/50 как 1/4 = 2⁻² → при одинаковом основании 2 приравнять показатели → решить линейное уравнение для t.`,wrong:[`<strong>Раскрыть отрицательную степень как минус</strong>заменить 2⁻ᵗ⁄⁵ на −2ᵗ⁄⁵ → перенести 50 и решить полученное линейное уравнение.`,`<strong>Сразу взять логарифм десятичный</strong>от обеих частей исходного равенства, не отделяя множитель 50 и не используя красивое отношение 1/4.`]},
+ {id:'q04',source:4,prototype:'Квадратное уравнение · равноускоренное движение',text:`Путь мотоциклиста задаётся формулой <span class="formula">S = 90t + 16t²/2</span>, где время <span class="formula">t</span> измеряется в часах. За сколько минут он удалится на 72 км?`,hint:'Подставь S=72: неизвестная останется и в t, и в t².',correct:`<strong>Составить квадратное уравнение</strong>подставить S=72 и привести к виду at²+bt+c=0 → найти корни → отрицательный/неподходящий по смыслу отбросить → положительное время в часах перевести в минуты.`,wrong:[`<strong>Считать движение равномерным</strong>выбросить слагаемое 16t²/2 → использовать только t=S/v → затем перевести часы в минуты.`,`<strong>Сначала извлечь квадратный корень</strong>из обеих частей 72=90t+8t² → получить линейное равенство для √t и выбрать больший корень.`]},
+ {id:'q05',source:5,prototype:'Логарифмическая формула · работа газа',text:`Работа сжатия воздуха равна <span class="formula">A = ανT·log₂(p₂/p₁)</span>. Дано: <span class="formula">A = 15960</span>, <span class="formula">α = 13,3</span>, <span class="formula">ν = 2</span>, <span class="formula">T = 300</span>, <span class="formula">p₁ = 1,75</span>. Найди p₂.`,hint:'Сначала нужно выразить сам логарифм, а уже потом «снимать» его.',correct:`<strong>Сначала выразить log₂</strong>разделить A на ανT → получить log₂(p₂/p₁)=число → перейти к степени p₂/p₁=2^число → умножить на p₁ и найти p₂.`,wrong:[`<strong>Сразу убрать log₂</strong>записать p₂/p₁ = 2ᴬ, не деля A на коэффициент ανT → затем найти p₂.`,`<strong>Разложить логарифм частного</strong>как log₂p₂ / log₂p₁ → подставить числа и решить пропорцию.`]},
+ {id:'q06',source:11,prototype:'Тригонометрическое неравенство · время полёта',text:`Время полёта мяча равно <span class="formula">t = 2v₀sinα/g</span>. При каком наименьшем угле α время будет не меньше 3,2 с, если v₀=16 м/с, g=10 м/с²?`,hint:'После подстановки сравни требуемое значение sinα с диапазоном значений синуса.',correct:`<strong>Получить неравенство для sinα</strong>подставить v₀, g и t≥3,2 → сократить коэффициенты → сравнить требование с максимальным значением sinα=1 → выбрать наименьший угол из физически допустимого диапазона.`,wrong:[`<strong>Заменить sinα на α</strong>считать, что при небольших углах sinα=α без оговорок → решить линейное неравенство и перевести число в градусы.`,`<strong>Использовать cosα</strong>заменить sin на cos по формуле приведения → решить cosα≥1 и взять α=0° как время максимального полёта.`]},
+ {id:'q07',source:12,prototype:'Степенное уравнение · адиабатическое сжатие',text:`Для газа выполняется <span class="formula">p₁V₁<sup>1,4</sup> = p₂V₂<sup>1,4</sup></span>. Дано p₁=1, V₁=294,4 л, p₂=128. Найди V₂.`,hint:'Удобно сначала собрать отношение V₁/V₂ и заменить 1,4 на 7/5.',correct:`<strong>Собрать отношение объёмов</strong>(V₁/V₂)^1,4 = p₂/p₁ =128 → заменить 1,4 на 7/5 и 128 на 2⁷ → возвести обе части в степень 5/7 → найти V₁/V₂, затем V₂.`,wrong:[`<strong>Сократить степени объёмов</strong>считать V₁^1,4/V₂^1,4 = (V₁−V₂)^1,4 → извлечь степень и найти разность объёмов.`,`<strong>Возвести обе части в 7/5</strong>после получения отношения в степени 7/5 ещё раз увеличить степень до 49/25, а затем делить V₁ на результат.`]},
+ {id:'q08',source:17,prototype:'Рациональное неравенство · сопротивление',text:`При параллельном соединении <span class="formula">Rобщ = 72R/(72 + R)</span>. Какое наименьшее R нужно, чтобы Rобщ ≥ 8 Ом?`,hint:'При R>0 знаменатель 72+R точно положителен.',correct:`<strong>Использовать положительность знаменателя</strong>при R&gt;0 имеем 72+R&gt;0 → домножить неравенство без смены знака → перенести слагаемые с R → получить нижнюю границу R и взять наименьшее допустимое значение.`,wrong:[`<strong>Домножить и поменять знак</strong>считать 72+R отрицательным → развернуть ≥ в ≤ → выбрать верхнюю границу R.`,`<strong>Приравнять знаменатель к нулю</strong>найти R=−72 и использовать расстояние от этой точки до 8 как минимальное сопротивление.`]},
+ {id:'q09',source:18,prototype:'Формула линзы · система ограничений',text:`Для чёткого изображения <span class="formula">1/d₁ + 1/d₂ = 1/20</span>. d₂ можно менять от 100 до 120 см. На каком наименьшем d₁ нужно поставить лампочку?`,hint:'Сначала вырази d₁ через d₂; после этого используй допустимый диапазон d₂.',correct:`<strong>Выразить d₁ как функцию d₂</strong>из формулы получить d₁=20d₂/(d₂−20) → на d₂∈[100;120] эта величина уменьшается → для минимального d₁ взять максимальное d₂=120 и подставить.`,wrong:[`<strong>Взять середину диапазона</strong>d₂=(100+120)/2 → подставить 110 и считать полученное d₁ автоматически минимальным.`,`<strong>Минимизировать знаменатель</strong>взять наименьшее d₂=100, потому что меньший знаменатель якобы всегда делает всю дробь меньше.`]},
+ {id:'q10',source:22,prototype:'Тригонометрическая формула · энергия',text:`Скорость груза: <span class="formula">v = 1,5cos(2πt/2)</span>. Энергия: <span class="formula">E = mv²/2</span>, m=0,16 кг. Найди энергию через 20 с.`,hint:'Сначала упрости аргумент косинуса и используй периодичность.',correct:`<strong>Сначала найти скорость</strong>подставить t=20 → упростить аргумент до 20π=2π·10 → по периодичности получить cos=1 → найти v → затем подставить v в E=mv²/2.`,wrong:[`<strong>Сразу подставить t в энергию</strong>заменить v² на t² и вычислить E=mt²/2, не используя формулу скорости.`,`<strong>Перевести 20π в градусы</strong>считать 20π как 20° → найти cos20° → затем энергию.`]},
+ {id:'q11',source:30,prototype:'Квадратное неравенство · длина промежутка',text:`Высота мяча <span class="formula">h(t)=2+13t−5t²</span>. Сколько секунд мяч будет на высоте не менее 8 м?`,hint:'Нужно не только найти моменты h=8, но и ответить на «сколько длится».',correct:`<strong>Решить квадратное неравенство</strong>2+13t−5t²≥8 → найти два граничных корня → определить промежуток времени, где парабола удовлетворяет ≥8 → ответом взять длину этого промежутка t₂−t₁.`,wrong:[`<strong>Решить только h=8</strong>найти меньший корень и записать его как длительность пребывания выше 8 м.`,`<strong>Найти вершину параболы</strong>координату t вершины сразу считать длительностью, не находя границы h=8.`]},
+ {id:'q12',source:31,prototype:'Дробная степень · закон идеального газа',text:`Для газа <span class="formula">pV<sup>5/3</sup> = 6,4·10⁶</span>. Какой объём при p=2·10⁵ Па?`,hint:'После деления на p получается V^(5/3)=красивое число.',correct:`<strong>Изолировать степень V</strong>разделить на p → получить V^(5/3)=32=2⁵ → возвести обе части в обратную степень 3/5 → упростить (2⁵)^(3/5) и получить V.`,wrong:[`<strong>Умножить показатели 5/3 и 5/3</strong>возвести обе части ещё раз в 5/3 → затем извлечь квадратный корень.`,`<strong>Разделить V на 5/3</strong>трактовать показатель как обычный множитель: V·5/3=32 → решить линейное уравнение.`]},
+ {id:'q13',source:35,prototype:'Четвёртая степень · Стефан–Больцман',text:`Мощность звезды <span class="formula">P=σST⁴</span>. Дано σ=5,7·10⁻⁸, S=(1/18)·10²¹, P=4,104·10²⁷. Найди T.`,hint:'Сначала полностью вычисли P/(σS), не округляя промежуточно.',correct:`<strong>Выразить T⁴</strong>T⁴=P/(σS) → отдельно аккуратно обработать числовые коэффициенты и степени 10 → получить точное значение T⁴ → взять положительный корень четвёртой степени, так как температура T&gt;0.`,wrong:[`<strong>Извлечь квадратный корень дважды до деления</strong>сначала взять √P, √σ и √S по отдельности, округлить, затем повторно извлечь корень.`,`<strong>Считать T⁴ как 4T</strong>разделить найденное значение правой части на 4 и считать результат температурой.`]},
+ {id:'q14',source:36,prototype:'Квадратичное неравенство · выручка',text:`Спрос q=65−5p, выручка r(p)=pq. Определи наибольшую цену p, при которой выручка не меньше 150 тыс. рублей.`,hint:'Подставь q в r и получи квадратное неравенство по p.',correct:`<strong>Составить неравенство выручки</strong>p(65−5p)≥150 → перенести всё и упростить до квадратного неравенства → найти корни → определить допустимый промежуток между ними → взять его наибольшую границу.`,wrong:[`<strong>Максимизировать только спрос</strong>сделать q=65−5p как можно больше, взять минимальное p и не учитывать условие r≥150.`,`<strong>Решить уравнение r=150</strong>найти два корня и автоматически выбрать меньший, потому что он встречается первым.`]},
+ {id:'q15',source:62,prototype:'Логарифм · разряд конденсатора',text:`Время разряда <span class="formula">t=aRC·log₂(U₀/U)</span>. a=0,8, R=8·10⁶, C=6·10⁻⁶, U₀=34 кВ, t=76,8 с. Найди U.`,hint:'Сначала вычисли весь коэффициент aRC; единицы 10⁶ и 10⁻⁶ сократятся.',correct:`<strong>Сначала вычислить коэффициент aRC</strong>подставить a,R,C и получить число перед log₂ → разделить t на этот коэффициент → получить log₂(34/U)=число → перейти к степени 34/U=2^число → выразить U.`,wrong:[`<strong>Сначала раскрыть логарифм частного</strong>записать log₂34 / log₂U → заменить log₂34 на 34 и решить пропорцию.`,`<strong>Перевести кВ в В внутри отношения</strong>умножить только U₀ на 1000, а U оставить в кВ → затем вычислять логарифм размерного отношения.`]}
+];
+const ANSWER_BANK={"q01":{"answer":"60 м","options":["15 м","60 м","120 м"]},"q02":{"answer":"312 м/с","options":["300 м/с","312 м/с","318 м/с"]},"q03":{"answer":"10 мин","options":["5 мин","10 мин","20 мин"]},"q04":{"answer":"45 мин","options":["40 мин","45 мин","60 мин"]},"q05":{"answer":"7 атм","options":["3,5 атм","7 атм","14 атм"]},"q06":{"answer":"90°","options":["30°","60°","90°"]},"q07":{"answer":"9,2 л","options":["9,2 л","18,4 л","32 л"]},"q08":{"answer":"9 Ом","options":["8 Ом","9 Ом","16 Ом"]},"q09":{"answer":"24 см","options":["20 см","24 см","25 см"]},"q10":{"answer":"0,18 Дж","options":["0,12 Дж","0,18 Дж","0,36 Дж"]},"q11":{"answer":"1,4 с","options":["0,6 с","1,4 с","2 с"]},"q12":{"answer":"8 м³","options":["4 м³","8 м³","16 м³"]},"q13":{"answer":"6000 К","options":["4000 К","5000 К","6000 К"]},"q14":{"answer":"10 тыс. ₽","options":["3 тыс. ₽","10 тыс. ₽","13 тыс. ₽"]},"q15":{"answer":"8,5 кВ","options":["4,25 кВ","8,5 кВ","17 кВ"]}};
+
+let role='',student=null,participantId='',participantName='',participantPlayerKey='',browserClientId=getBrowserClientId(),serverState=null,membersSnapshot={},remoteTeacherCursor=null,memberDisconnect=null;
+let stateUnsub=null,membersUnsub=null,messagesUnsub=null,strokesUnsub=null,online=navigator.onLine,teacherAuthenticated=false,joinInFlight=false,lastFeedbackToken='',advanceTimer=null,muted=false;
+let activeStroke=null,boardTool='cursor',boardColor='#e53935',boardWidth=5,toolbarCollapsed=false,lastStrokePush=0,lastCursorPush=0,eraserActive=false,eraserPointerId=null,lastEraserPoint=null,optimisticDeleted=new Map(),strokesCache={};
+let submissionInFlight=new Set(),teacherBackupTimer=null;
+function uuid(){return crypto?.randomUUID?.()||`id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`}function nowIso(ms=Date.now()){return new Date(ms).toISOString()}function localDate(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`}function playerKey(id){return `student_${String(id).replace(/[^a-zA-Z0-9_-]/g,'_')}`}function shuffle(a,rng=Math.random){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function hashString(str){let h=1779033703^str.length;for(let i=0;i<str.length;i++){h=Math.imul(h^str.charCodeAt(i),3432918353);h=h<<13|h>>>19}return()=>{h=Math.imul(h^(h>>>16),2246822507);h=Math.imul(h^(h>>>13),3266489909);return(h^=h>>>16)>>>0}}function mulberry32(a){return function(){a|=0;a=(a+0x6D2B79F5)|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}function seededRng(k){return mulberry32(hashString(k)())}
 function getBrowserClientId(){let id=sessionStorage.getItem(CLIENT_ID_KEY);if(!id){id=uuid();sessionStorage.setItem(CLIENT_ID_KEY,id)}return id}
-function hashString(str){let h=1779033703^str.length;for(let i=0;i<str.length;i++){h=Math.imul(h^str.charCodeAt(i),3432918353);h=h<<13|h>>>19}return()=>{h=Math.imul(h^(h>>>16),2246822507);h=Math.imul(h^(h>>>13),3266489909);return(h^=h>>>16)>>>0}}
-function mulberry32(a){return function(){a|=0;a=(a+0x6D2B79F5)|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-const seededRng=key=>mulberry32(hashString(String(key))());
-function shuffle(a,rng=Math.random){const r=a.slice();for(let i=r.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[r[i],r[j]]=[r[j],r[i]]}return r}
-const ri=(rng,a,b)=>Math.floor(rng()*(b-a+1))+a,pick=(rng,a)=>a[Math.floor(rng()*a.length)],nz=(rng,a,b)=>{let n=0;while(n===0)n=ri(rng,a,b);return n};
-const sign=n=>n<0?`− ${Math.abs(n)}`:`+ ${n}`,fmt=n=>Number.isInteger(n)?String(n):String(Number(n.toFixed(2))).replace('.',',');
-function question(tag,text,answer,distractors=null){const correct=String(answer);if(distractors)return{tag,text,correct,distractors:distractors.map(String)};const n=Number(answer),pool=[n+1,n-1,-n,n+2,n-2,n*2,0],seen=new Set([correct]),dis=[];for(const v of pool){const shown=fmt(v);if(!seen.has(shown)){seen.add(shown);dis.push(shown)}if(dis.length===3)break}return{tag,text,correct,distractors:dis}}
-function q1(r){const a=ri(r,2,9),x=nz(r,-9,12),b=nz(r,-12,12),c=a*x+b;return question('1. Линейное уравнение',`Решите уравнение ${a}x ${sign(b)} = ${c}`,fmt(x))}
-function q2(r){const a=ri(r,2,8),x=nz(r,-8,10),den=ri(r,2,9),k=ri(r,2,6),b=den-a*x,num=k*den;return question('2. Дробь равна числу',`Решите уравнение <span class="frac"><span>${num}</span><span>${a}x ${sign(b)}</span></span> = ${k}`,fmt(x))}
-function q3(r){const a=ri(r,2,8),x=nz(r,-8,10),b=nz(r,-10,10),den=a*x+b;if(den===0)return q3(r);return question('3. Дробь равна дроби',`Решите уравнение <span class="frac"><span>1</span><span>${a}x ${sign(b)}</span></span> = <span class="frac"><span>1</span><span>${den}</span></span>`,fmt(x))}
-function q4(r){const p=pick(r,[3,5]),root=nz(r,-5,5),shift=nz(r,-7,7),x=root-shift,rhs=root**p;return question('4. Нечётная степень',`Решите уравнение (x ${sign(shift)})<sup>${p}</sup> = ${rhs}`,fmt(x))}
-function q5(r){const a=ri(r,1,5),x=nz(r,-7,8),b=nz(r,-9,9),c=-2*a*x-b;if(b===c)return q5(r);return question('5. Равенство квадратов',`Решите уравнение (${a}x ${sign(b)})<sup>2</sup> = (${a}x ${sign(c)})<sup>2</sup>`,fmt(x))}
-function q6(r){const a=ri(r,2,7),x=ri(r,-5,10),k=ri(r,2,10),b=k*k-a*x;return question('6. Квадратный корень',`Решите уравнение √(${a}x ${sign(b)}) = ${k}`,fmt(x))}
-function q7(r){const a=ri(r,2,7),x=nz(r,-7,9),k=nz(r,-4,4),b=k**3-a*x;return question('7. Кубический корень',`Решите уравнение ∛(${a}x ${sign(b)}) = ${k}`,fmt(x))}
-function q8(r){const base=pick(r,[2,3,5,7]),a=ri(r,1,4),x=nz(r,-5,8),b=nz(r,-7,7),e=a*x+b;return question('8. Показательное · одинаковые основания',`Решите уравнение ${base}<sup>${a}x ${sign(b)}</sup> = ${base}<sup>${e}</sup>`,fmt(x))}
-function q9(r){const base=pick(r,[2,3,4,5]),a=ri(r,1,3),x=nz(r,-5,8),b=nz(r,-6,6),e=a*x+b;return question('9. Показательное · дробное основание',`Решите уравнение (<span class="frac"><span>1</span><span>${base}</span></span>)<sup>${a}x ${sign(b)}</sup> = (<span class="frac"><span>1</span><span>${base}</span></span>)<sup>${e}</sup>`,fmt(x))}
-function q10(r){const base=pick(r,[2,3]),m=pick(r,[2,3]),a=ri(r,1,5),d=ri(r,1,3),x=nz(r,-5,7),e=nz(r,-3,3),c=m*(d*x+e)-a*x;if(a===m*d)return q10(r);return question('10. Показательное · x в обеих степенях',`Решите уравнение ${base}<sup>${a}x ${sign(c)}</sup> = ${base**m}<sup>${d}x ${sign(e)}</sup>`,fmt(x))}
-function q11(r){const base=pick(r,[2,3,5,7]),a=ri(r,1,6),x=nz(r,-6,9),b=nz(r,-9,9),arg=a*x+b;if(arg<=0)return q11(r);return question('11. Одинаковые логарифмы',`Решите уравнение log<sub>${base}</sub>(${a}x ${sign(b)}) = log<sub>${base}</sub>${arg}`,fmt(x))}
-function q12(r){const base=pick(r,[2,3,4,5]),power=ri(r,2,4),a=ri(r,1,6),x=nz(r,-5,9),b=base**power-a*x;return question('12. По определению логарифма',`Решите уравнение log<sub>${base}</sub>(${a}x ${sign(b)}) = ${power}`,fmt(x))}
-function q13(r){const base=pick(r,[2,3,5]),power=ri(r,2,4),a=ri(r,1,6),x=nz(r,-6,8),b=base**power+a*x;return question('13. Логарифм · отрицательный коэффициент',`Решите уравнение log<sub>${base}</sub>(${b} − ${a}x) = ${power}`,fmt(x))}
-function q14(r){const v=pick(r,[
- {rhs:'0',ans:'π',dis:['π/2','2π','π/4']},
- {rhs:'1/2',ans:'π/6',dis:['π/3','π/2','5π/6']},
- {rhs:'√2/2',ans:'π/4',dis:['π/2','3π/4','π/8']},
- {rhs:'√3/2',ans:'π/3',dis:['π/6','2π/3','π/2']},
- {rhs:'1',ans:'π/2',dis:['π','π/4','3π/2']}
-]);return question('14. Тригонометрическое · синус',`Найдите наименьший положительный корень: sin x = ${v.rhs}`,v.ans,v.dis)}
-function q15(r){const v=pick(r,[
- {rhs:'1',ans:'π/4',dis:['π/2','π/6','3π/4']},
- {rhs:'√3/2',ans:'π/6',dis:['π/3','π/12','5π/12']},
- {rhs:'1/2',ans:'π/12',dis:['π/6','π/4','5π/12']}
-]);return question('15. Тригонометрическое · двойной угол',`Найдите наименьший положительный корень: 2sin x cos x = ${v.rhs}`,v.ans,v.dis)}
-const GENERATORS=[q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15];
-function makeQuestionPack(seed){const r=seededRng(seed);return GENERATORS.map(fn=>fn(r))}
-function makeRoute(seed){return shuffle([...Array(ROWS-1).fill('up'),...Array(COLS-1).fill('right')],seededRng(seed))}
-function pathFromMoves(moves){let r=START.r,c=START.c;const out=[{r,c}];for(const m of moves){r+=DIRS[m].dr;c+=DIRS[m].dc;out.push({r,c})}return out}
-function optionMap(g,pk,index,q){const correctDir=g.routeMoves[index],others=DIR_ORDER.filter(d=>d!==correctDir),vals={};vals[correctDir]=q.correct;others.forEach((d,i)=>vals[d]=q.distractors[i]);return vals}
-function newGame(limit=1){const sessionId=uuid();return{schemaVersion:SCHEMA_VERSION,status:'lobby',studentLimit:Number(limit)===2?2:1,players:{},playerOrder:[],turnKey:'',progress:{},questions:{},routeMoves:makeRoute(sessionId+':route'),feedback:null,eventIds:{},submissions:{},sessionId,startedAt:0,finishedAt:0,endedEarly:false}}
-function normalizeGame(g){g=g&&typeof g==='object'?clone(g):newGame(1);g.schemaVersion=SCHEMA_VERSION;g.status=g.status||'lobby';g.studentLimit=Number(g.studentLimit)===2?2:1;g.players=g.players||{};g.playerOrder=Array.isArray(g.playerOrder)?g.playerOrder:[];g.turnKey=g.turnKey||'';g.progress=g.progress||{};g.questions=g.questions||{};g.routeMoves=Array.isArray(g.routeMoves)&&g.routeMoves.length===TOTAL?g.routeMoves:makeRoute((g.sessionId||'session')+':route');g.feedback=g.feedback||null;g.eventIds=g.eventIds||{};g.submissions=g.submissions||{};g.sessionId=g.sessionId||uuid();g.startedAt=Number(g.startedAt)||0;g.finishedAt=Number(g.finishedAt)||0;g.endedEarly=!!g.endedEarly;for(const pk of g.playerOrder){g.progress[pk]=g.progress[pk]||{completed:0,firstTryCorrect:0,attemptCount:0,currentAttempted:false,wrongDirs:[]};g.progress[pk].wrongDirs=Array.isArray(g.progress[pk].wrongDirs)?g.progress[pk].wrongDirs:[]}return g}
-function normalizeState(s){s=s&&typeof s==='object'?clone(s):{schemaVersion:SCHEMA_VERSION,game:newGame(1)};s.schemaVersion=SCHEMA_VERSION;s.game=normalizeGame(s.game);return s}
-function nextTurn(g){if(g.playerOrder.length<=1)return g.playerOrder[0]||'';const i=g.playerOrder.indexOf(g.turnKey);return g.playerOrder[(Math.max(0,i)+1)%g.playerOrder.length]||g.playerOrder[0]||''}
-
-let role='',teacherAuthenticated=false,student=null,participantPlayerKey='',participantId='',browserClientId=getBrowserClientId(),serverState=null,membersSnapshot={},stateUnsub=null,membersUnsub=null,joinInFlight=false,presencePath=null,online=navigator.onLine,lastFeedbackAt=0,muted=false;
-let cells=[],tokens={},lastRenderKey='',timerId=0;
-let boardTool='cursor',boardColor='#e53935',boardWidth=6,toolbarCollapsed=false,activeStroke=null,boardPointerId=null,boardErasing=false,lastErasePoint=null,lastStrokePush=0,strokesCache={},strokeUnsubs=[],toolbarDrag=null;
-const submissionInFlight=new Set();let prewarmedStudentPromise=null;
-
-function storedStudent(){try{const s=JSON.parse(localStorage.getItem(STUDENT_SAVE_KEY)||'null');if(s?.studentId&&s?.code)return s}catch{}const studentId=localStorage.getItem('egeStudentId')||'',name=localStorage.getItem('egeStudentName')||'',code=localStorage.getItem('egeStudentCode')||'';return studentId&&code?{studentId:String(studentId),name:name||'Ученик',code:String(code)}:null}
-function saveStudent(s){localStorage.setItem('egeStudentId',s.studentId);localStorage.setItem('egeStudentName',s.name);localStorage.setItem('egeStudentCode',s.code);localStorage.setItem(STUDENT_SAVE_KEY,JSON.stringify(s));student=s}
-function clearStudent(){['egeStudentId','egeStudentName','egeStudentCode',STUDENT_SAVE_KEY].forEach(k=>localStorage.removeItem(k));student=null;prewarmedStudentPromise=null}
-function studentFromResponse(data,code){if(!data||data.ok===false||data.success===false||data.valid===false)return null;const src=data.student||data.data||data,studentId=src.studentId??src.id??src.studentID??src.student_id??data.studentId??data.id,name=src.studentName??src.name??src.fullName??data.studentName??data.name;if(studentId===undefined||studentId===null||studentId==='')return null;return{studentId:String(studentId),name:String(name||'Ученик'),code:String(code)}}
-function validateStudentCode(code){return new Promise((resolve,reject)=>{const callback='egeStudentCallback_'+Date.now()+'_'+Math.random().toString(36).slice(2),script=document.createElement('script');let done=false;const finish=(err,val)=>{if(done)return;done=true;clearTimeout(timer);delete window[callback];script.remove();err?reject(err):resolve(val)},timer=setTimeout(()=>finish(new Error('Сервер не ответил в течение 60 секунд.')),60000);window[callback]=data=>{const st=studentFromResponse(data,code);st?finish(null,st):finish(new Error((data&&(data.error||data.message))||'Код ученика не найден'))};script.onerror=()=>finish(new Error('Не удалось связаться с сервером'));script.async=true;script.src=`${API_URL}?action=validateStudent&code=${encodeURIComponent(code)}&callback=${callback}&_=${Date.now()}`;document.head.appendChild(script)})}
+function storedStudent(){const studentId=localStorage.getItem('egeStudentId')||'',name=localStorage.getItem('egeStudentName')||'',code=localStorage.getItem('egeStudentCode')||'';if(studentId&&code)return{studentId:String(studentId),name:name||'Ученик',code:String(code)};try{const s=JSON.parse(localStorage.getItem(STUDENT_SAVE_KEY)||'null');if(s?.studentId&&s?.code)return s}catch{}return null}
+function saveStudent(s){localStorage.setItem(STUDENT_SAVE_KEY,JSON.stringify(s));localStorage.setItem('egeStudentId',s.studentId);localStorage.setItem('egeStudentName',s.name);localStorage.setItem('egeStudentCode',s.code);student=s}function clearStoredStudent(){[STUDENT_SAVE_KEY,'egeStudentId','egeStudentName','egeStudentCode'].forEach(k=>localStorage.removeItem(k));student=null}
+function studentFromResponse(data,code){if(!data)return null;if(data.ok===false)return null;const d=data.student||data.data||data;const studentId=d.studentId||d.id||d.studentID||'';const name=d.studentName||d.name||d.fullName||'Ученик';return studentId?{studentId:String(studentId),name:String(name),code:String(code)}:null}
+function validateStudentCode(code){return new Promise((resolve,reject)=>{const callback='egeStudentCallback_'+Date.now()+'_'+Math.random().toString(36).slice(2),script=document.createElement('script'),timeout=setTimeout(()=>finish(new Error('Сервер не ответил в течение 60 секунд. Проверьте интернет.')),60000);function cleanup(){clearTimeout(timeout);delete window[callback];script.remove()}function finish(error,value){cleanup();error?reject(error):resolve(value)}window[callback]=data=>{const st=studentFromResponse(data,code);if(st)finish(null,st);else finish(new Error((data&&(data.error||data.message))||'Код ученика не найден'))};script.onerror=()=>finish(new Error('Не удалось связаться с сервером проверки кода'));script.src=`${API_URL}?action=validateStudent&code=${encodeURIComponent(code)}&callback=${encodeURIComponent(callback)}`;document.head.appendChild(script)})}
 async function sha256(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+function normalizeStats(x){return{firstTryCorrect:Number(x?.firstTryCorrect)||0,completed:Number(x?.completed)||0,wrong:Number(x?.wrong)||0,hints:Number(x?.hints)||0,attemptCount:Number(x?.attemptCount)||0}}
+function newGameState(studentLimit=1){return{version:1,schemaVersion:SCHEMA_VERSION,boardEpoch:0,strokes:{},game:{status:'lobby',studentLimit:Number(studentLimit)===2?2:1,players:{},playerOrder:[],turnKey:'',deck:[],index:0,stats:{},eventIds:{},submissions:{},sessionId:uuid(),startedAt:0,finishedAt:0,endedEarly:false,feedback:null}}}
+function normalizeState(input){const s=input&&typeof input==='object'?clone(input):newGameState(1);s.version=Number(s.version)||1;s.schemaVersion=Number(s.schemaVersion)||SCHEMA_VERSION;s.boardEpoch=Number(s.boardEpoch)||0;s.strokes=s.strokes||{};const g=s.game||(s.game={});g.status=g.status||'lobby';g.studentLimit=Number(g.studentLimit)===2?2:1;g.players=g.players||{};g.playerOrder=Array.isArray(g.playerOrder)?g.playerOrder:[];g.turnKey=g.turnKey||'';g.deck=Array.isArray(g.deck)?g.deck:[];g.index=Math.max(0,Number(g.index)||0);g.stats=g.stats||{};for(const pk of Object.keys(g.stats))g.stats[pk]=normalizeStats(g.stats[pk]);g.eventIds=g.eventIds||{};g.submissions=g.submissions||{};g.sessionId=g.sessionId||uuid();g.startedAt=Number(g.startedAt)||0;g.finishedAt=Number(g.finishedAt)||0;g.endedEarly=!!g.endedEarly;g.feedback=g.feedback||null;return s}
+function buildStudentEntries(seed,pk){
+  const rng=seededRng(seed+'|'+pk),ids=shuffle(QUESTIONS.map(q=>q.id),rng).slice(0,TASKS_PER_STUDENT);
+  return ids.map((qid,i)=>{
+    const optionOrder=shuffle(['correct','wrong0','wrong1'],rng),bank=ANSWER_BANK[qid];
+    return{id:`${pk}-${i+1}`,ownerKey:pk,ownerTask:i+1,questionId:qid,optionOrder,answerOrder:shuffle(bank.options,rng),phase:'method',firstTryEligible:true,hintUsed:false,resolved:false};
+  });
+}
+function buildDeck(order,sessionId){const per={};order.forEach(pk=>per[pk]=buildStudentEntries(sessionId,pk));if(order.length===1)return per[order[0]];const deck=[];for(let i=0;i<TASKS_PER_STUDENT;i++)for(const pk of order)deck.push(per[pk][i]);return deck}
+function currentEntry(s=serverState){return s?.game?.deck?.[s?.game?.index]||null}function questionById(id){return QUESTIONS.find(q=>q.id===id)}
+function showToast(text,bad=false){const t=$('toast');t.textContent=text;t.className='toast show'+(bad?' bad':'');clearTimeout(showToast.tm);showToast.tm=setTimeout(()=>t.className='toast',2300)}
 
-let audioCtx=null,musicTimer=null;
-function ac(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();return audioCtx}
-function tone(f,start,dur,type='sine',vol=.1){if(muted)return;const c=ac(),o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.value=f;o.connect(g);g.connect(c.destination);const t=c.currentTime+start;g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(vol,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.start(t);o.stop(t+dur+.04)}
-function sound(kind){if(kind==='good')[523,659,784,1046].forEach((f,i)=>tone(f,i*.05,.2,'triangle',.14));else if(kind==='bad'){tone(145,0,.25,'sawtooth',.18);tone(90,.1,.35,'square',.13)}else if(kind==='win')[392,523,659,784,1046].forEach((f,i)=>tone(f,i*.1,.4,'triangle',.14));else tone(330,0,.06,'square',.06)}
-function startMusic(){if(musicTimer)return;let i=0;const ns=[130.8,164.8,196,164.8];const loop=()=>{if(!muted)tone(ns[i++%ns.length],0,.55,'triangle',.025);musicTimer=setTimeout(loop,700)};loop()}
-$('#soundBtn').onclick=function(){muted=!muted;this.textContent=muted?'🔇 Звук':'🔊 Звук';if(!muted)startMusic()};document.body.addEventListener('pointerdown',()=>{ac();startMusic()},{once:true});
-function feedbackFx(ok,text){const fx=$('#answerFx');$('#fxTitle').textContent=ok?'ВЕРНО!':'НЕВЕРНО';$('#fxText').textContent=text||'';fx.className='answer-fx show '+(ok?'good':'bad');if(!ok){document.body.classList.remove('fx-shake');void document.body.offsetWidth;document.body.classList.add('fx-shake');setTimeout(()=>document.body.classList.remove('fx-shake'),650)}clearTimeout(feedbackFx.tm);feedbackFx.tm=setTimeout(()=>fx.className='answer-fx',980);sound(ok?'good':'bad')}
+/* ===== audio ===== */
+const SFX=(()=>{let ac=null;function ready(){if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume();return ac}function tone(f,d=.15,type='sine',v=.09,delay=0){if(muted)return;try{const c=ready(),t=c.currentTime+delay,o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g).connect(c.destination);o.start(t);o.stop(t+d+.03)}catch{}}return{tap(){tone(540,.07,'sine',.07)},bad(){tone(155,.42,'sawtooth',.16);tone(95,.55,'square',.08,.06);tone(210,.16,'sawtooth',.08,.2)},goodStep(){tone(523,.14,'triangle',.12);tone(659,.16,'triangle',.11,.07);tone(784,.2,'sine',.09,.14);tone(1047,.16,'triangle',.06,.21)},pop(){tone(150,.12,'sine',.22);tone(70,.3,'sine',.18,.08);[520,690,900,1180].forEach((f,i)=>tone(f,.24,'triangle',.08,.18+i*.08));tone(1800,.55,'sine',.03,.55)},hint(){tone(700,.12,'sine',.08);tone(980,.16,'triangle',.07,.08)},finish(){[392,523,659,784,1047].forEach((f,i)=>tone(f,.28,'triangle',.11,i*.09))}}})();
+$('soundBtn').onclick=()=>{muted=!muted;$('soundBtn').textContent=muted?'🔇':'🔊'};
+function badEffect(){SFX.bad();document.body.classList.remove('bad-feedback');void document.body.offsetWidth;document.body.classList.add('bad-feedback');setTimeout(()=>document.body.classList.remove('bad-feedback'),850)}
+function methodGoodEffect(){SFX.goodStep();document.body.classList.remove('good-step-feedback');void document.body.offsetWidth;document.body.classList.add('good-step-feedback');setTimeout(()=>document.body.classList.remove('good-step-feedback'),1080)}
+function successEffect(){SFX.pop();const fx=$('successFx');fx.querySelectorAll('.splash-drop').forEach(x=>x.remove());for(let i=0;i<34;i++){const d=document.createElement('i'),a=Math.random()*Math.PI*2,dist=90+Math.random()*Math.max(innerWidth,innerHeight)*.55;d.className='splash-drop';d.style.setProperty('--dx',Math.cos(a)*dist+'px');d.style.setProperty('--dy',Math.sin(a)*dist+'px');d.style.setProperty('--delay',(0.45+Math.random()*.45)+'s');fx.appendChild(d)}fx.classList.remove('show');void fx.offsetWidth;fx.classList.add('show');setTimeout(()=>fx.classList.remove('show'),3020)}
 
-function buildBoard(){const board=$('#board');$$('.cell',board).forEach(x=>x.remove());Object.values(tokens).forEach(x=>x.remove());cells=[];tokens={};for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const cell=document.createElement('div');cell.className='cell';cell.dataset.r=r;cell.dataset.c=c;const rune=document.createElement('span');rune.className='rune';rune.textContent=RUNES[(r*COLS+c)%RUNES.length];cell.appendChild(rune);if(r===START.r&&c===START.c){cell.classList.add('start');rune.textContent='⚑'}if(r===FINISH.r&&c===FINISH.c){cell.classList.add('finish');rune.textContent='✗'}board.appendChild(cell);cells.push(cell)}}
-const cellAt=(r,c)=>cells[r*COLS+c];
-function ensureToken(pk,slot,name){if(tokens[pk])return tokens[pk];const t=document.createElement('div');t.className=`player-token slot${slot||1}`;t.innerHTML=`<svg viewBox="0 0 34 42"><path d="M17 41 C6 27 3 20 3 13 A14 14 0 0 1 31 13 C31 20 28 27 17 41Z" stroke-width="1.7"/><circle cx="17" cy="13" r="5" fill="#ffe1c0"/></svg><span class="token-label">${esc(name||'Ученик')}</span>`;$('#board').appendChild(t);tokens[pk]=t;return t}
-function moveToken(t,cell){if(!t||!cell)return;t.style.left=(cell.offsetLeft+cell.offsetWidth/2)+'px';t.style.top=(cell.offsetTop+cell.offsetHeight/2)+'px'}
-function renderPlayers(g){const wrap=$('#playersStrip');wrap.innerHTML=(g.playerOrder||[]).map((pk,i)=>{const p=g.players[pk],st=g.progress[pk]||{},active=g.turnKey===pk&&g.status==='playing';return`<div class="player-chip ${active?'active':''}"><span>${i===0?'🔴':'🔵'} Ученик ${i+1}</span><b>${esc(p?.name||'Ученик')}</b><em>${Number(st.completed)||0}/15 · с первого раза ${Number(st.firstTryCorrect)||0}</em></div>`}).join('');$('#turnTxt').textContent=g.status==='playing'?(g.players[g.turnKey]?.name||'—'):g.status==='finished'?'Завершено':'Ожидание'}
-function renderMap(g){const path=pathFromMoves(g.routeMoves);for(const [pk,t] of Object.entries(tokens)){if(!(g.playerOrder||[]).includes(pk)){t.remove();delete tokens[pk]}}cells.forEach(c=>c.classList.remove('safe','current','boom'));let maxDone=0;for(const [i,pk] of (g.playerOrder||[]).entries()){const st=g.progress[pk]||{},done=Math.min(TOTAL,Number(st.completed)||0);maxDone=Math.max(maxDone,done);const p=g.players[pk],t=ensureToken(pk,i+1,p?.name);moveToken(t,cellAt(path[done].r,path[done].c))}for(let i=1;i<=maxDone&&i<path.length;i++)cellAt(path[i].r,path[i].c)?.classList.add('safe');const ap=g.progress[g.turnKey];if(g.status==='playing'&&ap){const pos=path[Math.min(TOTAL,Number(ap.completed)||0)];cellAt(pos.r,pos.c)?.classList.add('current')}}
-function currentQuestion(g){const pk=g.turnKey,st=g.progress[pk];if(!pk||!st)return null;return g.questions?.[pk]?.[Number(st.completed)||0]||null}
-function renderQuestion(g){const q=currentQuestion(g),pk=g.turnKey,st=g.progress[pk]||{},active=role==='student'&&participantPlayerKey===pk,observer=role==='student'&&!active,teacher=role==='teacher';if(g.status!=='playing'||!q){$('#qTag').textContent=g.status==='finished'?'Занятие завершено':'Ожидаем старт';$('#qTxt').textContent='—';$$('.arrow').forEach(a=>{a.disabled=true;a.querySelector('.val').textContent='—'});return}const idx=Number(st.completed)||0,vals=optionMap(g,pk,idx,q),wrong=new Set(st.wrongDirs||[]);$('#qTag').innerHTML=`Задача ${idx+1} из 15 · <span style="color:#e0a83f">${q.tag}</span>`;$('#qTxt').innerHTML=q.text;$$('.arrow').forEach(a=>{const d=a.dataset.dir;a.classList.remove('correct','wrong','locked-observer');a.querySelector('.val').textContent=vals[d];a.disabled=!active||wrong.has(d);if(!active)a.classList.add('locked-observer');if(wrong.has(d))a.classList.add('wrong')});let note=$('.observer-note');if(!note){note=document.createElement('div');note.className='observer-note';$('#dpad').after(note)}note.textContent=active?'Твой ход — выбери стрелку с верным ответом.':observer?`Сейчас отвечает ${g.players[pk]?.name||'другой ученик'}. Ты видишь тот же пример и все варианты, но нажимать стрелки пока нельзя.`:teacher?`Сейчас отвечает ${g.players[pk]?.name||'ученик'}. Учитель видит тот же пример и может писать на общей доске.`:'';$('#scoreTxt').textContent=String(st.completed||0);$('#triesTxt').textContent=String(Math.max(1,Number(st.attemptCount)||0));$('#totalTxt').textContent='15'}
-function consumeFeedback(g){const f=g.feedback;if(!f||Number(f.at)||0<=lastFeedbackAt)return;lastFeedbackAt=Number(f.at)||Date.now();feedbackFx(!!f.correct,f.correct?'Шаг по карте засчитан.':'Ход остаётся у этого же ученика — исправь ответ.')}
-function renderFromState(){const g=serverState?.game;if(!g){renderPlayers(newGame(1));return}renderPlayers(g);renderMap(g);renderQuestion(g);consumeFeedback(g);updateSessionPanel();if(g.status==='finished'){showFinal(g);if(role==='student'&&participantPlayerKey)ensureSubmission(participantPlayerKey);if(role==='teacher')setTimeout(()=>g.playerOrder.forEach(ensureSubmission),1000)}}
+/* ===== atmosphere ===== */
+function startAtmosphere(){const top=$('sceneTop'),fish=['🐠','🐟','🐡','🐠','🐟','🦑','🐠'];for(let i=0;i<12;i++){const f=document.createElement('span');f.className='swim-fish'+(i%3===0?' rev':'');f.textContent=fish[i%fish.length];f.style.setProperty('--y',(8+Math.random()*78)+'%');f.style.setProperty('--s',(28+Math.random()*34)+'px');f.style.setProperty('--d',(14+Math.random()*22)+'s');f.style.setProperty('--delay',(-Math.random()*28)+'s');top.appendChild(f)}for(let i=0;i<38;i++){const b=document.createElement('i');b.className='fx-bubble';const z=7+Math.random()*22;b.style.width=b.style.height=z+'px';b.style.left=Math.random()*100+'%';b.style.setProperty('--d',(8+Math.random()*14)+'s');b.style.setProperty('--delay',(-Math.random()*18)+'s');b.style.setProperty('--drift',(-45+Math.random()*90)+'px');top.appendChild(b)}}
 
-async function answer(dir){if(role!=='student'||!participantPlayerKey||!serverState?.game)return;const before=clone(serverState.game);if(before.status!=='playing'||before.turnKey!==participantPlayerKey)return;const pk=participantPlayerKey,idx=Number(before.progress?.[pk]?.completed)||0,correctDir=before.routeMoves[idx];try{const res=await runTransaction(gameRef(),cur=>{const g=normalizeGame(cur||before);if(g.status!=='playing'||g.turnKey!==pk)return;const st=g.progress[pk]||(g.progress[pk]={completed:0,firstTryCorrect:0,attemptCount:0,currentAttempted:false,wrongDirs:[]});const i=Number(st.completed)||0;if(i>=TOTAL)return;const right=g.routeMoves[i];st.attemptCount=(Number(st.attemptCount)||0)+1;if(dir!==right&&(st.wrongDirs||[]).includes(dir))return g;if(dir===right){if(!st.currentAttempted)st.firstTryCorrect=(Number(st.firstTryCorrect)||0)+1;st.completed=i+1;st.currentAttempted=false;st.wrongDirs=[];g.feedback={correct:true,by:pk,index:i,dir,at:Date.now()};const allDone=g.playerOrder.every(k=>(Number(g.progress[k]?.completed)||0)>=TOTAL);if(allDone){g.status='finished';g.finishedAt=Date.now();g.turnKey=''}else g.turnKey=nextTurn(g)}else{st.currentAttempted=true;st.wrongDirs=Array.from(new Set([...(st.wrongDirs||[]),dir]));g.feedback={correct:false,by:pk,index:i,dir,at:Date.now()}}return g},{applyLocally:true});if(!res.committed&&serverState?.game?.turnKey===pk)setTimeout(()=>answer(dir),120)}catch(err){console.error(err);setTimeout(()=>{if(serverState?.game?.turnKey===pk)answer(dir)},180)}}
-$$('.arrow').forEach(a=>a.addEventListener('click',()=>answer(a.dataset.dir)));window.addEventListener('keydown',e=>{if(['INPUT','TEXTAREA'].includes(document.activeElement?.tagName))return;const map={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right'};if(map[e.key]){e.preventDefault();answer(map[e.key])}});window.addEventListener('resize',()=>serverState&&renderMap(serverState.game));
+/* ===== screens ===== */
+function hideAllGameParts(){$('problemBubble').classList.add('hidden');$('needleDock').classList.add('hidden');$('gameTools').classList.add('hidden');$('waitTurn').classList.add('hidden')}
+function publicInfo(){const g=serverState?.game;if(!online)return['НЕТ СОЕДИНЕНИЯ','Страница сохранит состояние и восстановится после подключения.'];if(!g)return['ЖДЁМ УЧИТЕЛЯ','Учитель ещё не создал текущее занятие. Статус обновится автоматически.'];if(g.status==='lobby')return['СБОР ИГРОКОВ',`Занятие создано на ${g.studentLimit} ${g.studentLimit===1?'ученика':'учеников'}.`];if(g.status==='playing')return['ИГРА ИДЁТ','Войди своей ролью, чтобы вернуться в текущую игру.'];return['ЗАНЯТИЕ ЗАВЕРШЕНО','Учитель может создать новое занятие.']}
+function seatsHtml(g=serverState?.game){if(!g)return'<div class="seat"><b>1</b><span>Места появятся после создания занятия</span></div>';const onlineIds=new Set(Object.values(membersSnapshot).filter(m=>m?.online&&m.role==='student').map(m=>String(m.studentId)));return Array.from({length:g.studentLimit},(_,i)=>{const row=Object.entries(g.players).find(([,p])=>Number(p.slot)===i+1);return`<div class="seat ${row?'filled':''}"><b>${i+1}</b><span>${row?esc(row[1].name)+(onlineIds.has(String(row[1].studentId))?' · онлайн':' · не в сети'):'Свободное место'}</span></div>`}).join('')}
+function renderPublic(){hideAllGameParts();$('publicScreen').classList.remove('hidden');$('lobbyScreen').classList.add('hidden');$('finishScreen').classList.add('hidden');const [title,desc]=publicInfo(),g=serverState?.game,onlineCount=Object.values(membersSnapshot).filter(m=>m?.online&&m.role==='student').length;$('publicPanel').innerHTML=`<span class="session-kicker">Комната ожидания</span><div class="logo">🐚</div><h1>${title}</h1><p class="lead">${desc}</p><div class="seats">${seatsHtml(g)}</div><div class="session-summary"><div>Режим<b>${g?g.studentLimit+' учен.':'—'}</b></div><div>Онлайн<b>${onlineCount}</b></div><div>Задач каждому<b>10</b></div></div><div class="native-actions"><button class="sys-btn primary" id="publicEnter">ВОЙТИ В УРОК</button></div>`;$('publicEnter').onclick=openRoleModal;$('lessonJoinBtn').classList.remove('hidden');syncConnectedUi(false)}
+function renderWaitingTeacher(){hideAllGameParts();$('publicScreen').classList.add('hidden');$('finishScreen').classList.add('hidden');$('lobbyScreen').classList.remove('hidden');$('lobbyPanel').innerHTML=`<span class="session-kicker">Совместный урок</span><div class="logo">🪸</div><h1>ЖДЁМ УЧИТЕЛЯ</h1><p class="lead">Код проверен. Как только учитель создаст занятие, ты автоматически займёшь место.</p>`;syncConnectedUi(true)}
+function renderLobby(s){hideAllGameParts();$('publicScreen').classList.add('hidden');$('finishScreen').classList.add('hidden');$('lobbyScreen').classList.remove('hidden');const g=s.game,players=Object.entries(g.players),onlineIds=new Set(Object.values(membersSnapshot).filter(m=>m?.online&&m.role==='student').map(m=>String(m.studentId))),ready=players.length>=g.studentLimit&&players.slice(0,g.studentLimit).every(([,p])=>onlineIds.has(String(p.studentId)));$('lobbyPanel').innerHTML=`<span class="session-kicker">Подводная база</span><div class="logo">🐠</div><h1>10 СЛУЧАЙНЫХ ЗАДАЧ · 2 ЭТАПА</h1><p class="lead">Каждому ученику случайно выбираются 10 разных прототипов из банка 15. Сначала способ решения, затем конечный ответ.</p><div class="seats">${seatsHtml(g)}</div>${role==='teacher'?`<div class="native-actions"><button class="sys-btn primary" id="startGame" ${ready?'':'disabled'}>${ready?'НАЧАТЬ ИГРУ':'ЖДЁМ УЧЕНИКОВ'}</button><button class="sys-btn" id="newGame">НОВОЕ ЗАНЯТИЕ</button></div>`:'<p class="lead">Место закреплено. Ждём запуска учителем.</p>'}` ;if($('startGame'))$('startGame').onclick=hostStartGame;if($('newGame'))$('newGame').onclick=openNewSessionChooser;syncConnectedUi(true);updateSessionPanel()}
+function renderWaitingTurn(s){hideAllGameParts();$('publicScreen').classList.add('hidden');$('lobbyScreen').classList.add('hidden');$('finishScreen').classList.add('hidden');$('waitTurn').classList.remove('hidden');const g=s.game,me=normalizeStats(g.stats[participantPlayerKey]),who=g.players[g.turnKey]?.name||'другой ученик';$('waitText').innerHTML=`Сейчас отвечает <b>${esc(who)}</b>.<br>Твой прогресс: ${me.completed}/${TASKS_PER_STUDENT}. Условие и варианты другого ученика скрыты.`;$('turnName').textContent=who;$('scoreText').textContent=me.firstTryCorrect;$('miniProgress').textContent=`${me.completed}/${TASKS_PER_STUDENT}`;$('progressText').textContent=`Твой прогресс · ${me.completed}/${TASKS_PER_STUDENT}`;syncConnectedUi(true);updateSessionPanel()}
+function rawMethodOption(q,key){if(key==='correct')return q.correct;if(key==='wrong0')return q.wrong[0];return q.wrong[1]}
+function methodOption(q,key){
+  const raw=rawMethodOption(q,key),m=raw.match(/^<strong>(.*?)<\/strong>([\s\S]*)$/i),title=m?m[1]:'Способ решения',body=(m?m[2]:raw).trim();
+  const steps=body.split('→').map(x=>x.trim()).filter(Boolean);
+  return `<strong class="method-title">План действий</strong><ol class="method-steps"><li>${title}</li>${steps.map(x=>`<li>${x}</li>`).join('')}</ol>`;
+}
+function renderGame(s){
+  const g=s.game,e=currentEntry(s),q=questionById(e?.questionId);if(!e||!q)return;
+  if(role==='student'&&participantPlayerKey!==e.ownerKey){renderWaitingTurn(s);return}
+  $('publicScreen').classList.add('hidden');$('lobbyScreen').classList.add('hidden');$('finishScreen').classList.add('hidden');$('waitTurn').classList.add('hidden');$('problemBubble').classList.remove('hidden');$('needleDock').classList.remove('hidden');$('gameTools').classList.remove('hidden');
+  const pk=e.ownerKey,st=normalizeStats(g.stats[pk]),canAnswer=role==='student'&&participantPlayerKey===pk&&g.turnKey===pk&&!e.resolved,phase=e.phase||'method';
+  $('turnName').textContent=g.players[pk]?.name||'Ученик';$('scoreText').textContent=st.firstTryCorrect;$('miniProgress').textContent=`${st.completed}/${TASKS_PER_STUDENT}`;$('progressText').textContent=`Подводный блиц · ${e.ownerTask}/${TASKS_PER_STUDENT}`;$('prototype').textContent=q.prototype;$('sourceText').textContent=`Прототип ${q.source}`;$('questionCount').textContent=`${e.ownerTask} из ${TASKS_PER_STUDENT}`;$('questionText').innerHTML=q.text;
+  $('phaseBadge').textContent=phase==='method'?'Этап 1/2 · способ':'Этап 2/2 · ответ';
+  $('hintBox').innerHTML='💡 '+q.hint;$('hintBox').classList.toggle('show',!!e.hintUsed);$('hintBtn').disabled=!canAnswer||e.hintUsed;$('hintBtn').textContent=e.hintUsed?'Подсказка открыта':'💡 Подсказка';
+  $('gameMessage').textContent=phase==='method'?'Сначала выбери правильный способ решения. Шаги каждого варианта показаны по порядку.':'Способ выбран верно. Теперь выбери конечный ответ и лопни пузырь.';
+  const dock=$('needleDock');dock.innerHTML='';
+  if(phase==='method'){
+    e.optionOrder.forEach(key=>{const b=document.createElement('button');b.className='needle';b.type='button';b.dataset.choice=key;b.innerHTML=methodOption(q,key);b.disabled=!canAnswer;bindChoiceNeedle(b);dock.appendChild(b)});
+  }else{
+    (e.answerOrder||ANSWER_BANK[e.questionId].options).forEach(value=>{const b=document.createElement('button');b.className='needle answer-choice';b.type='button';b.dataset.choice=value;b.textContent=value;b.disabled=!canAnswer;bindChoiceNeedle(b);dock.appendChild(b)});
+  }
+  requestAnimationFrame(()=>placeBubble());syncConnectedUi(true);updateSessionPanel();attachBoardLayer();consumeFeedback(g.feedback)
+}
+function renderFinal(s){hideAllGameParts();$('publicScreen').classList.add('hidden');$('lobbyScreen').classList.add('hidden');$('finishScreen').classList.remove('hidden');const g=s.game,order=g.playerOrder.length?g.playerOrder:Object.keys(g.players).sort((a,b)=>(g.players[a]?.slot||9)-(g.players[b]?.slot||9));$('finishPanel').innerHTML=`<span class="session-kicker">Финиш</span><div class="logo">🏆</div><h1>${g.endedEarly?'ЗАНЯТИЕ ЗАВЕРШЕНО':'БЛИЦ ЗАВЕРШЁН'}</h1><div class="stats" style="grid-template-columns:repeat(${order.length},1fr)">${order.map(pk=>{const p=g.players[pk],st=normalizeStats(g.stats[pk]),max=g.endedEarly?st.completed:TASKS_PER_STUDENT,pc=max?Math.round(st.firstTryCorrect/max*100):0,sub=g.submissions[pk];return`<div class="stat"><b>${pc}%</b><span>${esc(p?.name||'Ученик')} · ${st.firstTryCorrect}/${max} с первой<br>${sub?.status==='saved'?'✓ сохранено':sub?.status==='sending'?'сохраняем…':sub?.status==='queued'?'в очереди':'готово'}</span></div>`}).join('')}</div><div class="native-actions">${role==='teacher'?'<button class="sys-btn primary" id="finalNew">НОВОЕ ЗАНЯТИЕ</button>':'<button class="sys-btn" id="finalSwitch">СМЕНИТЬ УЧЕНИКА</button>'}</div>`;if($('finalNew'))$('finalNew').onclick=openNewSessionChooser;if($('finalSwitch'))$('finalSwitch').onclick=switchStudent;syncConnectedUi(true);updateSessionPanel();if(role==='student'&&participantPlayerKey)ensureSubmission(participantPlayerKey);if(role==='teacher')scheduleTeacherBackup()}
+function renderFromState(){renderBoardStrokes();updateTeacherCursor();if(!role){renderPublic();return}if(!serverState){role==='student'?renderWaitingTeacher():renderPublic();return}const s=normalizeState(serverState);serverState=s;if(s.game.status==='lobby')renderLobby(s);else if(s.game.status==='playing')renderGame(s);else if(s.game.status==='finished')renderFinal(s)}
 
-function openLessonModal(html){const m=$('#lessonModal');delete m.dataset.final;m.innerHTML=`<div class="lesson-card">${html}</div>`;m.classList.add('open');const x=$('#closeModalBtn');if(x)x.onclick=()=>m.classList.remove('open')}
-function closeLessonModal(){$('#lessonModal').classList.remove('open');$('#lessonModal').innerHTML=''}
-function openRoleModal(){const saved=storedStudent();openLessonModal(`<button class="modal-x" id="closeModalBtn">×</button><div class="kicker">СОВМЕСТНЫЙ УРОК · БЕЗ КОМНАТ</div><h2>Как вы входите?</h2><div class="role-grid"><button class="role-choice" id="teacherRole"><b>🖥️ Учитель</b><small>Создать или продолжить currentSession</small></button><button class="role-choice" id="studentRole"><b>✏️ Ученик</b><small>${saved?`Быстрый вход: ${esc(saved.name)}`:'Войти по личному коду ученика'}</small></button></div>`);$('#teacherRole').onclick=openTeacherLogin;$('#studentRole').onclick=()=>saved?fastSavedStudent(saved):openStudentLogin()}
-function openTeacherLogin(){openLessonModal(`<button class="modal-x" id="closeModalBtn">×</button><div class="kicker">ДОСТУП УЧИТЕЛЯ</div><h2>Код учителя</h2><form id="teacherForm" class="code-form"><input id="teacherCode" type="password" placeholder="КОД УЧИТЕЛЯ"><button class="system-btn">Войти</button><div class="status" id="teacherStatus"></div></form>`);$('#teacherForm').onsubmit=async e=>{e.preventDefault();const st=$('#teacherStatus'),btn=e.submitter;btn.disabled=true;st.textContent='Проверяем…';try{if(await sha256($('#teacherCode').value.trim())!==TEACHER_CODE_HASH)throw new Error('Неверный код учителя');teacherAuthenticated=true;role='teacher';startSessionListeners();await registerPresence();await showTeacherSetup()}catch(err){st.className='status bad';st.textContent=err.message}finally{btn.disabled=false}}}
-async function showTeacherSetup(){const snap=await get(stateRef());const existing=snap.exists()?normalizeState(snap.val()):null;openLessonModal(`<button class="modal-x" id="closeModalBtn">×</button><div class="kicker">CURRENTSESSION</div><h2>${existing?'Текущее занятие найдено':'Новое занятие'}</h2><p>${existing?'Можно продолжить его без кодов комнат или создать новое.':'Выберите количество учеников.'}</p><div class="mode-grid"><button class="mode-choice" data-limit="1"><b>1 ученик</b><small>15 задач одному ученику</small></button><button class="mode-choice" data-limit="2"><b>2 ученика</b><small>По 15 задач каждому · строго по очереди</small></button></div>${existing?'<div class="native-actions"><button class="system-btn secondary" id="continueSession">Продолжить текущее</button></div>':''}`);$$('[data-limit]').forEach(b=>b.onclick=()=>createNewSession(Number(b.dataset.limit)));if($('#continueSession'))$('#continueSession').onclick=()=>{serverState=existing;closeLessonModal();showConnectedUI();renderFromState()}}
-async function createNewSession(limit){const s={schemaVersion:SCHEMA_VERSION,game:newGame(limit)};await set(stateRef(),s);await remove(strokesRef()).catch(()=>{});await remove(membersRef()).catch(()=>{});serverState=normalizeState(s);await registerPresence();closeLessonModal();showConnectedUI();renderFromState()}
-function openStudentLogin(){openLessonModal(`<button class="modal-x" id="closeModalBtn">×</button><div class="kicker">ВХОД УЧЕНИКА</div><h2>Личный код</h2><p>После проверки ты автоматически подключишься к текущему занятию.</p><form id="studentForm" class="code-form"><input id="studentCode" placeholder="ЛИЧНЫЙ КОД" autocomplete="one-time-code"><button class="system-btn">Войти</button><div class="status" id="studentStatus"></div></form>`);$('#studentForm').onsubmit=async e=>{e.preventDefault();const code=$('#studentCode').value.trim(),st=$('#studentStatus'),btn=e.submitter;if(!code)return;btn.disabled=true;st.textContent='Проверяем код…';try{const s=await validateStudentCode(code);saveStudent(s);await connectStudent(s);closeLessonModal()}catch(err){st.className='status bad';st.textContent=err.message||'Код не подтверждён'}finally{btn.disabled=false}}}
-async function fastSavedStudent(saved){openLessonModal(`<div class="kicker">БЫСТРЫЙ ВХОД</div><h2>${esc(saved.name)}</h2><p>Проверяем сохранённый личный код и сразу подключаем к currentSession…</p><div class="status" id="fastStatus">Соединение…</div><div class="native-actions"><button class="system-btn secondary" id="changeSaved">Сменить ученика</button></div>`);$('#changeSaved').onclick=()=>{clearStudent();openStudentLogin()};try{let s=await(prewarmedStudentPromise||validateStudentCode(saved.code));if(!s)s=await validateStudentCode(saved.code);saveStudent(s);await connectStudent(s);closeLessonModal()}catch(err){const st=$('#fastStatus');if(st){st.className='status bad';st.textContent=err.message||'Не удалось подтвердить код'}}}
-async function connectStudent(s){role='student';student=s;startSessionListeners();await registerPresence();await tryJoinStudent();showConnectedUI()}
-async function tryJoinStudent(){if(joinInFlight||role!=='student'||!student)return;joinInFlight=true;try{const ss=await get(stateRef());if(!ss.exists()){serverState=null;return}const initial=normalizeState(ss.val()),now=Date.now(),candidateEventId=uuid();const res=await runTransaction(gameRef(),cur=>{const g=normalizeGame(cur||initial.game);const existing=Object.keys(g.players).find(k=>String(g.players[k]?.studentId)===String(student.studentId));if(existing){g.players[existing].name=student.name;g.players[existing].code=student.code;g.players[existing].lastSeen=now;g.eventIds[existing]=g.eventIds[existing]||candidateEventId;return g}if(g.status!=='lobby'||Object.keys(g.players).length>=g.studentLimit)return;let pk=playerKey(student.studentId);if(g.players[pk])pk+='_'+Object.keys(g.players).length;const slot=g.playerOrder.length+1;g.players[pk]={studentId:student.studentId,name:student.name,code:student.code,slot,joinedAt:now,lastSeen:now};g.playerOrder.push(pk);g.progress[pk]={completed:0,firstTryCorrect:0,attemptCount:0,currentAttempted:false,wrongDirs:[]};g.eventIds[pk]=candidateEventId;g.submissions[pk]={status:'pending'};return g});if(res.committed){const g=normalizeGame(res.snapshot.val());const actual=Object.keys(g.players).find(k=>String(g.players[k]?.studentId)===String(student.studentId));participantPlayerKey=actual||participantPlayerKey;await registerPresence()}else throw new Error('Занятие уже началось или все места заняты.')}finally{joinInFlight=false}}
-async function registerPresence(){if(!role)return;participantId=participantId||browserClientId;const mref=memberRef(participantId),payload={role,online:true,clientId:browserClientId,updatedAt:Date.now(),name:role==='teacher'?'Учитель':student?.name||'Ученик'};if(role==='student'&&student){payload.studentId=student.studentId;payload.playerKey=participantPlayerKey}await set(mref,payload);presencePath=`${lessonRoot()}/members/${participantId}`;try{onDisconnect(mref).update({online:false,updatedAt:Date.now()})}catch{}}
-async function switchStudent(){await cleanupPresence();clearStudent();role='';participantPlayerKey='';stopSessionListeners();hideConnectedUI();openStudentLogin()}
-async function cleanupPresence(){if(!presencePath)return;try{await update(ref(database,presencePath),{online:false,updatedAt:Date.now()})}catch{}presencePath=null}
-function startSessionListeners(){stopSessionListeners();stateUnsub=onValue(stateRef(),snap=>{if(snap.exists()){serverState=normalizeState(snap.val());if(role==='student'&&student){const actual=Object.keys(serverState.game.players).find(k=>String(serverState.game.players[k]?.studentId)===String(student.studentId));if(actual)participantPlayerKey=actual;else if(serverState.game.status==='lobby')setTimeout(()=>tryJoinStudent(),0)}showConnectedUI();renderFromState()}else{serverState=null;if(role==='student')renderWaitingTeacher()}});membersUnsub=onValue(membersRef(),snap=>{membersSnapshot=snap.exists()?snap.val()||{}:{};updateSessionPanel();renderTeacherStartControl()});startStrokeListeners()}
-function stopSessionListeners(){stateUnsub?.();membersUnsub?.();stateUnsub=membersUnsub=null;stopStrokeListeners()}
-function renderWaitingTeacher(){showConnectedUI();$('#qTag').textContent='Ожидаем учителя';$('#qTxt').textContent='Личный код подтверждён. Как только учитель создаст currentSession, подключение произойдёт автоматически.';$$('.arrow').forEach(a=>{a.disabled=true;a.querySelector('.val').textContent='—'})}
-function showConnectedUI(){$('#lessonJoinBtn').style.display='none';$('#sessionPanel').classList.add('show');$('#sharedWorkArea').classList.add('show');$('#boardToolbar').classList.add('show');renderBoardToolbar();attachSharedBoard();updateSessionPanel();renderTeacherStartControl()}
-function hideConnectedUI(){$('#lessonJoinBtn').style.display='';$('#sessionPanel').classList.remove('show');$('#sharedWorkArea').classList.remove('show');$('#boardToolbar').classList.remove('show')}
-function updateSessionPanel(){const p=$('#sessionPanel');if(!role){p.classList.remove('show');return}const students=Object.values(membersSnapshot||{}).filter(x=>x?.online&&x.role==='student').length,g=serverState?.game,status=!online?'офлайн':g?.status==='playing'?'игра идёт':g?.status==='finished'?'завершено':g?'лобби':'ждём учителя';p.innerHTML=`<span class="session-dot ${online?'on':''}"></span><b>${role==='teacher'?'Учитель':esc(student?.name||'Ученик')}</b><span>${status} · учеников онлайн: ${students}</span>${role==='student'?'<button class="sys-mini" id="switchNow">Сменить ученика</button>':''}${role==='teacher'&&g?.status==='playing'?'<button class="sys-mini danger" id="finishNow">Завершить</button>':''}`;if($('#switchNow'))$('#switchNow').onclick=switchStudent;if($('#finishNow'))$('#finishNow').onclick=teacherFinish}
-function renderTeacherStartControl(){let box=$('#teacherStartBox');if(box)box.remove();if(role!=='teacher'||serverState?.game?.status!=='lobby')return;const g=serverState.game,count=Object.keys(g.players||{}).length;box=document.createElement('div');box.id='teacherStartBox';box.style='max-width:760px;margin:10px auto 15px;text-align:center;position:relative;z-index:30';box.innerHTML=`<div class="player-chip active"><span>Подключено учеников</span><b>${count}/${g.studentLimit}</b><button class="system-btn" id="teacherStart" ${count<g.studentLimit?'disabled':''}>Начать игру</button></div>`;$('#playersStrip').after(box);$('#teacherStart').onclick=startGame}
-async function startGame(){if(role!=='teacher'||!serverState)return;const seed=serverState.game.sessionId;await runTransaction(gameRef(),cur=>{const g=normalizeGame(cur||serverState.game);if(g.status!=='lobby'||g.playerOrder.length<g.studentLimit)return;g.routeMoves=makeRoute(g.sessionId+':route');for(const pk of g.playerOrder){g.questions[pk]=makeQuestionPack(g.sessionId+':'+pk+':questions');g.progress[pk]={completed:0,firstTryCorrect:0,attemptCount:0,currentAttempted:false,wrongDirs:[]}}g.status='playing';g.turnKey=g.playerOrder[0]||'';g.startedAt=Date.now();g.feedback=null;return g})}
-async function teacherFinish(){if(role!=='teacher'||serverState?.game?.status!=='playing')return;if(!confirm('Завершить занятие сейчас? В результат попадут только уже выполненные задания.'))return;await runTransaction(gameRef(),cur=>{const g=normalizeGame(cur||serverState.game);if(g.status!=='playing')return;g.status='finished';g.finishedAt=Date.now();g.endedEarly=true;g.turnKey='';return g})}
+/* ===== bubble motion ===== */
+let bx=80,by=40,vx=45,vy=30,lastMotion=0;function placeBubble(random=false){const a=$('arena'),b=$('problemBubble');if(!a||b.classList.contains('hidden'))return;const maxX=Math.max(5,a.clientWidth-b.offsetWidth-10),maxY=Math.max(5,a.clientHeight-b.offsetHeight-10);if(random){bx=Math.random()*maxX;by=Math.random()*maxY}bx=Math.max(5,Math.min(maxX,bx));by=Math.max(5,Math.min(maxY,by));b.style.left=bx+'px';b.style.top=by+'px'}function motionLoop(now){const b=$('problemBubble'),a=$('arena'),playing=serverState?.game?.status==='playing'&&!b.classList.contains('hidden');if(playing&&!currentEntry()?.resolved){const dt=Math.min(.04,Math.max(0,(now-lastMotion)/1000));const maxX=Math.max(5,a.clientWidth-b.offsetWidth-10),maxY=Math.max(5,a.clientHeight-b.offsetHeight-10);bx+=vx*dt;by+=vy*dt;if(bx<=5||bx>=maxX)vx*=-1;if(by<=5||by>=maxY)vy*=-1;bx=Math.max(5,Math.min(maxX,bx));by=Math.max(5,Math.min(maxY,by));b.style.left=bx+'px';b.style.top=by+'px'}lastMotion=now;requestAnimationFrame(motionLoop)}requestAnimationFrame(motionLoop);
+let DRAG=null;
+function bindChoiceNeedle(b){b.addEventListener('pointerdown',startNeedleDrag);b.addEventListener('pointermove',moveNeedleDrag);b.addEventListener('pointerup',endNeedleDrag);b.addEventListener('pointercancel',cancelNeedleDrag);b.addEventListener('click',ev=>{if(ev.detail===0)attemptChoice(b.dataset.choice)})}
+function startNeedleDrag(e){if(e.currentTarget.disabled)return;const n=e.currentTarget,r=n.getBoundingClientRect();DRAG={needle:n,pointerId:e.pointerId,offX:e.clientX-r.left,offY:e.clientY-r.top,homeLeft:r.left,homeTop:r.top,width:r.width,moved:false};n.setPointerCapture(e.pointerId);SFX.tap()}
+function moveNeedleDrag(e){if(!DRAG||DRAG.pointerId!==e.pointerId)return;if(Math.hypot(e.movementX||0,e.movementY||0)>0)DRAG.moved=true;const n=DRAG.needle;if(!n.classList.contains('dragging')){n.classList.add('dragging');n.style.width=DRAG.width+'px'}n.style.left=e.clientX-DRAG.offX+'px';n.style.top=e.clientY-DRAG.offY+'px';$('problemBubble').classList.toggle('target',needleTouchesBubble(n))}
+function needleTouchesBubble(n){const a=n.getBoundingClientRect(),b=$('problemBubble').getBoundingClientRect();return !(a.right+65<b.left||a.left>b.right||a.bottom<b.top||a.top>b.bottom)}
+function endNeedleDrag(e){if(!DRAG||DRAG.pointerId!==e.pointerId)return;const d=DRAG,hit=needleTouchesBubble(d.needle);DRAG=null;$('problemBubble').classList.remove('target');if(hit)attemptChoice(d.needle.dataset.choice);snapNeedle(d.needle,d)}
+function cancelNeedleDrag(){if(!DRAG)return;const d=DRAG;DRAG=null;snapNeedle(d.needle,d)}
+function snapNeedle(n,d){n.classList.add('snap');n.style.left=d.homeLeft+'px';n.style.top=d.homeTop+'px';setTimeout(()=>{n.classList.remove('dragging','snap');n.style.left=n.style.top=n.style.width=''},330)}
 
-function showFinal(g){if($('#lessonModal').classList.contains('open')&&$('#lessonModal').dataset.final==='1')return;const rows=g.playerOrder.map(pk=>{const p=g.players[pk],st=g.progress[pk]||{},completed=Number(st.completed)||0,total=g.endedEarly?completed:TOTAL,percent=total?Math.round((Number(st.firstTryCorrect)||0)/total*100):0,sub=g.submissions?.[pk];return`<div class="final-player"><b>${esc(p?.name||'Ученик')}</b><strong>${percent}%</strong><small>${st.firstTryCorrect||0}/${total||0} с первой попытки · выполнено ${completed}/15</small><div class="save-line">${esc(sub?.message||sub?.status||'')}</div></div>`}).join('');openLessonModal(`<div class="kicker">КЛАД НАЙДЕН</div><h2>Занятие завершено</h2><div class="final-grid">${rows}</div>${role==='teacher'?'<div class="native-actions"><button class="system-btn" id="newAfterFinish">Новое занятие</button></div>':''}`);$('#lessonModal').dataset.final='1';if($('#newAfterFinish'))$('#newAfterFinish').onclick=showTeacherSetup;sound('win')}
+/* ===== game transactions ===== */
+async function hostStartGame(){if(role!=='teacher'||!serverState)return;const initial=clone(serverState);await runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(initial)),g=s.game;if(g.status!=='lobby')return s;const onlineIds=new Set(Object.values(membersSnapshot).filter(m=>m?.online&&m.role==='student').map(m=>String(m.studentId)));const order=Object.keys(g.players).sort((a,b)=>(g.players[a]?.slot||9)-(g.players[b]?.slot||9)).slice(0,g.studentLimit);if(order.length<g.studentLimit||!order.every(pk=>onlineIds.has(String(g.players[pk]?.studentId))))return s;g.playerOrder=order;g.stats={};g.eventIds={};g.submissions={};order.forEach(pk=>{g.stats[pk]=normalizeStats();g.eventIds[pk]=uuid()});g.deck=buildDeck(order,g.sessionId);g.index=0;g.turnKey=g.deck[0]?.ownerKey||order[0];g.feedback=null;g.status='playing';g.startedAt=Date.now();g.finishedAt=0;g.endedEarly=false;s.version++;return s});SFX.tap()}
+async function attemptChoice(choice){
+  const e=currentEntry(),q=questionById(e?.questionId);if(role!=='student'||!e||!q||participantPlayerKey!==e.ownerKey||serverState?.game?.turnKey!==participantPlayerKey||e.resolved)return;
+  const initial=clone(serverState),phase=e.phase||'method';
+  await runTransaction(stateRef(),current=>{
+    const s=normalizeState(current||clone(initial)),g=s.game,en=g.deck[g.index];if(g.status!=='playing'||!en||en.ownerKey!==participantPlayerKey||g.turnKey!==participantPlayerKey||en.resolved||en.id!==e.id||(en.phase||'method')!==phase)return s;
+    const st=g.stats[participantPlayerKey]||(g.stats[participantPlayerKey]=normalizeStats());st.attemptCount++;
+    if(phase==='method'){
+      const ok=choice==='correct';
+      if(!ok){en.firstTryEligible=false;st.wrong++;g.feedback={id:uuid(),type:'badMethod',ownerKey:participantPlayerKey,entryId:en.id,at:Date.now()}}
+      else{en.phase='answer';g.feedback={id:uuid(),type:'methodGood',ownerKey:participantPlayerKey,entryId:en.id,at:Date.now()}}
+    }else{
+      const ok=choice===ANSWER_BANK[en.questionId].answer;
+      if(!ok){en.firstTryEligible=false;st.wrong++;g.feedback={id:uuid(),type:'badAnswer',ownerKey:participantPlayerKey,entryId:en.id,at:Date.now()}}
+      else{if(en.firstTryEligible&&!en.hintUsed)st.firstTryCorrect++;st.completed++;en.resolved=true;g.feedback={id:uuid(),type:'good',ownerKey:participantPlayerKey,entryId:en.id,at:Date.now()}}
+    }
+    s.version++;return s
+  })
+}
+async function showHint(){const e=currentEntry();if(role!=='student'||!e||participantPlayerKey!==e.ownerKey||e.resolved)return;const initial=clone(serverState);await runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(initial)),g=s.game,en=g.deck[g.index];if(g.status!=='playing'||!en||en.id!==e.id||en.ownerKey!==participantPlayerKey||g.turnKey!==participantPlayerKey||en.resolved||en.hintUsed)return s;en.hintUsed=true;en.firstTryEligible=false;const st=g.stats[participantPlayerKey]||(g.stats[participantPlayerKey]=normalizeStats());st.hints++;s.version++;return s});SFX.hint()}
+$('hintBtn').onclick=showHint;
+function consumeFeedback(f){if(!f?.id||lastFeedbackToken===f.id)return;lastFeedbackToken=f.id;if(f.type==='badMethod'){badEffect();showToast('Неверный способ. Тот же ученик пробует ещё раз.',true)}else if(f.type==='badAnswer'){badEffect();showToast('Неверный конечный ответ. Исправь ответ — ход остаётся у тебя.',true)}else if(f.type==='methodGood'){methodGoodEffect();showToast('✓ Способ верный! Теперь выбери конечный ответ.')}else if(f.type==='good'){successEffect();showToast('✓ Всё верно! Пузырь лопнул.');clearTimeout(advanceTimer);advanceTimer=setTimeout(()=>advanceResolved(f.entryId),3000)}}
+async function advanceResolved(entryId){if(!serverState||serverState.game.status!=='playing')return;const initial=clone(serverState);await runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(initial)),g=s.game,en=g.deck[g.index];if(g.status!=='playing'||!en||!en.resolved||en.id!==entryId)return s;if(g.index>=g.deck.length-1){g.status='finished';g.finishedAt=Date.now();g.feedback=null;s.version++;return s}g.index++;g.turnKey=g.deck[g.index].ownerKey;g.feedback=null;s.version++;return s})}
+async function teacherFinishLesson(){if(role!=='teacher'||serverState?.game?.status!=='playing')return;if(!confirm('Завершить занятие сейчас? Незавершённая текущая задача не войдёт в знаменатель.'))return;const initial=clone(serverState);await runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(initial));if(s.game.status!=='playing')return s;s.game.status='finished';s.game.finishedAt=Date.now();s.game.endedEarly=true;s.game.feedback=null;s.version++;return s});SFX.finish()}
 
-function readQueue(){try{const q=JSON.parse(localStorage.getItem(PENDING_RESULTS_KEY)||'[]');return Array.isArray(q)?q:[]}catch{return[]}}function writeQueue(q){localStorage.setItem(PENDING_RESULTS_KEY,JSON.stringify(q))}function queueResult(payload,pk){const q=readQueue();if(!q.some(x=>x?.payload?.eventId===payload.eventId))q.push({payload,playerKey:pk});writeQueue(q)}function removeQueued(id){writeQueue(readQueue().filter(x=>x?.payload?.eventId!==id))}
-async function postResult(payload){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);let response;try{response=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow',signal:controller.signal})}catch(err){if(err?.name==='AbortError')throw new Error('Сервер результатов не ответил в течение 60 секунд.');throw err}finally{clearTimeout(timer)}let ans;try{ans=await response.json()}catch{throw new Error('Система результатов не ответила.')}if(!response.ok||!ans?.ok)throw new Error(ans?.error||'Результат не принят.');return ans}
-function resultPayload(g,pk){const p=g.players[pk],st=g.progress[pk]||{},completed=Number(st.completed)||0,total=g.endedEarly?completed:TOTAL,score=Number(st.firstTryCorrect)||0,scorePercent=total?Math.round(score/total*100):0,finished=g.finishedAt||Date.now(),started=g.startedAt||finished;return{action:'submitTest',eventId:g.eventIds[pk]||`${g.sessionId}-${pk}`,studentId:p?.studentId||'',testId:TEST_META.testId,testDate:localDate(),topicId:TEST_META.topicId,topicName:TEST_META.topicName,taskNumber:TEST_META.taskNumber,correctCount:score,totalCount:total,scorePercent,startedAt:nowIso(started),finishedAt:nowIso(finished),durationSeconds:Math.max(1,Math.round((finished-started)/1000)),serverSubmittedAt:nowIso(),schemaVersion:1,programId:'EGE_MATH'}}
+/* ===== login/session ===== */
+function openModal(html){$('lessonCard').innerHTML=html;$('lessonModal').classList.add('open')}function closeModal(){$('lessonModal').classList.remove('open')}
+function openRoleModal(){openModal(`<button class="modal-x" id="modalClose">×</button><h2>СОВМЕСТНЫЙ УРОК</h2><p>Одна текущая сессия, без кодов комнат.</p><div class="role-grid"><button class="role-choice" id="roleTeacher"><b>УЧИТЕЛЬ</b><small>Создать занятие на 1 или 2 учеников и видеть ход работы.</small></button><button class="role-choice" id="roleStudent"><b>УЧЕНИК</b><small>Проверить личный код и занять своё место.</small></button></div>`);$('modalClose').onclick=closeModal;$('roleTeacher').onclick=openTeacherLogin;$('roleStudent').onclick=openStudentLogin}
+function openTeacherLogin(){openModal(`<button class="modal-x" id="modalClose">×</button><h2>ВХОД УЧИТЕЛЯ</h2><form class="code-form" id="teacherForm"><input id="teacherCodeInput" type="password" autocomplete="off" placeholder="КОД УЧИТЕЛЯ"><div class="status" id="teacherStatus"></div><button class="sys-btn primary">ВОЙТИ</button></form>`);$('modalClose').onclick=closeModal;$('teacherForm').onsubmit=handleTeacherLogin}
+async function handleTeacherLogin(e){e.preventDefault();const st=$('teacherStatus'),code=$('teacherCodeInput').value;st.textContent='Проверяем…';if(await sha256(code)!==TEACHER_CODE_HASH){st.textContent='Неверный код.';st.className='status bad';return}role='teacher';participantName='Учитель';teacherAuthenticated=true;closeModal();await registerPresence();startListeners();const snap=await get(stateRef());serverState=snap.exists()?normalizeState(snap.val()):null;if(serverState)openTeacherResume();else openNewSessionChooser();syncConnectedUi(true)}
+function openStudentLogin(){const saved=storedStudent(),prefill=saved?.code||'';openModal(`<button class="modal-x" id="modalClose">×</button><h2>ВХОД УЧЕНИКА</h2>${saved?.name?`<p>Сохранён: <b>${esc(saved.name)}</b>. Код подставлен автоматически, но будет снова проверен сервером.</p>`:''}<form class="code-form" id="studentForm"><input id="studentCodeInput" autocomplete="off" placeholder="ЛИЧНЫЙ КОД" value="${esc(prefill)}"><div class="status" id="studentStatus"></div><button class="sys-btn primary">ПРОВЕРИТЬ КОД И ВОЙТИ</button></form>`);$('modalClose').onclick=closeModal;$('studentForm').onsubmit=handleStudentLogin}
+async function handleStudentLogin(e){e.preventDefault();const code=$('studentCodeInput').value.trim().toUpperCase(),st=$('studentStatus'),btn=e.submitter;if(!code){st.textContent='Введите код.';st.className='status bad';return}btn.disabled=true;st.textContent='Проверяем код…';try{const s=await validateStudentCode(code);saveStudent(s);await connectStudent(s);closeModal()}catch(err){st.textContent=err.message||'Не удалось проверить код';st.className='status bad'}finally{btn.disabled=false}}
+async function connectStudent(s){student=s;role='student';participantName=s.name;participantPlayerKey=playerKey(s.studentId);startListeners();await tryJoinStudent();syncConnectedUi(true)}
+async function activeStudentIds(){try{const snap=await get(membersRef()),members=snap.exists()?snap.val()||{}:{};return new Set(Object.values(members).filter(m=>m?.online&&m.role==='student'&&m.studentId).map(m=>String(m.studentId)))}catch{return new Set(Object.values(membersSnapshot||{}).filter(m=>m?.online&&m.role==='student'&&m.studentId).map(m=>String(m.studentId)))}}
+async function tryJoinStudent(){if(role!=='student'||!student||joinInFlight)return;joinInFlight=true;try{const snap=await get(stateRef());if(!snap.exists()){serverState=null;renderWaitingTeacher();updateSessionPanel();return}const serverStateSnapshot=normalizeState(snap.val());serverState=serverStateSnapshot;const activeIds=await activeStudentIds(),pkWanted=playerKey(student.studentId),now=Date.now(),candidateEventId=uuid();const tx=await runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(serverStateSnapshot)),g=s.game;let existing=Object.keys(g.players||{}).find(k=>String(g.players[k]?.studentId)===String(student.studentId));if(existing){g.players[existing].name=student.name;g.players[existing].code=student.code||g.players[existing].code||'';g.players[existing].lastSeen=now;g.eventIds[existing]=g.eventIds[existing]||candidateEventId;s.version++;return s}if(g.status==='lobby'){for(const pk of Object.keys(g.players||{})){const p=g.players[pk];if(!p)continue;const stale=!activeIds.has(String(p.studentId))&&now-Number(p.lastSeen||p.joinedAt||0)>10000;if(stale){delete g.players[pk];delete g.stats[pk];delete g.eventIds[pk];delete g.submissions[pk];g.playerOrder=(g.playerOrder||[]).filter(x=>x!==pk)}}}if(g.status!=='lobby')return;if(Object.keys(g.players||{}).length>=g.studentLimit)return;const taken=new Set(Object.values(g.players||{}).map(p=>Number(p.slot)||0));let slot=1;while(taken.has(slot)&&slot<=g.studentLimit)slot++;if(slot>g.studentLimit)return;let pk=pkWanted;if(g.players[pk]&&String(g.players[pk].studentId)!==String(student.studentId))pk+='_'+Object.keys(g.players).length;g.players[pk]={studentId:String(student.studentId),name:student.name,code:student.code||'',slot,joinedAt:now,lastSeen:now};g.eventIds[pk]=g.eventIds[pk]||candidateEventId;s.version++;return s},{applyLocally:false});if(!tx.committed){const reread=await get(stateRef());if(!reread.exists()){serverState=null;renderWaitingTeacher();updateSessionPanel();return}const after=normalizeState(reread.val());serverState=after;const g=after.game,existing=Object.keys(g.players||{}).find(k=>String(g.players[k]?.studentId)===String(student.studentId));if(existing){participantPlayerKey=existing;await registerPresence();renderFromState();return}if(g.status!=='lobby')throw new Error('Игра уже началась. Войти может только ранее подключённый ученик.');if(Object.keys(g.players||{}).length>=g.studentLimit)throw new Error('Все места действительно заняты.');throw new Error('Не удалось занять место. Нажмите «Проверить код и войти» ещё раз.')}const committed=normalizeState(tx.snapshot.val());serverState=committed;participantPlayerKey=Object.keys(committed.game.players||{}).find(k=>String(committed.game.players[k]?.studentId)===String(student.studentId))||'';if(!participantPlayerKey)throw new Error('Место ученика не восстановлено. Повторите вход.');await registerPresence();renderFromState()}finally{joinInFlight=false}}
+function openNewSessionChooser(){openModal(`<button class="modal-x" id="modalClose">×</button><h2>НОВОЕ ЗАНЯТИЕ</h2><p>Каждый ученик получит 10 разных случайных задач из банка 15. В каждой: сначала способ решения, затем конечный ответ.</p><div class="role-grid"><button class="role-choice" data-limit="1"><b>1 УЧЕНИК</b><small>10 задач · 2 этапа.</small></button><button class="role-choice" data-limit="2"><b>2 УЧЕНИКА</b><small>по 10 каждому · строгая очередь.</small></button></div>`);$('modalClose').onclick=closeModal;document.querySelectorAll('[data-limit]').forEach(b=>b.onclick=()=>createFreshSession(Number(b.dataset.limit)))}
+async function createFreshSession(limit){const fresh={meta:{sessionId:uuid(),appId:APP_ID,schemaVersion:SCHEMA_VERSION,openedAt:Date.now()},state:newGameState(limit),members:{},messages:{}};fresh.state.game.sessionId=fresh.meta.sessionId;await set(sessionRef(),fresh);serverState=normalizeState(fresh.state);closeModal();await registerPresence();renderFromState()}
+function openTeacherResume(){const g=serverState?.game;if(!g){openNewSessionChooser();return}openModal(`<button class="modal-x" id="modalClose">×</button><h2>НАЙДЕНО ТЕКУЩЕЕ ЗАНЯТИЕ</h2><p>Статус: <b>${g.status}</b>.</p><div class="native-actions"><button class="sys-btn primary" id="resume">ПРОДОЛЖИТЬ</button><button class="sys-btn" id="fresh">НАЧАТЬ НОВОЕ</button></div>`);$('modalClose').onclick=closeModal;$('resume').onclick=()=>{closeModal();renderFromState()};$('fresh').onclick=openNewSessionChooser}
+async function switchStudent(){if(serverState?.game?.status==='playing'){showToast('Во время игры менять ученика нельзя.',true);return}await cleanupPresence();clearStoredStudent();student=null;role='';participantPlayerKey='';participantId='';participantName='';stopListeners();syncConnectedUi(false);renderPublic();openStudentLogin()}
+
+/* ===== presence/listeners ===== */
+async function registerPresence(){if(!role)return;participantId=role==='teacher'?`teacher_${browserClientId}`:`student_${participantPlayerKey}_${browserClientId}`;const mr=memberRef(participantId),payload={id:browserClientId,userId:participantPlayerKey||'teacher',studentId:role==='student'?student?.studentId||'':'',name:role==='teacher'?'Учитель':student?.name||'Ученик',role,color:role==='teacher'?'#ffd83d':'#65dbe7',online:true,lastSeen:serverTimestamp()};try{await memberDisconnect?.cancel?.()}catch{}try{await set(mr,payload);memberDisconnect=onDisconnect(mr);await memberDisconnect.update({online:false,lastSeen:serverTimestamp()})}catch{}}
+async function cleanupPresence(){try{await memberDisconnect?.cancel?.()}catch{}memberDisconnect=null;if(participantId)try{await update(memberRef(participantId),{online:false,lastSeen:serverTimestamp()})}catch{}}
+function startListeners(){if(stateUnsub)return;stateUnsub=onValue(stateRef(),snap=>{const incoming=snap.exists()?normalizeState(snap.val()):null,prevVersion=Number(serverState?.version)||0,nextVersion=Number(incoming?.version)||0,structural=!serverState||!incoming||prevVersion!==nextVersion;serverState=incoming;if(role==='student'&&serverState&&!serverState.game.players?.[participantPlayerKey])tryJoinStudent().catch(err=>showToast(err.message,true));if(structural)renderFromState();else updateTeacherCursor()});strokesUnsub=onValue(strokesRef(),snap=>{const incoming=snap.exists()?clone(snap.val()):{};if(activeStroke&&incoming[activeStroke.id]){const local=strokesCache[activeStroke.id];if(local&&Number(local.rev||0)>Number(incoming[activeStroke.id].rev||0))incoming[activeStroke.id]=local}strokesCache=incoming||{};renderBoardStrokes()});membersUnsub=onValue(membersRef(),snap=>{membersSnapshot=snap.exists()?snap.val()||{}:{};updateSessionPanel();if(!role||serverState?.game?.status==='lobby')renderFromState()});messagesUnsub=onValue(messagesRef(),snap=>{const x=snap.exists()?snap.val()||{}:{};remoteTeacherCursor=x.teacherCursor||null;updateTeacherCursor()})}
+function stopListeners(){stateUnsub?.();strokesUnsub?.();membersUnsub?.();messagesUnsub?.();stateUnsub=strokesUnsub=membersUnsub=messagesUnsub=null;strokesCache={}}
+function syncConnectedUi(on){$('lessonJoinBtn').classList.toggle('hidden',!!on);$('boardToolbar').classList.toggle('show',!!on);if(on)attachBoardLayer();syncBoardToolbarRole();setBoardPointerMode()}
+function updateSessionPanel(){const p=$('sessionPanel');if(!role){p.classList.remove('show');return}const onlineStudents=Object.values(membersSnapshot).filter(m=>m?.online&&m.role==='student').length,status=!online?'офлайн':serverState?.game?.status==='playing'?'игра идёт':serverState?.game?.status==='finished'?'завершено':serverState?'лобби':'ждём учителя';p.innerHTML=`<span class="session-dot ${online?'on':''}"></span><b>${role==='teacher'?'УЧИТЕЛЬ':esc(student?.name||'УЧЕНИК')}</b><small>${status} · учеников онлайн: ${onlineStudents}</small>${role==='teacher'&&serverState?.game?.status==='playing'?'<button class="danger" id="panelFinish">ЗАВЕРШИТЬ</button>':''}${role==='student'?'<button id="panelSwitch">СМЕНИТЬ</button>':''}`;p.classList.add('show');if($('panelFinish'))$('panelFinish').onclick=teacherFinishLesson;if($('panelSwitch'))$('panelSwitch').onclick=switchStudent}
+
+/* ===== result submission ===== */
+function readQueue(){try{const q=JSON.parse(localStorage.getItem(PENDING_RESULTS_KEY)||'[]');return Array.isArray(q)?q:[]}catch{return[]}}function writeQueue(q){localStorage.setItem(PENDING_RESULTS_KEY,JSON.stringify(q.slice(-50)))}function queueResult(payload,pk){const q=readQueue(),i=q.findIndex(x=>x?.payload?.eventId===payload.eventId);const item={payload,playerKey:pk};if(i>=0)q[i]=item;else q.push(item);writeQueue(q)}function removeQueued(eventId){writeQueue(readQueue().filter(x=>x?.payload?.eventId!==eventId))}
+async function postResult(payload){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);let response;try{response=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow',signal:controller.signal})}catch(err){if(err?.name==='AbortError')throw new Error('Сервер результатов не ответил в течение 60 секунд.');throw err}finally{clearTimeout(timer)}let answer;try{answer=await response.json()}catch{throw new Error('Система результатов не ответила.')}if(!response.ok||!answer?.ok)throw new Error(answer?.error||'Результат не принят.');return answer}
+function resultPayload(s,pk){const g=s.game,p=g.players[pk],st=normalizeStats(g.stats[pk]),max=g.endedEarly?st.completed:TASKS_PER_STUDENT,scorePercent=max?Math.round(st.firstTryCorrect/max*100):0,finished=g.finishedAt||Date.now(),started=g.startedAt||finished;return{action:'submitTest',eventId:g.eventIds[pk]||`${g.sessionId}-${pk}`,studentId:p?.studentId||'',testId:TEST_META.testId,testDate:localDate(),topicId:TEST_META.topicId,topicName:TEST_META.topicName,taskNumber:TEST_META.taskNumber,scorePercent,durationSeconds:Math.max(1,Math.round((finished-started)/1000)),schemaVersion:1,programId:'EGE_MATH'}}
+async function claimSubmission(pk){const eventId=serverState?.game?.eventIds?.[pk];if(!eventId)return false;const r=ref(database,`${lessonRoot()}/state/game/submissions/${pk}`),res=await runTransaction(r,current=>{if(current?.status==='saved')return;if(current?.status==='sending'&&Date.now()-(Number(current.updatedAt)||0)<8000)return;return{eventId,status:'sending',updatedAt:Date.now()}});return res.committed}
 async function markSubmission(pk,status,message=''){try{await update(ref(database,`${lessonRoot()}/state/game/submissions/${pk}`),{status,message,updatedAt:Date.now()})}catch{}}
-async function ensureSubmission(pk){if(!pk||submissionInFlight.has(pk)||!serverState||serverState.game.status!=='finished'||serverState.game.submissions?.[pk]?.status==='saved')return;submissionInFlight.add(pk);const payload=resultPayload(clone(serverState.game),pk);try{await markSubmission(pk,'sending','Отправляем…');const receipt=await postResult(payload);removeQueued(payload.eventId);await markSubmission(pk,'saved',receipt?.duplicate?'✓ уже сохранено':'✓ сохранено')}catch(err){queueResult(payload,pk);await markSubmission(pk,'queued',String(err?.message||'Ждёт отправки'))}finally{submissionInFlight.delete(pk)}}
-async function flushPendingResults(){if(!navigator.onLine)return;for(const item of readQueue()){try{await postResult(item.payload);removeQueued(item.payload.eventId)}catch{}}}
+async function ensureSubmission(pk){if(!pk||submissionInFlight.has(pk)||!serverState||serverState.game.status!=='finished'||serverState.game.submissions?.[pk]?.status==='saved')return;submissionInFlight.add(pk);const snapshot=clone(serverState),payload=resultPayload(snapshot,pk);try{if(!await claimSubmission(pk))return;if(!navigator.onLine)throw new Error('offline');const r=await postResult(payload);removeQueued(payload.eventId);await markSubmission(pk,'saved',r?.duplicate?'Уже было сохранено':'Подтверждено сервером')}catch(err){queueResult(payload,pk);await markSubmission(pk,'queued',String(err?.message||'Ждёт связи'))}finally{submissionInFlight.delete(pk)}}
+async function flushPendingResults(){if(!navigator.onLine)return;for(const item of readQueue()){try{await postResult(item.payload);removeQueued(item.payload.eventId);if(serverState?.game?.eventIds?.[item.playerKey]===item.payload.eventId)await markSubmission(item.playerKey,'saved','Подтверждено сервером')}catch{}}}
+function scheduleTeacherBackup(){if(role!=='teacher'||teacherBackupTimer)return;teacherBackupTimer=setTimeout(async()=>{teacherBackupTimer=null;if(serverState?.game?.status!=='finished')return;await Promise.all((serverState.game.playerOrder||[]).filter(pk=>serverState.game.submissions?.[pk]?.status!=='saved').map(ensureSubmission))},1500)}
 
-function renderBoardToolbar(){const t=$('#boardToolbar');t.classList.toggle('collapsed',toolbarCollapsed);t.innerHTML=`<div class="board-head"><span>✎ ОБЩАЯ ДОСКА</span><button class="sys-mini" id="collapseBoard">${toolbarCollapsed?'＋':'—'}</button></div><div class="board-tools"><button data-tool="cursor">↖</button><button data-tool="pen">✎</button><button data-tool="eraser">⌫</button><input type="color" id="boardColor" value="${boardColor}"><input type="range" id="boardWidth" min="2" max="16" value="${boardWidth}">${role==='teacher'?'<button class="board-clear" id="clearBoard">Очистить всю доску</button>':''}</div>`;t.querySelectorAll('[data-tool]').forEach(b=>{b.classList.toggle('active',b.dataset.tool===boardTool);b.onclick=()=>{boardTool=b.dataset.tool;renderBoardToolbar();setBoardPointerMode()}});$('#collapseBoard').onclick=()=>{toolbarCollapsed=!toolbarCollapsed;renderBoardToolbar()};$('#boardColor').oninput=e=>boardColor=e.target.value;$('#boardWidth').oninput=e=>boardWidth=Number(e.target.value);if($('#clearBoard'))$('#clearBoard').onclick=()=>remove(strokesRef());installToolbarDrag()}
-function installToolbarDrag(){const t=$('#boardToolbar'),h=t.querySelector('.board-head');if(!h)return;try{const saved=JSON.parse(localStorage.getItem(TOOLBAR_POSITION_KEY)||'null');if(saved){t.style.left=saved.x+'px';t.style.top=saved.y+'px';t.style.right='auto'}}catch{}h.onpointerdown=e=>{if(e.target.closest('button'))return;const r=t.getBoundingClientRect();toolbarDrag={pid:e.pointerId,dx:e.clientX-r.left,dy:e.clientY-r.top};h.setPointerCapture?.(e.pointerId)};h.onpointermove=e=>{if(!toolbarDrag||toolbarDrag.pid!==e.pointerId)return;const x=Math.max(4,Math.min(innerWidth-t.offsetWidth-4,e.clientX-toolbarDrag.dx)),y=Math.max(4,Math.min(innerHeight-t.offsetHeight-4,e.clientY-toolbarDrag.dy));t.style.left=x+'px';t.style.top=y+'px';t.style.right='auto'};h.onpointerup=()=>{const r=t.getBoundingClientRect();localStorage.setItem(TOOLBAR_POSITION_KEY,JSON.stringify({x:r.left,y:r.top}));toolbarDrag=null}}
-function attachSharedBoard(){const host=$('#boardHost');if(!host)return;if($('#sharedBoard')){renderStrokes();setBoardPointerMode();return}const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.id='sharedBoard';svg.setAttribute('viewBox','0 0 1000 1000');svg.setAttribute('preserveAspectRatio','none');svg.classList.add('shared-board');host.appendChild(svg);svg.addEventListener('pointerdown',boardPointerDown);svg.addEventListener('pointermove',boardPointerMove);svg.addEventListener('pointerup',boardPointerUp);svg.addEventListener('pointercancel',boardPointerUp);setBoardPointerMode();renderStrokes()}
-function setBoardPointerMode(){const b=$('#sharedBoard');if(b)b.style.pointerEvents=boardTool==='cursor'?'none':'auto'}
-function boardPoint(e){const r=$('#boardHost').getBoundingClientRect();return[Math.max(0,Math.min(1,(e.clientX-r.left)/Math.max(1,r.width))),Math.max(0,Math.min(1,(e.clientY-r.top)/Math.max(1,r.height)))]}
-function startStrokeListeners(){stopStrokeListeners();strokesCache={};strokeUnsubs=[onChildAdded(strokesRef(),s=>{strokesCache[s.key]=s.val();renderStrokes()}),onChildChanged(strokesRef(),s=>{strokesCache[s.key]=s.val();renderStrokes()}),onChildRemoved(strokesRef(),s=>{delete strokesCache[s.key];renderStrokes()})];attachSharedBoard()}
-function stopStrokeListeners(){strokeUnsubs.forEach(u=>u?.());strokeUnsubs=[];strokesCache={}}
-function renderStrokes(){const svg=$('#sharedBoard');if(!svg)return;svg.innerHTML='';for(const [id,s] of Object.entries(strokesCache)){if(!s||!Array.isArray(s.points)||s.points.length<2)continue;const pl=document.createElementNS('http://www.w3.org/2000/svg','polyline');pl.dataset.strokeId=id;pl.setAttribute('points',s.points.map(p=>`${p[0]*1000},${p[1]*1000}`).join(' '));pl.setAttribute('fill','none');pl.setAttribute('stroke',s.color||'#e53935');const w=$('#boardHost')?.clientWidth||1000;pl.setAttribute('stroke-width',Math.max(1,Number(s.width)||6)*1000/Math.max(1,w));pl.setAttribute('stroke-linecap','round');pl.setAttribute('stroke-linejoin','round');svg.appendChild(pl)}}
-async function boardPointerDown(e){if(boardTool==='cursor'||!role)return;e.preventDefault();boardPointerId=e.pointerId;const p=boardPoint(e);if(boardTool==='eraser'){boardErasing=true;lastErasePoint=p;await eraseAt(p);return}const id=push(strokesRef()).key;activeStroke={id,points:[p],color:boardColor,width:boardWidth,rev:1};strokesCache[id]={...activeStroke,by:role==='teacher'?'teacher':participantPlayerKey,done:false,updatedAt:Date.now()};renderStrokes();await set(ref(database,`${lessonRoot()}/strokes/${id}`),strokesCache[id]).catch(()=>{});lastStrokePush=performance.now()}
-async function boardPointerMove(e){if(e.pointerId!==boardPointerId)return;const p=boardPoint(e);if(boardErasing){await eraseSegment(lastErasePoint,p);lastErasePoint=p;return}if(!activeStroke)return;const pts=activeStroke.points,last=pts[pts.length-1];if(Math.hypot(p[0]-last[0],p[1]-last[1])<.0015)return;pts.push(p);activeStroke.rev++;strokesCache[activeStroke.id]={...strokesCache[activeStroke.id],points:pts.slice(),rev:activeStroke.rev,updatedAt:Date.now()};renderStrokes();if(performance.now()-lastStrokePush>=45){lastStrokePush=performance.now();update(ref(database,`${lessonRoot()}/strokes/${activeStroke.id}`),{points:pts.slice(),rev:activeStroke.rev,updatedAt:Date.now()}).catch(()=>{})}}
-async function boardPointerUp(e){if(e.pointerId!==boardPointerId)return;if(activeStroke){const s=activeStroke;await update(ref(database,`${lessonRoot()}/strokes/${s.id}`),{points:s.points.slice(),rev:s.rev+1,done:true,updatedAt:Date.now()}).catch(()=>{});activeStroke=null}boardErasing=false;lastErasePoint=null;boardPointerId=null}
-function pointSegDist(p,a,b){const vx=b[0]-a[0],vy=b[1]-a[1],wx=p[0]-a[0],wy=p[1]-a[1],c1=vx*wx+vy*wy;if(c1<=0)return Math.hypot(p[0]-a[0],p[1]-a[1]);const c2=vx*vx+vy*vy;if(c2<=c1)return Math.hypot(p[0]-b[0],p[1]-b[1]);const t=c1/c2,x=a[0]+t*vx,y=a[1]+t*vy;return Math.hypot(p[0]-x,p[1]-y)}
-async function eraseAt(p){const victims=[];for(const [id,s] of Object.entries(strokesCache)){const pts=s?.points||[],tol=Math.max(.008,(Number(s.width)||6)/Math.max(300,$('#boardHost')?.clientWidth||800)*2);for(let i=1;i<pts.length;i++)if(pointSegDist(p,pts[i-1],pts[i])<=tol){victims.push(id);break}}for(const id of victims){delete strokesCache[id];renderStrokes();remove(ref(database,`${lessonRoot()}/strokes/${id}`)).catch(()=>{})}}
-async function eraseSegment(a,b){if(!a)return eraseAt(b);const steps=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/.006));for(let i=1;i<=steps;i++)await eraseAt([a[0]+(b[0]-a[0])*i/steps,a[1]+(b[1]-a[1])*i/steps])}
+/* ===== board, live pencil + real eraser ===== */
+function attachBoardLayer(){const host=$('boardHost');let b=$('sharedBoard');if(!b){b=document.createElementNS('http://www.w3.org/2000/svg','svg');b.id='sharedBoard';b.setAttribute('viewBox','0 0 1000 1000');b.setAttribute('preserveAspectRatio','none');b.classList.add('shared-board');host.appendChild(b);b.addEventListener('pointerdown',boardPointerDown);b.addEventListener('pointermove',boardPointerMove);b.addEventListener('pointerup',boardPointerUp);b.addEventListener('pointercancel',boardPointerUp)}setBoardPointerMode();renderBoardStrokes()}
+function setBoardPointerMode(){const host=$('boardHost'),b=$('sharedBoard');const draw=boardTool!=='cursor'&&!!role;if(host)host.style.pointerEvents=draw?'auto':'none';if(b)b.style.pointerEvents=draw?'auto':'none';document.querySelectorAll('[data-board-tool]').forEach(x=>x.classList.toggle('active',x.dataset.boardTool===boardTool))}
+function pointFromEvent(e){return[e.clientX/innerWidth,e.clientY/innerHeight]}function boardPointerDown(e){if(boardTool==='cursor'||!serverState)return;e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);const p=pointFromEvent(e);if(boardTool==='eraser'){eraserActive=true;eraserPointerId=e.pointerId;lastEraserPoint=p;eraseAlong(p,p);return}activeStroke={id:'stroke-'+uuid(),anchorId:'page',authorId:participantId||role,authorName:participantName||role,color:boardColor,width:boardWidth,points:[p],done:false,epoch:serverState.boardEpoch||0,rev:Date.now()};strokesCache[activeStroke.id]=clone(activeStroke);renderBoardStrokes();pushStroke()}
+function boardPointerMove(e){const p=pointFromEvent(e);if(boardTool==='eraser'&&eraserActive&&e.pointerId===eraserPointerId){eraseAlong(lastEraserPoint||p,p);lastEraserPoint=p;return}if(!activeStroke||boardTool!=='pencil')return;const last=activeStroke.points.at(-1);if(Math.hypot((p[0]-last[0])*innerWidth,(p[1]-last[1])*innerHeight)<2.5)return;activeStroke.points.push(p);activeStroke.rev=Date.now();strokesCache[activeStroke.id]=clone(activeStroke);renderBoardStrokes();if(Date.now()-lastStrokePush>=55){lastStrokePush=Date.now();pushStroke()}}
+function boardPointerUp(e){if(boardTool==='eraser'&&eraserActive&&(!e||e.pointerId===eraserPointerId)){eraserActive=false;eraserPointerId=null;lastEraserPoint=null;return}if(!activeStroke)return;const finalStroke=clone(activeStroke);finalStroke.done=true;finalStroke.rev=Date.now();activeStroke=null;strokesCache[finalStroke.id]=clone(finalStroke);set(ref(database,`${lessonRoot()}/state/strokes/${finalStroke.id}`),finalStroke).catch(()=>{});renderBoardStrokes()}
+async function pushStroke(){if(!activeStroke||!serverState)return;const snap=clone(activeStroke);try{await set(ref(database,`${lessonRoot()}/state/strokes/${snap.id}`),snap)}catch{}}
+function renderBoardStrokes(){const b=$('sharedBoard');if(!b||!serverState)return;const epoch=serverState.boardEpoch||0;let strokes=Object.entries(strokesCache||{}).filter(([id,s])=>s&&s.epoch===epoch&&s.anchorId==='page'&&!optimisticDeleted.has(id)).map(([id,s])=>({id,...s}));if(activeStroke){const ix=strokes.findIndex(s=>s.id===activeStroke.id);if(ix<0||Number(strokes[ix]?.rev||0)<activeStroke.rev){if(ix>=0)strokes.splice(ix,1);strokes.push(activeStroke)}}b.innerHTML=strokes.map(s=>{const pts=(s.points||[]).map(([x,y])=>`${Math.max(0,Math.min(1,x))*1000},${Math.max(0,Math.min(1,y))*1000}`).join(' ');return pts?`<polyline points="${pts}" fill="none" stroke="${esc(s.color||'#e53935')}" stroke-width="${Math.max(1,Number(s.width)||5)*2.2}" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`:''}).join('')}
+function pointSegDist(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay;if(dx===0&&dy===0)return Math.hypot(px-ax,py-ay);let t=((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy);t=Math.max(0,Math.min(1,t));return Math.hypot(px-(ax+t*dx),py-(ay+t*dy))}
+function strokeHit(stroke,a,b){const pts=stroke.points||[];if(!pts.length)return false;const ax=a[0]*innerWidth,ay=a[1]*innerHeight,bx=b[0]*innerWidth,by=b[1]*innerHeight,travel=Math.max(1,Math.hypot(bx-ax,by-ay)),steps=Math.max(1,Math.ceil(travel/8)),radius=10+Math.max(2,Number(stroke.width)||5)/2;for(let k=0;k<=steps;k++){const t=k/steps,x=ax+(bx-ax)*t,y=ay+(by-ay)*t;if(pts.length===1){if(Math.hypot(x-pts[0][0]*innerWidth,y-pts[0][1]*innerHeight)<=radius)return true}else for(let i=1;i<pts.length;i++){if(pointSegDist(x,y,pts[i-1][0]*innerWidth,pts[i-1][1]*innerHeight,pts[i][0]*innerWidth,pts[i][1]*innerHeight)<=radius)return true}}return false}
+async function eraseAlong(a,b){if(!serverState)return;const epoch=serverState.boardEpoch||0,entries=Object.entries(strokesCache||{}).filter(([id,s])=>s?.epoch===epoch&&s.anchorId==='page'&&!optimisticDeleted.has(id)),hits=entries.filter(([,s])=>strokeHit(s,a,b));if(!hits.length)return;const patch={};hits.forEach(([id,s])=>{optimisticDeleted.set(id,s);delete strokesCache[id];patch[id]=null});renderBoardStrokes();try{await update(strokesRef(),patch);hits.forEach(([id])=>optimisticDeleted.delete(id))}catch{hits.forEach(([id,s])=>{optimisticDeleted.delete(id);strokesCache[id]=s});renderBoardStrokes()}}
+async function clearBoard(){if(role!=='teacher'||!serverState)return;const initial=clone(serverState);await runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(initial));s.boardEpoch=(Number(s.boardEpoch)||0)+1;s.strokes={};s.version++;return s})}
+function initBoardToolbar(){const tb=$('boardToolbar');let pos={right:14,bottom:14};try{pos={...pos,...JSON.parse(localStorage.getItem(TOOLBAR_POSITION_KEY)||'{}')}}catch{}tb.style.right=(pos.right??14)+'px';tb.style.bottom=(pos.bottom??14)+'px';tb.innerHTML=`<div class="board-head" id="boardDrag"><b>ДОСКА</b><button id="boardCollapse">−</button></div><div class="board-tools"><button data-board-tool="cursor">↖</button><button data-board-tool="pencil">✎</button><button data-board-tool="eraser">⌫</button><input id="boardColor" type="color" value="${boardColor}"><input id="boardWidth" type="range" min="2" max="14" value="${boardWidth}"><button class="board-clear" id="boardClear">🗑 ОЧИСТИТЬ ВСЁ</button></div>`;document.querySelectorAll('[data-board-tool]').forEach(b=>b.onclick=()=>{boardTool=b.dataset.boardTool;setBoardPointerMode()});$('boardColor').oninput=e=>boardColor=e.target.value;$('boardWidth').oninput=e=>boardWidth=Number(e.target.value);$('boardClear').onclick=()=>role==='teacher'?clearBoard():showToast('Полностью очищать доску может только учитель.',true);$('boardCollapse').onclick=()=>{toolbarCollapsed=!toolbarCollapsed;tb.classList.toggle('collapsed',toolbarCollapsed);$('boardCollapse').textContent=toolbarCollapsed?'+':'−'};makeToolbarDraggable(tb,$('boardDrag'));setBoardPointerMode();syncBoardToolbarRole()}
+function syncBoardToolbarRole(){if($('boardClear'))$('boardClear').style.display=role==='teacher'?'block':'none'}function makeToolbarDraggable(tb,h){let sx=0,sy=0,sr=0,sb=0,m=false;h.addEventListener('pointerdown',e=>{if(e.target.tagName==='BUTTON')return;m=true;sx=e.clientX;sy=e.clientY;const r=tb.getBoundingClientRect();sr=innerWidth-r.right;sb=innerHeight-r.bottom;h.setPointerCapture(e.pointerId)});h.addEventListener('pointermove',e=>{if(!m)return;const nr=Math.max(0,Math.min(innerWidth-tb.offsetWidth,sr-(e.clientX-sx))),nb=Math.max(0,Math.min(innerHeight-tb.offsetHeight,sb-(e.clientY-sy)));tb.style.right=nr+'px';tb.style.bottom=nb+'px'});h.addEventListener('pointerup',()=>{if(!m)return;m=false;localStorage.setItem(TOOLBAR_POSITION_KEY,JSON.stringify({right:parseFloat(tb.style.right)||0,bottom:parseFloat(tb.style.bottom)||0}))})}
+window.addEventListener('pointermove',e=>{if(role!=='teacher'||boardTool!=='cursor'||!serverState||Date.now()-lastCursorPush<75)return;lastCursorPush=Date.now();update(ref(database,`${lessonRoot()}/messages/teacherCursor`),{x:e.clientX/innerWidth,y:e.clientY/innerHeight,visible:true,at:Date.now()}).catch(()=>{})});window.addEventListener('blur',()=>{if(role==='teacher')update(ref(database,`${lessonRoot()}/messages/teacherCursor`),{visible:false,at:Date.now()}).catch(()=>{})});function updateTeacherCursor(){const c=$('teacherCursor');if(role!=='student'||!remoteTeacherCursor?.visible){c.classList.remove('show');return}c.style.left=remoteTeacherCursor.x*innerWidth+'px';c.style.top=remoteTeacherCursor.y*innerHeight+'px';c.classList.add('show')}
 
-$('#lessonJoinBtn').onclick=openRoleModal;window.addEventListener('online',()=>{online=true;flushPendingResults();updateSessionPanel()});window.addEventListener('offline',()=>{online=false;updateSessionPanel()});window.addEventListener('beforeunload',cleanupPresence);window.addEventListener('resize',renderStrokes);
-buildBoard();student=storedStudent();if(student?.code)prewarmedStudentPromise=validateStudentCode(student.code).catch(()=>null);setInterval(()=>{const g=serverState?.game;if(g?.status==='playing'&&g.startedAt)$('#timeTxt').textContent=fmtTime(Date.now()-g.startedAt);else if(g?.status==='finished'&&g.startedAt&&g.finishedAt)$('#timeTxt').textContent=fmtTime(g.finishedAt-g.startedAt);else $('#timeTxt').textContent='0:00'},500);openRoleModal();
-</script>
-</body>
-</html>
+$('lessonJoinBtn').onclick=openRoleModal;window.addEventListener('online',async()=>{online=true;await flushPendingResults();if(role==='student')tryJoinStudent().catch(err=>showToast(err.message,true));renderFromState()});window.addEventListener('offline',()=>{online=false;renderFromState()});window.addEventListener('resize',()=>{placeBubble();updateTeacherCursor()});
+startAtmosphere();initBoardToolbar();startListeners();renderPublic();flushPendingResults();
+</script></body></html>
