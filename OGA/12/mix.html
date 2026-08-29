@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><meta name="theme-color" content="#087ea4"><title>Подводный блиц · расчёты по формулам · ОГЭ №12</title><style>
+:root{
+  --sky:#59d7e6;--water:#179fc4;--deep:#075e8c;--navy:#073e63;
+  --sand:#f4dc8e;--sand2:#d6b96e;--ink:#173948;--paper:#fffbed;
+  --yellow:#ffd83d;--orange:#f49b2c;--green:#4bc65d;--red:#f0534b;
+  --pink:#f47cb0;--purple:#9b6ad6;--wood:#a96530;--wood2:#73441f;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;font-family:"Trebuchet MS","Arial Rounded MT Bold",system-ui,sans-serif;color:var(--ink)}
+body{overflow:hidden;background:var(--deep);user-select:none}
+button,input{font:inherit}
+button{-webkit-tap-highlight-color:transparent}
+.hidden{display:none!important}
+#game{position:fixed;inset:0;overflow:hidden;background:
+  radial-gradient(circle at 17% 12%,rgba(255,255,255,.38) 0 2px,transparent 3px),
+  radial-gradient(circle at 73% 17%,rgba(255,255,255,.22) 0 3px,transparent 4px),
+  linear-gradient(180deg,var(--sky),var(--water) 43%,var(--deep))}
+#game::before{content:"";position:absolute;inset:-20% -15% 30%;pointer-events:none;
+  background:repeating-conic-gradient(from 178deg at 50% -5%,rgba(255,255,255,.15) 0 7deg,transparent 8deg 20deg);
+  filter:blur(6px);animation:rays 9s ease-in-out infinite alternate}
+@keyframes rays{to{transform:translateX(3%) skewX(4deg);opacity:.65}}
+.seafloor{position:absolute;left:-5%;right:-5%;bottom:-8%;height:27%;
+  background:linear-gradient(var(--sand),var(--sand2));border-radius:50% 45% 0 0/34% 32% 0 0;
+  box-shadow:0 -8px 25px rgba(6,63,86,.18)}
+.seafloor::before{content:"";position:absolute;inset:15% 2% 0;
+  background-image:radial-gradient(#b89850 1.5px,transparent 2px);background-size:34px 25px;opacity:.42}
+.scene{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.flower{position:absolute;width:96px;height:96px;opacity:.35;animation:drift 7s ease-in-out infinite alternate}
+.flower::before,.flower::after{content:"";position:absolute;inset:24px;border:7px solid #eaf6b0;border-radius:50%}
+.flower::after{transform:rotate(60deg);border-radius:45%}
+.f1{left:6%;top:16%;transform:scale(.8)}.f2{right:7%;top:23%;transform:scale(1.15);animation-delay:-3s}
+.f3{left:58%;top:5%;transform:scale(.5);animation-delay:-6s}
+@keyframes drift{to{translate:0 -12px;rotate:8deg}}
+.coral{position:absolute;bottom:7%;font-size:clamp(70px,10vw,150px);filter:saturate(.8);transform-origin:bottom;animation:sway 4s ease-in-out infinite alternate}
+.c1{left:2%;color:var(--pink)}.c2{right:2%;color:var(--purple);animation-delay:-2s}
+@keyframes sway{to{transform:rotate(4deg)}}
+.rock{position:absolute;bottom:9%;width:110px;height:65px;background:#8ca2a2;border:5px solid #597b7e;
+  border-radius:55% 45% 18% 20%;box-shadow:inset 12px 8px rgba(255,255,255,.16)}
+.r1{left:15%}.r2{right:18%;width:72px;height:48px}
+.bubble{position:absolute;bottom:-40px;border:2px solid rgba(255,255,255,.72);border-radius:50%;
+  background:radial-gradient(circle at 30% 25%,rgba(255,255,255,.8),transparent 45%);
+  animation:rise linear infinite}
+@keyframes rise{0%{translate:0 0;opacity:0}10%{opacity:.9}100%{translate:25px -112vh;opacity:0}}
+.jelly{position:absolute;font-size:50px;opacity:.55;animation:jelly 12s ease-in-out infinite}
+.j1{left:4%;top:42%}.j2{right:6%;top:50%;animation-delay:-6s}
+@keyframes jelly{50%{translate:20px -30px;rotate:8deg}}
+
+.hud{position:absolute;z-index:20;left:18px;right:18px;top:14px;display:grid;
+  grid-template-columns:auto minmax(170px,1fr) auto auto;align-items:center;gap:12px}
+.pill{height:48px;display:flex;align-items:center;gap:8px;padding:0 16px;border-radius:18px;
+  color:#fff;font-weight:900;background:rgba(4,58,89,.72);border:3px solid rgba(255,255,255,.45);
+  box-shadow:0 5px 0 rgba(3,45,70,.5);backdrop-filter:blur(5px)}
+.pill small{font-size:10px;letter-spacing:.08em;opacity:.72;text-transform:uppercase}
+.iconbtn{width:48px;padding:0;justify-content:center;border:0;cursor:pointer}
+
+.sign{position:absolute;z-index:9;left:50%;top:76px;translate:-50% 0;width:min(700px,88vw);
+  transform-origin:50% -35px;animation:sign 4.8s ease-in-out infinite alternate}
+@keyframes sign{from{rotate:-1deg}to{rotate:1deg}}
+.rope{position:absolute;top:-42px;width:7px;height:46px;border-radius:9px;
+  background:repeating-linear-gradient(45deg,#d4b16c 0 4px,#8e632d 4px 8px)}
+.rope.a{left:19%}.rope.b{right:19%}
+.board{position:relative;padding:13px 22px 15px;text-align:center;color:#fff6c9;
+  background:linear-gradient(165deg,#a96934,#7b4822);border:7px solid #5a341b;border-radius:18px;
+  box-shadow:inset 0 0 0 3px rgba(255,225,146,.2),0 10px 20px rgba(0,0,0,.26)}
+.board::after{content:"";position:absolute;inset:8px;border:2px dashed rgba(255,231,171,.28);border-radius:8px}
+.eyebrow{position:relative;z-index:1;font-size:11px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:#ffd94d}
+#prototype{position:relative;z-index:1;margin-top:2px;font-weight:900;font-size:clamp(15px,2.1vw,20px)}
+
+.stage{position:absolute;z-index:12;left:50%;top:30%;translate:-50% 0;width:min(860px,92vw)}
+.card{position:relative;background:linear-gradient(180deg,#fffdf3,#fff4c9);border:5px solid #ffd64a;
+  border-radius:24px;padding:22px 25px 20px;box-shadow:0 16px 0 rgba(5,60,82,.3),0 25px 44px rgba(4,42,63,.25);
+  transform-origin:center;animation:cardIn .52s cubic-bezier(.2,1.35,.5,1) both}
+.card::before{content:"";position:absolute;left:50%;top:-14px;translate:-50% 0;width:94px;height:28px;
+  background:rgba(255,233,112,.72);border:2px dashed rgba(169,116,24,.45);rotate:-2deg}
+@keyframes cardIn{from{opacity:0;transform:translate(var(--fly-x,0),var(--fly-y,-70px)) rotate(var(--fly-r,-4deg)) scale(.7)}
+  to{opacity:1;transform:none}}
+.qmeta{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#50818e;
+  font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
+.source{padding:4px 9px;border-radius:99px;background:#dff4ec;color:#23835a}
+.question{margin:12px 0 16px;font-size:clamp(16px,2.05vw,21px);font-weight:850;line-height:1.38;color:#153946}
+.formula{white-space:nowrap;font-family:Georgia,"Times New Roman",serif;font-size:1.04em}
+.answers{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.answer{position:relative;min-height:66px;padding:10px;border:3px solid #77c8d6;border-radius:17px;background:#f7ffff;
+  color:#11425a;font-weight:900;font-size:clamp(17px,2.5vw,23px);cursor:pointer;
+  box-shadow:0 6px 0 #3c98ab;transition:transform .12s,box-shadow .12s,background .15s}
+.answer::before{content:attr(data-letter);position:absolute;left:9px;top:9px;width:23px;height:23px;display:grid;
+  place-items:center;border-radius:50%;background:#d7f4f7;color:#267a8c;font-size:11px}
+.answer:hover:not(:disabled){transform:translateY(-3px);box-shadow:0 9px 0 #3c98ab}
+.answer:active:not(:disabled){transform:translateY(5px);box-shadow:0 1px 0 #3c98ab}
+.answer:disabled{cursor:default}
+.answer.correct{border-color:#35ac4c;background:#dff8d9;box-shadow:0 6px 0 #26883b;color:#1c742e}
+.answer.wrong{border-color:#e14d48;background:#ffe0d9;box-shadow:0 6px 0 #b83a35;color:#a12424;animation:shake .35s}
+@keyframes shake{20%,60%{translate:-7px 0}40%,80%{translate:7px 0}}
+.tools{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px}
+.hintbtn,.nextbtn{border:0;border-radius:14px;padding:11px 17px;font-weight:900;cursor:pointer}
+.hintbtn{color:#754812;background:#ffe17b;box-shadow:0 5px 0 #c99a2a}
+.hintbtn:active,.nextbtn:active{translate:0 4px;box-shadow:0 1px 0 rgba(0,0,0,.25)}
+.nextbtn{margin-left:auto;color:white;background:#45bd59;box-shadow:0 5px 0 #288b39}
+.feedback{display:none;margin-top:15px;padding:12px 14px;border-radius:14px;font-weight:800;line-height:1.35}
+.feedback.show{display:block;animation:open .24s ease-out}
+.feedback.good{background:#dcf7da;color:#1e7431}.feedback.bad{background:#ffe2dd;color:#9d2b29}
+.hintbox{display:none;margin-top:13px;padding:12px 14px;border-radius:14px;background:#fff1a9;
+  color:#704c13;font-weight:800;line-height:1.38;border:2px dashed #d5a83d}
+.hintbox.show{display:block;animation:open .24s ease-out}
+@keyframes open{from{opacity:0;translate:0 -6px}}
+
+.overlay{position:absolute;z-index:100;inset:0;display:grid;place-items:center;padding:24px;
+  background:radial-gradient(circle at 50% 20%,rgba(23,159,196,.57),rgba(3,49,78,.92));backdrop-filter:blur(5px)}
+.panel{width:min(590px,94vw);max-height:94vh;overflow:auto;padding:29px;border:7px solid var(--wood2);
+  border-radius:28px;background:linear-gradient(180deg,#fffdf1,#ffe6a1);text-align:center;
+  box-shadow:inset 0 0 0 4px #fff8dc,0 24px 60px rgba(0,0,0,.42)}
+.logo{font-size:58px;line-height:1;filter:drop-shadow(0 5px 0 rgba(4,67,91,.23));animation:logo 2.6s ease-in-out infinite}
+@keyframes logo{50%{translate:0 -7px;rotate:4deg}}
+h1{margin:8px 0 3px;font-size:clamp(31px,6vw,51px);line-height:.98;color:#138bb4;
+  text-shadow:0 3px 0 #fff,0 6px 0 rgba(6,86,117,.18)}
+.lead{margin:8px auto 16px;color:#3b6670;font-weight:800;line-height:1.4}
+.rules{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:17px 0}
+.rule{padding:11px 8px;border-radius:15px;background:rgba(23,144,178,.1);font-size:12px;font-weight:900;color:#315d67}
+.rule b{display:block;font-size:22px;margin-bottom:3px}
+.studentrow{display:flex;align-items:center;justify-content:center;gap:9px;margin:4px 0 16px;font-weight:900;color:#1c7996}
+.change{border:0;background:none;text-decoration:underline;color:#6d7d7d;font-size:12px;font-weight:900;cursor:pointer}
+.mainbtn{border:0;border-radius:17px;padding:14px 34px;color:white;font-size:21px;font-weight:900;cursor:pointer;
+  background:linear-gradient(#6ada72,#39b94c);box-shadow:0 8px 0 #248a35,0 13px 22px rgba(0,0,0,.18)}
+.mainbtn:hover{translate:0 -2px}.mainbtn:active{translate:0 6px;box-shadow:0 2px 0 #248a35}
+.codeLabel{display:block;text-align:left;margin:15px 2px 7px;font-weight:900;color:#41656c}
+.codeInput{width:100%;padding:13px 16px;border:3px solid #8fc9d4;border-radius:14px;background:#fff;
+  color:#17455b;text-align:center;text-transform:uppercase;font-size:23px;font-weight:900;letter-spacing:.1em;outline:0}
+.codeInput:focus{border-color:#1b9cbd;box-shadow:0 0 0 5px rgba(27,156,189,.16)}
+.authmsg{min-height:22px;margin:9px 0;font-size:13px;font-weight:800;color:#657b80}
+.authmsg.error{color:#bd3531}.authmsg.ok{color:#288c3a}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:17px 0}
+.stat{padding:12px 6px;border:3px solid #efc644;border-radius:16px;background:#fffdf6}
+.stat b{display:block;font-size:27px;color:#087fa5}.stat span{font-size:10px;color:#688087;text-transform:uppercase;font-weight:900}
+.save{margin:11px 0 16px;padding:9px;border-radius:12px;background:rgba(17,129,162,.09);font-size:13px;font-weight:900;color:#447079}
+.save.saved{background:#dff4d9;color:#287936}.save.queued{background:#fff1b9;color:#7f6116}
+.summary{margin:8px 0 17px;font-weight:800;color:#496b71;line-height:1.4}
+.streak{position:fixed;z-index:80;left:50%;top:50%;translate:-50% -50%;font-size:clamp(32px,7vw,70px);
+  font-weight:1000;color:#fff04c;-webkit-text-stroke:3px #77491c;paint-order:stroke fill;
+  pointer-events:none;animation:streak .8s ease-out forwards}
+@keyframes streak{0%{opacity:0;scale:.4;rotate:-8deg}25%{opacity:1;scale:1.15}100%{opacity:0;translate:-50% -130%;scale:.9}}
+
+@media(max-width:700px){
+  .hud{left:8px;right:8px;top:8px;gap:6px;grid-template-columns:auto 1fr auto auto}
+  .pill{height:42px;padding:0 10px;border-width:2px;border-radius:14px}.pill small{display:none}
+  .iconbtn{width:42px}
+  .sign{top:61px}.stage{top:25%;width:94vw}.card{padding:18px 15px 15px}
+  .card{max-height:72vh;overflow-y:auto}
+  .question{margin:10px 0 13px;max-height:26vh;overflow:auto}
+  .answers{grid-template-columns:1fr;gap:8px}.answer{min-height:50px;font-size:18px}
+  .tools{margin-top:11px}.panel{padding:22px 17px}.rules{grid-template-columns:1fr 1fr}
+  .rule:last-child{grid-column:1/-1}.coral{opacity:.55}
+}
+@media(max-height:700px) and (min-width:701px){
+  .sign{top:65px}.stage{top:29%}.card{padding:17px 20px 15px}
+  .question{font-size:16px;margin:8px 0 11px}.answer{min-height:52px}.tools{margin-top:11px}
+}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;animation-iteration-count:1!important}}
+
+/* Игровой режим: движущийся пузырь и иголки-ответы */
+.hud{grid-template-columns:auto auto 48px;justify-content:end}
+.arena{position:absolute;z-index:12;left:0;right:0;top:128px;bottom:154px;overflow:hidden}
+.problem-bubble{position:absolute;width:min(570px,82vw);min-height:280px;padding:50px 58px 46px;
+  display:flex;flex-direction:column;justify-content:center;isolation:isolate;
+  border:5px solid rgba(229,253,255,.92);border-radius:50%;
+  background:radial-gradient(circle at 28% 19%,rgba(255,255,255,.92) 0 3%,rgba(255,255,255,.2) 4% 10%,transparent 11%),
+    radial-gradient(circle at 50% 52%,rgba(244,255,251,.89),rgba(181,243,249,.76) 58%,rgba(68,200,224,.52));
+  box-shadow:inset 20px 17px 32px rgba(255,255,255,.72),inset -22px -24px 35px rgba(26,143,183,.28),
+    0 0 0 7px rgba(255,255,255,.16),0 22px 40px rgba(3,62,91,.3);
+  will-change:left,top;transition:filter .15s}
+.problem-bubble::before{content:"";position:absolute;z-index:-1;inset:5%;border:2px solid rgba(255,255,255,.52);
+  border-radius:50%;animation:breathe 2.2s ease-in-out infinite alternate}
+.problem-bubble::after{content:"";position:absolute;right:18%;top:13%;width:16%;height:8%;
+  border-top:7px solid rgba(255,255,255,.62);border-radius:50%;rotate:24deg}
+@keyframes breathe{to{inset:3%;opacity:.6}}
+.problem-bubble.target{filter:drop-shadow(0 0 18px #fff45c) brightness(1.08)}
+.problem-bubble.wobble{animation:bubbleWobble .42s ease}
+@keyframes bubbleWobble{20%{transform:scale(1.04) rotate(2deg)}45%{transform:scale(.97) rotate(-2deg)}75%{transform:scale(1.02)}}
+.problem-bubble.pop{animation:bubblePop .55s cubic-bezier(.1,.7,.3,1) forwards}
+@keyframes bubblePop{0%{opacity:1;transform:scale(1)}55%{opacity:.9;transform:scale(1.16)}
+  100%{opacity:0;transform:scale(1.48);filter:blur(8px)}}
+.problem-bubble .qmeta{position:relative;z-index:2;justify-content:center;margin-bottom:5px}
+.problem-bubble .source{background:rgba(255,255,255,.55)}
+.problem-bubble .question{position:relative;z-index:2;margin:7px 0 0;max-height:150px;overflow:auto;
+  text-align:center;font-size:clamp(15px,1.75vw,19px);line-height:1.35;text-shadow:0 1px rgba(255,255,255,.8)}
+.problem-bubble .hintbox{position:relative;z-index:2;margin:10px 0 0;padding:9px 12px;
+  max-height:86px;overflow:auto;text-align:center;background:rgba(255,241,169,.82);font-size:13px}
+.needle-dock{position:absolute;z-index:25;left:0;right:0;bottom:12px;display:flex;align-items:flex-end;
+  justify-content:center;gap:clamp(12px,3vw,42px);padding:0 16px;pointer-events:none}
+.needle{position:relative;pointer-events:auto;width:min(210px,28vw);height:78px;padding:9px 40px 9px 12px;
+  border:4px solid #684328;border-radius:18px 10px 10px 18px;color:#482c17;
+  background:linear-gradient(180deg,#ffd95d,#f3a82f);font-weight:1000;font-size:clamp(16px,2vw,22px);
+  box-shadow:0 7px 0 #a75d26,0 12px 20px rgba(3,51,72,.3);cursor:grab;touch-action:none;
+  transition:filter .15s,transform .15s,box-shadow .15s;transform-origin:center}
+.needle::before{content:"";position:absolute;right:-50px;top:31px;width:54px;height:8px;
+  background:linear-gradient(#f5ffff,#7f9ca4);border:2px solid #546c73;border-left:0;border-radius:0 8px 8px 0}
+.needle::after{content:"";position:absolute;right:-65px;top:28px;width:0;height:0;
+  border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:17px solid #dff7fa;
+  filter:drop-shadow(2px 0 #536b72)}
+.needle:nth-child(2){background:linear-gradient(180deg,#ff97bd,#e65b95);box-shadow:0 7px 0 #a73569,0 12px 20px rgba(3,51,72,.3)}
+.needle:nth-child(3){background:linear-gradient(180deg,#8ae585,#47bd61);box-shadow:0 7px 0 #24853c,0 12px 20px rgba(3,51,72,.3)}
+.needle:hover{transform:translateY(-3px) rotate(-1deg);filter:brightness(1.05)}
+.needle.dragging{position:fixed;z-index:200;margin:0;cursor:grabbing;transform:rotate(-8deg) scale(1.05);
+  transition:none;box-shadow:0 16px 28px rgba(0,0,0,.35)}
+.needle.snap{transition:left .32s cubic-bezier(.3,1.5,.5,1),top .32s,transform .32s}
+.needle.wrong{animation:needleWrong .4s}
+@keyframes needleWrong{25%,75%{filter:hue-rotate(135deg) saturate(1.8);transform:rotate(8deg)}50%{transform:rotate(-8deg)}}
+.game-tools{position:absolute;z-index:28;left:50%;bottom:112px;translate:-50% 0;display:flex;
+  align-items:center;justify-content:center;gap:12px}
+.game-message{min-width:210px;max-width:min(620px,70vw);padding:10px 15px;border-radius:15px;
+  background:rgba(4,58,89,.8);border:2px solid rgba(255,255,255,.45);color:white;
+  font-size:13px;font-weight:900;text-align:center;backdrop-filter:blur(5px)}
+.game-message:empty{display:none}
+.hintbtn{white-space:nowrap}
+.burst-drop{position:fixed;z-index:210;width:14px;height:14px;border:3px solid rgba(255,255,255,.8);
+  border-radius:50%;pointer-events:none;animation:dropBurst .65s ease-out forwards}
+@keyframes dropBurst{to{translate:var(--dx) var(--dy);scale:.15;opacity:0}}
+
+@media(max-width:700px){
+  .hud{grid-template-columns:auto auto 42px}
+  .arena{top:108px;bottom:230px}
+  .problem-bubble{width:91vw;min-height:300px;padding:47px 30px 42px}
+  .problem-bubble .question{max-height:158px;font-size:15px}
+  .needle-dock{bottom:10px;flex-direction:column;align-items:flex-start;gap:9px;padding-left:18px}
+  .needle{width:calc(100vw - 88px);max-width:none;height:58px;font-size:17px;padding-right:35px}
+  .needle::before{top:21px}.needle::after{top:18px}
+  .game-tools{bottom:205px;width:94vw}.game-message{max-width:58vw}
+}
+
+
+/* ===== currentSession / выбор способа ===== */
+body{overflow:hidden}
+#game{isolation:isolate}
+.scene-top{position:fixed;inset:0;z-index:7;pointer-events:none;overflow:hidden}
+.swim-fish{position:absolute;left:-120px;top:var(--y);font-size:var(--s);opacity:.68;filter:drop-shadow(0 4px 4px #075e8c55);animation:fishAcross var(--d) linear infinite;animation-delay:var(--delay)}
+.swim-fish.rev{left:auto;right:-120px;animation-name:fishAcrossR}
+@keyframes fishAcross{from{transform:translateX(-10vw) scaleX(1)}to{transform:translateX(125vw) scaleX(1)}}
+@keyframes fishAcrossR{from{transform:translateX(10vw) scaleX(-1)}to{transform:translateX(-125vw) scaleX(-1)}}
+.fx-bubble{position:absolute;bottom:-30px;border:2px solid #ffffffcc;border-radius:50%;background:radial-gradient(circle at 28% 23%,#fff 0 8%,#ffffff30 12%,transparent 56%);animation:fxRise var(--d) linear infinite;animation-delay:var(--delay);opacity:.72}
+@keyframes fxRise{from{transform:translate(0,0) scale(.8);opacity:0}10%{opacity:.72}to{transform:translate(var(--drift),-115vh) scale(1.25);opacity:0}}
+
+/* публичная комната / лобби */
+.system-overlay{position:absolute;z-index:105;inset:0;display:grid;place-items:center;padding:18px;background:radial-gradient(circle at 50% 15%,rgba(53,200,225,.48),rgba(3,49,78,.9));backdrop-filter:blur(5px)}
+.system-overlay.hidden{display:none!important}
+.system-panel{width:min(720px,95vw);max-height:92vh;overflow:auto;padding:26px;border:7px solid var(--wood2);border-radius:28px;background:linear-gradient(180deg,#fffdf1,#ffe6a1);box-shadow:inset 0 0 0 4px #fff8dc,0 24px 60px #0006;text-align:center}
+.system-panel h1{font-size:clamp(30px,6vw,50px)}
+.session-kicker{display:inline-block;padding:6px 10px;border-radius:99px;background:#0f89ad;color:white;font-size:11px;font-weight:1000;letter-spacing:.08em;text-transform:uppercase}
+.seats{display:grid;gap:9px;margin:17px 0}.seat{display:flex;align-items:center;gap:11px;padding:10px 12px;border:3px dashed #79aeb5;border-radius:14px;background:#ffffff91;text-align:left;font-weight:900}.seat.filled{border-style:solid;background:#dff8f1}.seat b{display:grid;place-items:center;min-width:34px;height:34px;border:3px solid #154b5b;border-radius:10px;background:var(--yellow)}
+.session-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:13px 0}.session-summary>div{padding:9px;border:2px solid #b9d5d6;border-radius:12px;background:#fff9;font-size:11px;font-weight:800}.session-summary b{display:block;margin-top:3px;color:#087fa5;font-size:15px}
+.native-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:14px}
+.sys-btn{border:3px solid #16495a;border-radius:13px;padding:10px 15px;background:linear-gradient(#f8ffff,#dff5f5);color:#17455b;font-weight:1000;box-shadow:4px 4px 0 #16495a;cursor:pointer}.sys-btn.primary{background:linear-gradient(#6ada72,#39b94c);color:#fff;border-color:#216e35;box-shadow:4px 4px 0 #216e35}.sys-btn.danger{background:linear-gradient(#ff8179,#df423e);color:#fff;border-color:#7f2825;box-shadow:4px 4px 0 #7f2825}.sys-btn:disabled{opacity:.45;cursor:not-allowed}.sys-btn:hover:not(:disabled){transform:translate(-1px,-1px)}
+
+/* вход */
+.lesson-fab{position:fixed;z-index:120;right:14px;top:14px;border:3px solid #16495a;border-radius:14px;padding:10px 14px;background:linear-gradient(#ffe66a,#ffc933);color:#17455b;font-weight:1000;box-shadow:4px 4px 0 #16495a;cursor:pointer}.lesson-fab.hidden{display:none}
+.lesson-modal{position:fixed;z-index:160;inset:0;display:none;place-items:center;padding:18px;background:#002b46cf;backdrop-filter:blur(8px)}.lesson-modal.open{display:grid}.lesson-card{position:relative;width:min(620px,96vw);max-height:92vh;overflow:auto;padding:24px;border:5px solid #16495a;border-radius:22px;background:linear-gradient(180deg,#fffdf1,#ffe6a1);box-shadow:10px 10px 0 #12394b,0 25px 70px #0008}.lesson-card h2{margin:6px 0 9px;color:#087fa5}.modal-x{position:absolute;right:10px;top:9px;width:38px;height:38px;border:3px solid #16495a;border-radius:11px;background:#fff;font-size:23px;font-weight:1000;cursor:pointer}.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}.role-choice{min-height:120px;padding:15px;border:3px solid #16495a;border-radius:15px;background:linear-gradient(145deg,#fff7d9,#dff7f1);color:#17455b;text-align:left;font-weight:900;box-shadow:4px 4px 0 #16495a;cursor:pointer}.role-choice b{display:block;font-size:23px}.role-choice small{display:block;margin-top:6px;line-height:1.35;color:#53747b}.code-form{display:grid;gap:10px;margin-top:14px}.code-form input{width:100%;padding:13px 15px;border:3px solid #8fc9d4;border-radius:13px;background:#fff;text-align:center;font-weight:1000;font-size:19px;letter-spacing:.08em}.status{min-height:20px;font-size:13px;font-weight:900;color:#5e767c}.status.bad{color:#c13531}.status.good{color:#278c3b}
+
+/* игровая сцена */
+.hud{grid-template-columns:auto auto auto 48px;justify-content:end;z-index:30}.pill.turn-pill{max-width:290px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pill.teacher-stop{cursor:pointer;background:#a53d39}.pill.teacher-stop.hidden{display:none}
+.arena{top:130px;bottom:185px}
+.problem-bubble{width:min(660px,86vw);min-height:300px;padding:48px 62px 44px}.problem-bubble .question{max-height:175px;font-size:clamp(14px,1.55vw,18px)}
+.needle-dock{bottom:10px;gap:clamp(9px,1.5vw,20px);align-items:stretch}.needle{width:min(31vw,430px);height:auto;min-height:116px;padding:12px 37px 12px 14px;font-size:clamp(11px,1.2vw,14px);line-height:1.27;text-align:left;white-space:normal}.needle strong{display:block;margin-bottom:4px;font-size:1.02em}.needle::before{top:50%;transform:translateY(-50%)}.needle::after{top:calc(50% - 7px)}
+.game-tools{bottom:140px}.game-message{max-width:min(720px,72vw)}
+.wait-turn{position:absolute;z-index:50;inset:110px 7% 100px;display:grid;place-items:center;text-align:center}.wait-card{width:min(620px,95%);padding:28px;border:6px solid #5a341b;border-radius:24px;background:linear-gradient(180deg,#fffdf1,#ffe6a1);box-shadow:0 18px 50px #002b4677}.wait-card .big{font-size:72px}.wait-card h2{color:#087fa5}
+
+/* панель занятия */
+.session-panel{position:fixed;z-index:125;left:13px;bottom:13px;display:none;align-items:center;gap:8px;max-width:min(850px,calc(100vw - 26px));padding:8px 10px;border:3px solid #16495a;border-radius:13px;background:#075e8cf2;color:white;box-shadow:4px 4px 0 #073e63}.session-panel.show{display:flex}.session-dot{width:11px;height:11px;border:2px solid #fff;border-radius:50%;background:#d34d49}.session-dot.on{background:#42d46e;box-shadow:0 0 9px #42d46e}.session-panel b{white-space:nowrap}.session-panel small{font-weight:800;opacity:.92}.session-panel button{padding:5px 8px;border:2px solid #fff;border-radius:8px;background:#ffffff20;color:#fff;font-weight:900;cursor:pointer}.session-panel button.danger{background:#a53d39}
+
+/* доска */
+#boardHost{position:fixed;z-index:58;inset:0;pointer-events:none}.shared-board{position:absolute;inset:0;width:100%;height:100%;touch-action:none;pointer-events:none}.board-toolbar{position:fixed;z-index:130;display:none;width:306px;border:3px solid #16495a;border-radius:14px;background:#075e8cf5;color:#fff;box-shadow:5px 5px 0 #073e63,0 12px 35px #0006;overflow:hidden;user-select:none}.board-toolbar.show{display:block}.board-toolbar.collapsed .board-tools{display:none}.board-head{display:flex;align-items:center;justify-content:space-between;padding:7px 9px;background:#064a70;cursor:move}.board-head button{border:0;border-radius:7px;background:#fff2;color:#fff;font-weight:1000}.board-tools{display:grid;grid-template-columns:repeat(3,38px) 42px minmax(82px,1fr);gap:6px;align-items:center;padding:9px}.board-tools button{height:36px;border:2px solid #ffffff88;border-radius:8px;background:#ffffff1f;color:#fff;font-weight:1000}.board-tools button.active{background:var(--yellow);color:#17455b;border-color:#16495a}.board-tools input[type=color]{width:40px;height:36px;border:0;background:none}.board-tools input[type=range]{width:100%}.board-clear{grid-column:1/-1;width:100%;background:#a53d39!important}.teacher-cursor{position:fixed;z-index:129;display:none;pointer-events:none;transform:translate(-4px,-4px)}.teacher-cursor.show{display:block}.teacher-cursor:before{content:'➤';font-size:25px;color:#ffd83d;text-shadow:2px 2px #073e63}.teacher-cursor:after{content:'Учитель';position:absolute;left:18px;top:17px;padding:2px 5px;border-radius:5px;background:#075e8c;color:#fff;font-size:10px;font-weight:900}
+
+/* красная ошибка */
+#errorFlash{position:fixed;z-index:220;inset:0;pointer-events:none;background:#ff1717;opacity:0}.bad-feedback #errorFlash{animation:redFlash .8s ease}.bad-feedback #game{animation:screenQuake .75s linear}
+@keyframes redFlash{0%,100%{opacity:0}14%,42%,70%{opacity:.47}28%,56%{opacity:.08}}
+@keyframes screenQuake{0%,100%{transform:none}10%{transform:translate(-13px,7px) rotate(-.7deg)}20%{transform:translate(13px,-8px) rotate(.7deg)}30%{transform:translate(-11px,-4px)}40%{transform:translate(10px,8px)}50%{transform:translate(-7px,4px)}60%{transform:translate(7px,-4px)}75%{transform:translate(-4px,2px)}90%{transform:translate(3px,-2px)}}
+/* положительный эффект после правильного способа */
+#methodFlash{position:fixed;z-index:225;inset:0;pointer-events:none;opacity:0;background:radial-gradient(circle at 50% 45%,rgba(219,255,232,.88) 0 9%,rgba(63,225,163,.48) 28%,rgba(26,190,208,.23) 52%,transparent 74%)}
+#methodFlash .method-ok-word{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%) scale(.55);white-space:nowrap;font-size:clamp(30px,6vw,74px);font-weight:1000;color:#f3ff8a;-webkit-text-stroke:3px #08745f;paint-order:stroke fill;text-shadow:0 8px 24px #003c4f88;opacity:0}
+.good-step-feedback #methodFlash{animation:methodScreenFlash 1.05s ease-out}.good-step-feedback #methodFlash .method-ok-word{animation:methodWord 1.05s cubic-bezier(.2,1.25,.45,1)}.good-step-feedback #game{animation:goodWave 1.05s ease-out}
+@keyframes methodScreenFlash{0%{opacity:0}13%{opacity:1}38%{opacity:.72}100%{opacity:0}}
+@keyframes methodWord{0%{opacity:0;transform:translate(-50%,-50%) scale(.45) rotate(-5deg)}22%{opacity:1;transform:translate(-50%,-50%) scale(1.12) rotate(2deg)}58%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-66%) scale(.9)}}
+@keyframes goodWave{0%,100%{filter:none;transform:none}20%{filter:saturate(1.35) brightness(1.12);transform:scale(1.008)}45%{filter:saturate(1.2) brightness(1.05);transform:scale(.996)}70%{transform:scale(1.003)}}
+
+/* полноэкранное лопанье 3 секунды */
+#successFx{position:fixed;z-index:230;inset:0;display:none;pointer-events:none;overflow:hidden;background:radial-gradient(circle at center,#eaffff99,transparent 45%)}#successFx.show{display:block;animation:successBg 3s ease forwards}.mega-bubble{position:absolute;left:50%;top:50%;width:160px;height:160px;border:8px solid #efffff;border-radius:50%;background:radial-gradient(circle at 30% 25%,#fff 0 6%,#ffffff4d 7% 18%,#7ee8f0aa 55%,#169ec4aa);box-shadow:inset 20px 17px 35px #fff9,0 0 80px #dffeff;transform:translate(-50%,-50%) scale(.35)}#successFx.show .mega-bubble{animation:megaPop 3s cubic-bezier(.15,.8,.2,1) forwards}.pop-ring{position:absolute;left:50%;top:50%;width:100px;height:100px;border:10px solid #fff;border-radius:50%;transform:translate(-50%,-50%) scale(.2);opacity:0}#successFx.show .r1{animation:ringPop 2.1s .55s ease-out forwards}#successFx.show .r2{animation:ringPop 2.4s .8s ease-out forwards}.success-word{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%) scale(.5);font-size:clamp(44px,9vw,110px);font-weight:1000;color:#fff04c;-webkit-text-stroke:4px #075e8c;paint-order:stroke fill;opacity:0}#successFx.show .success-word{animation:wordPop 2.5s .55s ease forwards}.splash-drop{position:absolute;left:50%;top:50%;width:18px;height:18px;border:4px solid #fff;border-radius:50%;background:#5ddce9;opacity:0}#successFx.show .splash-drop{animation:splash 1.8s var(--delay) ease-out forwards}
+@keyframes successBg{0%{background:#dfffff00}18%{background:#dfffff88}55%{background:#ffffffdd}72%{background:#8be8f0aa}100%{background:#dfffff00}}
+@keyframes megaPop{0%{transform:translate(-50%,-50%) scale(.3);opacity:0}15%{opacity:1}42%{transform:translate(-50%,-50%) scale(2.2);opacity:1}50%{transform:translate(-50%,-50%) scale(3);opacity:.1;filter:blur(4px)}100%{transform:translate(-50%,-50%) scale(4);opacity:0}}
+@keyframes ringPop{0%{opacity:.9;transform:translate(-50%,-50%) scale(.3)}100%{opacity:0;transform:translate(-50%,-50%) scale(8)}}
+@keyframes wordPop{0%{opacity:0;transform:translate(-50%,-50%) scale(.4) rotate(-7deg)}18%{opacity:1;transform:translate(-50%,-50%) scale(1.2) rotate(3deg)}60%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-80%) scale(.85)}}
+@keyframes splash{0%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(.25)}}
+
+.toast{position:fixed;z-index:250;left:50%;bottom:18px;translate:-50% 30px;opacity:0;pointer-events:none;max-width:min(650px,calc(100vw - 30px));padding:10px 14px;border:3px solid #16495a;border-radius:12px;background:#075e8c;color:#fff;font-weight:900;transition:.2s}.toast.show{translate:-50% 0;opacity:1}.toast.bad{background:#9d3430}
+
+@media(max-width:820px){.role-grid{grid-template-columns:1fr}.session-summary{grid-template-columns:1fr 1fr}.needle-dock{flex-direction:column;align-items:flex-start;bottom:8px;gap:7px;padding-left:13px}.needle{width:calc(100vw - 92px);min-height:68px;font-size:11px}.arena{top:112px;bottom:268px}.problem-bubble{width:92vw;min-height:280px;padding:45px 30px 40px}.game-tools{bottom:240px;width:94vw}.game-message{max-width:60vw}.hud{left:7px;right:7px;gap:5px}.pill.turn-pill{max-width:160px}.session-panel{left:7px;right:7px;bottom:7px;max-width:none;flex-wrap:wrap}.board-toolbar{width:min(290px,calc(100vw - 14px))}}
+
+/* v4: два этапа, читаемые варианты выше системных кнопок */
+.phase-badge{padding:4px 9px;border-radius:99px;background:#fff1a9;color:#73520d;font-weight:1000;white-space:nowrap}
+.needle-dock{bottom:142px;align-items:stretch;gap:clamp(8px,1.2vw,14px);max-height:37vh;overflow-y:auto;overflow-x:visible;padding:8px 72px 12px 18px;scrollbar-width:thin}
+.game-tools{bottom:18px;z-index:31;align-items:center;max-width:min(920px,94vw)}
+.game-message{max-width:min(700px,72vw)}
+.needle{width:min(31vw,440px);min-height:104px;height:auto;padding:12px 42px 12px 14px;font-size:clamp(11px,1.1vw,14px);line-height:1.3;text-align:left;white-space:normal}
+.needle .method-title{display:block;margin-bottom:7px;font-size:1.03em;color:#3e2716}
+.needle .method-steps{margin:0;padding-left:20px;display:grid;gap:4px;font-weight:850}
+.needle .method-steps li{padding-left:2px}
+.needle.answer-choice{min-height:72px;display:grid;place-items:center;text-align:center;font-size:clamp(18px,2vw,25px);font-weight:1000}
+.needle.answer-choice::before{top:50%;transform:translateY(-50%)}
+.needle.answer-choice::after{top:calc(50% - 7px)}
+@media(max-width:820px){
+  .needle-dock{bottom:210px;max-height:36vh;padding:6px 72px 8px 10px;gap:6px}
+  .needle{width:calc(100vw - 98px);min-height:82px;font-size:10.5px}
+  .needle.answer-choice{min-height:54px;font-size:18px}
+  .game-tools{bottom:70px;width:94vw;flex-wrap:wrap;gap:6px}.game-message{max-width:100%;width:100%;order:-1}
+  .arena{top:112px;bottom:345px}.problem-bubble{min-height:250px;padding:42px 28px 36px}
+}
+
+</style></head>
+<body>
+<main id="game" data-board-anchor="main-screen">
+  <div class="scene" aria-hidden="true"><i class="flower f1"></i><i class="flower f2"></i><i class="flower f3"></i><span class="jelly j1">🪼</span><span class="jelly j2">🪼</span><span class="coral c1">♨</span><span class="coral c2">♨</span><i class="rock r1"></i><i class="rock r2"></i></div><div class="seafloor"></div><div id="bubbleLayer" class="scene" aria-hidden="true"></div><div id="sceneTop" class="scene-top" aria-hidden="true"></div>
+  <header class="hud" id="hud"><div class="pill turn-pill"><small>Ход</small><span>🐠</span><span id="turnName">—</span></div><div class="pill"><small>С первой</small><span>⭐</span><span id="scoreText">0</span></div><div class="pill"><small>Пройдено</small><span>🫧</span><span id="miniProgress">0/10</span></div><button class="pill iconbtn" id="soundBtn" type="button">🔊</button></header>
+  <section class="sign"><i class="rope a"></i><i class="rope b"></i><div class="board"><div class="eyebrow" id="progressText">2 этапа · 0/10</div><div id="prototype">Расчёты по формулам · ОГЭ №12</div></div></section>
+  <section class="arena" id="arena"><article class="problem-bubble hidden" id="problemBubble"><div class="qmeta"><span class="source" id="sourceText">Прототип</span><span class="phase-badge" id="phaseBadge">Этап 1/2 · способ</span><span id="questionCount">1 из 10</span></div><div class="question" id="questionText"></div><div class="hintbox" id="hintBox"></div></article><div class="wait-turn hidden" id="waitTurn"><div class="wait-card"><div class="big">🪸</div><h2>ЖДИ СВОЕГО ХОДА</h2><p id="waitText"></p></div></div></section>
+  <div class="game-tools hidden" id="gameTools"><button class="hintbtn" id="hintBtn" type="button">💡 Подсказка</button><div class="game-message" id="gameMessage"></div></div><div class="needle-dock hidden" id="needleDock"></div>
+  <section class="system-overlay" id="publicScreen"><div class="system-panel" id="publicPanel"></div></section>
+  <section class="system-overlay hidden" id="lobbyScreen"><div class="system-panel" id="lobbyPanel"></div></section>
+  <section class="system-overlay hidden" id="finishScreen"><div class="system-panel" id="finishPanel"></div></section>
+</main>
+<button class="lesson-fab" id="lessonJoinBtn">СОВМЕСТНЫЙ УРОК</button>
+<div class="lesson-modal" id="lessonModal"><div class="lesson-card" id="lessonCard"></div></div>
+<div class="session-panel" id="sessionPanel"></div>
+<div id="boardHost"></div><div class="board-toolbar" id="boardToolbar"></div><div class="teacher-cursor" id="teacherCursor"></div>
+<div id="errorFlash"></div><div id="methodFlash"><div class="method-ok-word">✓ СПОСОБ ВЕРНЫЙ</div></div><div id="successFx"><div class="mega-bubble"></div><div class="pop-ring r1"></div><div class="pop-ring r2"></div><div class="success-word">БУЛЬК!</div></div><div class="toast" id="toast"></div>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import {getDatabase,ref,get,set,update,onValue,onDisconnect,runTransaction,serverTimestamp} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js";
+const firebaseConfig={apiKey:"AIzaSyBkY5utRlEfGIT_wEW6Dq7TSLr3RqBWJxo",authDomain:"ega-mathematica.firebaseapp.com",databaseURL:"https://ega-mathematica-default-rtdb.europe-west1.firebasedatabase.app",projectId:"ega-mathematica",storageBucket:"ega-mathematica.firebasestorage.app",messagingSenderId:"177632223541",appId:"1:177632223541:web:fbc532216359e34665ec7c",measurementId:"G-K9FZYGKPZS"};
+const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+const APP_ID='oge12-underwater-method-answer-10-v1', FIXED_SESSION_ID='currentSession', SCHEMA_VERSION=6, TASKS_PER_STUDENT=10;
+const TEACHER_CODE='A7K4P9';
+const TEST_META={testId:'OGE-TEST-12-PODVODNYI-METHOD-ANSWER-10-V1',testName:'Подводный блиц — расчёты по формулам, 10 задач',topicId:'oge-task-12',topicName:'Расчёты по формулам',taskNumber:12,schemaVersion:1};
+const app=initializeApp(firebaseConfig),database=getDatabase(app);
+const lessonRoot=()=>`sharedInteractives/${APP_ID}/${FIXED_SESSION_ID}`,sessionRef=()=>ref(database,lessonRoot()),stateRef=()=>ref(database,`${lessonRoot()}/state`),membersRef=()=>ref(database,`${lessonRoot()}/members`),messagesRef=()=>ref(database,`${lessonRoot()}/messages`),memberRef=id=>ref(database,`${lessonRoot()}/members/${id}`);
+const STUDENT_SAVE_KEY=`${APP_ID}:student`,CLIENT_ID_KEY=`${APP_ID}:client`,TOOLBAR_POSITION_KEY=`${APP_ID}:toolbar`,PENDING_RESULTS_KEY=`${APP_ID}:pendingTestResults`;
+const $=id=>document.getElementById(id),clone=v=>v==null?v:JSON.parse(JSON.stringify(v)),esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+const QUESTIONS=[
+ {id:'q01',source:1,prototype:'Прямая подстановка · стоимость',text:`Стоимость установки вычисляется по формуле <span class="formula">C = 5500 + 3800n</span>, где <span class="formula">n</span> — число секций. Найдите стоимость установки из 5 секций.`,hint:'Подставь n = 5. Сначала выполни умножение, затем сложение.',correct:`<strong>Подставить значение n в готовую формулу</strong>C = 5500 + 3800·5 → сначала вычислить произведение 3800·5 → затем прибавить 5500.`,wrong:[`<strong>Сложить коэффициенты до подстановки</strong>5500 + 3800 → полученное число умножить на 5.`,`<strong>Вычесть стоимость секций из постоянной части</strong>5500 − 3800·5 → взять модуль результата.`]},
+ {id:'q02',source:2,prototype:'Скобки и дробь · температура',text:`Температуры связаны формулой <span class="formula">t<sub>C</sub> = 5/9·(t<sub>F</sub> − 32)</span>. Найдите <span class="formula">t<sub>C</sub></span>, если <span class="formula">t<sub>F</sub> = −4</span>.`,hint:'В этой формуле сначала считаются скобки.',correct:`<strong>Сначала вычислить выражение в скобках</strong>−4 − 32 = −36 → затем умножить −36 на 5/9.`,wrong:[`<strong>Сначала умножить −4 на 5/9</strong>а число 32 вычесть уже после умножения.`,`<strong>Заменить вычитание в скобках сложением</strong>−4 + 32 → затем умножить результат на 5/9.`]},
+ {id:'q03',source:3,prototype:'Выразить неизвестную · площадь четырёхугольника',text:`Площадь четырёхугольника вычисляется по формуле <span class="formula">S = d₁d₂·sin α / 2</span>. Найдите <span class="formula">d₁</span>, если <span class="formula">S = 24</span>, <span class="formula">d₂ = 8</span>, <span class="formula">sin α = 3/4</span>.`,hint:'Сначала избавься от деления на 2, затем оставь d₁ одну.',correct:`<strong>Выразить d₁ из формулы</strong>2S = d₁d₂·sin α → d₁ = 2S/(d₂·sin α) → только после этого подставить данные.`,wrong:[`<strong>Подставить данные и разделить S на 2</strong>d₁ = S/(2d₂·sin α).`,`<strong>Умножить S на d₂ и sin α</strong>d₁ = 2S·d₂·sin α.`]},
+ {id:'q04',source:4,prototype:'Квадрат известной величины · мощность',text:`Электрическая мощность вычисляется по формуле <span class="formula">P = I²R</span>. Найдите <span class="formula">R</span>, если <span class="formula">P = 24,5 Вт</span>, <span class="formula">I = 1,4 А</span>.`,hint:'Чтобы оставить R одну, раздели P на I². Квадрат 1,4 посчитай отдельно.',correct:`<strong>Разделить обе части на I²</strong>R = P/I² → вычислить 1,4² = 1,96 → разделить 24,5 на 1,96.`,wrong:[`<strong>Разделить P только на I</strong>R = P/I, забыв квадрат силы тока.`,`<strong>Умножить мощность на квадрат тока</strong>R = P·I².`]},
+ {id:'q05',source:5,prototype:'Квадрат неизвестной · кинетическая энергия',text:`Кинетическая энергия вычисляется по формуле <span class="formula">E = mv²/2</span>. Масса тела 500 кг, энергия равна 64 тысяч Дж. Найдите скорость <span class="formula">v</span>.`,hint:'64 тысяч Дж = 64000 Дж. Сначала найди v², затем извлеки положительный корень.',correct:`<strong>Перевести тысячи и выразить v²</strong>E = 64000 → v² = 2E/m → вычислить v² → извлечь квадратный корень и взять положительное значение скорости.`,wrong:[`<strong>Подставить E = 64 без перевода тысяч</strong>затем найти v² = 2E/m и извлечь корень.`,`<strong>Разделить энергию на 2m</strong>v² = E/(2m) → затем извлечь корень.`]},
+ {id:'q06',source:6,prototype:'Степень десяти и квадрат · конденсатор',text:`Энергия конденсатора вычисляется по формуле <span class="formula">W = CU²/2</span>. Найдите <span class="formula">W</span>, если <span class="formula">C = 5·10<sup>−4</sup> Ф</span>, <span class="formula">U = 20 В</span>.`,hint:'Сначала отдельно вычисли 20² и значение 5·10⁻⁴.',correct:`<strong>Подставить C и квадрат U</strong>5·10⁻⁴ = 0,0005 → U² = 400 → W = 0,0005·400/2.`,wrong:[`<strong>Возвести ёмкость в квадрат вместо напряжения</strong>W = C²U/2.`,`<strong>Перенести U² в знаменатель</strong>W = C/(2U²).`]},
+ {id:'q07',source:7,prototype:'Выразить множитель · потенциальная энергия',text:`Потенциальная энергия задаётся формулой <span class="formula">E = mgh</span>. Найдите массу <span class="formula">m</span>, если <span class="formula">E = 1470 Дж</span>, <span class="formula">g = 9,8 м/с²</span>, <span class="formula">h = 3 м</span>.`,hint:'m умножается на g и h, значит обе известные величины нужно перенести в знаменатель.',correct:`<strong>Разделить энергию на произведение gh</strong>m = E/(gh) → сначала вычислить 9,8·3 → затем выполнить деление.`,wrong:[`<strong>Умножить все данные</strong>m = E·g·h.`,`<strong>Разделить энергию на сумму</strong>m = E/(g + h).`]},
+ {id:'q08',source:8,prototype:'Прямая подстановка · сила Архимеда',text:`Сила Архимеда вычисляется по формуле <span class="formula">F = ρgV</span>. Найдите <span class="formula">F</span>, если <span class="formula">ρ = 1000 кг/м³</span>, <span class="formula">g = 9,8 м/с²</span>, <span class="formula">V = 0,025 м³</span>.`,hint:'Все величины уже даны в согласованных единицах. Просто аккуратно перемножь три множителя.',correct:`<strong>Выполнить прямую подстановку</strong>F = 1000·9,8·0,025 → удобно сначала вычислить 1000·0,025 = 25.`,wrong:[`<strong>Заменить 0,025 на 25</strong>и перемножить 1000·9,8·25.`,`<strong>Разделить плотность на gV</strong>F = ρ/(gV).`]},
+ {id:'q09',source:9,prototype:'Дробная формула · давление',text:`Давление вычисляется по формуле <span class="formula">p = F/S</span>. Найдите <span class="formula">p</span>, если <span class="formula">F = 480 Н</span>, <span class="formula">S = 0,04 м²</span>.`,hint:'В формуле сила стоит в числителе, площадь — в знаменателе.',correct:`<strong>Разделить силу на площадь</strong>p = 480/0,04 → при необходимости умножить числитель и знаменатель на 100.`,wrong:[`<strong>Перемножить силу и площадь</strong>p = 480·0,04.`,`<strong>Перевернуть дробь</strong>p = 0,04/480.`]},
+ {id:'q10',source:10,prototype:'Выразить неизвестную · электрическая мощность',text:`Мощность электроприбора вычисляется по формуле <span class="formula">P = UI</span>. Найдите силу тока <span class="formula">I</span>, если <span class="formula">P = 1100 Вт</span>, <span class="formula">U = 220 В</span>.`,hint:'Чтобы оставить I одну, раздели обе части на U.',correct:`<strong>Выразить I из произведения</strong>I = P/U → подставить 1100 и 220 → выполнить деление.`,wrong:[`<strong>Умножить P на U</strong>I = P·U.`,`<strong>Перевернуть отношение</strong>I = U/P.`]},
+ {id:'q11',source:11,prototype:'Дробная формула · закон Ома',text:`Сопротивление вычисляется по формуле <span class="formula">R = U/I</span>. Найдите <span class="formula">R</span>, если <span class="formula">U = 18 В</span>, <span class="formula">I = 2,4 А</span>.`,hint:'Это прямая подстановка: напряжение делится на силу тока.',correct:`<strong>Подставить данные в готовую дробь</strong>R = 18/2,4 → выполнить деление.`,wrong:[`<strong>Перевернуть дробь</strong>R = 2,4/18.`,`<strong>Перемножить величины</strong>R = 18·2,4.`]},
+ {id:'q12',source:12,prototype:'Корень и перевод единиц · расстояние до горизонта',text:`Расстояние до горизонта вычисляется по формуле <span class="formula">l = √(2Rh)</span>, где все длины берутся в километрах. Найдите <span class="formula">l</span>, если <span class="formula">R = 6400 км</span>, <span class="formula">h = 20 м</span>.`,hint:'Перед подстановкой переведи 20 м в километры.',correct:`<strong>Сначала привести единицы</strong>20 м = 0,02 км → подставить в 2Rh → вычислить число под корнем → извлечь квадратный корень.`,wrong:[`<strong>Подставить h = 20 без перевода</strong>смешав метры и километры в одной формуле.`,`<strong>Сначала извлечь корни отдельно</strong>l = √2 + √R + √h.`]},
+ {id:'q13',source:13,prototype:'Выразить высоту · площадь трапеции',text:`Площадь трапеции вычисляется по формуле <span class="formula">S = (a + b)h/2</span>. Найдите высоту <span class="formula">h</span>, если <span class="formula">a = 7</span>, <span class="formula">b = 13</span>, <span class="formula">S = 60</span>.`,hint:'Сначала умножь обе части на 2, затем раздели на сумму оснований.',correct:`<strong>Выразить высоту</strong>2S = (a + b)h → h = 2S/(a + b) → подставить числа.`,wrong:[`<strong>Забыть множитель 2</strong>h = S/(a + b).`,`<strong>Использовать разность оснований</strong>h = 2S/(b − a).`]},
+ {id:'q14',source:14,prototype:'Скобки · количество теплоты',text:`Количество теплоты вычисляется по формуле <span class="formula">Q = cm(t₂ − t₁)</span>. Найдите <span class="formula">Q</span>, если <span class="formula">c = 4200</span>, <span class="formula">m = 0,2 кг</span>, <span class="formula">t₁ = 15°C</span>, <span class="formula">t₂ = 35°C</span>.`,hint:'Первое действие — разность температур t₂ − t₁.',correct:`<strong>Сначала вычислить изменение температуры</strong>35 − 15 = 20 → затем перемножить c, m и полученную разность.`,wrong:[`<strong>Сложить температуры</strong>использовать 35 + 15 вместо t₂ − t₁.`,`<strong>Разделить на изменение температуры</strong>Q = cm/(t₂ − t₁).`]},
+ {id:'q15',source:15,prototype:'Выразить неизвестный множитель · работа',text:`Механическая работа вычисляется по формуле <span class="formula">A = Fs</span>. Найдите путь <span class="formula">s</span>, если <span class="formula">A = 360 Дж</span>, <span class="formula">F = 45 Н</span>.`,hint:'s умножается на F, поэтому раздели обе части на F.',correct:`<strong>Выразить путь</strong>s = A/F → подставить 360 и 45 → выполнить деление.`,wrong:[`<strong>Умножить работу на силу</strong>s = A·F.`,`<strong>Перевернуть отношение</strong>s = F/A.`]}
+];
+
+const ANSWER_BANK={"q01":{"answer":"24 500 ₽","options":["19 000 ₽","24 500 ₽","43 500 ₽"]},"q02":{"answer":"−20 °C","options":["−20 °C","−4 °C","20 °C"]},"q03":{"answer":"8","options":["4","8","16"]},"q04":{"answer":"12,5 Ом","options":["9,8 Ом","12,5 Ом","17,5 Ом"]},"q05":{"answer":"16 м/с","options":["8 м/с","16 м/с","256 м/с"]},"q06":{"answer":"0,1 Дж","options":["0,05 Дж","0,1 Дж","40 Дж"]},"q07":{"answer":"50 кг","options":["29,4 кг","50 кг","150 кг"]},"q08":{"answer":"245 Н","options":["24,5 Н","245 Н","2450 Н"]},"q09":{"answer":"12 000 Па","options":["1 200 Па","12 000 Па","120 000 Па"]},"q10":{"answer":"5 А","options":["0,2 А","5 А","242 000 А"]},"q11":{"answer":"7,5 Ом","options":["0,133 Ом","7,5 Ом","43,2 Ом"]},"q12":{"answer":"16 км","options":["1,6 км","16 км","160 км"]},"q13":{"answer":"6","options":["3","6","12"]},"q14":{"answer":"16 800 Дж","options":["840 Дж","16 800 Дж","42 000 Дж"]},"q15":{"answer":"8 м","options":["0,125 м","8 м","405 м"]}};
+
+
+let role='',student=storedStudent(),participantId='',participantName='',participantPlayerKey='',browserClientId=getBrowserClientId(),serverState=null,membersSnapshot={},remoteTeacherCursor=null;
+let stateUnsub=null,membersUnsub=null,messagesUnsub=null,online=navigator.onLine,teacherAuthenticated=false,joinInFlight=false,lastFeedbackToken='',advanceTimer=null,muted=false,validationRun=0,verificationStatus='';
+let activeStroke=null,boardTool='cursor',boardColor='#e53935',boardWidth=5,toolbarCollapsed=false,lastStrokePush=0,lastCursorPush=0,eraserActive=false,eraserPointerId=null,lastEraserPoint=null,optimisticDeleted=new Map();
+let submissionInFlight=new Set(),teacherBackupTimer=null;
+function uuid(){return crypto?.randomUUID?.()||`id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`}function nowIso(ms=Date.now()){return new Date(ms).toISOString()}function localDate(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`}function playerKey(id){return `student_${String(id).replace(/[^a-zA-Z0-9_-]/g,'_')}`}function shuffle(a,rng=Math.random){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function hashString(str){let h=1779033703^str.length;for(let i=0;i<str.length;i++){h=Math.imul(h^str.charCodeAt(i),3432918353);h=h<<13|h>>>19}return()=>{h=Math.imul(h^(h>>>16),2246822507);h=Math.imul(h^(h>>>13),3266489909);return(h^=h>>>16)>>>0}}function mulberry32(a){return function(){a|=0;a=(a+0x6D2B79F5)|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}function seededRng(k){return mulberry32(hashString(k)())}
+function getBrowserClientId(){let id=sessionStorage.getItem(CLIENT_ID_KEY);if(!id){id=uuid();sessionStorage.setItem(CLIENT_ID_KEY,id)}return id}
+function storedStudent(){try{const s=JSON.parse(localStorage.getItem(STUDENT_SAVE_KEY)||'null');if(s?.studentId&&s?.code&&s?.name&&(s.verified||s.name!=='Ученик'))return{...s,verified:true}}catch{}const studentId=localStorage.getItem('egeStudentId')||'',name=localStorage.getItem('egeStudentName')||'',code=localStorage.getItem('egeStudentCode')||'',flag=localStorage.getItem('egeStudentVerified')==='1';return studentId&&code&&name&&(flag||name!=='Ученик')?{studentId:String(studentId),name:String(name),code:String(code),verified:true}:null}
+function saveStudent(s){const saved={...s,verified:true};localStorage.setItem(STUDENT_SAVE_KEY,JSON.stringify(saved));localStorage.setItem('egeStudentId',saved.studentId);localStorage.setItem('egeStudentName',saved.name);localStorage.setItem('egeStudentCode',saved.code);localStorage.setItem('egeStudentVerified','1');student=saved}function clearStoredStudent(){[STUDENT_SAVE_KEY,'egeStudentId','egeStudentName','egeStudentCode','egeStudentVerified'].forEach(k=>localStorage.removeItem(k));student=null}
+function studentFromResponse(data,code){if(!data)return null;if(data.ok===false)return null;const d=data.student||data.data||data;const studentId=d.studentId||d.id||d.studentID||'';const name=d.studentName||d.name||d.fullName||'Ученик';return studentId?{studentId:String(studentId),name:String(name),code:String(code)}:null}
+function validateStudentCode(code){return new Promise((resolve,reject)=>{const callback='egeStudentCallback_'+Date.now()+'_'+Math.random().toString(36).slice(2),script=document.createElement('script');let done=false;const finish=(error,value)=>{if(done)return;done=true;clearTimeout(timeout);try{delete window[callback]}catch{}script.remove();error?reject(error):resolve(value)},timeout=setTimeout(()=>finish(new Error('Сервер не ответил в течение 60 секунд.')),60000);window[callback]=data=>{const st=studentFromResponse(data,code);if(st)return finish(null,st);const e=new Error((data&&(data.error||data.message))||'Код ученика не найден');e.terminal=true;finish(e)};script.onerror=()=>finish(new Error('Не удалось связаться с сервером проверки кода'));script.src=`${API_URL}?action=validateStudent&code=${encodeURIComponent(code)}&callback=${encodeURIComponent(callback)}`;document.head.appendChild(script)})}
+function normalizeStats(x){return{firstTryCorrect:Number(x?.firstTryCorrect)||0,completed:Number(x?.completed)||0,wrong:Number(x?.wrong)||0,hints:Number(x?.hints)||0,attemptCount:Number(x?.attemptCount)||0}}
+function newGameState(studentLimit=1){return{version:1,schemaVersion:SCHEMA_VERSION,boardEpoch:0,strokes:{},game:{status:'lobby',studentLimit:Number(studentLimit)===2?2:1,players:{},playerOrder:[],turnKey:'',deck:[],index:0,stats:{},eventIds:{},submissions:{},sessionId:uuid(),startedAt:0,finishedAt:0,endedEarly:false,feedback:null}}}
+function normalizeState(input){const s=input&&typeof input==='object'?clone(input):newGameState(1);s.version=Number(s.version)||1;s.schemaVersion=Number(s.schemaVersion)||SCHEMA_VERSION;s.boardEpoch=Number(s.boardEpoch)||0;s.strokes=s.strokes||{};const g=s.game||(s.game={});g.status=g.status||'lobby';g.studentLimit=Number(g.studentLimit)===2?2:1;g.players=g.players||{};g.playerOrder=Array.isArray(g.playerOrder)?g.playerOrder:[];g.turnKey=g.turnKey||'';g.deck=Array.isArray(g.deck)?g.deck:[];g.index=Math.max(0,Number(g.index)||0);g.stats=g.stats||{};for(const pk of Object.keys(g.stats))g.stats[pk]=normalizeStats(g.stats[pk]);g.eventIds=g.eventIds||{};g.submissions=g.submissions||{};g.sessionId=g.sessionId||uuid();g.startedAt=Number(g.startedAt)||0;g.finishedAt=Number(g.finishedAt)||0;g.endedEarly=!!g.endedEarly;g.feedback=g.feedback||null;return s}
+function buildStudentEntries(seed,pk){
+  const rng=seededRng(seed+'|'+pk),ids=shuffle(QUESTIONS.map(q=>q.id),rng).slice(0,TASKS_PER_STUDENT);
+  return ids.map((qid,i)=>{
+    const optionOrder=shuffle(['correct','wrong0','wrong1'],rng),bank=ANSWER_BANK[qid];
+    return{id:`${pk}-${i+1}`,ownerKey:pk,ownerTask:i+1,questionId:qid,optionOrder,answerOrder:shuffle(bank.options,rng),phase:'method',firstTryEligible:true,hintUsed:false,resolved:false};
+  });
+}
+function buildDeck(order,sessionId){const per={};order.forEach(pk=>per[pk]=buildStudentEntries(sessionId,pk));if(order.length===1)return per[order[0]];const deck=[];for(let i=0;i<TASKS_PER_STUDENT;i++)for(const pk of order)deck.push(per[pk][i]);return deck}
+function currentEntry(s=serverState){return s?.game?.deck?.[s?.game?.index]||null}function questionById(id){return QUESTIONS.find(q=>q.id===id)}
+function showToast(text,bad=false){const t=$('toast');t.textContent=text;t.className='toast show'+(bad?' bad':'');clearTimeout(showToast.tm);showToast.tm=setTimeout(()=>t.className='toast',2300)}
+
+/* ===== audio ===== */
+const SFX=(()=>{let ac=null;function ready(){if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume();return ac}function tone(f,d=.15,type='sine',v=.09,delay=0){if(muted)return;try{const c=ready(),t=c.currentTime+delay,o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g).connect(c.destination);o.start(t);o.stop(t+d+.03)}catch{}}return{tap(){tone(540,.07,'sine',.07)},bad(){tone(155,.42,'sawtooth',.16);tone(95,.55,'square',.08,.06);tone(210,.16,'sawtooth',.08,.2)},goodStep(){tone(523,.14,'triangle',.12);tone(659,.16,'triangle',.11,.07);tone(784,.2,'sine',.09,.14);tone(1047,.16,'triangle',.06,.21)},pop(){tone(150,.12,'sine',.22);tone(70,.3,'sine',.18,.08);[520,690,900,1180].forEach((f,i)=>tone(f,.24,'triangle',.08,.18+i*.08));tone(1800,.55,'sine',.03,.55)},hint(){tone(700,.12,'sine',.08);tone(980,.16,'triangle',.07,.08)},finish(){[392,523,659,784,1047].forEach((f,i)=>tone(f,.28,'triangle',.11,i*.09))}}})();
+$('soundBtn').onclick=()=>{muted=!muted;$('soundBtn').textContent=muted?'🔇':'🔊'};
+function badEffect(){SFX.bad();document.body.classList.remove('bad-feedback');void document.body.offsetWidth;document.body.classList.add('bad-feedback');setTimeout(()=>document.body.classList.remove('bad-feedback'),850)}
+function methodGoodEffect(){SFX.goodStep();document.body.classList.remove('good-step-feedback');void document.body.offsetWidth;document.body.classList.add('good-step-feedback');setTimeout(()=>document.body.classList.remove('good-step-feedback'),1080)}
+function successEffect(){SFX.pop();const fx=$('successFx');fx.querySelectorAll('.splash-drop').forEach(x=>x.remove());for(let i=0;i<34;i++){const d=document.createElement('i'),a=Math.random()*Math.PI*2,dist=90+Math.random()*Math.max(innerWidth,innerHeight)*.55;d.className='splash-drop';d.style.setProperty('--dx',Math.cos(a)*dist+'px');d.style.setProperty('--dy',Math.sin(a)*dist+'px');d.style.setProperty('--delay',(0.45+Math.random()*.45)+'s');fx.appendChild(d)}fx.classList.remove('show');void fx.offsetWidth;fx.classList.add('show');setTimeout(()=>fx.classList.remove('show'),3020)}
+
+/* ===== atmosphere ===== */
+function startAtmosphere(){const top=$('sceneTop'),fish=['🐠','🐟','🐡','🐠','🐟','🦑','🐠'];for(let i=0;i<12;i++){const f=document.createElement('span');f.className='swim-fish'+(i%3===0?' rev':'');f.textContent=fish[i%fish.length];f.style.setProperty('--y',(8+Math.random()*78)+'%');f.style.setProperty('--s',(28+Math.random()*34)+'px');f.style.setProperty('--d',(14+Math.random()*22)+'s');f.style.setProperty('--delay',(-Math.random()*28)+'s');top.appendChild(f)}for(let i=0;i<38;i++){const b=document.createElement('i');b.className='fx-bubble';const z=7+Math.random()*22;b.style.width=b.style.height=z+'px';b.style.left=Math.random()*100+'%';b.style.setProperty('--d',(8+Math.random()*14)+'s');b.style.setProperty('--delay',(-Math.random()*18)+'s');b.style.setProperty('--drift',(-45+Math.random()*90)+'px');top.appendChild(b)}}
+
+/* ===== screens ===== */
+function hideAllGameParts(){$('problemBubble').classList.add('hidden');$('needleDock').classList.add('hidden');$('gameTools').classList.add('hidden');$('waitTurn').classList.add('hidden')}
+function publicInfo(){const g=serverState?.game;if(!online)return['НЕТ СОЕДИНЕНИЯ','Страница сохранит состояние и восстановится после подключения.'];if(!g)return['ЖДЁМ УЧИТЕЛЯ','Учитель ещё не создал текущее занятие. Статус обновится автоматически.'];if(g.status==='lobby')return['СБОР ИГРОКОВ',`Занятие создано на ${g.studentLimit} ${g.studentLimit===1?'ученика':'учеников'}.`];if(g.status==='playing')return['ИГРА ИДЁТ','Войди своей ролью, чтобы вернуться в текущую игру.'];return['ЗАНЯТИЕ ЗАВЕРШЕНО','Учитель может создать новое занятие.']}
+function verificationLabel(p){const status=p?.verificationStatus||'';if(status==='verified')return '✓ подтверждён';if(status==='checking')return `проверяем имя · попытка ${Number(p?.verificationAttempt)||1}`;if(status==='retrying')return 'сервер не ответил · повторяем';if(status==='invalid')return 'код не найден · игра продолжается';return ''}
+function seatsHtml(g=serverState?.game){if(!g)return'<div class="seat"><b>1</b><span>Места появятся после создания занятия</span></div>';const onlineIds=new Set(Object.values(membersSnapshot).filter(m=>m?.online&&m.role==='student').map(m=>String(m.studentId)));return Array.from({length:g.studentLimit},(_,i)=>{const row=Object.entries(g.players).find(([,p])=>Number(p.slot)===i+1),verify=row?verificationLabel(row[1]):'';return`<div class="seat ${row?'filled':''}"><b>${i+1}</b><span>${row?esc(row[1].name)+(verify?' · '+esc(verify):'')+(onlineIds.has(String(row[1].studentId))?' · онлайн':' · не в сети'):'Свободное место'}</span></div>`}).join('')}
+function renderPublic(){hideAllGameParts();$('publicScreen').classList.remove('hidden');$('lobbyScreen').classList.add('hidden');$('finishScreen').classList.add('hidden');const [title,desc]=publicInfo(),g=serverState?.game,onlineCount=Object.values(membersSnapshot).filter(m=>m?.online&&m.role==='student').length;$('publicPanel').innerHTML=`<span class="session-kicker">Комната ожидания</span><div class="logo">🐚</div><h1>${title}</h1><p class="lead">${desc}</p><div class="seats">${seatsHtml(g)}</div><div class="session-summary"><div>Режим<b>${g?g.studentLimit+' учен.':'—'}</b></div><div>Онлайн<b>${onlineCount}</b></div><div>Задач каждому<b>10</b></div></div><div class="native-actions"><button class="sys-btn primary" id="publicEnter">ВОЙТИ В УРОК</button></div>`;$('publicEnter').onclick=openRoleModal;$('lessonJoinBtn').classList.remove('hidden');syncConnectedUi(false)}
+function renderWaitingTeacher(){hideAllGameParts();$('publicScreen').classList.add('hidden');$('finishScreen').classList.add('hidden');$('lobbyScreen').classList.remove('hidden');$('lobbyPanel').innerHTML=`<span class="session-kicker">Совместный урок</span><div class="logo">🪸</div><h1>ЖДЁМ УЧИТЕЛЯ</h1><p class="lead">Подключение готово. Как только учитель создаст занятие, ты автоматически займёшь место.</p>`;syncConnectedUi(true);updateSessionPanel()}
+function renderLobby(s){hideAllGameParts();$('publicScreen').classList.add('hidden');$('finishScreen').classList.add('hidden');$('lobbyScreen').classList.remove('hidden');const g=s.game,players=Object.entries(g.players),onlineIds=new Set(Object.values(membersSnapshot).filter(m=>m?.online&&m.role==='student').map(m=>String(m.studentId))),ready=players.length>=g.studentLimit&&players.slice(0,g.studentLimit).every(([,p])=>onlineIds.has(String(p.studentId)));$('lobbyPanel').innerHTML=`<span class="session-kicker">Подводная база</span><div class="logo">🐠</div><h1>10 СЛУЧАЙНЫХ ЗАДАЧ · 2 ЭТАПА</h1><p class="lead">Каждому ученику случайно выбираются 10 разных прототипов из банка 15. Сначала способ решения, затем конечный ответ.</p><div class="seats">${seatsHtml(g)}</div>${role==='teacher'?`<div class="native-actions"><button class="sys-btn primary" id="startGame" ${ready?'':'disabled'}>${ready?'НАЧАТЬ ИГРУ':'ЖДЁМ УЧЕНИКОВ'}</button><button class="sys-btn" id="newGame">НОВОЕ ЗАНЯТИЕ</button></div>`:'<p class="lead">Место закреплено. Ждём запуска учителем.</p>'}` ;if($('startGame'))$('startGame').onclick=hostStartGame;if($('newGame'))$('newGame').onclick=openNewSessionChooser;syncConnectedUi(true);updateSessionPanel()}
+function renderWaitingTurn(s){hideAllGameParts();$('publicScreen').classList.add('hidden');$('lobbyScreen').classList.add('hidden');$('finishScreen').classList.add('hidden');$('waitTurn').classList.remove('hidden');const g=s.game,me=normalizeStats(g.stats[participantPlayerKey]),who=g.players[g.turnKey]?.name||'другой ученик';$('waitText').innerHTML=`Сейчас отвечает <b>${esc(who)}</b>.<br>Твой прогресс: ${me.completed}/${TASKS_PER_STUDENT}. Условие и варианты другого ученика скрыты.`;$('turnName').textContent=who;$('scoreText').textContent=me.firstTryCorrect;$('miniProgress').textContent=`${me.completed}/${TASKS_PER_STUDENT}`;$('progressText').textContent=`Твой прогресс · ${me.completed}/${TASKS_PER_STUDENT}`;syncConnectedUi(true);updateSessionPanel()}
+function rawMethodOption(q,key){if(key==='correct')return q.correct;if(key==='wrong0')return q.wrong[0];return q.wrong[1]}
+function methodOption(q,key){
+  const raw=rawMethodOption(q,key),m=raw.match(/^<strong>(.*?)<\/strong>([\s\S]*)$/i),title=m?m[1]:'Способ решения',body=(m?m[2]:raw).trim();
+  const steps=body.split('→').map(x=>x.trim()).filter(Boolean);
+  return `<strong class="method-title">План действий</strong><ol class="method-steps"><li>${title}</li>${steps.map(x=>`<li>${x}</li>`).join('')}</ol>`;
+}
+function renderGame(s){
+  const g=s.game,e=currentEntry(s),q=questionById(e?.questionId);if(!e||!q)return;
+  $('publicScreen').classList.add('hidden');$('lobbyScreen').classList.add('hidden');$('finishScreen').classList.add('hidden');$('waitTurn').classList.add('hidden');$('problemBubble').classList.remove('hidden');$('needleDock').classList.remove('hidden');$('gameTools').classList.remove('hidden');
+  const pk=e.ownerKey,st=normalizeStats(g.stats[pk]),canAnswer=role==='student'&&participantPlayerKey===pk&&g.turnKey===pk&&!e.resolved,phase=e.phase||'method';
+  $('turnName').textContent=g.players[pk]?.name||'Ученик';$('scoreText').textContent=st.firstTryCorrect;$('miniProgress').textContent=`${st.completed}/${TASKS_PER_STUDENT}`;$('progressText').textContent=`Подводный блиц · ${e.ownerTask}/${TASKS_PER_STUDENT}`;$('prototype').textContent=q.prototype;$('sourceText').textContent=`Прототип ${q.source}`;$('questionCount').textContent=`${e.ownerTask} из ${TASKS_PER_STUDENT}`;$('questionText').innerHTML=q.text;
+  $('phaseBadge').textContent=phase==='method'?'Этап 1/2 · способ':'Этап 2/2 · ответ';
+  $('hintBox').innerHTML='💡 '+q.hint;$('hintBox').classList.toggle('show',!!e.hintUsed);$('hintBtn').disabled=!canAnswer||e.hintUsed;$('hintBtn').textContent=e.hintUsed?'Подсказка открыта':'💡 Подсказка';
+  $('gameMessage').textContent=phase==='method'?'Сначала выбери правильный способ решения. Шаги каждого варианта показаны по порядку.':'Способ выбран верно. Теперь выбери конечный ответ и лопни пузырь.';
+  const dock=$('needleDock');dock.innerHTML='';
+  if(phase==='method'){
+    e.optionOrder.forEach(key=>{const b=document.createElement('button');b.className='needle';b.type='button';b.dataset.choice=key;b.innerHTML=methodOption(q,key);b.disabled=!canAnswer;bindChoiceNeedle(b);dock.appendChild(b)});
+  }else{
+    (e.answerOrder||ANSWER_BANK[e.questionId].options).forEach(value=>{const b=document.createElement('button');b.className='needle answer-choice';b.type='button';b.dataset.choice=value;b.textContent=value;b.disabled=!canAnswer;bindChoiceNeedle(b);dock.appendChild(b)});
+  }
+  requestAnimationFrame(()=>placeBubble());syncConnectedUi(true);updateSessionPanel();attachBoardLayer();consumeFeedback(g.feedback)
+}
+function renderFinal(s){hideAllGameParts();$('publicScreen').classList.add('hidden');$('lobbyScreen').classList.add('hidden');$('finishScreen').classList.remove('hidden');const g=s.game,order=g.playerOrder.length?g.playerOrder:Object.keys(g.players).sort((a,b)=>(g.players[a]?.slot||9)-(g.players[b]?.slot||9));$('finishPanel').innerHTML=`<span class="session-kicker">Финиш</span><div class="logo">🏆</div><h1>${g.endedEarly?'ЗАНЯТИЕ ЗАВЕРШЕНО':'БЛИЦ ЗАВЕРШЁН'}</h1><div class="stats" style="grid-template-columns:repeat(${order.length},1fr)">${order.map(pk=>{const p=g.players[pk],st=normalizeStats(g.stats[pk]),max=g.endedEarly?st.completed:TASKS_PER_STUDENT,pc=max?Math.round(st.firstTryCorrect/max*100):0,sub=g.submissions[pk];return`<div class="stat"><b>${pc}%</b><span>${esc(p?.name||'Ученик')} · ${st.firstTryCorrect}/${max} с первой<br>${sub?.status==='saved'?'✓ сохранено':sub?.status==='sending'?'сохраняем…':sub?.status==='queued'?'в очереди':'готово'}</span></div>`}).join('')}</div><div class="native-actions">${role==='teacher'?'<button class="sys-btn primary" id="finalNew">НОВОЕ ЗАНЯТИЕ</button>':'<button class="sys-btn" id="finalSwitch">СМЕНИТЬ УЧЕНИКА</button>'}</div>`;if($('finalNew'))$('finalNew').onclick=openNewSessionChooser;if($('finalSwitch'))$('finalSwitch').onclick=switchStudent;syncConnectedUi(true);updateSessionPanel();if(role==='student'&&participantPlayerKey)ensureSubmission(participantPlayerKey);if(role==='teacher')scheduleTeacherBackup()}
+function renderFromState(){renderBoardStrokes();updateTeacherCursor();if(!role){renderPublic();return}if(!serverState){role==='student'?renderWaitingTeacher():renderPublic();return}const s=normalizeState(serverState);serverState=s;if(s.game.status==='lobby')renderLobby(s);else if(s.game.status==='playing')renderGame(s);else if(s.game.status==='finished')renderFinal(s)}
+
+/* ===== bubble motion ===== */
+let bx=80,by=40,vx=45,vy=30,lastMotion=0;function placeBubble(random=false){const a=$('arena'),b=$('problemBubble');if(!a||b.classList.contains('hidden'))return;const maxX=Math.max(5,a.clientWidth-b.offsetWidth-10),maxY=Math.max(5,a.clientHeight-b.offsetHeight-10);if(random){bx=Math.random()*maxX;by=Math.random()*maxY}bx=Math.max(5,Math.min(maxX,bx));by=Math.max(5,Math.min(maxY,by));b.style.left=bx+'px';b.style.top=by+'px'}function motionLoop(now){const b=$('problemBubble'),a=$('arena'),playing=serverState?.game?.status==='playing'&&!b.classList.contains('hidden');if(playing&&!currentEntry()?.resolved){const dt=Math.min(.04,Math.max(0,(now-lastMotion)/1000));const maxX=Math.max(5,a.clientWidth-b.offsetWidth-10),maxY=Math.max(5,a.clientHeight-b.offsetHeight-10);bx+=vx*dt;by+=vy*dt;if(bx<=5||bx>=maxX)vx*=-1;if(by<=5||by>=maxY)vy*=-1;bx=Math.max(5,Math.min(maxX,bx));by=Math.max(5,Math.min(maxY,by));b.style.left=bx+'px';b.style.top=by+'px'}lastMotion=now;requestAnimationFrame(motionLoop)}requestAnimationFrame(motionLoop);
+let DRAG=null;
+function bindChoiceNeedle(b){b.addEventListener('pointerdown',startNeedleDrag);b.addEventListener('pointermove',moveNeedleDrag);b.addEventListener('pointerup',endNeedleDrag);b.addEventListener('pointercancel',cancelNeedleDrag);b.addEventListener('click',ev=>{if(ev.detail===0)attemptChoice(b.dataset.choice)})}
+function startNeedleDrag(e){if(e.currentTarget.disabled)return;const n=e.currentTarget,r=n.getBoundingClientRect();DRAG={needle:n,pointerId:e.pointerId,offX:e.clientX-r.left,offY:e.clientY-r.top,homeLeft:r.left,homeTop:r.top,width:r.width,moved:false};n.setPointerCapture(e.pointerId);SFX.tap()}
+function moveNeedleDrag(e){if(!DRAG||DRAG.pointerId!==e.pointerId)return;if(Math.hypot(e.movementX||0,e.movementY||0)>0)DRAG.moved=true;const n=DRAG.needle;if(!n.classList.contains('dragging')){n.classList.add('dragging');n.style.width=DRAG.width+'px'}n.style.left=e.clientX-DRAG.offX+'px';n.style.top=e.clientY-DRAG.offY+'px';$('problemBubble').classList.toggle('target',needleTouchesBubble(n))}
+function needleTouchesBubble(n){const a=n.getBoundingClientRect(),b=$('problemBubble').getBoundingClientRect();return !(a.right+65<b.left||a.left>b.right||a.bottom<b.top||a.top>b.bottom)}
+function endNeedleDrag(e){if(!DRAG||DRAG.pointerId!==e.pointerId)return;const d=DRAG,hit=needleTouchesBubble(d.needle);DRAG=null;$('problemBubble').classList.remove('target');if(hit)attemptChoice(d.needle.dataset.choice);snapNeedle(d.needle,d)}
+function cancelNeedleDrag(){if(!DRAG)return;const d=DRAG;DRAG=null;snapNeedle(d.needle,d)}
+function snapNeedle(n,d){n.classList.add('snap');n.style.left=d.homeLeft+'px';n.style.top=d.homeTop+'px';setTimeout(()=>{n.classList.remove('dragging','snap');n.style.left=n.style.top=n.style.width=''},330)}
+
+/* ===== game transactions ===== */
+async function hostStartGame(){if(role!=='teacher'||!serverState)return;const initial=clone(serverState);await runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(initial)),g=s.game;if(g.status!=='lobby')return s;const onlineIds=new Set(Object.values(membersSnapshot).filter(m=>m?.online&&m.role==='student').map(m=>String(m.studentId)));const order=Object.keys(g.players).sort((a,b)=>(g.players[a]?.slot||9)-(g.players[b]?.slot||9)).slice(0,g.studentLimit);if(order.length<g.studentLimit||!order.every(pk=>onlineIds.has(String(g.players[pk]?.studentId))))return s;g.playerOrder=order;g.stats={};g.eventIds={};g.submissions={};order.forEach(pk=>{g.stats[pk]=normalizeStats();g.eventIds[pk]=uuid()});g.deck=buildDeck(order,g.sessionId);g.index=0;g.turnKey=g.deck[0]?.ownerKey||order[0];g.feedback=null;g.status='playing';g.startedAt=Date.now();g.finishedAt=0;g.endedEarly=false;s.version++;return s});SFX.tap()}
+async function attemptChoice(choice){
+  const e=currentEntry(),q=questionById(e?.questionId);if(role!=='student'||!e||!q||participantPlayerKey!==e.ownerKey||serverState?.game?.turnKey!==participantPlayerKey||e.resolved)return;
+  const initial=clone(serverState),phase=e.phase||'method';
+  await runTransaction(stateRef(),current=>{
+    const s=normalizeState(current||clone(initial)),g=s.game,en=g.deck[g.index];if(g.status!=='playing'||!en||en.ownerKey!==participantPlayerKey||g.turnKey!==participantPlayerKey||en.resolved||en.id!==e.id||(en.phase||'method')!==phase)return s;
+    const st=g.stats[participantPlayerKey]||(g.stats[participantPlayerKey]=normalizeStats());st.attemptCount++;
+    if(phase==='method'){
+      const ok=choice==='correct';
+      if(!ok){en.firstTryEligible=false;st.wrong++;g.feedback={id:uuid(),type:'badMethod',ownerKey:participantPlayerKey,entryId:en.id,at:Date.now()}}
+      else{en.phase='answer';g.feedback={id:uuid(),type:'methodGood',ownerKey:participantPlayerKey,entryId:en.id,at:Date.now()}}
+    }else{
+      const ok=choice===ANSWER_BANK[en.questionId].answer;
+      if(!ok){en.firstTryEligible=false;st.wrong++;g.feedback={id:uuid(),type:'badAnswer',ownerKey:participantPlayerKey,entryId:en.id,at:Date.now()}}
+      else{if(en.firstTryEligible&&!en.hintUsed)st.firstTryCorrect++;st.completed++;en.resolved=true;g.feedback={id:uuid(),type:'good',ownerKey:participantPlayerKey,entryId:en.id,at:Date.now()}}
+    }
+    s.version++;return s
+  })
+}
+async function showHint(){const e=currentEntry();if(role!=='student'||!e||participantPlayerKey!==e.ownerKey||e.resolved)return;const initial=clone(serverState);await runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(initial)),g=s.game,en=g.deck[g.index];if(g.status!=='playing'||!en||en.id!==e.id||en.ownerKey!==participantPlayerKey||g.turnKey!==participantPlayerKey||en.resolved||en.hintUsed)return s;en.hintUsed=true;en.firstTryEligible=false;const st=g.stats[participantPlayerKey]||(g.stats[participantPlayerKey]=normalizeStats());st.hints++;s.version++;return s});SFX.hint()}
+$('hintBtn').onclick=showHint;
+function consumeFeedback(f){if(!f?.id||lastFeedbackToken===f.id)return;lastFeedbackToken=f.id;if(f.type==='badMethod'){badEffect();showToast('Неверный способ. Тот же ученик пробует ещё раз.',true)}else if(f.type==='badAnswer'){badEffect();showToast('Неверный конечный ответ. Исправь ответ — ход остаётся у тебя.',true)}else if(f.type==='methodGood'){methodGoodEffect();showToast('✓ Способ верный! Теперь выбери конечный ответ.')}else if(f.type==='good'){successEffect();showToast('✓ Всё верно! Пузырь лопнул.');clearTimeout(advanceTimer);advanceTimer=setTimeout(()=>advanceResolved(f.entryId),3000)}}
+async function advanceResolved(entryId){if(!serverState||serverState.game.status!=='playing')return;const initial=clone(serverState);await runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(initial)),g=s.game,en=g.deck[g.index];if(g.status!=='playing'||!en||!en.resolved||en.id!==entryId)return s;if(g.index>=g.deck.length-1){g.status='finished';g.finishedAt=Date.now();g.feedback=null;s.version++;return s}g.index++;g.turnKey=g.deck[g.index].ownerKey;g.feedback=null;s.version++;return s})}
+async function teacherFinishLesson(){if(role!=='teacher'||serverState?.game?.status!=='playing')return;if(!confirm('Завершить занятие сейчас? Незавершённая текущая задача не войдёт в знаменатель.'))return;const initial=clone(serverState);await runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(initial));if(s.game.status!=='playing')return s;s.game.status='finished';s.game.finishedAt=Date.now();s.game.endedEarly=true;s.game.feedback=null;s.version++;return s});SFX.finish()}
+
+/* ===== login/session ===== */
+function openModal(html){$('lessonCard').innerHTML=html;$('lessonModal').classList.add('open')}function closeModal(){$('lessonModal').classList.remove('open')}
+function openRoleModal(){openModal(`<button class="modal-x" id="modalClose">×</button><h2>СОВМЕСТНЫЙ УРОК</h2><p>Одна текущая сессия, без кодов комнат.</p><div class="role-grid"><button class="role-choice" id="roleTeacher"><b>УЧИТЕЛЬ</b><small>Создать занятие на 1 или 2 учеников и видеть ход работы.</small></button><button class="role-choice" id="roleStudent"><b>УЧЕНИК</b><small>Подключиться к занятию. Проверка имени пройдёт в фоне.</small></button></div>`);$('modalClose').onclick=closeModal;$('roleTeacher').onclick=openTeacherLogin;$('roleStudent').onclick=openStudentLogin}
+function openTeacherLogin(){openModal(`<button class="modal-x" id="modalClose">×</button><h2>ВХОД УЧИТЕЛЯ</h2><form class="code-form" id="teacherForm"><input id="teacherCodeInput" type="password" autocomplete="off" placeholder="КОД УЧИТЕЛЯ"><div class="status" id="teacherStatus"></div><button class="sys-btn primary">ВОЙТИ</button></form>`);$('modalClose').onclick=closeModal;$('teacherForm').onsubmit=handleTeacherLogin}
+async function handleTeacherLogin(e){e.preventDefault();const st=$('teacherStatus'),code=$('teacherCodeInput').value.trim();if(code!==TEACHER_CODE){st.textContent='Неверный код.';st.className='status bad';return}role='teacher';participantName='Учитель';teacherAuthenticated=true;openTeacherChoice()}
+function openTeacherChoice(){openModal(`<button class="modal-x" id="modalClose">×</button><h2>ВЫБЕРИТЕ ДЕЙСТВИЕ</h2><p>Продолжите прошлую игру или откройте чистое занятие.</p><div class="native-actions"><button class="sys-btn primary" id="restoreTeacher">ВОССТАНОВИТЬ ПРОШЛУЮ ИГРУ</button><button class="sys-btn" id="newTeacher">НАЧАТЬ НОВУЮ ИГРУ</button></div><div class="status" id="teacherChoiceStatus"></div>`);$('modalClose').onclick=closeModal;$('restoreTeacher').onclick=restoreTeacherSession;$('newTeacher').onclick=openNewSessionChooser}
+async function restoreTeacherSession(){const btn=$('restoreTeacher'),st=$('teacherChoiceStatus');btn.disabled=true;st.textContent='Загружаем прошлую игру…';try{const snap=await get(stateRef());if(!snap.exists()){st.textContent='Прошлая игра не найдена. Начните новую.';st.className='status bad';return}serverState=normalizeState(snap.val());await registerPresence();startListeners();closeModal();syncConnectedUi(true);renderFromState()}catch(e){st.textContent=e.message||'Не удалось восстановить игру.';st.className='status bad'}finally{btn.disabled=false}}
+function openStudentLogin(){const saved=storedStudent(),prefill=saved?.code||'';openModal(`<button class="modal-x" id="modalClose">×</button><h2>ВХОД УЧЕНИКА</h2>${saved?.name?`<p>Сохранён ученик: <b>${esc(saved.name)}</b>. Повторная проверка не потребуется.</p>`:''}<form class="code-form" id="studentForm"><input id="studentCodeInput" autocomplete="off" placeholder="ЛИЧНЫЙ КОД" value="${esc(prefill)}"><div class="status" id="studentStatus"></div><button class="sys-btn primary">ПОДКЛЮЧИТЬСЯ</button></form>`);$('modalClose').onclick=closeModal;$('studentForm').onsubmit=handleStudentLogin}
+async function handleStudentLogin(e){e.preventDefault();const code=$('studentCodeInput').value.trim().toUpperCase(),st=$('studentStatus'),btn=e.submitter;if(!code){st.textContent='Введите код.';st.className='status bad';return}btn.disabled=true;st.textContent='Занимаем место…';try{const cached=storedStudent(),useCached=!!cached&&cached.code===code,s=useCached?cached:{studentId:code,name:'Ученик',code,verified:false};localStorage.setItem('egeStudentCode',code);if(!useCached){localStorage.removeItem(STUDENT_SAVE_KEY);localStorage.removeItem('egeStudentId');localStorage.removeItem('egeStudentName');localStorage.removeItem('egeStudentVerified')}await connectStudent(s);closeModal();if(useCached)await publishStudentVerification('verified',0);else verifyStudentInBackground(++validationRun)}catch(err){st.textContent=err.message||'Не удалось подключиться';st.className='status bad'}finally{btn.disabled=false}}
+async function connectStudent(s){student=s;role='student';participantName=s.name;participantPlayerKey=playerKey(s.code||s.studentId);verificationStatus=s.verified?'✓ подтверждён':'проверяем имя · попытка 1';await tryJoinStudent();startListeners();syncConnectedUi(true);renderFromState()}
+async function tryJoinStudent(){if(role!=='student'||!student||joinInFlight)return;joinInFlight=true;try{const pk=participantPlayerKey||playerKey(student.code||student.studentId),tx=await runTransaction(stateRef(),current=>{if(!current)return;const s=normalizeState(clone(current)),g=s.game,existing=g.players[pk];if(existing){existing.code=student.code||existing.code||'';if(student.verified){existing.name=student.name;existing.studentId=student.studentId;existing.verificationStatus='verified'}return s}if(g.status!=='lobby')return;const taken=new Set(Object.values(g.players).map(p=>Number(p.slot)));let slot=0;for(let i=1;i<=g.studentLimit;i++)if(!taken.has(i)){slot=i;break}if(!slot)return;g.players[pk]={studentId:student.studentId||student.code,name:student.verified?student.name:`Ученик ${slot}`,code:student.code||'',slot,joinedAt:Date.now(),verificationStatus:student.verified?'verified':'checking',verificationAttempt:student.verified?0:1};s.version++;return s});serverState=tx.snapshot?.exists()?normalizeState(tx.snapshot.val()):null;if(!serverState){await registerPresence();renderWaitingTeacher();return}const mine=serverState.game.players?.[pk];if(!mine){const g=serverState.game;if(g.status!=='lobby')throw new Error('Игра уже началась. Войти может только ранее подключённый ученик.');if(Object.keys(g.players||{}).length>=g.studentLimit)throw new Error('Все места заняты.');throw new Error('Не удалось занять место. Повтори вход.')}participantPlayerKey=pk;participantName=mine.name||participantName;student={...student,name:participantName};await registerPresence();renderFromState()}finally{joinInFlight=false}}
+async function publishStudentVerification(status,attempt=0){verificationStatus=status==='verified'?'✓ подтверждён':status==='checking'?`проверяем имя · попытка ${attempt}`:status==='retrying'?'сервер не ответил · повторяем':status==='invalid'?'код не найден · игра продолжается':'';if(serverState?.game?.players?.[participantPlayerKey]){await update(ref(database,`${lessonRoot()}/state/game/players/${participantPlayerKey}`),{verificationStatus:status,verificationAttempt:attempt}).catch(()=>{});serverState.game.players[participantPlayerKey].verificationStatus=status;serverState.game.players[participantPlayerKey].verificationAttempt=attempt}updateSessionPanel();if(serverState?.game?.status==='lobby')renderLobby(serverState)}
+async function verifyStudentInBackground(token){let attempt=0;while(token===validationRun&&role==='student'){attempt++;await publishStudentVerification('checking',attempt);try{const verified=await validateStudentCode(student.code);if(token!==validationRun)return;saveStudent(verified);participantName=verified.name;student=storedStudent()||verified;if(serverState?.game?.players?.[participantPlayerKey])await update(ref(database,`${lessonRoot()}/state/game/players/${participantPlayerKey}`),{studentId:verified.studentId,name:verified.name,code:verified.code,verificationStatus:'verified',verificationAttempt:attempt}).catch(()=>{});if(participantId)await update(memberRef(participantId),{studentId:verified.studentId,name:verified.name}).catch(()=>{});await publishStudentVerification('verified',attempt);return}catch(e){if(token!==validationRun)return;if(e?.terminal){await publishStudentVerification('invalid',attempt);return}await publishStudentVerification('retrying',attempt);await new Promise(r=>setTimeout(r,1500))}}}
+function openNewSessionChooser(){openModal(`<button class="modal-x" id="modalClose">×</button><h2>НОВОЕ ЗАНЯТИЕ</h2><p>Каждый ученик получит 10 разных случайных задач ОГЭ №12 из банка 15. В каждой: сначала способ решения, затем конечный ответ.</p><div class="role-grid"><button class="role-choice" data-limit="1"><b>1 УЧЕНИК</b><small>10 задач · 2 этапа.</small></button><button class="role-choice" data-limit="2"><b>2 УЧЕНИКА</b><small>по 10 каждому · строгая очередь.</small></button></div>`);$('modalClose').onclick=closeModal;document.querySelectorAll('[data-limit]').forEach(b=>b.onclick=()=>createFreshSession(Number(b.dataset.limit)))}
+async function createFreshSession(limit){const fresh={meta:{sessionId:uuid(),appId:APP_ID,schemaVersion:SCHEMA_VERSION,openedAt:Date.now()},state:newGameState(limit),members:{},messages:{}};fresh.state.game.sessionId=fresh.meta.sessionId;serverState=normalizeState(fresh.state);closeModal();syncConnectedUi(true);renderFromState();try{await set(sessionRef(),fresh);await registerPresence();startListeners()}catch(e){openTeacherChoice();const st=$('teacherChoiceStatus');if(st){st.textContent=e.message||'Не удалось создать игру.';st.className='status bad'}}}
+async function switchStudent(){if(serverState?.game?.status==='playing'){showToast('Сменить ученика можно после завершения игры.',true);return}validationRun++;await cleanupPresence();if(serverState?.game?.status==='lobby'&&participantPlayerKey)await runTransaction(stateRef(),current=>{if(!current)return current;const s=normalizeState(clone(current));if(s.game.status!=='lobby')return s;delete s.game.players[participantPlayerKey];delete s.game.stats[participantPlayerKey];delete s.game.eventIds[participantPlayerKey];delete s.game.submissions[participantPlayerKey];s.version++;return s}).catch(()=>{});clearStoredStudent();student=null;role='';participantPlayerKey='';participantId='';participantName='';verificationStatus='';stopListeners();serverState=null;renderPublic();openStudentLogin()}
+
+/* ===== presence/listeners ===== */
+async function registerPresence(){if(!role)return;participantId=role==='teacher'?`teacher_${browserClientId}`:`student_${participantPlayerKey}_${browserClientId}`;const payload={id:browserClientId,userId:participantPlayerKey||'teacher',studentId:role==='student'?student?.studentId||'':'',name:role==='teacher'?'Учитель':student?.name||'Ученик',role,color:role==='teacher'?'#ffd83d':'#65dbe7',online:true,lastSeen:serverTimestamp()};try{await set(memberRef(participantId),payload);await onDisconnect(memberRef(participantId)).update({online:false,lastSeen:serverTimestamp()})}catch{}}
+async function cleanupPresence(){if(participantId)try{await update(memberRef(participantId),{online:false,lastSeen:serverTimestamp()})}catch{}}
+function startListeners(){if(stateUnsub)return;stateUnsub=onValue(stateRef(),snap=>{const incoming=snap.exists()?normalizeState(snap.val()):null,prevVersion=Number(serverState?.version)||0,nextVersion=Number(incoming?.version)||0,structural=!serverState||!incoming||prevVersion!==nextVersion;serverState=incoming;if(role==='student'&&serverState&&!serverState.game.players?.[participantPlayerKey])tryJoinStudent().catch(err=>showToast(err.message,true));if(structural)renderFromState();else{renderBoardStrokes();updateTeacherCursor()}});membersUnsub=onValue(membersRef(),snap=>{membersSnapshot=snap.exists()?snap.val()||{}:{};updateSessionPanel();if(!role||serverState?.game?.status==='lobby')renderFromState()});messagesUnsub=onValue(messagesRef(),snap=>{const m=snap.exists()?snap.val()||{}:{};remoteTeacherCursor=m.teacherCursor||null;updateTeacherCursor()})}
+function stopListeners(){stateUnsub?.();membersUnsub?.();messagesUnsub?.();stateUnsub=membersUnsub=messagesUnsub=null}
+function syncConnectedUi(on){$('lessonJoinBtn').classList.toggle('hidden',!!on);$('boardToolbar').classList.toggle('show',!!on);if(on)attachBoardLayer();syncBoardToolbarRole();setBoardPointerMode()}
+function updateSessionPanel(){const p=$('sessionPanel');if(!role){p.classList.remove('show');return}const onlineStudents=Object.values(membersSnapshot).filter(m=>m?.online&&m.role==='student').length,status=!online?'офлайн':serverState?.game?.status==='playing'?'игра идёт':serverState?.game?.status==='finished'?'завершено':serverState?'лобби':'ждём учителя',mine=serverState?.game?.players?.[participantPlayerKey],verify=mine?verificationLabel(mine):verificationStatus,canSwitch=role==='student'&&serverState?.game?.status!=='playing';p.innerHTML=`<span class="session-dot ${online?'on':''}"></span><b>${role==='teacher'?'УЧИТЕЛЬ':esc(student?.name||participantName||'УЧЕНИК')}</b><small>${role==='student'&&verify?esc(verify)+' · ':''}${status} · учеников онлайн: ${onlineStudents}</small>${role==='teacher'&&serverState?.game?.status==='playing'?'<button class="danger" id="panelFinish">ЗАВЕРШИТЬ</button>':''}${canSwitch?'<button id="panelSwitch">СМЕНИТЬ</button>':''}`;p.classList.add('show');if($('panelFinish'))$('panelFinish').onclick=teacherFinishLesson;if($('panelSwitch'))$('panelSwitch').onclick=switchStudent}
+
+/* ===== result submission ===== */
+function readQueue(){try{const q=JSON.parse(localStorage.getItem(PENDING_RESULTS_KEY)||'[]');return Array.isArray(q)?q:[]}catch{return[]}}function writeQueue(q){localStorage.setItem(PENDING_RESULTS_KEY,JSON.stringify(q.slice(-50)))}function queueResult(payload,pk){const q=readQueue(),i=q.findIndex(x=>x?.payload?.eventId===payload.eventId);const item={payload,playerKey:pk};if(i>=0)q[i]=item;else q.push(item);writeQueue(q)}function removeQueued(eventId){writeQueue(readQueue().filter(x=>x?.payload?.eventId!==eventId))}
+async function postResult(payload){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);let response;try{response=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow',signal:controller.signal})}catch(err){if(err?.name==='AbortError')throw new Error('Сервер результатов не ответил в течение 60 секунд.');throw err}finally{clearTimeout(timer)}let answer;try{answer=await response.json()}catch{throw new Error('Система результатов не ответила.')}if(!response.ok||!answer?.ok)throw new Error(answer?.error||'Результат не принят.');return answer}
+function resultPayload(s,pk){const g=s.game,p=g.players[pk],st=normalizeStats(g.stats[pk]),max=g.endedEarly?st.completed:TASKS_PER_STUDENT,scorePercent=max?Math.round(st.firstTryCorrect/max*100):0,finished=g.finishedAt||Date.now(),started=g.startedAt||finished;return{action:'submitTest',eventId:g.eventIds[pk]||`${g.sessionId}-${pk}`,studentCode:p?.code||'',studentId:p?.studentId||p?.code||'',testId:TEST_META.testId,testDate:localDate(),topicId:TEST_META.topicId,topicName:TEST_META.topicName,taskNumber:TEST_META.taskNumber,scorePercent,durationSeconds:Math.max(1,Math.round((finished-started)/1000)),schemaVersion:1,programId:'OGE_MATH'}}
+async function claimSubmission(pk){const eventId=serverState?.game?.eventIds?.[pk];if(!eventId)return false;const r=ref(database,`${lessonRoot()}/state/game/submissions/${pk}`),res=await runTransaction(r,current=>{if(current?.status==='saved')return;if(current?.status==='sending'&&Date.now()-(Number(current.updatedAt)||0)<8000)return;return{eventId,status:'sending',updatedAt:Date.now()}});return res.committed}
+async function markSubmission(pk,status,message=''){try{await update(ref(database,`${lessonRoot()}/state/game/submissions/${pk}`),{status,message,updatedAt:Date.now()})}catch{}}
+async function ensureSubmission(pk){if(!pk||submissionInFlight.has(pk)||!serverState||serverState.game.status!=='finished'||serverState.game.submissions?.[pk]?.status==='saved')return;submissionInFlight.add(pk);const snapshot=clone(serverState),payload=resultPayload(snapshot,pk);try{if(!await claimSubmission(pk))return;if(!navigator.onLine)throw new Error('offline');const r=await postResult(payload);removeQueued(payload.eventId);await markSubmission(pk,'saved',r?.duplicate?'Уже было сохранено':'Подтверждено сервером')}catch(err){queueResult(payload,pk);await markSubmission(pk,'queued',String(err?.message||'Ждёт связи'))}finally{submissionInFlight.delete(pk)}}
+async function flushPendingResults(){if(!navigator.onLine)return;for(const item of readQueue()){try{await postResult(item.payload);removeQueued(item.payload.eventId);if(serverState?.game?.eventIds?.[item.playerKey]===item.payload.eventId)await markSubmission(item.playerKey,'saved','Подтверждено сервером')}catch{}}}
+function scheduleTeacherBackup(){if(role!=='teacher'||teacherBackupTimer)return;teacherBackupTimer=setTimeout(async()=>{teacherBackupTimer=null;if(serverState?.game?.status!=='finished')return;await Promise.all((serverState.game.playerOrder||[]).filter(pk=>serverState.game.submissions?.[pk]?.status!=='saved').map(ensureSubmission))},1500)}
+
+/* ===== board, live pencil + real eraser ===== */
+function attachBoardLayer(){const host=$('boardHost');let b=$('sharedBoard');if(!b){b=document.createElementNS('http://www.w3.org/2000/svg','svg');b.id='sharedBoard';b.setAttribute('viewBox','0 0 1000 1000');b.setAttribute('preserveAspectRatio','none');b.classList.add('shared-board');host.appendChild(b);b.addEventListener('pointerdown',boardPointerDown);b.addEventListener('pointermove',boardPointerMove);b.addEventListener('pointerup',boardPointerUp);b.addEventListener('pointercancel',boardPointerUp)}setBoardPointerMode();renderBoardStrokes()}
+function setBoardPointerMode(){const host=$('boardHost'),b=$('sharedBoard');const draw=boardTool!=='cursor'&&!!role;if(host)host.style.pointerEvents=draw?'auto':'none';if(b)b.style.pointerEvents=draw?'auto':'none';document.querySelectorAll('[data-board-tool]').forEach(x=>x.classList.toggle('active',x.dataset.boardTool===boardTool))}
+function pointFromEvent(e){return[e.clientX/innerWidth,e.clientY/innerHeight]}function boardPointerDown(e){if(boardTool==='cursor'||!serverState)return;e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);const p=pointFromEvent(e);if(boardTool==='eraser'){eraserActive=true;eraserPointerId=e.pointerId;lastEraserPoint=p;eraseAlong(p,p);return}activeStroke={id:'stroke-'+uuid(),anchorId:'main-screen',authorId:participantId||role,authorName:participantName||role,color:boardColor,width:boardWidth,points:[p],done:false,epoch:serverState.boardEpoch||0,rev:Date.now()};renderBoardStrokes();pushStroke()}
+function boardPointerMove(e){const p=pointFromEvent(e);if(boardTool==='eraser'&&eraserActive&&e.pointerId===eraserPointerId){eraseAlong(lastEraserPoint||p,p);lastEraserPoint=p;return}if(!activeStroke||boardTool!=='pencil')return;const last=activeStroke.points.at(-1);if(Math.hypot((p[0]-last[0])*innerWidth,(p[1]-last[1])*innerHeight)<2.5)return;activeStroke.points.push(p);activeStroke.rev=Date.now();renderBoardStrokes();if(Date.now()-lastStrokePush>=55){lastStrokePush=Date.now();pushStroke()}}
+function boardPointerUp(e){if(boardTool==='eraser'&&eraserActive&&(!e||e.pointerId===eraserPointerId)){eraserActive=false;eraserPointerId=null;lastEraserPoint=null;return}if(!activeStroke)return;const finalStroke=clone(activeStroke);finalStroke.done=true;finalStroke.rev=Date.now();activeStroke=null;set(ref(database,`${lessonRoot()}/state/strokes/${finalStroke.id}`),finalStroke).catch(()=>{});renderBoardStrokes()}
+async function pushStroke(){if(!activeStroke||!serverState)return;const snap=clone(activeStroke);try{await set(ref(database,`${lessonRoot()}/state/strokes/${snap.id}`),snap)}catch{}}
+function renderBoardStrokes(){const b=$('sharedBoard');if(!b||!serverState)return;const epoch=serverState.boardEpoch||0;let strokes=Object.values(serverState.strokes||{}).filter(s=>s&&s.epoch===epoch&&!optimisticDeleted.has(s.id));if(activeStroke){const ix=strokes.findIndex(s=>s.id===activeStroke.id);if(ix<0||Number(strokes[ix]?.rev||0)<activeStroke.rev){if(ix>=0)strokes.splice(ix,1);strokes.push(activeStroke)}}b.innerHTML=strokes.map(s=>{const pts=(s.points||[]).map(([x,y])=>`${Math.max(0,Math.min(1,x))*1000},${Math.max(0,Math.min(1,y))*1000}`).join(' ');return pts?`<polyline points="${pts}" fill="none" stroke="${esc(s.color||'#e53935')}" stroke-width="${Math.max(1,Number(s.width)||5)*2.2}" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`:''}).join('')}
+function pointSegDist(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay;if(dx===0&&dy===0)return Math.hypot(px-ax,py-ay);let t=((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy);t=Math.max(0,Math.min(1,t));return Math.hypot(px-(ax+t*dx),py-(ay+t*dy))}
+function strokeHit(stroke,a,b){const pts=stroke.points||[];if(!pts.length)return false;const ax=a[0]*innerWidth,ay=a[1]*innerHeight,bx=b[0]*innerWidth,by=b[1]*innerHeight,travel=Math.max(1,Math.hypot(bx-ax,by-ay)),steps=Math.max(1,Math.ceil(travel/8)),radius=10+Math.max(2,Number(stroke.width)||5)/2;for(let k=0;k<=steps;k++){const t=k/steps,x=ax+(bx-ax)*t,y=ay+(by-ay)*t;if(pts.length===1){if(Math.hypot(x-pts[0][0]*innerWidth,y-pts[0][1]*innerHeight)<=radius)return true}else for(let i=1;i<pts.length;i++){if(pointSegDist(x,y,pts[i-1][0]*innerWidth,pts[i-1][1]*innerHeight,pts[i][0]*innerWidth,pts[i][1]*innerHeight)<=radius)return true}}return false}
+async function eraseAlong(a,b){if(!serverState)return;const epoch=serverState.boardEpoch||0,entries=Object.entries(serverState.strokes||{}).filter(([,s])=>s?.epoch===epoch&&!optimisticDeleted.has(s.id)),hits=entries.filter(([,s])=>strokeHit(s,a,b));if(!hits.length)return;const patch={};hits.forEach(([id,s])=>{optimisticDeleted.set(id,s);patch[id]=null});renderBoardStrokes();try{await update(ref(database,`${lessonRoot()}/state/strokes`),patch);hits.forEach(([id])=>optimisticDeleted.delete(id))}catch{hits.forEach(([id])=>optimisticDeleted.delete(id));renderBoardStrokes()}}
+async function clearBoard(){if(role!=='teacher'||!serverState)return;const initial=clone(serverState);await runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(initial));s.boardEpoch=(Number(s.boardEpoch)||0)+1;s.strokes={};s.version++;return s})}
+function initBoardToolbar(){const tb=$('boardToolbar');let pos={right:14,bottom:14};try{pos={...pos,...JSON.parse(localStorage.getItem(TOOLBAR_POSITION_KEY)||'{}')}}catch{}tb.style.right=(pos.right??14)+'px';tb.style.bottom=(pos.bottom??14)+'px';tb.innerHTML=`<div class="board-head" id="boardDrag"><b>ДОСКА</b><button id="boardCollapse">−</button></div><div class="board-tools"><button data-board-tool="cursor">↖</button><button data-board-tool="pencil">✎</button><button data-board-tool="eraser">⌫</button><input id="boardColor" type="color" value="${boardColor}"><input id="boardWidth" type="range" min="2" max="14" value="${boardWidth}"><button class="board-clear" id="boardClear">🗑 ОЧИСТИТЬ ВСЁ</button></div>`;document.querySelectorAll('[data-board-tool]').forEach(b=>b.onclick=()=>{boardTool=b.dataset.boardTool;setBoardPointerMode()});$('boardColor').oninput=e=>boardColor=e.target.value;$('boardWidth').oninput=e=>boardWidth=Number(e.target.value);$('boardClear').onclick=()=>role==='teacher'?clearBoard():showToast('Полностью очищать доску может только учитель.',true);$('boardCollapse').onclick=()=>{toolbarCollapsed=!toolbarCollapsed;tb.classList.toggle('collapsed',toolbarCollapsed);$('boardCollapse').textContent=toolbarCollapsed?'+':'−'};makeToolbarDraggable(tb,$('boardDrag'));setBoardPointerMode();syncBoardToolbarRole()}
+function syncBoardToolbarRole(){if($('boardClear'))$('boardClear').style.display=role==='teacher'?'block':'none'}function makeToolbarDraggable(tb,h){let sx=0,sy=0,sr=0,sb=0,m=false;h.addEventListener('pointerdown',e=>{if(e.target.tagName==='BUTTON')return;m=true;sx=e.clientX;sy=e.clientY;const r=tb.getBoundingClientRect();sr=innerWidth-r.right;sb=innerHeight-r.bottom;h.setPointerCapture(e.pointerId)});h.addEventListener('pointermove',e=>{if(!m)return;const nr=Math.max(0,Math.min(innerWidth-tb.offsetWidth,sr-(e.clientX-sx))),nb=Math.max(0,Math.min(innerHeight-tb.offsetHeight,sb-(e.clientY-sy)));tb.style.right=nr+'px';tb.style.bottom=nb+'px'});h.addEventListener('pointerup',()=>{if(!m)return;m=false;localStorage.setItem(TOOLBAR_POSITION_KEY,JSON.stringify({right:parseFloat(tb.style.right)||0,bottom:parseFloat(tb.style.bottom)||0}))})}
+window.addEventListener('pointermove',e=>{if(role!=='teacher'||boardTool!=='cursor'||!serverState||Date.now()-lastCursorPush<75)return;lastCursorPush=Date.now();update(ref(database,`${lessonRoot()}/messages/teacherCursor`),{x:e.clientX/innerWidth,y:e.clientY/innerHeight,visible:true,at:Date.now()}).catch(()=>{})});window.addEventListener('blur',()=>{if(role==='teacher')update(ref(database,`${lessonRoot()}/messages/teacherCursor`),{visible:false,at:Date.now()}).catch(()=>{})});function updateTeacherCursor(){const c=$('teacherCursor');if(role!=='student'||!remoteTeacherCursor?.visible){c.classList.remove('show');return}c.style.left=remoteTeacherCursor.x*innerWidth+'px';c.style.top=remoteTeacherCursor.y*innerHeight+'px';c.classList.add('show')}
+
+$('lessonJoinBtn').onclick=openRoleModal;window.addEventListener('online',async()=>{online=true;await flushPendingResults();if(role==='student')tryJoinStudent().catch(err=>showToast(err.message,true));renderFromState()});window.addEventListener('offline',()=>{online=false;renderFromState()});window.addEventListener('resize',()=>{placeBubble();updateTeacherCursor()});
+window.addEventListener('pagehide',()=>{if(role!=='student'||!participantPlayerKey||!serverState?.game?.players?.[participantPlayerKey])return;try{const snapshot=clone(serverState);snapshot.game.finishedAt=Date.now();snapshot.game.endedEarly=true;const payload=resultPayload(snapshot,participantPlayerKey);queueResult(payload,participantPlayerKey);navigator.sendBeacon(API_URL,new Blob([JSON.stringify(payload)],{type:'text/plain;charset=utf-8'}))}catch{}});
+startAtmosphere();initBoardToolbar();renderPublic();flushPendingResults();setInterval(flushPendingResults,60000);
+</script></body></html>
