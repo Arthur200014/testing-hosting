@@ -1,0 +1,975 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="description" content="Интерактивный гайд-тренажёр по алгебраическим преобразованиям для ЕГЭ №9">
+<title>Алгебра Бикини-Боттом · тренажёр преобразований</title>
+<style>
+:root{
+  --sea1:#45e0ec;--sea2:#14a9d4;--sea3:#0876ad;--deep:#075178;
+  --sponge:#ffe44f;--sponge2:#fff39b;--pink:#ff83b0;--coral:#ff745d;
+  --lime:#9fd85b;--sand:#fff0b7;--paper:#fffef3;--ink:#123b5a;--muted:#5d788b;
+  --good:#4bbd76;--bad:#ef5a5a;--purple:#8f79eb;--white:#fff;
+  --shadow:0 14px 36px rgba(4,55,90,.22);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;font-family:"Trebuchet MS","Arial Rounded MT Bold",system-ui,sans-serif;color:var(--ink)}
+body{background:linear-gradient(180deg,var(--sea1),var(--sea2) 48%,var(--sea3));overflow-x:hidden}
+button,input,select{font:inherit}
+button{cursor:pointer}
+.hidden{display:none!important}
+.bg{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+.flower{position:absolute;width:110px;height:110px;opacity:.12}
+.flower::before,.flower::after{content:"";position:absolute;inset:0;background:
+ radial-gradient(ellipse at 50% 8%,#fff 0 16%,transparent 17%),
+ radial-gradient(ellipse at 92% 50%,#fff 0 16%,transparent 17%),
+ radial-gradient(ellipse at 50% 92%,#fff 0 16%,transparent 17%),
+ radial-gradient(ellipse at 8% 50%,#fff 0 16%,transparent 17%)}
+.f1{left:4%;top:12%;transform:rotate(14deg)}.f2{right:7%;top:29%;transform:scale(.7) rotate(-20deg)}.f3{left:16%;bottom:8%;transform:scale(.55)}
+.bubble{position:absolute;bottom:-60px;border:2px solid rgba(255,255,255,.7);border-radius:50%;animation:rise linear infinite;opacity:.55}
+@keyframes rise{to{transform:translateY(-120vh) translateX(30px);opacity:.1}}
+/* Пузыри поверх всего интерактива: декоративный слой никогда не блокирует клики. */
+.bubbleOverlay{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:9999}
+.frontBubble{position:absolute;bottom:-110px;border:2px solid rgba(255,255,255,.74);border-radius:50%;opacity:.28;
+  box-shadow:inset 5px 5px 10px rgba(255,255,255,.18),0 0 8px rgba(255,255,255,.12);
+  animation:frontBubbleRise var(--dur,14s) linear infinite;will-change:transform,opacity}
+.frontBubble::after{content:"";position:absolute;width:28%;height:28%;left:18%;top:13%;border-radius:50%;
+  border-top:2px solid rgba(255,255,255,.78);transform:rotate(-28deg);opacity:.8}
+@keyframes frontBubbleRise{
+  0%{transform:translate3d(0,0,0) scale(.82);opacity:0}
+  8%{opacity:.24}
+  50%{transform:translate3d(var(--drift,25px),-55vh,0) scale(1)}
+  92%{opacity:.22}
+  100%{transform:translate3d(var(--drift,25px),-125vh,0) scale(1.08);opacity:0}
+}
+
+.seabed{position:absolute;left:0;right:0;bottom:0;height:120px;background:linear-gradient(180deg,transparent,#e5c86a 70%);opacity:.28}
+.seabed:after{content:"";position:absolute;inset:70px 0 0;background:radial-gradient(circle at 20% 60%,#cfaa55 0 3px,transparent 4px),radial-gradient(circle at 70% 40%,#cfaa55 0 4px,transparent 5px);background-size:70px 50px}
+.shell{position:relative;z-index:2;max-width:1480px;margin:0 auto;padding:10px 12px 34px}
+.topbar{position:sticky;top:8px;z-index:20;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 10px;border-radius:18px;background:rgba(5,78,118,.92);backdrop-filter:blur(10px);box-shadow:var(--shadow);border:2px solid rgba(255,255,255,.3)}
+.brand{color:white;font-weight:950;letter-spacing:.02em;margin-right:auto;display:flex;align-items:center;gap:8px}.brand b{color:var(--sponge)}
+.topBtn,.modeBtn{border:0;border-radius:12px;min-height:42px;padding:0 14px;font-weight:950;transition:.16s;box-shadow:inset 0 0 0 1px rgba(255,255,255,.2)}
+.topBtn{background:#0b6997;color:white}.topBtn:hover,.modeBtn:hover{transform:translateY(-1px)}
+.topBtn.home{background:var(--sponge);color:#173c54}.topBtn.secondary{background:#175c81}.topBtn.pink{background:var(--pink)}
+.modeBtn{background:#e8f7fb;color:#165777}.modeBtn.active{background:var(--sponge);color:#163c54}
+.hero{margin:18px auto 10px;display:grid;grid-template-columns:minmax(0,1.6fr) minmax(260px,.8fr);gap:14px;align-items:stretch}
+.heroCard,.guideCard{background:rgba(255,254,243,.96);border:3px solid rgba(255,255,255,.72);border-radius:24px;box-shadow:var(--shadow);padding:20px;position:relative;overflow:hidden}
+.heroCard:after{content:"";position:absolute;width:150px;height:150px;right:-38px;top:-45px;border-radius:44% 56% 47% 53%;background:var(--sponge);opacity:.28;transform:rotate(18deg)}
+.hero h1{margin:0;font-size:clamp(1.8rem,4vw,3.3rem);line-height:.95;max-width:920px}.hero p{font-size:clamp(.95rem,1.5vw,1.18rem);max-width:920px;line-height:1.45;margin:12px 0 0;color:#2f5e78;font-weight:760}
+.guideCard{background:linear-gradient(145deg,#fff8cf,#fffef3)}.guideCard h3{margin:0 0 8px}.guideCard ul{margin:0;padding-left:20px;line-height:1.45;font-weight:760;color:#365e75}
+.mapTitle{display:flex;align-items:end;justify-content:space-between;gap:12px;margin:18px 4px 10px;color:white;text-shadow:0 2px 0 rgba(0,0,0,.12)}
+.mapTitle h2{margin:0;font-size:clamp(1.25rem,2.6vw,2rem)}.mapTitle p{margin:0;font-weight:800;opacity:.9}
+.stationGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.station{position:relative;min-height:188px;border:0;border-radius:22px;padding:16px;text-align:left;background:var(--paper);box-shadow:var(--shadow);overflow:hidden;transition:.18s;border:3px solid rgba(255,255,255,.75)}
+.station:hover{transform:translateY(-4px) rotate(-.25deg);box-shadow:0 18px 38px rgba(4,55,90,.3)}
+.station:before{content:"";position:absolute;width:90px;height:90px;right:-25px;bottom:-20px;border-radius:50%;background:var(--theme,#ffe44f);opacity:.24}
+.stationNum{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;font-weight:950;background:var(--theme,#ffe44f);color:#15405a;margin-bottom:9px}
+.stationIcon{position:absolute;right:15px;top:12px;font-size:32px;filter:drop-shadow(0 3px 1px rgba(0,0,0,.1))}
+.station h3{margin:0 44px 6px 0;font-size:1.04rem;line-height:1.05}.station p{margin:0;color:#55758a;font-weight:760;font-size:.82rem;line-height:1.25}.station .skills{position:absolute;left:15px;right:15px;bottom:13px;display:flex;gap:5px;flex-wrap:wrap}.chip{font-size:.64rem;font-weight:900;padding:4px 7px;border-radius:999px;background:#e9f7fb;color:#26627e}
+.stationView{margin-top:14px}
+.stationHead{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;background:var(--paper);border-radius:24px;padding:18px 20px;box-shadow:var(--shadow);border:3px solid rgba(255,255,255,.75)}
+.stationHead h2{margin:0;font-size:clamp(1.35rem,3vw,2.2rem)}.stationHead p{margin:7px 0 0;color:#55758a;font-weight:760;line-height:1.4;max-width:900px}.stationMascot{font-size:58px;line-height:1}
+.modebar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.lessonLayout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.7fr);gap:12px;align-items:start}
+.lessonCard,.sideCard{background:var(--paper);border-radius:22px;box-shadow:var(--shadow);border:3px solid rgba(255,255,255,.74);padding:18px}
+.metaphor{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:16px;background:linear-gradient(90deg,#fff6b9,#fffce7);margin-bottom:14px}.metaphor .big{font-size:34px}.metaphor b{display:block;margin-bottom:3px}.metaphor p{margin:0;line-height:1.35;font-weight:760;color:#556f7e}
+.formulaStage{position:relative;min-height:230px;border-radius:20px;background-color:#fff;background-image:linear-gradient(#d7edf5 1px,transparent 1px),linear-gradient(90deg,#d7edf5 1px,transparent 1px);background-size:22px 22px;border:2px solid #b6d8e6;display:flex;align-items:center;justify-content:center;padding:22px;overflow:hidden}
+.formula{font-family:Georgia,"Times New Roman",serif;font-size:clamp(1.45rem,3.3vw,2.6rem);font-weight:700;color:#173f57;text-align:center;line-height:1.35;transition:.25s}.formula .hot{background:var(--sponge2);padding:2px 5px;border-radius:8px}.formula .target{color:#b43b85;text-decoration:underline;text-decoration-thickness:3px;text-underline-offset:5px}.frac{display:inline-flex;vertical-align:middle;flex-direction:column;text-align:center;line-height:1.04;margin:0 .08em}.frac>.num{border-bottom:2px solid currentColor;padding:0 .18em .05em}.frac>.den{padding:.05em .18em 0}.smallfrac{font-size:.8em}
+.stepCaption{margin-top:12px;padding:11px 12px;border-radius:14px;background:#e8f8fb;font-weight:850;line-height:1.4;min-height:48px}.stepCaption strong{color:#087aa1}
+.lessonActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.actionBtn{border:0;border-radius:13px;min-height:44px;padding:0 15px;font-weight:950;background:#0a7ca7;color:white}.actionBtn.yellow{background:var(--sponge);color:#173e56}.actionBtn.pink{background:var(--pink)}.actionBtn.good{background:var(--good)}.actionBtn.ghost{background:#e9f4f8;color:#1b5977}
+.sideCard h3{margin:0 0 10px}.history{display:flex;flex-direction:column;gap:7px}.historyItem{padding:9px 10px;border-radius:12px;background:#eef8fb;font-size:.82rem;font-weight:850;color:#456b7f}.historyItem.active{background:var(--sponge2);color:#4f4800}.historyItem.done{background:#e2f6e8;color:#287044}
+.whyBox{margin-top:12px;padding:12px;border-radius:15px;background:#fff2f7;border:2px dashed #f2a2c0;line-height:1.4;font-weight:760;color:#6a5060}.whyBox b{color:#b54176}
+.practiceTop{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}.counter{font-weight:950;color:#0a6c94}.dots{display:flex;gap:4px;flex-wrap:wrap}.dot{width:11px;height:11px;border-radius:50%;background:#c9dce4}.dot.done{background:var(--good)}.dot.current{background:var(--sponge);outline:2px solid #9d8010}
+.prompt{font-weight:900;font-size:1rem;margin:0 0 10px}.optionGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.option{min-height:56px;border:2px solid #c8e0ea;border-radius:14px;background:white;padding:10px 12px;font-weight:900;text-align:left;transition:.15s}.option:hover{border-color:#0d90be;transform:translateY(-1px)}.option.correct{background:#e2f6e8;border-color:var(--good)}.option.wrong{background:#ffe6e6;border-color:var(--bad);animation:shake .32s}.option:disabled{cursor:default;transform:none}.feedback{min-height:48px;margin-top:10px;padding:10px 12px;border-radius:14px;font-weight:850;line-height:1.35}.feedback.good{background:#e5f7ea;color:#2d6f46}.feedback.bad{background:#ffe8e8;color:#954444}.feedback.info{background:#eaf7fb;color:#3d657a}
+.dragArea{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;min-height:170px}.term{min-width:68px;padding:12px 14px;border-radius:14px;background:white;border:2px solid #bddbe8;box-shadow:0 5px 12px rgba(12,72,103,.12);font-family:Georgia,serif;font-size:1.45rem;font-weight:800;text-align:center;cursor:grab;user-select:none;touch-action:none}.eqMark{font-family:Georgia,serif;font-size:2.2rem;font-weight:900}.dropSide{min-width:200px;min-height:80px;border:2px dashed #8abed1;border-radius:16px;padding:10px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;background:rgba(255,255,255,.55)}.dropSide.over{background:#fff9c9;border-color:#d0a816}
+.selfInput{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}.selfInput input{min-height:46px;flex:1;min-width:180px;border:2px solid #bcd9e5;border-radius:12px;padding:0 12px;font-size:1rem}.selfInput button{min-height:46px}
+.xraySelect{width:100%;min-height:44px;border:2px solid #c2dce7;border-radius:12px;padding:0 10px;background:white;font-weight:850;color:#265d77}
+.legend{font-size:.76rem;color:#668296;font-weight:760;line-height:1.4}
+.miniRule{margin-top:8px;padding:9px 10px;border-radius:12px;background:#f2f8fa;font-size:.8rem;font-weight:800}
+.footerNote{color:white;text-align:center;margin-top:20px;font-weight:800;opacity:.92}
+.toast{position:fixed;left:50%;bottom:18px;z-index:50;transform:translateX(-50%) translateY(130px);background:#073f61;color:white;border-radius:14px;padding:11px 16px;font-weight:850;box-shadow:var(--shadow);transition:.25s;max-width:min(92vw,720px);text-align:center}.toast.show{transform:translateX(-50%) translateY(0)}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@media(max-width:1120px){.stationGrid{grid-template-columns:repeat(3,minmax(0,1fr))}.hero{grid-template-columns:1fr}.lessonLayout{grid-template-columns:1fr}}
+@media(max-width:760px){.shell{padding:6px 7px 26px}.topbar{top:4px}.brand{width:100%}.stationGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.station{min-height:200px;padding:13px}.station .skills{left:12px;right:12px}.optionGrid{grid-template-columns:1fr}.stationHead{grid-template-columns:1fr auto;padding:14px}.formulaStage{min-height:190px;padding:16px}.lessonCard,.sideCard{padding:13px}.heroCard,.guideCard{padding:16px}.stationMascot{font-size:42px}}
+@media(max-width:480px){.stationGrid{grid-template-columns:1fr}.station{min-height:165px}.topBtn,.modeBtn{flex:1}.formula{font-size:1.5rem}.dragArea{gap:7px}.dropSide{min-width:135px}.term{min-width:54px;font-size:1.15rem;padding:9px}}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001s!important;transition-duration:.001s!important}.frontBubble{animation:none!important;opacity:.13}.frontBubble:nth-child(n+10){display:none}}
+
+/* ===== Совместный урок: гайд ===== */
+.collabLaunch{position:fixed;right:18px;bottom:18px;z-index:12000;border:2px solid rgba(255,255,255,.65);border-radius:16px;
+  min-height:48px;padding:0 16px;background:#075d86;color:#fff;font-weight:950;box-shadow:var(--shadow)}
+.collabLaunch:hover{transform:translateY(-1px)}
+.collabPanel{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:5px 8px;border-radius:13px;background:rgba(255,255,255,.12);color:#fff;font-weight:850}
+.collabDot{width:9px;height:9px;border-radius:50%;background:#f0b84c;box-shadow:0 0 0 2px rgba(255,255,255,.2)}
+.collabDot.online{background:#65d88b}.collabDot.offline{background:#ef7070}
+.collabMiniBtn{border:0;border-radius:9px;min-height:32px;padding:0 9px;background:#0b6997;color:#fff;font-weight:900}
+.collabMiniBtn.yellow{background:var(--sponge);color:#173c54}
+.collabOverlay{position:fixed;inset:0;z-index:13000;background:rgba(2,38,61,.62);backdrop-filter:blur(5px);display:grid;place-items:center;padding:16px}
+.collabModal{width:min(560px,96vw);max-height:92vh;overflow:auto;background:var(--paper);border:3px solid rgba(255,255,255,.85);border-radius:24px;
+  box-shadow:0 24px 60px rgba(0,31,52,.42);padding:20px}
+.collabModal h2{margin:0 0 8px}.collabModal p{color:#4c6e82;font-weight:760;line-height:1.4}
+.collabRoleGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+.collabRole{border:0;border-radius:16px;min-height:92px;padding:12px;background:#eaf8fb;color:#164c68;font-weight:950;font-size:1rem}
+.collabRole:hover{outline:3px solid var(--sponge)}
+.collabInput{width:100%;min-height:48px;border:2px solid #bbdbe7;border-radius:13px;padding:0 12px;font-size:1rem;background:#fff;color:var(--ink)}
+.collabActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.collabActions .actionBtn{flex:1}
+.collabStatus{margin-top:10px;padding:10px 12px;border-radius:12px;background:#eaf7fb;font-weight:800;color:#3f677c;min-height:42px}
+.collabStatus.bad{background:#ffe8e8;color:#944}.collabStatus.good{background:#e5f7ea;color:#286943}
+.memberList{display:flex;flex-direction:column;gap:7px;margin-top:10px}.memberItem{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:11px;background:#eef8fb;font-weight:820}
+.memberPip{width:9px;height:9px;border-radius:50%;background:#bbb}.memberPip.on{background:#58c97c}
+.savedStudent{padding:10px 12px;border-radius:13px;background:#fff5bd;font-weight:850;margin:10px 0}
+.sessionBanner{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:11900;border-radius:14px;padding:8px 12px;
+  background:#073f61;color:#fff;font-weight:850;box-shadow:var(--shadow);pointer-events:none;opacity:.95}
+
+/* ===== Общая доска ===== */
+.stationView{position:relative}
+.sharedBoardSvg{position:absolute;inset:0;width:100%;height:100%;z-index:45;pointer-events:none;overflow:visible}
+.sharedBoardSvg.drawing{pointer-events:auto;touch-action:none;cursor:crosshair}
+.sharedBoardSvg.erasing{pointer-events:auto;touch-action:none;cursor:cell}
+.sharedBoardSvg path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.teacherCursor{position:absolute;z-index:47;pointer-events:none;transform:translate(-2px,-2px);display:none}
+.teacherCursor.show{display:block}.teacherCursor::before{content:"";display:block;width:16px;height:22px;background:#ff5378;
+  clip-path:polygon(0 0,0 100%,28% 72%,45% 100%,58% 93%,41% 66%,74% 66%)}
+.teacherCursor span{position:absolute;left:14px;top:14px;white-space:nowrap;background:#073f61;color:#fff;border-radius:8px;padding:3px 6px;font-size:.7rem;font-weight:850}
+.boardToolbar{position:fixed;z-index:12100;left:18px;bottom:18px;width:min(310px,calc(100vw - 36px));background:rgba(5,76,113,.96);color:#fff;border:2px solid rgba(255,255,255,.35);
+  border-radius:17px;box-shadow:var(--shadow);overflow:hidden;user-select:none}
+.boardToolbar.collapsed .boardBody{display:none}.boardHead{display:flex;align-items:center;gap:8px;min-height:42px;padding:6px 8px;cursor:grab;font-weight:950}
+.boardHead span:first-child{margin-right:auto}.boardHead button{border:0;border-radius:8px;background:#0b6997;color:#fff;min-width:32px;min-height:30px;font-weight:950}
+.boardBody{padding:8px;display:flex;gap:7px;flex-wrap:wrap;align-items:center;background:rgba(255,255,255,.08)}
+.boardTool{border:0;border-radius:10px;min-height:38px;min-width:42px;padding:0 9px;background:#0b6997;color:#fff;font-weight:950}
+.boardTool.active{background:var(--sponge);color:#173c54}.boardTool.danger{background:#d85868}
+.boardBody input[type=color]{width:42px;height:38px;border:0;border-radius:9px;background:transparent;padding:0}.boardBody input[type=range]{width:88px}
+.boardHint{width:100%;font-size:.68rem;opacity:.82;font-weight:760}
+@media(max-width:620px){.collabRoleGrid{grid-template-columns:1fr}.collabLaunch{right:8px;bottom:8px}.boardToolbar{left:8px;bottom:8px;width:calc(100vw - 16px)}}
+
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"><div class="flower f1"></div><div class="flower f2"></div><div class="flower f3"></div><div class="seabed"></div><div id="bubbles"></div></div>
+<div class="bubbleOverlay" id="bubbleOverlay" aria-hidden="true"></div>
+<div class="shell">
+  <div class="topbar">
+    <div class="brand">🧽 <span>АЛГЕБРА <b>БИКИНИ-БОТТОМ</b></span></div>
+
+    <div class="collabPanel hidden" id="collabPanel">
+      <span class="collabDot" id="collabDot"></span>
+      <span id="collabWho">Совместный урок</span>
+      <button class="collabMiniBtn" id="participantsBtn" type="button">Участники</button>
+      <button class="collabMiniBtn yellow hidden" id="changeStudentBtn" type="button">Сменить ученика</button>
+    </div>
+    <button class="topBtn home" id="homeBtn" type="button">🗺 Карта станций</button>
+    <button class="topBtn secondary hidden" id="randomBtn" type="button">🎲 Случайный навык</button>
+  </div>
+
+  <main>
+    <section id="mapView">
+      <div class="hero">
+        <div class="heroCard">
+          <h1>Не «решай формулу».<br>Делай <span style="color:#e95791">один законный шаг</span>.</h1>
+          <p>Свободный интерактивный гайд по всем базовым алгебраическим манипуляциям: перенос, знаки, скобки, дроби, пропорции, степени, корни, неравенства и выражение переменной из сложных формул.</p>
+        </div>
+        <div class="guideCard">
+          <h3>🍍 Как пользоваться</h3>
+          <ul>
+            <li>выбери любой пробел — станции не заблокированы;</li>
+            <li><b>«Покажи»</b> объясняет через анимацию и метафору;</li>
+            <li><b>«Вместе»</b> даёт управлять шагами с подсказками;</li>
+            <li><b>«Сам»</b> — 15 коротких тренировок навыка.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="mapTitle"><h2>🌊 Карта алгебраических станций</h2><p>Можно начать с любой</p></div>
+      <div class="stationGrid" id="stationGrid"></div>
+      <div class="footerNote">Цель: увидеть любую длинную формулу и спокойно разложить её на знакомые действия.</div>
+    </section>
+
+    <section id="stationView" class="stationView hidden" data-board-anchor="station-screen">
+      <svg id="sharedBoardSvg" class="sharedBoardSvg" aria-label="Общая доска рисования"></svg>
+      <div class="teacherCursor" id="teacherCursor"><span>Учитель</span></div>
+      <div class="stationHead">
+        <div><h2 id="stationTitle">Станция</h2><p id="stationDesc"></p></div>
+        <div class="stationMascot" id="stationMascot">🧽</div>
+      </div>
+      <div class="modebar" id="modebar">
+        <button class="modeBtn active" data-mode="show" type="button">👀 Покажи</button>
+        <button class="modeBtn" data-mode="guided" type="button">🤝 Вместе</button>
+        <button class="modeBtn" data-mode="self" type="button">🧠 Сам · 15</button>
+      </div>
+      <div class="lessonLayout">
+        <div class="lessonCard" id="mainLesson"></div>
+        <aside class="sideCard" id="sideLesson"></aside>
+      </div>
+    </section>
+  </main>
+</div>
+
+<button class="collabLaunch" id="collabLaunch" type="button">🤝 Совместный урок</button>
+
+<div class="collabOverlay hidden" id="roleOverlay">
+  <div class="collabModal">
+    <h2>🤝 Совместный урок</h2>
+    <p>Одна общая сессия без кодов комнат. Выберите роль.</p>
+    <div class="collabRoleGrid">
+      <button class="collabRole" id="roleTeacher" type="button">👨‍🏫<br>Войти как учитель</button>
+      <button class="collabRole" id="roleStudent" type="button">🎓<br>Войти как ученик</button>
+    </div>
+    <div class="collabActions"><button class="actionBtn ghost" id="closeRole" type="button">Закрыть</button></div>
+  </div>
+</div>
+
+<div class="collabOverlay hidden" id="teacherOverlay">
+  <form class="collabModal" id="teacherForm">
+    <h2>👨‍🏫 Вход учителя</h2>
+    <p>Введите код учителя.</p>
+    <input class="collabInput" id="teacherCode" type="password" autocomplete="off" placeholder="Код учителя">
+    <div class="collabStatus" id="teacherStatus">После входа можно продолжить текущую сессию или начать новую.</div>
+    <div class="collabActions">
+      <button class="actionBtn yellow" type="submit">Войти</button>
+      <button class="actionBtn ghost" id="teacherBack" type="button">Назад</button>
+    </div>
+  </form>
+</div>
+
+<div class="collabOverlay hidden" id="teacherChoiceOverlay">
+  <div class="collabModal">
+    <h2>🍍 Занятие готово</h2>
+    <p id="teacherChoiceText">Выберите, что сделать с общей сессией.</p>
+    <div class="collabActions">
+      <button class="actionBtn yellow" id="teacherContinue" type="button">Продолжить занятие</button>
+      <button class="actionBtn pink" id="teacherNew" type="button">Начать новое</button>
+      <button class="actionBtn ghost" id="teacherChoiceClose" type="button">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<div class="collabOverlay hidden" id="studentOverlay">
+  <form class="collabModal" id="studentForm">
+    <h2>🎓 Вход ученика</h2>
+    <div id="savedStudentBox"></div>
+    <p>Личный код нужен только для имени ученика. Кода комнаты нет.</p>
+    <input class="collabInput" id="studentCode" type="text" autocomplete="off" placeholder="Личный код ученика">
+    <div class="collabStatus" id="studentStatus">После проверки подключу к текущему занятию.</div>
+    <div class="collabActions">
+      <button class="actionBtn yellow" type="submit">Проверить и войти</button>
+      <button class="actionBtn good hidden" id="useSavedStudent" type="button">Продолжить как сохранённый ученик</button>
+      <button class="actionBtn ghost" id="studentBack" type="button">Назад</button>
+    </div>
+  </form>
+</div>
+
+<div class="collabOverlay hidden" id="participantsOverlay">
+  <div class="collabModal">
+    <h2>👥 Участники</h2>
+    <div class="memberList" id="memberList"></div>
+    <div class="collabStatus" id="connectionText">Подключение…</div>
+    <div class="collabActions"><button class="actionBtn ghost" id="participantsClose" type="button">Закрыть</button></div>
+  </div>
+</div>
+
+<div class="boardToolbar hidden" id="boardToolbar">
+  <div class="boardHead" id="boardHead"><span>✏️ Общая доска</span><button id="boardCollapse" type="button">−</button></div>
+  <div class="boardBody">
+    <button class="boardTool active" data-board-tool="cursor" type="button">↖</button>
+    <button class="boardTool" data-board-tool="pencil" type="button">✏️</button>
+    <button class="boardTool" data-board-tool="eraser" type="button">⌫</button>
+    <input id="boardColor" type="color" value="#e53935" aria-label="Цвет карандаша">
+    <input id="boardWidth" type="range" min="2" max="14" value="5" aria-label="Толщина карандаша">
+    <button class="boardTool danger hidden" id="boardClear" type="button">Очистить всё</button>
+    <div class="boardHint">Рисуют все. «Очистить всё» доступно только учителю.</div>
+  </div>
+</div>
+<div class="sessionBanner hidden" id="sessionBanner">Совместное занятие подключено</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import { getDatabase, ref, get, set, update, onValue, onDisconnect, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js";
+
+(()=>{
+'use strict';
+const $=(s,c=document)=>c.querySelector(s), $$=(s,c=document)=>[...c.querySelectorAll(s)];
+const ri=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const esc=s=>String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
+const frac=(n,d,cls='')=>`<span class="frac ${cls}"><span class="num">${n}</span><span class="den">${d}</span></span>`;
+const F=s=>`<div class="formula">${s}</div>`;
+const toast=(msg)=>{const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2400)};
+
+/* ===== Совместный урок: fixed currentSession, режим ГАЙДА ===== */
+const APP_ID="ege9-algebra-bikini-bottom-guide-v1";
+const FIXED_SESSION_ID="currentSession";
+const SCHEMA_VERSION=1;
+const MAX_GUIDE_STUDENTS=8;
+const TEACHER_CODE_HASH="b0a83a3919eba1d2a99034f2d94e5a47590f1710595c04bd64b5c8f21456a7c6";
+const API_URL="https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
+const firebaseConfig={
+ apiKey:"AIzaSyBkY5utRlEfGIT_wEW6Dq7TSLr3RqBWJxo",
+ authDomain:"ega-mathematica.firebaseapp.com",
+ databaseURL:"https://ega-mathematica-default-rtdb.europe-west1.firebasedatabase.app",
+ projectId:"ega-mathematica",
+ storageBucket:"ega-mathematica.firebasestorage.app",
+ messagingSenderId:"177632223541",
+ appId:"1:177632223541:web:fbc532216359e34665ec7c",
+ measurementId:"G-K9FZYGKPZS"
+};
+const firebaseApp=initializeApp(firebaseConfig);
+const database=getDatabase(firebaseApp);
+const lessonRoot=()=>`sharedGuides/${APP_ID}/${FIXED_SESSION_ID}`;
+const sessionRef=()=>ref(database,lessonRoot());
+const stateRef=()=>ref(database,`${lessonRoot()}/state`);
+const uiRef=()=>ref(database,`${lessonRoot()}/state/ui`);
+const guideStudentsRef=()=>ref(database,`${lessonRoot()}/state/guide/students`);
+const strokesRef=()=>ref(database,`${lessonRoot()}/state/strokes`);
+const membersRef=()=>ref(database,`${lessonRoot()}/members`);
+const messagesRef=()=>ref(database,`${lessonRoot()}/messages`);
+const HOST_SAVE_KEY=`${APP_ID}:host`;
+const STUDENT_SAVE_KEY=`${APP_ID}:student`;
+const TOOLBAR_POSITION_KEY=`${APP_ID}:toolbar`;
+const CLIENT_ID_KEY=`${APP_ID}:client`;
+
+let participantRole="",participantId="",participantName="",studentIdentity=null,sessionConnected=false,applyingRemote=false;
+let uiUnsub=null,membersUnsub=null,strokesUnsub=null,cursorUnsub=null,connectionUnsub=null;
+let latestMembers={},latestStrokes={},lastUiVersion=-1;
+let browserClientId=sessionStorage.getItem(CLIENT_ID_KEY);
+if(!browserClientId){browserClientId=`tab-${crypto.randomUUID?.()||Date.now()+"-"+Math.random().toString(16).slice(2)}`;sessionStorage.setItem(CLIENT_ID_KEY,browserClientId)}
+
+function newGuideState(){
+ return{
+  version:1,schemaVersion:SCHEMA_VERSION,boardEpoch:0,strokes:{},
+  guide:{students:{}},
+  ui:{
+   version:1,screen:"map",stationId:"",mode:"show",demoStep:0,xrayIndex:0,bossIndex:0,bossStep:0,
+   firstMoveIndex:0,firstMoveStep:0,practiceIndex:0,practiceItems:[],choice:null,transferSolved:false
+  }
+ };
+}
+function freshSession(){
+ return{
+  meta:{sessionId:`guide-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,appId:APP_ID,schemaVersion:SCHEMA_VERSION,openedAt:Date.now()},
+  state:newGuideState(),members:{},messages:{}
+ };
+}
+function showOverlay(id){['roleOverlay','teacherOverlay','teacherChoiceOverlay','studentOverlay','participantsOverlay'].forEach(x=>$('#'+x).classList.add('hidden'));if(id)$('#'+id).classList.remove('hidden')}
+function hideOverlays(){showOverlay(null)}
+function setStatus(id,msg,kind=""){const el=$('#'+id);el.textContent=msg;el.className=`collabStatus ${kind}`.trim()}
+async function sha256(text){const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(text));return[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("")}
+function playerKey(id){return "s_"+String(id).replace(/[^a-zA-Z0-9_-]/g,"_").slice(0,80)}
+function loadSavedStudent(){
+ try{
+  const commonId=localStorage.getItem("egeStudentId"),commonName=localStorage.getItem("egeStudentName"),commonCode=localStorage.getItem("egeStudentCode");
+  if(commonId&&commonName)return{id:commonId,name:commonName,code:commonCode||""};
+  const x=JSON.parse(localStorage.getItem(STUDENT_SAVE_KEY)||"null");return x?.id&&x?.name?x:null;
+ }catch{return null}
+}
+function saveStudent(st){studentIdentity=st;localStorage.setItem("egeStudentId",st.id);localStorage.setItem("egeStudentName",st.name);localStorage.setItem("egeStudentCode",st.code||"");localStorage.setItem(STUDENT_SAVE_KEY,JSON.stringify(st))}
+function validateStudentCode(code){
+ return new Promise((resolve,reject)=>{
+  const cb=`__egeValidate_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const script=document.createElement("script");
+  const timer=setTimeout(()=>cleanup(new Error("Сервер проверки не ответил.")),10000);
+  function cleanup(err,data){clearTimeout(timer);delete window[cb];script.remove();err?reject(err):resolve(data)}
+  window[cb]=(data)=>{if(data?.ok){const raw=data.student||data;const st={id:String(raw.studentId||raw.id||raw.student_id||""),name:String(raw.studentName||raw.name||raw.student_name||"Ученик"),code};if(!st.id)return cleanup(new Error("Не найден ID ученика."));cleanup(null,st)}else cleanup(new Error(data?.error||"Личный код не найден."))}
+  script.onerror=()=>cleanup(new Error("Не удалось проверить личный код."));
+  script.src=`${API_URL}?action=validateStudent&code=${encodeURIComponent(code)}&callback=${encodeURIComponent(cb)}`;
+  document.head.appendChild(script);
+ });
+}
+function setSessionUi(connected){
+ sessionConnected=connected;
+ $('#collabLaunch').classList.toggle('hidden',connected);
+ $('#collabPanel').classList.toggle('hidden',!connected);
+ $('#boardToolbar').classList.toggle('hidden',!connected||!currentStation);
+ $('#boardClear').classList.toggle('hidden',participantRole!=="teacher");
+ $('#changeStudentBtn').classList.toggle('hidden',participantRole!=="student");
+ if(connected){$('#collabWho').textContent=participantRole==="teacher"?"Учитель":participantName||"Ученик";$('#sessionBanner').classList.remove('hidden');setTimeout(()=>$('#sessionBanner').classList.add('hidden'),1800)}
+}
+async function registerPresence(){
+ const mref=ref(database,`${lessonRoot()}/members/${browserClientId}`);
+ const payload={id:browserClientId,userId:participantId,studentId:participantRole==="student"?(studentIdentity?.id||""):"",name:participantName,role:participantRole,color:participantRole==="teacher"?"#ff5378":"#45a7d8",online:true,lastSeen:serverTimestamp()};
+ await set(mref,payload);
+ await onDisconnect(mref).update({online:false,lastSeen:serverTimestamp()});
+}
+async function attachSessionListeners(){
+ uiUnsub?.();membersUnsub?.();strokesUnsub?.();cursorUnsub?.();connectionUnsub?.();
+ uiUnsub=onValue(uiRef(),snap=>{const ui=snap.val();if(ui)applyRemoteUi(ui)});
+ membersUnsub=onValue(membersRef(),snap=>{latestMembers=snap.val()||{};renderMembers()});
+ strokesUnsub=onValue(strokesRef(),snap=>{latestStrokes=snap.val()||{};renderBoard()});
+ cursorUnsub=onValue(ref(database,`${lessonRoot()}/messages/teacherCursor`),snap=>renderTeacherCursor(snap.val()));
+ connectionUnsub=onValue(ref(database,".info/connected"),snap=>{const on=!!snap.val();$('#collabDot').className=`collabDot ${on?'online':'offline'}`;$('#connectionText').textContent=on?"Связь с занятием активна.":"Нет связи. Текущее состояние на экране не сбрасывается.";if(on&&sessionConnected)registerPresence().catch(console.error)});
+}
+function renderMembers(){
+ const items=Object.values(latestMembers||{}).filter(x=>x&&x.name);
+ const uniq=new Map();items.forEach(m=>{const key=m.role==="teacher"?"teacher":(m.studentId||m.userId||m.id);const prev=uniq.get(key);if(!prev||m.online)uniq.set(key,m)});
+ const list=[...uniq.values()].sort((a,b)=>(a.role==="teacher"?-1:1)-(b.role==="teacher"?-1:1));
+ $('#memberList').innerHTML=list.length?list.map(m=>`<div class="memberItem"><span class="memberPip ${m.online?'on':''}"></span><b>${esc(m.name)}</b><span style="margin-left:auto">${m.role==="teacher"?"учитель":"ученик"}</span></div>`).join(''):'<div class="memberItem">Пока никто не подключён.</div>';
+ if(sessionConnected&&!latestMembers[browserClientId]&&!renderMembers.restoring){renderMembers.restoring=true;setTimeout(()=>registerPresence().finally(()=>{renderMembers.restoring=false}),80)}
+}
+async function joinAsTeacher(){
+ participantRole="teacher";participantId="teacher";participantName="Учитель";
+ localStorage.setItem(HOST_SAVE_KEY,JSON.stringify({id:"teacher",at:Date.now(),schemaVersion:SCHEMA_VERSION}));
+ await registerPresence();await attachSessionListeners();setSessionUi(true);hideOverlays();
+}
+async function teacherContinueOrCreate(isNew){
+ if(isNew)await set(sessionRef(),freshSession());
+ else{const snap=await get(stateRef());if(!snap.exists())await set(sessionRef(),freshSession())}
+ await joinAsTeacher();
+}
+async function joinGuideStudent(st){
+ const sSnap=await get(stateRef());
+ if(!sSnap.exists()){setStatus("studentStatus","Учитель ещё не открыл занятие. Окно можно оставить открытым — подключение начнётся после открытия сессии.","bad");return false}
+ const serverState=sSnap.val();
+ const key=playerKey(st.id);
+ const tx=await runTransaction(stateRef(),current=>{
+   const state=structuredClone(current||serverState);
+   state.guide=state.guide||{students:{}};
+   state.guide.students=state.guide.students||{};
+   const students=state.guide.students;
+   if(!students[key]&&Object.keys(students).length>=MAX_GUIDE_STUDENTS)return;
+   students[key]={studentId:st.id,name:st.name,joinedAt:students[key]?.joinedAt||Date.now(),lastSeen:Date.now()};
+   state.version=(Number(state.version)||0)+1;
+   return state;
+ });
+ if(!tx.committed){
+   const again=await get(stateRef());
+   const students=again.val()?.guide?.students||{};
+   if(students[key]){/* re-entry */}
+   else if(Object.keys(students).length>=MAX_GUIDE_STUDENTS){setStatus("studentStatus","В этом гайде уже подключены 8 учеников.","bad");return false}
+   else{setStatus("studentStatus","Не удалось занять место. Попробуйте ещё раз.","bad");return false}
+ }
+ participantRole="student";participantId=key;participantName=st.name;studentIdentity=st;
+ await registerPresence();await attachSessionListeners();setSessionUi(true);hideOverlays();return true;
+}
+function waitForTeacherAndJoin(st){
+ setStatus("studentStatus","Учитель ещё не открыл занятие. Жду открытия…");
+ let unsub=onValue(stateRef(),snap=>{if(snap.exists()){unsub();joinGuideStudent(st).catch(e=>setStatus("studentStatus",e.message,"bad"))}});
+}
+async function writeSharedUi(patch){
+ if(!sessionConnected||applyingRemote)return;
+ const next={...patch,version:Date.now()+Math.random(),updatedBy:participantId||browserClientId,updatedAt:serverTimestamp()};
+ try{await update(uiRef(),next)}catch(e){console.warn("Не удалось синхронизировать действие",e);toast("Действие осталось локально: нет связи с совместным уроком.")}
+}
+function snapshotCurrentUi(){
+ return{
+  screen:currentStation?"station":"map",stationId:currentStation?.id||"",mode:currentMode,demoStep,xrayIndex,bossIndex,bossStep,
+  firstMoveIndex,firstMoveStep,practiceIndex,practiceItems:practiceItems||[],choice:null,transferSolved
+ };
+}
+function shareCurrentUi(extra={}){return writeSharedUi({...snapshotCurrentUi(),...extra})}
+
+function applyRemoteUi(ui){
+ if(!sessionConnected||!ui)return;
+ if(Number(ui.version||0)===lastUiVersion)return;
+ lastUiVersion=Number(ui.version||0);
+ applyingRemote=true;
+ try{
+  currentMode=ui.mode||"show";demoStep=Number(ui.demoStep)||0;xrayIndex=Number(ui.xrayIndex)||0;bossIndex=Number(ui.bossIndex)||0;bossStep=Number(ui.bossStep)||0;
+  firstMoveIndex=Number(ui.firstMoveIndex)||0;firstMoveStep=Number(ui.firstMoveStep)||0;practiceIndex=Number(ui.practiceIndex)||0;transferSolved=!!ui.transferSolved;
+  if(Array.isArray(ui.practiceItems))practiceItems=ui.practiceItems;
+  if(ui.screen==="map"||!ui.stationId){showMap(false)}
+  else{
+    const st=STATIONS.find(x=>x.id===ui.stationId);if(st){openStation(ui.stationId,false,currentMode);demoStep=Number(ui.demoStep)||0;xrayIndex=Number(ui.xrayIndex)||0;bossIndex=Number(ui.bossIndex)||0;bossStep=Number(ui.bossStep)||0;firstMoveIndex=Number(ui.firstMoveIndex)||0;firstMoveStep=Number(ui.firstMoveStep)||0;practiceIndex=Number(ui.practiceIndex)||0;transferSolved=!!ui.transferSolved;if(Array.isArray(ui.practiceItems))practiceItems=ui.practiceItems;renderCurrentModeFromState()}
+  }
+  requestAnimationFrame(()=>applyRemoteChoice(ui.choice));
+ }finally{applyingRemote=false}
+}
+function renderCurrentModeFromState(){
+ $$('.modeBtn').forEach(b=>b.classList.toggle('active',b.dataset.mode===currentMode));
+ if(currentMode==="show")renderShow();
+ else if(currentStation?.special==="xray")renderXrayChallenge(currentMode==="guided");
+ else if(currentStation?.special==="firstmove")renderFirstMoveChallenge(currentMode==="guided");
+ else if(currentStation?.special==="boss")renderBossPractice(currentMode==="guided");
+ else if(currentStation?.id==="transfer"&&currentMode==="guided")renderTransferDrag();
+ else if(practiceItems?.length)renderPracticeCard(currentMode==="guided");
+ else if(currentMode==="guided")renderGuided();else renderSelf();
+}
+function applyRemoteChoice(choice){
+ if(!choice)return;
+ const grid=choice.scope==="boss"?$('#bossOptions'):choice.scope==="transform"?$('#transformOptions'):$('#optionGrid');
+ if(!grid)return;
+ const btn=[...grid.querySelectorAll("button")].find(b=>(b.dataset.value||b.dataset.v)===choice.value);
+ if(btn){btn.classList.add(choice.ok?"correct":"wrong")}
+ const fb=$('#feedback')||$('#bossFeedback')||$('#transformFeedback');
+ if(fb&&choice.message){fb.className=`feedback ${choice.ok?'good':'bad'}`;fb.innerHTML=choice.message}
+ if(choice.ok&&grid){[...grid.querySelectorAll("button")].forEach(b=>b.disabled=true);const next=$('#nextPractice');if(next)next.classList.remove('hidden')}
+}
+
+/* ===== Вход ===== */
+$('#collabLaunch').onclick=()=>showOverlay("roleOverlay");
+$('#closeRole').onclick=hideOverlays;
+$('#roleTeacher').onclick=()=>showOverlay("teacherOverlay");
+$('#teacherBack').onclick=()=>showOverlay("roleOverlay");
+$('#roleStudent').onclick=()=>{
+ const saved=loadSavedStudent(),box=$('#savedStudentBox'),use=$('#useSavedStudent');
+ if(saved){box.innerHTML=`<div class="savedStudent">Сохранённый ученик: <b>${esc(saved.name)}</b></div>`;use.classList.remove("hidden");use.textContent=`Продолжить как ${saved.name}`;use.onclick=async()=>{studentIdentity=saved;const snap=await get(stateRef());if(snap.exists())await joinGuideStudent(saved);else waitForTeacherAndJoin(saved)}}
+ else{box.innerHTML="";use.classList.add("hidden")}
+ showOverlay("studentOverlay");
+};
+$('#studentBack').onclick=()=>showOverlay("roleOverlay");
+$('#teacherChoiceClose').onclick=hideOverlays;
+$('#participantsBtn').onclick=()=>showOverlay("participantsOverlay");
+$('#participantsClose').onclick=hideOverlays;
+$('#changeStudentBtn').onclick=async()=>{try{await update(ref(database,`${lessonRoot()}/members/${browserClientId}`),{online:false,lastSeen:serverTimestamp()})}catch{}participantRole="";participantId="";participantName="";studentIdentity=null;sessionConnected=false;setSessionUi(false);showOverlay("studentOverlay");$('#studentCode').focus()};
+$('#teacherForm').addEventListener("submit",async e=>{
+ e.preventDefault();setStatus("teacherStatus","Проверяю код…");
+ try{
+  if(await sha256($('#teacherCode').value.trim())!==TEACHER_CODE_HASH)throw new Error("Неверный код учителя.");
+  const exists=(await get(stateRef())).exists();
+  $('#teacherContinue').classList.toggle("hidden",!exists);
+  $('#teacherChoiceText').textContent=exists?"Найдена текущая совместная сессия. Можно продолжить её или начать заново.":"Текущей сессии ещё нет — создайте новую.";
+  showOverlay("teacherChoiceOverlay");
+ }catch(err){setStatus("teacherStatus",err.message,"bad")}
+});
+$('#teacherContinue').onclick=()=>teacherContinueOrCreate(false).catch(e=>{showOverlay("teacherOverlay");setStatus("teacherStatus",e.message,"bad")});
+$('#teacherNew').onclick=()=>teacherContinueOrCreate(true).catch(e=>{showOverlay("teacherOverlay");setStatus("teacherStatus",e.message,"bad")});
+$('#studentForm').addEventListener("submit",async e=>{
+ e.preventDefault();const code=$('#studentCode').value.trim();if(!code){setStatus("studentStatus","Введите личный код.","bad");return}
+ setStatus("studentStatus","Проверяю личный код…");
+ try{const st=await validateStudentCode(code);saveStudent(st);setStatus("studentStatus",`Найден ученик: ${st.name}`,"good");const snap=await get(stateRef());if(snap.exists())await joinGuideStudent(st);else waitForTeacherAndJoin(st)}
+ catch(err){setStatus("studentStatus",err.message,"bad")}
+});
+
+/* ===== Общая живая доска ===== */
+let boardTool="cursor",boardColor="#e53935",boardWidth=5,activeStroke=null,strokeDirty=false,lastStrokeSend=0,eraseLast=null;
+const boardSvg=$('#sharedBoardSvg'),boardAnchor=$('#stationView'),teacherCursor=$('#teacherCursor');
+function setBoardTool(tool){boardTool=tool;$$("[data-board-tool]").forEach(b=>b.classList.toggle("active",b.dataset.boardTool===tool));boardSvg.classList.toggle("drawing",tool==="pencil");boardSvg.classList.toggle("erasing",tool==="eraser")}
+$$("[data-board-tool]").forEach(b=>b.onclick=()=>setBoardTool(b.dataset.boardTool));
+$('#boardColor').oninput=e=>boardColor=e.target.value;
+$('#boardWidth').oninput=e=>boardWidth=Number(e.target.value)||5;
+$('#boardCollapse').onclick=()=>{$('#boardToolbar').classList.toggle("collapsed");$('#boardCollapse').textContent=$('#boardToolbar').classList.contains("collapsed")?"+":"−"};
+function boardPoint(e){const r=boardAnchor.getBoundingClientRect();return[Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))]}
+function strokePath(points){if(!points?.length)return"";const r=boardAnchor.getBoundingClientRect();return points.map((p,i)=>`${i?"L":"M"}${(p[0]*r.width).toFixed(1)},${(p[1]*r.height).toFixed(1)}`).join(" ")}
+boardAnchor.addEventListener("pointermove",e=>{if(participantRole==="teacher"&&sessionConnected)sendTeacherCursor(e)});window.addEventListener("resize",()=>requestAnimationFrame(renderBoard));
+function renderBoard(){
+ const rect=boardAnchor.getBoundingClientRect();boardSvg.setAttribute("viewBox",`0 0 ${Math.max(1,rect.width)} ${Math.max(1,rect.height)}`);
+ const epoch=Number(currentBoardEpoch)||0;boardSvg.innerHTML="";
+ Object.values(latestStrokes||{}).forEach(st=>{if(!st||Number(st.epoch)!==epoch||!Array.isArray(st.points)||!st.points.length)return;const path=document.createElementNS("http://www.w3.org/2000/svg","path");path.setAttribute("d",strokePath(st.points));path.setAttribute("stroke",st.color||"#e53935");path.setAttribute("stroke-width",String(st.width||5));path.dataset.strokeId=st.id;boardSvg.appendChild(path)});
+ if(activeStroke&&activeStroke.points?.length){const path=document.createElementNS("http://www.w3.org/2000/svg","path");path.setAttribute("d",strokePath(activeStroke.points));path.setAttribute("stroke",activeStroke.color);path.setAttribute("stroke-width",String(activeStroke.width));path.dataset.strokeId=activeStroke.id;boardSvg.appendChild(path)}
+}
+let currentBoardEpoch=0;
+onValue(ref(database,`${lessonRoot()}/state/boardEpoch`),snap=>{currentBoardEpoch=Number(snap.val())||0;renderBoard()});
+async function sendStroke(st){if(!sessionConnected||!st)return;await set(ref(database,`${lessonRoot()}/state/strokes/${st.id}`),st)}
+function pointDist(a,b){return Math.hypot(a[0]-b[0],a[1]-b[1])}
+boardSvg.addEventListener("pointerdown",e=>{
+ if(!sessionConnected||!currentStation)return;
+ if(boardTool==="pencil"){
+  boardSvg.setPointerCapture(e.pointerId);const p=boardPoint(e);activeStroke={id:`stroke-${browserClientId}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,anchorId:"station-screen",authorId:participantId,authorName:participantName,color:boardColor,width:boardWidth,points:[p],done:false,epoch:currentBoardEpoch,rev:Date.now()};latestStrokes[activeStroke.id]=structuredClone(activeStroke);renderBoard();sendStroke(structuredClone(activeStroke)).catch(console.warn);lastStrokeSend=performance.now();
+ }else if(boardTool==="eraser"){boardSvg.setPointerCapture(e.pointerId);eraseLast=boardPoint(e);eraseAt(eraseLast,eraseLast)}
+});
+boardSvg.addEventListener("pointermove",e=>{
+ if(participantRole==="teacher"&&sessionConnected)sendTeacherCursor(e);
+ if(boardTool==="pencil"&&activeStroke){
+  const p=boardPoint(e),last=activeStroke.points.at(-1);const rect=boardAnchor.getBoundingClientRect();if(Math.hypot((p[0]-last[0])*rect.width,(p[1]-last[1])*rect.height)<2.5)return;activeStroke.points.push(p);activeStroke.rev=Date.now();latestStrokes[activeStroke.id]=structuredClone(activeStroke);renderBoard();
+  if(performance.now()-lastStrokeSend>=55){lastStrokeSend=performance.now();sendStroke(structuredClone(activeStroke)).catch(console.warn)}
+ }else if(boardTool==="eraser"&&eraseLast){const p=boardPoint(e);eraseAt(eraseLast,p);eraseLast=p}
+});
+async function finishStroke(e){
+ if(activeStroke){const finalStroke=structuredClone(activeStroke);finalStroke.done=true;finalStroke.rev=Date.now();latestStrokes[finalStroke.id]=finalStroke;activeStroke=null;renderBoard();await sendStroke(finalStroke).catch(console.warn)}
+ eraseLast=null;try{boardSvg.releasePointerCapture(e.pointerId)}catch{}
+}
+boardSvg.addEventListener("pointerup",finishStroke);boardSvg.addEventListener("pointercancel",finishStroke);
+function segDist(px,py,x1,y1,x2,y2){const dx=x2-x1,dy=y2-y1,l2=dx*dx+dy*dy;if(!l2)return Math.hypot(px-x1,py-y1);let t=((px-x1)*dx+(py-y1)*dy)/l2;t=Math.max(0,Math.min(1,t));return Math.hypot(px-(x1+t*dx),py-(y1+t*dy))}
+async function eraseAt(a,b){
+ const rect=boardAnchor.getBoundingClientRect(),steps=Math.max(1,Math.ceil(Math.hypot((b[0]-a[0])*rect.width,(b[1]-a[1])*rect.height)/6)),removeIds=new Set();
+ for(let k=0;k<=steps;k++){const t=k/steps,px=(a[0]+(b[0]-a[0])*t)*rect.width,py=(a[1]+(b[1]-a[1])*t)*rect.height;
+  Object.values(latestStrokes||{}).forEach(st=>{if(!st||Number(st.epoch)!==currentBoardEpoch||removeIds.has(st.id))return;const pts=st.points||[];for(let i=0;i<pts.length-1;i++){const x1=pts[i][0]*rect.width,y1=pts[i][1]*rect.height,x2=pts[i+1][0]*rect.width,y2=pts[i+1][1]*rect.height;if(segDist(px,py,x1,y1,x2,y2)<=10+(Number(st.width)||5)/2){removeIds.add(st.id);break}}});
+ }
+ if(!removeIds.size)return;const backup={};const patch={};removeIds.forEach(id=>{backup[id]=latestStrokes[id];delete latestStrokes[id];patch[id]=null});renderBoard();
+ try{await update(strokesRef(),patch)}catch(e){Object.assign(latestStrokes,backup);renderBoard();console.warn(e)}
+}
+$('#boardClear').onclick=async()=>{
+ if(participantRole!=="teacher"||!sessionConnected)return;
+ await runTransaction(stateRef(),state=>{if(!state)return state;state.boardEpoch=(Number(state.boardEpoch)||0)+1;state.strokes={};state.version=(Number(state.version)||0)+1;return state});
+};
+function sendTeacherCursor(e){
+ const now=performance.now();if(sendTeacherCursor.last&&now-sendTeacherCursor.last<75)return;sendTeacherCursor.last=now;const p=boardPoint(e);set(ref(database,`${lessonRoot()}/messages/teacherCursor`),{x:p[0],y:p[1],name:participantName||"Учитель",at:Date.now()}).catch(()=>{});
+}
+function renderTeacherCursor(cur){
+ if(!cur||participantRole==="teacher"||!sessionConnected||!currentStation){teacherCursor.classList.remove("show");return}
+ const r=boardAnchor.getBoundingClientRect();teacherCursor.style.left=`${Math.max(0,Math.min(1,cur.x))*r.width}px`;teacherCursor.style.top=`${Math.max(0,Math.min(1,cur.y))*r.height}px`;teacherCursor.querySelector("span").textContent=cur.name||"Учитель";teacherCursor.classList.add("show")
+}
+function initToolbarDrag(){
+ const bar=$('#boardToolbar'),head=$('#boardHead');let drag=null;
+ try{const saved=JSON.parse(localStorage.getItem(TOOLBAR_POSITION_KEY)||"null");if(saved){bar.style.left=saved.left+"px";bar.style.top=saved.top+"px";bar.style.bottom="auto"} }catch{}
+ head.addEventListener("pointerdown",e=>{if(e.target.closest("button"))return;drag={id:e.pointerId,dx:e.clientX-bar.getBoundingClientRect().left,dy:e.clientY-bar.getBoundingClientRect().top};head.setPointerCapture(e.pointerId)});
+ head.addEventListener("pointermove",e=>{if(!drag||drag.id!==e.pointerId)return;const r=bar.getBoundingClientRect(),left=Math.max(0,Math.min(innerWidth-r.width,e.clientX-drag.dx)),top=Math.max(0,Math.min(innerHeight-r.height,e.clientY-drag.dy));bar.style.left=left+"px";bar.style.top=top+"px";bar.style.bottom="auto"});
+ head.addEventListener("pointerup",e=>{if(!drag)return;const r=bar.getBoundingClientRect();localStorage.setItem(TOOLBAR_POSITION_KEY,JSON.stringify({left:r.left,top:r.top}));drag=null});
+}
+initToolbarDrag();
+
+
+// Фоновые пузыри
+const bubbles=$('#bubbles');
+for(let i=0;i<24;i++){const b=document.createElement('span');b.className='bubble';const s=8+Math.random()*28;b.style.width=b.style.height=s+'px';b.style.left=Math.random()*100+'%';b.style.animationDuration=(9+Math.random()*13)+'s';b.style.animationDelay=(-Math.random()*16)+'s';bubbles.appendChild(b)}
+const bubbleOverlay=$('#bubbleOverlay');
+for(let i=0;i<38;i++){
+ const b=document.createElement('span');b.className='frontBubble';
+ const size=10+Math.random()*42;
+ b.style.width=b.style.height=size+'px';
+ b.style.left=(-2+Math.random()*104)+'%';
+ b.style.setProperty('--dur',(11+Math.random()*14)+'s');
+ b.style.setProperty('--drift',(-45+Math.random()*90)+'px');
+ b.style.animationDelay=(-Math.random()*24)+'s';
+ bubbleOverlay.appendChild(b);
+}
+
+const STATIONS=[
+ {id:'transfer',icon:'⛴️',theme:'#ffe44f',title:'Паром через знак =',desc:'Перенос слагаемых без магии: сначала одинаковое действие с обеими частями, затем короткое правило «перешёл — поменял знак».',skills:['перенос','+ ↔ −','x с двух сторон'],mascot:'🧽',metaphor:'Знак «=» — пролив. Слагаемое не телепортируется: мы сначала убираем его с одной стороны тем же действием на другой стороне.',demo:{initial:'5x <span class="hot">+ 7</span> = 22',steps:[
+  {name:'Убираем +7 слева',formula:'5x + 7 <span class="hot">− 7</span> = 22 <span class="hot">− 7</span>',caption:'Делаем одно и то же с обеими частями: вычитаем 7.',why:'Равенство остаётся верным, если к обеим его частям прибавить или вычесть одно и то же число.'},
+  {name:'Сокращаем',formula:'5x = 15',caption:'Слева +7 и −7 уничтожили друг друга.',why:'Именно отсюда появляется короткое правило: «+7 перенесли вправо как −7».'},
+  {name:'Освобождаем x',formula:`${frac('5x','5')} = ${frac('15','5')}`,caption:'Теперь делим обе части на коэффициент 5.',why:'Мы не «переносим пятёрку», а делим обе части равенства на 5.'},
+  {name:'Готово',formula:'x = 3',caption:'Цель изолирована.',why:'Каждый шаг был обратимым и применялся симметрично.'}]},generator:genTransfer},
+ {id:'balance',icon:'⚖️',theme:'#ffb34e',title:'Весы Мистера Крабса',desc:'Одинаковые действия с обеими частями: прибавить, вычесть, умножить или разделить — всегда симметрично.',skills:['обе части','÷ коэффициент','обратные действия'],mascot:'🦀',metaphor:'Мистер Крабс следит за кассой: скидку нельзя дать только одному столику. Что сделал слева — то же сделал справа.',demo:{initial:'6x = 42',steps:[
+  {name:'Выбираем обратное действие',formula:`${frac('6x','6')} = ${frac('42','6')}`,caption:'Чтобы убрать множитель 6 около x, делим обе части на 6.',why:'Деление на ненулевое число сохраняет равенство.'},
+  {name:'Сокращаем',formula:'x = 7',caption:'6/6 = 1, поэтому остаётся x.',why:'Коэффициент превращается в 1.'}]},generator:genBalance},
+ {id:'signs',icon:'🦠',theme:'#a58bf0',title:'Лаборатория минусов Планктона',desc:'Минус перед скобками, отрицательные коэффициенты, знаки произведений и дробей.',skills:['−( )','−·−','знак дроби'],mascot:'🦠',metaphor:'Минус — инвертор Планктона. Если он входит в скобку, каждый знак внутри проходит через машину и меняется.',demo:{initial:'−(x − 5)',steps:[
+  {name:'Распределяем −1',formula:'(−1)·x + (−1)·(−5)',caption:'Минус перед скобкой означает умножение каждого слагаемого на −1.',why:'Распределительный закон: a(b+c)=ab+ac.'},
+  {name:'Меняем знаки',formula:'−x + 5',caption:'−1·x=−x, а −1·−5=+5.',why:'Произведение двух отрицательных чисел положительно.'}]},generator:genSigns},
+ {id:'brackets',icon:'🚗',theme:'#74c76a',title:'Гараж скобок',desc:'Раскрытие скобок и обратная операция — вынесение общего множителя.',skills:['a(b+c)','общий множитель','сборка'],mascot:'🐿️',metaphor:'Скобки — гараж. Множитель у ворот обязан «поздороваться» с каждым, кто находится внутри.',demo:{initial:'3(x + 4)',steps:[
+  {name:'Раздаём множитель',formula:'3·x + 3·4',caption:'Тройка умножается на оба слагаемых.',why:'Распределительный закон.'},
+  {name:'Упрощаем',formula:'3x + 12',caption:'Получили выражение без скобок.',why:'Обратный путь: 3x+12 = 3(x+4).'}]},generator:genBrackets},
+ {id:'fractions',icon:'🍔',theme:'#ff8a63',title:'Кухня дробей Красти Краб',desc:'Что реально находится в числителе и знаменателе, сокращение, умножение и деление дробей.',skills:['числитель','знаменатель','сокращение'],mascot:'🍔',metaphor:'Дробь — бургер: верх и низ — разные слои. Нельзя случайно вынести ингредиент из нижней булки, не изменив всю конструкцию.',demo:{initial:`${frac('6x','9')}`,steps:[
+  {name:'Ищем общий множитель',formula:`${frac('3·2x','3·3')}`,caption:'И в числителе, и в знаменателе есть множитель 3.',why:'Сокращать можно только общие множители, а не слагаемые.'},
+  {name:'Сокращаем 3',formula:`${frac('2x','3')}`,caption:'Делим числитель и знаменатель на одно и то же ненулевое число.',why:'Значение дроби не изменилось.'}]},generator:genFractions},
+ {id:'denominator',icon:'🛗',theme:'#51c8d2',title:'Лифт из знаменателя',desc:'Разница между x/a и a/x, переменная в знаменателе и безопасное избавление от дроби.',skills:['x/a','a/x','умножение'],mascot:'🛗',metaphor:'Знаменатель живёт этажом ниже. Чтобы убрать его из дроби, умножаем всю сторону на этот знаменатель — лифт поднимает его наверх.',demo:{initial:`${frac('5','x')} = 7`,steps:[
+  {name:'Умножаем обе части на x',formula:`x·${frac('5','x')} = 7x`,caption:'x — знаменатель, поэтому умножаем обе части на x.',why:'Важно: x≠0, потому что в исходной дроби делить на ноль нельзя.'},
+  {name:'Сокращаем',formula:'5 = 7x',caption:'x/x=1.',why:'Теперь переменная уже не в знаменателе.'},
+  {name:'Делим на 7',formula:`${frac('5','7')} = x`,caption:'Изолируем x.',why:'Это не то же самое, что x/5=7. Положение x принципиально важно.'}]},generator:genDenominator},
+ {id:'tower',icon:'🏠',theme:'#f49bc3',title:'Дом Сквидварда: трёхэтажные дроби',desc:'Разбираем (a/b)/c, a/(b/c) и (a/b)/(c/d) как разные архитектуры.',skills:['3 этажа','деление дробей','структура'],mascot:'🐙',metaphor:'У Сквидварда строгий дом: кто живёт в каком этаже, тот и определяет действие. Два похожих дома могут давать разные результаты.',demo:{initial:`${frac(frac('a','b','smallfrac'),frac('c','d','smallfrac'))}`,steps:[
+  {name:'Видим деление двух дробей',formula:`${frac('a','b')} : ${frac('c','d')}`,caption:'Большая дробная черта означает деление верхней дроби на нижнюю.',why:'Сначала читаем структуру, только потом преобразуем.'},
+  {name:'Переворачиваем делитель',formula:`${frac('a','b')} · ${frac('d','c')}`,caption:'При делении на дробь умножаем на обратную дробь.',why:'Переворачивается только делитель c/d.'},
+  {name:'Перемножаем',formula:`${frac('ad','bc')}`,caption:'Числитель на числитель, знаменатель на знаменатель.',why:'Получили одноэтажную дробь.'}]},generator:genTower},
+ {id:'flip',icon:'🔄',theme:'#ffd34f',title:'Переворачиватель дробей',desc:'Отдельно закрепляем правило: переворачивается только дробь, НА КОТОРУЮ делят.',skills:['делитель','обратная дробь','умножение'],mascot:'🔄',metaphor:'Машина переворачивает только пассажира после знака деления. Первая дробь остаётся как была.',demo:{initial:`${frac('3','5')} : ${frac('2','7')}`,steps:[
+  {name:'Находим делитель',formula:`${frac('3','5')} : <span class="hot">${frac('2','7')}</span>`,caption:'Делитель — дробь 2/7.',why:'Именно она должна стать обратной.'},
+  {name:'Переворачиваем только её',formula:`${frac('3','5')} · ${frac('7','2')}`,caption:'Деление заменили умножением на обратную дробь.',why:'Первую дробь не переворачиваем.'},
+  {name:'Перемножаем',formula:`${frac('21','10')}`,caption:'3·7 / (5·2).',why:'При необходимости затем выделяем целую часть.'}]},generator:genFlip},
+ {id:'proportion',icon:'🚦',theme:'#ff7c78',title:'Пропорциональный перекрёсток',desc:'Пропорции от простых до дробей с выражениями в числителях.',skills:['крест','общий знаменатель','скобки'],mascot:'🚦',metaphor:'Перекрёсток — это короткий маршрут, но за ним стоит обычное умножение обеих частей на оба знаменателя.',demo:{initial:`${frac('2x−3','5')} = ${frac('x+4','7')}`,steps:[
+  {name:'Убираем знаменатели',formula:'7(2x−3) = 5(x+4)',caption:'Умножили обе части на 5·7 и сократили.',why:'«Крест» — не магия, а результат домножения на общий знаменатель.'},
+  {name:'Раскрываем скобки',formula:'14x − 21 = 5x + 20',caption:'Каждый множитель умножается на каждое слагаемое внутри своей скобки.',why:'Распределительный закон.'},
+  {name:'Собираем x',formula:'9x = 41',caption:'Перенесли 5x влево, −21 вправо.',why:'На самом деле сделали одинаковые действия с обеими частями.'}]},generator:genProportion},
+ {id:'bulldozer',icon:'🚜',theme:'#efb55a',title:'Бульдозер знаменателей',desc:'НОК и общий знаменатель для нескольких дробей в одном уравнении.',skills:['НОК','несколько дробей','целое уравнение'],mascot:'🚜',metaphor:'Бульдозер выбирает один общий множитель и проходит по ВСЕМ слагаемым уравнения, а не только по понравившейся дроби.',demo:{initial:`${frac('x','3')} + ${frac('x','6')} = 5`,steps:[
+  {name:'Выбираем НОК 6',formula:`6·${frac('x','3')} + 6·${frac('x','6')} = 6·5`,caption:'Домножаем каждое слагаемое на 6.',why:'НОК(3,6)=6.'},
+  {name:'Сокращаем знаменатели',formula:'2x + x = 30',caption:'6/3=2, 6/6=1.',why:'Знаменатели исчезли без изменения множества решений.'},
+  {name:'Собираем',formula:'3x = 30',caption:'2x+x=3x.',why:'Подобные слагаемые можно складывать.'},
+  {name:'Делим',formula:'x = 10',caption:'Делим обе части на 3.',why:'Финиш.'}]},generator:genBulldozer},
+ {id:'powers',icon:'🎢',theme:'#8f86ec',title:'Степенной аттракцион',desc:'Правила степеней, отрицательные показатели и действия с обеими частями уравнения.',skills:['aⁿ','показатели','возведение'],mascot:'🎢',metaphor:'Показатель степени — количество кругов на аттракционе. При умножении одинаковых оснований круги складываются, при делении — вычитаются.',demo:{initial:'x² = 49',steps:[
+  {name:'Понимаем два корня',formula:'x = ±√49',caption:'Квадрат числа 49 дают два числа: 7 и −7.',why:'Если x²=a>0, то x=±√a.'},
+  {name:'Вычисляем',formula:'x = ±7',caption:'√49=7.',why:'Для задач по формуле затем учитываем физический смысл величины.'}]},generator:genPowers},
+ {id:'roots',icon:'🪸',theme:'#5fc6a8',title:'Пещера корней',desc:'Изоляция корня, возведение обеих частей в квадрат и обязательная проверка.',skills:['√','квадрат обеих частей','проверка'],mascot:'🪸',metaphor:'Корень — раковина вокруг выражения. Сначала оставь раковину одну, потом аккуратно «раскрой» её возведением обеих частей в квадрат.',demo:{initial:'√(3x + 1) = 5',steps:[
+  {name:'Корень уже изолирован',formula:'√(3x + 1) = 5',caption:'Слева нет ничего лишнего вне корня.',why:'Если бы было +2 снаружи, сначала убрали бы его.'},
+  {name:'Квадрат обеих частей',formula:'3x + 1 = 25',caption:'(√A)²=A, а 5²=25.',why:'Возводим в квадрат обе части, не только одну.'},
+  {name:'Убираем +1',formula:'3x = 24',caption:'Вычитаем 1 из обеих частей.',why:'Обычные весы.'},
+  {name:'Делим на 3',formula:'x = 8',caption:'Получили кандидата.',why:'Для корней проверка исходного равенства полезна всегда.'}]},generator:genRoots},
+ {id:'inequality',icon:'🐡',theme:'#f58d6b',title:'Перевёрнутый знак неравенства',desc:'Почему при умножении или делении на отрицательное число знак действительно переворачивается.',skills:['< >','деление на −','числовая ось'],mascot:'🐡',metaphor:'Отрицательное число разворачивает числовую прямую как зеркало: левое становится правым — поэтому направление сравнения меняется.',demo:{initial:'−3x > 12',steps:[
+  {name:'Делим обе части на −3',formula:`${frac('−3x','−3')} < ${frac('12','−3')}`,caption:'При делении неравенства на отрицательное число знак > меняется на <.',why:'Например 2<5, но после умножения на −1 получаем −2>−5.'},
+  {name:'Считаем',formula:'x < −4',caption:'Получили ответ.',why:'Переворот знака — следствие порядка на числовой прямой.'}]},generator:genInequality},
+ {id:'isolate',icon:'🥋',theme:'#64c5e8',title:'Сэнди: вырази неизвестную',desc:'Переходим от учебного x к настоящим формулам: сопротивление, путь, скорость, давление и другие величины.',skills:['целевая буква','обратные действия','формулы №9'],mascot:'🐿️',metaphor:'Сэнди сначала ставит цель: какую букву надо освободить? Всё остальное — препятствия, которые снимаются в обратном порядке.',demo:{initial:`P = ${frac('U²','R')}`,steps:[
+  {name:'Цель — R',formula:`P = ${frac('U²','<span class="target">R</span>')}`,caption:'R находится в знаменателе.',why:'Сначала смотрим не на числа, а на структуру формулы.'},
+  {name:'Умножаем на R',formula:'PR = U²',caption:'Убрали R из знаменателя.',why:'Умножили обе части на R.'},
+  {name:'Делим на P',formula:`R = ${frac('U²','P')}`,caption:'R осталась одна.',why:'Делим обе части на P (P≠0).'}]},generator:genIsolate},
+ {id:'xray',icon:'🩻',theme:'#ff8fbc',title:'Рентген сложной формулы',desc:'Центральная станция: выбирай реальную сложную формулу и листай каждое преобразование вперёд/назад с объяснением «почему».',skills:['пошагово','почему?','реальные формулы'],mascot:'🩻',metaphor:'Рентген не пытается увидеть ответ целиком. Он показывает один слой за раз: знаменатель → скобки → нужные буквы → общий множитель → деление.',special:'xray'},
+ {id:'firstmove',icon:'🧭',theme:'#ffd35e',title:'Что делать первым?',desc:'Не решаем пример целиком. Учимся видеть единственное разумное следующее преобразование.',skills:['стратегия','первый шаг','структура'],mascot:'🧭',metaphor:'Капитан не строит весь маршрут в голове. Он выбирает следующий безопасный поворот. Так же и с формулой.',special:'firstmove'},
+ {id:'boss',icon:'👾',theme:'#ff6f78',title:'Формульный босс',desc:'Сложные формулы уровня задания №9: нужно самому провести цепочку законных преобразований до целевой величины.',skills:['5–7 шагов','формулы №9','сборка навыков'],mascot:'👾',metaphor:'Босс огромный только издалека. Подсвети одну проблему, сделай один знакомый шаг — и формула становится меньше.',special:'boss'}
+];
+
+// Генераторы коротких задач: тренируем именно манипуляцию, а не угадывание ответа.
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=ri(0,i);[a[i],a[j]]=[a[j],a[i]];}return a}
+function qObj(formulaHTML,prompt,correct,wrong,explain,after=''){return{formula:formulaHTML,prompt,options:shuffle([correct,...wrong]),correct,explain,after}}
+function genTransfer(){const a=ri(2,9),b=ri(2,15),x=ri(2,10),c=a*x+b;return qObj(`${a}x + <span class="hot">${b}</span> = ${c}`,'Какой следующий шаг лучше сделать?',`Вычесть ${b} из обеих частей`,[`Прибавить ${b} к обеим частям`,`Разделить обе части на ${b}`,`Перенести ${a} вправо`],`Сначала убираем слагаемое +${b}: ${a}x=${c-b}.`,`${a}x = ${c-b}`)}
+function genBalance(){const a=ri(2,12),x=ri(2,12),c=a*x;return qObj(`${a}x = ${c}`,'Как освободить x?',`Разделить обе части на ${a}`,[`Вычесть ${a} из обеих частей`,`Умножить обе части на ${a}`,`Разделить только левую часть на ${a}`],`Коэффициент ${a} умножает x, поэтому обратное действие — деление обеих частей.`,`x = ${x}`)}
+function genSigns(){const a=ri(2,9),b=ri(2,12);return qObj(`−(${a}x − ${b})`,'Что получится после раскрытия скобок?',`−${a}x + ${b}`,[`${a}x − ${b}`,`−${a}x − ${b}`,`${a}x + ${b}`],'Минус умножает каждое слагаемое: −·(+)=−, −·(−)=+.',`−${a}x + ${b}`)}
+function genBrackets(){const a=ri(2,8),b=ri(2,9);return qObj(`${a}(x + ${b})`,'Раскрой скобки.',`${a}x + ${a*b}`,[`${a}x + ${b}`,`x + ${a*b}`,`${a+b}x`],`Множитель ${a} умножается на x и на ${b}.`,`${a}x + ${a*b}`)}
+function genFractions(){const k=ri(2,6),a=ri(2,7),b=ri(2,7);return qObj(frac(`${k*a}x`,`${k*b}`),'Как правильно сократить дробь?',frac(`${a}x`,`${b}`),[frac(`${a}x`,`${k*b}`),frac(`${k*a}x`,`${b}`),frac(`${a}`,`${b}x`)],`Числитель и знаменатель делим на общий множитель ${k}.`,frac(`${a}x`,`${b}`))}
+function genDenominator(){const x=ri(2,10),k=ri(2,8),rhs=ri(2,8),num=x*rhs;return qObj(`${frac(num,'x')} = ${rhs}`,'Как убрать x из знаменателя?',`Умножить обе части на x`,['Разделить обе части на x','Перенести x вправо со знаком минус',`Умножить только левую часть на x`],`Домножаем обе части на x: ${num}=${rhs}x.`,` ${num} = ${rhs}x `)}
+function genTower(){const a=ri(2,9),b=ri(2,9),c=ri(2,9),d=ri(2,9);return qObj(frac(frac(a,b,'smallfrac'),frac(c,d,'smallfrac')),'Какой вид получим первым?',`${frac(a,b)} · ${frac(d,c)}`,[`${frac(b,a)} · ${frac(d,c)}`,`${frac(a,b)} · ${frac(c,d)}`,`${frac(a*d,b+c)}`],'Большая дробная черта — деление. Переворачивается только нижняя дробь-делитель.',`${frac(a*d,b*c)}`)}
+function genFlip(){const a=ri(2,8),b=ri(2,9),c=ri(2,8),d=ri(2,9);return qObj(`${frac(a,b)} : ${frac(c,d)}`,'Что именно переворачиваем?',`${frac(a,b)} · ${frac(d,c)}`,[`${frac(b,a)} · ${frac(d,c)}`,`${frac(b,a)} · ${frac(c,d)}`,`${frac(a,b)} · ${frac(c,d)}`],'Переворачивается только делитель — вторая дробь.',`${frac(a*d,b*c)}`)}
+function genProportion(){const a=ri(2,6),b=ri(2,9),c=ri(2,7),d=ri(2,9);return qObj(`${frac(`${a}x`,b)} = ${frac(c,d)}`,'Как убрать знаменатели?',`${d}·${a}x = ${b}·${c}`,[`${b}·${a}x = ${d}·${c}`,`${a}x = ${b*d*c}`,`${d}·${a}x = ${c}`],`Домножение на ${b}·${d} даёт перекрёстные произведения.`,`${d*a}x = ${b*c}`)}
+function genBulldozer(){const a=pick([2,3,4]),b=a*pick([2,3]);return qObj(`${frac('x',a)} + ${frac('x',b)} = 6`,'Какой общий множитель удобнее применить ко всему уравнению?',`Умножить ВСЕ слагаемые на ${b}`,[`Умножить только первую дробь на ${b}`,`Умножить всё на ${a}`,`Сложить знаменатели: ${a+b}`],`${b} кратно и ${a}, и ${b}, поэтому знаменатели исчезнут.`,` ${b/a}x + x = ${6*b} `)}
+function genPowers(){const x=ri(2,9),p=pick([2,3]);const val=x**p;return qObj(`x<sup>${p}</sup> = ${val}`,'Какое обратное действие соответствует степени?',p===2?`Взять квадратный корень (учесть ±)`:`Взять кубический корень`,p===2?['Разделить на 2','Вычесть 2','Умножить на 2']:['Разделить на 3','Вычесть 3','Взять квадратный корень'],`Для степени ${p} обратная операция — корень ${p}-й степени.`,p===2?`x = ±${x}`:`x = ${x}`)}
+function genRoots(){const a=ri(2,6),x=ri(2,10),k=ri(3,9),b=k*k-a*x;const sign=b>=0?`+ ${b}`:`− ${Math.abs(b)}`;return qObj(`√(${a}x ${sign}) = ${k}`,'Как убрать квадратный корень?',`Возвести ОБЕ части в квадрат`,['Возвести в квадрат только левую часть','Разделить обе части на 2','Перенести знак √ вправо'],`Получаем ${a}x ${sign} = ${k*k}.`,` ${a}x ${sign} = ${k*k} `)}
+function genInequality(){const a=ri(2,7),r=ri(2,9),rhs=a*r;return qObj(`−${a}x > ${rhs}`,'Делим обе части на отрицательное число. Что со знаком?',`Получим x < −${r}`,[`Получим x > −${r}`,`Получим x < ${r}`,`Знак неравенства исчезнет`],`При делении на −${a} знак > переворачивается в <.`,`x < −${r}`)}
+function genIsolate(){const variants=[
+ {f:`P = ${frac('U²','R')}`,p:'Выразить R. Что сделать первым?',c:'Умножить обе части на R',w:['Разделить обе части на R','Вычесть R','Извлечь корень'],e:'R находится в знаменателе: PR=U².',a:'PR = U²'},
+ {f:'v = √(2la)',p:'Выразить l. Что логично сделать первым?',c:'Возвести обе части в квадрат',w:['Разделить на l','Перенести 2 вправо','Извлечь корень из v'],e:'Сначала снимаем внешний квадратный корень: v²=2la.',a:'v² = 2la'},
+ {f:`U = ${frac('εR','R+r')}`,p:'Выразить R. Что сделать первым?',c:'Умножить обе части на (R+r)',w:['Разделить обе части на (R+r)','Перенести ε влево','Сразу разделить на ε'],e:'Сначала убираем знаменатель целиком: U(R+r)=εR.',a:'U(R+r) = εR'}];const v=pick(variants);return qObj(v.f,v.p,v.c,v.w,v.e,v.a)}
+
+const XRAYS=[
+ {name:'Закон Ома · выразить R',initial:`I = ${frac('U','R')}`,steps:[
+  ['Убираем знаменатель','IR = U','Умножаем обе части на R.','Простой аналог: 3 = 12/x → 3x=12.'],
+  ['Освобождаем R',`R = ${frac('U','I')}`,'Делим обе части на I.','Как 5R=20 → R=20/5.']]},
+ {name:'Мощность · выразить R',initial:`P = ${frac('U²','R')}`,steps:[
+  ['Убираем R из знаменателя','PR = U²','Умножаем обе части на R.','a=b/x → ax=b.'],
+  ['Освобождаем R',`R = ${frac('U²','P')}`,'Делим обе части на P.','aR=b → R=b/a.']]},
+ {name:'Корень · выразить l',initial:'v = √(2la)',steps:[
+  ['Снимаем корень','v² = 2la','Возводим обе части в квадрат.','√A=B → A=B².'],
+  ['Освобождаем l',`l = ${frac('v²','2a')}`,'Делим обе части на 2a.','kl=m → l=m/k.']]},
+ {name:'Источник тока · выразить R',initial:`U = ${frac('εR','R+r')}`,steps:[
+  ['Убираем знаменатель','U(R+r) = εR','Умножаем обе части на (R+r).','a=b/(x+c) → a(x+c)=b.'],
+  ['Раскрываем скобки','UR + Ur = εR','U умножается на R и на r.','3(x+2)=3x+6.'],
+  ['Собираем R','Ur = εR − UR','UR переносим вправо или εR влево — главное собрать R.','5x+2=8x → 2=8x−5x.'],
+  ['Выносим R','Ur = R(ε − U)','R — общий множитель у двух слагаемых.','5x−2x=x(5−2).'],
+  ['Освобождаем R',`R = ${frac('Ur','ε−U')}`,'Делим обе части на (ε−U).','Rx=a → R=a/x.']]},
+ {name:'Параллельное сопротивление · выразить R₂',initial:`R = ${frac('R₁R₂','R₁+R₂')}`,steps:[
+  ['Убираем знаменатель','R(R₁+R₂) = R₁R₂','Домножаем обе части на сумму в знаменателе.','a=bc/(b+c) → a(b+c)=bc.'],
+  ['Раскрываем скобки','RR₁ + RR₂ = R₁R₂','R умножается на оба слагаемых.','a(b+c)=ab+ac.'],
+  ['Собираем R₂','RR₁ = R₁R₂ − RR₂','Все слагаемые с R₂ переносим на одну сторону.','3x+6=8x → 6=8x−3x.'],
+  ['Выносим R₂','RR₁ = R₂(R₁−R)','Выносим общий R₂.','ax−bx=x(a−b).'],
+  ['Освобождаем R₂',`R₂ = ${frac('RR₁','R₁−R')}`,'Делим на (R₁−R).','kx=m → x=m/k.']]},
+ {name:'Доплер · выразить c',initial:`f = f₀${frac('c+u','c−v')}`,steps:[
+  ['Убираем знаменатель','f(c−v) = f₀(c+u)','Домножаем обе части на (c−v).','a=b(x+p)/(x−q) → a(x−q)=b(x+p).'],
+  ['Раскрываем скобки','fc − fv = f₀c + f₀u','Каждый внешний множитель умножается на каждое слагаемое.','3(x−2)=3x−6.'],
+  ['Собираем c','fc − f₀c = fv + f₀u','Все слагаемые с c собираем слева.','5x−7=2x+8 → 5x−2x=8+7.'],
+  ['Выносим c','c(f−f₀) = fv + f₀u','c — общий множитель.','5x−2x=x(5−2).'],
+  ['Освобождаем c',`c = ${frac('fv+f₀u','f−f₀')}`,'Делим на (f−f₀).','cx=A → x=A/c.']]}
+];
+
+const FIRST_MOVES=[
+ {f:`${frac('3x+6','5')} = 9`,c:'Умножить обе части на 5',w:['Вычесть 6','Разделить на 3','Перенести 5 вправо'],e:'Сначала снимаем внешний знаменатель, затем работаем внутри числителя.'},
+ {f:'√(4x−3) + 2 = 9',c:'Вычесть 2 из обеих частей',w:['Сразу возвести в квадрат','Разделить на 4','Перенести √ вправо'],e:'Перед возведением в квадрат корень нужно изолировать.'},
+ {f:`P = ${frac('U²','R')}`,c:'Умножить обе части на R',w:['Извлечь корень','Вычесть U²','Разделить на R'],e:'Целевая R находится в знаменателе.'},
+ {f:`${frac('2x−1','3')} = ${frac('x+5','7')}`,c:'Убрать знаменатели домножением',w:['Раскрыть скобки','Сложить 3 и 7','Перенести x влево'],e:'Пока есть две дроби, удобнее сначала убрать знаменатели.'},
+ {f:'−4(x−3) = 20',c:'Раскрыть скобки или сначала разделить на −4',w:['Сменить знак только у 3','Прибавить 4','Возвести в квадрат'],e:'Здесь допустимы два разумных пути. Мы тренируем понимание структуры, а не единственный ритуал.'},
+ {f:`R = ${frac('R₁R₂','R₁+R₂')}`,c:'Умножить обе части на (R₁+R₂)',w:['Разделить на R₁','Сразу вынести R₂','Сложить R₁ и R₂'],e:'Внешнее препятствие — знаменатель целиком.'}
+];
+
+const FIRST_MOVE_CHAINS=[
+ {name:'Дробь с линейным выражением',target:'x',initial:`${frac('3x+6','5')} = 9`,steps:[
+  ['Умножить обе части на 5','3x + 6 = 45','Сняли внешний знаменатель.','Мы умножили обе части равенства на 5.'],
+  ['Вычесть 6 из обеих частей','3x = 39','Убрали свободное слагаемое +6.','К обеим частям применено одинаковое действие −6.'],
+  ['Разделить обе части на 3','x = 13','Освободили x от коэффициента 3.','3x/3=39/3.']]},
+ {name:'Корень с внешним слагаемым',target:'x',initial:'√(4x−3) + 2 = 9',steps:[
+  ['Вычесть 2 из обеих частей','√(4x−3) = 7','Сначала изолировали корень.','Нельзя сначала возводить в квадрат только часть выражения слева.'],
+  ['Возвести обе части в квадрат','4x − 3 = 49','Сняли квадратный корень.','(√A)²=A, поэтому квадрат применён к обеим частям.'],
+  ['Прибавить 3 к обеим частям','4x = 52','Убрали −3.','Одинаковое действие сохраняет равенство.'],
+  ['Разделить обе части на 4','x = 13','Освободили x.','4x/4=52/4.']]},
+ {name:'Мощность · выразить R',target:'R',initial:`P = ${frac('U²','R')}`,steps:[
+  ['Умножить обе части на R','PR = U²','R вышла из знаменателя.','Умножение на R сокращает знаменатель справа.'],
+  ['Разделить обе части на P',`R = ${frac('U²','P')}`,'R осталась одна.','PR/P=U²/P.']]},
+ {name:'Пропорция',target:'x',initial:`${frac('2x−1','3')} = ${frac('x+5','7')}`,steps:[
+  ['Убрать знаменатели домножением','7(2x−1) = 3(x+5)','Убрали обе дробные черты.','Это результат умножения обеих частей на 21.'],
+  ['Раскрыть обе скобки','14x − 7 = 3x + 15','Применили распределительный закон.','Каждый внешний множитель умножается на оба слагаемых.'],
+  ['Собрать слагаемые с x','11x = 22','x собран слева, числа справа.','Эквивалентно вычесть 3x и прибавить 7 к обеим частям.'],
+  ['Разделить обе части на 11','x = 2','Освободили x.','11x/11=22/11.']]},
+ {name:'Параллельное сопротивление',target:'R₂',initial:`R = ${frac('R₁R₂','R₁+R₂')}`,steps:XRAYS[4].steps.map(s=>[s[0],s[1],s[2],s[3]])}
+];
+
+const BOSSES=[
+ {name:'Источник тока',target:'R',initial:XRAYS[3].initial,steps:[
+  ['Умножить обе части на (R+r)',XRAYS[3].steps[0][1],XRAYS[3].steps[0][2],XRAYS[3].steps[0][3]],
+  ['Раскрыть скобки',XRAYS[3].steps[1][1],XRAYS[3].steps[1][2],XRAYS[3].steps[1][3]],
+  ['Собрать все слагаемые с R',XRAYS[3].steps[2][1],XRAYS[3].steps[2][2],XRAYS[3].steps[2][3]],
+  ['Вынести R за скобку',XRAYS[3].steps[3][1],XRAYS[3].steps[3][2],XRAYS[3].steps[3][3]],
+  ['Разделить обе части на (ε−U)',XRAYS[3].steps[4][1],XRAYS[3].steps[4][2],XRAYS[3].steps[4][3]]
+ ],final:XRAYS[3].steps.at(-1)[1]},
+ {name:'Параллельное сопротивление',target:'R₂',initial:XRAYS[4].initial,steps:[
+  ['Умножить обе части на (R₁+R₂)',XRAYS[4].steps[0][1],XRAYS[4].steps[0][2],XRAYS[4].steps[0][3]],
+  ['Раскрыть скобки',XRAYS[4].steps[1][1],XRAYS[4].steps[1][2],XRAYS[4].steps[1][3]],
+  ['Собрать все слагаемые с R₂',XRAYS[4].steps[2][1],XRAYS[4].steps[2][2],XRAYS[4].steps[2][3]],
+  ['Вынести R₂ за скобку',XRAYS[4].steps[3][1],XRAYS[4].steps[3][2],XRAYS[4].steps[3][3]],
+  ['Разделить обе части на (R₁−R)',XRAYS[4].steps[4][1],XRAYS[4].steps[4][2],XRAYS[4].steps[4][3]]
+ ],final:XRAYS[4].steps.at(-1)[1]},
+ {name:'Доплер',target:'c',initial:XRAYS[5].initial,steps:[
+  ['Умножить обе части на (c−v)',XRAYS[5].steps[0][1],XRAYS[5].steps[0][2],XRAYS[5].steps[0][3]],
+  ['Раскрыть обе скобки',XRAYS[5].steps[1][1],XRAYS[5].steps[1][2],XRAYS[5].steps[1][3]],
+  ['Собрать все слагаемые с c',XRAYS[5].steps[2][1],XRAYS[5].steps[2][2],XRAYS[5].steps[2][3]],
+  ['Вынести c за скобку',XRAYS[5].steps[3][1],XRAYS[5].steps[3][2],XRAYS[5].steps[3][3]],
+  ['Разделить обе части на (f−f₀)',XRAYS[5].steps[4][1],XRAYS[5].steps[4][2],XRAYS[5].steps[4][3]]
+ ],final:XRAYS[5].steps.at(-1)[1]}
+];
+
+let currentStation=null,currentMode='show',demoStep=0,practiceIndex=0,practiceItems=[],locked=false,xrayIndex=0,bossStep=0,bossIndex=0,firstMoveIndex=0,firstMoveStep=0,transferSolved=false;
+const grid=$('#stationGrid');
+STATIONS.forEach((s,i)=>{const b=document.createElement('button');b.type='button';b.className='station';b.style.setProperty('--theme',s.theme);b.innerHTML=`<span class="stationNum">${i+1}</span><span class="stationIcon">${s.icon}</span><h3>${s.title}</h3><p>${s.desc}</p><div class="skills">${s.skills.map(x=>`<span class="chip">${x}</span>`).join('')}</div>`;b.addEventListener('click',()=>openStation(s.id));grid.appendChild(b)});
+
+$('#homeBtn').addEventListener('click',()=>showMap());
+$('#randomBtn').addEventListener('click',()=>openStation(pick(STATIONS).id));
+$('#modebar').addEventListener('click',e=>{
+ const btn=e.target.closest('.modeBtn');
+ if(!btn)return;
+ e.preventDefault();
+ e.stopPropagation();
+ if(!currentStation){toast('Сначала выбери станцию на карте.');return;}
+ setMode(btn.dataset.mode);
+});
+
+function showMap(sync=true){currentStation=null;$('#mapView').classList.remove('hidden');$('#stationView').classList.add('hidden');$('#randomBtn').classList.add('hidden');teacherCursor.classList.remove('show');$('#boardToolbar').classList.add('hidden');if(sync)shareCurrentUi({screen:'map',stationId:''});scrollTo({top:0,behavior:'smooth'})}
+function openStation(id,sync=true,mode='show'){currentStation=STATIONS.find(s=>s.id===id);if(!currentStation)return;demoStep=0;practiceIndex=0;practiceItems=[];xrayIndex=0;bossStep=0;firstMoveStep=0;transferSolved=false;$('#mapView').classList.add('hidden');$('#stationView').classList.remove('hidden');$('#randomBtn').classList.remove('hidden');$('#stationTitle').textContent=currentStation.title;$('#stationDesc').textContent=currentStation.desc;$('#stationMascot').textContent=currentStation.mascot;if(sessionConnected)$('#boardToolbar').classList.remove('hidden');if(sync)setMode(mode,true);else currentMode=mode;scrollTo({top:0,behavior:'smooth'});requestAnimationFrame(renderBoard)}
+function setMode(mode,sync=true){
+ if(!currentStation)return;
+ if(!['show','guided','self'].includes(mode))mode='show';
+ currentMode=mode;
+ demoStep=0;practiceIndex=0;practiceItems=[];locked=false;bossStep=0;firstMoveStep=0;transferSolved=false;
+ $$('.modeBtn').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+ const main=$('#mainLesson'),side=$('#sideLesson');
+ try{
+   if(mode==='show')renderShow();
+   else if(mode==='guided')renderGuided();
+   else renderSelf();
+   if(sync&&!applyingRemote)shareCurrentUi({screen:'station',stationId:currentStation.id,mode:currentMode,demoStep,xrayIndex,bossIndex,bossStep,firstMoveIndex,firstMoveStep,practiceIndex,practiceItems,choice:null});
+ }catch(error){
+   console.error('Ошибка режима',mode,currentStation?.id,error);
+   main.innerHTML=`${metaphorHTML()}<div class="feedback bad"><b>Не удалось открыть этот режим.</b><br>Попробуй ещё раз или вернись на карту.</div><div class="lessonActions"><button class="actionBtn yellow" id="retryMode" type="button">Повторить</button><button class="actionBtn" id="backMapError" type="button">На карту</button></div>`;
+   side.innerHTML='<h3>⚙️ Режим перезапущен</h3><p class="legend">Станция не потеряна. Можно повторить загрузку режима.</p>';
+   $('#retryMode').onclick=()=>setMode(mode);
+   $('#backMapError').onclick=showMap;
+ }
+}
+
+function metaphorHTML(){return `<div class="metaphor"><div class="big">${currentStation.mascot}</div><div><b>Метафора станции</b><p>${currentStation.metaphor}</p></div></div>`}
+function renderShow(){
+ if(currentStation.special==='xray')return renderXray();
+ if(currentStation.special==='firstmove')return renderFirstMoveShow();
+ if(currentStation.special==='boss')return renderBossShow();
+ const d=currentStation.demo, state=demoStep===0?{formula:d.initial,name:'Старт',caption:'Сначала прочитай структуру выражения и назови цель.',why:'Не спеши вычислять. Определи, что мешает нужной букве остаться одной.'}:d.steps[demoStep-1];
+ $('#mainLesson').innerHTML=`${metaphorHTML()}<div class="formulaStage">${F(state.formula)}</div><div class="stepCaption"><strong>${state.name}.</strong> ${state.caption||''}</div><div class="lessonActions"><button class="actionBtn ghost" id="prevDemo" ${demoStep===0?'disabled':''}>← Назад</button><button class="actionBtn yellow" id="nextDemo">${demoStep<d.steps.length?'Следующий шаг →':'Повторить ↻'}</button><button class="actionBtn pink" id="whyDemo">Почему?</button></div>`;
+ $('#sideLesson').innerHTML=`<h3>🧩 История преобразований</h3><div class="history">${['Старт',...d.steps.map(x=>x.name)].map((x,i)=>`<div class="historyItem ${i<demoStep?'done':i===demoStep?'active':''}">${i}. ${x}</div>`).join('')}</div><div class="whyBox" id="whyBox"><b>Почему это законно?</b><br>${state.why||'Нажми «Следующий шаг», затем «Почему?», чтобы разобрать основание преобразования.'}</div>`;
+ $('#prevDemo').onclick=()=>{demoStep=Math.max(0,demoStep-1);renderShow();shareCurrentUi({demoStep,choice:null})};
+ $('#nextDemo').onclick=()=>{demoStep=demoStep<d.steps.length?demoStep+1:0;renderShow();shareCurrentUi({demoStep,choice:null})};
+ $('#whyDemo').onclick=()=>{const box=$('#whyBox');box.animate([{transform:'scale(.98)'},{transform:'scale(1.02)'},{transform:'scale(1)'}],{duration:260});toast(state.why||'Каждый шаг должен сохранять равенство или быть эквивалентным преобразованием.')};
+}
+
+function renderGuided(){
+ if(currentStation.special==='xray')return renderXrayChallenge(true);
+ if(currentStation.special==='firstmove')return renderFirstMoveChallenge(true);
+ if(currentStation.special==='boss')return renderBossPractice(true);
+ if(currentStation.id==='transfer')return renderTransferDrag();
+ preparePractice(1);
+ renderPracticeCard(true);
+}
+function renderSelf(){
+ if(currentStation.special==='xray')return renderXrayChallenge(false);
+ if(currentStation.special==='firstmove')return renderFirstMoveChallenge(false);
+ if(currentStation.special==='boss')return renderBossPractice(false);
+ if(typeof currentStation.generator!=='function')throw new Error('У станции отсутствует генератор самостоятельных примеров');
+ preparePractice(15);
+ if(!practiceItems.length)throw new Error('Не удалось создать самостоятельные примеры');
+ renderPracticeCard(false);
+}
+function preparePractice(n){practiceIndex=0;practiceItems=Array.from({length:n},()=>currentStation.generator())}
+function dotsHTML(){return `<div class="dots">${practiceItems.map((_,i)=>`<span class="dot ${i<practiceIndex?'done':i===practiceIndex?'current':''}"></span>`).join('')}</div>`}
+function renderPracticeCard(guided){
+ if(practiceIndex>=practiceItems.length){finishPractice();return;}
+ const item=practiceItems[practiceIndex];if(!item||!Array.isArray(item.options))throw new Error('Некорректный тренировочный пример');locked=false;
+ $('#mainLesson').innerHTML=`${metaphorHTML()}<div class="practiceTop"><div class="counter">${guided?'Совместная тренировка':`Пример ${practiceIndex+1} из ${practiceItems.length}`}</div>${guided?'':dotsHTML()}</div><p class="prompt">${item.prompt}</p><div class="formulaStage">${F(item.formula)}</div><div class="optionGrid" id="optionGrid">${item.options.map(o=>`<button class="option" type="button" data-value="${esc(o)}">${o}</button>`).join('')}</div><div class="feedback info" id="feedback">Выбери действие и объясни себе, что оно делает с обеими частями или со структурой выражения.</div><div class="lessonActions"><button class="actionBtn yellow hidden" id="nextPractice">${guided?'Ещё пример ↻':'Следующий →'}</button></div>`;
+ $('#sideLesson').innerHTML=`<h3>🧠 Сначала назови цель</h3><div class="miniRule">1. Где находится нужная буква?</div><div class="miniRule">2. Какое внешнее действие мешает ей?</div><div class="miniRule">3. Какое обратное действие убирает это препятствие?</div><div class="whyBox"><b>Главное:</b><br>не ищи ответ целиком — найди следующий законный шаг.</div>`;
+ $$('.option',$('#optionGrid')).forEach(btn=>btn.addEventListener('click',()=>checkOption(btn,item,guided)));
+ $('#nextPractice').onclick=()=>{
+  if(guided){
+    if(currentStation.special==='firstmove'){renderFirstMovePractice(true);return}
+    practiceItems=[currentStation.generator()];practiceIndex=0;
+  }else practiceIndex++;
+  if(practiceIndex>=practiceItems.length){finishPractice();shareCurrentUi({practiceIndex,practiceItems,choice:null});return}
+  renderPracticeCard(guided);shareCurrentUi({practiceIndex,practiceItems,choice:null});
+};
+}
+function checkOption(btn,item,guided){if(locked)return;const val=btn.dataset.value,ok=val===item.correct;const fb=$('#feedback');if(ok){locked=true;btn.classList.add('correct');fb.className='feedback good';fb.innerHTML=`✅ ${item.explain}${item.after?`<br><b>После шага:</b> ${item.after}`:''}`;$$('.option',$('#optionGrid')).forEach(b=>b.disabled=true);$('#nextPractice').classList.remove('hidden');shareCurrentUi({practiceIndex,practiceItems,choice:{scope:'practice',value:val,ok:true,message:fb.innerHTML}})}else{btn.classList.add('wrong');fb.className='feedback bad';fb.textContent='Пока нет. Подумай: что является самым внешним препятствием? Ошибка не заканчивает пример — пробуй ещё.';shareCurrentUi({practiceIndex,practiceItems,choice:{scope:'practice',value:val,ok:false,message:fb.innerHTML}});setTimeout(()=>btn.classList.remove('wrong'),450)}}
+function finishPractice(){
+ $('#mainLesson').innerHTML=`${metaphorHTML()}<div class="formulaStage"><div style="text-align:center"><div style="font-size:64px">🍍</div><h2 style="margin:8px 0">Серия закончена</h2><p style="font-weight:800;color:#55758a">Можно повторить эту станцию, перейти в «Покажи» или выбрать другой навык на карте.</p></div></div><div class="lessonActions"><button class="actionBtn yellow" id="againBtn">Ещё 15</button><button class="actionBtn" id="mapBtn2">На карту</button></div>`;$('#sideLesson').innerHTML='<h3>Не оценка, а тренировка</h3><p class="legend">Здесь нет итогового балла: цель — довести преобразование до автоматизма.</p>';$('#againBtn').onclick=()=>renderSelf();$('#mapBtn2').onclick=showMap}
+
+// Реальное перетаскивание для станции переноса.
+function renderTransferDrag(){
+ const b=ri(3,12),a=ri(2,8),x=ri(2,8),c=a*x+b;
+ $('#mainLesson').innerHTML=`${metaphorHTML()}<p class="prompt">Перетащи <b>+${b}</b> через знак «=» на правую сторону.</p><div class="formulaStage"><div class="dragArea"><div class="dropSide" id="leftDrop"><span class="term">${a}x</span><span class="term" id="dragTerm" draggable="true">+${b}</span></div><span class="eqMark">=</span><div class="dropSide" id="rightDrop"><span class="term">${c}</span></div></div></div><div class="feedback info" id="feedback">При переносе мы покажем настоящее действие: вычесть ${b} из обеих частей.</div>`;
+ $('#sideLesson').innerHTML=`<h3>⛴️ Паром</h3><div class="whyBox"><b>Метафора:</b> +${b} переплывёт через «=» и станет −${b}.<br><br><b>Математика:</b> из обеих частей вычитается ${b}.</div><p class="legend">Можно тащить мышью. На сенсорном экране нажми на +${b}, затем на правую сторону.</p>`;
+ const term=$('#dragTerm'),right=$('#rightDrop');let selected=false;
+ function success(){if(selected==='done')return;selected='done';transferSolved=true;term.textContent=`−${b}`;right.appendChild(term);$('#feedback').className='feedback good';$('#feedback').innerHTML=`✅ Сначала: ${a}x+${b}−${b}=${c}−${b}. После сокращения: <b>${a}x=${c-b}</b>.`;toast('Перешёл через = → знак изменился, потому что мы выполнили обратное действие с обеими частями.');shareCurrentUi({transferSolved:true})}
+ term.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain','term')});
+ right.addEventListener('dragover',e=>{e.preventDefault();right.classList.add('over')});right.addEventListener('dragleave',()=>right.classList.remove('over'));right.addEventListener('drop',e=>{e.preventDefault();right.classList.remove('over');success()});
+ term.addEventListener('click',()=>{selected=true;term.style.outline='3px solid #e0b600'});right.addEventListener('click',()=>{if(selected===true)success()});if(transferSolved)success();
+}
+
+function renderXray(guided=false){
+ const x=XRAYS[xrayIndex],step=demoStep===0?null:x.steps[demoStep-1];const formula=demoStep===0?x.initial:step[1];
+ $('#mainLesson').innerHTML=`${metaphorHTML()}<label style="font-weight:900">Выбери формулу для рентгена</label><select class="xraySelect" id="xraySelect">${XRAYS.map((q,i)=>`<option value="${i}" ${i===xrayIndex?'selected':''}>${q.name}</option>`).join('')}</select><div class="formulaStage" style="margin-top:12px">${F(formula)}</div><div class="stepCaption"><strong>${demoStep===0?'Старт':step[0]}.</strong> ${demoStep===0?'Назови целевую букву и найди самое внешнее препятствие.':step[2]}</div><div class="lessonActions"><button class="actionBtn ghost" id="xPrev" ${demoStep===0?'disabled':''}>← Назад</button><button class="actionBtn yellow" id="xNext">${demoStep<x.steps.length?'Следующий слой →':'Сначала ↻'}</button><button class="actionBtn pink" id="xWhy">Почему?</button></div>`;
+ $('#sideLesson').innerHTML=`<h3>🩻 Слои формулы</h3><div class="history">${['Исходная формула',...x.steps.map(s=>s[0])].map((n,i)=>`<div class="historyItem ${i<demoStep?'done':i===demoStep?'active':''}">${i}. ${n}</div>`).join('')}</div><div class="whyBox"><b>Почему?</b><br>${demoStep===0?'Каждый следующий слой снимает только одно препятствие.':step[3]}</div>`;
+ $('#xraySelect').onchange=e=>{xrayIndex=Number(e.target.value);demoStep=0;renderXray(guided);shareCurrentUi({xrayIndex,demoStep,choice:null})};$('#xPrev').onclick=()=>{demoStep=Math.max(0,demoStep-1);renderXray(guided);shareCurrentUi({xrayIndex,demoStep,choice:null})};$('#xNext').onclick=()=>{demoStep=demoStep<x.steps.length?demoStep+1:0;renderXray(guided);shareCurrentUi({xrayIndex,demoStep,choice:null})};$('#xWhy').onclick=()=>toast(demoStep===0?'Сначала определяем цель и структуру.':step[3]);
+}
+const TRANSFORM_ACTION_POOL=[
+ 'Умножить на знаменатель','Убрать знаменатели домножением','Раскрыть скобки','Раскрыть обе скобки',
+ 'Собрать слагаемые с x','Собрать слагаемые с R','Собрать слагаемые с R₂','Собрать слагаемые с c',
+ 'Вынести общий множитель','Вынести R','Вынести R₂','Вынести c',
+ 'Разделить обе части на коэффициент','Разделить на коэффициент/скобку','Возвести обе части в квадрат',
+ 'Прибавить число к обеим частям','Вычесть число из обеих частей','Умножить обе части на R','Разделить обе части на P'
+];
+function transformOptions(expected,seed=0){
+ let wrong=TRANSFORM_ACTION_POOL.filter(x=>x!==expected);
+ const offset=Math.abs(seed)%Math.max(1,wrong.length);
+ wrong=[...wrong.slice(offset),...wrong.slice(0,offset)].slice(0,3);
+ const result=wrong.slice();
+ result.splice(Math.abs(seed)%4,0,expected);
+ return result;
+}
+function chainFormula(chain,step){return step<=0?chain.initial:chain.steps[Math.min(step,chain.steps.length)-1][1]}
+function renderTransformChallenge({chain,step,onStep,setStep,title,subtitle,scope='transform',showSelect='',nextChain=null,guided=false}){
+ const finished=step>=chain.steps.length;
+ const formula=chainFormula(chain,step);
+ if(finished){
+  $('#mainLesson').innerHTML=`${metaphorHTML()}${showSelect}<div class="practiceTop"><div class="counter">${title}</div></div><div class="formulaStage">${F(formula)}</div><div class="feedback good">🏁 Преобразование закончено. Целевая величина <b>${chain.target||''}</b> выражена.</div><div class="lessonActions">${nextChain?'<button class="actionBtn yellow" id="nextChainBtn" type="button">Следующая формула →</button>':''}<button class="actionBtn ghost" id="restartChainBtn" type="button">Повторить ↻</button></div>`;
+  $('#sideLesson').innerHTML=`<h3>🧱 Цепочка преобразований</h3><div class="history">${chain.steps.map((st,i)=>`<div class="historyItem done">${i+1}. ${st[0]}</div>`).join('')}</div><div class="whyBox"><b>Главное:</b><br>каждый выбранный шаг сразу менял саму формулу, а следующий вопрос относился уже к новому виду.</div>`;
+  $('#restartChainBtn').onclick=()=>{setStep(0);onStep();shareCurrentUi({choice:null})};
+  if(nextChain)$('#nextChainBtn').onclick=()=>{nextChain();shareCurrentUi({choice:null})};
+  return;
+ }
+ const expected=chain.steps[step][0],nextFormula=chain.steps[step][1],caption=chain.steps[step][2],why=chain.steps[step][3];
+ const opts=transformOptions(expected,(title.length+step*7));
+ $('#mainLesson').innerHTML=`${metaphorHTML()}${showSelect}<div class="practiceTop"><div class="counter">${title} · шаг ${step+1}/${chain.steps.length}</div></div><p class="prompt">${subtitle||`Цель — выразить ${chain.target||'нужную величину'}. Какое действие логично сделать СЕЙЧАС?`}</p><div class="formulaStage" id="transformFormula">${F(formula)}</div><div class="optionGrid" id="transformOptions">${opts.map(o=>`<button class="option" type="button" data-value="${esc(o)}">${o}</button>`).join('')}</div><div class="feedback info" id="transformFeedback">${guided?`Подсказка: ${caption}`:'Смотри только на текущую формулу. Не пытайся перепрыгнуть через несколько преобразований.'}</div>`;
+ $('#sideLesson').innerHTML=`<h3>🧱 Цепочка преобразований</h3><div class="history">${chain.steps.map((st,i)=>`<div class="historyItem ${i<step?'done':i===step?'active':''}">${i+1}. ${i<step?st[0]:'?'}</div>`).join('')}</div><div class="whyBox"><b>Сейчас:</b><br>${step===0?'Определи самое внешнее препятствие.':`Формула уже изменилась. Следующий выбор делаем из нового вида.`}</div>`;
+ $$('.option',$('#transformOptions')).forEach(btn=>btn.onclick=()=>{
+  const ok=btn.dataset.value===expected,fb=$('#transformFeedback');
+  if(!ok){btn.classList.add('wrong');fb.className='feedback bad';fb.textContent='Этот шаг сейчас не снимает ближайшее препятствие. Формула остаётся прежней — выбери другое действие.';shareCurrentUi({choice:{scope,value:btn.dataset.value,ok:false,message:fb.innerHTML}});setTimeout(()=>btn.classList.remove('wrong'),450);return}
+  $$('.option',$('#transformOptions')).forEach(b=>b.disabled=true);btn.classList.add('correct');fb.className='feedback good';fb.innerHTML=`✅ <b>${expected}</b><br>${caption}<br><span style="opacity:.8">${why}</span>`;
+  const stage=$('#transformFormula');stage.animate([{transform:'scale(1)'},{transform:'scale(1.035)'},{transform:'scale(1)'}],{duration:420});
+  setTimeout(()=>{stage.innerHTML=F(nextFormula);stage.animate([{opacity:.25,transform:'translateY(5px)'},{opacity:1,transform:'translateY(0)'}],{duration:330})},180);
+  shareCurrentUi({choice:{scope,value:btn.dataset.value,ok:true,message:fb.innerHTML}});
+  setTimeout(()=>{setStep(step+1);onStep();shareCurrentUi({choice:null})},guided?1050:850);
+ });
+}
+
+function renderXrayChallenge(guided=false){
+ const x=XRAYS[xrayIndex];
+ const select=`<label style="font-weight:900">Формула для разбора</label><select class="xraySelect" id="xrayChallengeSelect">${XRAYS.map((q,i)=>`<option value="${i}" ${i===xrayIndex?'selected':''}>${q.name}</option>`).join('')}</select>`;
+ renderTransformChallenge({
+  chain:{name:x.name,target:(x.name.match(/выразить (.+)$/)||[])[1]||'',initial:x.initial,steps:x.steps},
+  step:demoStep,title:`Рентген · ${x.name}`,guided,showSelect:select,
+  setStep:v=>demoStep=v,onStep:()=>renderXrayChallenge(guided),
+  nextChain:()=>{xrayIndex=(xrayIndex+1)%XRAYS.length;demoStep=0;renderXrayChallenge(guided);shareCurrentUi({xrayIndex,demoStep})}
+ });
+ const sel=$('#xrayChallengeSelect');if(sel)sel.onchange=e=>{xrayIndex=Number(e.target.value);demoStep=0;renderXrayChallenge(guided);shareCurrentUi({xrayIndex,demoStep,choice:null})};
+}
+
+function renderFirstMoveShow(){
+ const c=FIRST_MOVE_CHAINS[0],st=c.steps[0];
+ $('#mainLesson').innerHTML=`${metaphorHTML()}<p class="prompt">Здесь мы учимся не угадывать ответ, а видеть <b>следующее</b> законное действие.</p><div class="formulaStage">${F(c.initial)}</div><div class="stepCaption"><strong>Первый шаг:</strong> ${st[0]} → ${st[1]}</div>`;
+ $('#sideLesson').innerHTML=`<h3>🧭 Алгоритм взгляда</h3><div class="miniRule">1. Прочитай текущую формулу.</div><div class="miniRule">2. Найди внешнее препятствие.</div><div class="miniRule">3. Сделай один шаг.</div><div class="miniRule">4. Снова посмотри на уже изменившуюся формулу.</div><div class="whyBox">${st[3]}</div>`;
+}
+function renderFirstMoveChallenge(guided=false){
+ const chain=FIRST_MOVE_CHAINS[firstMoveIndex%FIRST_MOVE_CHAINS.length];
+ const select=`<label style="font-weight:900">Выбери цепочку</label><select class="xraySelect" id="firstMoveSelect">${FIRST_MOVE_CHAINS.map((q,i)=>`<option value="${i}" ${i===firstMoveIndex?'selected':''}>${q.name}</option>`).join('')}</select>`;
+ renderTransformChallenge({
+  chain,step:firstMoveStep,title:`Следующий шаг · ${chain.name}`,guided,showSelect:select,
+  subtitle:`Цель: ${chain.target}. Формула меняется после каждого правильного действия. Что делаем следующим?`,
+  setStep:v=>firstMoveStep=v,onStep:()=>renderFirstMoveChallenge(guided),
+  nextChain:()=>{firstMoveIndex=(firstMoveIndex+1)%FIRST_MOVE_CHAINS.length;firstMoveStep=0;renderFirstMoveChallenge(guided);shareCurrentUi({firstMoveIndex,firstMoveStep})}
+ });
+ const sel=$('#firstMoveSelect');if(sel)sel.onchange=e=>{firstMoveIndex=Number(e.target.value);firstMoveStep=0;renderFirstMoveChallenge(guided);shareCurrentUi({firstMoveIndex,firstMoveStep,choice:null})};
+}
+
+function renderBossShow(){
+ const b=BOSSES[0];
+ $('#mainLesson').innerHTML=`${metaphorHTML()}<p class="prompt">Босс: ${b.name}. Цель — выразить <b>${b.target}</b>.</p><div class="formulaStage">${F(b.initial)}</div><div class="stepCaption">Не запоминай готовую цепочку. На тренировке ты будешь выбирать действие, видеть новую формулу и только потом выбирать следующий шаг.</div>`;
+ $('#sideLesson').innerHTML=`<h3>👾 Секрет босса</h3><div class="whyBox">Сложная формула — это несколько простых преобразований подряд. Каждый правильный выбор физически заменяет текущую формулу на следующую.</div>`;
+}
+function renderBossPractice(guided=false){
+ const b=BOSSES[bossIndex%BOSSES.length];
+ renderTransformChallenge({
+  chain:b,step:bossStep,title:`Босс · ${b.name}`,guided,scope:'boss',
+  subtitle:`Цель — выразить ${b.target}. Выбери только один следующий шаг.`,
+  setStep:v=>bossStep=v,onStep:()=>renderBossPractice(guided),
+  nextChain:()=>{bossIndex=(bossIndex+1)%BOSSES.length;bossStep=0;renderBossPractice(guided);shareCurrentUi({bossIndex,bossStep})}
+ });
+}
+
+showMap();
+})();
+</script>
+</body>
+</html>
