@@ -189,7 +189,7 @@ const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLy
 const APP_ID='ege-task10-tnt-methods-proto4-7-v2';
 const FIXED_SESSION_ID='currentSession';
 const SCHEMA_VERSION=5;
-const TEACHER_CODE_HASH='b0a83a3919eba1d2a99034f2d94e5a47590f1710595c04bd64b5c8f21456a7c6';
+const TEACHER_CODE='A7K4P9';
 const TASKS_PER_STUDENT=15;
 const TEST_META={
   testId:'EGE-10-TNT-METHODS-4-7',
@@ -235,6 +235,7 @@ let lastFeedbackAt=0;
 let activeStroke=null,boardTool='cursor',boardColor='#e53935',boardWidth=6,toolbarCollapsed=false,lastStrokePush=0,lastCursorPush=0,remoteTeacherCursor=null;
 let boardPointerId=null,boardErasing=false,lastErasePoint=null,erasingStrokeIds=new Set();
 let submissionInFlight=new Set(),teacherBackupTimer=null,partialSent=false;
+let verificationRun=0,verificationStatus='';
 
 const PROTO_LABELS={
   4:'Прототип 4 · Движение по прямой',
@@ -257,17 +258,18 @@ function playerKey(studentId){ return `student_${String(studentId).replace(/[^a-
 function normalizeStats(st){ return { firstTryCorrect:Number(st?.firstTryCorrect)||0, completed:Number(st?.completed)||0, attemptCount:Number(st?.attemptCount)||0 }; }
 function getBrowserClientId(){ let id=sessionStorage.getItem(CLIENT_ID_KEY); if(!id){ id=uuid(); sessionStorage.setItem(CLIENT_ID_KEY,id); } return id; }
 function storedStudent(){
-  try{
-    const local=JSON.parse(localStorage.getItem(STUDENT_SAVE_KEY)||'null');
-    if(local?.studentId&&local?.code) return local;
-  }catch{}
-  const studentId=localStorage.getItem('egeStudentId')||'';
-  const name=localStorage.getItem('egeStudentName')||'Ученик';
-  const code=localStorage.getItem('egeStudentCode')||'';
-  return studentId&&code?{studentId:String(studentId),name:String(name),code:String(code)}:null;
+  try{const local=JSON.parse(localStorage.getItem(STUDENT_SAVE_KEY)||'null');if(local?.code&&local?.name&&!/^Ученик(?:\s+\d+)?$/i.test(String(local.name).trim()))return{...local,studentId:String(local.studentId||local.code),verified:true}}catch{}
+  const studentId=localStorage.getItem('egeStudentId')||'',name=localStorage.getItem('egeStudentName')||'',code=localStorage.getItem('egeStudentCode')||'';
+  return code&&name&&!/^Ученик(?:\s+\d+)?$/i.test(name.trim())?{studentId:String(studentId||code),name:String(name),code:String(code),verified:true}:null;
 }
-function saveStudent(s){ localStorage.setItem(STUDENT_SAVE_KEY,JSON.stringify(s)); localStorage.setItem('egeStudentId',s.studentId); localStorage.setItem('egeStudentName',s.name); localStorage.setItem('egeStudentCode',s.code); student=s; }
+function saveStudent(st){
+  if(!st?.code||!st?.name||/^Ученик(?:\s+\d+)?$/i.test(String(st.name).trim()))return;
+  const data={...st,studentId:String(st.studentId||st.code),name:String(st.name),code:String(st.code),verified:true};
+  localStorage.setItem(STUDENT_SAVE_KEY,JSON.stringify(data));localStorage.setItem('egeStudentId',data.studentId);localStorage.setItem('egeStudentName',data.name);localStorage.setItem('egeStudentCode',data.code);student=data;
+}
 function clearStoredStudent(){ [STUDENT_SAVE_KEY,'egeStudentId','egeStudentName','egeStudentCode'].forEach(k=>localStorage.removeItem(k)); student=null; }
+function saveEnteredCode(code){localStorage.setItem('egeStudentCode',String(code||''));localStorage.removeItem('egeStudentId');localStorage.removeItem('egeStudentName');localStorage.removeItem(STUDENT_SAVE_KEY)}
+
 function showToast(text,type=''){ const t=$('toast'); if(!t) return; t.textContent=text; t.className='toast show'; if(type==='bad') t.style.background='#6a1d1d'; else t.style.background='#171022'; clearTimeout(showToast._tm); showToast._tm=setTimeout(()=>t.classList.remove('show'),2400); }
 
 /* ---------- проверка ученика ---------- */
@@ -281,26 +283,13 @@ function studentFromResponse(data,code){
 }
 function validateStudentCode(code){
   return new Promise((resolve,reject)=>{
-    const callback='egeStudentCallback_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-    const script=document.createElement('script');
-    const timeout=setTimeout(()=>finish(new Error('Сервер не ответил в течение 60 секунд. Проверьте интернет.')),60000);
-    function cleanup(){
-      clearTimeout(timeout);
-      delete window[callback];
-      script.remove();
-    }
-    function finish(error,value){
-      cleanup();
-      error?reject(error):resolve(value);
-    }
-    window[callback]=data=>{
-      const st=studentFromResponse(data,code);
-      if(st) finish(null,st);
-      else finish(new Error((data && (data.error||data.message))||'Код ученика не найден'));
-    };
-    script.onerror=()=>finish(new Error('Не удалось связаться с сервером'));
-    script.src=`${API_URL}?action=validateStudent&code=${encodeURIComponent(code)}&callback=${encodeURIComponent(callback)}`;
-    document.head.appendChild(script);
+    const callback='egeStudentCallback_'+Date.now()+'_'+Math.random().toString(36).slice(2),script=document.createElement('script');let done=false;
+    const timeout=setTimeout(()=>finish(Object.assign(new Error('Сервер не ответил.'),{transient:true})),60000);
+    function cleanup(){clearTimeout(timeout);try{delete window[callback]}catch{}script.remove()}
+    function finish(error,value){if(done)return;done=true;cleanup();error?reject(error):resolve(value)}
+    window[callback]=data=>{const st=studentFromResponse(data,code);if(st)finish(null,st);else finish(Object.assign(new Error((data&&(data.error||data.message))||'Код ученика не найден'),{terminal:true}))};
+    script.onerror=()=>finish(Object.assign(new Error('Не удалось связаться с сервером'),{transient:true}));
+    script.src=`${API_URL}?action=validateStudent&code=${encodeURIComponent(code)}&callback=${encodeURIComponent(callback)}`;document.head.appendChild(script);
   });
 }
 async function sha256(s){ const b=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
@@ -328,7 +317,8 @@ function resultPayload(s,pk){
   return {
     action:'submitTest',
     eventId:g.eventIds[pk]||`${g.sessionId}-${pk}`,
-    studentId:p?.studentId||'',
+    studentId:p?.studentId||p?.code||'',
+    studentCode:p?.code||'',
     testId:TEST_META.testId,
     testDate:localDate(),
     topicId:TEST_META.topicId,
@@ -357,6 +347,7 @@ async function ensureSubmission(pk){
   }finally{submissionInFlight.delete(pk)}
 }
 async function flushPendingResults(){ if(!navigator.onLine) return; for(const item of readQueue()){ const payload=item?.payload, pk=item?.playerKey; if(!payload?.eventId) continue; try{ await postResult(payload); removeQueued(payload.eventId); if(serverState?.game?.eventIds?.[pk]===payload.eventId) await markSubmission(pk,'saved','Результат сохранён'); }catch{} } }
+setInterval(flushPendingResults,60000);
 function scheduleTeacherBackup(){ if(role!=='teacher'||teacherBackupTimer) return; teacherBackupTimer=setTimeout(async()=>{ teacherBackupTimer=null; if(!serverState||serverState.game.status!=='finished') return; await Promise.all((serverState.game.playerOrder||[]).filter(pk=>serverState.game.submissions?.[pk]?.status!=='saved').map(pk=>ensureSubmission(pk))); },1200); }
 function bestEffortPartialSubmit(){ if(partialSent||role!=='student'||!serverState||serverState.game.status!=='playing'||!participantPlayerKey) return; partialSent=true; const s=clone(serverState), payload=resultPayload({...s,game:{...s.game,endedEarly:true,finishedAt:Date.now()}},participantPlayerKey); payload.partial=true; queueResult(payload,participantPlayerKey); try{ const blob=new Blob([JSON.stringify(payload)],{type:'text/plain;charset=utf-8'}); navigator.sendBeacon?.(API_URL,blob); }catch{} }
 
@@ -628,7 +619,7 @@ function setConnectedUI(on){ $('lessonJoinBtn').classList.toggle('hidden',!!on);
 function publicStatusInfo(){
   const g=serverState?.game;
   if(!online) return {key:'offline',tag:'Нет соединения',title:'ОФЛАЙН',desc:'Комната ожидания сохранена, но сейчас нет соединения с сервером.',tone:'bad'};
-  if(!g) return {key:'none',tag:'Комната ожидания',title:'ЖДЁМ УЧИТЕЛЯ',desc:'Учитель ещё не создал занятие. Экран обновится автоматически, когда currentSession появится.',tone:'wait'};
+  if(!g) return {key:'none',tag:'Комната ожидания',title:'ЖДЁМ УЧИТЕЛЯ',desc:'Учитель ещё не создал занятие. Экран обновится автоматически, когда занятие начнётся.',tone:'wait'};
   if(g.status==='lobby') return {key:'lobby',tag:'Комната ожидания',title:'СБОР ИГРОКОВ',desc:'Занятие создано. Учитель ждёт подключения выбранных учеников.',tone:'good'};
   if(g.status==='playing') return {key:'playing',tag:'Статус игры',title:'ИГРА ИДЁТ',desc:'Занятие уже запущено. Войди своей ролью, чтобы вернуться в текущую игру.',tone:'good'};
   if(g.status==='finished') return {key:'finished',tag:'Статус игры',title:'ЗАНЯТИЕ ЗАВЕРШЕНО',desc:'Последняя сессия завершена. Учитель может создать новое занятие.',tone:'wait'};
@@ -655,10 +646,8 @@ function renderPublic(){
   attachBoardLayer(); updateSessionPanel();
 }
 function renderWaitingTeacher(){
-  hideBlast(); setConnectedUI(true);
-  const onlineStudents=Object.values(membersSnapshot||{}).filter(m=>m&&m.online&&m.role==='student').length;
-  $('app').innerHTML=`<section class="screen center" data-board-anchor="main-screen"><div class="shell"><div class="lobby-layout"><div class="panel lobby-card"><span class="tag">Комната ожидания</span><h1>ЖДЁМ<br>УЧИТЕЛЯ</h1><p class="lead">Код ученика подтверждён. Учитель ещё не создал currentSession. Оставь страницу открытой — подключение продолжится автоматически.</p><div class="seats"><div class="seat filled"><b>✓</b><span>${esc(student?.name||'Ученик')} · код подтверждён</span></div></div><div class="summary"><div>Сервер<b>${online?'Онлайн':'Офлайн'}</b></div><div>Статус игры<b>Нет сессии</b></div><div>Онлайн учеников<b>${onlineStudents}</b></div><div>Следующий шаг<b>Ждём учителя</b></div></div></div><div class="panel guide-card"><h3>Ты уже в комнате</h3><div class="guide-steps"><div class="guide-step"><b>1. Ничего обновлять не нужно</b><span>Когда учитель создаст занятие, система увидит currentSession автоматически.</span></div><div class="guide-step"><b>2. Затем появится лобби</b><span>Ты увидишь своё место и статус других участников.</span></div><div class="guide-step"><b>3. После старта</b><span>Игра сама переключится на первую доступную тебе задачу.</span></div></div></div></div></div></section>`;
-  attachBoardLayer(); updateSessionPanel();
+  hideBlast();setConnectedUI(true);const onlineStudents=Object.values(membersSnapshot||{}).filter(m=>m&&m.online&&m.role==='student').length;
+  $('app').innerHTML=`<section class="screen center" data-board-anchor="main-screen"><div class="shell"><div class="lobby-layout"><div class="panel lobby-card"><span class="tag">Ожидание занятия</span><h1>ЖДЁМ<br>УЧИТЕЛЯ</h1><p class="lead">Подключение подготовлено. Когда учитель начнёт занятие, место будет занято автоматически.</p><div class="seats"><div class="seat filled"><b>✓</b><span>${esc(participantName||student?.name||'Ученик')} · ${esc(verificationStatus||'ожидание занятия')}</span></div></div><div class="summary"><div>Связь<b>${online?'Онлайн':'Офлайн'}</b></div><div>Статус игры<b>Ожидание</b></div><div>Онлайн учеников<b>${onlineStudents}</b></div><div>Следующий шаг<b>Ждём учителя</b></div></div></div><div class="panel guide-card"><h3>Можно оставить страницу открытой</h3><div class="guide-steps"><div class="guide-step"><b>1. Ничего обновлять не нужно</b><span>Когда учитель создаст занятие, подключение продолжится автоматически.</span></div><div class="guide-step"><b>2. Затем появится лобби</b><span>Ты увидишь своё место и статус других участников.</span></div><div class="guide-step"><b>3. После старта</b><span>Игра сама переключится на первую доступную тебе задачу.</span></div></div></div></div></div></section>`;attachBoardLayer();updateSessionPanel();
 }
 function renderLobby(s){ hideBlast(); setConnectedUI(true); const g=s.game,players=Object.entries(g.players).sort((a,b)=>(a[1].slot||9)-(b[1].slot||9)), onlineIds=new Set(Object.values(membersSnapshot).filter(m=>m&&m.online&&m.role==='student'&&m.studentId).map(m=>String(m.studentId))), ready=players.length>=g.studentLimit&&players.slice(0,g.studentLimit).every(([,p])=>onlineIds.has(String(p.studentId))); const seats=Array.from({length:g.studentLimit},(_,i)=>{ const row=players.find(([,p])=>p.slot===i+1),isOn=row&&onlineIds.has(String(row[1].studentId)); return `<div class="seat ${row?'filled':''}"><b>${i+1}</b><span>${row?esc(row[1].name)+(isOn?' · онлайн':' · не в сети'):'Свободное место'}</span></div>`; }).join(''); const controls=role==='teacher'?`<div class="host-actions"><button class="sys-btn" id="hostStartBtn" ${ready?'':'disabled'}>${ready?'Начать игру':'Ждём учеников'}</button><button class="ghost" id="hostNewBtn">Новое занятие</button></div>`:''; $('app').innerHTML=`<section class="screen center" data-board-anchor="main-screen"><div class="shell"><div class="lobby-layout"><div class="panel lobby-card"><span class="tag">Совместный урок · ${g.studentLimit===2?'2 ученика':'1 ученик'}</span><h1>ЛОББИ<br>TNT</h1><p class="lead">${role==='teacher'?'Начать можно после подключения всех выбранных учеников.':'Место закреплено. Учитель запустит тренировку.'}</p><div class="seats">${seats}</div>${controls}</div><div class="panel guide-card"><h3>Как проходит номер</h3><div class="guide-steps"><div class="guide-step"><b>1. Читаем условие</b><span>Условие уровня прототипов 4–7, но с новыми числами.</span></div><div class="guide-step"><b>2. Смотрим 4 TNT-блока</b><span>На каждом блоке — короткий план решения и нужные формулы.</span></div><div class="guide-step"><b>3. Выбираем верный способ</b><span>Если способ верный, фитиль загорается, происходит взрыв и открывается следующая задача.</span></div></div></div></div></div></section>`; if($('hostStartBtn')) $('hostStartBtn').onclick=hostStartGame; if($('hostNewBtn')) $('hostNewBtn').onclick=openNewSessionChooser; attachBoardLayer(); updateSessionPanel(); }
 function renderTurnWaiting(s){ hideBlast(); setConnectedUI(true); const g=s.game, who=g.players[g.turnKey]?.name||'другой ученик', me=normalizeStats(g.stats[participantPlayerKey]); $('app').innerHTML=`<section class="screen center" data-board-anchor="main-screen"><div class="shell"><div class="panel waiting-card"><span class="tag">Сейчас ход другого ученика</span><h1>ОТВЕЧАЕТ<br>${esc(who).toUpperCase()}</h1><p class="lead">Задание видит только тот ученик, чей сейчас ход. После правильного выбора TNT ход перейдёт дальше.</p><div class="summary"><div>Верно с первого раза<b>${me.firstTryCorrect}</b></div><div>Выполнено<b>${me.completed}/${TASKS_PER_STUDENT}</b></div></div></div></div></section>`; attachBoardLayer(); updateSessionPanel(); }
@@ -692,19 +681,47 @@ function closeLessonModal(){ $('lessonModal').classList.remove('open'); $('lesso
 function openLessonModal(html){ const modal=$('lessonModal'); modal.classList.add('open'); modal.innerHTML=`<div class="lesson-card">${html}</div>`; const x=$('closeModalBtn'); if(x) x.onclick=closeLessonModal; }
 function openRoleModal(){ openLessonModal(`<button class="modal-x" id="closeModalBtn">×</button><span class="tag">Совместный урок</span><h2>Как вы входите?</h2><div class="role-grid"><button class="role-choice" id="teacherRoleBtn"><b>Учитель</b><small>Создать или продолжить занятие</small></button><button class="role-choice" id="studentRoleBtn"><b>Ученик</b><small>Войти по личному коду</small></button></div>`); $('teacherRoleBtn').onclick=openTeacherLogin; $('studentRoleBtn').onclick=openStudentLoginForm; }
 function openTeacherLogin(){ openLessonModal(`<button class="modal-x" id="closeModalBtn">×</button><span class="tag">Вход учителя</span><h2>Код учителя</h2><form id="teacherLoginForm" class="code-form"><input class="code" id="teacherCodeInput" type="password" autocomplete="current-password" placeholder="КОД УЧИТЕЛЯ"><button class="sys-btn">Войти</button><div class="status" id="teacherLoginStatus"></div></form>`); $('teacherLoginForm').onsubmit=handleTeacherLogin; }
-async function handleTeacherLogin(e){ e.preventDefault(); const input=$('teacherCodeInput'),btn=e.submitter,status=$('teacherLoginStatus'); input.disabled=btn.disabled=true; status.textContent='Проверяем…'; try{ if(await sha256(input.value.trim())!==TEACHER_CODE_HASH) throw new Error('Неверный код учителя'); teacherAuthenticated=true; role='teacher'; participantPlayerKey=''; startSessionListeners(); const snap=await get(stateRef()); serverState=snap.exists()?normalizeState(snap.val()):null; if(serverState&&serverState.schemaVersion===SCHEMA_VERSION) openTeacherResume(); else openNewSessionChooser(); }catch(err){ status.className='status bad'; status.textContent=err.message||'Не удалось войти'; input.disabled=btn.disabled=false; } }
-function openTeacherResume(){ const status=serverState?.game?.status||'none'; const label=status==='playing'?'Сейчас игра идёт.':status==='finished'?'Предыдущее занятие завершено.':'Сессия currentSession уже существует.'; openLessonModal(`<button class="modal-x" id="closeModalBtn">×</button><span class="tag">Учитель</span><h2>Продолжить currentSession?</h2><p>${label}</p><div class="host-actions"><button class="sys-btn" id="resumeBtn">Продолжить</button><button class="ghost" id="newBtn">Новое занятие</button></div>`); $('resumeBtn').onclick=async()=>{ await registerPresence(); closeLessonModal(); setConnectedUI(true); renderFromState(true); }; $('newBtn').onclick=openNewSessionChooser; }
-function openNewSessionChooser(){ openLessonModal(`<button class="modal-x" id="closeModalBtn">×</button><span class="tag">Новое занятие</span><h2>Сколько учеников подключаем?</h2><div class="mode-grid"><button class="mode-btn" id="mode1"><b>1 ученик</b><small>Один ученик получает 15 задач.</small></button><button class="mode-btn" id="mode2"><b>2 ученика</b><small>Каждый получает свои 15 задач; ходы идут по очереди.</small></button></div>`); $('mode1').onclick=()=>createFreshSession(1); $('mode2').onclick=()=>createFreshSession(2); }
-async function createFreshSession(limit){ if(!teacherAuthenticated) return; openLessonModal(`<span class="tag">Создаём занятие</span><h2>Подготавливаем currentSession…</h2><p>Очищаем старое состояние и создаём новую игровую сессию.</p>`); const fresh=newGameState(limit), session={meta:{sessionId:fresh.game.sessionId,appId:APP_ID,schemaVersion:SCHEMA_VERSION,openedAt:Date.now()},state:fresh,members:{},messages:{}}; try{ await set(sessionRef(),session); serverState=fresh; await registerPresence(); closeLessonModal(); setConnectedUI(true); renderFromState(true); }catch{ openLessonModal(`<span class="tag">Ошибка</span><h2>Не удалось создать занятие</h2><button class="sys-btn" id="retryNew">Повторить</button>`); $('retryNew').onclick=openNewSessionChooser; } }
-function openStudentLoginForm(){
-  const savedCode=String(student?.code||localStorage.getItem('egeStudentCode')||'').trim();
-  openLessonModal(`<button class="modal-x" id="closeModalBtn">×</button><span class="tag">Вход ученика</span><h2>Личный код</h2><p>${savedCode?'Сохранённый код уже подставлен. Нажми «Проверить код» — проверка пройдёт через сервер как обычно.':'Введи личный код ученика.'}</p><form id="studentLoginForm" class="code-form"><input class="code" id="studentCodeInput" maxlength="40" autocomplete="one-time-code" placeholder="ЛИЧНЫЙ КОД" value="${esc(savedCode)}"><button class="sys-btn">Проверить код</button><div class="status" id="studentLoginStatus"></div></form>`);
-  $('studentLoginForm').onsubmit=handleStudentLogin;
-  setTimeout(()=>{ const input=$('studentCodeInput'); if(input){ input.focus(); input.setSelectionRange(input.value.length,input.value.length); } },0);
+async function handleTeacherLogin(e){
+  e.preventDefault();const input=$('teacherCodeInput'),btn=e.submitter,status=$('teacherLoginStatus');
+  if(input.value.trim()!==TEACHER_CODE){status.className='status bad';status.textContent='Неверный код учителя';return}
+  teacherAuthenticated=true;role='teacher';participantPlayerKey='';status.textContent='';openTeacherResume();
 }
-async function handleStudentLogin(e){ e.preventDefault(); const input=$('studentCodeInput'),btn=e.submitter,status=$('studentLoginStatus'),code=input.value.trim(); if(!code){ status.className='status bad'; status.textContent='Введи личный код'; return; } input.disabled=btn.disabled=true; status.textContent='Проверяем код… Сервер может отвечать до 60 секунд.'; try{ const st=await validateStudentCode(code); saveStudent(st); await flushPendingResults(); connectStudent(st); }catch(err){ status.className='status bad'; status.textContent=err.message||'Код не подтверждён'; input.disabled=btn.disabled=false; } }
-async function connectStudent(st){ role='student'; student=st; startSessionListeners(); closeLessonModal(); tryJoinStudent().catch(()=>{}); }
-async function tryJoinStudent(){ if(joinInFlight||role!=='student'||!student) return; joinInFlight=true; try{ const ss=await get(stateRef()); if(!ss.exists()){ serverState=null; renderWaitingTeacher(); return; } const initial=normalizeState(ss.val()); serverState=initial; const ms=await get(membersRef()); const members=ms.exists()?ms.val()||{}:{}; const activeIds=new Set(Object.values(members).filter(m=>m&&m.online&&m.role==='student'&&m.studentId).map(m=>String(m.studentId))); const pk=playerKey(student.studentId), candidateEventId=uuid(), now=Date.now(); const result=await runTransaction(stateRef(),current=>{ const s=normalizeState(current||clone(initial)),g=s.game; const existingKey=Object.keys(g.players).find(k=>String(g.players[k]?.studentId)===String(student.studentId)); if(existingKey){ const p=g.players[existingKey]; p.name=student.name; p.code=student.code; p.lastSeen=now; g.eventIds[existingKey]=g.eventIds[existingKey]||candidateEventId; s.version++; return s; } if(g.status!=='lobby') return; for(const [key,p] of Object.entries(g.players)){ const stale=!activeIds.has(String(p.studentId))&&now-(Number(p.lastSeen)||Number(p.joinedAt)||0)>10000; if(stale&&g.status==='lobby'){ delete g.players[key]; delete g.stats[key]; delete g.attempts[key]; delete g.eventIds[key]; delete g.submissions[key]; } } if(Object.keys(g.players).length>=g.studentLimit) return; const used=new Set(Object.values(g.players).map(p=>Number(p.slot))); let slot=1; while(used.has(slot)&&slot<=g.studentLimit) slot++; if(slot>g.studentLimit) return; g.players[pk]={studentId:student.studentId,name:student.name,code:student.code,slot,joinedAt:now,lastSeen:now}; g.stats[pk]={firstTryCorrect:0,completed:0,attemptCount:0}; g.attempts[pk]={}; g.eventIds[pk]=candidateEventId; s.version++; return s; }); if(!result.committed){ const reread=await get(stateRef()); if(!reread.exists()){ serverState=null; renderWaitingTeacher(); return; } const after=normalizeState(reread.val()), found=Object.keys(after.game.players).find(k=>String(after.game.players[k]?.studentId)===String(student.studentId)); if(found){ participantPlayerKey=found; serverState=after; await registerPresence(); renderFromState(true); return; } if(after.game.status!=='lobby'){ showToast('Игра уже началась. Войти новым участником сейчас нельзя.','bad'); return; } showToast('Свободных мест нет.','bad'); return; } const after=normalizeState(result.snapshot.val()); participantPlayerKey=Object.keys(after.game.players).find(k=>String(after.game.players[k]?.studentId)===String(student.studentId))||pk; serverState=after; await registerPresence(); renderFromState(true); }catch{ showToast('Не удалось подключить ученика.','bad'); } finally{ joinInFlight=false; } }
+function openTeacherResume(){
+  openLessonModal(`<button class="modal-x" id="closeModalBtn">×</button><span class="tag">Учитель</span><h2>Что сделать?</h2><p>Восстановить прошлую игру или начать новую.</p><div class="host-actions"><button class="sys-btn" id="resumeBtn">Восстановить прошлую игру</button><button class="ghost" id="newBtn">Начать новую игру</button></div><div class="status" id="teacherActionStatus"></div>`);
+  $('resumeBtn').onclick=restoreTeacherSession;$('newBtn').onclick=openNewSessionChooser;
+}
+async function restoreTeacherSession(){const btn=$('resumeBtn'),status=$('teacherActionStatus');if(btn)btn.disabled=true;if(status)status.textContent='Загружаем прошлую игру…';try{const snap=await get(stateRef());if(!snap.exists())throw new Error('Прошлая игра не найдена. Начните новую игру.');serverState=normalizeState(snap.val());startSessionListeners();await registerPresence();closeLessonModal();setConnectedUI(true);renderFromState(true)}catch(err){if(status){status.className='status bad';status.textContent=err.message||'Не удалось восстановить игру'}if(btn)btn.disabled=false}}
+
+function openNewSessionChooser(){ openLessonModal(`<button class="modal-x" id="closeModalBtn">×</button><span class="tag">Новое занятие</span><h2>Сколько учеников подключаем?</h2><div class="mode-grid"><button class="mode-btn" id="mode1"><b>1 ученик</b><small>Один ученик получает 15 задач.</small></button><button class="mode-btn" id="mode2"><b>2 ученика</b><small>Каждый получает свои 15 задач; ходы идут по очереди.</small></button></div>`); $('mode1').onclick=()=>createFreshSession(1); $('mode2').onclick=()=>createFreshSession(2); }
+async function createFreshSession(limit){
+  if(!teacherAuthenticated)return;role='teacher';participantName='Учитель';openLessonModal(`<span class="tag">Новая игра</span><h2>Создаём чистое лобби…</h2><p>Подготавливаем занятие на ${Number(limit)===2?'2 учеников':'1 ученика'}.</p>`);
+  const fresh=newGameState(limit),session={meta:{sessionId:fresh.game.sessionId,appId:APP_ID,schemaVersion:SCHEMA_VERSION,openedAt:Date.now()},state:fresh,members:{},messages:{}};
+  try{await set(sessionRef(),session);serverState=fresh;startSessionListeners();await registerPresence();closeLessonModal();setConnectedUI(true);renderFromState(true)}catch{openLessonModal(`<span class="tag">Ошибка</span><h2>Не удалось создать занятие</h2><button class="sys-btn" id="retryNew">Повторить</button>`);$('retryNew').onclick=openNewSessionChooser}
+}
+function openStudentLoginForm(){
+  const saved=storedStudent(),savedCode=String(saved?.code||localStorage.getItem('egeStudentCode')||'').trim();
+  if(saved){openLessonModal(`<button class="modal-x" id="closeModalBtn">×</button><span class="tag">Вход ученика</span><h2>${esc(saved.name)}</h2><p>Данные ученика сохранены в этом браузере.</p><div class="host-actions"><button class="sys-btn" id="useSavedStudent">Подключиться</button><button class="ghost" id="otherStudent">Сменить ученика</button></div>`);$('useSavedStudent').onclick=()=>connectStudent(saved,{verify:false});$('otherStudent').onclick=()=>{clearStoredStudent();student=null;openStudentLoginForm()};return}
+  openLessonModal(`<button class="modal-x" id="closeModalBtn">×</button><span class="tag">Вход ученика</span><h2>Личный код</h2><p>Введи личный код. Игра откроется сразу после подключения к занятию, а имя проверится в фоне.</p><form id="studentLoginForm" class="code-form"><input class="code" id="studentCodeInput" maxlength="40" autocomplete="one-time-code" placeholder="ЛИЧНЫЙ КОД" value="${esc(savedCode)}"><button class="sys-btn">Подключиться</button><div class="status" id="studentLoginStatus"></div></form>`);$('studentLoginForm').onsubmit=handleStudentLogin;setTimeout(()=>{const input=$('studentCodeInput');if(input){input.focus();input.setSelectionRange(input.value.length,input.value.length)}},0);
+}
+function setVerificationStatus(text){verificationStatus=text||'';updateSessionPanel()}
+async function startBackgroundValidation(code,pk,runId=++verificationRun){let attempt=0;while(role==='student'&&participantPlayerKey===pk&&runId===verificationRun){attempt++;setVerificationStatus(`проверяем имя · попытка ${attempt}`);try{const verified=await validateStudentCode(code);if(runId!==verificationRun||role!=='student'||participantPlayerKey!==pk)return;student={...student,...verified,code,verified:true};participantName=student.name;saveStudent(student);await runTransaction(stateRef(),cur=>{if(!cur)return cur;const st=normalizeState(cur),p=st.game.players?.[pk];if(p){p.studentId=student.studentId;p.name=student.name;p.code=code;st.version++}return st});await registerPresence();setVerificationStatus('✓ подтверждён');renderFromState(true);return}catch(e){if(runId!==verificationRun)return;if(e?.terminal){setVerificationStatus('код не найден · игра продолжается');return}setVerificationStatus('сервер не ответил · повторяем');await new Promise(r=>setTimeout(r,1000))}}}
+async function handleStudentLogin(e){
+  e.preventDefault();const input=$('studentCodeInput'),btn=e.submitter,status=$('studentLoginStatus'),code=input.value.trim();if(!code){status.className='status bad';status.textContent='Введи личный код';return}input.disabled=btn.disabled=true;saveEnteredCode(code);status.textContent='Подключаемся…';try{await connectStudent({studentId:code,name:'Ученик',code,verified:false},{verify:true})}catch(err){status.className='status bad';status.textContent=err.message||'Не удалось подключиться';input.disabled=btn.disabled=false}
+}
+async function connectStudent(st,{verify=false}={}){
+  student={studentId:String(st.studentId||st.code),name:st.name||'Ученик',code:String(st.code||localStorage.getItem('egeStudentCode')||''),verified:!!st.verified};role='student';participantName=student.name;participantPlayerKey=playerKey(student.code);verificationStatus=student.verified?'✓ подтверждён':'проверяем имя';
+  const joined=await tryJoinStudent();startSessionListeners();setConnectedUI(true);closeLessonModal();if(!serverState)renderWaitingTeacher();if(verify&&joined)startBackgroundValidation(student.code,participantPlayerKey);return joined;
+}
+async function tryJoinStudent(){
+  if(joinInFlight||role!=='student'||!student)return false;joinInFlight=true;
+  try{
+    const ss=await get(stateRef());if(!ss.exists()){serverState=null;renderWaitingTeacher();return false}
+    const initial=normalizeState(ss.val());serverState=initial;const ms=await get(membersRef());const members=ms.exists()?ms.val()||{}:{};const activeIds=new Set(Object.values(members).filter(m=>m&&m.online&&m.role==='student'&&m.studentId).map(m=>String(m.studentId)));const preferredPk=playerKey(student.code),candidateEventId=uuid(),now=Date.now();
+    const result=await runTransaction(stateRef(),current=>{const st=normalizeState(current||clone(initial)),g=st.game;const existingKey=Object.keys(g.players).find(k=>k===preferredPk||String(g.players[k]?.code||'')===String(student.code)||String(g.players[k]?.studentId||'')===String(student.studentId));if(existingKey){const p=g.players[existingKey];p.code=student.code;p.studentId=student.studentId||student.code;if(student.verified&&student.name&&student.name!=='Ученик')p.name=student.name;p.lastSeen=now;g.eventIds[existingKey]=g.eventIds[existingKey]||candidateEventId;st.version++;return st}if(g.status!=='lobby')return st;for(const [key,p] of Object.entries(g.players)){const stale=!activeIds.has(String(p.studentId))&&now-(Number(p.lastSeen)||Number(p.joinedAt)||0)>10000;if(stale&&g.status==='lobby'){delete g.players[key];delete g.stats[key];delete g.attempts[key];delete g.eventIds[key];delete g.submissions[key]}}if(Object.keys(g.players).length>=g.studentLimit)return st;const used=new Set(Object.values(g.players).map(p=>Number(p.slot)));let slot=1;while(used.has(slot)&&slot<=g.studentLimit)slot++;if(slot>g.studentLimit)return st;g.players[preferredPk]={studentId:student.studentId||student.code,name:student.verified&&student.name&&student.name!=='Ученик'?student.name:`Ученик ${slot}`,code:student.code,slot,joinedAt:now,lastSeen:now};g.stats[preferredPk]={firstTryCorrect:0,completed:0,attemptCount:0};g.attempts[preferredPk]={};g.eventIds[preferredPk]=candidateEventId;st.version++;return st});
+    const after=result.snapshot?.exists()?normalizeState(result.snapshot.val()):initial;const found=Object.keys(after.game.players).find(k=>k===preferredPk||String(after.game.players[k]?.code||'')===String(student.code)||String(after.game.players[k]?.studentId||'')===String(student.studentId));if(!found){if(after.game.status!=='lobby')throw new Error('Игра уже началась. Войти новым участником сейчас нельзя.');throw new Error('Свободных мест нет.')}
+    participantPlayerKey=found;serverState=after;participantName=after.game.players[found]?.name||student.name||'Ученик';student.name=participantName;await registerPresence();renderFromState(true);return true;
+  }finally{joinInFlight=false}
+}
 async function registerPresence(){ if(!role) return; participantId=role==='teacher'?'teacher':participantPlayerKey||playerKey(student?.studentId||''); participantName=role==='teacher'?'Учитель':student?.name||'Ученик'; const mref=memberRef(browserClientId); presencePath=mref; try{ await onDisconnect(mref).update({online:false,lastSeen:serverTimestamp()}); await set(mref,{id:browserClientId,userId:participantId,studentId:role==='student'?student.studentId:'',name:participantName,role,online:true,lastSeen:serverTimestamp()}); }catch{} }
 function applyLiveStroke(id,value){
   if(!id||!value)return;
@@ -739,16 +756,21 @@ function startSessionListeners(){
   stateUnsub=onValue(stateRef(),snap=>{
     serverState=snap.exists()?normalizeState(snap.val()):null;
     if(serverState?.strokes){for(const [id,st] of Object.entries(serverState.strokes))if(st)applyLiveStroke(id,st)}
-    if(role==='student'&&serverState&&!serverState.game.players[participantPlayerKey]&&serverState.game.status==='lobby'&&!joinInFlight)tryJoinStudent().catch(()=>{});
-    renderFromState();
-    renderBoardStrokes();
+    if(role==='student'&&serverState&&!serverState.game.players[participantPlayerKey]&&serverState.game.status==='lobby'&&!joinInFlight)tryJoinStudent().then(joined=>{if(joined&&!student?.verified&&student?.code)startBackgroundValidation(student.code,participantPlayerKey)}).catch(err=>showToast(err?.message||'Не удалось подключиться ученика.','bad'));
+    renderFromState();renderBoardStrokes();
   });
-  membersUnsub=onValue(membersRef(),snap=>{membersSnapshot=snap.exists()?snap.val()||{}:{};updateSessionPanel();if(!role||serverState?.game?.status==='lobby')renderFromState(true);});
-  messagesUnsub=onValue(messagesRef(),snap=>{const m=snap.exists()?snap.val()||{}:{};remoteTeacherCursor=m.teacherCursor||null;updateTeacherCursor();});
-  startStrokeListeners();
+  membersUnsub=onValue(membersRef(),snap=>{membersSnapshot=snap.exists()?snap.val()||{}:{};updateSessionPanel();if(!role||serverState?.game?.status==='lobby')renderFromState(true)});
+  messagesUnsub=onValue(messagesRef(),snap=>{const m=snap.exists()?snap.val()||{}:{};remoteTeacherCursor=m.teacherCursor||null;updateTeacherCursor()});startStrokeListeners();
 }
-function switchStudent(){ if(serverState?.game?.status==='playing'){ showToast('Во время занятия нельзя сменить ученика.','bad'); return; } clearStoredStudent(); role=''; participantPlayerKey=''; student=null; updateSessionPanel(); openStudentLoginForm(); }
-function updateSessionPanel(){ const p=$('sessionPanel'); if(!p) return; if(!role){ p.classList.remove('show'); return; } const onlineStudents=Object.values(membersSnapshot).filter(m=>m&&m.online&&m.role==='student').length; const status=!online?'офлайн':serverState?.game?.status==='playing'?'игра идёт':serverState?.game?.status==='finished'?'завершено':serverState?'лобби':'ждём учителя'; const finish=role==='teacher'&&serverState?.game?.status==='playing'?'<button class="sys-mini danger" id="panelFinishLesson">Завершить</button>':''; p.innerHTML=`<span class="session-dot ${online?'on':''}"></span><b>${role==='teacher'?'Учитель':esc(student?.name||'Ученик')}</b><small>${status}${serverState?` · онлайн учеников: ${onlineStudents}`:''}</small>${finish}${role==='student'?'<button class="sys-mini" id="panelSwitchStudent">Сменить ученика</button>':''}`; p.classList.add('show'); if($('panelSwitchStudent')) $('panelSwitchStudent').onclick=switchStudent; if($('panelFinishLesson')) $('panelFinishLesson').onclick=teacherFinishLesson; }
+async function switchStudent(){
+  if(serverState?.game?.status==='playing'){showToast('Во время занятия нельзя сменить ученика.','bad');return}verificationRun++;const pk=participantPlayerKey;
+  try{if(serverState?.game?.status==='lobby'&&pk)await runTransaction(stateRef(),cur=>{if(!cur)return cur;const st=normalizeState(cur);if(st.game.status==='lobby'&&st.game.players?.[pk]){delete st.game.players[pk];delete st.game.stats?.[pk];delete st.game.attempts?.[pk];delete st.game.eventIds?.[pk];delete st.game.submissions?.[pk];st.version++}return st});if(presencePath)await update(presencePath,{online:false,lastSeen:serverTimestamp()})}catch{}
+  clearStoredStudent();role='';participantId='';participantName='';participantPlayerKey='';verificationStatus='';student=null;setConnectedUI(false);updateSessionPanel();renderPublic();openStudentLoginForm();
+}
+function updateSessionPanel(){
+  const p=$('sessionPanel');if(!p)return;if(!role){p.classList.remove('show');return}const onlineStudents=Object.values(membersSnapshot).filter(m=>m&&m.online&&m.role==='student').length,status=!online?'офлайн':serverState?.game?.status==='playing'?'игра идёт':serverState?.game?.status==='finished'?'завершено':serverState?'лобби':'ждём учителя',finish=role==='teacher'&&serverState?.game?.status==='playing'?'<button class="sys-mini danger" id="panelFinishLesson">Завершить</button>':'';
+  p.innerHTML=`<span class="session-dot ${online?'on':''}"></span><b>${role==='teacher'?'Учитель':esc(participantName||student?.name||'Ученик')}</b><small>${role==='student'&&verificationStatus?esc(verificationStatus)+' · ':''}${status}${serverState?` · онлайн учеников: ${onlineStudents}`:''}</small>${finish}${role==='student'?'<button class="sys-mini" id="panelSwitchStudent">Сменить ученика</button>':''}`;p.classList.add('show');if($('panelSwitchStudent'))$('panelSwitchStudent').onclick=switchStudent;if($('panelFinishLesson'))$('panelFinishLesson').onclick=teacherFinishLesson;
+}
 
 /* ---------- доска ---------- */
 function attachBoardLayer(){ const anchor=document.querySelector('[data-board-anchor="main-screen"]'); if(!anchor) return; let board=$('sharedBoard'); if(board) board.remove(); board=document.createElementNS('http://www.w3.org/2000/svg','svg'); board.id='sharedBoard'; board.setAttribute('viewBox','0 0 1000 1000'); board.setAttribute('preserveAspectRatio','none'); board.classList.add('shared-board'); anchor.appendChild(board); setBoardPointerMode(); renderBoardStrokes(); board.addEventListener('pointerdown',boardPointerDown); board.addEventListener('pointermove',boardPointerMove); board.addEventListener('pointerup',boardPointerUp); board.addEventListener('pointercancel',boardPointerUp); installTeacherCursorTracking(anchor); updateTeacherCursor(); }
@@ -805,13 +827,13 @@ function updateTeacherCursor(){ const c=$('teacherCursor'); if(!c) return; if(ro
 function sound(type){ if(muted) return; try{ const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return; const ac=sound.ac||(sound.ac=new AC()), now=ac.currentTime; const master=ac.createGain(); master.connect(ac.destination); master.gain.setValueAtTime(.05,now); master.gain.exponentialRampToValueAtTime(.0001,now+1.2); const notes = {start:[[220,.12,'triangle'],[330,.22,'triangle'],[440,.34,'triangle']], good:[[620,.12,'square'],[840,.24,'triangle']], bad:[[150,.18,'sawtooth'],[90,.36,'sawtooth']], fuse:[[540,.06,'square'],[580,.12,'square'],[610,.18,'square']], explode:[[95,.15,'sawtooth'],[72,.24,'sawtooth'],[48,.5,'triangle']]}[type]||[[440,.18,'triangle']]; notes.forEach(([f,d,w],i)=>{ const o=ac.createOscillator(), g=ac.createGain(); o.type=w; o.frequency.setValueAtTime(f,now+i*.03); g.gain.setValueAtTime(type==='explode'?.15:.08,now+i*.03); g.gain.exponentialRampToValueAtTime(.0001,now+d+.08); o.connect(g); g.connect(master); o.start(now+i*.03); o.stop(now+d+.1); }); if(type==='explode'){ const noise=ac.createBufferSource(), buffer=ac.createBuffer(1,ac.sampleRate*.25,ac.sampleRate), data=buffer.getChannelData(0); for(let i=0;i<data.length;i++) data[i]=(Math.random()*2-1)*(1-i/data.length); const ng=ac.createGain(); ng.gain.setValueAtTime(.12,now); ng.gain.exponentialRampToValueAtTime(.0001,now+.35); noise.buffer=buffer; noise.connect(ng); ng.connect(master); noise.start(now); noise.stop(now+.25); } }catch{} }
 
 $('lessonJoinBtn').addEventListener('click',openRoleModal);
-window.addEventListener('online',async()=>{ online=true; updateSessionPanel(); await flushPendingResults(); if(role==='student'&&serverState&&!serverState.game.players[participantPlayerKey]) tryJoinStudent().catch(()=>{}); renderFromState(true); });
+window.addEventListener('online',async()=>{ online=true; updateSessionPanel(); await flushPendingResults(); if(role==='student'&&serverState&&!serverState.game.players[participantPlayerKey]) tryJoinStudent().then(joined=>{if(joined&&!student?.verified&&student?.code)startBackgroundValidation(student.code,participantPlayerKey)}).catch(()=>{}); renderFromState(true); });
 window.addEventListener('offline',()=>{ online=false; updateSessionPanel(); renderFromState(true); });
 window.addEventListener('resize',updateTeacherCursor);
 window.addEventListener('pagehide',bestEffortPartialSubmit);
 window.addEventListener('beforeunload',bestEffortPartialSubmit);
 
-initBoardToolbar(); startSessionListeners(); renderPublic(); flushPendingResults();
+initBoardToolbar(); renderPublic(); flushPendingResults();
 </script>
 </body>
 </html>
