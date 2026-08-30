@@ -85,6 +85,7 @@ body{min-height:100vh}
     @media(max-width:760px){.join-fab{top:auto;bottom:14px;right:14px}.session-panel{left:8px;right:8px;top:64px;max-width:none;flex-wrap:wrap}.session-panel small{white-space:normal;flex:1 1 180px}.role-grid,.result-grid{grid-template-columns:1fr}.board-toolbar{width:min(286px,calc(100vw - 20px))}.board-tools{grid-template-columns:repeat(3,36px) 40px minmax(68px,1fr)}.board-clear{grid-column:1/-1}.game-foot{align-items:flex-start;flex-direction:column}.method-options{grid-template-columns:1fr}.method-option{min-height:62px;font-size:14px}}
     @media (min-width:760px) and (max-width:950px) and (max-height:700px){.game{padding:12px 18px 16px}.court{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:11px;min-height:455px}.arena{min-height:455px;padding:12px}.visual{padding:11px}.diagram{min-height:315px}.claim{width:92%;min-height:205px;padding:18px;font-size:21px}.answer{min-height:60px;font-size:18px}.feedback{inset:8px;padding:14px}.feedback h2{font-size:24px}.formula{font-size:18px;padding:9px}.explain{font-size:14px}.game-foot{font-size:12px}}
 
+  .math-frac{display:inline-grid;grid-template-rows:auto auto;vertical-align:middle;text-align:center;line-height:1;margin:0 .12em}.math-frac>span:first-child{padding:0 .18em .08em;border-bottom:1.5px solid currentColor}.math-frac>span:last-child{padding:.08em .18em 0}
   </style>
 </head>
 <body class="part-1">
@@ -160,7 +161,9 @@ let browserClientId=getBrowserClientId();
 let serverState=null;
 let membersSnapshot={};
 let stateUnsub=null,membersUnsub=null,messagesUnsub=null;
+let waitStateUnsub=null;
 let joinInFlight=false;
+let creationRun=0;
 let presencePath=null;
 let muted=false;
 let online=navigator.onLine;
@@ -176,6 +179,9 @@ let toolbarCollapsed=false;
 let lastStrokePush=0;
 let lastCursorPush=0;
 let remoteTeacherCursor=null;
+let identityCheckText=student?.verified?'✓ подтверждён':'';
+let erasing=false,lastEraserPoint=null;
+const locallyHiddenStrokes=new Set(),eraseInFlight=new Set();
 let partialSent=false;
 
 const FACT_PAIRS=[
@@ -244,6 +250,7 @@ const facts=FACT_PAIRS.flat();
 const factsById=Object.fromEntries(facts.map(x=>[x.id,x]));
 
 function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function mathHtml(v){return esc(v).replace(/\(?([0-9A-Za-zА-Яа-яЁёπ√²³₀-₉]+)\/([0-9A-Za-zА-Яа-яЁёπ√²³₀-₉]+)\)?/g,'<span class="math-frac"><span>$1</span><span>$2</span></span>')}
 function shuffle(a){const x=[...a];for(let i=x.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[x[i],x[j]]=[x[j],x[i]]}return x}
 function dragonSvg(part){if(part===2)return `<svg class="dragon-svg" viewBox="0 0 360 220" aria-label="Светлая Фурия"><g class="tail"><path class="body outline" d="M151 142C108 150 70 141 35 159C68 164 94 183 133 173L178 151Z"/><path class="light outline" d="M45 154L13 137L28 162L10 185L56 174Z"/></g><path class="wing b outline" d="M194 123C170 80 128 44 74 31C94 57 113 82 130 106C99 91 70 94 48 105C84 115 114 137 143 160Z"/><path class="body outline" d="M125 121C151 92 213 89 254 111C282 127 278 157 247 173C212 191 151 182 124 158C112 147 113 134 125 121Z"/><path class="wing a outline" d="M183 119C145 78 95 56 39 62C69 78 91 99 106 124C76 116 48 123 28 141C68 138 105 152 140 173C159 176 176 154 184 138Z"/><path class="light outline" d="M239 124C254 101 274 89 299 93L322 137C293 155 262 155 239 145Z"/><g class="head"><path class="body outline" d="M274 87C296 63 334 67 351 93C362 110 353 133 333 146C310 160 276 151 265 129C257 113 262 99 274 87Z"/><path class="light outline" d="M279 88L270 52L298 77ZM311 77L322 45L329 88ZM342 89L359 69L351 113Z"/><ellipse class="eye" cx="293" cy="108" rx="12" ry="9"/><ellipse class="pupil" cx="295" cy="108" rx="3" ry="8"/><ellipse class="eye" cx="332" cy="107" rx="12" ry="9"/><ellipse class="pupil" cx="330" cy="107" rx="3" ry="8"/><path d="M302 134Q317 141 332 131" fill="none" stroke="#101c22" stroke-width="3"/></g></svg>`;
     return `<svg class="dragon-svg" viewBox="0 0 360 220" aria-label="Огненный дракон"><g class="tail"><path class="body outline" d="M151 143C111 151 71 143 34 161C65 166 94 184 134 174L178 151Z"/><path class="light outline" d="M44 155L12 138L28 162L10 188L57 174Z"/><path fill="#ffb52f" stroke="#6d241d" stroke-width="4" d="M18 177Q4 155 19 139Q19 153 31 159Q35 174 18 177Z"/></g><path class="wing b outline" d="M194 124C171 81 130 44 76 31C94 57 114 83 132 107C99 92 72 95 49 106C85 116 115 138 144 160Z"/><path class="body outline" d="M125 122C150 93 213 90 254 112C282 127 278 157 247 174C212 191 151 183 124 159C112 148 113 135 125 122Z"/><path class="wing a outline" d="M183 120C145 80 95 57 39 63C69 79 91 100 106 125C76 117 48 124 28 142C68 139 105 153 140 174C159 177 176 155 184 139Z"/><path class="light outline" d="M239 125C254 102 274 90 299 94L322 138C293 156 262 156 239 146Z"/><g class="head"><path class="body outline" d="M274 88C296 64 334 68 351 94C362 111 353 134 333 147C310 161 276 152 265 130C257 114 262 100 274 88Z"/><path class="dark outline" d="M279 89L269 50L299 78ZM311 78L323 43L330 90ZM342 90L359 68L352 114Z"/><ellipse class="eye" cx="293" cy="109" rx="12" ry="9"/><ellipse class="pupil" cx="295" cy="109" rx="3" ry="8"/><ellipse class="eye" cx="332" cy="108" rx="12" ry="9"/><ellipse class="pupil" cx="330" cy="108" rx="3" ry="8"/><path d="M302 135Q317 142 332 132" fill="none" stroke="#101c22" stroke-width="3"/></g><path class="dark outline" d="M151 108L145 78L166 104ZM184 99L187 66L203 103ZM218 103L229 73L238 111Z"/></svg>`}
@@ -265,13 +272,29 @@ function uuid(){if(window.crypto&&typeof crypto.randomUUID==='function')return c
 function localDate(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function timeText(s){s=Math.max(0,Number(s)||0);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
 function nowIso(ms=Date.now()){return new Date(ms).toISOString()}
-function playerKey(studentId){let h=2166136261;for(const ch of String(studentId)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return'p_'+(h>>>0).toString(36)}
+function playerKey(code){
+  let h=2166136261;
+  for(const ch of String(code||"").trim().toUpperCase()){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}
+  return "p_"+(h>>>0).toString(36)
+}
 function getBrowserClientId(){let v=sessionStorage.getItem(CLIENT_ID_KEY);if(!v){v='c_'+uuid();sessionStorage.setItem(CLIENT_ID_KEY,v)}return v}
-function storedStudent(){const studentId=localStorage.getItem('egeStudentId');if(studentId)return{studentId,name:localStorage.getItem('egeStudentName')||'Ученик',code:localStorage.getItem('egeStudentCode')||''};try{const s=JSON.parse(localStorage.getItem(STUDENT_SAVE_KEY)||'null');return s?.studentId?s:null}catch{return null}}
-function saveStudent(s){localStorage.setItem('egeStudentId',s.studentId);localStorage.setItem('egeStudentName',s.name);localStorage.setItem('egeStudentCode',s.code);localStorage.setItem(STUDENT_SAVE_KEY,JSON.stringify(s))}
+function storedStudent(){
+  const code=String(localStorage.getItem("egeStudentCode")||"").trim().toUpperCase();
+  if(!code)return null;
+  const studentId=String(localStorage.getItem("egeStudentId")||"");
+  const name=String(localStorage.getItem("egeStudentName")||"");
+  return {code,studentId,name:name||"",verified:Boolean(studentId&&name&& !/^Ученик\s*\d*$/i.test(name))}
+}
+function saveStudent(s){
+  if(!s?.code)return;
+  localStorage.setItem("egeStudentCode",String(s.code).trim().toUpperCase());
+  if(s.studentId)localStorage.setItem("egeStudentId",String(s.studentId)); else localStorage.removeItem("egeStudentId");
+  if(s.name)localStorage.setItem("egeStudentName",String(s.name)); else localStorage.removeItem("egeStudentName");
+  localStorage.setItem(STUDENT_SAVE_KEY,JSON.stringify(s))
+}
 function clearStoredStudent(){['egeStudentId','egeStudentName','egeStudentCode',STUDENT_SAVE_KEY].forEach(k=>localStorage.removeItem(k));student=null}
 function parseStudent(data,code){const src=(data&&(data.student||data.data))||data||{},studentId=src.studentId||src.id||(data&&data.studentId),name=src.studentName||src.name||src.fullName||(data&&(data.studentName||data.name)),bad=data&&(data.success===false||data.valid===false||data.ok===false);if(bad||!studentId)throw new Error((data&&(data.message||data.error))||'Личный код не найден');return{studentId:String(studentId),name:String(name||'Ученик'),code:String(code)}}
-function validateStudent(code){return new Promise((resolve,reject)=>{const cb='egeValidate_'+Date.now()+'_'+Math.random().toString(36).slice(2),s=document.createElement('script');let done=false;const clean=()=>{delete window[cb];s.remove()},timer=setTimeout(()=>{if(done)return;done=true;clean();reject(new Error('Сервер не ответил. Проверь интернет'))},12000);window[cb]=data=>{if(done)return;done=true;clearTimeout(timer);clean();try{resolve(parseStudent(data,code))}catch(e){reject(e)}};s.onerror=()=>{if(done)return;done=true;clearTimeout(timer);clean();reject(new Error('Не удалось проверить код'))};s.src=API_URL+'?'+new URLSearchParams({action:'validateStudent',code,callback:cb});document.head.appendChild(s)})}
+function validateStudent(code){return new Promise((resolve,reject)=>{const cb='egeValidate_'+Date.now()+'_'+Math.random().toString(36).slice(2),s=document.createElement('script');let done=false;const clean=()=>{delete window[cb];s.remove()},timer=setTimeout(()=>{if(done)return;done=true;clean();reject(new Error('Сервер не ответил. Проверь интернет'))},60000);window[cb]=data=>{if(done)return;done=true;clearTimeout(timer);clean();try{resolve(parseStudent(data,code))}catch(e){reject(e)}};s.onerror=()=>{if(done)return;done=true;clearTimeout(timer);clean();reject(new Error('Не удалось проверить код'))};s.src=API_URL+'?'+new URLSearchParams({action:'validateStudent',code,callback:cb});document.head.appendChild(s)})}
 async function sha256(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 
 function makeDeck(limit){
@@ -307,27 +330,25 @@ function renderPublic(){
   $('app').innerHTML=`<section class="screen center" data-board-anchor="main-screen"><div class="lesson-shell"><div class="start-layout"><div class="panel start-card"><div class="eyebrow">Академия всадников · ЕГЭ №3</div><h1>ОГНЕННЫЙ<br>ВЕРДИКТ</h1><p class="lead">15 заданий на ученика: базовые факты и выбор способа решения по главам I–IV — параллелепипед, призма, пирамида и конус. Без лайфхаков: только определения, стандартные формулы и прямой выбор нужного действия.</p><div class="rules"><div>🔥 15 заданий ученику</div><div>9 Верно/Неверно + 6 «Как решать?»</div><div>↻ после ошибки нужно исправить</div></div><p class="lead">Открой «Совместный урок» и выбери роль.</p></div>${dragonScene()}</div></div></section>`;attachBoardLayer()
 }
 function renderWaitingTeacher(){
-  $('app').innerHTML=`<section class="screen center" data-board-anchor="main-screen"><div class="lesson-shell"><div class="start-layout"><div class="panel start-card"><div class="eyebrow">Подключение готово</div><h1>ЖДЁМ<br>УЧИТЕЛЯ</h1><p class="lead">Личный код подтверждён. Как только учитель откроет занятие, вход продолжится автоматически.</p><div class="message ${online?'ok':'pending'}">${online?'Связь с сервером есть.':'Нет сети. Подключение восстановится автоматически.'}</div></div>${dragonScene('<b>Иккинг:</b> дракон уже готов к тренировке.')}</div></div></section>`;attachBoardLayer();updateSessionPanel()
+  $('app').innerHTML=`<section class="screen center" data-board-anchor="main-screen"><div class="lesson-shell"><div class="start-layout"><div class="panel start-card"><div class="eyebrow">Подключение готово</div><h1>ЖДЁМ<br>УЧИТЕЛЯ</h1><p class="lead">Личный код принят. Как только учитель откроет занятие, вход продолжится автоматически.</p><div class="message ${online?'ok':'pending'}">${online?'Связь с сервером есть.':'Нет сети. Подключение восстановится автоматически.'}</div></div>${dragonScene('<b>Иккинг:</b> дракон уже готов к тренировке.')}</div></div></section>`;attachBoardLayer();updateSessionPanel()
 }
 function renderLobby(s){
   const g=s.game,players=Object.entries(g.players).sort((a,b)=>(a[1].slot||9)-(b[1].slot||9));
-  const onlineIds=new Set(Object.values(membersSnapshot).filter(m=>m&&m.online&&m.role==='student'&&m.studentId).map(m=>String(m.studentId)));
-  const ready=players.length>=g.studentLimit&&players.slice(0,g.studentLimit).every(([,p])=>onlineIds.has(String(p.studentId)));
-  const playerCards=Array.from({length:g.studentLimit},(_,i)=>{const row=players.find(([,p])=>p.slot===i+1),isOn=row&&onlineIds.has(String(row[1].studentId));return `<div class="seat ${row?'filled':''}"><b>${i+1}</b><span>${row?esc(row[1].name)+(isOn?' · онлайн':' · не в сети'):'Свободное место'}</span></div>`}).join('');
+  const activeCodes=new Set(Object.values(membersSnapshot).filter(m=>m&&m.online&&m.role==='student'&&m.code).map(m=>String(m.code).trim().toUpperCase()));
+  const slotRows=Array.from({length:g.studentLimit},(_,i)=>players.find(([,p])=>Number(p.slot)===i+1)||null);
+  const ready=slotRows.every(Boolean);
+  const playerCards=slotRows.map((row,i)=>{const isOn=row&&activeCodes.has(String(row[1].code||'').trim().toUpperCase());return `<div class="seat ${row?'filled':''}"><b>${i+1}</b><span>${row?esc(row[1].name)+(isOn?' · онлайн':' · место занято'):'Свободное место'}</span></div>`}).join('');
   const teacherControls=role==='teacher'?`<div class="host-actions"><button class="primary" id="hostStartBtn" ${ready?'':'disabled'}>${ready?'Начать тренировку':'Ждём учеников'}</button><button class="ghost" id="hostNewBtn">Новое занятие</button></div>`:'';
-  $('app').innerHTML=`<section class="screen center" data-board-anchor="main-screen"><div class="lesson-shell"><div class="lobby-layout"><div class="panel lobby-card"><div class="eyebrow">Совместный урок · ${g.studentLimit===2?'2 ученика':'1 ученик'}</div><h1>АНГАР<br>ВСАДНИКОВ</h1><p class="lead">${role==='teacher'?'Начать можно после подключения всех выбранных учеников.':'Место закреплено. Учитель запустит тренировку.'}</p><div class="seats">${playerCards}</div>${teacherControls}</div>${dragonScene('<b>Иккинг:</b> сегодня базовые факты и выбор стандартной формулы.')}</div></div></section>`;
+  $('app').innerHTML=`<section class="screen center" data-board-anchor="main-screen"><div class="lesson-shell"><div class="lobby-layout"><div class="panel lobby-card"><div class="eyebrow">Совместный урок · ${g.studentLimit===2?'2 ученика':'1 ученик'}</div><h1>АНГАР<br>ВСАДНИКОВ</h1><p class="lead">${role==='teacher'?'Начать можно сразу после того, как нужные места заняты учениками.':'Место закреплено. Учитель запустит тренировку.'}</p><div class="seats">${playerCards}</div>${teacherControls}</div>${dragonScene('<b>Иккинг:</b> сегодня базовые факты и выбор стандартной формулы.')}</div></div></section>`;
   if($('hostStartBtn'))$('hostStartBtn').addEventListener('click',hostStartGame);if($('hostNewBtn'))$('hostNewBtn').addEventListener('click',openNewSessionChooser);attachBoardLayer();updateSessionPanel()
 }
-function renderTurnWaiting(s){
-  const g=s.game,who=g.players[g.turnKey]?.name||'другой ученик',me=g.stats[participantPlayerKey]||{};
-  $('app').innerHTML=`<section class="screen waiting-turn" data-board-anchor="main-screen"><div class="panel"><div class="eyebrow">Ход другого всадника</div><h1>СЕЙЧАС ОТВЕЧАЕТ<br>${esc(who)}</h1><p class="lead">Задание видит только тот ученик, чей сейчас ход. После правильного исправления очередь перейдёт к тебе.</p><div class="summary"><div>Твой результат<b>${Number(me.firstTryCorrect)||0}</b>верно сразу</div><div>Выполнено<b>${Number(me.completed)||0}/15</b>заданий</div></div></div></section>`;attachBoardLayer();updateSessionPanel()
-}
+function renderTurnWaiting(s){renderQuestion(s)}
 function isMethodQuestion(q){return q&&q.type==='method'}
 function isCorrectAnswer(q,value){return isMethodQuestion(q)?Number(value)===Number(q.correctOption):Boolean(value)===Boolean(q.truth)}
 function answerToken(q,value){return isMethodQuestion(q)?String(Number(value)):String(Boolean(value))}
 function answerControls(q,attempt,canAnswer){
   const wrong=new Set((attempt?.wrongChoices||[]).map(String));
-  if(isMethodQuestion(q))return `<div class="method-options">${q.options.map((opt,i)=>`<button class="method-option ${wrong.has(String(i))?'used-wrong':''}" data-method-index="${i}" ${(canAnswer&&!wrong.has(String(i)))?'':'disabled'}><span>${i+1}.</span> ${esc(opt)}</button>`).join('')}</div>`;
+  if(isMethodQuestion(q))return `<div class="method-options">${q.options.map((opt,i)=>`<button class="method-option ${wrong.has(String(i))?'used-wrong':''}" data-method-index="${i}" ${(canAnswer&&!wrong.has(String(i)))?'':'disabled'}><span>${i+1}.</span> ${mathHtml(opt)}</button>`).join('')}</div>`;
   return `<div class="answer-row"><button class="answer true ${wrong.has('true')?'dim':''}" data-value="true" ${(canAnswer&&!wrong.has('true'))?'':'disabled'}>✓ ВЕРНО</button><button class="answer false ${wrong.has('false')?'dim':''}" data-value="false" ${(canAnswer&&!wrong.has('false'))?'':'disabled'}>✕ НЕВЕРНО</button></div>`
 }
 function correctAnswerText(q){return isMethodQuestion(q)?q.options[q.correctOption]:(q.truth?'ВЕРНО':'НЕВЕРНО')}
@@ -348,7 +369,7 @@ function renderQuestion(s){
 }
 function feedbackMarkup(s,q,fb,active){
   const g=s.game,isLast=g.index>=g.deck.length-1,answer=correctAnswerText(q);
-  return `<span class="feedback-icon">${fb.firstCorrect?'✓':'↻'}</span><div><b>${fb.firstCorrect?'Верно!':'Исправлено правильно'}</b><span><strong>${isMethodQuestion(q)?'ПРАВИЛЬНЫЙ СПОСОБ':'ПРАВИЛЬНЫЙ ОТВЕТ'}: ${esc(answer)}.</strong> ${esc(q.formula)}. ${esc(q.explain)}</span></div>${active?`<button class="primary next" id="nextBtn">${isLast?'Завершить игру →':'Следующее задание →'}</button>`:''}`
+  return `<span class="feedback-icon">${fb.firstCorrect?'✓':'↻'}</span><div><b>${fb.firstCorrect?'Верно!':'Исправлено правильно'}</b><span><strong>${isMethodQuestion(q)?'ПРАВИЛЬНЫЙ СПОСОБ':'ПРАВИЛЬНЫЙ ОТВЕТ'}: ${mathHtml(answer)}.</strong> ${mathHtml(q.formula)}. ${mathHtml(q.explain)}</span></div>${active?`<button class="primary next" id="nextBtn">${isLast?'Завершить игру →':'Следующее задание →'}</button>`:''}`
 }
 function renderFinal(s){
   clearInterval(questionTimer);questionTimer=null;
@@ -373,9 +394,10 @@ function renderFromState(force=false){
 async function hostStartGame(){
   if(role!=='teacher')return;
   const snap=await get(stateRef());if(!snap.exists())return;
-  const initial=normalizeState(snap.val()),ms=await get(membersRef()),members=ms.exists()?ms.val()||{}:{},onlineIds=new Set(Object.values(members).filter(m=>m&&m.online&&m.role==='student'&&m.studentId).map(m=>String(m.studentId)));
-  const ordered=Object.entries(initial.game.players).sort((a,b)=>(a[1].slot||9)-(b[1].slot||9)).slice(0,initial.game.studentLimit);
-  if(ordered.length<initial.game.studentLimit||!ordered.every(([,p])=>onlineIds.has(String(p.studentId)))){showToast('Начать можно только после подключения всех учеников выбранного режима.');return}
+  const initial=normalizeState(snap.val());
+  const ordered=Object.entries(initial.game.players).sort((a,b)=>(a[1].slot||9)-(b[1].slot||9));
+  const selected=Array.from({length:initial.game.studentLimit},(_,i)=>ordered.find(([,p])=>Number(p.slot)===i+1)||null).filter(Boolean);
+  if(selected.length<initial.game.studentLimit){showToast('Сначала должны быть заняты все выбранные места учеников.');return}
   await runTransaction(stateRef(),current=>{
     const s=normalizeState(current||clone(initial));if(s.game.status!=='lobby')return s;
     const players=Object.entries(s.game.players).sort((a,b)=>(a[1].slot||9)-(b[1].slot||9));if(players.length<s.game.studentLimit)return;
@@ -442,48 +464,87 @@ async function submitTimeout(){
   }catch{}
 }
 async function tryJoinStudent(){
-  if(joinInFlight||role!=='student'||!student)return;joinInFlight=true;
+  if(joinInFlight||role!=="student"||!student?.code)return "blocked";
+  joinInFlight=true;
   try{
     const ss=await get(stateRef());
-    if(!ss.exists()){serverState=null;renderWaitingTeacher();return}
+    if(!ss.exists()){serverState=null;return "waiting"}
     const initial=normalizeState(ss.val());serverState=initial;
-    const ms=await get(membersRef());const members=ms.exists()?ms.val()||{}:{};const activeIds=new Set(Object.values(members).filter(m=>m&&m.online&&m.role==='student'&&m.studentId).map(m=>String(m.studentId)));
-    const pk=playerKey(student.studentId),candidateEventId=uuid(),now=Date.now();
+    const ms=await get(membersRef()),members=ms.exists()?ms.val()||{}:{};
+    const activeCodes=new Set(Object.values(members).filter(m=>m&&m.online&&m.role==="student"&&m.code).map(m=>String(m.code).trim().toUpperCase()));
+    const pk=playerKey(student.code),candidateEventId=uuid(),now=Date.now();
     const result=await runTransaction(stateRef(),current=>{
       const s=normalizeState(current||clone(initial)),g=s.game;
-      const existingKey=Object.keys(g.players).find(k=>String(g.players[k]?.studentId)===String(student.studentId));
-      if(existingKey){const p=g.players[existingKey];p.name=student.name;p.code=student.code;p.lastSeen=now;g.eventIds[existingKey]=g.eventIds[existingKey]||candidateEventId;s.version++;return s}
-      if(g.status!=='lobby')return;
+      const existing=g.players[pk];
+      if(existing){
+        existing.lastSeen=now;
+        if(student.studentId)existing.studentId=student.studentId;
+        if(student.name)existing.name=student.name;
+        existing.code=student.code;existing.verified=Boolean(student.verified);
+        g.eventIds[pk]=g.eventIds[pk]||candidateEventId;s.version++;return s
+      }
+      if(g.status!=="lobby")return;
       for(const [key,p] of Object.entries(g.players)){
-        const stale=!activeIds.has(String(p.studentId))&&now-(Number(p.lastSeen)||Number(p.joinedAt)||0)>10000;
-        if(stale&&g.status==='lobby'){delete g.players[key];delete g.stats[key];delete g.attempts[key];delete g.eventIds[key];delete g.submissions[key]}
+        const pcode=String(p.code||"").trim().toUpperCase();
+        const stale=!activeCodes.has(pcode)&&now-(Number(p.lastSeen)||Number(p.joinedAt)||0)>10000;
+        if(stale){delete g.players[key];delete g.stats[key];delete g.attempts[key];delete g.eventIds[key];delete g.submissions[key]}
       }
       if(Object.keys(g.players).length>=g.studentLimit)return;
       const used=new Set(Object.values(g.players).map(p=>Number(p.slot)));let slot=1;while(used.has(slot)&&slot<=g.studentLimit)slot++;
       if(slot>g.studentLimit)return;
-      g.players[pk]={studentId:student.studentId,name:student.name,code:student.code,slot,joinedAt:now,lastSeen:now};g.stats[pk]={firstTryCorrect:0,completed:0,attemptCount:0};g.attempts[pk]={};g.eventIds[pk]=candidateEventId;s.version++;return s
+      g.players[pk]={studentId:student.studentId||"",name:`Ученик ${slot}`,code:student.code,slot,verified:Boolean(student.verified),joinedAt:now,lastSeen:now};
+      g.stats[pk]={firstTryCorrect:0,completed:0,attemptCount:0};g.attempts[pk]={};g.eventIds[pk]=candidateEventId;s.version++;return s
     });
     if(!result.committed){
-      const reread=await get(stateRef());if(!reread.exists()){serverState=null;renderWaitingTeacher();return}
-      const after=normalizeState(reread.val()),found=Object.keys(after.game.players).find(k=>String(after.game.players[k]?.studentId)===String(student.studentId));
-      if(found){participantPlayerKey=found;serverState=after;await registerPresence();renderFromState(true);return}
-      if(after.game.status!=='lobby'){showToast('Игра уже началась. Войти новым участником сейчас нельзя.');return}
-      if(Object.keys(after.game.players).length>=after.game.studentLimit){showToast('Все места действительно заняты.');return}
-      showToast('Вход не завершён из-за одновременного изменения. Нажми «Повторить вход».');showRetryJoin();return
+      const reread=await get(stateRef());if(!reread.exists()){serverState=null;return "waiting"}
+      const after=normalizeState(reread.val());serverState=after;
+      if(after.game.players?.[pk]){participantPlayerKey=pk;return "joined"}
+      if(after.game.status!=="lobby"){showToast("Игра уже началась. Нового участника сейчас добавить нельзя.","bad");return "blocked"}
+      if(Object.keys(after.game.players||{}).length>=after.game.studentLimit){showToast("Все места действительно заняты.","bad");return "blocked"}
+      showToast("Не удалось занять место. Повторите вход.","bad");showRetryJoin?.();return "blocked"
     }
-    const after=normalizeState(result.snapshot.val()),found=Object.keys(after.game.players).find(k=>String(after.game.players[k]?.studentId)===String(student.studentId));if(!found){showToast('Не удалось закрепить место.');showRetryJoin();return}
-    participantPlayerKey=found;serverState=after;await registerPresence();renderFromState(true)
-  }catch(e){showToast(online?'Не удалось подключиться к занятию. Можно повторить вход.':'Нет сети. Подключение продолжится после восстановления.');showRetryJoin()}
-  finally{joinInFlight=false}
+    serverState=normalizeState(result.snapshot.val());participantPlayerKey=pk;return "joined"
+  }catch(e){
+    showToast?.("Не удалось подключиться к занятию. Можно повторить вход.","bad");showRetryJoin?.();return "blocked"
+  }finally{joinInFlight=false}
 }
 function showRetryJoin(){const p=$('sessionPanel');if(p&&!$('retryJoinBtn')){const b=document.createElement('button');b.id='retryJoinBtn';b.className='tiny';b.textContent='Повторить вход';b.addEventListener('click',()=>tryJoinStudent());p.appendChild(b)}}
 
 async function registerPresence(){
-  if(!role)return;participantId=role==='teacher'?'teacher':participantPlayerKey||playerKey(student?.studentId||'');participantName=role==='teacher'?'Учитель':student?.name||'Ученик';
+  if(!role)return;
+  participantId=role==="teacher"?"teacher":participantPlayerKey||playerKey(student?.code||"");
+  participantName=role==="teacher"?"Учитель":(student?.name||serverState?.game?.players?.[participantPlayerKey]?.name||"Ученик");
   const mref=memberRef(browserClientId);presencePath=mref;
-  try{await onDisconnect(mref).update({online:false,lastSeen:serverTimestamp()});await set(mref,{id:browserClientId,userId:participantId,studentId:role==='student'?student.studentId:'',name:participantName,role,color:role==='teacher'?'#ffd460':'#45a873',online:true,lastSeen:serverTimestamp()})}catch{}
+  try{
+    await onDisconnect(mref).update({online:false,lastSeen:serverTimestamp()});
+    await set(mref,{id:browserClientId,userId:participantId,studentId:role==="student"?(student?.studentId||""):"",code:role==="student"?(student?.code||""):"",name:participantName,role,color:role==="teacher"?"#ffd45b":"#65bac5",verified:Boolean(student?.verified),online:true,lastSeen:serverTimestamp()})
+  }catch{}
 }
 async function cleanupPresence(){if(presencePath){try{await update(presencePath,{online:false,lastSeen:serverTimestamp()})}catch{}presencePath=null}}
+
+async function backgroundValidateStudent(code){
+  let attempt=0;
+  while(role==="student"&&student?.code===code&&!student.verified){
+    attempt++;
+    identityCheckText=`проверяем имя · попытка ${attempt}`;updateSessionPanel();
+    try{
+      const verified=await validateStudent(code);
+      if(role!=="student"||student?.code!==code)return;
+      student={...student,...verified,code,verified:true};saveStudent(student);participantName=student.name;
+      const pk=playerKey(code);
+      await runTransaction(stateRef(),current=>{
+        if(!current)return current;
+        const s=normalizeState(current),p=s.game?.players?.[pk];if(!p)return s;
+        p.studentId=student.studentId||"";p.name=student.name||p.name;p.verified=true;p.code=code;p.lastSeen=Date.now();s.version++;return s
+      });
+      identityCheckText='✓ подтверждён';setTimeout(()=>registerPresence().catch(()=>{}),0);renderFromState(true);return
+    }catch(e){
+      if(/не найден|неактив/i.test(String(e?.message||""))){identityCheckText='код не найден · игра продолжается';updateSessionPanel();return}
+      identityCheckText='сервер не ответил · повторяем';updateSessionPanel();
+      await new Promise(r=>setTimeout(r,1200))
+    }
+  }
+}
 
 function startSessionListeners(){
   if(stateUnsub)stateUnsub();if(membersUnsub)membersUnsub();if(messagesUnsub)messagesUnsub();
@@ -491,7 +552,9 @@ function startSessionListeners(){
   membersUnsub=onValue(membersRef(),snap=>{membersSnapshot=snap.exists()?snap.val()||{}:{};updateSessionPanel();if(serverState?.game?.status==='lobby')renderFromState(true)});
   messagesUnsub=onValue(messagesRef(),snap=>{const m=snap.exists()?snap.val()||{}:{};remoteTeacherCursor=m.teacherCursor||null;updateTeacherCursor()});
 }
-function stopSessionListeners(){if(stateUnsub){stateUnsub();stateUnsub=null}if(membersUnsub){membersUnsub();membersUnsub=null}if(messagesUnsub){messagesUnsub();messagesUnsub=null}}
+function stopWaitingForTeacher(){if(waitStateUnsub){try{waitStateUnsub()}catch{}waitStateUnsub=null}}
+function waitForTeacherSession(opts={}){if(waitStateUnsub||role!=="student")return;waitStateUnsub=onValue(stateRef(),snap=>{if(role!=="student")return;if(!snap.exists()){serverState=null;renderWaitingTeacher();return}const off=waitStateUnsub;waitStateUnsub=null;try{off&&off()}catch{}serverState=normalizeState(snap.val());setTimeout(()=>connectStudent(student,{needsValidation:opts.needsValidation??!student?.verified}).catch(()=>{}),0)})}
+function stopSessionListeners(){stopWaitingForTeacher();if(stateUnsub){stateUnsub();stateUnsub=null}if(membersUnsub){membersUnsub();membersUnsub=null}if(messagesUnsub){messagesUnsub();messagesUnsub=null}}
 
 function openRoleModal(){
   const modal=$('lessonModal');modal.classList.add('open');modal.innerHTML=`<div class="lesson-card"><button class="modal-x" id="closeModalBtn">×</button><span class="tag">Совместный урок</span><h2>Как вы входите?</h2><div class="role-grid"><button class="role-choice" id="teacherRoleBtn"><b>Учитель</b><small>Создать или продолжить занятие</small></button><button class="role-choice" id="studentRoleBtn"><b>Ученик</b><small>Войти по личному коду</small></button></div></div>`;
@@ -501,28 +564,84 @@ function closeLessonModal(){$('lessonModal').classList.remove('open')}
 function openTeacherLogin(){
   $('lessonModal').innerHTML=`<div class="lesson-card"><button class="modal-x" id="closeModalBtn">×</button><span class="tag">Вход учителя</span><h2>Код учителя</h2><form id="teacherLoginForm" class="code-form"><input class="code" id="teacherCodeInput" type="password" autocomplete="current-password" placeholder="КОД УЧИТЕЛЯ"><button class="primary">Войти</button><div class="status" id="teacherLoginStatus"></div></form></div>`;$('closeModalBtn').onclick=closeLessonModal;$('teacherLoginForm').onsubmit=handleTeacherLogin
 }
-async function handleTeacherLogin(e){e.preventDefault();const input=$('teacherCodeInput'),status=$('teacherLoginStatus'),btn=e.submitter;input.disabled=btn.disabled=true;status.textContent='Проверяем…';try{if(await sha256(input.value.trim())!==TEACHER_CODE_HASH)throw new Error('Неверный код учителя');teacherAuthenticated=true;role='teacher';participantPlayerKey='';startSessionListeners();const snap=await get(stateRef());serverState=snap.exists()?normalizeState(snap.val()):null;if(serverState&&serverState.schemaVersion===SCHEMA_VERSION)openTeacherResume();else openNewSessionChooser()}catch(err){status.className='status bad';status.textContent=err.message||'Не удалось войти';input.disabled=btn.disabled=false}}
+async function handleTeacherLogin(e){
+  e.preventDefault();
+  const input=$("teacherCodeInput"),status=$("teacherLoginStatus"),btn=e.submitter;
+  input.disabled=btn.disabled=true;status.textContent="Проверяем…";
+  try{
+    if(await sha256(input.value.trim())!==TEACHER_CODE_HASH)throw new Error("Неверный код учителя");
+    teacherAuthenticated=true;role="teacher";participantPlayerKey="";
+    openTeacherDecision()
+  }catch(err){status.className="status bad";status.textContent=err.message||"Не удалось войти";input.disabled=btn.disabled=false}
+}
+function openTeacherDecision(){
+  $("lessonModal").classList.add("open");
+  const tag='<span class="tag">Учитель</span>';
+  $("lessonModal").innerHTML=`<div class="lesson-card">${tag}<h2>Что открыть?</h2><p>Выберите действие. До этого момента прошлое занятие не загружается.</p><div class="actions"><button class="primary" id="restoreTeacherBtn">Восстановить прошлую игру</button><button class="secondary" id="newTeacherBtn">Начать новую игру</button></div></div>`;
+  $("restoreTeacherBtn").onclick=restoreTeacherSession;
+  $("newTeacherBtn").onclick=openNewSessionChooser
+}
+async function restoreTeacherSession(){
+  const card=$("lessonModal").querySelector(".lesson-card");
+  try{
+    const snap=await get(stateRef());
+    if(!snap.exists()){openNewSessionChooser();return}
+    serverState=normalizeState(snap.val());
+    closeLessonModal();showConnectedUI();renderFromState(true);
+    startSessionListeners();
+    setTimeout(()=>registerPresence().catch(()=>{}),0)
+  }catch(e){
+    card.innerHTML=`<h2>Не удалось восстановить</h2><p>Проверьте соединение и попробуйте ещё раз.</p><button class="primary" id="retryRestore">Повторить</button>`;
+    $("retryRestore").onclick=restoreTeacherSession
+  }
+}
+
 function openTeacherResume(){
-  $('lessonModal').classList.add('open');$('lessonModal').innerHTML=`<div class="lesson-card"><span class="tag">Найдено текущее занятие</span><h2>Продолжить или начать заново?</h2><p>Firebase — главный источник состояния. При продолжении восстановятся игроки, вопрос, очередь, первые попытки и баллы.</p><div class="actions"><button class="primary" id="continueBtn">Продолжить занятие</button><button class="secondary" id="newBtn">Начать новое</button></div></div>`;$('continueBtn').onclick=async()=>{closeLessonModal();await registerPresence();showConnectedUI();renderFromState(true)};$('newBtn').onclick=openNewSessionChooser
+  $('lessonModal').classList.add('open');$('lessonModal').innerHTML=`<div class="lesson-card"><span class="tag">Найдено текущее занятие</span><h2>Продолжить или начать заново?</h2><p>При продолжении восстановятся игроки, вопрос, очередь, первые попытки и баллы.</p><div class="actions"><button class="primary" id="continueBtn">Продолжить занятие</button><button class="secondary" id="newBtn">Начать новое</button></div></div>`;$('continueBtn').onclick=async()=>{closeLessonModal();await registerPresence();showConnectedUI();renderFromState(true)};$('newBtn').onclick=openNewSessionChooser
 }
 function openNewSessionChooser(){
   $('lessonModal').classList.add('open');$('lessonModal').innerHTML=`<div class="lesson-card"><span class="tag">Новое занятие</span><h2>Сколько учеников?</h2><div class="role-grid"><button class="role-choice" data-limit="1"><b>1 ученик</b><small>15 заданий: факты + выбор метода</small></button><button class="role-choice" data-limit="2"><b>2 ученика</b><small>по 15 каждому, строго по очереди</small></button></div></div>`;document.querySelectorAll('[data-limit]').forEach(b=>b.onclick=()=>createFreshSession(Number(b.dataset.limit)))
 }
 async function createFreshSession(limit){
-  if(!teacherAuthenticated)return;const card=$('lessonModal').querySelector('.lesson-card');card.innerHTML='<span class="tag">Создаём занятие</span><h2>Сохраняем новое состояние…</h2>';
-  const freshState=newGameState(limit),freshSession={meta:{sessionId:freshState.game.sessionId,appId:APP_ID,schemaVersion:SCHEMA_VERSION,openedAt:Date.now()},state:freshState,members:{},messages:{}};
-  try{await set(sessionRef(),freshSession);serverState=freshState;await registerPresence();closeLessonModal();showConnectedUI();renderFromState(true)}catch{card.innerHTML='<span class="tag">Ошибка</span><h2>Не удалось создать занятие</h2><p>Проверь интернет и повтори.</p><button class="primary" id="retryNew">Повторить</button>';$('retryNew').onclick=()=>openNewSessionChooser()}
+  if(!teacherAuthenticated)return;
+  const freshState=newGameState(limit);
+  const freshSession={meta:{sessionId:freshState.game.sessionId,appId:APP_ID,schemaVersion:SCHEMA_VERSION,openedAt:Date.now()},state:freshState,pads:{},interactions:{},members:{},messages:{}};
+  const run=++creationRun;
+  stopSessionListeners();membersSnapshot={};serverState=freshState;
+  closeLessonModal();showConnectedUI();renderFromState(true);
+  const atomicWrite=()=>set(sessionRef(),freshSession);
+  const finishCreate=()=>{if(run!==creationRun||role!=="teacher")return false;serverState=freshState;startSessionListeners();setTimeout(()=>registerPresence().catch(()=>{}),0);updateSessionPanel();return true};
+  try{await atomicWrite();finishCreate();}
+  catch(_){showToast("Сервер не ответил — повторяем создание занятия…","bad");while(run===creationRun&&role==="teacher"){await new Promise(r=>setTimeout(r,2500));try{await atomicWrite();finishCreate();showToast("Занятие создано.");return}catch(__){}}}
 }
 function openStudentLogin(){
   student=storedStudent();
-  if(student){$('lessonModal').innerHTML=`<div class="lesson-card"><button class="modal-x" id="closeModalBtn">×</button><span class="tag">Вход ученика</span><h2>${esc(student.name)}</h2><p>Личный код уже сохранён в этом браузере.</p><div class="actions"><button class="primary" id="savedStudentBtn">Войти в занятие</button><button class="secondary" id="changeStoredBtn">Сменить ученика</button></div></div>`;$('closeModalBtn').onclick=closeLessonModal;$('savedStudentBtn').onclick=()=>connectStudent(student);$('changeStoredBtn').onclick=()=>{clearStoredStudent();openStudentLoginForm()};return}
+  if(student){$('lessonModal').innerHTML=`<div class="lesson-card"><button class="modal-x" id="closeModalBtn">×</button><span class="tag">Вход ученика</span><h2>${esc(student.name)}</h2><p>Личный код уже сохранён в этом браузере.</p><div class="actions"><button class="primary" id="savedStudentBtn">Войти в занятие</button><button class="secondary" id="changeStoredBtn">Сменить ученика</button></div></div>`;$('closeModalBtn').onclick=closeLessonModal;$('savedStudentBtn').onclick=()=>connectStudent(student,{needsValidation:!student.verified});$('changeStoredBtn').onclick=()=>{clearStoredStudent();openStudentLoginForm()};return}
   openStudentLoginForm()
 }
 function openStudentLoginForm(){
-  $('lessonModal').innerHTML=`<div class="lesson-card"><button class="modal-x" id="closeModalBtn">×</button><span class="tag">Вход ученика</span><h2>Личный код</h2><form class="code-form" id="studentLoginForm"><input class="code" id="studentCodeInput" maxlength="40" autocomplete="one-time-code" placeholder="ЛИЧНЫЙ КОД"><button class="primary">Проверить код</button><div class="status" id="studentLoginStatus"></div></form></div>`;$('closeModalBtn').onclick=closeLessonModal;$('studentLoginForm').onsubmit=handleStudentLogin
+  $('lessonModal').innerHTML=`<div class="lesson-card"><button class="modal-x" id="closeModalBtn">×</button><span class="tag">Вход ученика</span><h2>Личный код</h2><form class="code-form" id="studentLoginForm"><input class="code" id="studentCodeInput" maxlength="40" autocomplete="one-time-code" placeholder="ЛИЧНЫЙ КОД"><button class="primary">Подключиться</button><div class="status" id="studentLoginStatus"></div></form></div>`;$('closeModalBtn').onclick=closeLessonModal;$('studentLoginForm').onsubmit=handleStudentLogin
 }
-async function handleStudentLogin(e){e.preventDefault();const input=$('studentCodeInput'),btn=e.submitter,status=$('studentLoginStatus'),code=input.value.trim();if(!code){status.className='status bad';status.textContent='Введи личный код';return}input.disabled=btn.disabled=true;status.textContent='Проверяем код…';try{student=await validateStudent(code);saveStudent(student);await flushPendingResults();connectStudent(student)}catch(err){status.className='status bad';status.textContent=err.message||'Код не подтверждён';input.disabled=btn.disabled=false}}
-async function connectStudent(s){student=s;saveStudent(s);role='student';participantName=s.name;participantPlayerKey=playerKey(s.studentId);closeLessonModal();showConnectedUI();startSessionListeners();await tryJoinStudent();if(!serverState)renderWaitingTeacher()}
+async function handleStudentLogin(e){
+  e.preventDefault();
+  const input=$("studentCodeInput"),btn=e.submitter,status=$("studentLoginStatus"),code=String(input.value||"").trim().toUpperCase();
+  if(!code){status.className="status bad";status.textContent="Введи личный код";return}
+  input.disabled=btn.disabled=true;status.className="status";status.textContent="Подключаем к занятию…";
+  student={code,studentId:"",name:"",verified:false};saveStudent(student);
+  await connectStudent(student,{statusNode:status,needsValidation:true});
+  input.disabled=btn.disabled=false
+}
+async function connectStudent(s,opts={}){
+  student=s;saveStudent(s);role="student";participantPlayerKey=playerKey(s.code);participantName=s.name||"Ученик";
+  const result=await tryJoinStudent();
+  if(result==="waiting"){
+    closeLessonModal();showConnectedUI();renderWaitingTeacher();waitForTeacherSession(opts);return
+  }
+  if(result!=="joined")return;
+  closeLessonModal();showConnectedUI();renderFromState(true);startSessionListeners();
+  setTimeout(()=>registerPresence().catch(()=>{}),0);
+  if(opts.needsValidation&&!student.verified)setTimeout(()=>backgroundValidateStudent(student.code),0)
+}
 async function switchStudent(){if(serverState?.game?.status==='playing'){showToast('Во время игры менять ученика нельзя.');return}await cleanupPresence();stopSessionListeners();role='';participantId='';participantPlayerKey='';clearStoredStudent();hideConnectedUI();renderPublic();openRoleModal();setTimeout(openStudentLogin,0)}
 
 function showConnectedUI(){$('lessonJoinBtn').classList.add('hidden');$('sessionPanel').classList.add('show');$('boardToolbar').classList.add('show');updateSessionPanel()}
@@ -531,8 +650,10 @@ function updateSessionPanel(){
   const p=$('sessionPanel');if(!p)return;if(!role){p.classList.remove('show');return}
   const onlineStudents=Object.values(membersSnapshot).filter(m=>m&&m.online&&m.role==='student').length;
   const status=!online?'офлайн':serverState?.game?.status==='playing'?'игра идёт':serverState?.game?.status==='finished'?'завершено':serverState?'лобби':'ждём учителя';
-  p.innerHTML=`<span class="session-dot ${online?'on':''}"></span><b>${role==='teacher'?'Учитель':esc(student?.name||'Ученик')}</b><small>${status}${serverState?` · учеников онлайн: ${onlineStudents}`:''}</small>${role==='student'?'<button class="tiny" id="panelSwitchStudent">Сменить ученика</button>':''}`;
-  if($('panelSwitchStudent'))$('panelSwitchStudent').onclick=switchStudent
+  const identity=role==='student'?(student?.verified?'✓ подтверждён':identityCheckText||'проверяем имя'):'';
+  const finish=role==='teacher'&&serverState?.game?.status==='playing'?'<button class="tiny danger" id="panelFinishLesson">Завершить занятие</button>':'';
+  p.innerHTML=`<span class="session-dot ${online?'on':''}"></span><b>${role==='teacher'?'Учитель':esc(student?.name||'Ученик')}</b><small>${status}${serverState?` · учеников онлайн: ${onlineStudents}`:''}${identity?` · ${esc(identity)}`:''}</small>${finish}${role==='student'?'<button class="tiny" id="panelSwitchStudent">Сменить ученика</button>':''}`;
+  if($('panelSwitchStudent'))$('panelSwitchStudent').onclick=switchStudent;if($('panelFinishLesson'))$('panelFinishLesson').onclick=finishEarly
 }
 function showToast(text){const t=$('toast');t.textContent=text;t.classList.add('show');clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>t.classList.remove('show'),4200)}
 
@@ -545,7 +666,7 @@ function removeQueued(eventId){writeQueue(readQueue().filter(x=>x?.payload?.even
 async function postResult(payload){const response=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow'});let answer;try{answer=await response.json()}catch{throw new Error('Система результатов не ответила.')}if(!response.ok||!answer?.ok)throw new Error(answer?.error||'Результат не принят.');return answer}
 function resultPayload(s,pk){
   const g=s.game,p=g.players[pk],st=g.stats[pk]||{},completed=Number(st.completed)||0,score=Number(st.firstTryCorrect)||0,maxScore=g.endedEarly?completed:assignedTotal(s,pk),percent=maxScore?Math.round(score/maxScore*100):0,finished=g.finishedAt||Date.now(),started=g.startedAt||finished,durationSec=Math.max(1,Math.round((finished-started)/1000));
-  return{action:'submitTest',programId:'EGE_MATH',eventId:g.eventIds[pk]||`${g.sessionId}-${pk}`,studentId:p?.studentId||'',studentName:p?.name||'',studentCode:p?.code||'',testId:TEST_META.testId,testName:TEST_META.testName,topicId:TEST_META.topicId,topicName:TEST_META.topicName,taskNumber:TEST_META.taskNumber,testDate:localDate(),score,maxScore,percent,scorePercent:percent,durationSec,durationSeconds:durationSec,startedAt:nowIso(started),finishedAt:nowIso(finished),completedAt:nowIso(finished),answeredCount:completed,attemptCount:Number(st.attemptCount)||0,studentMode:g.studentLimit,mode:g.studentLimit===2?'two':'one',schemaVersion:SCHEMA_VERSION,roomCode:FIXED_SESSION_ID}
+  return{action:'submitTest',programId:'EGE_MATH',eventId:g.eventIds[pk]||`${g.sessionId}-${pk}`,studentId:p?.studentId||p?.code||'',studentName:p?.name||'',studentCode:p?.code||'',testId:TEST_META.testId,testName:TEST_META.testName,topicId:TEST_META.topicId,topicName:TEST_META.topicName,taskNumber:TEST_META.taskNumber,testDate:localDate(),score,maxScore,percent,scorePercent:percent,durationSec,durationSeconds:durationSec,startedAt:nowIso(started),finishedAt:nowIso(finished),completedAt:nowIso(finished),answeredCount:completed,attemptCount:Number(st.attemptCount)||0,studentMode:g.studentLimit,mode:g.studentLimit===2?'two':'one',schemaVersion:SCHEMA_VERSION,roomCode:FIXED_SESSION_ID}
 }
 async function claimSubmission(pk){
   const sref=ref(database,`${lessonRoot()}/state/game/submissions/${pk}`),eventId=serverState?.game?.eventIds?.[pk];if(!eventId)return false;
@@ -570,12 +691,15 @@ function attachBoardLayer(){
 }
 function setBoardPointerMode(){const b=$('sharedBoard');if(b)b.style.pointerEvents=boardTool==='cursor'?'none':'auto';document.querySelectorAll('[data-board-tool]').forEach(x=>x.classList.toggle('active',x.dataset.boardTool===boardTool))}
 function pointFromEvent(e){const anchor=document.querySelector('[data-board-anchor="main-screen"]'),r=anchor.getBoundingClientRect();return[(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height]}
-function boardPointerDown(e){if(boardTool==='cursor'||!serverState)return;e.preventDefault();const p=pointFromEvent(e);if(boardTool==='eraser'){eraseNearest(p);return}activeStroke={id:'stroke-'+uuid(),anchorId:'main-screen',authorId:participantId||role,authorName:participantName||role,color:boardColor,width:boardWidth,points:[p],done:false,epoch:serverState.boardEpoch||0,rev:Date.now()};e.currentTarget.setPointerCapture(e.pointerId);pushStroke(true)}
-function boardPointerMove(e){if(!activeStroke||boardTool!=='pencil')return;const p=pointFromEvent(e),last=activeStroke.points[activeStroke.points.length-1];if(Math.hypot(p[0]-last[0],p[1]-last[1])<.002)return;activeStroke.points.push(p);activeStroke.rev=Date.now();renderBoardStrokes();if(Date.now()-lastStrokePush>70){lastStrokePush=Date.now();pushStroke(false)}}
-function boardPointerUp(){if(!activeStroke)return;activeStroke.done=true;activeStroke.rev=Date.now();pushStroke(true);activeStroke=null}
-async function pushStroke(){if(!activeStroke||!serverState)return;try{await set(ref(database,`${lessonRoot()}/state/strokes/${activeStroke.id}`),clone(activeStroke))}catch{}}
-function renderBoardStrokes(){const b=$('sharedBoard');if(!b||!serverState)return;const epoch=serverState.boardEpoch||0,strokes=Object.values(serverState.strokes||{}).filter(s=>s&&s.epoch===epoch);if(activeStroke&&!strokes.some(s=>s.id===activeStroke.id))strokes.push(activeStroke);b.innerHTML=strokes.map(s=>{const pts=(s.points||[]).map(([x,y])=>`${Math.max(0,Math.min(1,x))*1000},${Math.max(0,Math.min(1,y))*1000}`).join(' ');return pts?`<polyline points="${pts}" fill="none" stroke="${esc(s.color||'#e53935')}" stroke-width="${Math.max(1,Number(s.width)||6)*2.2}" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`:''}).join('')}
-async function eraseNearest(p){if(!serverState)return;const entries=Object.entries(serverState.strokes||{}).filter(([,s])=>s?.epoch===(serverState.boardEpoch||0));let best=null,bestD=.04;for(const [id,s] of entries)for(const q of s.points||[]){const d=Math.hypot(p[0]-q[0],p[1]-q[1]);if(d<bestD){bestD=d;best=id}}if(best)try{await set(ref(database,`${lessonRoot()}/state/strokes/${best}`),null)}catch{}}
+function boardPointerDown(e){if(boardTool==='cursor'||!serverState)return;e.preventDefault();e.currentTarget.setPointerCapture?.(e.pointerId);const p=pointFromEvent(e);if(boardTool==='eraser'){erasing=true;lastEraserPoint=p;eraseAlong(p,p);return}activeStroke={id:'stroke-'+uuid(),anchorId:'main-screen',authorId:participantId||role,authorName:participantName||role,color:boardColor,width:boardWidth,points:[p],done:false,epoch:serverState.boardEpoch||0,rev:Date.now()};renderBoardStrokes();pushStrokeSnapshot(clone(activeStroke))}
+function boardPointerMove(e){const p=pointFromEvent(e);if(boardTool==='eraser'&&erasing){e.preventDefault();eraseAlong(lastEraserPoint||p,p);lastEraserPoint=p;return}if(!activeStroke||boardTool!=='pencil')return;const last=activeStroke.points[activeStroke.points.length-1];if(Math.hypot(p[0]-last[0],p[1]-last[1])<.002)return;activeStroke.points.push(p);activeStroke.rev=Date.now();renderBoardStrokes();if(Date.now()-lastStrokePush>=60){lastStrokePush=Date.now();pushStrokeSnapshot(clone(activeStroke))}}
+function boardPointerUp(){if(erasing){erasing=false;lastEraserPoint=null}if(!activeStroke)return;const finalStroke=clone({...activeStroke,done:true,rev:Date.now()});activeStroke=null;renderBoardStrokes();pushStrokeSnapshot(finalStroke)}
+async function pushStrokeSnapshot(stroke){if(!stroke||!serverState)return;try{await set(ref(database,`${lessonRoot()}/state/strokes/${stroke.id}`),stroke)}catch{}}
+function renderBoardStrokes(){const b=$('sharedBoard');if(!b||!serverState)return;const epoch=Number(serverState.boardEpoch||0),byId=new Map(Object.values(serverState.strokes||{}).filter(s=>s&&Number(s.epoch)===epoch&&!locallyHiddenStrokes.has(s.id)).map(s=>[s.id,s]));if(activeStroke){const remote=byId.get(activeStroke.id);if(!remote||Number(remote.rev||0)<Number(activeStroke.rev||0))byId.set(activeStroke.id,activeStroke)}b.innerHTML=[...byId.values()].map(s=>{const pts=(s.points||[]).map(([x,y])=>`${Math.max(0,Math.min(1,x))*1000},${Math.max(0,Math.min(1,y))*1000}`).join(' ');return pts?`<polyline data-stroke-id="${esc(s.id)}" points="${pts}" fill="none" stroke="${esc(s.color||'#e53935')}" stroke-width="${Math.max(1,Number(s.width)||6)*2.2}" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`:''}).join('')}
+function pointSegmentDistancePx(p,a,b,rect){const px=p[0]*rect.width,py=p[1]*rect.height,ax=a[0]*rect.width,ay=a[1]*rect.height,bx=b[0]*rect.width,by=b[1]*rect.height,dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy,t=l2?Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/l2)):0;return Math.hypot(px-(ax+t*dx),py-(ay+t*dy))}
+function eraseAlong(from,to){if(!serverState)return;const anchor=document.querySelector('[data-board-anchor="main-screen"]'),rect=anchor?.getBoundingClientRect();if(!rect)return;const travel=Math.hypot((to[0]-from[0])*rect.width,(to[1]-from[1])*rect.height),steps=Math.max(1,Math.ceil(travel/4)),samples=Array.from({length:steps+1},(_,i)=>[from[0]+(to[0]-from[0])*i/steps,from[1]+(to[1]-from[1])*i/steps]),epoch=Number(serverState.boardEpoch||0),ids=[];for(const [id,s] of Object.entries(serverState.strokes||{})){if(!s||Number(s.epoch)!==epoch||locallyHiddenStrokes.has(id)||eraseInFlight.has(id))continue;const pts=s.points||[],radius=10+Math.max(1,Number(s.width)||6)/2;let hit=false;for(const sample of samples){if(pts.length===1?pointSegmentDistancePx(sample,pts[0],pts[0],rect)<=radius:pts.some((q,i)=>i&&pointSegmentDistancePx(sample,pts[i-1],q,rect)<=radius)){hit=true;break}}if(hit)ids.push(id)}ids.forEach(eraseStrokeById)}
+async function eraseStrokeById(id){if(!id||eraseInFlight.has(id))return;eraseInFlight.add(id);locallyHiddenStrokes.add(id);renderBoardStrokes();try{await set(ref(database,`${lessonRoot()}/state/strokes/${id}`),null)}catch{locallyHiddenStrokes.delete(id);renderBoardStrokes()}finally{eraseInFlight.delete(id)}}
+async function undoLastOwnStroke(){if(!serverState)return;if(activeStroke){const id=activeStroke.id;activeStroke=null;await eraseStrokeById(id);return}const mine=Object.values(serverState.strokes||{}).filter(s=>s&&Number(s.epoch)===Number(serverState.boardEpoch||0)&&s.authorId===(participantId||role)&&!locallyHiddenStrokes.has(s.id)).sort((a,b)=>Number(b.rev||0)-Number(a.rev||0));if(mine[0])await eraseStrokeById(mine[0].id)}
 async function clearBoard(){if(role!=='teacher'||!serverState)return;const initial=clone(serverState);await runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(initial));s.boardEpoch=(Number(s.boardEpoch)||0)+1;s.strokes={};s.version++;return s})}
 function initBoardToolbar(){
   const tb=$('boardToolbar');let pos={right:18,bottom:18};try{pos={...pos,...JSON.parse(localStorage.getItem(TOOLBAR_POSITION_KEY)||'{}')}}catch{}tb.style.right=(pos.right??18)+'px';tb.style.bottom=(pos.bottom??18)+'px';
@@ -595,6 +719,8 @@ window.addEventListener('offline',()=>{online=false;updateSessionPanel();renderF
 window.addEventListener('resize',updateTeacherCursor);
 window.addEventListener('pagehide',bestEffortPartialSubmit);
 window.addEventListener('beforeunload',bestEffortPartialSubmit);
+document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||String(e.key).toLowerCase()!=='z'||e.target.closest?.('input,textarea,[contenteditable="true"]'))return;e.preventDefault();undoLastOwnStroke()});
+setInterval(()=>flushPendingResults().catch(()=>{}),60000);
 
 initBoardToolbar();renderPublic();flushPendingResults();
 
