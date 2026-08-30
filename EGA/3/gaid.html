@@ -224,7 +224,7 @@
         <h2>Войти по личному коду</h2>
         <p>Введите свой код — имя подставится автоматически.</p>
         <label class="cb-field"><span>ЛИЧНЫЙ КОД</span><input id="cbStudentCode" maxlength="40" placeholder="НАПРИМЕР, FNPK24" autocomplete="one-time-code" style="text-transform:uppercase;letter-spacing:.13em;font-weight:950"></label>
-        <div class="cb-actions"><button class="cb-button" id="cbStudentValidate" type="button">Проверить код</button><button class="cb-button secondary" id="cbStudentAuthBack" type="button">Назад</button></div>
+        <div class="cb-actions"><button class="cb-button" id="cbStudentValidate" type="button">Подключиться</button><button class="cb-button secondary" id="cbStudentAuthBack" type="button">Назад</button></div>
         <div class="cb-message" id="cbStudentAuthMessage" role="status"></div>
       </div>
       <div id="cbStudentReadyView" class="cb-hidden">
@@ -332,7 +332,8 @@
       ["k=1/2, Sосн меняется в 1/4, боковая площадь — в 1/2",`k = ${taskFrac("1","2")}, Sосн меняется в ${taskFrac("1","4")}, боковая площадь — в ${taskFrac("1","2")}`],
       ["для прямоугольного треугольника R=c/2",`для прямоугольного треугольника R = ${taskFrac("c","2")}`]
     ]);
-    const formulaMarkup=(value)=>formulaMarkupMap.get(String(value??""))||esc(value);
+    const inlineMath=(value)=>esc(value).replace(/\(?([0-9A-Za-zА-Яа-яЁёπ√²³₀-₉]+)\/([0-9A-Za-zА-Яа-яЁёπ√²³₀-₉]+)\)?/g,(_,num,den)=>taskFrac(num,den));
+    const formulaMarkup=(value)=>formulaMarkupMap.get(String(value??""))||inlineMath(value);
     const routeNav=document.getElementById("routeNav"),trail=document.getElementById("trail"),mount=document.getElementById("prototypeMount");
     routeNav.innerHTML=chapters.map((c,i)=>`<a href="#trainer" data-open-chapter="${c.id}">${i+1}. ${esc(c.title)}</a>`).join("");
     trail.innerHTML=chapters.map((c,i)=>`<a href="#trainer" data-open-chapter="${c.id}"><b>${i+1}</b><span>${esc(c.title)}</span></a>`).join("");
@@ -350,7 +351,7 @@
       currentTask=Math.max(0,Math.min(flatTasks.length-1,Number(index)||0));const task=flatTasks[currentTask];
       const figure=task.figure?`<div class="prototype-figure"><img src="${figureData[task.figure]}" alt="PNG-чертёж к прототипу ${currentTask+1}" loading="eager"></div>`:`<div class="prototype-figure"><div class="no-figure">Отдельный чертёж не требуется: задача решается непосредственной подстановкой в базовую формулу.</div></div>`;
       const theory=`<details class="theory-details" id="task-theory-${currentTask}"><summary>Открыть теорию именно к этому заданию</summary><div class="theory-card"><p>${esc(task.theory.facts[0])}</p><div class="formula">${formulaMarkup(task.theory.formula)}</div><ul>${task.theory.facts.map((f)=>`<li>${esc(f)}</li>`).join("")}</ul></div></details>`;
-      const solution=`<details class="answer-details" id="task-solution-${currentTask}"><summary>Показать решение и ответ</summary><section class="worked-solution"><h4>Полный разбор решения</h4><ol>${task.solution.map((s)=>`<li>${esc(s)}</li>`).join("")}</ol><p class="worked-answer">Ответ: ${esc(task.answer)}</p></section></details>`;
+      const solution=`<details class="answer-details" id="task-solution-${currentTask}"><summary>Показать решение и ответ</summary><section class="worked-solution"><h4>Полный разбор решения</h4><ol>${task.solution.map((s)=>`<li>${inlineMath(s)}</li>`).join("")}</ol><p class="worked-answer">Ответ: ${esc(task.answer)}</p></section></details>`;
       mount.innerHTML=`<div class="prototype-topbar"><div><strong>${task.chapterIndex+1}. ${esc(chapters[task.chapterIndex].title)}</strong><br><span>Экран ${currentTask+1} из ${flatTasks.length} · ${esc(task.source)}</span></div><span class="variant-chip">${esc(task.badge||"основная задача")}</span></div><div class="prototype-main"><section class="task-panel"><div class="task-kicker">Задание №${currentTask+1}</div><h3>${esc(task.title)}</h3><div class="condition-box"><span class="condition-label">УСЛОВИЕ</span><p class="condition">${esc(task.condition)}</p></div>${figure}${theory}${solution}</section><aside class="workspace-panel"><div class="workspace-head"><h4>Рабочее поле</h4><span>записи сохраняются автоматически</span></div><div class="workspace" id="taskWorkspace" contenteditable="true" spellcheck="false" role="textbox" aria-label="Поле решения" data-pad-id="prototype-${currentTask+1}-workspace" data-placeholder="Записывай решение здесь: формула, подстановка, вычисления, ответ…"></div></aside></div>`;
       const workspace=document.getElementById("taskWorkspace");workspace.textContent=readPad(currentTask);workspace.addEventListener("input",()=>savePad(currentTask,workspace.innerText));
       document.getElementById("taskCounter").textContent=`${currentTask+1} / ${flatTasks.length}`;document.getElementById("ruleProgress").textContent=`Задание ${currentTask+1} из ${flatTasks.length}`;document.getElementById("variantProgress").textContent=`${task.source} · решение открывается по кнопке`;document.getElementById("trainerIcon").textContent=chapters[task.chapterIndex].icon;document.getElementById("trainerTitle").textContent=`${task.chapterIndex+1}. ${chapters[task.chapterIndex].title}`;document.getElementById("trainerSubtitle").textContent=chapters[task.chapterIndex].sub;document.getElementById("previousTask").disabled=currentTask===0;document.getElementById("nextTask").textContent=currentTask===flatTasks.length-1?"Завершить ✓":"Далее →";routeNav.querySelectorAll("a").forEach((a)=>a.classList.toggle("active",a.dataset.openChapter===task.chapterId));updateCompletion();try{localStorage.setItem(currentStorageKey,String(currentTask))}catch(_){}}
@@ -431,7 +432,7 @@ import {
   const cleanName = (value) => String(value || "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 40);
   const cleanColor = (value) => /^#[0-9a-f]{6}$/i.test(String(value || "")) ? String(value) : PLAYER_COLORS[0];
   const escapeHtml = (value) => String(value || "").replace(/[&<>\"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
-  const participantKey = (value) => `student_${String(value || "").replace(/[.#$\[\]\/]/g, "_").slice(0, 90)}`;
+  const participantKey=(value)=>`student_${String(value||"").trim().toUpperCase().replace(/[^A-Z0-9_-]/g,"_").slice(0,80)}`;
   function randomId(length = 18) {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", bytes = new Uint8Array(length);
     crypto.getRandomValues(bytes);
@@ -452,9 +453,11 @@ import {
   let mode = "", me = null, connected = false, localState = null;
   let stateUnsub = null, membersUnsub = null, messagesUnsub = null, interactionsUnsub = null, waitingUnsub = null, padUnsub = null;
   let memberHeartbeat = 0, padTimer = 0, strokeTimer = 0, toastTimer = 0, cursorTimer = 0;
-  let suppressUi = false, applyingState = false, joinInFlight = false, waitingForTeacher = false;
+  let suppressUi = false, applyingState = false, joinInFlight = false, waitingForTeacher = false, teacherCreationRun = 0;
   let tool = "pointer", penColor = "#e53935", penWidth = 6, drawing = null, toolbarDrag = null;
   let remoteMembers = {}, currentPadId = "", pendingStroke = null, lastCursorSent = 0;
+  let identityCheckText="",erasing=false,lastEraserPoint=null;
+  const locallyHiddenStrokes=new Set(),eraseInFlight=new Set();
   const anchors = [];
 
   function newGuideState() {
@@ -506,20 +509,8 @@ import {
     };
   }
 
-  function storedIdentity() {
-    const studentId = localStorage.getItem("egeStudentId");
-    return studentId ? {
-      studentId: String(studentId),
-      name: localStorage.getItem("egeStudentName") || "Ученик",
-      code: localStorage.getItem("egeStudentCode") || ""
-    } : null;
-  }
-  function saveIdentity(identity) {
-    localStorage.setItem("egeStudentId", identity.studentId);
-    localStorage.setItem("egeStudentName", identity.name);
-    localStorage.setItem("egeStudentCode", identity.code);
-    localStorage.setItem(STUDENT_SAVE_KEY, JSON.stringify(identity));
-  }
+  function storedIdentity(){const code=String(localStorage.getItem("egeStudentCode")||"").trim().toUpperCase();if(!code)return null;const studentId=String(localStorage.getItem("egeStudentId")||""),name=String(localStorage.getItem("egeStudentName")||"");return{code,studentId,name,verified:Boolean(studentId&&name&&!/^Ученик\s*\d*$/i.test(name))}}
+  function saveIdentity(identity){if(!identity?.code)return;localStorage.setItem("egeStudentCode",String(identity.code).trim().toUpperCase());if(identity.studentId)localStorage.setItem("egeStudentId",String(identity.studentId));else localStorage.removeItem("egeStudentId");if(identity.name)localStorage.setItem("egeStudentName",String(identity.name));else localStorage.removeItem("egeStudentName");localStorage.setItem(STUDENT_SAVE_KEY,JSON.stringify(identity))}
   function clearIdentity() {
     ["egeStudentId", "egeStudentName", "egeStudentCode", STUDENT_SAVE_KEY].forEach(key => localStorage.removeItem(key));
   }
@@ -538,7 +529,7 @@ import {
       const script = document.createElement("script");
       let done = false;
       const cleanup = () => { delete window[callback]; script.remove(); };
-      const timer = setTimeout(() => { if (done) return; done = true; cleanup(); reject(Error("Сервер не ответил. Проверьте интернет.")); }, 12000);
+      const timer = setTimeout(() => { if (done) return; done = true; cleanup(); reject(Error("Сервер не ответил. Проверьте интернет.")); }, 60000);
       window[callback] = data => { if (done) return; done = true; clearTimeout(timer); cleanup(); try { resolve(parseValidatedStudent(data, code)); } catch (error) { reject(error); } };
       script.onerror = () => { if (done) return; done = true; clearTimeout(timer); cleanup(); reject(Error("Не удалось проверить личный код.")); };
       script.src = API_URL + "?" + new URLSearchParams({action:"validateStudent", code, callback}).toString();
@@ -557,7 +548,8 @@ import {
   function setStatus(status, detail = "") {
     const dot = $("cbLiveDot");
     dot.className = "cb-live-dot" + (status === "online" ? " online" : status === "error" ? " error" : "");
-    $("cbIdentity").textContent = status === "online" ? `${me?.name || "Участник"} · ${mode === "teacher" ? "учитель" : "ученик"}` : (detail || "Подключение…");
+    const identity=mode==="student"?(storedIdentity()?.verified?"✓ подтверждён":identityCheckText||"проверяем имя"):"";
+    $("cbIdentity").textContent = status === "online" ? `${me?.name || "Участник"} · ${mode === "teacher" ? "учитель" : "ученик"}${identity?` · ${identity}`:""}` : (detail || "Подключение…");
   }
   function showStart() {
     closeGate();
@@ -570,7 +562,7 @@ import {
   function showStudentEntry() {
     const identity = storedIdentity();
     if (identity) {
-      $("cbReadyStudentName").textContent = identity.name;
+      $("cbReadyStudentName").textContent = identity.name || "Ученик";
       $("cbJoinLesson").disabled = false;
       message("cbStudentReadyMessage", "");
       setGate("cbStudentReadyView");
@@ -580,27 +572,7 @@ import {
       setTimeout(() => $("cbStudentCode").focus(), 30);
     }
   }
-  async function validateStudentIdentity() {
-    const input = $("cbStudentCode"), button = $("cbStudentValidate");
-    const code = String(input.value || "").trim().toUpperCase();
-    if (!code) { message("cbStudentAuthMessage", "Введите личный код.", "error"); return; }
-    if (await hashText(code) === TEACHER_CODE_HASH) { message("cbStudentAuthMessage", "Это код учителя.", "error"); return; }
-    input.disabled = button.disabled = true;
-    message("cbStudentAuthMessage", "Проверяем код…");
-    try {
-      const identity = await validateStudentCode(code);
-      saveIdentity(identity);
-      $("cbReadyStudentName").textContent = identity.name;
-      message("cbStudentReadyMessage", "Имя подтверждено.", "ok");
-      setGate("cbStudentReadyView");
-      $("cbJoinLesson").disabled = false;
-      setTimeout(() => joinStudent(identity, true), 350);
-    } catch (error) {
-      message("cbStudentAuthMessage", error.message || "Код не подтверждён.", "error");
-    } finally {
-      input.disabled = button.disabled = false;
-    }
-  }
+  async function validateStudentIdentity(){const input=$("cbStudentCode"),button=$("cbStudentValidate"),code=String(input.value||"").trim().toUpperCase();if(!code){message("cbStudentAuthMessage","Введите личный код.","error");return}if(await hashText(code)===TEACHER_CODE_HASH){message("cbStudentAuthMessage","Это код учителя.","error");return}input.disabled=button.disabled=true;const identity={code,studentId:"",name:"",verified:false};saveIdentity(identity);$("cbReadyStudentName").textContent="Ученик";message("cbStudentReadyMessage","Подключаем к занятию…");setGate("cbStudentReadyView");$("cbJoinLesson").disabled=false;await joinStudent(identity,true);input.disabled=button.disabled=false}
   function changeStudentIdentity() {
     clearIdentity();
     $("cbStudentCode").value = "";
@@ -608,35 +580,7 @@ import {
     showStudentEntry();
   }
 
-  async function claimGuidePlace(identity, serverState) {
-    const key = participantKey(identity.studentId);
-    const activeSnapshot = await get(membersRef());
-    const activeIds = new Set(Object.values(activeSnapshot.val() || {})
-      .filter(member => member?.role === "student" && member.online !== false && member.studentId)
-      .map(member => String(member.studentId)));
-    const now = Date.now();
-    const result = await runTransaction(stateRef(), current => {
-      const state = normalizeState(current || clone(serverState));
-      for (const [savedKey, participant] of Object.entries(state.participants || {})) {
-        if (savedKey === key) continue;
-        const active = activeIds.has(String(participant?.studentId || ""));
-        const recent = now - Number(participant?.lastSeen || participant?.joinedAt || 0) < 10000;
-        if (!active && !recent) delete state.participants[savedKey];
-      }
-      const existing = state.participants[key];
-      const count = Object.keys(state.participants).length;
-      if (!existing && count >= MAX_STUDENTS) return;
-      state.participants[key] = {
-        studentId: identity.studentId,
-        name: identity.name,
-        joinedAt: Number(existing?.joinedAt || now),
-        lastSeen: now
-      };
-      state.version += 1;
-      return state;
-    }, {applyLocally:false});
-    return {committed:result.committed, key};
-  }
+  async function claimGuidePlace(identity,serverState){const key=participantKey(identity.code),activeSnapshot=await get(membersRef()),activeCodes=new Set(Object.values(activeSnapshot.val()||{}).filter(m=>m?.role==="student"&&m.online!==false&&m.code).map(m=>String(m.code).trim().toUpperCase())),now=Date.now();const result=await runTransaction(stateRef(),current=>{const state=normalizeState(current||clone(serverState));for(const [savedKey,p] of Object.entries(state.participants||{})){if(savedKey===key)continue;const active=activeCodes.has(String(p?.code||"").trim().toUpperCase()),recent=now-Number(p?.lastSeen||p?.joinedAt||0)<10000;if(!active&&!recent)delete state.participants[savedKey]}const existing=state.participants[key],count=Object.keys(state.participants).length;if(!existing&&count>=MAX_STUDENTS)return;const slot=Number(existing?.slot)||Math.min(count+1,MAX_STUDENTS);state.participants[key]={studentId:identity.studentId||"",name:identity.name||`Ученик ${slot}`,code:identity.code,slot,verified:Boolean(identity.verified),joinedAt:Number(existing?.joinedAt||now),lastSeen:now};state.version+=1;return state},{applyLocally:false});return{committed:result.committed,key,state:result.committed?normalizeState(result.snapshot.val()):null}}
 
   async function waitForTeacher(identity) {
     waitingForTeacher = true;
@@ -656,95 +600,42 @@ import {
     $("cbJoinLesson").disabled = false;
   }
 
-  async function joinStudent(identity = storedIdentity(), automatic = false) {
-    if (!identity) { showStudentEntry(); return; }
-    if (joinInFlight) return;
-    joinInFlight = true;
-    $("cbJoinLesson").disabled = true;
-    message("cbStudentReadyMessage", automatic ? "Занятие открыто. Входим…" : "Подключаемся…");
-    try {
-      const snapshot = await get(stateRef());
-      if (!snapshot.exists()) { joinInFlight = false; await waitForTeacher(identity); return; }
-      const serverState = normalizeState(snapshot.val());
-      const claim = await claimGuidePlace(identity, serverState);
-      if (!claim.committed) {
-        const fresh = await get(stateRef());
-        if (!fresh.exists()) { joinInFlight = false; await waitForTeacher(identity); return; }
-        const latest = normalizeState(fresh.val());
-        if (latest.participants?.[claim.key]) {
-          localState = latest;
-        } else if (Object.keys(latest.participants || {}).length >= MAX_STUDENTS) {
-          throw Error("Все восемь ученических мест действительно заняты.");
-        } else {
-          throw Error("Не удалось занять место. Нажмите «Войти в урок» ещё раз.");
-        }
-      }
-      await disconnect(false);
-      mode = "student";
-      me = {id:claim.key, studentId:identity.studentId, name:identity.name, code:identity.code, role:"student", color:PLAYER_COLORS[1 + (Math.abs(String(identity.studentId).split("").reduce((a,c)=>a+c.charCodeAt(0),0)) % (PLAYER_COLORS.length - 1))]};
-      sessionStorage.setItem(ACTIVE_ROLE_KEY, "student");
-      await connectSession();
-    } catch (error) {
-      message("cbStudentReadyMessage", error.message || "Не удалось подключиться.", "error");
-      $("cbJoinLesson").disabled = false;
-    } finally {
-      joinInFlight = false;
-    }
-  }
+  async function joinStudent(identity=storedIdentity(),automatic=false){if(!identity){showStudentEntry();return}if(joinInFlight)return;joinInFlight=true;$("cbJoinLesson").disabled=true;message("cbStudentReadyMessage","Подключаемся…");try{const snapshot=await get(stateRef());if(!snapshot.exists()){joinInFlight=false;closeGate();await waitForTeacher(identity);return}const serverState=normalizeState(snapshot.val()),claim=await claimGuidePlace(identity,serverState);let joinedState=claim.state;if(!claim.committed){const fresh=await get(stateRef());if(!fresh.exists()){joinInFlight=false;closeGate();await waitForTeacher(identity);return}const latest=normalizeState(fresh.val());if(latest.participants?.[claim.key])joinedState=latest;else if(Object.keys(latest.participants||{}).length>=MAX_STUDENTS)throw Error("Все восемь ученических мест действительно заняты.");else throw Error("Не удалось занять место. Нажмите «Войти в урок» ещё раз.")}disconnect(false).catch(()=>{});mode="student";localState=joinedState;const p=joinedState.participants?.[claim.key]||{};me={id:claim.key,studentId:identity.studentId||"",name:p.name||identity.name||"Ученик",code:identity.code,role:"student",color:PLAYER_COLORS[1+(Math.abs(String(identity.code).split("").reduce((a,c)=>a+c.charCodeAt(0),0))%(PLAYER_COLORS.length-1))]};sessionStorage.setItem(ACTIVE_ROLE_KEY,"student");prepareConnected();applySharedState(localState,true);setStatus("online");attachState();attachMembers();attachMessages();attachInteractions();connected=true;setTimeout(()=>connectPresence().catch(()=>{}),0);if(!identity.verified)setTimeout(()=>backgroundValidateGuide(identity.code,claim.key),0)}catch(error){message("cbStudentReadyMessage",error.message||"Не удалось подключиться.","error");$("cbJoinLesson").disabled=false}finally{joinInFlight=false}}
 
   function readHostBackup() { try { return JSON.parse(localStorage.getItem(HOST_SAVE_KEY) || "null"); } catch (_) { return null; } }
   function saveHostBackup() {
     if (mode !== "teacher" || !me || !localState) return;
     try { localStorage.setItem(HOST_SAVE_KEY, JSON.stringify({teacherId:me.id, name:me.name, state:localState, savedAt:Date.now(), schemaVersion:SCHEMA_VERSION})); } catch (_) {}
   }
-  async function unlockTeacher() {
-    const button = $("cbTeacherUnlock"), code = String($("cbTeacherCode").value || "").trim().toUpperCase();
-    if (!code) { message("cbTeacherMessage", "Введите код учителя.", "error"); return; }
-    button.disabled = true; message("cbTeacherMessage", "Проверяем код…");
-    try {
-      if (await hashText(code) !== TEACHER_CODE_HASH) { message("cbTeacherMessage", "Неверный код.", "error"); return; }
-      $("cbTeacherCode").value = "";
-      const snapshot = await get(stateRef());
-      if (snapshot.exists()) setGate("cbRestoreView");
-      else await startTeacher(false);
-    } catch (error) {
-      message("cbTeacherMessage", error.message || "Не удалось открыть занятие.", "error");
-    } finally { button.disabled = false; }
-  }
-  async function startTeacher(resume) {
-    message("cbRestoreMessage", resume ? "Восстанавливаем занятие…" : "Открываем новое занятие…");
-    try {
-      await disconnect(false);
-      const saved = readHostBackup();
-      me = {id:saved?.teacherId || `teacher-${randomId(16)}`, name:"Учитель", role:"teacher", color:PLAYER_COLORS[0]};
-      mode = "teacher";
-      if (!resume) await set(sessionRef(), freshSession());
-      else if (!(await get(stateRef())).exists()) await set(sessionRef(), freshSession());
-      sessionStorage.setItem(ACTIVE_ROLE_KEY, "teacher");
-      await connectSession();
-    } catch (error) {
-      mode = ""; me = null;
-      message("cbRestoreMessage", error.message || "Не удалось открыть занятие.", "error");
+  async function backgroundValidateGuide(code,key){let attempt=0;while(mode==="student"&&me?.code===code){const current=storedIdentity();if(current?.verified)return;attempt++;identityCheckText=`проверяем имя · попытка ${attempt}`;setStatus("online");try{const verified=await validateStudentCode(code),identity={...verified,code,verified:true};saveIdentity(identity);if(mode!=="student"||me?.code!==code)return;me.studentId=identity.studentId||"";me.name=identity.name||me.name;await runTransaction(stateRef(),currentState=>{if(!currentState)return currentState;const state=normalizeState(currentState),p=state.participants?.[key];if(!p)return state;p.studentId=identity.studentId||"";p.name=identity.name||p.name;p.verified=true;p.code=code;p.lastSeen=Date.now();state.version++;return state});identityCheckText="✓ подтверждён";setStatus("online");setTimeout(()=>connectPresence().catch(()=>{}),0);return}catch(e){if(/не найден|неактив/i.test(String(e?.message||""))){identityCheckText="код не найден · занятие продолжается";setStatus("online");return}identityCheckText="сервер не ответил · повторяем";setStatus("online");await new Promise(r=>setTimeout(r,1200))}}}
+async function unlockTeacher(){const button=$("cbTeacherUnlock"),code=String($("cbTeacherCode").value||"").trim().toUpperCase();if(!code){message("cbTeacherMessage","Введите код учителя.","error");return}button.disabled=true;message("cbTeacherMessage","Проверяем код…");try{if(await hashText(code)!==TEACHER_CODE_HASH){message("cbTeacherMessage","Неверный код.","error");return}$("cbTeacherCode").value="";setGate("cbRestoreView");message("cbRestoreMessage","")}finally{button.disabled=false}}
+  async function startTeacher(resume){
+    message("cbRestoreMessage",resume?"Восстанавливаем занятие…":"Открываем новое занятие…");
+    const saved=readHostBackup();
+    if(resume){
+      try{
+        await disconnect(false);
+        me={id:saved?.teacherId||`teacher-${randomId(16)}`,name:"Учитель",role:"teacher",color:PLAYER_COLORS[0]};mode="teacher";sessionStorage.setItem(ACTIVE_ROLE_KEY,"teacher");
+        const snap=await get(stateRef());if(!snap.exists())throw Error("Прошлое занятие не найдено.");
+        localState=normalizeState(snap.val());prepareConnected();applySharedState(localState,true);attachState();attachMembers();attachMessages();attachInteractions();connected=true;setStatus("online");setTimeout(()=>connectPresence().catch(()=>{}),0)
+      }catch(error){mode="";me=null;message("cbRestoreMessage",error.message||"Не удалось открыть занятие.","error")}
+      return
+    }
+    // Новое занятие: никакого чтения старого currentSession. Сначала локальный чистый экран,
+    // затем одна корневая атомарная запись. При сетевой ошибке повторяем тот же freshSession.
+    disconnect(false).catch(()=>{});
+    me={id:saved?.teacherId||`teacher-${randomId(16)}`,name:"Учитель",role:"teacher",color:PLAYER_COLORS[0]};mode="teacher";sessionStorage.setItem(ACTIVE_ROLE_KEY,"teacher");
+    const fresh=freshSession(),run=++teacherCreationRun;localState=normalizeState(fresh.state);prepareConnected();applySharedState(localState,true);setStatus("connecting","Создаём занятие…");
+    while(run===teacherCreationRun&&mode==="teacher"){
+      try{
+        await set(sessionRef(),fresh);
+        if(run!==teacherCreationRun||mode!=="teacher")return;
+        attachState();attachMembers();attachMessages();attachInteractions();connected=true;setStatus("online");setTimeout(()=>connectPresence().catch(()=>{}),0);return
+      }catch(_){setStatus("connecting","Сервер не ответил — повторяем создание…");await new Promise(r=>setTimeout(r,2500))}
     }
   }
 
-  async function connectPresence() {
-    const memberNode = ref(database, `${lessonRoot()}/members/${browserClientId}`);
-    const member = {
-      id: browserClientId,
-      userId: me.id,
-      studentId: me.studentId || "",
-      name: me.name,
-      role: mode,
-      color: me.color,
-      online: true,
-      lastSeen: serverTimestamp()
-    };
-    await onDisconnect(memberNode).update({online:false, lastSeen:serverTimestamp()});
-    await set(memberNode, member);
-    clearInterval(memberHeartbeat);
-    memberHeartbeat = setInterval(() => update(memberNode, {online:true,lastSeen:serverTimestamp()}).catch(() => {}), 20000);
-  }
+  async function connectPresence(){const memberNode=ref(database,`${lessonRoot()}/members/${browserClientId}`),member={id:browserClientId,userId:me.id,studentId:me.studentId||"",code:mode==="student"?(me.code||""):"",name:me.name,role:mode,color:me.color,verified:Boolean(storedIdentity()?.verified),online:true,lastSeen:serverTimestamp()};await onDisconnect(memberNode).update({online:false,lastSeen:serverTimestamp()});await set(memberNode,member);clearInterval(memberHeartbeat);memberHeartbeat=setInterval(()=>update(memberNode,{online:true,lastSeen:serverTimestamp()}).catch(()=>{}),20000)}
   async function connectSession() {
     setStatus("connecting", "Подключение…");
     const snapshot = await get(stateRef());
@@ -908,13 +799,14 @@ import {
   }
   function renderAllStrokes() {
     document.querySelectorAll(".cb-board-layer path[data-stroke-id]").forEach(node => node.remove());
-    Object.values(localState?.strokes || {}).forEach(renderStroke);
+    const byId=new Map(Object.values(localState?.strokes||{}).filter(stroke=>stroke&&!locallyHiddenStrokes.has(stroke.id)).map(stroke=>[stroke.id,stroke]));
+    if(drawing){const remote=byId.get(drawing.id);if(!remote||Number(remote.rev||0)<Number(drawing.rev||0))byId.set(drawing.id,drawing)}
+    byId.forEach(renderStroke);
   }
   function boardPointerDown(event) {
     if (!connected || !me) return;
     if (tool === "eraser") {
-      const path = event.target.closest?.("path[data-stroke-id]");
-      if (path) eraseStroke(path.dataset.strokeId);
+      event.preventDefault();event.currentTarget.setPointerCapture?.(event.pointerId);const point=pointFor(event,event.currentTarget);erasing=true;lastEraserPoint=point;eraseAlong(point,point,event.currentTarget);
       return;
     }
     if (tool !== "pen") return;
@@ -924,6 +816,7 @@ import {
     localState.strokes[id] = drawing; renderStroke(drawing); publishStroke(true);
   }
   function boardPointerMove(event) {
+    if(tool==="eraser"&&erasing){event.preventDefault();const point=pointFor(event,event.currentTarget);eraseAlong(lastEraserPoint||point,point,event.currentTarget);lastEraserPoint=point;return}
     if (!drawing || tool !== "pen") return;
     event.preventDefault();
     const point = pointFor(event,event.currentTarget), last = drawing.points[drawing.points.length-1];
@@ -931,6 +824,7 @@ import {
     drawing.points.push(point); drawing.rev = Date.now(); renderStroke(drawing); publishStroke(false);
   }
   function boardPointerUp(event) {
+    if(erasing){erasing=false;lastEraserPoint=null}
     if (!drawing) return;
     event.preventDefault(); drawing.done = true; drawing.rev = Date.now(); publishStroke(true); renderStroke(drawing); drawing = null;
   }
@@ -944,17 +838,10 @@ import {
     };
     if (immediate) sendStroke(); else strokeTimer = setTimeout(sendStroke, 65);
   }
-  function eraseStroke(id) {
-    if (!id) return;
-    delete localState.strokes[id]; document.querySelectorAll(`path[data-stroke-id="${id}"]`).forEach(node => node.remove());
-    runTransaction(stateRef(), current => {
-      if (!current) return;
-      const state = normalizeState(current);
-      const stroke = state.strokes[id];
-      if (stroke && Number(stroke.epoch || 0) === state.boardEpoch) delete state.strokes[id];
-      state.version += 1; return state;
-    }, {applyLocally:false}).catch(() => {});
-  }
+  function pointSegmentDistancePx(p,a,b,rect){const px=p[0]*rect.width,py=p[1]*rect.height,ax=a[0]*rect.width,ay=a[1]*rect.height,bx=b[0]*rect.width,by=b[1]*rect.height,dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy,t=l2?Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/l2)):0;return Math.hypot(px-(ax+t*dx),py-(ay+t*dy))}
+  function eraseAlong(from,to,layer){if(!localState)return;const rect=layer.getBoundingClientRect(),travel=Math.hypot((to[0]-from[0])*rect.width,(to[1]-from[1])*rect.height),steps=Math.max(1,Math.ceil(travel/4)),samples=Array.from({length:steps+1},(_,i)=>[from[0]+(to[0]-from[0])*i/steps,from[1]+(to[1]-from[1])*i/steps]),epoch=Number(localState.boardEpoch||0),anchorId=layer.dataset.anchorId,ids=[];for(const [id,stroke] of Object.entries(localState.strokes||{})){if(!stroke||stroke.anchorId!==anchorId||Number(stroke.epoch)!==epoch||locallyHiddenStrokes.has(id)||eraseInFlight.has(id))continue;const points=stroke.points||[],radius=10+Math.max(1,Number(stroke.width)||6)/2;let hit=false;for(const sample of samples){if(points.length===1?pointSegmentDistancePx(sample,points[0],points[0],rect)<=radius:points.some((point,index)=>index&&pointSegmentDistancePx(sample,points[index-1],point,rect)<=radius)){hit=true;break}}if(hit)ids.push(id)}ids.forEach(eraseStroke)}
+  async function eraseStroke(id){if(!id||eraseInFlight.has(id))return;eraseInFlight.add(id);locallyHiddenStrokes.add(id);delete localState.strokes[id];document.querySelectorAll(`path[data-stroke-id="${id}"]`).forEach(node=>node.remove());try{await update(ref(database,`${lessonRoot()}/state/strokes`),{[id]:null})}catch(_){locallyHiddenStrokes.delete(id);const snapshot=await get(ref(database,`${lessonRoot()}/state/strokes/${id}`)).catch(()=>null);if(snapshot?.exists()){localState.strokes[id]=snapshot.val();renderStroke(snapshot.val())}}finally{eraseInFlight.delete(id)}}
+  async function undoLastOwnStroke(){if(!localState||!me)return;if(drawing){const id=drawing.id;drawing=null;await eraseStroke(id);return}const mine=Object.values(localState.strokes||{}).filter(stroke=>stroke&&Number(stroke.epoch)===Number(localState.boardEpoch||0)&&stroke.authorId===me.id&&!locallyHiddenStrokes.has(stroke.id)).sort((a,b)=>Number(b.rev||0)-Number(a.rev||0));if(mine[0])await eraseStroke(mine[0].id)}
 
   function selectTool(next) {
     tool = ["pointer","pen","eraser"].includes(next) ? next : "pointer";
@@ -1087,6 +974,7 @@ import {
     mutateState(state => { state.boardEpoch += 1; state.strokes = {}; }).then(() => toast("Общая доска очищена")).catch(() => toast("Не удалось очистить доску"));
   });
   document.addEventListener("pointermove",sendTeacherCursor,{passive:true});
+  document.addEventListener("keydown",event=>{if(!(event.ctrlKey||event.metaKey)||String(event.key).toLowerCase()!=="z"||event.target.closest?.('input,textarea,[contenteditable="true"]'))return;event.preventDefault();undoLastOwnStroke()});
   window.addEventListener("online", () => { if (connected) setStatus("connecting","Восстанавливаем связь…"); });
   window.addEventListener("offline", () => { if (connected) setStatus("connecting","Нет интернета — изменения отправятся после восстановления"); });
   window.addEventListener("resize", () => { const toolbar=$("cbToolbar"); if (toolbar?.style.left) { const rect=toolbar.getBoundingClientRect(); applyToolbarPosition({left:rect.left,top:rect.top},true); } });
