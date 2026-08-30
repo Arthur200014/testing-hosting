@@ -372,9 +372,9 @@
       <div id="cbStudentAuthView" class="cb-hidden">
         <div class="cb-kicker">ВХОД УЧЕНИКА</div>
         <h2>Личный код</h2>
-        <p>Введите личный код из базы учеников. Имя загрузится автоматически.</p>
+        <p>Введите личный код. Подключение откроется сразу, а имя загрузится в фоне.</p>
         <label class="cb-field"><span>ЛИЧНЫЙ КОД УЧЕНИКА</span><input id="cbStudentCode" maxlength="40" placeholder="НАПРИМЕР, FNPK24" autocomplete="one-time-code" style="text-transform:uppercase;letter-spacing:.13em;font-weight:950"></label>
-        <div class="cb-actions"><button class="cb-button" id="cbStudentValidate" type="button">Проверить код</button><button class="cb-button secondary" id="cbStudentAuthBack" type="button">Назад</button></div>
+        <div class="cb-actions"><button class="cb-button" id="cbStudentValidate" type="button">Подключиться</button><button class="cb-button secondary" id="cbStudentAuthBack" type="button">Назад</button></div>
         <div class="cb-message" id="cbStudentAuthMessage"></div>
       </div>
       <div id="cbJoinView" class="cb-hidden">
@@ -427,7 +427,7 @@
         <button class="cb-size active" data-pen-width="6" type="button"><i style="width:9px;height:9px"></i>Средний</button>
         <button class="cb-size" data-pen-width="11" type="button"><i style="width:14px;height:14px"></i>Толстый</button>
       </div>
-      <div class="cb-players" id="cbPlayers"></div>
+      <div class="cb-players" id="cbPlayers"></div><button class="cb-button secondary cb-hidden" id="cbSwitchStudent" type="button" style="width:100%;margin-top:7px;padding:7px 9px;font-size:9px">Сменить ученика</button>
       <div class="cb-hint" id="cbHint">Прокрутка у каждого своя. Рисовать, стирать и работать с заданиями могут все участники.</div>
     </div>
   </aside>
@@ -2777,7 +2777,7 @@ import { getDatabase, ref, get, set, update, remove, push, onValue, onChildAdded
   const messagesRef = () => ref(database, `${lessonRoot()}/messages`);
 
   const API_URL = "https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
-  const TEACHER_CODE_HASH = "b0a83a3919eba1d2a99034f2d94e5a47590f1710595c04bd64b5c8f21456a7c6";
+  const TEACHER_CODE = "A7K4P9";
   const HOST_SAVE_KEY = `${APP_ID}:host`;
   const STUDENT_SAVE_KEY = `${APP_ID}:student`;
   const TOOLBAR_POSITION_KEY = `${APP_ID}:toolbar`;
@@ -2796,6 +2796,7 @@ import { getDatabase, ref, get, set, update, remove, push, onValue, onChildAdded
   let toastTimer = 0, padReady = false, interactionsReady = false, lastCursorSent = 0;
   let stateUnsub = null, membersUnsub = null, interactionsUnsub = null, messagesUnsub = null, connectionUnsub = null, waitingUnsub = null;
   let memberNode = null, liveMembers = {}, lastWorldSceneSignature = "";
+  let verificationRun = 0, verificationStatus = "", lastProofRuns = {};
 
   function randomId(length = 16) {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", bytes = new Uint8Array(length);
@@ -2812,52 +2813,65 @@ import { getDatabase, ref, get, set, update, remove, push, onValue, onChildAdded
   function cleanColor(value) { return /^#[0-9a-f]{6}$/i.test(String(value || "")) ? String(value) : PLAYER_COLORS[0]; }
   function escapeHtml(value) { return String(value).replace(/[&<>\"]/g, (ch) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch])); }
   function participantKey(studentId) { return `student_${String(studentId || "").replace(/[.#$\[\]\/]/g, "_").slice(0, 80)}`; }
-  async function hashText(value) {
-    const bytes = new TextEncoder().encode(String(value || ""));
-    const hash = await crypto.subtle.digest("SHA-256", bytes);
-    return Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, "0")).join("");
-  }
 
   function storedIdentity() {
-    const studentId = localStorage.getItem("egeStudentId");
-    return studentId ? {studentId, name:localStorage.getItem("egeStudentName") || "Ученик", code:localStorage.getItem("egeStudentCode") || ""} : null;
+    try {
+      const raw=JSON.parse(localStorage.getItem(STUDENT_SAVE_KEY)||"null"), realId=String(raw?.studentId||localStorage.getItem("egeStudentId")||"").trim(), name=cleanName(raw?.name||localStorage.getItem("egeStudentName")||""), code=String(raw?.code||localStorage.getItem("egeStudentCode")||"").trim();
+      if(realId&&name&&code&&!/^Ученик(?:\s+\d+)?$/i.test(name)) return {studentId:code,verifiedStudentId:realId,name,code,verified:true};
+    } catch(_) {}
+    const realId=String(localStorage.getItem("egeStudentId")||"").trim(), name=cleanName(localStorage.getItem("egeStudentName")||""), code=String(localStorage.getItem("egeStudentCode")||"").trim();
+    return realId&&name&&code&&!/^Ученик(?:\s+\d+)?$/i.test(name)?{studentId:code,verifiedStudentId:realId,name,code,verified:true}:null;
   }
   function saveIdentity(student) {
-    localStorage.setItem("egeStudentId", student.studentId);
-    localStorage.setItem("egeStudentName", student.name);
-    localStorage.setItem("egeStudentCode", student.code);
-    localStorage.setItem(STUDENT_SAVE_KEY, JSON.stringify({studentId:student.studentId,name:student.name,savedAt:Date.now()}));
+    const code=String(student?.code||"").trim(), realId=String(student?.verifiedStudentId||"").trim(), name=cleanName(student?.name||"");
+    if(!code||!realId||!name||/^Ученик(?:\s+\d+)?$/i.test(name)) return false;
+    localStorage.setItem("egeStudentId",realId);localStorage.setItem("egeStudentName",name);localStorage.setItem("egeStudentCode",code);
+    localStorage.setItem(STUDENT_SAVE_KEY,JSON.stringify({studentId:realId,name,code,savedAt:Date.now()}));return true;
   }
-  function clearIdentity() {
-    ["egeStudentId", "egeStudentName", "egeStudentCode", STUDENT_SAVE_KEY].forEach((key) => localStorage.removeItem(key));
+  function saveEnteredCode(code) {
+    code=String(code||"").trim();if(!code)return;
+    const old=String(localStorage.getItem("egeStudentCode")||"").trim();
+    if(old&&old!==code){localStorage.removeItem("egeStudentId");localStorage.removeItem("egeStudentName");localStorage.removeItem(STUDENT_SAVE_KEY);}
+    localStorage.setItem("egeStudentCode",code);
   }
+  function clearIdentity() {["egeStudentId","egeStudentName","egeStudentCode",STUDENT_SAVE_KEY].forEach((key)=>localStorage.removeItem(key));}
   function parseValidatedStudent(data, code) {
-    const source = (data && (data.student || data.data)) || data || {};
-    const studentId = source.studentId || source.id || data?.studentId;
-    const name = source.studentName || source.name || source.fullName || data?.studentName || data?.name;
-    const active = source.active !== undefined ? source.active : data?.active;
-    const inactive = active === false || String(active).toLowerCase() === "false" || String(active) === "0";
-    const invalid = data && (data.success === false || data.valid === false || data.ok === false);
-    if (inactive) throw Error("Доступ ученика отключён. Обратитесь к учителю.");
-    if (invalid || !studentId) throw Error(data?.message || data?.error || "Личный код не найден.");
-    return {studentId:String(studentId), name:cleanName(name) || "Ученик", code:String(code)};
+    const source=(data&&(data.student||data.data))||data||{}, studentId=source.studentId||source.id||data?.studentId, name=source.studentName||source.name||source.fullName||data?.studentName||data?.name, active=source.active!==undefined?source.active:data?.active;
+    const inactive=active===false||String(active).toLowerCase()==="false"||String(active)==="0", invalid=data&&(data.success===false||data.valid===false||data.ok===false);
+    if(inactive){const e=Error("Код неактивен");e.terminal=true;throw e;}if(invalid||!studentId){const e=Error(data?.message||data?.error||"Личный код не найден.");e.terminal=true;throw e;}
+    return {studentId:String(studentId),name:cleanName(name)||"Ученик",code:String(code)};
   }
   function validateStudentCode(code) {
-    return new Promise((resolve, reject) => {
-      const callback = `egeVectorValidate_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      const script = document.createElement("script");
-      let finished = false;
-      const cleanup = () => { delete window[callback]; script.remove(); };
-      const timer = setTimeout(() => { if (finished) return; finished = true; cleanup(); reject(Error("Сервер не ответил. Проверьте интернет.")); }, 12000);
-      window[callback] = (data) => {
-        if (finished) return; finished = true; clearTimeout(timer); cleanup();
-        try { resolve(parseValidatedStudent(data, code)); } catch (error) { reject(error); }
-      };
-      script.onerror = () => { if (finished) return; finished = true; clearTimeout(timer); cleanup(); reject(Error("Не удалось проверить личный код.")); };
-      script.src = `${API_URL}?${new URLSearchParams({action:"validateStudent",code,callback})}`;
-      document.head.appendChild(script);
+    return new Promise((resolve,reject)=>{
+      const callback=`egePlanValidate_${Date.now()}_${Math.random().toString(36).slice(2)}`, script=document.createElement("script");let finished=false;
+      const cleanup=()=>{delete window[callback];script.remove();};
+      const timer=setTimeout(()=>{if(finished)return;finished=true;cleanup();const e=Error("Сервер не ответил");e.transient=true;reject(e);},60000);
+      window[callback]=(data)=>{if(finished)return;finished=true;clearTimeout(timer);cleanup();try{resolve(parseValidatedStudent(data,code));}catch(error){reject(error);}};
+      script.onerror=()=>{if(finished)return;finished=true;clearTimeout(timer);cleanup();const e=Error("Не удалось проверить имя");e.transient=true;reject(e);};
+      script.async=true;script.src=`${API_URL}?${new URLSearchParams({action:"validateStudent",code,callback,_:Date.now()})}`;document.head.appendChild(script);
     });
   }
+  function refreshIdentityStatus(){
+    if(!joined||!me)return;
+    const suffix=mode==="teacher"?"учитель":(verificationStatus||"ученик");
+    $("cbIdentity").textContent=`${me.name||"Участник"} · ${suffix}`;
+  }
+  function setVerificationStatus(text){verificationStatus=String(text||"");refreshIdentityStatus();}
+  async function startBackgroundValidation(code,run){
+    let attempt=0;
+    while(run===verificationRun&&mode==="student"&&joined&&me&&!me.verified){
+      attempt++;setVerificationStatus(`проверяем имя · попытка ${attempt}`);
+      try{
+        const v=await validateStudentCode(code);if(run!==verificationRun||mode!=="student"||!joined||!me)return;
+        const realId=String(v.studentId),realName=cleanName(v.name)||me.name;me={...me,name:realName,verifiedStudentId:realId,verified:true,studentId:code,code};saveIdentity({studentId:code,verifiedStudentId:realId,name:realName,code,verified:true});setVerificationStatus("✓ подтверждён");
+        await update(ref(database,`${lessonRoot()}/state/participants/${me.id}`),{name:realName,verifiedStudentId:realId,code,lastSeen:Date.now()}).catch(()=>{});
+        if(localState?.participants?.[me.id])Object.assign(localState.participants[me.id],{name:realName,verifiedStudentId:realId,code});
+        registerPresence().catch(()=>{});renderMembers();return;
+      }catch(error){if(run!==verificationRun||mode!=="student"||!joined||!me)return;if(error?.terminal){setVerificationStatus("код не найден · гайд продолжается");return;}setVerificationStatus("сервер не ответил · повторяем");await new Promise(r=>setTimeout(r,1500));}
+    }
+  }
+  function onStudentJoined(){if(mode!=="student"||!joined||!me)return;if(me.verified){setVerificationStatus("✓ подтверждён");return;}const run=++verificationRun;setTimeout(()=>startBackgroundValidation(String(me.code||me.studentId||""),run),0);}
+
 
   function newGuideState() {
     return {
@@ -2912,7 +2926,7 @@ import { getDatabase, ref, get, set, update, remove, push, onValue, onChildAdded
   function setStatus(status, detail = "") {
     const dot = $("cbLiveDot");
     dot.className = `cb-live-dot${status === "online" ? " online" : status === "error" ? " error" : ""}`;
-    if (status === "online") $("cbIdentity").textContent = `${me?.name || "Участник"} · ${mode === "teacher" ? "учитель" : "ученик"}`;
+    if (status === "online") refreshIdentityStatus();
     else $("cbIdentity").textContent = detail || "Подключаемся…";
   }
 
@@ -3108,7 +3122,10 @@ import { getDatabase, ref, get, set, update, remove, push, onValue, onChildAdded
   }
   function setupInteractions() {
     interactionsUnsub?.();
-    interactionsUnsub=onValue(interactionsRef(),(snapshot)=>{const value=snapshot.val()||{},completed=Array.isArray(value.completed)?value.completed:Object.values(value.completed||{}).map(Number);window.applySharedPlanCompletion?.(completed.filter(Number.isInteger));},()=>setStatus("connecting","Отметки восстановятся после подключения"));
+    interactionsUnsub=onValue(interactionsRef(),(snapshot)=>{
+      const value=snapshot.val()||{},completed=Array.isArray(value.completed)?value.completed:Object.values(value.completed||{}).map(Number);window.applySharedPlanCompletion?.(completed.filter(Number.isInteger));
+      const runs=value.proofRuns||{};for(const[id,rec]of Object.entries(runs)){const rev=Number(rec?.rev||0);if(!rev||rev<=Number(lastProofRuns[id]||0))continue;lastProofRuns[id]=rev;if(rec?.updatedBy!==me?.id)replayVisual(id);}
+    },()=>setStatus("connecting","Интерактивы восстановятся после подключения"));
     interactionsReady=true;if(document.documentElement.dataset.fixedPlanInteractionsBound)return;document.documentElement.dataset.fixedPlanInteractionsBound="1";
     window.addEventListener("planimetry:completion-change",(event)=>{if(!joined||!me||suppressUi)return;set(ref(database,`${lessonRoot()}/interactions/completed`),event.detail?.completed||[]).catch(()=>setStatus("connecting","Отметка отправится после восстановления связи"));});
   }
@@ -3119,27 +3136,23 @@ import { getDatabase, ref, get, set, update, remove, push, onValue, onChildAdded
   }
   function readTeacherBackup(){try{return JSON.parse(localStorage.getItem(HOST_SAVE_KEY)||"null");}catch(_){return null;}}
 
-  async function connectRealtime() {
-    const openedAt=Date.now(); memberNode=ref(database,`${lessonRoot()}/members/${browserClientId}`);
-    messagesUnsub=onChildAdded(messagesRef(),(snapshot)=>{const envelope=snapshot.val();if(!envelope||envelope.senderId===browserClientId||Number(envelope.clientAt||0)<openedAt-5000)return;const payload=envelope.payload||{};if(payload.type==="teacherCursor"&&mode==="student")renderPointer(payload);if(payload.type==="replay"&&payload.senderId!==me?.id)replayVisual(payload.id);});
+  function connectRealtime() {
+    const openedAt=Date.now();memberNode=ref(database,`${lessonRoot()}/members/${browserClientId}`);
+    messagesUnsub?.();stateUnsub?.();membersUnsub?.();connectionUnsub?.();
+    messagesUnsub=onChildAdded(messagesRef(),(snapshot)=>{const envelope=snapshot.val();if(!envelope||envelope.senderId===browserClientId||Number(envelope.clientAt||0)<openedAt-5000)return;const payload=envelope.payload||{};if(payload.type==="teacherCursor"&&mode==="student")renderPointer(payload);});
     stateUnsub=onValue(stateRef(),(snapshot)=>{
       if(!snapshot.exists())return;const previousPrototype=Number(localState?.ui?.currentPrototype??-1),previousDetails=JSON.stringify(localState?.ui?.details||{}),previousFormula=Boolean(localState?.ui?.modals?.formulas);localState=normalizeState(snapshot.val());
       if(previousPrototype!==Number(localState.ui.currentPrototype))window.setPlanPrototype?.(localState.ui.currentPrototype,{silent:true,scroll:false});
       setTimeout(()=>{if(previousPrototype!==Number(localState.ui.currentPrototype))bindCurrentPad();if(previousDetails!==JSON.stringify(localState.ui.details||{}))applyDetails(localState.ui.details,true);},0);
       if(previousFormula!==Boolean(localState.ui.modals?.formulas))applyFormula(localState.ui.modals?.formulas);renderAllStrokes();if(mode==="teacher")saveTeacherBackup();setStatus("online");
     },()=>setStatus("connecting","Состояние восстановится после подключения"));
-    membersUnsub=onValue(membersRef(),(snapshot)=>{liveMembers=snapshot.val()||{};renderMembers();});
-    bindCurrentPad();setupInteractions();
-    return new Promise((resolve,reject)=>{
-      let resolved=false;const timeout=setTimeout(()=>{if(!resolved)reject(Error("Не удалось подключиться. Проверьте интернет."));},15000);
-      connectionUnsub=onValue(ref(database,".info/connected"),async(snapshot)=>{
-        if(snapshot.val()===true){
-          try{await onDisconnect(memberNode).update({online:false,lastSeen:serverTimestamp()});await set(memberNode,{id:browserClientId,userId:me.id,studentId:me.studentId||"",name:me.name,role:mode,color:me.color,online:true,lastSeen:serverTimestamp()});setStatus("online");if(!resolved){resolved=true;clearTimeout(timeout);resolve();}}
-          catch(error){setStatus("connecting","Подключение восстановится автоматически");}
-        }else if(joined){setStatus("connecting","Нет интернета — изменения отправятся после восстановления");}
-      },error=>{if(!resolved){clearTimeout(timeout);reject(error);}});
-    });
+    membersUnsub=onValue(membersRef(),(snapshot)=>{liveMembers=snapshot.val()||{};renderMembers();});bindCurrentPad();setupInteractions();
+    connectionUnsub=onValue(ref(database,".info/connected"),(snapshot)=>{if(snapshot.val()===true)registerPresence().catch(()=>setStatus("connecting","Присутствие восстановится автоматически"));else if(joined)setStatus("connecting","Нет интернета — изменения отправятся после восстановления");},()=>setStatus("connecting","Подключение восстановится автоматически"));
   }
+  async function registerPresence(){
+    if(!joined||!me||!memberNode)return;try{const dc=onDisconnect(memberNode);await dc.update({online:false,lastSeen:serverTimestamp()});await set(memberNode,{id:browserClientId,userId:me.id,studentId:mode==="student"?String(me.studentId||me.code||""):"",verifiedStudentId:mode==="student"?String(me.verifiedStudentId||""):"",name:me.name,role:mode,color:me.color,online:true,lastSeen:serverTimestamp()});}catch(_){}
+  }
+
   async function disconnect() {
     waitingUnsub?.();waitingUnsub=null;stateUnsub?.();stateUnsub=null;membersUnsub?.();membersUnsub=null;interactionsUnsub?.();interactionsUnsub=null;messagesUnsub?.();messagesUnsub=null;connectionUnsub?.();connectionUnsub=null;
     padUnsubs.splice(0).forEach((unsubscribe)=>unsubscribe());padReady=false;interactionsReady=false;liveMembers={};
@@ -3147,82 +3160,82 @@ import { getDatabase, ref, get, set, update, remove, push, onValue, onChildAdded
     joined=false;drawing=null;eraseHover=null;pointerNodes.forEach((node)=>node.remove());pointerNodes.clear();
   }
   function prepareConnected() {
-    setupAnchors();closeGate();$("cbStart").classList.add("cb-hidden");$("cbToolbar").classList.remove("cb-hidden");document.body.classList.add("cb-connected");$("cbClearAll").classList.toggle("cb-hidden",mode!=="teacher");restoreToolbarPosition();selectTool("pointer");
+    setupAnchors();closeGate();$("cbStart").classList.add("cb-hidden");$("cbToolbar").classList.remove("cb-hidden");document.body.classList.add("cb-connected");$("cbClearAll").classList.toggle("cb-hidden",mode!=="teacher");restoreToolbarPosition();selectTool("pointer");$("cbSwitchStudent")?.classList.toggle("cb-hidden",mode!=="student");
     window.setPlanPrototype?.(Number(localState?.ui?.currentPrototype)||0,{silent:true,scroll:false});setTimeout(()=>{applyDetails(localState?.ui?.details||{},true);bindCurrentPad();},0);applyFormula(localState?.ui?.modals?.formulas);renderAllStrokes();renderMembers();
   }
   async function claimGuidePlace(identity) {
-    const key=participantKey(identity.studentId),stateSnapshot=await get(stateRef());
-    if(!stateSnapshot.exists())return{committed:false,key,reason:"session-missing"};
-    const serverState=normalizeState(stateSnapshot.val()),activeSnapshot=await get(membersRef());
-    const activeStudentIds=new Set(Object.values(activeSnapshot.val()||{}).filter((member)=>member?.role==="student"&&member.online!==false&&member.studentId).map((member)=>String(member.studentId)));
-    const joinAt=Date.now();
-    const result=await runTransaction(stateRef(),(current)=>{
-      const state=normalizeState(current||clone(serverState));
-      for(const[savedKey,participant]of Object.entries(state.participants||{})){
-        if(savedKey===key)continue;const active=activeStudentIds.has(String(participant?.id||"")),recent=joinAt-Number(participant?.lastSeen||participant?.joinedAt||0)<10000;if(!active&&!recent)delete state.participants[savedKey];
-      }
-      const existing=state.participants[key],participants=Object.values(state.participants||{});if(!existing&&participants.length>=MAX_STUDENTS)return;
-      state.participants[key]={id:String(identity.studentId),name:identity.name,code:identity.code,joinedAt:Number(existing?.joinedAt||joinAt),lastSeen:joinAt};state.version+=1;state.updatedBy=String(identity.studentId);state.updatedAt=joinAt;return state;
-    },{applyLocally:false});
-    if(result.committed)return{committed:true,key,state:normalizeState(result.snapshot.val())};
-    const latestSnapshot=await get(stateRef());if(!latestSnapshot.exists())return{committed:false,key,reason:"session-missing"};
-    const latest=normalizeState(latestSnapshot.val());if(latest.participants[key])return{committed:true,key,state:latest,restored:true};
-    if(Object.keys(latest.participants||{}).length>=MAX_STUDENTS)return{committed:false,key,reason:"places-full"};
-    return{committed:false,key,reason:"retry"};
+    const enteredCode=String(identity.code||identity.studentId||""),key=participantKey(enteredCode),stateSnapshot=await get(stateRef()).catch(()=>null);if(!stateSnapshot?.exists())return{committed:false,key,reason:"session-missing"};
+    const base=normalizeState(stateSnapshot.val()),joinAt=Date.now();
+    const resolveSlot=(state)=>Number(state.participants?.[key]?.slot)||0;
+    const mutate=(seed,activeIds=null,cleanup=false)=>{
+      const state=normalizeState(seed||clone(base));
+      if(cleanup&&activeIds){for(const[savedKey,p]of Object.entries(state.participants||{})){if(savedKey===key)continue;const sid=String(p?.id||p?.code||""),recent=joinAt-Number(p?.lastSeen||p?.joinedAt||0)<10000;if(!activeIds.has(sid)&&!recent)delete state.participants[savedKey];}}
+      const existing=state.participants[key];if(!existing&&Object.keys(state.participants||{}).length>=MAX_STUDENTS)return;
+      const used=new Set(Object.values(state.participants||{}).map(p=>Number(p?.slot)||0));let slot=Number(existing?.slot)||1;if(!existing){slot=1;while(used.has(slot)&&slot<=MAX_STUDENTS)slot++;if(slot>MAX_STUDENTS)return;}
+      const name=identity.verified&&identity.name?identity.name:(existing?.name&&!/^Ученик(?:\s+\d+)?$/i.test(existing.name)?existing.name:`Ученик ${slot}`);
+      state.participants[key]={id:enteredCode,verifiedStudentId:identity.verifiedStudentId||existing?.verifiedStudentId||"",name,code:enteredCode,slot,joinedAt:Number(existing?.joinedAt||joinAt),lastSeen:joinAt};state.version+=1;state.updatedBy=key;state.updatedAt=joinAt;return state;
+    };
+    let result=await runTransaction(stateRef(),current=>mutate(current||clone(base)),{applyLocally:false});if(result.committed)return{committed:true,key,state:normalizeState(result.snapshot.val()),slot:resolveSlot(normalizeState(result.snapshot.val()))};
+    const[latestSnapshot,activeSnapshot]=await Promise.all([get(stateRef()).catch(()=>null),get(membersRef()).catch(()=>null)]);if(!latestSnapshot?.exists())return{committed:false,key,reason:"session-missing"};
+    let latest=normalizeState(latestSnapshot.val());if(latest.participants[key])return{committed:true,key,state:latest,restored:true,slot:resolveSlot(latest)};
+    const activeIds=new Set(Object.values(activeSnapshot?.exists()?activeSnapshot.val()||{}:{}).filter(m=>m?.role==="student"&&m.online!==false&&m.studentId).map(m=>String(m.studentId)));
+    const hasStale=Object.values(latest.participants||{}).some(p=>!activeIds.has(String(p?.id||p?.code||""))&&joinAt-Number(p?.lastSeen||p?.joinedAt||0)>=10000);
+    if(hasStale){result=await runTransaction(stateRef(),current=>mutate(current||clone(latest),activeIds,true),{applyLocally:false});if(result.committed){latest=normalizeState(result.snapshot.val());if(latest.participants[key])return{committed:true,key,state:latest,slot:resolveSlot(latest)};}}
+    if(Object.keys(latest.participants||{}).length>=MAX_STUDENTS)return{committed:false,key,reason:"places-full"};return{committed:false,key,reason:"retry"};
   }
+
   function waitForTeacher(identity) {
     waitingUnsub?.();message("cbJoinMessage","Учитель ещё не открыл занятие. Подключение произойдёт автоматически.");$("cbJoin").disabled=false;
     waitingUnsub=onValue(stateRef(),(snapshot)=>{if(snapshot.exists()&&!joining){waitingUnsub?.();waitingUnsub=null;joinStudent(identity,true);}});
   }
   async function joinStudent(identity=storedIdentity(),automatic=false) {
-    if(joining||joined)return;if(!identity){openStudentEntry();return;}joining=true;$("cbJoin").disabled=true;if(!automatic)message("cbJoinMessage","Подключаемся к занятию…");
+    if(joining||joined)return;if(!identity){openStudentEntry();return;}joining=true;if($("cbJoin"))$("cbJoin").disabled=true;if(!automatic&&$("cbJoinMessage"))message("cbJoinMessage","Занимаем место…");
     try{
       const claim=await claimGuidePlace(identity);
-      if(!claim.committed){if(claim.reason==="session-missing"){waitForTeacher(identity);return;}if(claim.reason==="places-full")throw Error("К занятию уже подключены восемь учеников.");throw Error("Не удалось подключиться с первого раза. Нажмите «Подключиться» ещё раз.");}
-      mode="student";me={id:claim.key,studentId:String(identity.studentId),name:identity.name,color:PLAYER_COLORS[1+Math.abs(String(identity.studentId).split("").reduce((sum,ch)=>sum+ch.charCodeAt(0),0))%(PLAYER_COLORS.length-1)],role:"student"};localState=claim.state;joined=true;
-      await connectRealtime();prepareConnected();setStatus("online");localStorage.setItem(STUDENT_SAVE_KEY,JSON.stringify({studentId:identity.studentId,name:identity.name,savedAt:Date.now()}));
-    }catch(error){await disconnect();setGate("cbJoinView");message("cbJoinMessage",error.message||"Не удалось подключиться.","error");$("cbJoin").disabled=false;}
-    finally{joining=false;if(!joined)$("cbJoin").disabled=false;}
+      if(!claim.committed){
+        if(claim.reason==="session-missing"){
+          mode="student";me={id:participantKey(identity.code||identity.studentId),studentId:String(identity.code||identity.studentId),code:String(identity.code||identity.studentId),verifiedStudentId:identity.verifiedStudentId||"",verified:!!identity.verified,name:identity.name||"Ученик",color:PLAYER_COLORS[1],role:"student"};localState=newGuideState();joined=false;closeGate();$("cbStart").classList.add("cb-hidden");$("cbToolbar").classList.remove("cb-hidden");document.body.classList.add("cb-connected");setStatus("connecting","Ждём, когда учитель откроет занятие");waitForTeacher(identity);return;
+        }
+        if(claim.reason==="places-full")throw Error("К занятию уже подключены восемь учеников.");throw Error("Не удалось занять место. Повторите вход.");
+      }
+      const p=claim.state.participants?.[claim.key]||{},code=String(identity.code||identity.studentId);mode="student";me={id:claim.key,studentId:code,code,verifiedStudentId:identity.verifiedStudentId||p.verifiedStudentId||"",verified:!!identity.verified,name:p.name||identity.name||`Ученик ${claim.slot||1}`,color:PLAYER_COLORS[1+Math.abs(code.split("").reduce((sum,ch)=>sum+ch.charCodeAt(0),0))%(PLAYER_COLORS.length-1)],role:"student"};localState=claim.state;joined=true;verificationStatus=identity.verified?"✓ подтверждён":"";
+      prepareConnected();setStatus("online");
+      requestAnimationFrame(()=>setTimeout(()=>{if(mode!=="student"||!joined)return;connectRealtime();onStudentJoined();},0));
+    }catch(error){await disconnect();setGate("cbStudentAuthView");message("cbStudentAuthMessage",error.message||"Не удалось подключиться.","error");}
+    finally{joining=false;if($("cbJoin"))$("cbJoin").disabled=false;}
   }
-
   async function continueTeacher() {
-    try{
-      await disconnect();const backup=readTeacherBackup();mode="teacher";me={id:backup?.teacherId||`teacher-${randomId(14)}`,name:"Учитель",color:PLAYER_COLORS[0],role:"teacher"};
-      const snapshot=await get(stateRef());if(!snapshot.exists()){await startNewTeacher();return;}localState=normalizeState(snapshot.val());joined=true;await connectRealtime();prepareConnected();setStatus("online");saveTeacherBackup();
-    }catch(error){await disconnect();setGate("cbRestoreView");message("cbRestoreMessage",error.message||"Не удалось продолжить занятие.","error");}
+    try{await disconnect();const backup=readTeacherBackup();mode="teacher";me={id:backup?.teacherId||`teacher-${randomId(14)}`,name:"Учитель",color:PLAYER_COLORS[0],role:"teacher"};const snapshot=await get(stateRef());if(!snapshot.exists()){setGate("cbRestoreView");message("cbRestoreMessage","Предыдущее занятие не найдено. Можно начать новое.","error");return;}localState=normalizeState(snapshot.val());joined=true;prepareConnected();setStatus("online");saveTeacherBackup();requestAnimationFrame(()=>setTimeout(connectRealtime,0));}
+    catch(error){await disconnect();setGate("cbRestoreView");message("cbRestoreMessage",error.message||"Не удалось восстановить занятие.","error");}
   }
   async function startNewTeacher() {
-    try{
-      await disconnect();const backup=readTeacherBackup();mode="teacher";me={id:backup?.teacherId||`teacher-${randomId(14)}`,name:"Учитель",color:PLAYER_COLORS[0],role:"teacher"};
-      const fresh=freshSession();await set(sessionRef(),fresh);localState=normalizeState(fresh.state);joined=true;await connectRealtime();prepareConnected();setStatus("online");saveTeacherBackup();
-    }catch(error){await disconnect();setGate("cbRestoreView");message("cbRestoreMessage",error.message||"Не удалось начать занятие.","error");}
+    try{await disconnect();const backup=readTeacherBackup();mode="teacher";me={id:backup?.teacherId||`teacher-${randomId(14)}`,name:"Учитель",color:PLAYER_COLORS[0],role:"teacher"};const fresh=freshSession();await set(sessionRef(),fresh);localState=normalizeState(fresh.state);joined=true;prepareConnected();setStatus("online");saveTeacherBackup();requestAnimationFrame(()=>setTimeout(connectRealtime,0));}
+    catch(error){await disconnect();setGate("cbRestoreView");message("cbRestoreMessage",error.message||"Не удалось начать занятие.","error");}
   }
-  async function unlockTeacher() {
-    const button=$("cbTeacherUnlock"),code=String($("cbTeacherCode").value||"").trim().toUpperCase();if(!code){message("cbTeacherMessage","Введите код учителя.","error");return;}
-    button.disabled=true;message("cbTeacherMessage","Проверяем код…");
-    try{if(await hashText(code)!==TEACHER_CODE_HASH){message("cbTeacherMessage","Неверный код.","error");return;}teacherAuthorized=true;$("cbTeacherCode").value="";const snapshot=await get(stateRef());if(snapshot.exists()){setGate("cbRestoreView");message("cbRestoreMessage","");}else await startNewTeacher();}
-    catch(error){message("cbTeacherMessage",error.message||"Не удалось проверить код.","error");}
-    finally{button.disabled=false;}
+  function unlockTeacher() {
+    const button=$("cbTeacherUnlock"),code=String($("cbTeacherCode").value||"").trim().toUpperCase();if(!code){message("cbTeacherMessage","Введите код учителя.","error");return;}if(code!==TEACHER_CODE){message("cbTeacherMessage","Неверный код.","error");return;}teacherAuthorized=true;$("cbTeacherCode").value="";message("cbTeacherMessage","");setGate("cbRestoreView");message("cbRestoreMessage","");
   }
-  function showStudentJoin(identity=storedIdentity()) { if(!identity){setGate("cbStudentAuthView");return;}$("cbJoinStudentName").textContent=identity.name;message("cbJoinMessage","");setGate("cbJoinView"); }
-  function openStudentEntry() { const identity=storedIdentity();if(identity)showStudentJoin(identity);else{message("cbStudentAuthMessage","");setGate("cbStudentAuthView");setTimeout(()=>$("cbStudentCode").focus(),30);} }
-  async function validateStudentIdentity() {
-    const input=$("cbStudentCode"),button=$("cbStudentValidate"),code=String(input.value||"").trim().toUpperCase();if(!code){message("cbStudentAuthMessage","Введите личный код ученика.","error");return;}
-    if(await hashText(code)===TEACHER_CODE_HASH){message("cbStudentAuthMessage","Это код учителя. Используйте личный код ученика.","error");return;}
-    input.disabled=button.disabled=true;message("cbStudentAuthMessage","Проверяем код…");
-    try{const identity=await validateStudentCode(code);saveIdentity(identity);message("cbStudentAuthMessage",`Имя найдено: ${identity.name}`,"ok");setTimeout(()=>showStudentJoin(identity),300);}
-    catch(error){message("cbStudentAuthMessage",error.message||"Код не подтверждён.","error");input.focus();}
-    finally{input.disabled=button.disabled=false;}
+  function showStudentJoin(identity=storedIdentity()){if(!identity){setGate("cbStudentAuthView");return;}$("cbJoinStudentName").textContent=identity.name;message("cbJoinMessage","");setGate("cbJoinView");}
+  function openStudentEntry(){const identity=storedIdentity();if(identity)showStudentJoin(identity);else{message("cbStudentAuthMessage","");setGate("cbStudentAuthView");setTimeout(()=>$("cbStudentCode").focus(),30);}}
+  async function validateStudentIdentity(){
+    const input=$("cbStudentCode"),button=$("cbStudentValidate"),code=String(input.value||"").trim().toUpperCase();if(!code){message("cbStudentAuthMessage","Введите личный код ученика.","error");return;}if(code===TEACHER_CODE){message("cbStudentAuthMessage","Это код учителя. Используйте личный код ученика.","error");return;}
+    saveEnteredCode(code);button.disabled=true;message("cbStudentAuthMessage","Занимаем место…");const temp={studentId:code,code,name:"Ученик",verified:false};try{await joinStudent(temp);}finally{button.disabled=false;}
   }
+  function switchConnectedStudent(){
+    if(mode!=="student")return;const oldKey=me?.id,oldCode=String(me?.studentId||me?.code||"");verificationRun++;clearIdentity();mode="";me=null;joined=false;verificationStatus="";document.body.classList.remove("cb-connected");$("cbToolbar").classList.add("cb-hidden");selectTool("pointer");$("cbStudentCode").value="";message("cbStudentAuthMessage","");setGate("cbStudentAuthView");setTimeout(()=>$("cbStudentCode").focus(),30);
+    if(memberNode)remove(memberNode).catch(()=>{});waitingUnsub?.();waitingUnsub=null;stateUnsub?.();stateUnsub=null;membersUnsub?.();membersUnsub=null;interactionsUnsub?.();interactionsUnsub=null;messagesUnsub?.();messagesUnsub=null;connectionUnsub?.();connectionUnsub=null;padUnsubs.splice(0).forEach(u=>u());memberNode=null;
+    if(oldKey)runTransaction(stateRef(),current=>{const st=normalizeState(current||newGuideState()),p=st.participants?.[oldKey];if(p&&String(p.id||p.code||"")===oldCode){delete st.participants[oldKey];st.version++;st.updatedAt=Date.now();}return st;},{applyLocally:false}).catch(()=>{});
+  }
+
   async function exitLesson() {
-    if(mode==="teacher")saveTeacherBackup();await disconnect();document.body.classList.remove("cb-connected");$("cbToolbar").classList.add("cb-hidden");mode="";me=null;localState=null;selectTool("pointer");showStartup();
+    verificationRun++;if(mode==="teacher")saveTeacherBackup();await disconnect();document.body.classList.remove("cb-connected");$("cbToolbar").classList.add("cb-hidden");mode="";me=null;localState=null;selectTool("pointer");showStartup();
   }
   function showStartup() { closeGate();$("cbStart").classList.remove("cb-hidden");$("cbStart").textContent="👥 Совместный урок"; }
 
   $("cbOpenTeacher").addEventListener("click",()=>{message("cbTeacherMessage","");setGate("cbTeacherView");setTimeout(()=>$("cbTeacherCode").focus(),30);});
   $("cbTeacherUnlock").addEventListener("click",unlockTeacher);$("cbTeacherCode").addEventListener("keydown",(event)=>{if(event.key==="Enter")unlockTeacher();});$("cbTeacherBack").addEventListener("click",()=>setGate("cbRoleView"));
   $("cbOpenJoin").addEventListener("click",openStudentEntry);$("cbStudentValidate").addEventListener("click",validateStudentIdentity);$("cbStudentCode").addEventListener("keydown",(event)=>{if(event.key==="Enter")validateStudentIdentity();});$("cbStudentAuthBack").addEventListener("click",()=>setGate("cbRoleView"));
-  $("cbChangeStudent").addEventListener("click",()=>{clearIdentity();$("cbStudentCode").value="";message("cbStudentAuthMessage","");setGate("cbStudentAuthView");setTimeout(()=>$("cbStudentCode").focus(),30);});
+  $("cbChangeStudent").addEventListener("click",()=>{clearIdentity();$("cbStudentCode").value="";message("cbStudentAuthMessage","");setGate("cbStudentAuthView");setTimeout(()=>$("cbStudentCode").focus(),30);});$("cbSwitchStudent").addEventListener("click",switchConnectedStudent);
   $("cbJoin").addEventListener("click",()=>joinStudent());$("cbJoinBack").addEventListener("click",()=>{waitingUnsub?.();waitingUnsub=null;setGate("cbRoleView");});
   $("cbRestore").addEventListener("click",continueTeacher);$("cbRestoreClean").addEventListener("click",startNewTeacher);$("cbRestoreCancel").addEventListener("click",()=>setGate("cbRoleView"));
   $("cbStart").addEventListener("click",()=>setGate("cbRoleView"));$("cbGateClose").addEventListener("click",()=>{waitingUnsub?.();waitingUnsub=null;closeGate();});$("cbExit").addEventListener("click",exitLesson);
@@ -3231,7 +3244,7 @@ import { getDatabase, ref, get, set, update, remove, push, onValue, onChildAdded
   document.querySelectorAll("[data-cb-tool]").forEach((button)=>button.addEventListener("click",()=>selectTool(button.dataset.cbTool)));document.querySelectorAll(".cb-swatch").forEach((button)=>button.addEventListener("click",()=>setColor(button.dataset.color)));$("cbColor").addEventListener("input",(event)=>setColor(event.target.value));document.querySelectorAll("[data-pen-width]").forEach((button)=>button.addEventListener("click",()=>setPenWidth(button.dataset.penWidth)));
   $("cbClearAll").addEventListener("click",()=>{if(mode!=="teacher"||!confirm("Удалить все рисунки у всех участников?"))return;clearBoard(true).catch(()=>toast("Не удалось очистить доску"));});
   document.addEventListener("toggle",(event)=>{if(suppressUi||!canInteract()||event.target.tagName!=="DETAILS")return;updateSharedUi({kind:"details",id:event.target.id,open:event.target.open}).catch(()=>setStatus("connecting","Изменение отправится после восстановления связи"));},true);
-  document.addEventListener("click",(event)=>{const button=event.target.closest?.("[data-shared-replay]");if(!button||suppressUi||!canInteract())return;sendMessage({type:"replay",id:button.dataset.sharedReplay,senderId:me.id}).catch(()=>{});});
+  document.addEventListener("click",(event)=>{const button=event.target.closest?.("[data-shared-replay]");if(!button||suppressUi||!canInteract())return;const id=button.dataset.sharedReplay,rec={rev:Date.now(),updatedBy:me.id,updatedAt:serverTimestamp()};lastProofRuns[id]=Number(rec.rev);set(ref(database,`${lessonRoot()}/interactions/proofRuns/${id}`),rec).catch(()=>setStatus("connecting","Повтор анимации отправится после восстановления связи"));});
   window.addEventListener("planimetry:prototype-change",(event)=>{if(suppressUi||!canInteract())return;const index=Math.max(0,Math.min(54,Number(event.detail?.index)||0));if(localState&&index!==Number(localState.ui?.currentPrototype||0)){localState.ui.currentPrototype=index;localState.boardEpoch=Number(localState.boardEpoch||0)+1;localState.strokes={};drawing=null;renderAllStrokes();}bindCurrentPad();applyDetails(localState?.ui?.details||{},true);updateSharedUi({kind:"prototype",index}).catch(()=>setStatus("connecting","Переход отправится после восстановления связи"));});
   $("openFormulas").addEventListener("click",()=>{if(!canInteract()||suppressFormula)return;setTimeout(()=>updateSharedUi({kind:"formulas",open:true}).catch(()=>setStatus("connecting","Атлас формул отправится после восстановления связи")),0);});
   $("formulaDialog").addEventListener("close",()=>{if(!canInteract()||suppressFormula)return;updateSharedUi({kind:"formulas",open:false}).catch(()=>setStatus("connecting","Атлас формул отправится после восстановления связи"));});
