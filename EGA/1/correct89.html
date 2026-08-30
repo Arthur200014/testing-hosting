@@ -67,7 +67,7 @@ const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLy
 const APP_ID='ege-task01-ch08-09-julien-game2-v2';
 const FIXED_SESSION_ID='currentSession';
 const SCHEMA_VERSION=2;
-const TEACHER_CODE_HASH='b0a83a3919eba1d2a99034f2d94e5a47590f1710595c04bd64b5c8f21456a7c6';
+const TEACHER_CODE='A7K4P9';
 const TEST_META={
   testId:'EGE-01-MADAGASCAR-JULIEN-THEORY-GAME-2-CH08-09',
   testName:'Суд короля Джулиана — базовые факты VIII–IX',
@@ -102,7 +102,7 @@ let browserClientId=getBrowserClientId();
 let serverState=null;
 let membersSnapshot={};
 let stateUnsub=null,membersUnsub=null,messagesUnsub=null;
-let joinInFlight=false;
+let joinInFlight=false,studentSessionPrime=null,studentSessionCache=null;let verificationRun=0,verificationStatus='';
 let presencePath=null;
 let muted=false;
 let online=navigator.onLine;
@@ -114,7 +114,7 @@ let boardTool='cursor';
 let boardColor='#e53935';
 let boardWidth=6;
 let toolbarCollapsed=false;
-let lastStrokePush=0;
+let lastStrokePush=0;let boardPointerId=null,boardErasing=false,lastErasePoint=null;let boardLocalStrokes={},boardHiddenStrokes=new Set();
 let lastCursorPush=0;
 let remoteTeacherCursor=null;
 let partialSent=false;
@@ -190,11 +190,29 @@ function timeText(s){s=Math.max(0,Number(s)||0);return Math.floor(s/60)+':'+Stri
 function nowIso(ms=Date.now()){return new Date(ms).toISOString()}
 function playerKey(studentId){let h=2166136261;for(const ch of String(studentId)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return'p_'+(h>>>0).toString(36)}
 function getBrowserClientId(){let v=sessionStorage.getItem(CLIENT_ID_KEY);if(!v){v='c_'+uuid();sessionStorage.setItem(CLIENT_ID_KEY,v)}return v}
-function storedStudent(){const studentId=localStorage.getItem('egeStudentId');if(studentId)return{studentId,name:localStorage.getItem('egeStudentName')||'Ученик',code:localStorage.getItem('egeStudentCode')||''};try{const s=JSON.parse(localStorage.getItem(STUDENT_SAVE_KEY)||'null');return s?.studentId?s:null}catch{return null}}
-function saveStudent(s){localStorage.setItem('egeStudentId',s.studentId);localStorage.setItem('egeStudentName',s.name);localStorage.setItem('egeStudentCode',s.code);localStorage.setItem(STUDENT_SAVE_KEY,JSON.stringify(s))}
-function clearStoredStudent(){['egeStudentId','egeStudentName','egeStudentCode',STUDENT_SAVE_KEY].forEach(k=>localStorage.removeItem(k));student=null}
-function parseStudent(data,code){const src=(data&&(data.student||data.data))||data||{},studentId=src.studentId||src.id||(data&&data.studentId),name=src.studentName||src.name||src.fullName||(data&&(data.studentName||data.name)),bad=data&&(data.success===false||data.valid===false||data.ok===false);if(bad||!studentId)throw new Error((data&&(data.message||data.error))||'Личный код не найден');return{studentId:String(studentId),name:String(name||'Ученик'),code:String(code)}}
-function validateStudent(code){return new Promise((resolve,reject)=>{const cb='egeValidate_'+Date.now()+'_'+Math.random().toString(36).slice(2),s=document.createElement('script');let done=false;const clean=()=>{delete window[cb];s.remove()},timer=setTimeout(()=>{if(done)return;done=true;clean();reject(new Error('Сервер не ответил. Проверь интернет'))},12000);window[cb]=data=>{if(done)return;done=true;clearTimeout(timer);clean();try{resolve(parseStudent(data,code))}catch(e){reject(e)}};s.onerror=()=>{if(done)return;done=true;clearTimeout(timer);clean();reject(new Error('Не удалось проверить код'))};s.src=API_URL+'?'+new URLSearchParams({action:'validateStudent',code,callback:cb});document.head.appendChild(s)})}
+function storedStudent(){
+  try{
+    const app=JSON.parse(localStorage.getItem(STUDENT_SAVE_KEY)||'null');
+    const realId=String(app?.studentId||localStorage.getItem('egeStudentId')||'').trim(),name=String(app?.name||localStorage.getItem('egeStudentName')||'').trim(),code=String(app?.code||localStorage.getItem('egeStudentCode')||'').trim();
+    if(realId&&name&&code&&!/^Ученик(?:\s+\d+)?$/i.test(name))return{studentId:code,verifiedStudentId:realId,name,code,verified:true}
+  }catch{}
+  const realId=String(localStorage.getItem('egeStudentId')||'').trim(),name=String(localStorage.getItem('egeStudentName')||'').trim(),code=String(localStorage.getItem('egeStudentCode')||'').trim();
+  return realId&&name&&code&&!/^Ученик(?:\s+\d+)?$/i.test(name)?{studentId:code,verifiedStudentId:realId,name,code,verified:true}:null
+}
+function saveStudent(s){
+  const code=String(s?.code||'').trim(),name=String(s?.name||'').trim(),realId=String(s?.verifiedStudentId||'').trim();
+  if(!code||!name||!realId||/^Ученик(?:\s+\d+)?$/i.test(name))return false;
+  localStorage.setItem('egeStudentId',realId);localStorage.setItem('egeStudentName',name);localStorage.setItem('egeStudentCode',code);localStorage.setItem(STUDENT_SAVE_KEY,JSON.stringify({studentId:realId,name,code}));return true
+}
+function clearStoredStudent(){verificationRun++;verificationStatus='';['egeStudentId','egeStudentName','egeStudentCode',STUDENT_SAVE_KEY].forEach(k=>localStorage.removeItem(k));student=null}
+function parseStudent(data,code){
+  const src=(data&&(data.student||(data.data&&data.data.student)||data.data))||data||{},studentId=src.studentId||src.id||(data&&data.studentId),name=src.studentName||src.name||src.fullName||(data&&(data.studentName||data.name)),active=src.active??(data&&data.active),bad=data&&(data.success===false||data.valid===false||data.ok===false);
+  if(active===false||String(active).toLowerCase()==='false'||String(active)==='0'||bad||!studentId){const e=new Error((data&&(data.message||data.error))||(active===false?'Доступ ученика отключён':'Личный код не найден'));e.terminal=true;throw e}
+  return{studentId:String(studentId),name:String(name||'Ученик'),code:String(code)}
+}
+function validateStudent(code){
+  return new Promise((resolve,reject)=>{const cb='egeValidate_'+Date.now()+'_'+Math.random().toString(36).slice(2),s=document.createElement('script');let done=false;const clean=()=>{try{delete window[cb]}catch{}s.remove()},timer=setTimeout(()=>{if(done)return;done=true;clean();const e=new Error('Сервер не ответил');e.transient=true;reject(e)},60000);window[cb]=data=>{if(done)return;done=true;clearTimeout(timer);clean();try{resolve(parseStudent(data,code))}catch(e){reject(e)}};s.onerror=()=>{if(done)return;done=true;clearTimeout(timer);clean();const e=new Error('Сервер не ответил');e.transient=true;reject(e)};s.async=true;s.src=API_URL+'?'+new URLSearchParams({action:'validateStudent',code,callback:cb,_:Date.now()});document.head.appendChild(s)})
+}
 async function sha256(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 
 function makeDeck(limit){
@@ -229,9 +247,9 @@ function renderWaitingTeacher(){
 }
 function renderLobby(s){
   const g=s.game,players=Object.entries(g.players).sort((a,b)=>(a[1].slot||9)-(b[1].slot||9));
-  const onlineIds=new Set(Object.values(membersSnapshot).filter(m=>m&&m.online&&m.role==='student'&&m.studentId).map(m=>String(m.studentId)));
-  const ready=players.length>=g.studentLimit&&players.slice(0,g.studentLimit).every(([,p])=>onlineIds.has(String(p.studentId)));
-  const playerCards=Array.from({length:g.studentLimit},(_,i)=>{const row=players.find(([,p])=>p.slot===i+1),isOn=row&&onlineIds.has(String(row[1].studentId));return `<div class="seat ${row?'filled':''}"><b>${i+1}</b><span>${row?esc(row[1].name)+(isOn?' · онлайн':' · не в сети'):'Свободное место'}</span></div>`}).join('');
+  const onlineIds=activeMemberCodes(membersSnapshot);
+  const ready=players.length>=g.studentLimit&&players.slice(0,g.studentLimit).every(([,p])=>onlineIds.has(String(p.code||p.studentId||'')));
+  const playerCards=Array.from({length:g.studentLimit},(_,i)=>{const row=players.find(([,p])=>p.slot===i+1),isOn=row&&onlineIds.has(String(row[1].code||row[1].studentId||''));return `<div class="seat ${row?'filled':''}"><b>${i+1}</b><span>${row?esc(row[1].name)+(isOn?' · онлайн':' · не в сети'):'Свободное место'}</span></div>`}).join('');
   const teacherControls=role==='teacher'?`<div class="host-actions"><button class="primary" id="hostStartBtn" ${ready?'':'disabled'}>${ready?'Начать игру':'Ждём учеников'}</button><button class="secondary" id="hostNewBtn">Новое занятие</button></div>`:'';
   $('app').innerHTML=`<section class="screen start" data-board-anchor="main-screen"><div class="tablet"><span class="tag">Совместный урок · режим ${g.studentLimit===2?'2 ученика':'1 ученик'}</span><h1>Королевский зал ожидания</h1><p class="lead">${role==='teacher'?'Ученики занимают места по личному коду. Начать можно после заполнения выбранного режима.':'Место закреплено. Учитель запустит игру после подключения всех участников.'}</p><div class="seats">${playerCards}</div>${teacherControls}</div>${scene()}</section>`;
   if($('hostStartBtn'))$('hostStartBtn').addEventListener('click',hostStartGame);
@@ -292,9 +310,9 @@ async function hostStartGame(){
   if(role!=='teacher')return;
   const snap=await get(stateRef());if(!snap.exists())return;
   const initial=normalizeState(snap.val());
-  const ms=await get(membersRef()),members=ms.exists()?ms.val()||{}:{},onlineIds=new Set(Object.values(members).filter(m=>m&&m.online&&m.role==='student'&&m.studentId).map(m=>String(m.studentId)));
+  const ms=await get(membersRef()),members=ms.exists()?ms.val()||{}:{},onlineIds=activeMemberCodes(members);
   const ordered=Object.entries(initial.game.players).sort((a,b)=>(a[1].slot||9)-(b[1].slot||9)).slice(0,initial.game.studentLimit);
-  if(ordered.length<initial.game.studentLimit||!ordered.every(([,p])=>onlineIds.has(String(p.studentId)))){showToast('Начать можно только после подключения всех учеников выбранного режима.');return}
+  if(ordered.length<initial.game.studentLimit||!ordered.every(([,p])=>onlineIds.has(String(p.code||p.studentId||'')))){showToast('Начать можно только после подключения всех учеников выбранного режима.');return}
   await runTransaction(stateRef(),current=>{
     const s=normalizeState(current||clone(initial));if(s.game.status!=='lobby')return s;
     const players=Object.entries(s.game.players).sort((a,b)=>(a[1].slot||9)-(b[1].slot||9));if(players.length<s.game.studentLimit)return;
@@ -339,54 +357,65 @@ async function finishEarly(){
 }
 
 async function tryJoinStudent(){
-  if(joinInFlight||role!=='student'||!student)return;joinInFlight=true;
+  if(joinInFlight||role!=='student'||!student)return false;joinInFlight=true;
   try{
-    const ss=await get(stateRef());
-    if(!ss.exists()){serverState=null;renderWaitingTeacher();return}
-    const initial=normalizeState(ss.val());serverState=initial;
-    const ms=await get(membersRef());const members=ms.exists()?ms.val()||{}:{};const activeIds=new Set(Object.values(members).filter(m=>m&&m.online&&m.role==='student'&&m.studentId).map(m=>String(m.studentId)));
-    const pk=playerKey(student.studentId),candidateEventId=uuid(),now=Date.now();
-    const result=await runTransaction(stateRef(),current=>{
-      const s=normalizeState(current||clone(initial)),g=s.game;
-      const existingKey=Object.keys(g.players).find(k=>String(g.players[k]?.studentId)===String(student.studentId));
-      if(existingKey){const p=g.players[existingKey];p.name=student.name;p.code=student.code;p.lastSeen=now;g.eventIds[existingKey]=g.eventIds[existingKey]||candidateEventId;s.version++;return s}
-      if(g.status!=='lobby')return;
-      for(const [key,p] of Object.entries(g.players)){
-        const stale=!activeIds.has(String(p.studentId))&&now-(Number(p.lastSeen)||Number(p.joinedAt)||0)>10000;
-        if(stale&&g.status==='lobby'){delete g.players[key];delete g.stats[key];delete g.attempts[key];delete g.eventIds[key];delete g.submissions[key]}
+    const enteredCode=String(student.code||student.studentId||''),defaultPk=playerKey(enteredCode),candidateEventId=uuid(),stamp=Date.now();
+    let fallback=studentSessionCache||serverState||await primeStudentSession();
+    if(!fallback){fallback=await primeStudentSession(true)}
+    if(!fallback){serverState=null;renderWaitingTeacher();return false}
+    const findPk=s=>Object.keys(s.game.players||{}).find(k=>k===defaultPk||String(s.game.players[k]?.code||s.game.players[k]?.studentId||'')===enteredCode)||'';
+    const mutate=(seed,activeCodes=null,cleanupStale=false)=>{
+      const s=normalizeState(seed),g=s.game;let existingKey=findPk(s);
+      if(cleanupStale&&g.status==='lobby'&&activeCodes){
+        for(const[key,p]of Object.entries(g.players||{})){if(key===existingKey)continue;const code=String(p?.code||p?.studentId||''),stale=!activeCodes.has(code)&&stamp-(Number(p.lastSeen)||Number(p.joinedAt)||0)>=10000;if(stale){delete g.players[key];delete g.stats[key];delete g.attempts[key];delete g.eventIds[key];delete g.submissions[key];g.playerOrder=(g.playerOrder||[]).filter(x=>x!==key)}}
+        existingKey=findPk(s)
       }
-      if(Object.keys(g.players).length>=g.studentLimit)return;
-      const used=new Set(Object.values(g.players).map(p=>Number(p.slot)));let slot=1;while(used.has(slot)&&slot<=g.studentLimit)slot++;
-      if(slot>g.studentLimit)return;
-      g.players[pk]={studentId:student.studentId,name:student.name,code:student.code,slot,joinedAt:now,lastSeen:now};g.stats[pk]={firstTryCorrect:0,completed:0,attemptCount:0};g.attempts[pk]={};g.eventIds[pk]=candidateEventId;s.version++;return s
-    });
-    if(!result.committed){
-      const reread=await get(stateRef());if(!reread.exists()){serverState=null;renderWaitingTeacher();return}
-      const after=normalizeState(reread.val()),found=Object.keys(after.game.players).find(k=>String(after.game.players[k]?.studentId)===String(student.studentId));
-      if(found){participantPlayerKey=found;serverState=after;await registerPresence();renderFromState(true);return}
-      if(after.game.status!=='lobby'){showToast('Игра уже началась. Войти новым участником сейчас нельзя.');return}
-      if(Object.keys(after.game.players).length>=after.game.studentLimit){showToast('Все места действительно заняты.');return}
-      showToast('Вход не завершён из-за одновременного изменения. Нажми «Повторить вход».');showRetryJoin();return
+      if(existingKey){
+        const p=g.players[existingKey],slot=Number(p.slot)||1;p.studentId=enteredCode;p.code=enteredCode;p.name=student.verified&&student.name?student.name:(p.name&&!/^Ученик$/i.test(p.name)?p.name:`Ученик ${slot}`);p.verifiedStudentId=student.verifiedStudentId||p.verifiedStudentId||'';p.verified=Boolean(student.verified||p.verified);p.lastSeen=stamp;g.eventIds[existingKey]=g.eventIds[existingKey]||candidateEventId;s.version++;return s
+      }
+      if(g.status!=='lobby'||Object.keys(g.players).length>=g.studentLimit)return;
+      const used=new Set(Object.values(g.players).map(p=>Number(p.slot)));let slot=1;while(used.has(slot)&&slot<=g.studentLimit)slot++;if(slot>g.studentLimit)return;
+      g.players[defaultPk]={studentId:enteredCode,verifiedStudentId:student.verifiedStudentId||'',verified:Boolean(student.verified),name:student.verified&&student.name?student.name:`Ученик ${slot}`,code:enteredCode,slot,joinedAt:stamp,lastSeen:stamp};g.stats[defaultPk]=g.stats[defaultPk]||{firstTryCorrect:0,completed:0,attemptCount:0};g.attempts[defaultPk]=g.attempts[defaultPk]||{};g.eventIds[defaultPk]=g.eventIds[defaultPk]||candidateEventId;g.submissions[defaultPk]=g.submissions[defaultPk]||{status:'pending'};s.version++;return s
+    };
+    const attempt=async(seed,activeCodes=null,cleanup=false)=>runTransaction(stateRef(),current=>{const source=current||clone(seed);if(!source)return;return mutate(source,activeCodes,cleanup)},{applyLocally:false});
+    let result=await attempt(fallback);
+    if(result.committed){
+      const after=normalizeState(result.snapshot.val()),found=findPk(after);serverState=after;studentSessionCache=after;
+      if(found){participantPlayerKey=found;const p=after.game.players[found];student.name=p.name||student.name;participantName=student.name;return true}
     }
-    const after=normalizeState(result.snapshot.val()),found=Object.keys(after.game.players).find(k=>String(after.game.players[k]?.studentId)===String(student.studentId));if(!found){showToast('Не удалось закрепить место.');showRetryJoin();return}
-    participantPlayerKey=found;serverState=after;await registerPresence();renderFromState(true)
-  }catch(e){showToast(online?'Не удалось подключиться к занятию. Можно повторить вход.':'Нет сети. Подключение продолжится после восстановления.');showRetryJoin()}
+    const [latestSnap,membersSnap]=await Promise.all([get(stateRef()).catch(()=>null),get(membersRef()).catch(()=>null)]);
+    if(!latestSnap?.exists()){serverState=null;renderWaitingTeacher();return false}
+    let latest=normalizeState(latestSnap.val()),found=findPk(latest);serverState=latest;studentSessionCache=latest;
+    if(found){participantPlayerKey=found;const p=latest.game.players[found];student.name=p.name||student.name;participantName=student.name;return true}
+    if(latest.game.status!=='lobby'){showToast('Игра уже началась. Войти новым участником сейчас нельзя.');return false}
+    const activeCodes=activeMemberCodes(membersSnap?.exists()?membersSnap.val():{});
+    const hasStale=Object.values(latest.game.players||{}).some(p=>{const code=String(p?.code||p?.studentId||'');return !activeCodes.has(code)&&stamp-(Number(p.lastSeen)||Number(p.joinedAt)||0)>=10000});
+    if(hasStale){
+      result=await attempt(latest,activeCodes,true);
+      if(result.committed){
+        latest=normalizeState(result.snapshot.val());found=findPk(latest);serverState=latest;studentSessionCache=latest;
+        if(found){participantPlayerKey=found;const p=latest.game.players[found];student.name=p.name||student.name;participantName=student.name;return true}
+      }
+    }
+    if(Object.keys(latest.game.players).length>=latest.game.studentLimit){showToast('Все места действительно заняты.');return false}
+    showToast('Не удалось занять место. Повтори вход.');showRetryJoin();return false
+  }catch(e){showToast(online?'Не удалось подключиться к занятию. Можно повторить вход.':'Нет сети. Подключение продолжится после восстановления.');showRetryJoin();return false}
   finally{joinInFlight=false}
 }
 function showRetryJoin(){const p=$('sessionPanel');if(p&&!$('retryJoinBtn')){const b=document.createElement('button');b.id='retryJoinBtn';b.className='tiny';b.textContent='Повторить вход';b.addEventListener('click',()=>tryJoinStudent());p.appendChild(b)}}
 
 async function registerPresence(){
-  if(!role)return;participantId=role==='teacher'?'teacher':participantPlayerKey||playerKey(student?.studentId||'');participantName=role==='teacher'?'Учитель':student?.name||'Ученик';
+  if(!role)return;participantId=role==='teacher'?'teacher':participantPlayerKey||playerKey(student?.code||'');participantName=role==='teacher'?'Учитель':student?.name||'Ученик';
   const mref=memberRef(browserClientId);presencePath=mref;
-  try{await onDisconnect(mref).update({online:false,lastSeen:serverTimestamp()});await set(mref,{id:browserClientId,userId:participantId,studentId:role==='student'?student.studentId:'',name:participantName,role,color:role==='teacher'?'#ffd460':'#45a873',online:true,lastSeen:serverTimestamp()})}catch{}
+  try{await onDisconnect(mref).update({online:false,lastSeen:serverTimestamp()});await set(mref,{id:browserClientId,userId:participantId,studentId:role==='student'?String(student?.verifiedStudentId||''):'',code:role==='student'?String(student?.code||''):'',name:participantName,role,verified:role==='student'?Boolean(student?.verified):true,color:role==='teacher'?'#ffd460':'#45a873',online:true,lastSeen:serverTimestamp()})}catch{}
 }
 async function cleanupPresence(){if(presencePath){try{await update(presencePath,{online:false,lastSeen:serverTimestamp()})}catch{}presencePath=null}}
 
 function startSessionListeners(){
   if(stateUnsub)stateUnsub();if(membersUnsub)membersUnsub();if(messagesUnsub)messagesUnsub();
-  stateUnsub=onValue(stateRef(),snap=>{serverState=snap.exists()?normalizeState(snap.val()):null;if(role==='teacher'&&serverState)localStorage.setItem(HOST_SAVE_KEY,JSON.stringify({schemaVersion:SCHEMA_VERSION,savedAt:Date.now(),state:serverState}));if(role==='student'&&serverState&&!serverState.game.players[participantPlayerKey]&&serverState.game.status==='lobby'&&!joinInFlight)tryJoinStudent().catch(()=>{});renderFromState()});
+  stateUnsub=onValue(stateRef(),snap=>{serverState=snap.exists()?normalizeState(snap.val()):null;reconcileBoardCache();if(role==='teacher'&&serverState)localStorage.setItem(HOST_SAVE_KEY,JSON.stringify({schemaVersion:SCHEMA_VERSION,savedAt:Date.now(),state:serverState}));if(role==='student'&&serverState&&student){const actual=Object.keys(serverState.game.players||{}).find(k=>k===participantPlayerKey||String(serverState.game.players[k]?.code||serverState.game.players[k]?.studentId||'')===String(student.code||''));if(actual){participantPlayerKey=actual;const p=serverState.game.players[actual];student.name=p.name||student.name;participantName=student.name;student.verifiedStudentId=p.verifiedStudentId||student.verifiedStudentId||'';student.verified=Boolean(p.verified||student.verified);registerPresence().catch(()=>{})}else if(serverState.game.status==='lobby'&&!joinInFlight)setTimeout(()=>tryJoinStudent().then(ok=>{if(ok){registerPresence().catch(()=>{});renderFromState(true)}}).catch(()=>{}),0)}renderFromState()});
   membersUnsub=onValue(membersRef(),snap=>{membersSnapshot=snap.exists()?snap.val()||{}:{};updateSessionPanel();if(serverState?.game?.status==='lobby')renderFromState(true)});
-  messagesUnsub=onValue(messagesRef(),snap=>{const m=snap.exists()?snap.val()||{}:{};remoteTeacherCursor=m.teacherCursor||null;updateTeacherCursor()});
+  messagesUnsub=onValue(messagesRef(),snap=>{const m=snap.exists()?snap.val()||{}:{};remoteTeacherCursor=m.teacherCursor||null;updateTeacherCursor()})
 }
 function stopSessionListeners(){if(stateUnsub){stateUnsub();stateUnsub=null}if(membersUnsub){membersUnsub();membersUnsub=null}if(messagesUnsub){messagesUnsub();messagesUnsub=null}}
 
@@ -398,37 +427,104 @@ function closeLessonModal(){$('lessonModal').classList.remove('open')}
 function openTeacherLogin(){
   $('lessonModal').innerHTML=`<div class="lesson-card"><button class="modal-x" id="closeModalBtn">×</button><span class="tag">Вход учителя</span><h2>Код учителя</h2><form id="teacherLoginForm" class="code-form"><input class="code" id="teacherCodeInput" type="password" autocomplete="current-password" placeholder="КОД УЧИТЕЛЯ"><button class="primary">Войти</button><div class="status" id="teacherLoginStatus"></div></form></div>`;$('closeModalBtn').onclick=closeLessonModal;$('teacherLoginForm').onsubmit=handleTeacherLogin
 }
-async function handleTeacherLogin(e){e.preventDefault();const input=$('teacherCodeInput'),status=$('teacherLoginStatus'),btn=e.submitter;input.disabled=btn.disabled=true;status.textContent='Проверяем…';try{if(await sha256(input.value.trim())!==TEACHER_CODE_HASH)throw new Error('Неверный код учителя');teacherAuthenticated=true;role='teacher';participantPlayerKey='';startSessionListeners();const snap=await get(stateRef());serverState=snap.exists()?normalizeState(snap.val()):null;if(serverState&&serverState.schemaVersion===SCHEMA_VERSION)openTeacherResume();else openNewSessionChooser()}catch(err){status.className='status bad';status.textContent=err.message||'Не удалось войти';input.disabled=btn.disabled=false}}
-function openTeacherResume(){
-  $('lessonModal').classList.add('open');$('lessonModal').innerHTML=`<div class="lesson-card"><span class="tag">Найдено текущее занятие</span><h2>Продолжить или начать заново?</h2><p>Firebase — главный источник состояния. При продолжении восстановятся игроки, вопрос, очередь, первые попытки и баллы.</p><div class="actions"><button class="primary" id="continueBtn">Продолжить занятие</button><button class="secondary" id="newBtn">Начать новое</button></div></div>`;$('continueBtn').onclick=async()=>{closeLessonModal();await registerPresence();showConnectedUI();renderFromState(true)};$('newBtn').onclick=openNewSessionChooser
+async function handleTeacherLogin(e){
+  e.preventDefault();const input=$('teacherCodeInput'),status=$('teacherLoginStatus'),code=input.value.trim();
+  if(code!==TEACHER_CODE){status.className='status bad';status.textContent='Неверный код учителя';return}
+  teacherAuthenticated=true;role='teacher';participantPlayerKey='';participantId='teacher';participantName='Учитель';openTeacherResume()
 }
-function openNewSessionChooser(){
+function openTeacherResume(){
+  $('lessonModal').classList.add('open');$('lessonModal').innerHTML=`<div class="lesson-card"><span class="tag">Совместный урок</span><h2>Что сделать?</h2><p>Прошлое занятие загрузится только после явного восстановления.</p><div class="actions"><button class="primary" id="continueBtn">Восстановить прошлую игру</button><button class="secondary" id="newBtn">Начать новую игру</button></div><div class="status" id="teacherChoiceStatus"></div></div>`;$('continueBtn').onclick=restoreTeacherSession;$('newBtn').onclick=openNewSessionChooser
+}
+
+async function restoreTeacherSession(){
+  const st=$('teacherChoiceStatus'),btn=$('continueBtn');if(btn)btn.disabled=true;if(st)st.textContent='Загружаем занятие…';
+  try{
+    const snap=await get(stateRef());if(!snap.exists()){if(st)st.textContent='Прошлого занятия нет — начните новое.';if(btn)btn.disabled=false;return}
+    serverState=normalizeState(snap.val());startSessionListeners();closeLessonModal();showConnectedUI();registerPresence().catch(()=>{});renderFromState(true)
+  }catch{if(st){st.className='status bad';st.textContent='Не удалось восстановить занятие.'}if(btn)btn.disabled=false}
+}
+  function openNewSessionChooser(){
   $('lessonModal').classList.add('open');$('lessonModal').innerHTML=`<div class="lesson-card"><span class="tag">Новое занятие</span><h2>Сколько учеников?</h2><div class="role-grid"><button class="role-choice" data-limit="1"><b>1 ученик</b><small>10 базовых вопросов</small></button><button class="role-choice" data-limit="2"><b>2 ученика</b><small>по 10 каждому, строго по очереди</small></button></div></div>`;document.querySelectorAll('[data-limit]').forEach(b=>b.onclick=()=>createFreshSession(Number(b.dataset.limit)))
 }
 async function createFreshSession(limit){
-  if(!teacherAuthenticated)return;const card=$('lessonModal').querySelector('.lesson-card');card.innerHTML='<span class="tag">Создаём занятие</span><h2>Сохраняем новое состояние…</h2>';
-  const freshState=newGameState(limit),freshSession={meta:{sessionId:freshState.game.sessionId,appId:APP_ID,schemaVersion:SCHEMA_VERSION,openedAt:Date.now()},state:freshState,members:{},messages:{}};
-  try{await set(sessionRef(),freshSession);serverState=freshState;await registerPresence();closeLessonModal();showConnectedUI();renderFromState(true)}catch{card.innerHTML='<span class="tag">Ошибка</span><h2>Не удалось создать занятие</h2><p>Проверь интернет и повтори.</p><button class="primary" id="retryNew">Повторить</button>';$('retryNew').onclick=()=>openNewSessionChooser()}
+  if(!teacherAuthenticated)return;const card=$('lessonModal').querySelector('.lesson-card');card.innerHTML='<span class="tag">Создаём занятие</span><h2>Открываем новое состояние…</h2>';
+  const freshState=newGameState(limit),freshSession={meta:{sessionId:freshState.game.sessionId,appId:APP_ID,schemaVersion:SCHEMA_VERSION,openedAt:Date.now()},state:freshState,pads:{},interactions:{},members:{},messages:{}};
+  try{await set(sessionRef(),freshSession);serverState=freshState;startSessionListeners();closeLessonModal();showConnectedUI();registerPresence().catch(()=>{});renderFromState(true)}catch{card.innerHTML='<span class="tag">Ошибка</span><h2>Не удалось создать занятие</h2><p>Проверь интернет и повтори.</p><button class="primary" id="retryNew">Повторить</button>';$('retryNew').onclick=()=>openNewSessionChooser()}
+}
+function primeStudentSession(force=false){
+  if(force){studentSessionCache=null;studentSessionPrime=null}
+  if(studentSessionCache)return Promise.resolve(studentSessionCache);
+  if(studentSessionPrime)return studentSessionPrime;
+  studentSessionPrime=get(stateRef()).then(snap=>{studentSessionCache=snap.exists()?normalizeState(snap.val()):null;if(studentSessionCache)serverState=studentSessionCache;return studentSessionCache}).catch(()=>null).finally(()=>{studentSessionPrime=null});
+  return studentSessionPrime
 }
 function openStudentLogin(){
+  primeStudentSession();
   student=storedStudent();
-  if(student){$('lessonModal').innerHTML=`<div class="lesson-card"><button class="modal-x" id="closeModalBtn">×</button><span class="tag">Вход ученика</span><h2>${esc(student.name)}</h2><p>Личный код уже сохранён в этом браузере.</p><div class="actions"><button class="primary" id="savedStudentBtn">Войти в занятие</button><button class="secondary" id="changeStoredBtn">Сменить ученика</button></div></div>`;$('closeModalBtn').onclick=closeLessonModal;$('savedStudentBtn').onclick=()=>connectStudent(student);$('changeStoredBtn').onclick=()=>{clearStoredStudent();openStudentLoginForm()};return}
+  if(student){
+    $('lessonModal').innerHTML=`<div class="lesson-card"><button class="modal-x" id="closeModalBtn">×</button><span class="tag">Вход ученика</span><h2>${esc(student.name)}</h2><p>Подключиться как сохранённый ученик без повторной проверки имени?</p><div class="actions"><button class="primary" id="savedStudentBtn">Подключиться</button><button class="secondary" id="changeStoredBtn">Сменить ученика</button></div><div class="status" id="studentLoginStatus"></div></div>`;
+    $('closeModalBtn').onclick=closeLessonModal;$('savedStudentBtn').onclick=()=>connectStudent(student);$('changeStoredBtn').onclick=()=>{clearStoredStudent();studentSessionCache=null;primeStudentSession(true);openStudentLoginForm()};return
+  }
   openStudentLoginForm()
 }
 function openStudentLoginForm(){
-  $('lessonModal').innerHTML=`<div class="lesson-card"><button class="modal-x" id="closeModalBtn">×</button><span class="tag">Вход ученика</span><h2>Личный код</h2><form class="code-form" id="studentLoginForm"><input class="code" id="studentCodeInput" maxlength="40" autocomplete="one-time-code" placeholder="ЛИЧНЫЙ КОД"><button class="primary">Проверить код</button><div class="status" id="studentLoginStatus"></div></form></div>`;$('closeModalBtn').onclick=closeLessonModal;$('studentLoginForm').onsubmit=handleStudentLogin
+  $('lessonModal').innerHTML=`<div class="lesson-card"><button class="modal-x" id="closeModalBtn">×</button><span class="tag">Вход ученика</span><h2>Личный код</h2><p>Сначала вы подключитесь к игре, затем имя проверится в фоне.</p><form class="code-form" id="studentLoginForm"><input class="code" id="studentCodeInput" maxlength="40" autocomplete="one-time-code" placeholder="ЛИЧНЫЙ КОД"><button class="primary">Подключиться</button><div class="status" id="studentLoginStatus"></div></form></div>`;$('closeModalBtn').onclick=closeLessonModal;$('studentLoginForm').onsubmit=handleStudentLogin
 }
-async function handleStudentLogin(e){e.preventDefault();const input=$('studentCodeInput'),btn=e.submitter,status=$('studentLoginStatus'),code=input.value.trim();if(!code){status.className='status bad';status.textContent='Введи личный код';return}input.disabled=btn.disabled=true;status.textContent='Проверяем код…';try{student=await validateStudent(code);saveStudent(student);await flushPendingResults();connectStudent(student)}catch(err){status.className='status bad';status.textContent=err.message||'Код не подтверждён';input.disabled=btn.disabled=false}}
-async function connectStudent(s){student=s;saveStudent(s);role='student';participantName=s.name;participantPlayerKey=playerKey(s.studentId);closeLessonModal();showConnectedUI();startSessionListeners();await tryJoinStudent();if(!serverState)renderWaitingTeacher()}
-async function switchStudent(){if(serverState?.game?.status==='playing'){showToast('Во время игры менять ученика нельзя.');return}await cleanupPresence();stopSessionListeners();role='';participantId='';participantPlayerKey='';clearStoredStudent();hideConnectedUI();renderPublic();openRoleModal();setTimeout(openStudentLogin,0)}
+async function handleStudentLogin(e){
+  e.preventDefault();const input=$('studentCodeInput'),btn=e.submitter,status=$('studentLoginStatus'),code=input.value.trim();if(!code){status.className='status bad';status.textContent='Введи личный код';return}
+  if(code.toUpperCase()===TEACHER_CODE){status.className='status bad';status.textContent='Код учителя нельзя использовать для входа ученика';return}
+  input.disabled=btn.disabled=true;localStorage.setItem('egeStudentCode',code);verificationRun++;
+  const temp={studentId:code,verifiedStudentId:'',name:'Ученик',code,verified:false,_validationRun:verificationRun};status.textContent='Подключаемся…';
+  try{await connectStudent(temp)}catch(err){status.className='status bad';status.textContent=err.message||'Не удалось подключиться';input.disabled=btn.disabled=false}
+}
+
+function setVerificationStatus(text){verificationStatus=text||'';updateSessionPanel()}
+async function startBackgroundValidation(code,run){
+  let attempt=0;
+  while(run===verificationRun&&role==='student'&&participantPlayerKey&&student&&!student.verified){
+    attempt++;setVerificationStatus(`проверяем имя · попытка ${attempt}`);
+    try{
+      const verified=await validateStudent(code);if(run!==verificationRun||role!=='student'||!participantPlayerKey)return;
+      const realId=String(verified.studentId),realName=String(verified.name||'Ученик');student={...student,studentId:code,verifiedStudentId:realId,name:realName,code,verified:true};participantName=realName;saveStudent(student);setVerificationStatus('✓ подтверждён');
+      await update(ref(database,`${lessonRoot()}/state/game/players/${participantPlayerKey}`),{name:realName,verifiedStudentId:realId,verified:true,code,lastSeen:Date.now()}).catch(()=>{});
+      if(serverState?.game?.players?.[participantPlayerKey])Object.assign(serverState.game.players[participantPlayerKey],{name:realName,verifiedStudentId:realId,verified:true});
+      registerPresence().catch(()=>{});renderFromState(true);return
+    }catch(err){if(run!==verificationRun||role!=='student'||!participantPlayerKey)return;if(err?.terminal){setVerificationStatus('код не найден · игра продолжается');return}setVerificationStatus('сервер не ответил · повторяем');await new Promise(r=>setTimeout(r,1500))}
+  }
+}
+function activeMemberCodes(obj){return new Set(Object.values(obj||{}).filter(m=>m&&m.online!==false&&m.role==='student').map(m=>String(m.code||m.studentId||'')).filter(Boolean))}
+  async function connectStudent(s){
+  student=s;role='student';participantName=s.name;participantPlayerKey=playerKey(s.code||s.studentId);
+  const joined=await tryJoinStudent();
+  if(joined){
+    const p=serverState?.game?.players?.[participantPlayerKey];
+    if(p){student={...student,studentId:student.code,name:p.name||student.name,verifiedStudentId:p.verifiedStudentId||student.verifiedStudentId||'',verified:Boolean(p.verified||student.verified)};participantName=student.name}
+    closeLessonModal();
+    showConnectedUI();
+    renderFromState(true);
+    requestAnimationFrame(()=>setTimeout(()=>{
+      if(role!=='student'||!participantPlayerKey)return;
+      startSessionListeners();
+      registerPresence().catch(()=>{});
+      if(!student.verified){const run=s._validationRun||verificationRun;startBackgroundValidation(s.code,run)}
+      else setVerificationStatus('✓ подтверждён')
+    },0));
+  }else if(!serverState){
+    closeLessonModal();showConnectedUI();renderWaitingTeacher();startSessionListeners()
+  }
+}
+async function switchStudent(){
+  if(serverState?.game?.status==='playing'){showToast('Во время игры менять ученика нельзя.');return}
+  const oldPk=participantPlayerKey,oldStudent=student,base=serverState?clone(serverState):null;verificationRun++;await cleanupPresence().catch(()=>{});stopSessionListeners();role='';participantId='';participantPlayerKey='';clearStoredStudent();hideConnectedUI();renderPublic();openRoleModal();setTimeout(openStudentLogin,0);
+  if(base?.game?.status==='lobby'&&oldPk)runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(base)),g=s.game,p=g.players?.[oldPk];if(!p||String(p.code||p.studentId||'')!==String(oldStudent?.code||''))return s;delete g.players[oldPk];delete g.stats[oldPk];delete g.attempts[oldPk];delete g.eventIds[oldPk];delete g.submissions[oldPk];g.playerOrder=(g.playerOrder||[]).filter(x=>x!==oldPk);if(g.turnKey===oldPk)g.turnKey=g.playerOrder[0]||'';s.version++;return s},{applyLocally:false}).catch(()=>{})
+}
 
 function showConnectedUI(){$('lessonJoinBtn').classList.add('hidden');$('sessionPanel').classList.add('show');$('boardToolbar').classList.add('show');updateSessionPanel()}
 function hideConnectedUI(){$('lessonJoinBtn').classList.remove('hidden');$('sessionPanel').classList.remove('show');$('boardToolbar').classList.remove('show')}
 function updateSessionPanel(){
   const p=$('sessionPanel');if(!p)return;if(!role){p.classList.remove('show');return}
-  const onlineStudents=Object.values(membersSnapshot).filter(m=>m&&m.online&&m.role==='student').length;
-  const status=!online?'офлайн':serverState?.game?.status==='playing'?'игра идёт':serverState?.game?.status==='finished'?'завершено':serverState?'лобби':'ждём учителя';
-  p.innerHTML=`<span class="session-dot ${online?'on':''}"></span><b>${role==='teacher'?'Учитель':esc(student?.name||'Ученик')}</b><small>${status}${serverState?` · учеников онлайн: ${onlineStudents}`:''}</small>${role==='student'?'<button class="tiny" id="panelSwitchStudent">Сменить ученика</button>':''}`;
+  const onlineStudents=Object.values(membersSnapshot).filter(m=>m&&m.online&&m.role==='student').length,status=!online?'офлайн':serverState?.game?.status==='playing'?'игра идёт':serverState?.game?.status==='finished'?'завершено':serverState?'лобби':'ждём учителя',verify=role==='student'&&verificationStatus?` · ${verificationStatus}`:'';
+  p.innerHTML=`<span class="session-dot ${online?'on':''}"></span><b>${role==='teacher'?'Учитель':esc(student?.name||'Ученик')}</b><small>${status}${verify}${serverState?` · учеников онлайн: ${onlineStudents}`:''}</small>${role==='student'?'<button class="tiny" id="panelSwitchStudent">Сменить ученика</button>':''}`;
   if($('panelSwitchStudent'))$('panelSwitchStudent').onclick=switchStudent
 }
 function showToast(text){const t=$('toast');t.textContent=text;t.classList.add('show');clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>t.classList.remove('show'),4200)}
@@ -441,12 +537,12 @@ function queueResult(payload,pk){const q=readQueue();if(!q.some(x=>x?.payload?.e
 function removeQueued(eventId){writeQueue(readQueue().filter(x=>x?.payload?.eventId!==eventId))}
 async function postResult(payload){const response=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow'});let answer;try{answer=await response.json()}catch{throw new Error('Система результатов не ответила.')}if(!response.ok||!answer?.ok)throw new Error(answer?.error||'Результат не принят.');return answer}
 function resultPayload(s,pk){
-  const g=s.game,p=g.players[pk],st=g.stats[pk]||{},completed=Number(st.completed)||0,score=Number(st.firstTryCorrect)||0,maxScore=g.endedEarly?completed:assignedTotal(s,pk),percent=maxScore?Math.round(score/maxScore*100):0,finished=g.finishedAt||Date.now(),started=g.startedAt||finished,durationSec=Math.max(1,Math.round((finished-started)/1000));
-  return{action:'submitTest',programId:'EGE_MATH',eventId:g.eventIds[pk]||`${g.sessionId}-${pk}`,studentId:p?.studentId||'',studentName:p?.name||'',studentCode:p?.code||'',testId:TEST_META.testId,testName:TEST_META.testName,topicId:TEST_META.topicId,topicName:TEST_META.topicName,taskNumber:TEST_META.taskNumber,testDate:localDate(),score,maxScore,percent,scorePercent:percent,durationSec,durationSeconds:durationSec,startedAt:nowIso(started),finishedAt:nowIso(finished),completedAt:nowIso(finished),answeredCount:completed,attemptCount:Number(st.attemptCount)||0,studentMode:g.studentLimit,mode:g.studentLimit===2?'two':'one',schemaVersion:SCHEMA_VERSION,roomCode:FIXED_SESSION_ID}
+  const g=s.game,p=g.players[pk]||{},st=g.stats[pk]||{},completed=Number(st.completed)||0,score=Number(st.firstTryCorrect)||0,maxScore=g.endedEarly?completed:assignedTotal(s,pk),percent=maxScore?Math.round(score/maxScore*100):0,finished=g.finishedAt||Date.now(),started=g.startedAt||finished,durationSec=Math.max(1,Math.round((finished-started)/1000)),code=String(p.code||p.studentId||''),verifiedId=String(p.verifiedStudentId||'');
+  return{action:'submitTest',programId:'EGE_MATH',eventId:g.eventIds[pk]||`${g.sessionId}-${pk}`,studentId:verifiedId||code,studentName:p.name||`Ученик ${Number(p.slot)||1}`,studentCode:code,testId:TEST_META.testId,testName:TEST_META.testName,topicId:TEST_META.topicId,topicName:TEST_META.topicName,taskNumber:TEST_META.taskNumber,testDate:localDate(),score,maxScore,percent,scorePercent:percent,durationSec,durationSeconds:durationSec,startedAt:nowIso(started),finishedAt:nowIso(finished),completedAt:nowIso(finished),answeredCount:completed,attemptsCount:Number(st.attemptCount)||0,attemptCount:Number(st.attemptCount)||0,studentMode:g.studentLimit===2?'2_students':'1_student',mode:g.studentLimit===2?'two':'one',studentLimit:g.studentLimit,schemaVersion:SCHEMA_VERSION,roomCode:FIXED_SESSION_ID}
 }
 async function claimSubmission(pk){
   const sref=ref(database,`${lessonRoot()}/state/game/submissions/${pk}`),eventId=serverState?.game?.eventIds?.[pk];if(!eventId)return false;
-  const res=await runTransaction(sref,current=>{if(current?.status==='saved')return;if(current?.status==='sending'&&Date.now()-(Number(current.updatedAt)||0)<8000)return;return{eventId,status:'sending',updatedAt:Date.now()}});return res.committed
+  const stamp=Date.now(),res=await runTransaction(sref,current=>{if(current?.status==='saved')return;if((current?.status==='sending'||current?.status==='queued')&&stamp-(Number(current.updatedAt)||0)<10000)return;return{eventId,status:'sending',updatedAt:stamp}});return res.committed
 }
 async function markSubmission(pk,status,error=''){try{await update(ref(database,`${lessonRoot()}/state/game/submissions/${pk}`),{status,error,updatedAt:Date.now()})}catch{}}
 async function ensureSubmission(pk){
@@ -467,13 +563,40 @@ function attachBoardLayer(){
 }
 function setBoardPointerMode(){const b=$('sharedBoard');if(b)b.style.pointerEvents=boardTool==='cursor'?'none':'auto';document.querySelectorAll('[data-board-tool]').forEach(x=>x.classList.toggle('active',x.dataset.boardTool===boardTool))}
 function pointFromEvent(e){const anchor=document.querySelector('[data-board-anchor="main-screen"]'),r=anchor.getBoundingClientRect();return[(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height]}
-function boardPointerDown(e){if(boardTool==='cursor'||!serverState)return;e.preventDefault();const p=pointFromEvent(e);if(boardTool==='eraser'){eraseNearest(p);return}activeStroke={id:'stroke-'+uuid(),anchorId:'main-screen',authorId:participantId||role,authorName:participantName||role,color:boardColor,width:boardWidth,points:[p],done:false,epoch:serverState.boardEpoch||0,rev:Date.now()};e.currentTarget.setPointerCapture(e.pointerId);pushStroke(true)}
-function boardPointerMove(e){if(!activeStroke||boardTool!=='pencil')return;const p=pointFromEvent(e),last=activeStroke.points[activeStroke.points.length-1];if(Math.hypot(p[0]-last[0],p[1]-last[1])<.002)return;activeStroke.points.push(p);activeStroke.rev=Date.now();renderBoardStrokes();if(Date.now()-lastStrokePush>70){lastStrokePush=Date.now();pushStroke(false)}}
-function boardPointerUp(){if(!activeStroke)return;activeStroke.done=true;activeStroke.rev=Date.now();pushStroke(true);activeStroke=null}
+
+function pointSegDist(p,a,b){const vx=b[0]-a[0],vy=b[1]-a[1],wx=p[0]-a[0],wy=p[1]-a[1],c1=vx*wx+vy*wy;if(c1<=0)return Math.hypot(p[0]-a[0],p[1]-a[1]);const c2=vx*vx+vy*vy;if(c2<=c1)return Math.hypot(p[0]-b[0],p[1]-b[1]);const t=c1/c2;return Math.hypot(p[0]-(a[0]+t*vx),p[1]-(a[1]+t*vy))}
+function reconcileBoardCache(){const remote=serverState?.strokes||{};for(const[id,s]of Object.entries(boardLocalStrokes)){const r=remote[id];if(r&&Number(r.rev||0)>=Number(s.rev||0))delete boardLocalStrokes[id]}for(const id of [...boardHiddenStrokes])if(!remote[id])boardHiddenStrokes.delete(id)}
+async function eraseAt(p){
+  if(!serverState)return;const anchor=document.querySelector('[data-board-anchor="main-screen"]'),r=anchor?.getBoundingClientRect(),scale=Math.max(1,r?.width||innerWidth,r?.height||innerHeight),epoch=Number(serverState.boardEpoch)||0,all={...(serverState.strokes||{}),...boardLocalStrokes},victims=[];
+  for(const[id,s]of Object.entries(all)){if(!s||boardHiddenStrokes.has(id)||Number(s.epoch||0)!==epoch)continue;const pts=s.points||[],tol=Math.max(8,(Number(s.width)||6)*1.4)/scale;if(pts.length===1&&Math.hypot(p[0]-pts[0][0],p[1]-pts[0][1])<=tol){victims.push(id);continue}for(let i=1;i<pts.length;i++)if(pointSegDist(p,pts[i-1],pts[i])<=tol){victims.push(id);break}}
+  if(!victims.length)return;const patch={};victims.forEach(id=>{boardHiddenStrokes.add(id);delete boardLocalStrokes[id];patch[id]=null});renderBoardStrokes();try{await update(ref(database,`${lessonRoot()}/state/strokes`),patch)}catch{victims.forEach(id=>boardHiddenStrokes.delete(id));renderBoardStrokes()}
+}
+async function eraseSegment(a,b){if(!a)return eraseAt(b);const anchor=document.querySelector('[data-board-anchor="main-screen"]'),r=anchor?.getBoundingClientRect(),dx=(b[0]-a[0])*(r?.width||innerWidth),dy=(b[1]-a[1])*(r?.height||innerHeight),steps=Math.max(1,Math.ceil(Math.hypot(dx,dy)/7));for(let i=1;i<=steps;i++)await eraseAt([a[0]+(b[0]-a[0])*i/steps,a[1]+(b[1]-a[1])*i/steps])}
+  async function boardPointerDown(e){
+  if(boardTool==='cursor'||!serverState||!role)return;e.preventDefault();boardPointerId=e.pointerId;e.currentTarget.setPointerCapture?.(e.pointerId);const p=pointFromEvent(e);
+  if(boardTool==='eraser'){boardErasing=true;lastErasePoint=p;await eraseAt(p);return}
+  activeStroke={id:'stroke-'+uuid(),anchorId:'main-screen',authorId:participantId||role,authorName:participantName||role,color:boardColor,width:boardWidth,points:[p],done:false,epoch:serverState.boardEpoch||0,rev:1};boardLocalStrokes[activeStroke.id]=clone(activeStroke);renderBoardStrokes();lastStrokePush=performance.now();set(ref(database,`${lessonRoot()}/state/strokes/${activeStroke.id}`),clone(activeStroke)).catch(()=>{})
+}
+async function boardPointerMove(e){
+  if(e.pointerId!==boardPointerId)return;const p=pointFromEvent(e);
+  if(boardErasing){await eraseSegment(lastErasePoint,p);lastErasePoint=p;return}
+  if(!activeStroke||boardTool!=='pencil')return;const last=activeStroke.points[activeStroke.points.length-1];if(Math.hypot(p[0]-last[0],p[1]-last[1])<.0013)return;activeStroke.points.push(p);activeStroke.rev+=1;boardLocalStrokes[activeStroke.id]=clone(activeStroke);renderBoardStrokes();if(performance.now()-lastStrokePush>=50){lastStrokePush=performance.now();update(ref(database,`${lessonRoot()}/state/strokes/${activeStroke.id}`),{points:activeStroke.points.slice(),rev:activeStroke.rev,done:false,epoch:activeStroke.epoch}).catch(()=>{})}
+}
+async function boardPointerUp(e){
+  if(boardPointerId!==null&&e?.pointerId!==undefined&&e.pointerId!==boardPointerId)return;
+  if(activeStroke){const finalStroke=clone({...activeStroke,done:true,rev:Number(activeStroke.rev||0)+1});boardLocalStrokes[finalStroke.id]=finalStroke;renderBoardStrokes();set(ref(database,`${lessonRoot()}/state/strokes/${finalStroke.id}`),finalStroke).catch(()=>{});activeStroke=null}
+  boardErasing=false;lastErasePoint=null;boardPointerId=null
+}
 async function pushStroke(){if(!activeStroke||!serverState)return;try{await set(ref(database,`${lessonRoot()}/state/strokes/${activeStroke.id}`),clone(activeStroke))}catch{}}
-function renderBoardStrokes(){const b=$('sharedBoard');if(!b||!serverState)return;const epoch=serverState.boardEpoch||0,strokes=Object.values(serverState.strokes||{}).filter(s=>s&&s.epoch===epoch);if(activeStroke&&!strokes.some(s=>s.id===activeStroke.id))strokes.push(activeStroke);b.innerHTML=strokes.map(s=>{const pts=(s.points||[]).map(([x,y])=>`${Math.max(0,Math.min(1,x))*1000},${Math.max(0,Math.min(1,y))*1000}`).join(' ');return pts?`<polyline points="${pts}" fill="none" stroke="${esc(s.color||'#e53935')}" stroke-width="${Math.max(1,Number(s.width)||6)*2.2}" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`:''}).join('')}
-async function eraseNearest(p){if(!serverState)return;const entries=Object.entries(serverState.strokes||{}).filter(([,s])=>s?.epoch===(serverState.boardEpoch||0));let best=null,bestD=.04;for(const [id,s] of entries)for(const q of s.points||[]){const d=Math.hypot(p[0]-q[0],p[1]-q[1]);if(d<bestD){bestD=d;best=id}}if(best)try{await set(ref(database,`${lessonRoot()}/state/strokes/${best}`),null)}catch{}}
-async function clearBoard(){if(role!=='teacher'||!serverState)return;const initial=clone(serverState);await runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(initial));s.boardEpoch=(Number(s.boardEpoch)||0)+1;s.strokes={};s.version++;return s})}
+function renderBoardStrokes(){
+  const b=$('sharedBoard');if(!b||!serverState)return;const epoch=serverState.boardEpoch||0,all={...(serverState.strokes||{}),...boardLocalStrokes};if(activeStroke)all[activeStroke.id]=activeStroke;
+  const strokes=Object.values(all).filter(s=>s&&!boardHiddenStrokes.has(s.id)&&Number(s.epoch||0)===Number(epoch)&&Array.isArray(s.points)&&s.points.length);
+  b.innerHTML=strokes.map(s=>{const pts=s.points.map(([x,y])=>`${Math.max(0,Math.min(1,x))*1000},${Math.max(0,Math.min(1,y))*1000}`).join(' ');return`<polyline data-stroke-id="${esc(s.id)}" points="${pts}" fill="none" stroke="${esc(s.color||'#e53935')}" stroke-width="${Math.max(1,Number(s.width)||6)*2.2}" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`}).join('')
+}
+async function eraseNearest(p){await eraseAt(p)}
+async function clearBoard(){
+  if(role!=='teacher'||!serverState)return;boardLocalStrokes={};boardHiddenStrokes.clear();const initial=clone(serverState);await runTransaction(stateRef(),current=>{const s=normalizeState(current||clone(initial));s.boardEpoch=(Number(s.boardEpoch)||0)+1;s.strokes={};s.version++;return s})
+}
 function initBoardToolbar(){
   const tb=$('boardToolbar');let pos={right:18,bottom:18};try{pos={...pos,...JSON.parse(localStorage.getItem(TOOLBAR_POSITION_KEY)||'{}')}}catch{}tb.style.right=(pos.right??18)+'px';tb.style.bottom=(pos.bottom??18)+'px';
   tb.innerHTML=`<div class="board-head" id="boardDragHandle"><b>Доска</b><button class="tiny" id="boardCollapse">−</button></div><div class="board-tools"><button data-board-tool="cursor" title="Курсор">↖</button><button data-board-tool="pencil" title="Карандаш">✎</button><button data-board-tool="eraser" title="Ластик">⌫</button><input id="boardColor" type="color" value="${boardColor}" title="Цвет"><input id="boardWidth" type="range" min="2" max="12" value="${boardWidth}" title="Толщина"><button class="board-clear" id="boardClear" title="Очистить всю общую доску">🗑 Очистить всё</button></div>`;
@@ -493,7 +616,7 @@ window.addEventListener('resize',updateTeacherCursor);
 window.addEventListener('pagehide',bestEffortPartialSubmit);
 window.addEventListener('beforeunload',bestEffortPartialSubmit);
 
-initBoardToolbar();renderPublic();flushPendingResults();
+initBoardToolbar();renderPublic();flushPendingResults();setInterval(flushPendingResults,60000);
 
   </script>
 </body>
