@@ -1,0 +1,868 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#d89eb2">
+  <title>ЕГЭ №16 — Симпсоны: выбери способ решения</title>
+  <style>
+    :root{
+      --bg1:#6ec1ff;--bg2:#d7f0ff;--grass:#68a63b;--dirt:#6d4b30;--stone:#3d362d;--stone2:#6d6254;
+      --panel:#f3eadc;--ink:#1f1b17;--muted:#6a6258;--line:#2d241e;--gold:#ffd35a;--red:#d54e45;
+      --good:#36a85a;--bad:#ca4d44;--cyan:#79e8ff;--shadow:rgba(0,0,0,.28);--wood:#8b5e3c;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink)}
+    body{overflow-x:hidden;background:
+      radial-gradient(circle at 18% 15%, rgba(255,255,255,.7), transparent 18%),
+      radial-gradient(circle at 78% 20%, rgba(255,255,255,.55), transparent 16%),
+      linear-gradient(var(--bg1),var(--bg2) 64%, var(--grass) 64%, var(--dirt) 78%, #2a231d 100%);
+    }
+    button,input{font:inherit}button{cursor:pointer}button:disabled{cursor:default}
+    .hidden{display:none!important}
+    .backdrop{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+    .cloud{position:absolute;background:rgba(255,255,255,.84);border-radius:999px;filter:drop-shadow(0 3px 0 rgba(255,255,255,.18));animation:floatCloud var(--dur) linear infinite}
+    .cloud:before,.cloud:after{content:"";position:absolute;background:inherit;border-radius:inherit}
+    .cloud:before{width:40%;height:120%;left:12%;top:-55%}.cloud:after{width:34%;height:90%;right:14%;top:-35%}
+    .cloud.a{width:140px;height:34px;left:-180px;top:10%;--dur:31s}.cloud.b{width:95px;height:24px;left:-120px;top:23%;--dur:24s;animation-delay:-8s}.cloud.c{width:168px;height:38px;left:-210px;top:36%;--dur:38s;animation-delay:-14s}
+    @keyframes floatCloud{to{transform:translateX(calc(100vw + 300px))}}
+    .mountains{position:absolute;left:-3%;right:-3%;bottom:18%;height:19%;background:#93cfe7;clip-path:polygon(0 100%,0 65%,14% 35%,24% 72%,40% 14%,56% 74%,70% 28%,87% 76%,100% 48%,100% 100%);opacity:.7}
+
+    .screen{position:relative;z-index:2;min-height:100vh;padding:14px}
+    .center{display:grid;place-items:center}
+    .shell{width:min(1220px,100%);margin:0 auto}
+    .panel{background:rgba(243,234,220,.96);border:4px solid var(--line);border-radius:18px;box-shadow:0 12px 0 rgba(45,36,30,.55),0 26px 55px rgba(0,0,0,.22)}
+
+    .join-fab{position:fixed;right:16px;top:16px;z-index:70;border:3px solid var(--line);border-radius:14px;padding:12px 16px;background:linear-gradient(#ffe276,#efb834);color:#382718;font-weight:1000;box-shadow:0 6px 0 #5a3e23,0 12px 24px rgba(0,0,0,.22);transition:.15s}
+    .join-fab:hover{transform:translateY(-2px)}
+    .session-panel{position:fixed;right:16px;top:72px;z-index:75;display:none;align-items:center;gap:10px;max-width:min(650px,calc(100vw - 32px));padding:10px 12px;border:3px solid #2a221c;border-radius:16px;background:rgba(33,28,24,.93);color:#fff;box-shadow:0 14px 26px rgba(0,0,0,.32)}
+    .session-panel.show{display:flex}.session-panel b{white-space:nowrap}.session-panel small{opacity:.8;white-space:nowrap}.session-dot{width:9px;height:9px;border-radius:50%;background:#d45b5b;box-shadow:0 0 0 3px rgba(255,255,255,.16)}.session-dot.on{background:#62d78f}
+
+    .sys-btn,.sys-mini,.primary,.ghost,.small,.tiny{border:3px solid var(--line);border-radius:12px;font-weight:950;transition:.15s}
+    .sys-btn,.primary{padding:12px 18px;background:linear-gradient(#ffe276,#efb834);color:#382718;box-shadow:0 5px 0 #5a3e23}
+    .ghost{padding:10px 14px;background:#fff9ee;color:var(--ink);box-shadow:0 5px 0 rgba(45,36,30,.5)}
+    .small,.tiny,.sys-mini{padding:7px 10px;background:#fff7e8;color:var(--ink);box-shadow:0 4px 0 rgba(45,36,30,.45)}
+    .danger{background:linear-gradient(#ff9b91,#d0544a)!important;color:#fff!important;box-shadow:0 5px 0 #752721!important}
+    .sys-btn:hover:not(:disabled),.sys-mini:hover:not(:disabled),.primary:hover:not(:disabled),.ghost:hover:not(:disabled),.small:hover:not(:disabled),.tiny:hover:not(:disabled){transform:translateY(-2px)}
+    .primary:disabled,.ghost:disabled,.small:disabled,.tiny:disabled,.sys-btn:disabled,.sys-mini:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+
+    .hero-card{width:min(860px,100%);padding:28px 26px 24px;text-align:center;overflow:hidden}
+    .hero-tag{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;background:#211a15;color:#fff;font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+    .hero-card h1{margin:14px 0 10px;font-size:clamp(34px,7vw,68px);line-height:.92}
+    .lead{max-width:740px;margin:12px auto;color:#564d45;font-size:18px;font-weight:700;line-height:1.5}
+    .rules{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:22px 0 12px}.rules div{padding:12px;border:3px solid #cda96d;border-radius:13px;background:#fff8ef;font-size:14px;font-weight:900}
+    .tnt-hero{position:relative;height:230px;margin-top:16px;border:4px solid var(--line);border-radius:18px;overflow:hidden;background:linear-gradient(#77c5ff,#d6f0ff 62%, #6fb140 62%, #6d4b30 82%, #3b3027 100%)}
+    .tnt-ground{position:absolute;left:0;right:0;bottom:0;height:38%;background:repeating-linear-gradient(90deg,#6d4b30 0 44px,#7a5334 44px 88px)}
+    .tnt-stack{position:absolute;left:50%;bottom:32px;transform:translateX(-50%);display:flex;gap:12px;align-items:flex-end}
+    .hero-tnt{width:110px;height:110px;border:4px solid var(--line);border-radius:8px;background:linear-gradient(#ff8070 0 18%, #ffd7d2 18% 35%, #d3463d 35% 100%);box-shadow:0 8px 0 rgba(72,29,24,.6);position:relative}
+    .hero-tnt:before{content:"СПОСОБ";position:absolute;left:0;right:0;top:29px;text-align:center;font-weight:1000;font-size:26px;color:#fff;text-shadow:0 2px 0 #70231f}
+    .hero-tnt:after{content:"";position:absolute;left:49%;top:-18px;width:7px;height:22px;background:#f5e6a8;border:2px solid #7a5639;border-bottom:none;transform:translateX(-50%)}
+    .hero-tnt.small{width:86px;height:86px;transform:translateY(18px)}
+    .ignite-hand{position:absolute;right:34px;bottom:24px;width:160px;height:100px}
+    .ignite-hand .arm{position:absolute;right:0;bottom:0;width:88px;height:40px;border:4px solid var(--line);border-radius:18px;background:#f0c49d;transform:rotate(-12deg)}
+    .ignite-hand .flint{position:absolute;right:46px;bottom:30px;width:54px;height:30px;border:4px solid var(--line);border-radius:10px;background:linear-gradient(#d8e2e8,#8b9ea7);transform:rotate(-24deg)}
+    .ignite-hand .spark{position:absolute;right:83px;bottom:58px;font-size:28px;animation:sparkle 1s ease-in-out infinite alternate}
+    @keyframes sparkle{to{transform:translateY(-6px) scale(1.1)}}
+
+    .lesson-modal{position:fixed;inset:0;z-index:100;display:none;place-items:center;padding:18px;background:rgba(17,12,8,.68);backdrop-filter:blur(8px)}
+    .lesson-modal.open{display:grid}.lesson-card{position:relative;width:min(560px,100%);padding:28px;border:5px solid #4f3722;border-radius:22px;background:linear-gradient(105deg,#b89461,#f5dfb7 10% 90%,#9a7d58);box-shadow:0 24px 70px rgba(0,0,0,.45), inset 0 0 0 4px #efd094}.lesson-card h2{margin:10px 0 12px;font-size:30px;line-height:1.05}.lesson-card p{line-height:1.5;color:#453a31;font-weight:700}.modal-x{position:absolute;right:12px;top:10px;width:38px;height:38px;border:2px solid #4c3427;border-radius:50%;background:#fff5;font-size:24px;font-weight:1000}.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}.role-choice{min-height:126px;padding:18px;border:3px solid #4c3427;border-radius:16px;background:#fff7;box-shadow:0 5px 0 #4c3427;text-align:left}.role-choice b{display:block;font-size:24px}.role-choice small{display:block;margin-top:8px;font-size:14px;line-height:1.35}.role-choice:hover{transform:translateY(-2px);background:#fffbdc}
+    .code-form{display:grid;gap:10px;margin-top:14px}.code{width:100%;padding:14px 16px;border:3px solid var(--line);border-radius:14px;background:#fffefa;text-align:center;font-size:18px;font-weight:900;letter-spacing:.08em}.code:focus{outline:none;box-shadow:0 0 0 5px rgba(121,232,255,.45)}
+    .status{min-height:22px;font-size:14px;font-weight:900;color:#564d45}.status.bad{color:#a93434}.status.ok{color:#217c3c}
+    .mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}.mode-btn{padding:18px;border:3px solid var(--line);border-radius:16px;background:#fff8ef;box-shadow:0 5px 0 rgba(45,36,30,.4);text-align:left}.mode-btn b{display:block;font-size:24px}.mode-btn small{display:block;margin-top:6px;color:#564d45;font-weight:800;line-height:1.3}
+
+    .lobby-layout{display:grid;grid-template-columns:1.05fr .95fr;gap:16px;align-items:stretch}.lobby-card{padding:24px}.lobby-card h1{margin:8px 0 10px;font-size:clamp(34px,6vw,60px);line-height:.92}.tag{display:inline-flex;padding:6px 10px;border-radius:10px;background:#211a15;color:#fff;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+    .seats{display:grid;gap:10px;margin:18px 0}.seat{display:flex;align-items:center;gap:12px;padding:12px;border:2px dashed #795e48;border-radius:13px;background:#fff6}.seat b{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#6f4a24;color:#ffe77a}.seat.filled{border-style:solid;background:#ebffd9a8}.host-actions,.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:15px}
+    .guide-card{padding:22px;background:rgba(255,252,246,.94)}.guide-card h3{margin:0 0 10px;font-size:28px}.guide-steps{display:grid;gap:10px}.guide-step{padding:12px;border:3px solid #cda96d;border-radius:14px;background:#fff8ef}.guide-step b{display:block;margin-bottom:4px}
+
+    .hud{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-bottom:8px}.hud-card{padding:7px 10px;border:3px solid var(--line);border-radius:13px;background:#fff8ef;box-shadow:0 4px 0 rgba(45,36,30,.38)}.hud-card small{display:block;font-size:9px;letter-spacing:.07em;color:#6e655a;text-transform:uppercase;font-weight:900}.hud-card b{display:block;margin-top:2px;font-size:20px;line-height:1.1}.hud-card .big{color:#0b7492}
+    .game-shell{display:grid;gap:12px}
+    .game-board{position:relative;padding:10px}
+    .game-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}.brand{display:flex;align-items:center;gap:10px;font-weight:1000}.brand-mark{display:grid;place-items:center;width:52px;height:52px;border:4px solid var(--line);border-radius:14px;background:linear-gradient(#ff766a,#d4473c);color:#fff;font-size:24px;box-shadow:0 6px 0 rgba(96,25,21,.6)}.brand small{display:block;font-size:11px;color:#6e655a;letter-spacing:.08em;text-transform:uppercase}.sound{padding:10px 13px;border:3px solid var(--line);border-radius:12px;background:#fff8ef;font-weight:950;box-shadow:0 5px 0 rgba(45,36,30,.4)}
+    .progress-wrap{height:18px;border:4px solid var(--line);border-radius:999px;overflow:hidden;background:#e6d8c5;box-shadow:inset 0 3px 0 rgba(255,255,255,.5)}.progress-wrap i{display:block;height:100%;background:linear-gradient(90deg,#6bdcf8,#92f0ff);transition:width .35s}
+
+    .play-grid{display:grid;grid-template-columns:1fr;gap:9px;align-items:start}
+    .visual{position:relative;padding:10px;border:3px solid var(--line);border-radius:15px;background:linear-gradient(#77c5ff,#d6f0ff 56%, #6fb140 56%, #6d4b30 79%, #3b3027 100%);overflow:hidden;min-height:150px}
+    .visual .ridge{position:absolute;left:-4%;right:-4%;bottom:17%;height:34%;background:#98d5e8;clip-path:polygon(0 100%,0 62%,15% 28%,28% 68%,44% 18%,61% 74%,74% 31%,88% 73%,100% 46%,100% 100%);opacity:.7}
+    .visual .ground{position:absolute;left:0;right:0;bottom:0;height:32%;background:repeating-linear-gradient(90deg,#6d4b30 0 48px,#7d5738 48px 96px)}
+    .coach{position:absolute;left:10px;top:10px;max-width:430px;padding:8px 10px;border:3px solid var(--line);border-radius:14px;background:rgba(255,249,237,.92);font-size:14px;font-weight:850;line-height:1.35;box-shadow:0 4px 0 rgba(45,36,30,.35)}
+    .coach b{display:block;margin-bottom:4px;color:#7b2b25}
+    .tnt-pile{position:absolute;right:180px;left:auto;bottom:22px;transform:none;display:flex;gap:8px;align-items:flex-end}
+    .tnt-block{width:62px;height:62px;border:4px solid var(--line);border-radius:8px;background:linear-gradient(#ff8272 0 18%, #ffe6e3 18% 36%, #d4473c 36% 100%);position:relative;box-shadow:0 6px 0 rgba(96,25,21,.55)}
+    .tnt-block:before{content:"СПОСОБ";position:absolute;left:0;right:0;top:16px;text-align:center;font-size:18px;font-weight:1000;color:#fff;text-shadow:0 2px 0 #74231f}
+    .tnt-block:after{content:"";position:absolute;left:50%;top:-16px;width:8px;height:20px;background:#f5e6a8;border:2px solid #7a5639;border-bottom:none;transform:translateX(-50%)}
+    .tnt-block.alt{transform:translateY(9px)}
+    .flint-zone{position:absolute;right:18px;bottom:18px;width:138px;height:88px}
+    .flint-zone .hand{position:absolute;right:0;bottom:0;width:92px;height:42px;border:4px solid var(--line);border-radius:20px;background:#f0c49d;transform:rotate(-14deg)}
+    .flint-zone .tool{position:absolute;right:44px;bottom:32px;width:58px;height:34px;border:4px solid var(--line);border-radius:12px;background:linear-gradient(#d8e2e8,#90a4ae);transform:rotate(-24deg)}
+    .flint-zone .tool:after{content:"";position:absolute;right:6px;top:9px;width:18px;height:9px;background:#4f6270;border-radius:4px}
+    .flint-zone .fire{position:absolute;right:92px;bottom:58px;font-size:34px;animation:fuseGlow .9s ease-in-out infinite alternate}
+    @keyframes fuseGlow{to{transform:translateY(-5px) scale(1.08)}}
+
+    .task-card{position:relative;padding:12px 14px;border:4px solid var(--line);border-radius:18px;background:#fff8ef;box-shadow:0 8px 0 rgba(45,36,30,.42)}
+    .task-meta{display:flex;align-items:center;justify-content:space-between;gap:7px;flex-wrap:wrap;margin-bottom:7px}.task-badge{display:inline-flex;padding:6px 10px;border-radius:10px;background:#211a15;color:#fff;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}.task-sub{display:inline-flex;padding:6px 10px;border-radius:10px;background:#dff5fb;color:#0c6a80;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+    .task-text{font-size:clamp(18px,2vw,24px);font-weight:900;line-height:1.38}
+    .task-help{margin-top:5px;font-size:13px;font-weight:800;color:#685f56}
+    .retry-note{margin-top:10px;padding:10px 12px;border:3px solid #c48630;border-radius:12px;background:#ffe8b9;font-size:13px;font-weight:900;color:#7b5321}
+
+    .options-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+    .tnt-option{position:relative;border:4px solid var(--line);border-radius:14px;background:#fff;overflow:hidden;box-shadow:0 8px 0 rgba(45,36,30,.38);transition:transform .12s, filter .12s, opacity .12s;text-align:left}
+    .tnt-option:hover:not(:disabled){transform:translateY(-3px);filter:brightness(1.03)}
+    .tnt-option.used-wrong{opacity:.68;background:#f5dfdc;filter:grayscale(.08)}
+    .tnt-option.correct{box-shadow:0 0 0 4px rgba(55,168,90,.28),0 8px 0 rgba(36,106,58,.42);background:#e5f8ea}
+    .tnt-option:disabled{cursor:default}
+    .tnt-head{position:relative;padding:10px 14px 10px 52px;background:linear-gradient(#ff8577 0 24%, #ffe6e3 24% 42%, #d4473c 42% 100%);color:#fff;text-shadow:0 2px 0 rgba(115,35,30,.7)}
+    .tnt-head:before{content:"СПОСОБ";position:absolute;left:10px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:34px;height:34px;border:3px solid rgba(255,255,255,.8);border-radius:6px;background:rgba(115,35,30,.45);font-size:12px;font-weight:1000}
+    .option-title{display:block;font-size:13px;font-weight:1000;letter-spacing:.05em;text-transform:uppercase}.option-tag{display:block;margin-top:3px;font-size:12px;font-weight:800;opacity:.9}
+    .tnt-body{padding:9px 11px;background:linear-gradient(#fff9ef,#f8eddc)}
+    .method-formula{padding:6px 8px;border:3px solid #ccb38a;border-radius:12px;background:#fffef9;font-size:14px;font-weight:1000;line-height:1.3;color:#5a2a23}
+    .method-steps{margin:7px 0 0;padding-left:18px;display:grid;gap:5px;font-size:14px;font-weight:850;line-height:1.35;color:#2c2621}
+    .method-steps li::marker{font-weight:1000;color:#8c3f34}
+    .method-foot{display:flex;justify-content:space-between;align-items:center;gap:7px;margin-top:7px;font-size:12px;font-weight:900;color:#675d52}
+    .method-foot .fuse-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:#fff4d5;border:2px solid #d9b25e}
+    .option-mark{position:absolute;right:12px;top:12px;z-index:2;font-size:26px}
+
+    .feedback-panel{margin-top:8px;padding:9px 11px;border:4px solid var(--line);border-radius:16px;background:#fffdf8;min-height:74px;display:flex;align-items:center;justify-content:space-between;gap:12px}.feedback-copy b{display:block;font-size:18px}.feedback-copy span{display:block;margin-top:4px;color:#6a6158;font-weight:750;line-height:1.35}.feedback-panel.good{background:#e6f8ea}.feedback-panel.bad{background:#ffe7d9}
+
+    .blast-overlay{position:fixed;inset:0;z-index:115;display:none;align-items:center;justify-content:center;pointer-events:none;overflow:hidden;background:radial-gradient(circle at center,rgba(255,228,166,.03),rgba(0,0,0,.12));transition:background .8s ease}
+    .blast-overlay.show{display:flex;animation:blastBackdrop 5s ease-in-out forwards}.blast-core{position:absolute;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,#fffdf0 0 16%,#ffe27b 17% 35%,#ff9b4a 36% 56%,#e94f35 57% 70%,rgba(255,106,47,0) 71% 100%);opacity:0;transform:scale(.12);filter:blur(.2px);animation:blastCore 5s cubic-bezier(.16,.78,.22,1) forwards}
+    .blast-ring{position:absolute;border-radius:50%;border:14px solid rgba(255,225,120,.82);width:150px;height:150px;opacity:0;transform:scale(.15);animation:blastRing 5s cubic-bezier(.12,.72,.2,1) forwards}
+    .blast-pixel{position:absolute;width:20px;height:20px;opacity:0;animation:blastPixel 5s cubic-bezier(.12,.68,.18,1) forwards;transform:translate(-50%,-50%)}
+    .blast-message{position:relative;z-index:2;width:min(720px,calc(100vw - 30px));padding:23px 22px 20px;border:5px solid #5c2c1d;border-radius:24px;background:linear-gradient(180deg,rgba(255,251,241,.98),rgba(254,238,214,.98));box-shadow:0 18px 60px rgba(0,0,0,.4);text-align:center;pointer-events:auto;opacity:0;transform:translateY(26px) scale(.96);animation:blastMsg 5s ease-in-out forwards}
+    .blast-message h2{margin:0 0 8px;font-size:clamp(30px,5vw,52px);line-height:.95}.blast-message p{margin:10px 0;color:#574d45;font-size:17px;font-weight:800;line-height:1.45}.blast-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:14px;opacity:0;animation:blastAction 5s linear forwards}
+    @keyframes blastBackdrop{0%{background:rgba(0,0,0,0)}12%{background:rgba(0,0,0,.15)}27%{background:rgba(255,214,122,.28)}48%{background:rgba(65,45,35,.62)}78%,100%{background:rgba(20,15,12,.68)}}
+    @keyframes blastCore{0%,14%{opacity:0;transform:scale(.12)}19%{opacity:1;transform:scale(.7)}34%{opacity:.98;transform:scale(4.2)}58%{opacity:.72;transform:scale(8.2)}82%{opacity:.25;transform:scale(10.5)}100%{opacity:0;transform:scale(12)}}
+    @keyframes blastRing{0%,17%{opacity:0;transform:scale(.15)}22%{opacity:1;transform:scale(.75)}48%{opacity:.72;transform:scale(5.3)}75%{opacity:.18;transform:scale(8.8)}100%{opacity:0;transform:scale(10.5)}}
+    @keyframes blastPixel{0%,18%{opacity:0;transform:translate(-50%,-50%) scale(.45)}22%{opacity:1}55%{opacity:.95;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) rotate(210deg) scale(1.15)}82%{opacity:.35;transform:translate(calc(-50% + var(--dx2)),calc(-50% + var(--dy2))) rotate(330deg) scale(.9)}100%{opacity:0;transform:translate(calc(-50% + var(--dx2)),calc(-50% + var(--dy2))) rotate(420deg) scale(.65)}}
+    @keyframes blastMsg{0%,62%{opacity:0;transform:translateY(26px) scale(.96)}74%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:1;transform:translateY(0) scale(1)}}
+    @keyframes blastAction{0%,82%{opacity:0;pointer-events:none}88%,100%{opacity:1;pointer-events:auto}}
+    .shake{animation:shake 3.1s cubic-bezier(.36,.07,.19,.97)}
+    @keyframes shake{0%,100%{transform:translate3d(0,0,0) rotate(0)}8%{transform:translate3d(-2px,1px,0) rotate(-.1deg)}16%{transform:translate3d(3px,-1px,0) rotate(.12deg)}24%{transform:translate3d(-5px,2px,0) rotate(-.18deg)}34%{transform:translate3d(6px,-3px,0) rotate(.22deg)}46%{transform:translate3d(-7px,3px,0) rotate(-.2deg)}58%{transform:translate3d(6px,-2px,0) rotate(.16deg)}70%{transform:translate3d(-4px,2px,0) rotate(-.12deg)}82%{transform:translate3d(3px,-1px,0) rotate(.08deg)}92%{transform:translate3d(-1px,1px,0) rotate(-.04deg)}}
+
+    .waiting-card,.final-card{padding:24px;text-align:center}.waiting-card h1,.final-card h1{margin:8px 0 10px;font-size:clamp(34px,6vw,60px);line-height:.92}
+    .summary{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:18px}.summary div{padding:14px;border:3px solid #cda96d;border-radius:14px;background:#fff8ef;font-weight:900}.summary b{display:block;margin-top:6px;font-size:26px}
+    .result-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0}.result-card{display:grid;gap:4px;padding:15px;border:3px solid #86633f;border-radius:16px;background:#fff8ef}.result-card span{font-weight:1000}.result-card b{font-size:38px;color:#7d2f28}.result-card small{line-height:1.35}.result-card em{font-style:normal;font-size:12px;font-weight:900;color:#327151}
+
+    .shared-board{position:absolute;inset:0;z-index:60;width:100%;height:100%;touch-action:none;overflow:visible}
+    .board-toolbar{position:fixed;z-index:90;display:none;width:304px;border:3px solid #523a2d;border-radius:14px;background:#191029ee;color:#fff;box-shadow:0 12px 35px #11091ecc;overflow:hidden;user-select:none}.board-toolbar.show{display:block}.board-toolbar.collapsed .board-tools{display:none}.board-head{display:flex;justify-content:space-between;align-items:center;padding:7px 9px;background:#2c1c44;cursor:move}.board-head .tiny{padding:3px 8px}.board-tools{display:grid;grid-template-columns:repeat(3,38px) 42px minmax(78px,1fr);gap:6px;align-items:center;padding:9px}.board-tools button{height:36px;border:1px solid #fff4;border-radius:8px;background:#fff1;color:#fff;font-weight:1000}.board-tools button.active{background:#ffe174;color:#35231a}.board-tools input[type=color]{width:40px;height:36px;padding:0;border:0;background:none}.board-tools input[type=range]{min-width:72px;width:100%}.board-clear{grid-column:1/-1;width:100%;height:38px!important;background:#8c2f3a!important;border-color:#ffb5bc!important;color:#fff!important;font-size:13px;letter-spacing:.01em}
+    .teacher-cursor{position:fixed;z-index:95;display:none;pointer-events:none;translate:-5px -5px}.teacher-cursor.show{display:block}.teacher-cursor:before{content:"";display:block;width:15px;height:22px;background:#ffd460;clip-path:polygon(0 0,100% 70%,58% 70%,77% 100%,60% 100%,42% 72%,0 100%);filter:drop-shadow(0 2px 2px #0008)}.teacher-cursor:after{content:"Учитель";position:absolute;left:13px;top:14px;padding:3px 6px;border-radius:6px;background:#43295f;color:#fff;font-size:11px;font-weight:900;white-space:nowrap}
+    .toast{position:fixed;left:50%;bottom:18px;z-index:120;max-width:min(620px,calc(100vw - 30px));padding:11px 15px;border-radius:12px;background:#171022;color:#fff;box-shadow:0 8px 25px rgba(0,0,0,.4);translate:-50% 30px;opacity:0;pointer-events:none;transition:.2s}.toast.show{translate:-50% 0;opacity:1}
+
+    @media(max-width:980px){.lobby-layout,.play-grid{grid-template-columns:1fr}.visual{min-height:145px}.coach{max-width:58%}.summary,.result-grid,.rules,.hud{grid-template-columns:1fr 1fr}.options-grid{grid-template-columns:1fr}}
+    @media(max-width:760px){.join-fab{top:auto;bottom:16px;right:16px}.session-panel{left:8px;right:8px;top:64px;max-width:none;flex-wrap:wrap}.session-panel small{white-space:normal;flex:1 1 180px}.role-grid,.mode-grid,.summary,.result-grid,.rules,.hud{grid-template-columns:1fr}.hero-card{padding:22px 16px}.lesson-card{padding:22px}.task-text{font-size:18px}.method-formula{font-size:13px}.method-steps{font-size:13px}.tnt-hero{height:210px}.hero-tnt{width:90px;height:90px}.hero-tnt:before{font-size:22px;top:22px}.ignite-hand{display:none}.tnt-pile{grid-template-columns:repeat(2,74px);bottom:52px}.tnt-block{width:74px;height:74px}.tnt-block:before{font-size:20px;top:20px}.flint-zone{display:none}.board-toolbar{width:min(286px,calc(100vw - 20px))}.board-tools{grid-template-columns:repeat(3,36px) 40px minmax(68px,1fr)}.board-clear{grid-column:1/-1}}
+  
+/* ===== Simpsons economics theme ===== */
+:root{--sim-pink:#e5a6b8;--sim-purple:#7468c4;--sim-purple2:#54479e;--sim-yellow:#ffd84d;--sim-orange:#f5a13a;--sim-cream:#fff7dc;--sim-green:#67c86b;--sim-red:#e96b66;--sim-ink:#46355e;--sim-blue:#79c8e8;--sim-brown:#a5673d;}
+html,body{color:var(--sim-ink)!important;background:#e5a6b8!important}
+body{background-image:radial-gradient(circle at 18% 17%,rgba(255,255,255,.35),transparent 17%),radial-gradient(circle at 80% 13%,rgba(255,255,255,.22),transparent 16%),linear-gradient(180deg,#efb1c1 0%,#dfa3bb 58%,#9bc6d7 58%,#72babb 100%)!important;background-size:auto!important}
+.backdrop{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(105,87,178,.08))}.mountains{display:none!important}
+.cloud{background:rgba(255,255,255,.9)!important}
+.panel,.hero-card,.lobby-card,.guide-card,.waiting-card,.final-card,.game-board{background:linear-gradient(180deg,rgba(255,249,222,.97),rgba(255,235,178,.96))!important;border-color:#82552d!important;box-shadow:0 10px 0 rgba(132,79,35,.52),0 26px 55px rgba(80,48,87,.22)!important}
+.hero-tag,.tag,.task-badge{background:#6d5bb6!important;color:#fff8d4!important}.task-sub{background:#dff5fb!important;color:#356282!important}
+.hero-card h1,.lobby-card h1,.waiting-card h1,.final-card h1{color:#54356c!important;text-shadow:3px 3px 0 rgba(255,213,79,.72)}
+.lead,.guide-step span,.task-help,.method-foot,.feedback-copy span{color:#5c4964!important}
+.rules div,.guide-step,.summary div,.result-card,.hud-card,.task-card,.feedback-panel{background:rgba(255,253,239,.94)!important;border-color:#d39542!important;color:#4a385d!important}
+.sys-btn,.primary,.join-fab{background:linear-gradient(#ffe86d,#f5b842)!important;color:#614015!important;border-color:#8c5b29!important;box-shadow:0 5px 0 #9b632b!important}
+.ghost,.small,.tiny,.sys-mini,.sound{background:#fff9df!important;color:#533d66!important;border-color:#9a6d3c!important}
+.danger{background:linear-gradient(#ff9b91,#e06360)!important}
+.visual{background:linear-gradient(180deg,#efb1c1 0 58%,#b6b4dd 58% 71%,#70bbb6 71% 100%)!important;border-color:#725aa7!important;min-height:175px!important}
+.visual .ridge,.visual .ground,.flint-zone{display:none!important}
+.visual::before{content:"";position:absolute;right:32px;top:28px;width:190px;height:116px;border-radius:16px;background:#766fc2;border:7px solid #55499f;box-shadow:8px 8px rgba(67,49,97,.18)}
+.visual::after{content:"ВКЛАДЫ  •  КРЕДИТЫ";position:absolute;right:52px;top:49px;width:150px;height:70px;display:grid;place-items:center;text-align:center;border-radius:9px;background:#fff7cf;border:4px solid #8b5b33;color:#604319;font:900 17px/1.2 system-ui,sans-serif}
+.coach{background:rgba(255,249,220,.95)!important;border-color:#9a6b36!important;color:#4b3a5c!important;max-width:54%!important}.coach b{color:#a65b28!important}
+.tnt-pile{left:42px!important;right:auto!important;bottom:18px!important;gap:9px!important}
+.tnt-block{width:64px!important;height:64px!important;border-radius:50%!important;background:#d89b4f!important;border-color:#8b5a32!important;box-shadow:inset 0 0 0 12px #ff89b0,0 5px 0 rgba(123,72,36,.34)!important}
+.tnt-block:before{content:""!important;position:absolute!important;inset:19px!important;border-radius:50%!important;background:#f7d8ad!important;text-shadow:none!important}
+.tnt-block:after{display:none!important}.tnt-block.alt{transform:translateY(7px)!important}
+.progress-wrap{border-color:#79533a!important;background:#f0dfc0!important}.progress-wrap i{background:linear-gradient(90deg,#ffd84d,#63cd72)!important}
+.brand-mark{background:linear-gradient(#ffd84d,#ffb43f)!important;color:#613e12!important;border-color:#8d5a2e!important;box-shadow:0 6px 0 rgba(137,82,28,.42)!important}.brand-mark::before{content:"🍩"}.brand-mark{font-size:0!important}.brand-mark::before{font-size:24px}
+.tnt-option{border-color:#875a35!important;background:#fff9df!important;box-shadow:0 7px 0 rgba(139,86,42,.38)!important}.tnt-option.correct{background:#e0f8dc!important;box-shadow:0 0 0 4px rgba(75,180,88,.25),0 7px 0 rgba(65,130,62,.36)!important}.tnt-option.used-wrong{background:#ffe0dc!important}
+.tnt-head{padding-left:50px!important;background:linear-gradient(180deg,#7569c5,#5e52ae)!important;color:#fff8d4!important;text-shadow:none!important}.tnt-head:before{content:"🍩"!important;background:rgba(255,216,77,.95)!important;color:#563b14!important;border-color:#fff2a4!important;font-size:18px!important}
+.tnt-body{background:linear-gradient(#fffdf0,#ffefc5)!important}.method-formula{background:#fff!important;border-color:#d2a058!important;color:#5b3d6d!important}.method-steps{color:#483a54!important}.method-steps li::marker{color:#9d5e2e!important}
+.feedback-panel.good{background:#dff6d9!important}.feedback-panel.bad{background:#ffdcd4!important}.retry-note{background:#ffe7a3!important;border-color:#d39131!important;color:#684618!important}
+.lesson-card{background:linear-gradient(135deg,#fff7d9,#ffd88d)!important;border-color:#8e5c2e!important}.role-choice,.mode-btn{background:#fffaf0!important;border-color:#9b6939!important}.seat{background:rgba(255,250,229,.75)!important;border-color:#a37443!important}.seat.filled{background:#e5f7d9!important}.seat b{background:#ffd84d!important;color:#6a4214!important}
+.session-panel,.board-toolbar{background:rgba(91,73,154,.94)!important;border-color:#4c3b8b!important}.board-head{background:#6755ad!important}.toast{background:#5b4894!important}
+.blast-message{background:linear-gradient(180deg,#fff9df,#ffe39a)!important;border-color:#8e5b2e!important}.blast-message h2{color:#54356c!important}.blast-core{background:radial-gradient(circle,#fffdf0 0 16%,#ffe86d 17% 35%,#ffb05b 36% 56%,#ff82a8 57% 70%,rgba(255,106,47,0) 71% 100%)!important}.blast-ring{border-color:rgba(255,220,90,.82)!important}
+@media(max-width:760px){.coach{max-width:100%!important}.visual::before{right:16px;top:70px;width:145px;height:85px}.visual::after{right:31px;top:86px;width:115px;height:48px;font-size:13px}.tnt-pile{left:18px!important;bottom:20px!important}.tnt-block{width:52px!important;height:52px!important}.tnt-block:before{inset:15px!important}}
+
+
+/* ===== V2: exact exam-style conditions + proper math typography ===== */
+.task-text{white-space:pre-line!important;font-size:clamp(16px,1.65vw,20px)!important;font-weight:750!important;line-height:1.52!important;letter-spacing:0!important}
+.task-help{margin-top:10px!important;padding-top:9px;border-top:2px dashed rgba(95,69,110,.22);font-size:13px!important}
+.method-formula{font-family:"Cambria Math","STIX Two Math","Times New Roman",serif!important;font-size:clamp(17px,1.8vw,21px)!important;line-height:1.55!important;font-weight:600!important;text-align:center!important;padding:10px 9px!important;overflow-x:auto}
+.method-formula .mathline{display:block;white-space:nowrap;margin:2px 0}
+.method-formula .frac{display:inline-grid;grid-template-rows:auto auto;vertical-align:-.65em;text-align:center;line-height:1.02;margin:0 .13em;min-width:1.25em}
+.method-formula .frac>span:first-child{border-bottom:1.6px solid currentColor;padding:0 .12em .08em}
+.method-formula .frac>span:last-child{padding:.08em .12em 0}
+.method-formula sup{font-size:.7em;vertical-align:.55em}.method-formula sub{font-size:.7em}
+.method-formula .brace{font-size:1.18em}.method-formula .mutedmath{font-family:Inter,system-ui,sans-serif;font-size:.72em;color:#786786;font-weight:750}
+.feedback-panel .feedback-formula{display:block;margin-top:5px;font-family:"Cambria Math","Times New Roman",serif;font-size:17px}
+@media(max-width:760px){.task-text{font-size:16px!important}.method-formula{font-size:16px!important}}
+
+</style>
+</head>
+<body>
+  <div class="backdrop" aria-hidden="true">
+    <div class="cloud a"></div><div class="cloud b"></div><div class="cloud c"></div><div class="mountains"></div>
+  </div>
+
+  <main id="app" class="screen center"></main>
+  <button class="join-fab" id="lessonJoinBtn">Совместный урок</button>
+  <div class="session-panel" id="sessionPanel"></div>
+  <div class="lesson-modal" id="lessonModal"></div>
+  <div class="board-toolbar" id="boardToolbar"></div>
+  <div class="teacher-cursor" id="teacherCursor"></div>
+  <div class="toast" id="toast"></div>
+  <div class="blast-overlay" id="blastOverlay"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import {
+  getDatabase, ref, get, set, update, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect,
+  runTransaction, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBkY5utRlEfGIT_wEW6Dq7TSLr3RqBWJxo",
+  authDomain: "ega-mathematica.firebaseapp.com",
+  databaseURL: "https://ega-mathematica-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "ega-mathematica",
+  storageBucket: "ega-mathematica.firebasestorage.app",
+  messagingSenderId: "177632223541",
+  appId: "1:177632223541:web:fbc532216359e34665ec7c",
+  measurementId: "G-K9FZYGKPZS"
+};
+const firebaseApp = initializeApp(firebaseConfig);
+const database = getDatabase(firebaseApp);
+
+const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+const APP_ID='ege16-simpsons-method-choice-v4-generated-exam-templates';
+const FIXED_SESSION_ID='currentSession';
+const SCHEMA_VERSION=8;
+const TEACHER_CODE='A7K4P9';
+const TASKS_PER_STUDENT=10;
+const TEST_META={
+  testId:'EGE-16-SIMPSONS-METHOD-CHOICE-V4',
+  testName:'Симпсоны — выбор способа решения, ЕГЭ №16 · новые числа',
+  topicId:'task-16',
+  topicName:'Экономические задачи: выбор способа решения',
+  taskNumber:16,
+  schemaVersion:1
+};
+
+const STUDENT_SAVE_KEY=`${APP_ID}:student`;
+const CLIENT_ID_KEY=`${APP_ID}:client`;
+const TOOLBAR_POSITION_KEY=`${APP_ID}:toolbar`;
+const PENDING_RESULTS_KEY=`${APP_ID}:pendingTestResults`;
+const $=id=>document.getElementById(id);
+const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const lessonRoot=()=>`sharedInteractives/${APP_ID}/${FIXED_SESSION_ID}`;
+const sessionRef=()=>ref(database,lessonRoot());
+const stateRef=()=>ref(database,`${lessonRoot()}/state`);
+const membersRef=()=>ref(database,`${lessonRoot()}/members`);
+const messagesRef=()=>ref(database,`${lessonRoot()}/messages`);
+const strokesRef=()=>ref(database,`${lessonRoot()}/state/strokes`);
+const memberRef=id=>ref(database,`${lessonRoot()}/members/${id}`);
+
+let role='';
+let teacherAuthenticated=false;
+let student=storedStudent();
+let participantId='';
+let participantName='';
+let participantPlayerKey='';
+let browserClientId=getBrowserClientId();
+let serverState=null;
+let membersSnapshot={};
+let stateUnsub=null,membersUnsub=null,messagesUnsub=null;
+let strokeAddedUnsub=null,strokeChangedUnsub=null,strokeRemovedUnsub=null;
+let liveStrokes={};
+let joinInFlight=false,presencePath=null;
+let online=navigator.onLine;
+let muted=false;
+let lastRenderedKey='';
+let lastFeedbackAt=0;
+let activeStroke=null,boardTool='cursor',boardColor='#e53935',boardWidth=6,toolbarCollapsed=false,lastStrokePush=0,lastCursorPush=0,remoteTeacherCursor=null;
+let boardPointerId=null,boardErasing=false,lastErasePoint=null,erasingStrokeIds=new Set();
+let submissionInFlight=new Set(),teacherBackupTimer=null,partialSent=false;
+let verificationRun=0,verificationStatus='';
+
+const PROTO_LABELS={
+  1:'Прототип 1 · Вклады',
+  2:'Прототип 2 · Равные платежи',
+  3:'Прототип 3 · Разные платежи',
+  4:'Прототип 4 · Арифметическая модель'
+};
+
+function uuid(){ return crypto?.randomUUID?.() || `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`; }
+function hashString(str){ let h=1779033703^str.length; for(let i=0;i<str.length;i++){ h=Math.imul(h^str.charCodeAt(i),3432918353); h=h<<13|h>>>19; } return ()=>{h=Math.imul(h^(h>>>16),2246822507);h=Math.imul(h^(h>>>13),3266489909);return (h^=h>>>16)>>>0} }
+function mulberry32(a){ return function(){ a|=0; a=(a+0x6D2B79F5)|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; } }
+function seededRng(key){ return mulberry32(hashString(key)()); }
+function shuffle(array,rng=Math.random){ const a=array.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function pick(rng,list){ return list[Math.floor(rng()*list.length)]; }
+function int(rng,min,max){ return Math.floor(rng()*(max-min+1))+min; }
+function nowIso(ms=Date.now()){ return new Date(ms).toISOString(); }
+function localDate(){ const d=new Date(),p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; }
+function timeText(seconds){ const s=Math.max(0,Number(seconds)||0); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }
+function playerKey(studentId){ return `student_${String(studentId).replace(/[^a-zA-Z0-9_-]/g,'_')}`; }
+function normalizeStats(st){ return { firstTryCorrect:Number(st?.firstTryCorrect)||0, completed:Number(st?.completed)||0, attemptCount:Number(st?.attemptCount)||0 }; }
+function getBrowserClientId(){ let id=sessionStorage.getItem(CLIENT_ID_KEY); if(!id){ id=uuid(); sessionStorage.setItem(CLIENT_ID_KEY,id); } return id; }
+function storedStudent(){
+  try{const local=JSON.parse(localStorage.getItem(STUDENT_SAVE_KEY)||'null');if(local?.code&&local?.name&&!/^Ученик(?:\s+\d+)?$/i.test(String(local.name).trim()))return{...local,studentId:String(local.studentId||local.code),verified:true}}catch{}
+  const studentId=localStorage.getItem('egeStudentId')||'',name=localStorage.getItem('egeStudentName')||'',code=localStorage.getItem('egeStudentCode')||'';
+  return code&&name&&!/^Ученик(?:\s+\d+)?$/i.test(name.trim())?{studentId:String(studentId||code),name:String(name),code:String(code),verified:true}:null;
+}
+function saveStudent(st){
+  if(!st?.code||!st?.name||/^Ученик(?:\s+\d+)?$/i.test(String(st.name).trim()))return;
+  const data={...st,studentId:String(st.studentId||st.code),name:String(st.name),code:String(st.code),verified:true};
+  localStorage.setItem(STUDENT_SAVE_KEY,JSON.stringify(data));localStorage.setItem('egeStudentId',data.studentId);localStorage.setItem('egeStudentName',data.name);localStorage.setItem('egeStudentCode',data.code);student=data;
+}
+function clearStoredStudent(){ [STUDENT_SAVE_KEY,'egeStudentId','egeStudentName','egeStudentCode'].forEach(k=>localStorage.removeItem(k)); student=null; }
+function saveEnteredCode(code){localStorage.setItem('egeStudentCode',String(code||''));localStorage.removeItem('egeStudentId');localStorage.removeItem('egeStudentName');localStorage.removeItem(STUDENT_SAVE_KEY)}
+
+function showToast(text,type=''){ const t=$('toast'); if(!t) return; t.textContent=text; t.className='toast show'; if(type==='bad') t.style.background='#6a1d1d'; else t.style.background='#171022'; clearTimeout(showToast._tm); showToast._tm=setTimeout(()=>t.classList.remove('show'),2400); }
+
+/* ---------- проверка ученика ---------- */
+function studentFromResponse(data,code){
+  if(!data || data.ok===false || data.success===false || data.valid===false) return null;
+  const source=data.student||data.data||data;
+  const studentId=source.studentId??source.id??data.studentId??data.id;
+  const name=source.studentName??source.name??data.studentName??data.name;
+  if(studentId===undefined || studentId===null || studentId==='') return null;
+  return {studentId:String(studentId),name:String(name||'Ученик'),code:String(code)};
+}
+function validateStudentCode(code){
+  return new Promise((resolve,reject)=>{
+    const callback='egeStudentCallback_'+Date.now()+'_'+Math.random().toString(36).slice(2),script=document.createElement('script');let done=false;
+    const timeout=setTimeout(()=>finish(Object.assign(new Error('Сервер не ответил.'),{transient:true})),60000);
+    function cleanup(){clearTimeout(timeout);try{delete window[callback]}catch{}script.remove()}
+    function finish(error,value){if(done)return;done=true;cleanup();error?reject(error):resolve(value)}
+    window[callback]=data=>{const st=studentFromResponse(data,code);if(st)finish(null,st);else finish(Object.assign(new Error((data&&(data.error||data.message))||'Код ученика не найден'),{terminal:true}))};
+    script.onerror=()=>finish(Object.assign(new Error('Не удалось связаться с сервером'),{transient:true}));
+    script.src=`${API_URL}?action=validateStudent&code=${encodeURIComponent(code)}&callback=${encodeURIComponent(callback)}`;document.head.appendChild(script);
+  });
+}
+async function sha256(s){ const b=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
+
+/* ---------- очередь результатов ---------- */
+function readQueue(){ try{ const q=JSON.parse(localStorage.getItem(PENDING_RESULTS_KEY)||'[]'); return Array.isArray(q)?q:[]; }catch{return [];} }
+function writeQueue(q){ localStorage.setItem(PENDING_RESULTS_KEY,JSON.stringify(q)); }
+function queueResult(payload,playerKeyValue=''){ const q=readQueue(); if(!q.some(x=>x?.payload?.eventId===payload.eventId)) q.push({payload,playerKey:playerKeyValue}); writeQueue(q); }
+function removeQueued(eventId){ writeQueue(readQueue().filter(x=>x?.payload?.eventId!==eventId)); }
+async function postResult(payload){
+  const response=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow'});
+  let answer;
+  try{ answer=await response.json(); }catch{ throw new Error('Система результатов не ответила.'); }
+  if(!response.ok||!answer?.ok) throw new Error(answer?.error||'Результат не принят.');
+  return answer;
+}
+async function markSubmission(pk,status,message=''){ if(!serverState) return; try{ await update(ref(database,`${lessonRoot()}/state/game/submissions/${pk}`),{status,message,updatedAt:Date.now()}); }catch{} }
+function resultPayload(s,pk){
+  const g=s.game,p=g.players[pk],st=normalizeStats(g.stats[pk]);
+  const completed=st.completed,score=st.firstTryCorrect,maxScore=g.endedEarly?completed:TASKS_PER_STUDENT;
+  const scorePercent=maxScore?Math.round(score/maxScore*100):0;
+  const finished=g.finishedAt||Date.now(),started=g.startedAt||finished;
+  const durationSeconds=Math.max(1,Math.round((finished-started)/1000));
+  // Строго официальный контракт листа «Инструкция API» для submitTest.
+  return {
+    action:'submitTest',
+    eventId:g.eventIds[pk]||`${g.sessionId}-${pk}`,
+    studentId:p?.studentId||p?.code||'',
+    studentCode:p?.code||'',
+    testId:TEST_META.testId,
+    testDate:localDate(),
+    topicId:TEST_META.topicId,
+    topicName:TEST_META.topicName,
+    taskNumber:TEST_META.taskNumber,
+    scorePercent,
+    durationSeconds,
+    schemaVersion:1,
+    programId:'EGE_MATH'
+  };
+}
+async function ensureSubmission(pk){
+  if(!serverState||submissionInFlight.has(pk)) return;
+  const status=serverState.game.submissions?.[pk]?.status;
+  if(status==='saved'||status==='sending') return;
+  submissionInFlight.add(pk);
+  const snapshot=clone(serverState), payload=resultPayload(snapshot,pk);
+  try{
+    await markSubmission(pk,'sending','Отправляем в таблицу…');
+    const receipt=await postResult(payload);
+    removeQueued(payload.eventId);
+    await markSubmission(pk,'saved',receipt?.duplicate?'✓ уже было сохранено':'✓ подтверждено сервером');
+  }catch(err){
+    queueResult(payload,pk);
+    await markSubmission(pk,'queued',String(err?.message||'Ждёт повторной отправки'));
+  }finally{submissionInFlight.delete(pk)}
+}
+async function flushPendingResults(){ if(!navigator.onLine) return; for(const item of readQueue()){ const payload=item?.payload, pk=item?.playerKey; if(!payload?.eventId) continue; try{ await postResult(payload); removeQueued(payload.eventId); if(serverState?.game?.eventIds?.[pk]===payload.eventId) await markSubmission(pk,'saved','Результат сохранён'); }catch{} } }
+setInterval(flushPendingResults,60000);
+function scheduleTeacherBackup(){ if(role!=='teacher'||teacherBackupTimer) return; teacherBackupTimer=setTimeout(async()=>{ teacherBackupTimer=null; if(!serverState||serverState.game.status!=='finished') return; await Promise.all((serverState.game.playerOrder||[]).filter(pk=>serverState.game.submissions?.[pk]?.status!=='saved').map(pk=>ensureSubmission(pk))); },1200); }
+function bestEffortPartialSubmit(){ if(partialSent||role!=='student'||!serverState||serverState.game.status!=='playing'||!participantPlayerKey) return; partialSent=true; const s=clone(serverState), payload=resultPayload({...s,game:{...s.game,endedEarly:true,finishedAt:Date.now()}},participantPlayerKey); payload.partial=true; queueResult(payload,participantPlayerKey); try{ const blob=new Blob([JSON.stringify(payload)],{type:'text/plain;charset=utf-8'}); navigator.sendBeacon?.(API_URL,blob); }catch{} }
+
+/* ---------- банк задач №16: условия в формате исходных задач ---------- */
+function card(title,formula,steps,tag){ return {title,formula,steps,tag}; }
+function withShuffledOptions(task,rng){ const opts=task.options.map((o,i)=>({...o,_correct:i===0})); const mixed=shuffle(opts,rng); return {...task,options:mixed.map(({_correct,...o})=>o),correctIndex:mixed.findIndex(o=>o._correct)}; }
+const FR=(a,b)=>`<span class="frac"><span>${a}</span><span>${b}</span></span>`;
+const ML=(s)=>`<span class="mathline">${s}</span>`;
+function sourceTask(proto,kind,text,options,rng){ return withShuffledOptions({proto,topic:PROTO_LABELS[proto],kind,text,options},rng); }
+
+/* ---------- генераторы новых условий: шаблоны соответствуют структуре задач из исходного банка ---------- */
+function numText(n,digits=3){
+  const v=Math.abs(n-Math.round(n))<1e-9?Math.round(n):Number(n.toFixed(digits));
+  return String(v).replace('.',',');
+}
+function moneyText(n){ return Math.round(n).toLocaleString('ru-RU').replace(/\u00a0/g,' '); }
+function mlnText(n){ return `${numText(n)} млн рублей`; }
+function coefText(p){ return numText(1+p/100,4); }
+function pctText(p){ return numText(p,2); }
+function chooseDifferent(rng,list,used){
+  const shuffled=shuffle(list,rng); for(const x of shuffled){ const k=JSON.stringify(x); if(!used.has(k)){used.add(k);return x;} }
+  const x=pick(rng,list); used.add(JSON.stringify(x)); return x;
+}
+function depAmount(x,p,years,adds){
+  const q=1+p/100; let a=x;
+  for(let y=1;y<=years;y++){ if(adds[y]) a+=adds[y]; a*=q; }
+  return a;
+}
+function depExpr(p,years,adds,varName='X'){
+  const q=coefText(p); let e=varName;
+  for(let y=1;y<=years;y++){
+    if(adds[y]) e=`${e}+${numText(adds[y])}`;
+    e=e===varName?`${q}${varName}`:`${q}·(${e})`;
+  }
+  return e;
+}
+function integerInClosedOpen(lo,hi){
+  const a=Math.ceil(lo-1e-9); return a<hi-1e-9?a:null;
+}
+function integerInOpenClosed(lo,hi){
+  const a=Math.floor(hi+1e-9); return a>lo+1e-9?a:null;
+}
+
+function genDepositMax(rng){
+  for(let tries=0;tries<100;tries++){
+    const p=pick(rng,[8,10,12,15,20]);
+    const years=4;
+    const a2=int(rng,1,8),a4=int(rng,1,8),x=int(rng,8,35);
+    const adds={2:a2,4:a4};
+    const f0=depAmount(x,p,years,adds), f1=depAmount(x+1,p,years,adds);
+    const cap=integerInClosedOpen(f0,f1); if(cap==null) continue;
+    const expr=depExpr(p,years,adds), q=coefText(p);
+    return sourceTask(1,'Капитализация и пополнения',`Вклад планируется открыть на 4 года. Первоначально первого января вносится целое число миллионов рублей. В конце каждого года вклад увеличивается на ${pctText(p)}% по сравнению с его размером в начале года. В начале второго и четвертого годов вносится дополнительно ${a2} и ${a4} млн рублей соответственно. Какую наибольшую сумму можно внести первоначально, если размер вклада после четырех лет не должен превышать ${cap} млн рублей?`,[
+      card('Провести вклад по годам и составить итоговое неравенство',ML(`q=${q}`)+ML(`${expr} ≤ ${cap}`),['Обозначить первоначальный вклад через X млн рублей.','Расположить все действия строго по датам: в начале нужного года внести пополнение, в конце года умножить текущую сумму на коэффициент роста.','Полученную сумму после четвёртого года сравнить с ограничением.','Из решения неравенства выбрать наибольшее целое X.'],'хронология вклада'),
+      card('Сложить все взносы заранее и начислять проценты на общую сумму',ML(`(X+${a2}+${a4})·${q}<sup>4</sup> ≤ ${cap}`),['Считать, что оба пополнения лежали на вкладе с первого дня.'],'не учитывает даты пополнений'),
+      card('Использовать только процентную часть',ML(`${numText(p/100)}·X+${a2}+${a4} ≤ ${cap}`),['Вместо коэффициента роста использовать только долю процента.'],'теряется основная сумма'),
+      card('Использовать простые проценты',ML(`X·(1+4·${numText(p/100)})+${a2+a4} ≤ ${cap}`),['Заменить ежегодную капитализацию линейным начислением.'],'капитализация не учтена')
+    ],rng);
+  }
+  throw new Error('Не удалось сгенерировать вклад');
+}
+
+function genDepositInterest(rng){
+  for(let tries=0;tries<100;tries++){
+    const p=pick(rng,[20,25,30]);
+    const a3=pick(rng,[5,10,15]),a4=pick(rng,[5,10,15]),x=int(rng,20,90),years=4;
+    const adds={3:a3,4:a4}, totalAdds=a3+a4;
+    const i0=depAmount(x,p,years,adds)-x-totalAdds;
+    const i1=depAmount(x+1,p,years,adds)-(x+1)-totalAdds;
+    const lim=integerInOpenClosed(i0,i1); if(lim==null) continue;
+    const expr=depExpr(p,years,adds),q=coefText(p);
+    return sourceTask(1,'Начисленные банком проценты',`По бизнес-плану предполагается вложить в четырёхлетний проект целое число миллионов рублей. По итогам каждого года планируется прирост средств вкладчика на ${pctText(p)}% по сравнению с их размером на начало года. Начисленные проценты остаются вложенными в проект. Кроме этого, сразу после начислений процентов по итогам второго и третьего годов вкладчик дополнительно вносит в проект ${a3} и ${a4} млн рублей соответственно. Найдите наибольший размер первоначального вложения, при котором за четыре года сумма начисленных процентов будет меньше ${lim} млн рублей.`,[
+      card('Сначала найти итоговую сумму, затем вычесть все собственные вложения',ML(`A₄=${expr}`)+ML(`A₄−X−${totalAdds} < ${lim}`),['Обозначить первоначальный вклад через X млн рублей.','Провести сумму через четыре года с учётом двух пополнений после второго и третьего годов.','Из конечной суммы вычесть первоначальный вклад и оба дополнительных внесения.','Полученную сумму банковских начислений сравнить с заданным пределом.'],'начисленные проценты'),
+      card('Сравнить весь итоговый вклад с пределом процентов',ML(`${expr} < ${lim}`),['Считать конечную сумму вклада суммой процентов.'],'проценты и вклад перепутаны'),
+      card('Считать оба пополнения внесёнными в самом начале',ML(`(X+${totalAdds})·${q}<sup>4</sup>−X−${totalAdds} < ${lim}`),['Игнорировать реальные даты дополнительных вложений.'],'неверная хронология'),
+      card('Считать проценты только от первоначальной суммы',ML(`4·${numText(p/100)}·X < ${lim}`),['Не учитывать капитализацию и дополнительные вложения.'],'простые проценты вместо капитализации')
+    ],rng);
+  }
+  throw new Error('Не удалось сгенерировать задачу на начисления');
+}
+
+function genDepositTerm(rng){
+  for(let tries=0;tries<100;tries++){
+    const p=pick(rng,[8,10,12,15]),S=pick(rng,[12,15,18,20,24,25]),add=pick(rng,[2,3,4,5,6]),n=int(rng,4,7),q=1+p/100;
+    const amount=k=>{ if(k===1)return S*q; return Math.pow(q,k-1)*(q*S+add); };
+    const prev=amount(n-1),cur=amount(n),target=integerInOpenClosed(prev,cur); if(target==null)continue;
+    const qt=coefText(p);
+    return sourceTask(1,'Минимальный срок вклада',`Вклад планируется открыть на несколько лет. В конце каждого года вклад увеличивается на ${pctText(p)}% по сравнению с его размером в начале года. Первоначально первого января вносится ${S} млн рублей. В начале второго года вносится дополнительно ${add} млн рублей. На какое минимальное число лет можно открыть вклад, чтобы по истечении срока размер вклада был не менее ${target} млн рублей?`,[
+      card('Выразить сумму после n лет через степень коэффициента роста',ML(`${qt}<sup>n−1</sup>·(${qt}·${S}+${add}) ≥ ${target}`),['После первого года получить сумму первоначального вклада с процентами.','В начале второго года прибавить дополнительный взнос.','Оставшиеся годы учесть степенью коэффициента роста.','Найти минимальное целое n, при котором выполняется неравенство.'],'минимальный срок'),
+      card('Считать дополнительный взнос внесённым одновременно с первоначальным',ML(`(${S}+${add})·${qt}<sup>n</sup> ≥ ${target}`),['Начислять проценты на дополнительный взнос уже в первый год.'],'неверная дата пополнения'),
+      card('Использовать простые проценты',ML(`${S}+${add}+${S}·${numText(p/100)}·n ≥ ${target}`),['Каждый год начислять процент только от первоначальной суммы.'],'нет капитализации'),
+      card('Использовать процент как коэффициент роста',ML(`${numText(p/100)}<sup>n−1</sup>·(${numText(p/100)}·${S}+${add}) ≥ ${target}`),['Умножать на долю процента вместо 1+p/100.'],'неверный коэффициент')
+    ],rng);
+  }
+  throw new Error('Не удалось сгенерировать срок вклада');
+}
+
+const EQ_FAMILIES=[
+  {p:20,n:2,S:55000,x:36000},
+  {p:10,n:2,S:210000,x:121000},
+  {p:20,n:3,S:455000,x:216000},
+  {p:10,n:3,S:3310000,x:1331000},
+  {p:16,n:3,S:4382000,x:1951120},
+  {p:12.5,n:2,S:6409000,x:3817125},
+  {p:12.5,n:2,S:986000,x:587250},
+  {p:20,n:4,S:419375,x:162000},
+  {p:25,n:4,S:221400,x:93750}
+];
+function eqChain(S,p,n,pay='x'){
+  const q=coefText(p), start=(typeof S==='number'?moneyText(S):String(S)); let e=`${q}·${start}`;
+  e=`${e}−${pay}`;
+  for(let y=2;y<=n;y++) e=`${q}·(${e})−${pay}`;
+  return e;
+}
+function scaledFamily(rng){ const f=pick(rng,EQ_FAMILIES),k=int(rng,1,4); return {...f,S:f.S*k,x:f.x*k}; }
+function genEqualFindPayment(rng){
+  const f=scaledFamily(rng),q=coefText(f.p),chain=eqChain(f.S,f.p,f.n,'x');
+  return sourceTask(2,`${f.n} равных платежа`,`В июле планируется взять кредит в банке на сумму ${moneyText(f.S)} рублей. Условия его возврата таковы:\n– каждый январь долг возрастает на ${pctText(f.p)}% по сравнению с концом предыдущего года;\n– с февраля по июнь каждого года необходимо выплатить одним платежом часть долга.\nКакой должна быть сумма ежегодного платежа, если известно, что кредит будет полностью погашен ${f.n===2?'двумя':f.n===3?'тремя':'четырьмя'} равными платежами?`,[
+    card('Ввести один равный платёж x и обнулить долг после последней выплаты',ML(`${chain}=0`),['Обозначить каждый одинаковый платёж через x.','Каждый январь умножать текущий остаток долга на коэффициент роста.','После начисления процентов вычитать один и тот же платёж x.','После последнего платежа приравнять остаток долга к нулю.'],'равные платежи'),
+    card('Разделить сумму кредита на число лет',ML(`x=${FR(moneyText(f.S),String(f.n))}`),['Разделить только тело кредита на равные части.'],'проценты не учтены'),
+    card('Начислить проценты на первоначальную сумму за все годы',ML(`${f.n}x=${moneyText(f.S)}·${q}<sup>${f.n}</sup>`),['Не уменьшать процентную базу после платежей.'],'остаток долга не учитывается'),
+    card('Равномерно уменьшать основной долг',ML(`d=${FR(moneyText(f.S),String(f.n))}`),['Считать одинаковым уменьшение долга, а не сам платёж.'],'это арифметическая модель')
+  ],rng);
+}
+function genEqualFindLoan(rng){
+  const f=scaledFamily(rng),total=f.x*f.n,chain=eqChain('S',f.p,f.n,moneyText(f.x)).replace(/·S/g,'S');
+  return sourceTask(2,`${f.n} равных платежа`,`В июле планируется взять кредит в банке на некоторую сумму. Условия его возврата таковы:\n– каждый январь долг возрастает на ${pctText(f.p)}% по сравнению с концом предыдущего года;\n– с февраля по июнь каждого года необходимо выплатить одним платежом часть долга.\nКакую сумму планируется взять в банке, если известно, что кредит будет полностью погашен ${f.n===2?'двумя':f.n===3?'тремя':'четырьмя'} равными платежами по ${moneyText(f.x)} рублей каждый?`,[
+    card('Обозначить первоначальный долг через S и провести одинаковые платежи по годам',ML(`${chain}=0`),['Пусть S — сумма кредита.','В каждый январь умножать текущий долг на коэффициент роста.','После начисления процентов вычитать известный одинаковый платёж.','После последнего платежа долг должен стать равным нулю.'],'найти первоначальный долг'),
+    card('Считать кредит равным сумме всех платежей',ML(`S=${moneyText(total)}`),['Сложить платежи и не учитывать проценты.'],'часть выплат — проценты'),
+    card('Вычитать платежи до начисления процентов',ML(`${coefText(f.p)}·(S−${moneyText(f.x)})`),['Сначала уменьшить долг на платёж, а потом начислить проценты.'],'нарушен порядок операций'),
+    card('Использовать арифметическую последовательность остатков',ML(`S, ${FR(`${f.n-1}S`,String(f.n))}, …, 0`),['Разбить тело долга на равные части.'],'не задано равномерное уменьшение долга')
+  ],rng);
+}
+function genEqualTotal(rng){
+  const f=scaledFamily(rng),chain=eqChain(f.S,f.p,f.n,'x');
+  return sourceTask(2,'Общая сумма равных платежей',`В июле планируется взять кредит в банке на сумму ${moneyText(f.S)} рублей. Условия его возврата таковы:\n– каждый январь долг возрастает на ${pctText(f.p)}% по сравнению с концом предыдущего года;\n– с февраля по июнь каждого года необходимо выплатить одним платежом часть долга.\nСколько рублей будет выплачено банку, если известно, что кредит будет полностью погашен ${f.n===2?'двумя':f.n===3?'тремя':'четырьмя'} равными платежами?`,[
+    card('Сначала найти один равный платёж x, затем умножить его на число платежей',ML(`${chain}=0`)+ML(`S<sub>выплат</sub>=${f.n}x`),['Ввести один и тот же платёж x.','Составить цепочку изменения долга до полного погашения.','Из уравнения найти x.','Общую сумму выплат получить умножением x на число платежей.'],'общая сумма выплат'),
+    card('Считать общей выплатой кредит с процентами за весь срок без промежуточных платежей',ML(`S<sub>выплат</sub>=${moneyText(f.S)}·${coefText(f.p)}<sup>${f.n}</sup>`),['Не учитывать уменьшение долга после каждого платежа.'],'проценты начисляются на остаток'),
+    card('Разделить тело кредита на равные платежи',ML(`x=${FR(moneyText(f.S),String(f.n))}`),['Игнорировать проценты банка.'],'платёж включает проценты'),
+    card('Использовать равномерное уменьшение долга',ML(`d=${FR(moneyText(f.S),String(f.n))}`),['Подменить равные платежи равными уменьшениями долга.'],'другая модель')
+  ],rng);
+}
+
+function genDifferentRate(rng){
+  for(let tries=0;tries<100;tries++){
+    const p=pick(rng,[10,20,25,30]),q=1+p/100,S=int(rng,25,80)*10000;
+    const after=S*q;
+    const p1=int(rng,Math.ceil(after*.55/10000),Math.floor(after*.88/10000))*10000;
+    const rest=after-p1; if(rest<=0)continue;
+    const p2=Math.round(rest*q); if(p2<=0||Math.abs(p2/1000-Math.round(p2/1000))>.001)continue;
+    return sourceTask(3,'Два заданных разных платежа',`В июле планируется взять кредит в банке на сумму ${moneyText(S)} рублей. Условия его возврата таковы:\n– каждый январь долг увеличивается на r% по сравнению с концом предыдущего года;\n– с февраля по июнь каждого года необходимо выплатить одним платежом часть долга.\nНайдите r, если известно, что кредит будет полностью погашен за два года, причём в первый год будет выплачено ${moneyText(p1)} рублей, а во второй год — ${moneyText(p2)} рублей.`,[
+      card('Ввести коэффициент q=1+r/100 и последовательно провести оба платежа',ML(`q=1+${FR('r','100')}`)+ML(`(${moneyText(S)}q−${moneyText(p1)})q−${moneyText(p2)}=0`),['После первого начисления процентов вычесть первый заданный платёж.','Оставшийся долг перенести на следующий год и снова умножить на q.','Вычесть второй платеж и приравнять остаток к нулю.','Из найденного q перейти к r.'],'разные платежи'),
+      card('Считать оба платежа равными',ML(`(${moneyText(S)}q−x)q−x=0`),['Заменить два заданных платежа одним x.'],'платежи по условию разные'),
+      card('Начислять проценты каждый год на первоначальный кредит',ML(`${moneyText(S)}q−${moneyText(p1)}+${moneyText(S)}q−${moneyText(p2)}=0`),['Во втором году снова использовать первоначальный долг.'],'проценты начисляются на остаток'),
+      card('Равномерно уменьшать тело долга',ML(`d=${FR(moneyText(S),'2')}`),['Разбить основной долг на две равные части.'],'это другая модель')
+    ],rng);
+  }
+  throw new Error('Не удалось сгенерировать разные платежи');
+}
+function genDifferentMixed(rng){
+  for(let tries=0;tries<100;tries++){
+    const p=pick(rng,[10,20]),q=1+p/100,S=int(rng,6,18)*100000;
+    const x=int(rng,Math.ceil(S*.3/10000),Math.floor(S*.55/10000))*10000;
+    const after1=q*S-x,after2=q*after1-x; if(after1<=0||after2<=0)continue;
+    const lastRaw=q*after2,last=Math.round(lastRaw); if(last<=0||Math.abs(lastRaw-last)>1e-7)continue;
+    return sourceTask(3,'Смешанная схема платежей',`В июле планируется взять кредит на три года в размере ${moneyText(S)} рублей. Условия его возврата таковы:\n– каждый январь долг будет возрастать на ${pctText(p)}% по сравнению с концом предыдущего года;\n– с февраля по июнь каждого года необходимо выплатить часть долга;\n– платежи в первый и второй годы должны быть равны;\n– к июлю третьего года долг должен быть выплачен полностью.\nИзвестно, что платёж в третьем году составит ${moneyText(last)} рублей. Сколько рублей составит платёж в первый год?`,[
+      card('Обозначить первые два равных платежа x, а последний оставить заданным',ML(`${coefText(p)}·(${coefText(p)}·(${coefText(p)}·${moneyText(S)}−x)−x)=${moneyText(last)}`),['Пусть первые два платежа равны x.','После каждого январского начисления процентов вычитать x.','Перед последним платежом весь долг после начисления процентов равен известной сумме последнего платежа.','Составить одно уравнение относительно x.'],'смешанная схема'),
+      card('Считать все три платежа равными',ML(`${coefText(p)}·(${coefText(p)}·(${coefText(p)}·${moneyText(S)}−x)−x)−x=0`),['Поставить x и в третий год.'],'последний платёж задан отдельно'),
+      card('Принять последний платёж за остаток после его внесения',ML(`${coefText(p)}·(${coefText(p)}·(${coefText(p)}·${moneyText(S)}−x)−x)−${moneyText(last)}=${moneyText(last)}`),['После последнего платежа оставить долг, равный этому платежу.'],'после погашения долг равен нулю'),
+      card('Равномерно уменьшать долг',ML(`d=${FR(moneyText(S),'3')}`),['Разделить тело кредита на три одинаковые части.'],'равномерное уменьшение не задано')
+    ],rng);
+  }
+  throw new Error('Не удалось сгенерировать смешанную схему');
+}
+
+function debtSequence(S,n){ return Array.from({length:n},(_,i)=>S*(n-i)/n); }
+function genArithmeticTotal(rng){
+  const n=pick(rng,[3,4,5,6]),p=pick(rng,[10,12,15,20,25]),unit=int(rng,2,8)*100000,S=unit*n,debts=debtSequence(S,n),sum=debts.reduce((a,b)=>a+b,0),total=S+sum*p/100;
+  const seq=debts.map(moneyText).join(' + ');
+  return sourceTask(4,'Равномерное уменьшение долга',`В июле планируется взять кредит в банке на сумму ${moneyText(S)} рублей на ${n} ${n===3||n===4?'года':'лет'}. Условия его возврата таковы:\n– каждый январь долг возрастает на ${pctText(p)}% по сравнению с концом предыдущего года;\n– с февраля по июнь каждого года необходимо выплатить часть долга;\n– в июле каждого года долг должен быть на одну и ту же сумму меньше долга на июль предыдущего года.\nНайдите общую сумму выплат после полного погашения кредита.`,[
+    card('Построить арифметическую последовательность остатков долга и сложить процентные начисления',ML(`долги перед начислением %: ${seq}`)+ML(`S<sub>выплат</sub>=${moneyText(S)}+${numText(p/100)}·(${seq})`),['Ежегодное уменьшение долга равно первоначальному долгу, делённому на число лет.','Записать остатки долга, на которые каждый январь начисляются проценты.','Сложить все процентные начисления.','К процентам прибавить возвращённую банку первоначальную сумму кредита.'],'арифметическая модель'),
+    card('Считать все ежегодные платежи равными',ML(`P₁=P₂=…=P${n}`),['Ввести один одинаковый платёж.'],'равномерно уменьшается долг, а не платёж'),
+    card('Начислять проценты каждый год на первоначальную сумму',ML(`${moneyText(S)}+${n}·${numText(p/100)}·${moneyText(S)}`),['Не уменьшать базу для процентов.'],'проценты начисляются на текущий остаток'),
+    card('Использовать сложные проценты без промежуточных выплат',ML(`${moneyText(S)}·${coefText(p)}<sup>${n}</sup>`),['Считать, что долг не уменьшается до конца срока.'],'ежегодные выплаты игнорируются')
+  ],rng);
+}
+function genArithmeticRate(rng){
+  const n=pick(rng,[3,4,5,6]),r=pick(rng,[8,10,12,16,20,24,25]),over=r*(n+1)/2,S=int(rng,4,18)*1000000;
+  return sourceTask(4,'Найти процентную ставку',`В июле планируется взять кредит в банке на сумму ${moneyText(S)} рублей сроком на ${n} ${n===3||n===4?'года':'лет'}. Условия его возврата таковы:\n– каждый январь долг увеличивается на r% по сравнению с концом предыдущего года;\n– с февраля по июнь необходимо выплатить часть долга;\n– к июлю каждого года долг должен уменьшаться на одну и ту же величину.\nНайдите годовую процентную ставку r, если известно, что общая сумма выплат после полного погашения кредита на ${numText(over)}% больше суммы, взятой в кредит.`,[
+    card('Сложить остатки долга, на которые начислялись проценты, и связать переплату с r',ML(`S, ${FR(`${n-1}S`,String(n))}, …, ${FR('S',String(n))}`)+ML(`${FR('r','100')}·S·${FR(String(n+1),'2')}=${numText(over/100)}S`),['При равномерном уменьшении долга остатки образуют арифметическую последовательность.','Сумма процентных баз равна S·(n+1)/2.','Вся переплата состоит из процентов и по условию равна заданной доле от S.','Составить уравнение относительно r.'],'ставка через переплату'),
+    card('Считать платежи равными',ML(`P₁=P₂=…=P${n}`),['Использовать аннуитетную модель.'],'по условию равны уменьшения долга'),
+    card('Начислять r% на первоначальный S каждый год',ML(`${n}·${FR('r','100')}S=${numText(over/100)}S`),['Считать процентную базу постоянной.'],'остаток долга уменьшается'),
+    card('Использовать сложные проценты',ML(`S·(1+${FR('r','100')})<sup>${n}</sup>=(1+${numText(over/100)})S`),['Считать, что платежей до конца срока нет.'],'ежегодные платежи не учтены')
+  ],rng);
+}
+function genArithmeticTerm(rng){
+  const n=pick(rng,[3,4,5,6,7,8]),p=pick(rng,[10,20,25]),S=int(rng,4,18)*1000000,total=S+(p/100)*S*(n+1)/2;
+  return sourceTask(4,'Найти срок кредита',`В июле планируется взять кредит в банке на сумму ${moneyText(S)} рублей на некоторое целое число лет. Условия его возврата таковы:\n– каждый январь долг возрастает на ${pctText(p)}% по сравнению с концом предыдущего года;\n– с февраля по июнь каждого года необходимо выплачивать часть долга;\n– в июле каждого года долг должен быть на одну и ту же сумму меньше долга на июль предыдущего года.\nНа сколько лет взят кредит, если известно, что общая сумма выплат после его полного погашения составит ${moneyText(total)} рублей?`,[
+    card('Выразить сумму процентных баз через число лет n',ML(`S<sub>выплат</sub>=${moneyText(S)}+${numText(p/100)}·${moneyText(S)}·${FR('n+1','2')}=${moneyText(total)}`),['Пусть срок кредита равен n лет.','При равномерном уменьшении долга сумма остатков, на которые начисляются проценты, равна S(n+1)/2.','Общая выплата равна телу кредита плюс все проценты.','Составить уравнение относительно целого n.'],'срок через сумму прогрессии'),
+    card('Начислять проценты на первоначальную сумму n раз',ML(`${moneyText(S)}+n·${numText(p/100)}·${moneyText(S)}=${moneyText(total)}`),['Не уменьшать процентную базу.'],'остаток долга меняется'),
+    card('Использовать сложные проценты',ML(`${moneyText(S)}·${coefText(p)}<sup>n</sup>=${moneyText(total)}`),['Считать, что до конца срока нет выплат.'],'ежегодные выплаты игнорируются'),
+    card('Решать как равные платежи',ML(`${coefText(p)}·(…(${coefText(p)}·S−x)… )−x=0`),['Ввести один одинаковый платёж x.'],'равномерно уменьшается долг')
+  ],rng);
+}
+
+function generateProtoTask(proto,variant,rng){
+  if(proto===1) return [genDepositMax,genDepositInterest,genDepositTerm][variant%3](rng);
+  if(proto===2) return [genEqualFindPayment,genEqualFindLoan,genEqualTotal][variant%3](rng);
+  if(proto===3) return [genDifferentRate,genDifferentMixed][variant%2](rng);
+  return [genArithmeticTotal,genArithmeticRate,genArithmeticTerm][variant%3](rng);
+}
+function buildStudentTasks(seedKey){
+  const rng=seededRng(seedKey),counts={1:3,2:3,3:2,4:2},tasks=[],usedText=new Set();
+  [1,2,3,4].forEach(proto=>{
+    for(let i=0;i<counts[proto];i++){
+      let task=null;
+      for(let attempt=0;attempt<20;attempt++){
+        const local=seededRng(`${seedKey}|p${proto}|v${i}|a${attempt}|${Math.floor(rng()*1e9)}`);
+        task=generateProtoTask(proto,i,local);
+        if(!usedText.has(task.text)){usedText.add(task.text);break;}
+      }
+      tasks.push(task);
+    }
+  });
+  return shuffle(tasks,rng).slice(0,TASKS_PER_STUDENT).map((t,i)=>({...t,id:`${seedKey}-t${i+1}`}));
+}
+function buildDeck(playerOrder,studentLimit,sessionSeed){
+  const per={};
+  playerOrder.forEach(pk=>{
+    let retry=0,tasks=buildStudentTasks(`${sessionSeed}|${pk}`),signature=tasks.map(t=>t.text).join('¦');
+    const key=`${APP_ID}:lastDeck:${pk}`,previous=localStorage.getItem(key)||'';
+    while(signature===previous&&retry<8){retry++;tasks=buildStudentTasks(`${sessionSeed}|${pk}|retry${retry}`);signature=tasks.map(t=>t.text).join('¦');}
+    try{localStorage.setItem(key,signature)}catch{}
+    per[pk]=tasks;
+  });
+  if(studentLimit===1){const pk=playerOrder[0];return per[pk].map((task,i)=>({id:`${pk}-${i+1}`,ownerKey:pk,ownerTask:i+1,task}));}
+  const deck=[];for(let i=0;i<TASKS_PER_STUDENT;i++)for(const pk of playerOrder)deck.push({id:`${pk}-${i+1}`,ownerKey:pk,ownerTask:i+1,task:per[pk][i]});return deck;
+}
+
+/* ---------- состояние ---------- */
+function newGameState(studentLimit=1){ const limit=Number(studentLimit)===2?2:1; return {version:1,schemaVersion:SCHEMA_VERSION,boardEpoch:0,strokes:{},ui:{screen:'lobby'},game:{status:'lobby',studentLimit:limit,players:{},playerOrder:[],turnKey:'',entries:[],index:0,feedback:null,stats:{},attempts:{},sessionId:uuid(),eventIds:{},submissions:{},startedAt:0,finishedAt:0,endedEarly:false}}; }
+function normalizeState(input){ const base=input&&typeof input==='object'?clone(input):newGameState(1); base.version=Number(base.version)||1; base.schemaVersion=Number(base.schemaVersion)||SCHEMA_VERSION; base.boardEpoch=Number(base.boardEpoch)||0; base.strokes=base.strokes||{}; base.ui=base.ui||{screen:'lobby'}; const g=base.game||(base.game={}); g.status=g.status||'lobby'; g.studentLimit=Number(g.studentLimit)===2?2:1; g.players=g.players||{}; g.playerOrder=Array.isArray(g.playerOrder)?g.playerOrder:[]; g.turnKey=g.turnKey||''; g.entries=Array.isArray(g.entries)?g.entries:[]; g.index=Math.max(0,Number(g.index)||0); g.feedback=g.feedback||null; g.stats=g.stats||{}; g.attempts=g.attempts||{}; g.sessionId=g.sessionId||uuid(); g.eventIds=g.eventIds||{}; g.submissions=g.submissions||{}; g.startedAt=Number(g.startedAt)||0; g.finishedAt=Number(g.finishedAt)||0; g.endedEarly=!!g.endedEarly; return base; }
+function currentEntry(s=serverState){ return s?.game?.entries?.[s?.game?.index]||null; }
+function assignedTotal(){ return TASKS_PER_STUDENT; }
+function taskProgressFor(pk,s=serverState){ return normalizeStats(s?.game?.stats?.[pk]).completed; }
+
+/* ---------- рендер ---------- */
+function setConnectedUI(on){ $('lessonJoinBtn').classList.toggle('hidden',!!on); $('boardToolbar').classList.toggle('show',!!on); }
+function publicStatusInfo(){
+  const g=serverState?.game;
+  if(!online) return {key:'offline',tag:'Нет соединения',title:'ОФЛАЙН',desc:'Комната ожидания сохранена, но сейчас нет соединения с сервером.',tone:'bad'};
+  if(!g) return {key:'none',tag:'Комната ожидания',title:'ЖДЁМ УЧИТЕЛЯ',desc:'Учитель ещё не создал занятие. Экран обновится автоматически, когда занятие начнётся.',tone:'wait'};
+  if(g.status==='lobby') return {key:'lobby',tag:'Комната ожидания',title:'СБОР ИГРОКОВ',desc:'Занятие создано. Учитель ждёт подключения выбранных учеников.',tone:'good'};
+  if(g.status==='playing') return {key:'playing',tag:'Статус игры',title:'ИГРА ИДЁТ',desc:'Занятие уже запущено. Войди своей ролью, чтобы вернуться в текущую игру.',tone:'good'};
+  if(g.status==='finished') return {key:'finished',tag:'Статус игры',title:'ЗАНЯТИЕ ЗАВЕРШЕНО',desc:'Последняя сессия завершена. Учитель может создать новое занятие.',tone:'wait'};
+  return {key:'unknown',tag:'Комната ожидания',title:'ОЖИДАНИЕ',desc:'Получаем состояние занятия…',tone:'wait'};
+}
+function publicSeatsHtml(){
+  const g=serverState?.game;
+  if(!g) return `<div class="seat"><b>1</b><span>Места появятся после создания занятия учителем</span></div>`;
+  const players=Object.entries(g.players||{}).sort((a,b)=>(a[1].slot||9)-(b[1].slot||9));
+  const onlineIds=new Set(Object.values(membersSnapshot||{}).filter(m=>m&&m.online&&m.role==='student'&&m.studentId).map(m=>String(m.studentId)));
+  return Array.from({length:g.studentLimit||1},(_,i)=>{
+    const row=players.find(([,p])=>Number(p.slot)===i+1), isOn=row&&onlineIds.has(String(row[1].studentId));
+    return `<div class="seat ${row?'filled':''}"><b>${i+1}</b><span>${row?esc(row[1].name)+(isOn?' · онлайн':' · не в сети'):'Свободное место'}</span></div>`;
+  }).join('');
+}
+function renderPublic(){
+  hideBlast(); setConnectedUI(false);
+  const info=publicStatusInfo(), g=serverState?.game, onlineStudents=Object.values(membersSnapshot||{}).filter(m=>m&&m.online&&m.role==='student').length;
+  const mode=g?`${g.studentLimit===2?'2 ученика':'1 ученик'}`:'—';
+  const turnName=g?.status==='playing'&&g.turnKey?g.players?.[g.turnKey]?.name||'ученик':'—';
+  const progress=g?.status==='playing'?`${Math.min((g.index||0)+1,g.entries?.length||0)} / ${g.entries?.length||0}`:'—';
+  $('app').innerHTML=`<section class="screen center" data-board-anchor="main-screen"><div class="shell"><div class="lobby-layout"><div class="panel lobby-card"><span class="tag">${esc(info.tag)}</span><h1>${esc(info.title).replace(' ','<br>')}</h1><p class="lead">${esc(info.desc)}</p><div class="seats">${publicSeatsHtml()}</div><div class="summary"><div>Статус<b>${g?.status==='lobby'?'Лобби':g?.status==='playing'?'Игра идёт':g?.status==='finished'?'Завершено':online?'Нет сессии':'Офлайн'}</b></div><div>Режим<b>${mode}</b></div><div>Онлайн учеников<b>${onlineStudents}</b></div><div>${g?.status==='playing'?'Сейчас ход':'Текущий этап'}<b>${g?.status==='playing'?esc(turnName):g?.status==='lobby'?'Ожидание старта':g?.status==='finished'?'Финиш':'Ожидание'}</b></div></div><div class="host-actions"><button class="sys-btn" id="publicEnterBtn">Войти в совместный урок</button></div></div><div class="panel guide-card"><h3>Симпсоны — выбор способа</h3><div class="guide-steps"><div class="guide-step"><b>10 задач каждому</b><span>Все 4 прототипа задания №16: вклады, равные платежи, разные платежи и арифметическая модель.</span></div><div class="guide-step"><b>4 варианта решения</b><span>В каждом варианте — формула и короткая последовательность действий.</span></div><div class="guide-step"><b>${g?.status==='playing'?'Игра уже запущена':'Комната обновляется сама'}</b><span>${g?.status==='playing'?`Общий прогресс: ${progress}. После входа увидишь только доступное тебе состояние.`:'Не нужно перезагружать страницу: появление учителя, учеников и старт игры отобразятся автоматически.'}</span></div></div></div></div></div></section>`;
+  if($('publicEnterBtn')) $('publicEnterBtn').onclick=openRoleModal;
+  attachBoardLayer(); updateSessionPanel();
+}
+function renderWaitingTeacher(){
+  hideBlast();setConnectedUI(true);const onlineStudents=Object.values(membersSnapshot||{}).filter(m=>m&&m.online&&m.role==='student').length;
+  $('app').innerHTML=`<section class="screen center" data-board-anchor="main-screen"><div class="shell"><div class="lobby-layout"><div class="panel lobby-card"><span class="tag">Ожидание занятия</span><h1>ЖДЁМ<br>УЧИТЕЛЯ</h1><p class="lead">Подключение подготовлено. Когда учитель начнёт занятие, место будет занято автоматически.</p><div class="seats"><div class="seat filled"><b>✓</b><span>${esc(participantName||student?.name||'Ученик')} · ${esc(verificationStatus||'ожидание занятия')}</span></div></div><div class="summary"><div>Связь<b>${online?'Онлайн':'Офлайн'}</b></div><div>Статус игры<b>Ожидание</b></div><div>Онлайн учеников<b>${onlineStudents}</b></div><div>Следующий шаг<b>Ждём учителя</b></div></div></div><div class="panel guide-card"><h3>Можно оставить страницу открытой</h3><div class="guide-steps"><div class="guide-step"><b>1. Ничего обновлять не нужно</b><span>Когда учитель создаст занятие, подключение продолжится автоматически.</span></div><div class="guide-step"><b>2. Затем появится лобби</b><span>Ты увидишь своё место и статус других участников.</span></div><div class="guide-step"><b>3. После старта</b><span>Игра сама переключится на первую доступную тебе задачу.</span></div></div></div></div></div></section>`;attachBoardLayer();updateSessionPanel();
+}
+function renderLobby(s){ hideBlast(); setConnectedUI(true); const g=s.game,players=Object.entries(g.players).sort((a,b)=>(a[1].slot||9)-(b[1].slot||9)), onlineIds=new Set(Object.values(membersSnapshot).filter(m=>m&&m.online&&m.role==='student'&&m.studentId).map(m=>String(m.studentId))), ready=players.length>=g.studentLimit&&players.slice(0,g.studentLimit).every(([,p])=>onlineIds.has(String(p.studentId))); const seats=Array.from({length:g.studentLimit},(_,i)=>{ const row=players.find(([,p])=>p.slot===i+1),isOn=row&&onlineIds.has(String(row[1].studentId)); return `<div class="seat ${row?'filled':''}"><b>${i+1}</b><span>${row?esc(row[1].name)+(isOn?' · онлайн':' · не в сети'):'Свободное место'}</span></div>`; }).join(''); const controls=role==='teacher'?`<div class="host-actions"><button class="sys-btn" id="hostStartBtn" ${ready?'':'disabled'}>${ready?'Начать игру':'Ждём учеников'}</button><button class="ghost" id="hostNewBtn">Новое занятие</button></div>`:''; $('app').innerHTML=`<section class="screen center" data-board-anchor="main-screen"><div class="shell"><div class="lobby-layout"><div class="panel lobby-card"><span class="tag">Совместный урок · ${g.studentLimit===2?'2 ученика':'1 ученик'}</span><h1>ЛОББИ<br>СИМПСОНОВ</h1><p class="lead">${role==='teacher'?'Начать можно после подключения всех выбранных учеников.':'Место закреплено. Учитель запустит тренировку.'}</p><div class="seats">${seats}</div>${controls}</div><div class="panel guide-card"><h3>Как проходит номер</h3><div class="guide-steps"><div class="guide-step"><b>1. Читаем условие</b><span>Полное условие экономической задачи в формате ЕГЭ №16. Числа создаются заново при новой игре.</span></div><div class="guide-step"><b>2. Смотрим 4 способа</b><span>На каждом блоке — короткий план решения и нужные формулы.</span></div><div class="guide-step"><b>3. Выбираем верный способ</b><span>Если способ верный, появляется эффект успеха и открывается следующая задача.</span></div></div></div></div></div></section>`; if($('hostStartBtn')) $('hostStartBtn').onclick=hostStartGame; if($('hostNewBtn')) $('hostNewBtn').onclick=openNewSessionChooser; attachBoardLayer(); updateSessionPanel(); }
+function renderTurnWaiting(s){ hideBlast(); setConnectedUI(true); const g=s.game, who=g.players[g.turnKey]?.name||'другой ученик', me=normalizeStats(g.stats[participantPlayerKey]); $('app').innerHTML=`<section class="screen center" data-board-anchor="main-screen"><div class="shell"><div class="panel waiting-card"><span class="tag">Сейчас ход другого ученика</span><h1>ОТВЕЧАЕТ<br>${esc(who).toUpperCase()}</h1><p class="lead">Задание видит только тот ученик, чей сейчас ход. После правильного выбора способа ход перейдёт дальше.</p><div class="summary"><div>Верно с первого раза<b>${me.firstTryCorrect}</b></div><div>Выполнено<b>${me.completed}/${TASKS_PER_STUDENT}</b></div></div></div></div></section>`; attachBoardLayer(); updateSessionPanel(); }
+function renderQuestion(s){ setConnectedUI(true); const g=s.game, entry=currentEntry(s); if(!entry?.task){ renderError('Не удалось восстановить текущую задачу.'); return; }  const task=entry.task, pk=entry.ownerKey, active=role==='student'&&participantPlayerKey===pk, observer=role==='student'&&!active, attempt=g.attempts[pk]?.[g.index]||{}, feedback=g.feedback&&g.feedback.index===g.index?g.feedback:null, canAnswer=active&&!feedback?.resolved, wrongSet=new Set((attempt.wrongChoices||[]).map(String)), solved=feedback&&feedback.correct&&feedback.resolved, progress=taskProgressFor(pk,s); const options=task.options.map((opt,i)=>{ const wrong=wrongSet.has(String(i)), isCorrect=i===task.correctIndex, mark=solved&&isCorrect?'<span class="option-mark">✅</span>':wrong?'<span class="option-mark">❌</span>':''; return `<button class="tnt-option ${wrong?'used-wrong':''} ${solved&&isCorrect?'correct':''}" data-choice="${i}" ${(!canAnswer||wrong)?'disabled':''}><div class="tnt-head"><span class="option-title">Способ ${i+1}</span><span class="option-tag">${esc(opt.tag||'выбор плана')}</span></div><div class="tnt-body">${mark}<div class="method-formula">${opt.formula}</div><ol class="method-steps">${opt.steps.map(step=>`<li>${esc(step)}</li>`).join('')}</ol><div class="method-foot"><span>${esc(opt.title)}</span><span class="fuse-badge">🍩 ${wrong?'не подходит':solved&&isCorrect?'верно!':'выбери'}</span></div></div></button>`; }).join(''); let feedbackHtml=`<div class="feedback-copy"><b>${active?'Выбери правильный способ решения':observer?`Сейчас отвечает ${esc(g.players[pk]?.name||'другой ученик')}`:'Учитель наблюдает за ходом.'}</b><span>${active?'Если выбран неверный СПОСОБ, этот вариант гаснет, и нужно исправить ответ.':observer?'Ты видишь весь ход и можешь писать на общей доске, но выбирать СПОСОБ пока нельзя.':'Здесь отображается текущее состояние выбора.'}</span></div>`; let feedbackClass=''; if(feedback&&!feedback.correct){ feedbackClass='bad'; feedbackHtml=`<div class="feedback-copy"><b>Неверный способ</b><span>Фитиль погас. Ход не переходит: нужно выбрать другой СПОСОБ для этой же задачи.</span></div>`; } if(solved){ const rightCard=task.options[task.correctIndex]; feedbackClass=feedback.firstCorrect?'good':'bad'; feedbackHtml=`<div class="feedback-copy"><b>${feedback.firstCorrect?'Верно с первого раза!':'Исправлено верно'}</b><span><strong>${esc(rightCard.title)}.</strong><span class="feedback-formula">${rightCard.formula}</span></span></div>${active?'<button class="sys-btn" id="nextBtn">'+(g.index===g.entries.length-1?'Завершить игру ▶':'Следующая задача ▶')+'</button>':''}`; }
+  $('app').innerHTML=`<section class="screen" data-board-anchor="main-screen"><div class="shell game-shell"><div class="game-top"><div class="brand"><span class="brand-mark">🧨</span><span>СИМПСОНЫ — ВЫБЕРИ СПОСОБ<small>ЕГЭ №16 · 4 ПРОТОТИПА · НОВЫЕ ЧИСЛА КАЖДУЮ ИГРУ · ФОРМУЛЫ И ПЛАН РЕШЕНИЯ</small></span></div><button class="sound" id="soundBtn">${muted?'× БЕЗ ЗВУКА':'♫ ЗВУК'}</button></div><div class="hud"><div class="hud-card"><small>Ученик</small><b>${esc(g.players[pk]?.name||'Ученик')}</b></div><div class="hud-card"><small>Задача ученика</small><b>${entry.ownerTask}/${TASKS_PER_STUDENT}</b></div><div class="hud-card"><small>Верно с первого раза</small><b class="big">${normalizeStats(g.stats[pk]).firstTryCorrect}</b></div><div class="hud-card"><small>Выполнено</small><b>${progress}/${TASKS_PER_STUDENT}</b></div></div><div class="progress-wrap"><i style="width:${progress/TASKS_PER_STUDENT*100}%"></i></div><div class="game-board panel"><div class="play-grid"><aside class="visual"><div class="coach"><b>Подсказка</b>${active?'Выбери карточку, где формула и шаги точно соответствуют типу экономической задачи.':observer?'Наблюдай за выбором другого ученика и при необходимости пиши на общей доске.':'Учитель видит тот же номер и может вести общую доску.'}</div><div class="ridge"></div><div class="tnt-pile"><div class="tnt-block alt"></div><div class="tnt-block"></div><div class="tnt-block"></div><div class="tnt-block alt"></div></div><div class="flint-zone"><div class="hand"></div><div class="tool"></div><div class="fire">✨</div></div><div class="ground"></div></aside><section><div class="task-card"><div class="task-meta"><span class="task-badge">${esc(PROTO_LABELS[task.proto])}</span><span class="task-sub">${esc(task.kind)}</span></div><div class="task-text">${esc(task.text)}</div><div class="task-help">Ниже выбери <b>способ решения</b>, который подходит к этому условию.</div>${feedback&&!feedback.correct?'<div class="retry-note">Первый ответ был неверным. Выбери другой способ: ход останется у этого же ученика, пока правильный план не будет найден.</div>':''}</div><div class="options-grid">${options}</div><div class="feedback-panel ${feedbackClass}">${feedbackHtml}</div><div class="host-actions" style="margin-top:12px">${role==='teacher'?'<button class="ghost danger" id="finishEarlyBtn">Завершить занятие</button>':''}</div></section></div></div></div></section>`; document.querySelectorAll('[data-choice]').forEach(btn=>btn.onclick=()=>submitChoice(Number(btn.dataset.choice))); if($('nextBtn')) $('nextBtn').onclick=advanceAfterCorrect; if($('finishEarlyBtn')) $('finishEarlyBtn').onclick=teacherFinishLesson; $('soundBtn').onclick=()=>{ muted=!muted; renderFromState(true); }; attachBoardLayer(); updateSessionPanel(); consumeFeedback(s); }
+function renderFinal(s){ hideBlast(); setConnectedUI(true); const g=s.game, rows=(g.playerOrder||[]).length?g.playerOrder:Object.keys(g.players).sort((a,b)=>(g.players[a]?.slot||9)-(g.players[b]?.slot||9)); const cards=rows.map(pk=>{ const p=g.players[pk],st=normalizeStats(g.stats[pk]),completed=st.completed,max=g.endedEarly?completed:TASKS_PER_STUDENT,score=st.firstTryCorrect,percent=max?Math.round(score/max*100):0,sub=g.submissions[pk]; return `<div class="result-card"><span>${esc(p?.name||'Ученик')}</span><b>${percent}%</b><small>${score} из ${max||0} верно с первого раза · выполнено ${completed}</small><em>${sub?.status==='saved'?'✓ подтверждено сервером':sub?.status==='sending'?'отправляем в таблицу…':sub?.status==='queued'?'⚠ не подтверждено, повторим':'готов к отправке'}</em>${role==='student'&&participantPlayerKey===pk&&sub?.status==='queued'?'<button class="sys-mini" data-retry-save="'+esc(pk)+'">Повторить отправку</button>':''}</div>`; }).join(''); const seconds=g.startedAt&&g.finishedAt?Math.max(1,Math.round((g.finishedAt-g.startedAt)/1000)):0; $('app').innerHTML=`<section class="screen center" data-board-anchor="main-screen"><div class="shell"><div class="panel final-card"><span class="tag">${g.endedEarly?'Занятие завершено досрочно':'Все способы выбраны'}</span><h1>РЕЗУЛЬТАТЫ<br>ЗАНЯТИЯ</h1><p class="lead">В таблицу отправляются результаты каждого ученика отдельно. При досрочном завершении знаменатель считается только по полностью выполненным заданиям.</p><div class="result-grid">${cards}</div><div class="summary"><div>Время<b>${timeText(seconds)}</b></div><div>Режим<b>${g.studentLimit===2?'2 ученика':'1 ученик'}</b></div></div>${role==='teacher'?'<div class="actions"><button class="sys-btn" id="newAfterBtn">Новое занятие</button></div>':''}</div></div></section>`; if($('newAfterBtn')) $('newAfterBtn').onclick=openNewSessionChooser; document.querySelectorAll('[data-retry-save]').forEach(b=>b.onclick=async()=>{await markSubmission(b.dataset.retrySave,'','');await ensureSubmission(b.dataset.retrySave)}); attachBoardLayer(); updateSessionPanel(); if(role==='student') setTimeout(()=>ensureSubmission(participantPlayerKey),50); if(role==='teacher') scheduleTeacherBackup(); }
+function renderError(msg){ hideBlast(); $('app').innerHTML=`<section class="screen center"><div class="panel hero-card"><h1>Ошибка</h1><p class="lead">${esc(msg)}</p></div></section>`; }
+function renderFromState(force=false){ const s=serverState; if(!role){ renderPublic(); updateSessionPanel(); return; } if(role==='student'&&!s){ renderWaitingTeacher(); return; } if(role==='teacher'&&!s){ renderPublic(); updateSessionPanel(); return; } const key=[s.version,s.game.status,s.game.index,s.game.turnKey,s.game.feedback?.at||0,Object.values(s.game.submissions||{}).map(x=>x?.status).join(','),role,participantPlayerKey,online,muted].join('|'); if(!force&&key===lastRenderedKey) return; lastRenderedKey=key; if(s.game.status==='lobby') renderLobby(s); else if(s.game.status==='playing') renderQuestion(s); else if(s.game.status==='finished') renderFinal(s); else renderError('Неизвестное состояние интерактива.'); }
+
+/* ---------- анимация взрыва ---------- */
+function shakeScreen(){ document.body.classList.remove('shake'); void document.body.offsetWidth; document.body.classList.add('shake'); setTimeout(()=>document.body.classList.remove('shake'),3200); }
+function hideBlast(){ const o=$('blastOverlay'); if(!o) return; o.classList.remove('show'); o.innerHTML=''; }
+function triggerBlast(task,active){ const overlay=$('blastOverlay'); if(!overlay) return; overlay.innerHTML=''; overlay.classList.add('show'); const colors=['#d4473c','#ffbe55','#f5e6a8','#6bdcf8','#8b5e3c','#f8f3e7']; overlay.insertAdjacentHTML('beforeend','<div class="blast-core"></div><div class="blast-ring"></div>'); for(let i=0;i<36;i++){ const px=document.createElement('div'); px.className='blast-pixel'; px.style.left='50%'; px.style.top='50%'; px.style.background=colors[i%colors.length]; px.style.setProperty('--dx',`${(Math.random()*2-1)*(120+Math.random()*380)}px`); px.style.setProperty('--dy',`${(Math.random()*2-1)*(90+Math.random()*330)}px`); px.style.setProperty('--dx2',`${(Math.random()*2-1)*(220+Math.random()*520)}px`); px.style.setProperty('--dy2',`${80+Math.random()*520}px`); overlay.appendChild(px); }
+  const btnHtml=active?'<div class="blast-actions"><button class="sys-btn" id="blastNextBtn">Следующая задача ▶</button></div>':'';
+  overlay.insertAdjacentHTML('beforeend',`<div class="blast-message"><h2>✅ СПОСОБ ВЫБРАН ВЕРНО</h2><p>Гомер одобряет выбор. Правильный способ: <b>${esc(task.options[task.correctIndex].title)}</b>.</p>${btnHtml}</div>`);
+  shakeScreen(); sound('fuse'); setTimeout(()=>sound('explode'),900);
+  if($('blastNextBtn')) $('blastNextBtn').onclick=advanceAfterCorrect;
+  if($('blastNextBtn')){ $('blastNextBtn').disabled=true; setTimeout(()=>{ if($('blastNextBtn')) $('blastNextBtn').disabled=false; },4200); }
+  if(!active) setTimeout(()=>{ if($('blastOverlay')?.classList.contains('show')) hideBlast(); }, 5200);
+}
+function consumeFeedback(s){ const fb=s.game.feedback; if(!fb?.at || fb.at===lastFeedbackAt) return; lastFeedbackAt=fb.at; const entry=currentEntry(s); if(!entry?.task) return; if(fb.correct){ triggerBlast(entry.task, role==='student'&&participantPlayerKey===fb.by); } else { sound('bad'); showToast('Этот способ не подходит. Попробуй другой вариант.', 'bad'); } }
+
+/* ---------- игра ---------- */
+async function hostStartGame(){ if(role!=='teacher'||!serverState) return; const snap=await get(stateRef()); if(!snap.exists()) return; const initial=normalizeState(snap.val()), ms=await get(membersRef()), members=ms.exists()?ms.val()||{}:{}; const onlineIds=new Set(Object.values(members).filter(m=>m&&m.online&&m.role==='student'&&m.studentId).map(m=>String(m.studentId))); const ordered=Object.entries(initial.game.players).sort((a,b)=>(a[1].slot||9)-(b[1].slot||9)).slice(0,initial.game.studentLimit); if(ordered.length<initial.game.studentLimit||!ordered.every(([,p])=>onlineIds.has(String(p.studentId)))){ showToast('Начать можно только после подключения всех учеников.','bad'); return; } const playerOrder=ordered.map(([pk])=>pk); const entries=buildDeck(playerOrder,initial.game.studentLimit,initial.game.sessionId); await runTransaction(stateRef(),current=>{ const s=normalizeState(current||clone(initial)); if(s.game.status!=='lobby') return s; const players=Object.entries(s.game.players).sort((a,b)=>(a[1].slot||9)-(b[1].slot||9)); if(players.length<s.game.studentLimit) return s; s.game.playerOrder=playerOrder; s.game.entries=entries; s.game.index=0; s.game.turnKey=entries[0]?.ownerKey||playerOrder[0]||''; s.game.feedback=null; s.game.status='playing'; s.ui.screen='game'; s.game.startedAt=Date.now(); s.game.finishedAt=0; s.game.endedEarly=false; for(const pk of playerOrder){ s.game.stats[pk]=s.game.stats[pk]||{firstTryCorrect:0,completed:0,attemptCount:0}; s.game.attempts[pk]=s.game.attempts[pk]||{}; s.game.submissions[pk]={status:'',message:'',updatedAt:0}; } s.version++; return s; }); sound('start'); }
+async function submitChoice(choiceIndex){ if(role!=='student'||!serverState) return; const initial=clone(serverState), entry=currentEntry(initial); if(!entry||entry.ownerKey!==participantPlayerKey) return; try{ const result=await runTransaction(stateRef(),current=>{ const s=normalizeState(current||clone(initial)),g=s.game; if(g.status!=='playing') return; const e=g.entries[g.index]; if(!e||e.ownerKey!==participantPlayerKey||e.id!==entry.id) return; const prev=g.attempts[participantPlayerKey]?.[g.index]||{firstAttempted:false,tries:0,resolved:false,wrongChoices:[]}; if(prev.resolved) return; const correct=Number(choiceIndex)===Number(e.task.correctIndex), first=!prev.firstAttempted, wrongChoices=correct?[...(prev.wrongChoices||[])]:[...new Set([...(prev.wrongChoices||[]).map(String),String(choiceIndex)])]; const attempt={...prev,firstAttempted:true,firstCorrect:first?correct:prev.firstCorrect,tries:(Number(prev.tries)||0)+1,resolved:correct,lastChoice:Number(choiceIndex),wrongChoices,updatedAt:Date.now()}; g.attempts[participantPlayerKey]=g.attempts[participantPlayerKey]||{}; g.attempts[participantPlayerKey][g.index]=attempt; g.stats[participantPlayerKey]=normalizeStats(g.stats[participantPlayerKey]); g.stats[participantPlayerKey].attemptCount++; if(first&&correct) g.stats[participantPlayerKey].firstTryCorrect++; if(correct) g.stats[participantPlayerKey].completed++; g.feedback={index:g.index,entryId:e.id,by:participantPlayerKey,chosen:Number(choiceIndex),correct,resolved:correct,at:Date.now(),firstCorrect:first&&correct}; s.version++; return s; }); if(!result.committed){ showToast('Ответ не принят: состояние изменилось.'); return; } if(result.snapshot.val()?.game?.feedback?.correct) sound('good'); }catch{ showToast(online?'Не удалось отправить ответ. Повтори попытку.':'Нет сети. Ответ отправится после восстановления связи.','bad'); } }
+async function advanceAfterCorrect(){ if(role!=='student'||!serverState) return; hideBlast(); const initial=clone(serverState); await runTransaction(stateRef(),current=>{ const s=normalizeState(current||clone(initial)),g=s.game; if(g.status!=='playing'||!g.feedback?.resolved||g.feedback.by!==participantPlayerKey) return; const next=g.index+1; g.feedback=null; if(next>=g.entries.length){ g.status='finished'; g.finishedAt=Date.now(); g.turnKey=''; s.ui.screen='final'; s.version++; return s; } g.index=next; g.turnKey=g.entries[next]?.ownerKey||''; s.version++; return s; }); }
+async function teacherFinishLesson(){ if(role!=='teacher'||serverState?.game?.status!=='playing') return; if(!confirm('Завершить занятие сейчас? В таблицу попадут результаты только по уже выполненным заданиям каждого ученика.')) return; hideBlast(); const initial=clone(serverState); await runTransaction(stateRef(),current=>{ const s=normalizeState(current||clone(initial)); if(s.game.status!=='playing') return s; s.game.status='finished'; s.game.finishedAt=Date.now(); s.game.endedEarly=true; s.game.feedback=null; s.version++; return s; }); sound('explode'); }
+
+/* ---------- модалки и сессия ---------- */
+function closeLessonModal(){ $('lessonModal').classList.remove('open'); $('lessonModal').innerHTML=''; }
+function openLessonModal(html){ const modal=$('lessonModal'); modal.classList.add('open'); modal.innerHTML=`<div class="lesson-card">${html}</div>`; const x=$('closeModalBtn'); if(x) x.onclick=closeLessonModal; }
+function openRoleModal(){ openLessonModal(`<button class="modal-x" id="closeModalBtn">×</button><span class="tag">Совместный урок</span><h2>Как вы входите?</h2><div class="role-grid"><button class="role-choice" id="teacherRoleBtn"><b>Учитель</b><small>Создать или продолжить занятие</small></button><button class="role-choice" id="studentRoleBtn"><b>Ученик</b><small>Войти по личному коду</small></button></div>`); $('teacherRoleBtn').onclick=openTeacherLogin; $('studentRoleBtn').onclick=openStudentLoginForm; }
+function openTeacherLogin(){ openLessonModal(`<button class="modal-x" id="closeModalBtn">×</button><span class="tag">Вход учителя</span><h2>Код учителя</h2><form id="teacherLoginForm" class="code-form"><input class="code" id="teacherCodeInput" type="password" autocomplete="current-password" placeholder="КОД УЧИТЕЛЯ"><button class="sys-btn">Войти</button><div class="status" id="teacherLoginStatus"></div></form>`); $('teacherLoginForm').onsubmit=handleTeacherLogin; }
+async function handleTeacherLogin(e){
+  e.preventDefault();const input=$('teacherCodeInput'),btn=e.submitter,status=$('teacherLoginStatus');
+  if(input.value.trim()!==TEACHER_CODE){status.className='status bad';status.textContent='Неверный код учителя';return}
+  teacherAuthenticated=true;role='teacher';participantPlayerKey='';status.textContent='';openTeacherResume();
+}
+function openTeacherResume(){
+  openLessonModal(`<button class="modal-x" id="closeModalBtn">×</button><span class="tag">Учитель</span><h2>Что сделать?</h2><p>Восстановить прошлую игру или начать новую.</p><div class="host-actions"><button class="sys-btn" id="resumeBtn">Восстановить прошлую игру</button><button class="ghost" id="newBtn">Начать новую игру</button></div><div class="status" id="teacherActionStatus"></div>`);
+  $('resumeBtn').onclick=restoreTeacherSession;$('newBtn').onclick=openNewSessionChooser;
+}
+async function restoreTeacherSession(){const btn=$('resumeBtn'),status=$('teacherActionStatus');if(btn)btn.disabled=true;if(status)status.textContent='Загружаем прошлую игру…';try{const snap=await get(stateRef());if(!snap.exists())throw new Error('Прошлая игра не найдена. Начните новую игру.');serverState=normalizeState(snap.val());startSessionListeners();await registerPresence();closeLessonModal();setConnectedUI(true);renderFromState(true)}catch(err){if(status){status.className='status bad';status.textContent=err.message||'Не удалось восстановить игру'}if(btn)btn.disabled=false}}
+
+function openNewSessionChooser(){ openLessonModal(`<button class="modal-x" id="closeModalBtn">×</button><span class="tag">Новое занятие</span><h2>Сколько учеников подключаем?</h2><div class="mode-grid"><button class="mode-btn" id="mode1"><b>1 ученик</b><small>Один ученик получает 10 задач.</small></button><button class="mode-btn" id="mode2"><b>2 ученика</b><small>Каждый получает свои 10 задач; ходы идут по очереди.</small></button></div>`); $('mode1').onclick=()=>createFreshSession(1); $('mode2').onclick=()=>createFreshSession(2); }
+async function createFreshSession(limit){
+  if(!teacherAuthenticated)return;role='teacher';participantName='Учитель';openLessonModal(`<span class="tag">Новая игра</span><h2>Создаём чистое лобби…</h2><p>Подготавливаем занятие на ${Number(limit)===2?'2 учеников':'1 ученика'}.</p>`);
+  const fresh=newGameState(limit),session={meta:{sessionId:fresh.game.sessionId,appId:APP_ID,schemaVersion:SCHEMA_VERSION,openedAt:Date.now()},state:fresh,members:{},messages:{}};
+  try{await set(sessionRef(),session);serverState=fresh;startSessionListeners();await registerPresence();closeLessonModal();setConnectedUI(true);renderFromState(true)}catch{openLessonModal(`<span class="tag">Ошибка</span><h2>Не удалось создать занятие</h2><button class="sys-btn" id="retryNew">Повторить</button>`);$('retryNew').onclick=openNewSessionChooser}
+}
+function openStudentLoginForm(){
+  const saved=storedStudent(),savedCode=String(saved?.code||localStorage.getItem('egeStudentCode')||'').trim();
+  if(saved){openLessonModal(`<button class="modal-x" id="closeModalBtn">×</button><span class="tag">Вход ученика</span><h2>${esc(saved.name)}</h2><p>Данные ученика сохранены в этом браузере.</p><div class="host-actions"><button class="sys-btn" id="useSavedStudent">Подключиться</button><button class="ghost" id="otherStudent">Сменить ученика</button></div>`);$('useSavedStudent').onclick=()=>connectStudent(saved,{verify:false});$('otherStudent').onclick=()=>{clearStoredStudent();student=null;openStudentLoginForm()};return}
+  openLessonModal(`<button class="modal-x" id="closeModalBtn">×</button><span class="tag">Вход ученика</span><h2>Личный код</h2><p>Введи личный код. Игра откроется сразу после подключения к занятию, а имя проверится в фоне.</p><form id="studentLoginForm" class="code-form"><input class="code" id="studentCodeInput" maxlength="40" autocomplete="one-time-code" placeholder="ЛИЧНЫЙ КОД" value="${esc(savedCode)}"><button class="sys-btn">Подключиться</button><div class="status" id="studentLoginStatus"></div></form>`);$('studentLoginForm').onsubmit=handleStudentLogin;setTimeout(()=>{const input=$('studentCodeInput');if(input){input.focus();input.setSelectionRange(input.value.length,input.value.length)}},0);
+}
+function setVerificationStatus(text){verificationStatus=text||'';updateSessionPanel()}
+async function startBackgroundValidation(code,pk,runId=++verificationRun){let attempt=0;while(role==='student'&&participantPlayerKey===pk&&runId===verificationRun){attempt++;setVerificationStatus(`проверяем имя · попытка ${attempt}`);try{const verified=await validateStudentCode(code);if(runId!==verificationRun||role!=='student'||participantPlayerKey!==pk)return;student={...student,...verified,code,verified:true};participantName=student.name;saveStudent(student);await runTransaction(stateRef(),cur=>{if(!cur)return cur;const st=normalizeState(cur),p=st.game.players?.[pk];if(p){p.studentId=student.studentId;p.name=student.name;p.code=code;st.version++}return st});await registerPresence();setVerificationStatus('✓ подтверждён');renderFromState(true);return}catch(e){if(runId!==verificationRun)return;if(e?.terminal){setVerificationStatus('код не найден · игра продолжается');return}setVerificationStatus('сервер не ответил · повторяем');await new Promise(r=>setTimeout(r,1000))}}}
+async function handleStudentLogin(e){
+  e.preventDefault();const input=$('studentCodeInput'),btn=e.submitter,status=$('studentLoginStatus'),code=input.value.trim();if(!code){status.className='status bad';status.textContent='Введи личный код';return}input.disabled=btn.disabled=true;saveEnteredCode(code);status.textContent='Подключаемся…';try{await connectStudent({studentId:code,name:'Ученик',code,verified:false},{verify:true})}catch(err){status.className='status bad';status.textContent=err.message||'Не удалось подключиться';input.disabled=btn.disabled=false}
+}
+async function connectStudent(st,{verify=false}={}){
+  student={studentId:String(st.studentId||st.code),name:st.name||'Ученик',code:String(st.code||localStorage.getItem('egeStudentCode')||''),verified:!!st.verified};role='student';participantName=student.name;participantPlayerKey=playerKey(student.code);verificationStatus=student.verified?'✓ подтверждён':'проверяем имя';
+  const joined=await tryJoinStudent();startSessionListeners();setConnectedUI(true);closeLessonModal();if(!serverState)renderWaitingTeacher();if(verify&&joined)startBackgroundValidation(student.code,participantPlayerKey);return joined;
+}
+async function tryJoinStudent(){
+  if(joinInFlight||role!=='student'||!student)return false;joinInFlight=true;
+  try{
+    const ss=await get(stateRef());if(!ss.exists()){serverState=null;renderWaitingTeacher();return false}
+    const initial=normalizeState(ss.val());serverState=initial;const ms=await get(membersRef());const members=ms.exists()?ms.val()||{}:{};const activeIds=new Set(Object.values(members).filter(m=>m&&m.online&&m.role==='student'&&m.studentId).map(m=>String(m.studentId)));const preferredPk=playerKey(student.code),candidateEventId=uuid(),now=Date.now();
+    const result=await runTransaction(stateRef(),current=>{const st=normalizeState(current||clone(initial)),g=st.game;const existingKey=Object.keys(g.players).find(k=>k===preferredPk||String(g.players[k]?.code||'')===String(student.code)||String(g.players[k]?.studentId||'')===String(student.studentId));if(existingKey){const p=g.players[existingKey];p.code=student.code;p.studentId=student.studentId||student.code;if(student.verified&&student.name&&student.name!=='Ученик')p.name=student.name;p.lastSeen=now;g.eventIds[existingKey]=g.eventIds[existingKey]||candidateEventId;st.version++;return st}if(g.status!=='lobby')return st;for(const [key,p] of Object.entries(g.players)){const stale=!activeIds.has(String(p.studentId))&&now-(Number(p.lastSeen)||Number(p.joinedAt)||0)>10000;if(stale&&g.status==='lobby'){delete g.players[key];delete g.stats[key];delete g.attempts[key];delete g.eventIds[key];delete g.submissions[key]}}if(Object.keys(g.players).length>=g.studentLimit)return st;const used=new Set(Object.values(g.players).map(p=>Number(p.slot)));let slot=1;while(used.has(slot)&&slot<=g.studentLimit)slot++;if(slot>g.studentLimit)return st;g.players[preferredPk]={studentId:student.studentId||student.code,name:student.verified&&student.name&&student.name!=='Ученик'?student.name:`Ученик ${slot}`,code:student.code,slot,joinedAt:now,lastSeen:now};g.stats[preferredPk]={firstTryCorrect:0,completed:0,attemptCount:0};g.attempts[preferredPk]={};g.eventIds[preferredPk]=candidateEventId;st.version++;return st});
+    const after=result.snapshot?.exists()?normalizeState(result.snapshot.val()):initial;const found=Object.keys(after.game.players).find(k=>k===preferredPk||String(after.game.players[k]?.code||'')===String(student.code)||String(after.game.players[k]?.studentId||'')===String(student.studentId));if(!found){if(after.game.status!=='lobby')throw new Error('Игра уже началась. Войти новым участником сейчас нельзя.');throw new Error('Свободных мест нет.')}
+    participantPlayerKey=found;serverState=after;participantName=after.game.players[found]?.name||student.name||'Ученик';student.name=participantName;await registerPresence();renderFromState(true);return true;
+  }finally{joinInFlight=false}
+}
+async function registerPresence(){ if(!role) return; participantId=role==='teacher'?'teacher':participantPlayerKey||playerKey(student?.studentId||''); participantName=role==='teacher'?'Учитель':student?.name||'Ученик'; const mref=memberRef(browserClientId); presencePath=mref; try{ await onDisconnect(mref).update({online:false,lastSeen:serverTimestamp()}); await set(mref,{id:browserClientId,userId:participantId,studentId:role==='student'?student.studentId:'',name:participantName,role,online:true,lastSeen:serverTimestamp()}); }catch{} }
+function applyLiveStroke(id,value){
+  if(!id||!value)return;
+  const incoming=clone(value), old=liveStrokes[id];
+  const inRev=Number(incoming.rev)||0, oldRev=Number(old?.rev)||0;
+  if(old&&oldRev>inRev)return;
+  liveStrokes[id]=incoming;
+  if(serverState){serverState.strokes=serverState.strokes||{};serverState.strokes[id]=clone(incoming)}
+  renderBoardStrokes();
+}
+function removeLiveStroke(id){
+  if(!id)return;
+  delete liveStrokes[id];
+  if(serverState?.strokes)delete serverState.strokes[id];
+  erasingStrokeIds.delete(id);
+  renderBoardStrokes();
+}
+function stopStrokeListeners(){
+  [strokeAddedUnsub,strokeChangedUnsub,strokeRemovedUnsub].forEach(fn=>{try{fn?.()}catch{}});
+  strokeAddedUnsub=strokeChangedUnsub=strokeRemovedUnsub=null;
+}
+function startStrokeListeners(){
+  stopStrokeListeners();
+  liveStrokes={};
+  const sr=strokesRef();
+  strokeAddedUnsub=onChildAdded(sr,snap=>applyLiveStroke(snap.key,snap.val()));
+  strokeChangedUnsub=onChildChanged(sr,snap=>applyLiveStroke(snap.key,snap.val()));
+  strokeRemovedUnsub=onChildRemoved(sr,snap=>removeLiveStroke(snap.key));
+}
+function startSessionListeners(){
+  if(stateUnsub)stateUnsub();if(membersUnsub)membersUnsub();if(messagesUnsub)messagesUnsub();stopStrokeListeners();
+  stateUnsub=onValue(stateRef(),snap=>{
+    serverState=snap.exists()?normalizeState(snap.val()):null;
+    if(serverState?.strokes){for(const [id,st] of Object.entries(serverState.strokes))if(st)applyLiveStroke(id,st)}
+    if(role==='student'&&serverState&&!serverState.game.players[participantPlayerKey]&&serverState.game.status==='lobby'&&!joinInFlight)tryJoinStudent().then(joined=>{if(joined&&!student?.verified&&student?.code)startBackgroundValidation(student.code,participantPlayerKey)}).catch(err=>showToast(err?.message||'Не удалось подключиться ученика.','bad'));
+    renderFromState();renderBoardStrokes();
+  });
+  membersUnsub=onValue(membersRef(),snap=>{membersSnapshot=snap.exists()?snap.val()||{}:{};updateSessionPanel();if(!role||serverState?.game?.status==='lobby')renderFromState(true)});
+  messagesUnsub=onValue(messagesRef(),snap=>{const m=snap.exists()?snap.val()||{}:{};remoteTeacherCursor=m.teacherCursor||null;updateTeacherCursor()});startStrokeListeners();
+}
+async function switchStudent(){
+  if(serverState?.game?.status==='playing'){showToast('Во время занятия нельзя сменить ученика.','bad');return}verificationRun++;const pk=participantPlayerKey;
+  try{if(serverState?.game?.status==='lobby'&&pk)await runTransaction(stateRef(),cur=>{if(!cur)return cur;const st=normalizeState(cur);if(st.game.status==='lobby'&&st.game.players?.[pk]){delete st.game.players[pk];delete st.game.stats?.[pk];delete st.game.attempts?.[pk];delete st.game.eventIds?.[pk];delete st.game.submissions?.[pk];st.version++}return st});if(presencePath)await update(presencePath,{online:false,lastSeen:serverTimestamp()})}catch{}
+  clearStoredStudent();role='';participantId='';participantName='';participantPlayerKey='';verificationStatus='';student=null;setConnectedUI(false);updateSessionPanel();renderPublic();openStudentLoginForm();
+}
+function updateSessionPanel(){
+  const p=$('sessionPanel');if(!p)return;if(!role){p.classList.remove('show');return}const onlineStudents=Object.values(membersSnapshot).filter(m=>m&&m.online&&m.role==='student').length,status=!online?'офлайн':serverState?.game?.status==='playing'?'игра идёт':serverState?.game?.status==='finished'?'завершено':serverState?'лобби':'ждём учителя',finish=role==='teacher'&&serverState?.game?.status==='playing'?'<button class="sys-mini danger" id="panelFinishLesson">Завершить</button>':'';
+  p.innerHTML=`<span class="session-dot ${online?'on':''}"></span><b>${role==='teacher'?'Учитель':esc(participantName||student?.name||'Ученик')}</b><small>${role==='student'&&verificationStatus?esc(verificationStatus)+' · ':''}${status}${serverState?` · онлайн учеников: ${onlineStudents}`:''}</small>${finish}${role==='student'?'<button class="sys-mini" id="panelSwitchStudent">Сменить ученика</button>':''}`;p.classList.add('show');if($('panelSwitchStudent'))$('panelSwitchStudent').onclick=switchStudent;if($('panelFinishLesson'))$('panelFinishLesson').onclick=teacherFinishLesson;
+}
+
+/* ---------- доска ---------- */
+function attachBoardLayer(){ const anchor=document.querySelector('[data-board-anchor="main-screen"]'); if(!anchor) return; let board=$('sharedBoard'); if(board) board.remove(); board=document.createElementNS('http://www.w3.org/2000/svg','svg'); board.id='sharedBoard'; board.setAttribute('viewBox','0 0 1000 1000'); board.setAttribute('preserveAspectRatio','none'); board.classList.add('shared-board'); anchor.appendChild(board); setBoardPointerMode(); renderBoardStrokes(); board.addEventListener('pointerdown',boardPointerDown); board.addEventListener('pointermove',boardPointerMove); board.addEventListener('pointerup',boardPointerUp); board.addEventListener('pointercancel',boardPointerUp); installTeacherCursorTracking(anchor); updateTeacherCursor(); }
+function setBoardPointerMode(){ const b=$('sharedBoard'); if(b) b.style.pointerEvents=boardTool==='cursor'?'none':'auto'; document.querySelectorAll('[data-board-tool]').forEach(x=>x.classList.toggle('active',x.dataset.boardTool===boardTool)); }
+function pointFromEvent(e){ const anchor=document.querySelector('[data-board-anchor="main-screen"]'),r=anchor.getBoundingClientRect(); return [(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height]; }
+function boardPointerDown(e){
+  if(boardTool==='cursor'||!serverState)return;
+  e.preventDefault();const p=pointFromEvent(e);boardPointerId=e.pointerId;e.currentTarget.setPointerCapture(e.pointerId);
+  if(boardTool==='eraser'){boardErasing=true;lastErasePoint=p;eraseBoardAlong(p,p);return}
+  boardErasing=false;activeStroke={id:'stroke-'+uuid(),anchorId:'main-screen',authorId:participantId||role,authorName:participantName||role,color:boardColor,width:boardWidth,points:[p],done:false,epoch:serverState.boardEpoch||0,rev:Date.now(),tool:'pencil'};lastStrokePush=Date.now();renderBoardStrokes();pushStroke(activeStroke);
+}
+function boardPointerMove(e){
+  if(boardPointerId!==e.pointerId)return;
+  const p=pointFromEvent(e);
+  if(boardErasing){e.preventDefault();eraseBoardAlong(lastErasePoint||p,p);lastErasePoint=p;return}
+  if(!activeStroke||boardTool!=='pencil')return;
+  const last=activeStroke.points[activeStroke.points.length-1];if(Math.hypot(p[0]-last[0],p[1]-last[1])<.001)return;
+  e.preventDefault();activeStroke.points.push(p);activeStroke.rev=Math.max(Date.now(),(Number(activeStroke.rev)||0)+1);renderBoardStrokes();const now=Date.now();if(now-lastStrokePush>=45){lastStrokePush=now;pushStroke(activeStroke)}
+}
+function boardPointerUp(e){
+  if(boardPointerId!==e.pointerId)return;
+  try{e.currentTarget.releasePointerCapture(e.pointerId)}catch{}boardPointerId=null;lastErasePoint=null;
+  if(boardErasing){boardErasing=false;return}
+  if(!activeStroke)return;activeStroke.done=true;activeStroke.rev=Math.max(Date.now(),(Number(activeStroke.rev)||0)+1);const finished=clone(activeStroke);liveStrokes[finished.id]=clone(finished);if(serverState){serverState.strokes=serverState.strokes||{};serverState.strokes[finished.id]=clone(finished)}activeStroke=null;renderBoardStrokes();pushStroke(finished);
+}
+async function pushStroke(stroke=activeStroke){
+  if(!stroke||!serverState)return;
+  const copy=clone(stroke);liveStrokes[copy.id]=copy;serverState.strokes=serverState.strokes||{};serverState.strokes[copy.id]=clone(copy);renderBoardStrokes();
+  try{await set(ref(database,`${lessonRoot()}/state/strokes/${copy.id}`),copy)}catch{}
+}
+function boardStrokeSource(){return {...(serverState?.strokes||{}),...liveStrokes}}
+function renderBoardStrokes(){
+  const b=$('sharedBoard');if(!b||!serverState)return;const epoch=serverState.boardEpoch||0,source=boardStrokeSource();
+  for(const id of [...erasingStrokeIds])if(!source[id])erasingStrokeIds.delete(id);
+  const strokes=Object.values(source).filter(s=>s&&s.epoch===epoch&&!erasingStrokeIds.has(s.id)&&s.id!==activeStroke?.id);if(activeStroke)strokes.push(activeStroke);
+  b.innerHTML=strokes.map(s=>{const pts=(s.points||[]).map(([x,y])=>`${Math.max(0,Math.min(1,x))*1000},${Math.max(0,Math.min(1,y))*1000}`).join(' ');return pts?`<polyline points="${pts}" fill="none" stroke="${esc(s.color||'#e53935')}" stroke-width="${Math.max(1,Number(s.width)||6)*2.2}" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`:''}).join('');
+}
+function boardPointSegmentDistancePx(p,a,b,rect){const px=p[0]*rect.width,py=p[1]*rect.height,ax=a[0]*rect.width,ay=a[1]*rect.height,bx=b[0]*rect.width,by=b[1]*rect.height,dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy;if(!l2)return Math.hypot(px-ax,py-ay);const t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/l2));return Math.hypot(px-(ax+t*dx),py-(ay+t*dy))}
+function boardStrokeTouchesPoint(st,p,radius,rect){const points=st?.points||[];if(!points.length)return false;if(points.length===1)return boardPointSegmentDistancePx(p,points[0],points[0],rect)<=radius;for(let i=1;i<points.length;i++)if(boardPointSegmentDistancePx(p,points[i-1],points[i],rect)<=radius+Math.max(1,Number(st.width)||6)/2)return true;return false}
+function eraseBoardAlong(from,to){
+  if(!serverState)return;const b=$('sharedBoard');if(!b)return;const rect=b.getBoundingClientRect(),radius=Math.max(14,boardWidth*2.5),distance=Math.hypot((to[0]-from[0])*rect.width,(to[1]-from[1])*rect.height),steps=Math.max(1,Math.ceil(distance/Math.max(5,radius*.45))),samples=[];
+  for(let i=0;i<=steps;i++){const t=i/steps;samples.push([from[0]+(to[0]-from[0])*t,from[1]+(to[1]-from[1])*t])}
+  const epoch=serverState.boardEpoch||0,ids=[],source=boardStrokeSource();for(const [id,st] of Object.entries(source)){if(!st||st.epoch!==epoch||erasingStrokeIds.has(id))continue;if(samples.some(p=>boardStrokeTouchesPoint(st,p,radius,rect)))ids.push(id)}
+  if(!ids.length)return;const removals={};for(const id of ids){erasingStrokeIds.add(id);removals[id]=null;delete liveStrokes[id];if(serverState?.strokes)delete serverState.strokes[id]}renderBoardStrokes();
+  update(strokesRef(),removals).catch(()=>{for(const id of ids)erasingStrokeIds.delete(id);renderBoardStrokes()});
+}
+async function clearBoard(){ if(role!=='teacher'||!serverState) return; const initial=clone(serverState); const result=await runTransaction(stateRef(),current=>{ const s=normalizeState(current||clone(initial)); s.boardEpoch=(Number(s.boardEpoch)||0)+1; s.strokes={}; s.version++; return s; }); if(result.committed){liveStrokes={};erasingStrokeIds.clear();renderBoardStrokes()} }
+function initBoardToolbar(){ const tb=$('boardToolbar'); let pos={right:18,bottom:18}; try{ pos={...pos,...JSON.parse(localStorage.getItem(TOOLBAR_POSITION_KEY)||'{}')}; }catch{} tb.style.right=(pos.right??18)+'px'; tb.style.bottom=(pos.bottom??18)+'px'; tb.innerHTML=`<div class="board-head" id="boardDragHandle"><b>Доска</b><button class="tiny" id="boardCollapse">−</button></div><div class="board-tools"><button data-board-tool="cursor" title="Курсор">↖</button><button data-board-tool="pencil" title="Карандаш">✎</button><button data-board-tool="eraser" title="Ластик">⌫</button><input id="boardColor" type="color" value="${boardColor}" title="Цвет"><input id="boardWidth" type="range" min="2" max="12" value="${boardWidth}" title="Толщина"><button class="board-clear" id="boardClear" title="Очистить всю общую доску">🗑 Очистить всё</button></div>`; document.querySelectorAll('[data-board-tool]').forEach(b=>b.onclick=()=>{boardTool=b.dataset.boardTool; setBoardPointerMode();}); $('boardColor').oninput=e=>boardColor=e.target.value; $('boardWidth').oninput=e=>boardWidth=Number(e.target.value); $('boardClear').onclick=()=>{ if(role==='teacher') clearBoard(); else showToast('Полностью очищать доску может только учитель.','bad'); }; $('boardCollapse').onclick=()=>{ toolbarCollapsed=!toolbarCollapsed; tb.classList.toggle('collapsed',toolbarCollapsed); $('boardCollapse').textContent=toolbarCollapsed?'+':'−'; }; makeToolbarDraggable(tb,$('boardDragHandle')); setBoardPointerMode(); }
+function makeToolbarDraggable(tb,handle){ let sx=0,sy=0,startR=0,startB=0,drag=false; handle.addEventListener('pointerdown',e=>{ if(e.target.tagName==='BUTTON') return; drag=true; sx=e.clientX; sy=e.clientY; const r=tb.getBoundingClientRect(); startR=innerWidth-r.right; startB=innerHeight-r.bottom; handle.setPointerCapture(e.pointerId); }); handle.addEventListener('pointermove',e=>{ if(!drag) return; const nr=Math.max(0,Math.min(innerWidth-tb.offsetWidth,startR-(e.clientX-sx))), nb=Math.max(0,Math.min(innerHeight-tb.offsetHeight,startB-(e.clientY-sy))); tb.style.right=nr+'px'; tb.style.bottom=nb+'px'; }); handle.addEventListener('pointerup',()=>{ if(!drag) return; drag=false; localStorage.setItem(TOOLBAR_POSITION_KEY,JSON.stringify({right:parseFloat(tb.style.right)||0,bottom:parseFloat(tb.style.bottom)||0})); }); }
+function installTeacherCursorTracking(anchor){ anchor.onpointermove=role==='teacher'?e=>{ if(boardTool!=='cursor'||Date.now()-lastCursorPush<75) return; lastCursorPush=Date.now(); const r=anchor.getBoundingClientRect(),x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height; update(ref(database,`${lessonRoot()}/messages/teacherCursor`),{x,y,at:Date.now(),visible:true}).catch(()=>{}); }:null; anchor.onpointerleave=role==='teacher'?()=>update(ref(database,`${lessonRoot()}/messages/teacherCursor`),{visible:false,at:Date.now()}).catch(()=>{}):null; }
+function updateTeacherCursor(){ const c=$('teacherCursor'); if(!c) return; if(role!=='student'||!remoteTeacherCursor?.visible){ c.classList.remove('show'); return; } const anchor=document.querySelector('[data-board-anchor="main-screen"]'); if(!anchor) return; const r=anchor.getBoundingClientRect(); c.style.left=(r.left+remoteTeacherCursor.x*r.width)+'px'; c.style.top=(r.top+remoteTeacherCursor.y*r.height)+'px'; c.classList.add('show'); }
+
+/* ---------- звук ---------- */
+function sound(type){ if(muted) return; try{ const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return; const ac=sound.ac||(sound.ac=new AC()), now=ac.currentTime; const master=ac.createGain(); master.connect(ac.destination); master.gain.setValueAtTime(.05,now); master.gain.exponentialRampToValueAtTime(.0001,now+1.2); const notes = {start:[[220,.12,'triangle'],[330,.22,'triangle'],[440,.34,'triangle']], good:[[620,.12,'square'],[840,.24,'triangle']], bad:[[150,.18,'sawtooth'],[90,.36,'sawtooth']], fuse:[[540,.06,'square'],[580,.12,'square'],[610,.18,'square']], explode:[[95,.15,'sawtooth'],[72,.24,'sawtooth'],[48,.5,'triangle']]}[type]||[[440,.18,'triangle']]; notes.forEach(([f,d,w],i)=>{ const o=ac.createOscillator(), g=ac.createGain(); o.type=w; o.frequency.setValueAtTime(f,now+i*.03); g.gain.setValueAtTime(type==='explode'?.15:.08,now+i*.03); g.gain.exponentialRampToValueAtTime(.0001,now+d+.08); o.connect(g); g.connect(master); o.start(now+i*.03); o.stop(now+d+.1); }); if(type==='explode'){ const noise=ac.createBufferSource(), buffer=ac.createBuffer(1,ac.sampleRate*.25,ac.sampleRate), data=buffer.getChannelData(0); for(let i=0;i<data.length;i++) data[i]=(Math.random()*2-1)*(1-i/data.length); const ng=ac.createGain(); ng.gain.setValueAtTime(.12,now); ng.gain.exponentialRampToValueAtTime(.0001,now+.35); noise.buffer=buffer; noise.connect(ng); ng.connect(master); noise.start(now); noise.stop(now+.25); } }catch{} }
+
+$('lessonJoinBtn').addEventListener('click',openRoleModal);
+window.addEventListener('online',async()=>{ online=true; updateSessionPanel(); await flushPendingResults(); if(role==='student'&&serverState&&!serverState.game.players[participantPlayerKey]) tryJoinStudent().then(joined=>{if(joined&&!student?.verified&&student?.code)startBackgroundValidation(student.code,participantPlayerKey)}).catch(()=>{}); renderFromState(true); });
+window.addEventListener('offline',()=>{ online=false; updateSessionPanel(); renderFromState(true); });
+window.addEventListener('resize',updateTeacherCursor);
+window.addEventListener('pagehide',bestEffortPartialSubmit);
+window.addEventListener('beforeunload',bestEffortPartialSubmit);
+
+initBoardToolbar(); renderPublic(); flushPendingResults();
+</script>
+</body>
+</html>
