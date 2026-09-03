@@ -564,6 +564,8 @@
     .legend-dot.present { background: var(--ok); }
     .legend-dot.absent { background: var(--bad); }
     .legend-dot.homework { background: var(--accent); }
+    .legend-dot.homework-submitted { background: #54d7c2; }
+    .legend-dot.test { background: #65bfff; }
     .legend-dot.mock { background: #b993ff; }
     .calendar-scroll { overflow-x: auto; padding-bottom: 3px; }
     .calendar-grid {
@@ -621,6 +623,8 @@
     .calendar-event.present { color: #bdffd9; border-color: rgba(91, 227, 154, .32); background: rgba(91, 227, 154, .1); }
     .calendar-event.absent { color: #ffc3c9; border-color: rgba(255, 125, 137, .34); background: rgba(255, 125, 137, .1); }
     .calendar-event.homework { color: #ffe0a0; border-color: rgba(255, 181, 46, .34); background: rgba(255, 181, 46, .1); }
+    .calendar-event.homework-submitted { color: #bdf9ef; border-color: rgba(84, 215, 194, .38); background: rgba(84, 215, 194, .11); }
+    .calendar-event.test { color: #cae9ff; border-color: rgba(101, 191, 255, .38); background: rgba(101, 191, 255, .11); }
     .calendar-event.mock { color: #e3d5ff; border-color: rgba(185, 147, 255, .36); background: rgba(185, 147, 255, .1); }
     .calendar-empty-note { color: rgba(159, 181, 202, .55); font-size: 10px; }
 
@@ -759,7 +763,7 @@
             <div class="calendar-toolbar">
               <div>
                 <h3>Календарь активности</h3>
-                <p id="calendarSubtitle">Посещение, назначенные ДЗ и пробники по дням.</p>
+                <p id="calendarSubtitle">Посещение, тесты, назначения и сдачи ДЗ, пробники по дням.</p>
               </div>
               <div class="calendar-nav" aria-label="Выбор месяца календаря">
                 <button id="calendarPrev" class="small-btn" type="button" aria-label="Предыдущий месяц">←</button>
@@ -771,6 +775,8 @@
               <span class="legend-chip"><span class="legend-dot present"></span>Был на занятии</span>
               <span class="legend-chip"><span class="legend-dot absent"></span>Не был</span>
               <span class="legend-chip"><span class="legend-dot homework"></span>ДЗ задано</span>
+              <span class="legend-chip"><span class="legend-dot homework-submitted"></span>ДЗ сдано</span>
+              <span class="legend-chip"><span class="legend-dot test"></span>Тест</span>
               <span class="legend-chip"><span class="legend-dot mock"></span>Пробник</span>
             </div>
             <div class="calendar-scroll"><div id="activityCalendar" class="calendar-grid"></div></div>
@@ -999,7 +1005,7 @@
 
   <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
-    const TEACHER_BROWSER_CACHE_KEY = 'ege-teacher-form-data-v6';
+    const TEACHER_BROWSER_CACHE_KEY = 'ege-teacher-form-data-v10-assignments-only';
     const VERSION_CHECK_INTERVAL_MS = 60 * 1000;
     // Встроенный предпросмотр ChatGPT работает в iframe и перед каждым внешним
     // запросом показывает системное окно разрешения. На обычной странице GitHub
@@ -1102,8 +1108,11 @@
       try {
         const response = await fetch(API_URL, {
           method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify(payload),
           redirect: 'follow',
+          credentials: 'omit',
+          cache: 'no-store',
           signal: controller.signal
         });
         const text = await response.text();
@@ -1117,7 +1126,16 @@
           throw new Error('Сервер долго не отвечает. Повторите отправку.');
         }
         if (error && error.message === 'Сервер вернул непонятный ответ.') throw error;
-        throw new Error('Не удалось связаться с сервером. Проверьте новую версию Apps Script.');
+        console.error('Teacher API POST failed:', error);
+        const host = String(location.hostname || '').toLowerCase();
+        if (location.protocol === 'file:') {
+          throw new Error('Браузер заблокировал запрос из локального HTML-файла. Откройте эту версию с опубликованной страницы (например, GitHub Pages), а не через file://.');
+        }
+        if (host.includes('chatgpt') || host.includes('openai') || host.includes('sandbox')) {
+          throw new Error('В предпросмотре/файловом окне ChatGPT внешний POST к Google Apps Script может блокироваться. Опубликуйте этот HTML там же, где работала предыдущая версия.');
+        }
+        const detail = error && error.message ? ' (' + error.message + ')' : '';
+        throw new Error('Не удалось выполнить POST к Google Apps Script' + detail + '. Если страница уже опубликована на рабочем домене, проверьте доступ текущего развёртывания Apps Script.');
       } finally {
         clearTimeout(timeout);
       }
@@ -1281,11 +1299,20 @@
     }
 
     function statsStudentData(studentId) {
-      return state.statistics
+      const source = state.statistics
         && state.statistics.students
         && state.statistics.students[studentId]
         ? state.statistics.students[studentId]
         : { summary: { month: {}, allTime: {} }, topics: [], tests: [], homework: [], mocks: [], lessons: [] };
+
+      // В преподавательской форме ДЗ берём ТОЛЬКО из листа «ДЗ_Назначения».
+      // Сервер может добавлять в statistics.homework legacy-записи из «ДЗ_Сдачи»
+      // для старых/самостоятельных прохождений. Они не являются назначениями
+      // и не должны участвовать ни в календаре, ни в счётчиках, ни в освоении.
+      return {
+        ...source,
+        homework: (source.homework || []).filter(isRealHomeworkAssignment)
+      };
     }
 
     function dateKey(value) {
@@ -1366,13 +1393,27 @@
       return [...items].sort((a, b) => String(dateKey(getter(b))).localeCompare(String(dateKey(getter(a)))));
     }
 
+    function isRealHomeworkAssignment(item) {
+      // В statistics.homework сервер хранит не только реальные назначения из
+      // ДЗ_Назначения, но и legacy-записи, восстановленные из ДЗ_Сдачи.
+      // Legacy-запись означает факт сдачи без найденного назначения и не должна
+      // отображаться как «ДЗ задано» и попадать в счётчик назначенных работ.
+      return Boolean(
+        item
+        && item.legacy !== true
+        && String(item.assignmentRecordId || '').trim()
+        && item.assignedAt
+      );
+    }
+
     function derivedStatsSummary(studentId) {
       const data = statsStudentData(studentId);
       const tests = (data.tests || []).filter(item => entryInStatsPeriod(item.date));
       const homework = (data.homework || []).filter(item => entryInStatsPeriod(item.assignedAt || item.submittedAt));
+      const assignedHomework = homework.filter(isRealHomeworkAssignment);
       const mocks = (data.mocks || []).filter(item => entryInStatsPeriod(item.date));
       const lessons = (data.lessons || []).filter(item => entryInStatsPeriod(item.lessonAt));
-      const submittedHomework = homework.filter(homeworkIsSubmitted);
+      const submittedHomework = assignedHomework.filter(homeworkIsSubmitted);
       const testAverage = numericAverage(tests.map(item => item.scorePercent));
       const homeworkAverage = numericAverage(submittedHomework.map(item => item.scorePercent));
       const presentCount = lessons.filter(item => /присутствовал/i.test(String(item.attendanceStatus || ''))).length;
@@ -1393,7 +1434,7 @@
         topicsWithData: topicNumbers.size,
         testAverage,
         testCount: tests.length,
-        homeworkAssigned: homework.length,
+        homeworkAssigned: assignedHomework.length,
         homeworkSubmitted: submittedHomework.length,
         homeworkAverage,
         latestMock,
@@ -1600,7 +1641,7 @@
     function renderActivityCalendar(data) {
       ensureCalendarMonth();
       $('calendarMonth').value = state.calendarMonth;
-      $('calendarSubtitle').textContent = `${monthTitle(state.calendarMonth)} · посещение, ДЗ и пробники. Месяц можно листать независимо от периода статистики.`;
+      $('calendarSubtitle').textContent = `${monthTitle(state.calendarMonth)} · занятия, тесты, назначения и сдачи ДЗ, пробники. Месяц можно листать независимо от периода статистики.`;
       const match = state.calendarMonth.match(/^(\d{4})-(\d{2})$/);
       if (!match) {
         $('activityCalendar').innerHTML = '<div class="inline-empty">Не удалось определить месяц.</div>';
@@ -1629,13 +1670,40 @@
         pushEvent(key, calendarEventHtml(present ? 'present' : 'absent', label, details));
       });
 
-      (data.homework || []).forEach(item => {
+      // Тематические тесты: отдельное событие в день прохождения.
+      (data.tests || []).forEach(item => {
+        const key = dateKey(item.date);
+        const number = item.taskNumber ? `№${item.taskNumber}` : '';
+        const score = hasNumber(item.scorePercent) ? `${Math.round(Number(item.scorePercent))}%` : '';
+        const label = ['Тест', number, score].filter(Boolean).join(' · ');
+        const details = [
+          item.topicName || '',
+          item.testId || '',
+          item.durationSeconds ? 'Время: ' + durationText(item.durationSeconds) : ''
+        ].filter(Boolean).join(' · ');
+        pushEvent(key, calendarEventHtml('test', label, details));
+      });
+
+      // Только реальные назначения из ДЗ_Назначения показываем как «ДЗ задано».
+      (data.homework || []).filter(isRealHomeworkAssignment).forEach(item => {
         const key = dateKey(item.assignedAt);
         const label = item.taskNumber
           ? `ДЗ задано · №${item.taskNumber}`
           : `ДЗ задано · ${item.homeworkName || 'работа'}`;
         const details = [item.homeworkName || '', item.status || ''].filter(Boolean).join(' · ');
         pushEvent(key, calendarEventHtml('homework', label, details));
+      });
+
+      // Факт сдачи показываем отдельно, но только для реальных строк из «ДЗ_Назначения».
+      // Дата сдачи, статус и процент уже записаны в самой строке назначения.
+      (data.homework || []).forEach(item => {
+        if (!item.submittedAt) return;
+        const key = dateKey(item.submittedAt);
+        const number = item.taskNumber ? `№${item.taskNumber}` : '';
+        const score = hasNumber(item.scorePercent) ? `${Math.round(Number(item.scorePercent))}%` : '';
+        const label = ['ДЗ сдано', number, score].filter(Boolean).join(' · ');
+        const details = [item.homeworkName || '', item.status || ''].filter(Boolean).join(' · ');
+        pushEvent(key, calendarEventHtml('homework-submitted', label, details));
       });
 
       (data.mocks || []).forEach(item => {
