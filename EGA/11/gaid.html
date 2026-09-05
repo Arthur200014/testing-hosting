@@ -387,6 +387,34 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-2;bac
   .quick-step{grid-template-columns:32px minmax(0,1fr)!important;padding:10px!important}
 }
 
+
+/* === Усиленная экранная реакция самостоятельной отработки === */
+.screen-fx{isolation:isolate}
+.screen-fx::before{content:"";position:absolute;inset:0;opacity:0;pointer-events:none}
+.screen-fx.good::before{background:
+  radial-gradient(circle at 50% 50%,rgba(179,255,220,.30) 0 8%,rgba(61,231,139,.18) 22%,transparent 58%),
+  linear-gradient(135deg,rgba(68,215,255,.11),rgba(86,227,137,.16))}
+.screen-fx.bad::before{background:
+  repeating-linear-gradient(0deg,rgba(255,99,119,.06) 0 2px,transparent 2px 8px),
+  radial-gradient(circle at 50% 50%,rgba(255,99,119,.22),transparent 62%)}
+.screen-fx.show::before{animation:answerScreenWash 1.02s ease-out}
+.screen-fx span{position:relative;z-index:3;transform:scale(.72);letter-spacing:.02em}
+.screen-fx.good.show span{animation:answerGoodBadge 1.02s cubic-bezier(.16,.84,.24,1)}
+.screen-fx.bad.show span{animation:answerBadBadge .88s cubic-bezier(.36,.07,.19,.97)}
+.screen-fx.good.show{animation:answerGoodFlash 1.02s ease-out}
+.screen-fx.bad.show{animation:answerBadFlash .88s ease-out}
+.fx-particle{position:absolute;left:50%;top:50%;z-index:2;width:9px;height:24px;border-radius:999px;opacity:0;transform:translate(-50%,-50%) rotate(var(--r));animation:answerParticle .9s ease-out forwards}
+.fx-particle.good{background:linear-gradient(#fff,#65f1b2);box-shadow:0 0 12px rgba(86,227,137,.9)}
+.fx-particle.bad{width:6px;height:34px;background:linear-gradient(#fff,#ff6377);box-shadow:0 0 12px rgba(255,99,119,.9)}
+@keyframes answerScreenWash{0%{opacity:0}16%{opacity:1}100%{opacity:0}}
+@keyframes answerGoodFlash{0%{opacity:0}12%,66%{opacity:1}100%{opacity:0}}
+@keyframes answerBadFlash{0%{opacity:0}10%,72%{opacity:1}100%{opacity:0}}
+@keyframes answerGoodBadge{0%{transform:scale(.68) rotate(-3deg)}28%{transform:scale(1.12) rotate(1deg)}58%{transform:scale(1)}100%{transform:scale(.96);opacity:0}}
+@keyframes answerBadBadge{0%{transform:translateX(0) scale(.82)}18%{transform:translateX(-16px) scale(1.04)}36%{transform:translateX(14px) scale(1.04)}54%{transform:translateX(-8px) scale(1)}72%{transform:translateX(6px) scale(1)}100%{transform:translateX(0) scale(.96);opacity:0}}
+@keyframes answerParticle{0%{opacity:0;transform:translate(-50%,-50%) rotate(var(--r)) scale(.4)}16%{opacity:1}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) rotate(calc(var(--r) + 150deg)) scale(.2)}}
+@media (prefers-reduced-motion:reduce){
+  .screen-fx.show,.screen-fx.show::before,.screen-fx.show span,.fx-particle{animation-duration:.25s!important}
+}
 </style>
 </head>
 <body><div id="globalBoardSurface" data-board-anchor="global-document"></div>
@@ -851,17 +879,85 @@ const MODEL_CONFIG={
 const rint=(a,b)=>Math.floor(Math.random()*(b-a+1))+a,pick=a=>a[Math.floor(Math.random()*a.length)];
 function frac(n,d){return n/d}function fmt(n){if(Math.abs(n-Math.round(n))<1e-9)return String(Math.round(n));return String(Math.round(n*1000)/1000).replace('.',',')}function parseAns(v){v=String(v||'').trim().replace(',','.').replace(/−/g,'-');if(/^[-+]?\d+(\.\d+)?\s*\/\s*[-+]?\d+(\.\d+)?$/.test(v)){const[a,b]=v.split('/').map(Number);return b? a/b:NaN}return Number(v)}
 function generateTask(id){
- if(id==='linear'){let k=pick([-3,-2,-1,1,2,3]),b=rint(-3,3),x0=rint(-5,7);return{kind:id,p:{k,b},x0,answer:k*x0+b,q:`На рисунке изображён график линейной функции f(x)=kx+b. Найдите f(${x0}).`,sol:[`На Oy сразу читаем b=${b}.`,`От x=0 до x=1 график меняется по y на ${k}: значит k=${k}.`,`f(${x0})=${k}·${x0}${b>=0?'+':''}${b}=${k*x0+b}.`]};}
- if(id==='reciprocal'){let k=pick([-6,-4,-3,-2,2,3,4,6]),divs=[1,2,3,4,6].filter(x=>k%x===0),x0=pick(divs);return{kind:id,p:{k},point:[1,k],x0,answer:k/x0,q:`На рисунке изображён график f(x)=k/x. Найдите f(${x0}).`,sol:[`Смотрим на график при x=1: y=${k}. Значит сразу k=${k}.`,`Функция: f(x)=${k}/x.`,`f(${x0})=${k}/${x0}=${fmt(k/x0)}.`]};}
- if(id==='exponential'){let a=pick([2,3,.5]),x0=a<1?pick([-4,-3,-2]):pick([2,3,4]),ans=a**x0;return{kind:id,p:{a},x0,answer:ans,q:`На рисунке изображён график f(x)=aˣ. Найдите f(${x0}).`,sol:[a>=1?`По точке (1; ${a}) читаем основание: a=${a}.`:`По точке (−1; 2) видим: a⁻¹=2, поэтому a=1/2.`,`Функция: f(x)=${a===.5?'(1/2)ˣ':a+'ˣ'}.`,`Подставляем x=${x0}.`,`f(${x0})=${fmt(ans)}.`]};}
- if(id==='root'){let a=pick([-3,-2,-1,1,2,3]),x0=pick([1,4,9,16]);return{kind:id,p:{a},point:[1,a],x0,answer:a*Math.sqrt(x0),q:`На рисунке изображён график f(x)=a√x. Найдите f(${x0}).`,sol:[`При x=1 график имеет y=${a}. Поэтому сразу a=${a}.`,`Функция: f(x)=${a}√x.`,`f(${x0})=${a}·${Math.sqrt(x0)}=${a*Math.sqrt(x0)}.`]};}
- if(id==='log'){let a=pick([2,3,4]),n=pick([2,3]),x0=a**n;return{kind:id,p:{a},x0,answer:n,q:`На рисунке изображён график f(x)=logₐx. Найдите f(${x0}).`,sol:[`График проходит через (${a};1), потому что logₐa=1. Значит a=${a}.`,`Имеем f(x)=log_${a}x.`,`${x0}=${a}^${n}.`,`По определению логарифма f(${x0})=${n}.`]};}
- if(id==='quadratic'){let a,h,yv,b,c,x0,ans;do{a=pick([-2,-1,1,2]);h=rint(-2,2);yv=rint(-3,2);b=-2*a*h;c=a*h*h+yv;}while(Math.abs(c)>5||Math.abs(b)>6);x0=h+pick([2,3]);ans=a*x0*x0+b*x0+c;return{kind:id,p:{a,b,c},vertex:[h,yv],x0,answer:ans,q:`На рисунке изображён график f(x)=ax²+bx+c с целыми коэффициентами. Найдите f(${x0}).`,sol:[`От вершины (${h}; ${yv}) шагаем на 1 вправо: изменение y равно ${a}. Значит a=${a}.`,`На Oy график имеет y=${c}. Значит c=${c}.`,`Абсцисса вершины xв=${h}, поэтому b=−2axв=−2·${a}·${h}=${b}.`,`f(${x0})=${a}·${x0}²${b>=0?'+':''}${b}·${x0}${c>=0?'+':''}${c}=${ans}.`]};}
- if(id==='line-line'){let x=rint(-2,5),y=rint(-3,5),k1=pick([-2,-1,1,2]),k2=pick([-3,-1,1,3].filter(v=>v!==k1)),b1=y-k1*x,b2=y-k2*x;return{kind:id,p:{k1,b1,k2,b2},answer:x,q:'На рисунке изображены графики двух линейных функций. Найдите абсциссу точки их пересечения.',sol:[`Находим на рисунке точку, где две прямые пересеклись.`,`Опускаем её вертикально на Ox.`,`По сетке получаем x=${x}.`]};}
- if(id==='parabola-line'){let r1=0,r2=rint(2,6),m=r2,b=0;return{kind:id,p:{a:1,m,b},roots:[r1,r2],answer:r2,q:'Парабола y=x² и прямая пересекаются в начале координат и точке B. Найдите абсциссу B.',sol:[`Находим вторую точку пересечения B на рисунке.`,`Опускаем B на ось Ox.`,`По сетке x_B=${m}.`]};}
- if(id==='hyperbola-line'){let n=pick([2,3,4,5]),k=n*n;return{kind:id,p:{k,m:1,b:0},answer:n,q:'На рисунке изображены y=k/x и y=x. Найдите положительную абсциссу точки пересечения.',sol:[`Для гиперболы k=x·y=${k}.`,`На прямой y=x, поэтому в пересечении k=x².`,`x=√${k}=${n}.`]};}
- if(id==='exp-line'){let a=pick([2,3]),n=pick([2,3,4]),c=a**n;return{kind:id,p:{a,c},answer:n,q:'На рисунке изображены показательная функция y=aˣ и горизонтальная прямая. Найдите абсциссу их точки пересечения.',sol:[`При x=1 читаем основание: a=${a}.`,`Уровень горизонтали: ${c}=${a}^${n}.`,`Значит x=${n}.`]};}
- let h=rint(3,6),c=h*h;return{kind:'mixed',p:{h,c},answer:h,q:'На рисунке изображены две параболы. Они пересекаются в начале координат и точке B. Найдите абсциссу B.',sol:[`Находим точку B — второе пересечение парабол.`,`Опускаем B на Ox.`,`По сетке x_B=${h}.`]};
+ const halfRange=(a,b)=>{const out=[];for(let x=a;x<=b+1e-9;x+=.5)out.push(Math.round(x*2)/2);return out};
+ if(id==='linear'){
+   const k=pick([-3,-2.5,-2,-1.5,-1,-.5,.5,1,1.5,2,2.5,3]);
+   const b=pick(halfRange(-4,4)),x0=pick([-4,-3,-2,-1,1,2,3,4]);
+   const ans=k*x0+b;
+   return{kind:id,p:{k,b},x0,answer:ans,q:`На рисунке изображён график линейной функции f(x)=kx+b. Найдите f(${x0}).`,sol:[`На Oy читаем b=${fmt(b)}.`,`По изменению графика на 1 по x получаем k=${fmt(k)}.`,`f(${x0})=${fmt(k)}·${x0}${b>=0?'+':''}${fmt(b)}=${fmt(ans)}.`]};
+ }
+ if(id==='reciprocal'){
+   const k=pick([-6,-5,-4.5,-4,-3,-2.5,-2,-1.5,1.5,2,2.5,3,4,4.5,5,6]);
+   const candidates=[.5,1,1.5,2,2.5,3,4].filter(x=>Math.abs(k/x)<=7);
+   const x0=pick(candidates),ans=k/x0;
+   return{kind:id,p:{k},point:[1,k],x0,answer:ans,q:`На рисунке изображён график f(x)=k/x. Найдите f(${fmt(x0)}).`,sol:[`При x=1 график имеет y=${fmt(k)}, поэтому k=${fmt(k)}.`,`Функция: f(x)=${fmt(k)}/x.`,`f(${fmt(x0)})=${fmt(k)}/${fmt(x0)}=${fmt(ans)}.`]};
+ }
+ if(id==='exponential'){
+   const a=pick([.5,1.5,2,2.5,3]);
+   const x0=pick(a<1?[-3,-2,-1,1,2]:[1,2,3]);
+   const ans=a**x0;
+   const basis=a===.5?'1/2':a===.75?'3/4':fmt(a);
+   return{kind:id,p:{a},x0,answer:ans,q:`На рисунке изображён график f(x)=aˣ. Найдите f(${x0}).`,sol:[`По точке (1; ${fmt(a)}) читаем основание: a=${basis}.`,`Функция: f(x)=(${basis})ˣ.`,`Подставляем x=${x0}.`,`f(${x0})=${fmt(ans)}.`]};
+ }
+ if(id==='root'){
+   const a=pick([-3,-2.5,-2,-1.5,-1,-.5,.5,1,1.5,2,2.5,3]);
+   const x0=pick([1,4,9,16,25]),ans=a*Math.sqrt(x0);
+   return{kind:id,p:{a},point:[1,a],x0,answer:ans,q:`На рисунке изображён график f(x)=a√x. Найдите f(${x0}).`,sol:[`При x=1 график имеет y=${fmt(a)}. Поэтому a=${fmt(a)}.`,`Функция: f(x)=${fmt(a)}√x.`,`f(${x0})=${fmt(a)}·${fmt(Math.sqrt(x0))}=${fmt(ans)}.`]};
+ }
+ if(id==='log'){
+   const a=pick([1.5,2,2.5,3,4]),n=pick([2,3]),x0=a**n;
+   return{kind:id,p:{a},x0,answer:n,q:`На рисунке изображён график f(x)=logₐx. Найдите f(${fmt(x0)}).`,sol:[`График проходит через (${fmt(a)}; 1), значит a=${fmt(a)}.`,`Имеем f(x)=log_${fmt(a)}x.`,`${fmt(x0)}=${fmt(a)}^${n}.`,`По определению логарифма f(${fmt(x0)})=${n}.`]};
+ }
+ if(id==='quadratic'){
+   let a,h,yv,b,c,x0,ans,guard=0;
+   do{
+     a=pick([-2,-1.5,-1,-.5,.5,1,1.5,2]);
+     h=pick([-2,-1.5,-1,-.5,0,.5,1,1.5,2]);
+     yv=pick([-2,-1.5,-1,-.5,0,.5,1,1.5,2]);
+     b=-2*a*h;c=a*h*h+yv;
+     x0=h+pick([-2,-1,1,2]);ans=a*x0*x0+b*x0+c;guard++;
+   }while((Math.abs(c)>5||Math.abs(b)>6||Math.abs(c*2-Math.round(c*2))>1e-9||Math.abs(b*2-Math.round(b*2))>1e-9||Math.abs(x0)>5||Math.abs(ans)>18)&&guard<80);
+   return{kind:id,p:{a,b,c},vertex:[h,yv],x0,answer:ans,q:`На рисунке изображён график f(x)=ax²+bx+c. Коэффициенты могут быть дробными. Найдите f(${fmt(x0)}).`,sol:[`Вершина графика: (${fmt(h)}; ${fmt(yv)}). При смещении от вершины на 1 по x изменение y равно a, поэтому a=${fmt(a)}.`,`На Oy читаем c=${fmt(c)}.`,`Используем xв=−b/(2a)=${fmt(h)} и получаем b=${fmt(b)}.`,`f(${fmt(x0)})=${fmt(ans)}.`]};
+ }
+ if(id==='line-line'){
+   let x,y,k1,k2,b1,b2,guard=0;
+   do{
+     x=pick(halfRange(-3,4));y=pick(halfRange(-3,4));
+     k1=pick([-2.5,-2,-1.5,-1,-.5,.5,1,1.5,2,2.5]);
+     k2=pick([-3,-2,-1.25,-.75,.75,1.25,2,3].filter(v=>Math.abs(v-k1)>.2));
+     b1=y-k1*x;b2=y-k2*x;guard++;
+   }while((Math.abs(b1)>5.5||Math.abs(b2)>5.5)&&guard<80);
+   return{kind:id,p:{k1,b1,k2,b2},answer:x,q:'На рисунке изображены графики двух линейных функций. Найдите абсциссу точки их пересечения.',sol:[`Находим точку пересечения двух прямых.`,`Опускаем её вертикально на Ox.`,`По сетке получаем x=${fmt(x)}.`]};
+ }
+ if(id==='parabola-line'){
+   let a,r2,m,guard=0;
+   do{
+     a=pick([-1.5,-1.25,-1,-.75,-.5,.5,.75,1,1.25,1.5,2]);
+     r2=pick([1.5,2,2.5,3,3.5,4,4.5]);
+     m=a*r2;guard++;
+   }while(Math.abs(m)>5.5&&guard<60);
+   return{kind:id,p:{a,m,b:0},roots:[0,r2],answer:r2,q:'Парабола y=ax² и прямая y=mx пересекаются в начале координат и точке B. Найдите абсциссу B.',sol:[`На рисунке находим вторую точку пересечения B.`,`Её абсцисса читается по сетке.`,`x_B=${fmt(r2)}.`]};
+ }
+ if(id==='hyperbola-line'){
+   let m,r,k,guard=0;
+   do{
+     m=pick([.5,.75,1,1.25,1.5,2]);
+     r=pick([1.5,2,2.5,3,3.5,4]);
+     k=m*r*r;guard++;
+   }while(k>16&&guard<60);
+   return{kind:id,p:{k,m,b:0},answer:r,q:'На рисунке изображены y=k/x и y=mx. Найдите положительную абсциссу точки их пересечения.',sol:[`В точке пересечения k/x=mx.`,`Значит k=m·x². По параметрам графиков: ${fmt(k)}=${fmt(m)}·x².`,`Положительное решение: x=${fmt(r)}.`]};
+ }
+ if(id==='exp-line'){
+   let a,n,c,guard=0;
+   do{
+     a=pick([.5,1.5,2,2.5,3]);
+     n=pick(a<1?[-3,-2,-1,1,2]:[1,2,3]);
+     c=a**n;guard++;
+   }while((c<.35||c>6.5)&&guard<80);
+   return{kind:id,p:{a,c},answer:n,q:'На рисунке изображены показательная функция y=aˣ и горизонтальная прямая. Найдите абсциссу их точки пересечения.',sol:[`При x=1 читаем основание: a=${fmt(a)}.`,`Уровень горизонтали: y=${fmt(c)}.`,`Так как ${fmt(c)}=${fmt(a)}^${n}, получаем x=${n}.`]};
+ }
+ const h=pick([2.5,3,3.5,4,4.5,5,5.5,6]),c=h*h;
+ return{kind:'mixed',p:{h,c},answer:h,q:'На рисунке изображены две параболы. Они пересекаются в начале координат и точке B. Найдите абсциссу B.',sol:[`Находим точку B — второе пересечение парабол.`,`Опускаем B на Ox.`,`По сетке x_B=${fmt(h)}.`]};
 }
 function freshUi(){let models={},practice={};for(const p of PROTOS){models[p.id]={};for(const[k,c]of Object.entries(MODEL_CONFIG[p.id].sliders))models[p.id][k]=c.val;practice[p.id]={task:generateTask(p.id),answerText:'',checked:null,reveal:0}}return{activeProto:PROTOS[0].id,models,practice}}
 let ui=freshUi(),applyingShared=false,connected=false,role='',participantId='',participantName='',db=null,fb=null,unsubs=[],activeMembers={},memberRef=null,fastSeen='';
@@ -880,8 +976,9 @@ function dot(ctx,geo,x,y,color='#ff6b7a'){ctx.fillStyle=color;ctx.beginPath();ct
 function drawGraph(canvas,kind,p,task=false,extra={}){const{ctx,w,h}=scaleCanvas(canvas),geo=drawGrid(ctx,w,h,7);drawCurve(ctx,geo,graphFn(kind,p,1),'#51c1ff');if(['line-line','parabola-line','hyperbola-line','exp-line','mixed'].includes(kind))drawCurve(ctx,geo,graphFn(kind,p,2),'#ffd24f');if(task){if(extra.point)dot(ctx,geo,extra.point[0],extra.point[1]);if(kind==='exponential')dot(ctx,geo,1,p.a);if(kind==='log')dot(ctx,geo,p.a,1);if(kind==='quadratic'&&extra.vertex)dot(ctx,geo,extra.vertex[0],extra.vertex[1]);if(kind==='root'&&extra.point)dot(ctx,geo,...extra.point);if(kind==='reciprocal'&&extra.point)dot(ctx,geo,...extra.point)}return geo}
 function renderModel(id){const p=ui.models[id],c=$('model-'+id);if(!p||!c)return;drawGraph(c,id,p);for(const[k,v]of Object.entries(p)){const inp=$(`sl-${id}-${k}`),val=$(`val-${id}-${k}`);if(inp&&document.activeElement!==inp)inp.value=v;if(val)val.textContent=fmt(v)}$('readout-'+id).textContent=modelText(id,p)}
 function modelText(id,p){if(id==='linear')return`y = ${fmt(p.k)}x ${p.b>=0?'+':'−'} ${fmt(Math.abs(p.b))}`;if(id==='reciprocal')return`y = ${fmt(p.k)} / x`;if(id==='exponential')return`y = ${fmt(p.a)}ˣ`;if(id==='root')return`y = ${fmt(p.a)}√x`;if(id==='log')return`y = log₍${fmt(p.a)}₎x`;if(id==='quadratic')return`y = ${fmt(p.a)}x² ${p.b>=0?'+':'−'} ${fmt(Math.abs(p.b))}x ${p.c>=0?'+':'−'} ${fmt(Math.abs(p.c))}`;if(id==='line-line')return`y₁=${fmt(p.k1)}x${p.b1>=0?'+':'−'}${fmt(Math.abs(p.b1))} · y₂=${fmt(p.k2)}x${p.b2>=0?'+':'−'}${fmt(Math.abs(p.b2))}`;if(id==='parabola-line')return`y₁=${fmt(p.a)}x² · y₂=${fmt(p.m)}x${p.b>=0?'+':'−'}${fmt(Math.abs(p.b))}`;if(id==='hyperbola-line')return`y₁=${fmt(p.k)}/x · y₂=${fmt(p.m)}x${p.b>=0?'+':'−'}${fmt(Math.abs(p.b))}`;if(id==='exp-line')return`y₁=${fmt(p.a)}ˣ · y₂=${fmt(p.c)}`;return`y₁=x² · y₂=−(x−${fmt(p.h)})²+${fmt(p.c)}`}
-function renderPractice(id){const st=ui.practice[id];if(!st)return;const t=st.task;$('question-'+id).textContent=t.q;const inp=$('answer-'+id);if(inp&&document.activeElement!==inp)inp.value=st.answerText||'';drawGraph($('practice-canvas-'+id),t.kind,t.p,true,t);const f=$('feedback-'+id);f.className='feedback'+(st.checked===true?' good':st.checked===false?' bad':'');f.textContent=st.checked===true?'✓ Верно. Разбор можно раскрыть по шагам.':st.checked===false?`Пока неверно. Снова считай коэффициенты по клеткам. Правильный ответ не показываю до разбора.`:'Сначала реши самостоятельно.';const sol=$('solution-'+id);sol.innerHTML='';for(let i=0;i<Math.min(st.reveal||0,t.sol.length);i++){const d=document.createElement('div');d.className='solution-line';d.innerHTML=`<b>Шаг ${i+1}.</b> ${t.sol[i]}`;sol.appendChild(d)}}
-function newTask(id){localPatch(`practice/${id}`,{task:generateTask(id),answerText:'',checked:null,reveal:0})}
+function renderPractice(id){const st=ui.practice[id];if(!st)return;const t=st.task;$('question-'+id).textContent=t.q;const inp=$('answer-'+id);if(inp&&document.activeElement!==inp)inp.value=st.answerText||'';drawGraph($('practice-canvas-'+id),t.kind,t.p,true,t);const f=$('feedback-'+id);f.className='feedback'+(st.checked===true?' good':st.checked===false?' bad':'');f.textContent=st.checked===true?'✓ Верно. Разбор можно раскрыть по шагам.':st.checked===false?`Пока неверно. Проверь чтение графика, точки и коэффициенты по клеткам. Правильный ответ не показываю до разбора.`:'Сначала реши самостоятельно.';const sol=$('solution-'+id);sol.innerHTML='';for(let i=0;i<Math.min(st.reveal||0,t.sol.length);i++){const d=document.createElement('div');d.className='solution-line';d.innerHTML=`<b>Шаг ${i+1}.</b> ${t.sol[i]}`;sol.appendChild(d)}}
+function taskSignature(t){return JSON.stringify({kind:t.kind,p:t.p,x0:t.x0,answer:t.answer})}
+function newTask(id){const prev=ui.practice[id]?.task,prevSig=prev?taskSignature(prev):'';let task=generateTask(id);for(let i=0;i<14&&taskSignature(task)===prevSig;i++)task=generateTask(id);localPatch(`practice/${id}`,{task,answerText:'',checked:null,reveal:0})}
 function checkTask(id){const st=ui.practice[id],v=parseAns(st.answerText),ok=Number.isFinite(v)&&Math.abs(v-st.task.answer)<1e-7;localPatch(`practice/${id}/checked`,ok);window.__battleFx&&window.__battleFx(ok?'good':'bad')}
 function revealNext(id){const st=ui.practice[id],n=Math.min(st.task.sol.length,(st.reveal||0)+1);localPatch(`practice/${id}/reveal`,n)}
 function setupPractice(){for(const p of PROTOS){$(`answer-${p.id}`).addEventListener('input',e=>{setDeep(ui,`practice/${p.id}/answerText`,e.target.value);clearTimeout(e.target._t);e.target._t=setTimeout(()=>localPatch(`practice/${p.id}/answerText`,e.target.value),55)})}document.querySelectorAll('[data-new-task]').forEach(b=>b.onclick=()=>newTask(b.dataset.newTask));document.querySelectorAll('[data-check]').forEach(b=>b.onclick=()=>checkTask(b.dataset.check));document.querySelectorAll('[data-reveal-next]').forEach(b=>b.onclick=()=>revealNext(b.dataset.revealNext))}
@@ -967,7 +1064,25 @@ $('lessonFab').onclick=()=>{roleHome();openModal()};$('lessonPeople').onclick=pa
 (function(){
  const layer=document.getElementById('battleFx'),screen=document.getElementById('screenFx'),txt=document.getElementById('screenFxText');const SABER_GHOST_SRC=document.getElementById('saberBtn')?.querySelector('img')?.src||'';const BLASTER_GHOST_SRC=document.getElementById('blasterBtn')?.querySelector('img')?.src||'';function ghost(kind){const src=kind==='saber'?SABER_GHOST_SRC:BLASTER_GHOST_SRC;if(!src||!layer)return;const img=document.createElement('img');img.src=src;img.className='weapon-ghost '+kind;layer.appendChild(img);setTimeout(()=>img.remove(),700)}
 
- function pulse(type){if(!screen||!txt)return;txt.textContent=type==='good'?'✓ Верно':'✕ Неверно';screen.className='screen-fx '+type+' show';setTimeout(()=>screen.className='screen-fx',760)}
+ function pulse(type){
+   if(!screen||!txt)return;
+   screen.querySelectorAll('.fx-particle').forEach(n=>n.remove());
+   txt.textContent=type==='good'?'✓ Верно!':'✕ Неверно';
+   screen.className='screen-fx '+type;
+   void screen.offsetWidth;
+   screen.className='screen-fx '+type+' show';
+   const count=type==='good'?18:10;
+   for(let i=0;i<count;i++){
+     const p=document.createElement('i'),ang=(Math.PI*2*i/count)+(Math.random()-.5)*.28,dist=(type==='good'?150:105)+Math.random()*(type==='good'?190:105);
+     p.className='fx-particle '+type;
+     p.style.setProperty('--dx',Math.cos(ang)*dist+'px');
+     p.style.setProperty('--dy',Math.sin(ang)*dist+'px');
+     p.style.setProperty('--r',(Math.random()*180-90)+'deg');
+     p.style.animationDelay=(Math.random()*.08)+'s';
+     screen.appendChild(p);
+   }
+   setTimeout(()=>{screen.className='screen-fx';screen.querySelectorAll('.fx-particle').forEach(n=>n.remove())},1080);
+ }
  window.__battleFx=pulse;
  const cvs=document.getElementById('hyperspaceCanvas'),cx=cvs&&cvs.getContext('2d');
  let W=0,H=0,CX=0,CY=0,stars=[];
