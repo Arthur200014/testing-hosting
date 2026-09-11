@@ -815,6 +815,76 @@
     .subscription-money-kpi{display:flex;flex-direction:column;justify-content:center;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:rgba(4,14,25,.58)}.subscription-money-kpi small{color:var(--muted);font-weight:800}.subscription-money-kpi strong{margin-top:5px;font-size:24px;color:#fff}.subscription-money-kpi span{margin-top:4px;color:var(--muted);font-size:11px}.subscription-parent{display:block;margin-top:3px;color:#ffd88b!important;font-weight:800}
     .subscription-settings{display:grid;grid-template-columns:minmax(112px,.9fr) minmax(145px,1.1fr);gap:8px;align-items:end}.subscription-price{display:grid;gap:5px;color:var(--muted);font-size:11px;font-weight:850}.subscription-price-wrap{position:relative}.subscription-price-wrap input{min-height:42px;padding-right:34px}.subscription-price-wrap span{position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--accent);font-weight:950;pointer-events:none}.subscription-price small{color:var(--muted);font-weight:650}.subscription-price.missing input{border-color:rgba(255,125,137,.55);box-shadow:0 0 0 3px rgba(255,125,137,.06)}
     @media(max-width:860px){.subscription-money-bar{grid-template-columns:1fr}.subscription-settings{grid-template-columns:1fr 1fr}}
+
+    /* Абонементы: поля не должны вылезать в соседнюю колонку. */
+    .subscription-row {
+      grid-template-columns: minmax(185px, 1.05fr) minmax(390px, 1.55fr) minmax(165px, .8fr) auto;
+    }
+    .subscription-settings {
+      min-width: 0;
+      grid-template-columns: minmax(108px, .72fr) minmax(145px, 1fr) minmax(105px, .72fr);
+      gap: 8px;
+      align-items: end;
+    }
+    .subscription-settings > * { min-width: 0; }
+    .subscription-price-wrap, .subscription-price-wrap input { min-width: 0; }
+    .subscription-count {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 850;
+    }
+    .subscription-count input {
+      min-width: 0;
+      min-height: 42px;
+      padding: 9px 10px;
+      text-align: center;
+      font-weight: 900;
+    }
+    .subscription-count small { color: var(--muted); font-weight: 650; }
+    .subscription-count input:disabled { cursor: wait; opacity: .62; }
+
+    @media(max-width:1020px) {
+      .subscription-row { grid-template-columns: minmax(180px, 1fr) minmax(360px, 1.45fr); }
+      .subscription-progress { grid-column: 1 / 2; }
+      .subscription-reset { grid-column: 2 / 3; justify-self: stretch; max-width: none; width: 100%; }
+    }
+    @media(max-width:720px) {
+      .subscription-row { grid-template-columns: 1fr; }
+      .subscription-settings { grid-template-columns: 1fr; }
+      .subscription-progress, .subscription-reset { grid-column: auto; }
+    }
+
+    /* Несохранённые изменения абонемента сохраняются только по кнопке. */
+    .subscription-row.dirty {
+      border-color: rgba(255,181,46,.58);
+      box-shadow: inset 4px 0 0 rgba(255,181,46,.72);
+    }
+    .subscription-student-actions { margin-top: 9px; }
+    .subscription-update {
+      min-height: 34px;
+      padding: 7px 12px;
+      border: 1px solid rgba(91,227,154,.44);
+      border-radius: 10px;
+      color: #c9ffe0;
+      font-size: 11px;
+      font-weight: 950;
+      background: rgba(91,227,154,.11);
+      box-shadow: 0 7px 18px rgba(0,0,0,.13);
+    }
+    .subscription-update:hover {
+      border-color: rgba(91,227,154,.72);
+      background: rgba(91,227,154,.17);
+    }
+    .subscription-update:disabled { cursor: wait; opacity: .58; }
+    .subscription-row.dirty .subscription-student > strong::after {
+      content: " · изменено";
+      color: var(--accent);
+      font-size: 10px;
+      font-weight: 850;
+    }
 </style>
 </head>
 <body>
@@ -1224,7 +1294,8 @@
       dataLoadingPromise: null,
       versionCheckPromise: null,
       groupMode: 'existing',
-      subscriptionBusy: new Set()
+      subscriptionBusy: new Set(),
+      subscriptionDrafts: new Map()
     };
 
     const $ = id => document.getElementById(id);
@@ -1788,14 +1859,27 @@
         ? students.map(student => {
             const data = subscriptionData(student.studentId);
             const busy = state.subscriptionBusy.has(student.studentId);
-            const progress = Math.max(0, Math.min(100, Math.round(data.lessonCount * 100 / data.packageSize)));
-            const statusText = data.due
-              ? (data.overdueLessons > 0
-                ? `Пора платить · сверх пакета ${data.overdueLessons}`
+            const draft = state.subscriptionDrafts.get(student.studentId);
+            const packageSize = draft ? (Number(draft.packageSize) === 8 ? 8 : 4) : data.packageSize;
+            const lessonPrice = draft ? Math.max(0, Math.round(Number(draft.lessonPrice) || 0)) : data.lessonPrice;
+            const lessonCount = draft ? Math.max(0, Math.round(Number(draft.lessonCount) || 0)) : data.lessonCount;
+            const dirty = Boolean(draft) && (
+              packageSize !== data.packageSize
+              || lessonPrice !== data.lessonPrice
+              || lessonCount !== data.lessonCount
+            );
+            if (draft && !dirty) state.subscriptionDrafts.delete(student.studentId);
+            const remaining = Math.max(0, packageSize - lessonCount);
+            const overdueLessons = Math.max(0, lessonCount - packageSize);
+            const due = lessonCount >= packageSize;
+            const progress = Math.max(0, Math.min(100, Math.round(lessonCount * 100 / packageSize)));
+            const statusText = due
+              ? (overdueLessons > 0
+                ? `Пора платить · сверх пакета ${overdueLessons}`
                 : 'Пора платить абонемент')
-              : (data.lessonCount === 0
-                ? `Новый цикл · впереди ${data.packageSize}`
-                : `Осталось ${data.remaining}`);
+              : (lessonCount === 0
+                ? `Новый цикл · впереди ${packageSize}`
+                : `Осталось ${remaining}`);
             const resetText = data.lastResetAt
               ? 'Последний сброс: ' + statsDate(data.lastResetAt, true)
               : 'Последнего сброса ещё не было';
@@ -1803,30 +1887,37 @@
               ? 'Последнее занятие: ' + statsDate(data.lastLessonAt, true)
               : 'Проведённых занятий после сброса нет';
 
-            return `<div class="subscription-row ${data.due ? 'due' : ''} ${busy ? 'saving' : ''}" data-subscription-row="${escapeHtml(student.studentId)}">
+            return `<div class="subscription-row ${due ? 'due' : ''} ${dirty ? 'dirty' : ''} ${busy ? 'saving' : ''}" data-subscription-row="${escapeHtml(student.studentId)}">
               <div class="subscription-student">
                 <strong>${escapeHtml(student.studentName)}</strong>
                 ${student.parentName ? `<small class="subscription-parent">Родитель: ${escapeHtml(student.parentName)}</small>` : ''}
                 <small>${escapeHtml(resetText)}<br>${escapeHtml(lastLessonText)}</small>
+                <div class="subscription-student-actions">
+                  <button class="subscription-update" data-subscription-update="${escapeHtml(student.studentId)}" type="button" ${dirty ? '' : 'hidden'} ${busy ? 'disabled' : ''}>${busy ? 'Сохраняем…' : 'Обновить'}</button>
+                </div>
               </div>
               <div class="subscription-settings">
                 <label class="subscription-plan">Абонемент
                   <select data-subscription-plan="${escapeHtml(student.studentId)}" aria-label="Размер абонемента для ${escapeHtml(student.studentName)}" ${busy ? 'disabled' : ''}>
-                    <option value="4" ${data.packageSize === 4 ? 'selected' : ''}>4 занятия</option>
-                    <option value="8" ${data.packageSize === 8 ? 'selected' : ''}>8 занятий</option>
+                    <option value="4" ${packageSize === 4 ? 'selected' : ''}>4 занятия</option>
+                    <option value="8" ${packageSize === 8 ? 'selected' : ''}>8 занятий</option>
                   </select>
                 </label>
-                <label class="subscription-price ${data.lessonPrice ? '' : 'missing'}">Цена за занятие
+                <label class="subscription-price ${lessonPrice ? '' : 'missing'}">Цена за занятие
                   <div class="subscription-price-wrap">
-                    <input data-subscription-price="${escapeHtml(student.studentId)}" type="number" min="0" step="50" inputmode="decimal" value="${data.lessonPrice || ''}" placeholder="2500" aria-label="Цена занятия для ${escapeHtml(student.studentName)}" ${busy ? 'disabled' : ''}>
+                    <input data-subscription-price="${escapeHtml(student.studentId)}" type="number" min="0" step="50" inputmode="decimal" value="${lessonPrice || ''}" placeholder="2500" aria-label="Цена занятия для ${escapeHtml(student.studentName)}" ${busy ? 'disabled' : ''}>
                     <span>₽</span>
                   </div>
-                  <small>${data.lessonPrice ? `абонемент: ${(data.lessonPrice * data.packageSize).toLocaleString('ru-RU')} ₽` : 'цена не задана'}</small>
+                  <small>${lessonPrice ? `абонемент: ${(lessonPrice * packageSize).toLocaleString('ru-RU')} ₽` : 'цена не задана'}</small>
+                </label>
+                <label class="subscription-count">Проведено
+                  <input data-subscription-count="${escapeHtml(student.studentId)}" type="number" min="0" max="99" step="1" inputmode="numeric" value="${lessonCount}" aria-label="Проведено занятий в текущем абонементе для ${escapeHtml(student.studentName)}" ${busy ? 'disabled' : ''}>
+                  <small>в текущем цикле</small>
                 </label>
               </div>
               <div class="subscription-progress">
                 <div class="subscription-progress-head">
-                  <strong>${data.lessonCount} / ${data.packageSize}</strong>
+                  <strong>${lessonCount} / ${packageSize}</strong>
                   <span>${escapeHtml(statusText)}</span>
                 </div>
                 <div class="subscription-bar"><i style="width:${progress}%"></i></div>
@@ -1837,7 +1928,7 @@
         : '<div class="inline-empty">Ученики не найдены.</div>';
     }
 
-    async function saveSubscriptionChange(studentId, packageSize, lessonPrice, resetCounter) {
+    async function saveSubscriptionChange(studentId, packageSize, lessonPrice, lessonCount, setCount, resetCounter) {
       const student = state.students.find(item => item.studentId === studentId);
       if (!student || state.subscriptionBusy.has(studentId)) return;
 
@@ -1856,17 +1947,22 @@
           studentId,
           packageSize: Number(packageSize) === 8 ? 8 : 4,
           lessonPrice: Math.max(0, Math.round(Number(lessonPrice) || 0)),
+          lessonCount: Math.max(0, Math.round(Number(lessonCount) || 0)),
+          setCount: Boolean(setCount),
           reset: Boolean(resetCounter)
         });
         if (!data || !data.ok) {
           throw new Error((data && data.error) || 'Не удалось сохранить абонемент.');
         }
+        state.subscriptionDrafts.delete(studentId);
         await loadTeacherData(true, true);
         setStatus(
           'subscriptionStatus',
           resetCounter
             ? `Счётчик ${student.studentName} обнулён. Новый цикл начат.`
-            : `Настройки ${student.studentName} сохранены: ${Number(packageSize) === 8 ? 8 : 4} занятий · ${Math.max(0, Math.round(Number(lessonPrice) || 0)).toLocaleString('ru-RU')} ₽/занятие.`
+            : (setCount
+              ? `Для ${student.studentName} установлено: ${Math.max(0, Math.round(Number(lessonCount) || 0))} проведённых занятий в текущем цикле.`
+              : `Настройки ${student.studentName} сохранены: ${Number(packageSize) === 8 ? 8 : 4} занятий · ${Math.max(0, Math.round(Number(lessonPrice) || 0)).toLocaleString('ru-RU')} ₽/занятие.`)
         );
       } catch (error) {
         setStatus('subscriptionStatus', error.message || 'Не удалось сохранить абонемент.', true);
@@ -2371,32 +2467,114 @@
       setTimeout(() => loadTeacherData(true, true).catch(() => {}), 80);
     }
 
+    function subscriptionRowValues(row) {
+      if (!row) return null;
+      const plan = row.querySelector('[data-subscription-plan]');
+      const price = row.querySelector('[data-subscription-price]');
+      const count = row.querySelector('[data-subscription-count]');
+      return {
+        packageSize: Number(plan && plan.value) === 8 ? 8 : 4,
+        lessonPrice: Math.max(0, Math.round(Number(price && price.value) || 0)),
+        lessonCount: Math.max(0, Math.round(Number(count && count.value) || 0))
+      };
+    }
+
+    function subscriptionDraftDirty(studentId, values) {
+      const saved = subscriptionData(studentId);
+      return Boolean(values) && (
+        values.packageSize !== saved.packageSize
+        || values.lessonPrice !== saved.lessonPrice
+        || values.lessonCount !== saved.lessonCount
+      );
+    }
+
+    function updateSubscriptionRowPreview(row, studentId, values) {
+      if (!row || !values) return;
+      const dirty = subscriptionDraftDirty(studentId, values);
+      if (dirty) state.subscriptionDrafts.set(studentId, values);
+      else state.subscriptionDrafts.delete(studentId);
+
+      row.classList.toggle('dirty', dirty);
+      const updateButton = row.querySelector('[data-subscription-update]');
+      if (updateButton) {
+        updateButton.hidden = !dirty;
+        updateButton.disabled = state.subscriptionBusy.has(studentId);
+        updateButton.textContent = state.subscriptionBusy.has(studentId) ? 'Сохраняем…' : 'Обновить';
+      }
+
+      const priceLabel = row.querySelector('.subscription-price');
+      if (priceLabel) {
+        priceLabel.classList.toggle('missing', !values.lessonPrice);
+        const hint = priceLabel.querySelector('small');
+        if (hint) hint.textContent = values.lessonPrice
+          ? `абонемент: ${(values.lessonPrice * values.packageSize).toLocaleString('ru-RU')} ₽`
+          : 'цена не задана';
+      }
+
+      const due = values.lessonCount >= values.packageSize;
+      const overdue = Math.max(0, values.lessonCount - values.packageSize);
+      const remaining = Math.max(0, values.packageSize - values.lessonCount);
+      const progress = Math.max(0, Math.min(100, Math.round(values.lessonCount * 100 / values.packageSize)));
+      row.classList.toggle('due', due);
+      const main = row.querySelector('.subscription-progress-head strong');
+      const status = row.querySelector('.subscription-progress-head span');
+      const bar = row.querySelector('.subscription-bar i');
+      if (main) main.textContent = `${values.lessonCount} / ${values.packageSize}`;
+      if (status) status.textContent = due
+        ? (overdue ? `Пора платить · сверх пакета ${overdue}` : 'Пора платить абонемент')
+        : (values.lessonCount === 0 ? `Новый цикл · впереди ${values.packageSize}` : `Осталось ${remaining}`);
+      if (bar) bar.style.width = progress + '%';
+    }
+
+    function captureSubscriptionDraft(event) {
+      const target = event.target.closest('[data-subscription-plan], [data-subscription-price], [data-subscription-count]');
+      if (!target) return;
+      const row = target.closest('[data-subscription-row]');
+      if (!row) return;
+      const studentId = row.dataset.subscriptionRow || '';
+      if (!studentId || state.subscriptionBusy.has(studentId)) return;
+      updateSubscriptionRowPreview(row, studentId, subscriptionRowValues(row));
+      setStatus('subscriptionStatus', 'Есть несохранённые изменения. Нажмите «Обновить» у нужного ученика.');
+    }
+
     document.querySelectorAll('.tab').forEach(button => {
       button.addEventListener('click', () => switchView(button.dataset.view));
     });
     $('statsSearch').addEventListener('input', renderStatistics);
     $('statsProgram').addEventListener('change', renderStatistics);
     $('subscriptionSearch').addEventListener('input', renderSubscriptions);
-    $('subscriptionList').addEventListener('change', event => {
-      const select = event.target.closest('[data-subscription-plan]');
-      const priceInput = event.target.closest('[data-subscription-price]');
-      const studentId = select ? select.dataset.subscriptionPlan : (priceInput ? priceInput.dataset.subscriptionPrice : '');
-      if (!studentId) return;
-      const row = event.target.closest('[data-subscription-row]');
-      const plan = row && row.querySelector('[data-subscription-plan]');
-      const price = row && row.querySelector('[data-subscription-price]');
-      saveSubscriptionChange(studentId, Number(plan && plan.value), Number(price && price.value), false);
-    });
+    $('subscriptionList').addEventListener('input', captureSubscriptionDraft);
+    $('subscriptionList').addEventListener('change', captureSubscriptionDraft);
     $('subscriptionList').addEventListener('click', event => {
+      const updateButton = event.target.closest('[data-subscription-update]');
+      if (updateButton) {
+        const studentId = updateButton.dataset.subscriptionUpdate;
+        const row = updateButton.closest('[data-subscription-row]');
+        const values = subscriptionRowValues(row);
+        if (!studentId || !values || !subscriptionDraftDirty(studentId, values)) return;
+        const saved = subscriptionData(studentId);
+        const countChanged = values.lessonCount !== saved.lessonCount;
+        saveSubscriptionChange(
+          studentId,
+          values.packageSize,
+          values.lessonPrice,
+          values.lessonCount,
+          countChanged,
+          false
+        );
+        return;
+      }
+
       const button = event.target.closest('[data-subscription-reset]');
       if (!button) return;
       const studentId = button.dataset.subscriptionReset;
       const student = state.students.find(item => item.studentId === studentId);
       if (!student) return;
-      const data = subscriptionData(studentId);
-      const message = `Отметить оплату для ${student.studentName} и обнулить счётчик ${data.lessonCount}/${data.packageSize}? Дата этого сброса сохранится в таблице.`;
+      const row = button.closest('[data-subscription-row]');
+      const values = subscriptionRowValues(row) || subscriptionData(studentId);
+      const message = `Отметить оплату для ${student.studentName} и обнулить счётчик ${values.lessonCount}/${values.packageSize}? Дата этого сброса сохранится в таблице.`;
       if (!window.confirm(message)) return;
-      saveSubscriptionChange(studentId, data.packageSize, data.lessonPrice, true);
+      saveSubscriptionChange(studentId, values.packageSize, values.lessonPrice, 0, false, true);
     });
     function setStatsPeriod(period) {
       state.statsPeriod = period;
