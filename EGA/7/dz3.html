@@ -240,6 +240,69 @@
     .firefly-svg{animation:firefly 2.5s ease-in-out infinite alternate}.ogre-svg{animation:ogreBob 3s ease-in-out infinite}.donkey-svg{animation:donkeyBob 2.2s ease-in-out infinite}
     @keyframes firefly{to{opacity:.25;transform:translateY(-14px)}}@keyframes ogreBob{50%{transform:translate(85px,65px) rotate(-2deg)}}@keyframes donkeyBob{50%{transform:translate(980px,117px) rotate(3deg)}}
   
+  
+    /* Новая техническая система ДЗ */
+    .student-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+    .screenshot-btn{white-space:nowrap}
+    .inline-result{margin-top:22px;text-align:center}
+    .inline-result .result-score{margin-top:4px}
+    .solution-toggle{
+      display:none;margin-top:14px;min-height:42px;padding:8px 13px;
+      color:var(--ink);background:var(--gold);border:3px solid var(--shadow);
+      border-radius:12px;box-shadow:0 4px 0 color-mix(in srgb,var(--shadow) 85%,transparent);
+      font-weight:900;cursor:pointer
+    }
+    .task.submitted .solution-toggle{display:inline-block}
+    .task-solution{display:none;margin-top:12px;padding:14px;background:#ffffffc9;border:3px solid var(--shadow);border-radius:14px}
+    .task-solution.open{display:block}
+    .task-solution-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .task-solution-box{padding:10px;background:#ffffffb8;border:2px solid color-mix(in srgb,var(--shadow) 70%,white);border-radius:11px}
+    .task-solution-box.full{grid-column:1/-1}
+    .task-solution-box h4{margin:0 0 5px;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em}
+    .task-solution-box p,.task-solution-box ol{margin:0;font-size:.9rem}
+    .task-solution-box ol{padding-left:21px}
+    .task.correct::before{background:#39a95a!important}
+    .task.wrong::before{background:#d9574f!important}
+    .task.correct .task-num::after{content:" · ВЕРНО";color:#2f8f4a}
+    .task.wrong .task-num::after{content:" · ОШИБКА";color:#bf4039}
+    .task-text sup,.formula sup,.steps sup,.task-solution sup{
+      font-size:.65em;line-height:0;position:relative;top:-.52em;margin-left:.02em
+    }
+    .task-text sub,.formula sub,.steps sub,.task-solution sub{
+      font-size:.72em;line-height:0;position:relative;bottom:-.16em
+    }
+
+    body.screenshot-mode{background:#fff!important}
+    body.screenshot-mode .hero,
+    body.screenshot-mode .student-bar,
+    body.screenshot-mode .progress-wrap,
+    body.screenshot-mode .submit-row,
+    body.screenshot-mode .submit-note,
+    body.screenshot-mode .answer-row,
+    body.screenshot-mode .inline-result,
+    body.screenshot-mode .solution-toggle,
+    body.screenshot-mode .task-solution,
+    body.screenshot-mode .sound-button,
+    body.screenshot-mode .toast{display:none!important}
+    body.screenshot-mode .shell{width:calc(100% - 8px);max-width:none;margin:4px auto!important}
+    body.screenshot-mode .screen{display:none!important}
+    body.screenshot-mode #workScreen{display:block!important;animation:none!important}
+    body.screenshot-mode .task-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 6px}
+    body.screenshot-mode .task{
+      padding:5px 7px;border-width:2px;border-radius:9px;box-shadow:none;min-height:0
+    }
+    body.screenshot-mode .task::before{width:4px;left:-2px;top:-2px;bottom:-2px;border-width:1px}
+    body.screenshot-mode .task-head{margin-bottom:2px;gap:5px}
+    body.screenshot-mode .task-num{padding:1px 4px;font-size:.59rem;border-width:1px}
+    body.screenshot-mode .task-num::after{content:""!important}
+    body.screenshot-mode .prototype-tag{font-size:.56rem;line-height:1.05}
+    body.screenshot-mode .task-text{font-size:.66rem;line-height:1.08}
+    body.screenshot-mode .task-text b{font-weight:800}
+    @media(max-width:700px){
+      .student-actions{width:100%}.student-actions .block-button{flex:1}
+      .task-solution-grid{grid-template-columns:1fr}.task-solution-box.full{grid-column:auto}
+    }
+
   </style>
 </head>
 <body>
@@ -277,13 +340,16 @@
     <div class="hero-inner">
       <div class="badge pixel">ЕГЭ · ЗАДАНИЕ №7 · ДОМАШНЯЯ РАБОТА 3</div>
       <h1 class="pixel">Болото выражений</h1>
-      <p class="hero-copy">Новые корректные числа при каждом открытии. Пройди тропу, отправь ответы и затем открой подробный разбор.</p>
+      <p class="hero-copy">Задания этой домашней работы зафиксированы. Ответы сохраняются автоматически, а разбор каждого номера открывается после отправки.</p>
     </div>
   </header>
 
   <div class="student-bar" id="studentBar" hidden>
     <div class="student-name" id="studentName">Ученик<small>Домашняя работа 3 из 3</small></div>
-    <button class="block-button secondary" id="changeStudent" type="button">Сменить ученика</button>
+    <div class="student-actions">
+      <button class="block-button secondary screenshot-btn" id="screenshotButton" type="button">▣ Режим скриншота</button>
+      <button class="block-button secondary" id="changeStudent" type="button">Сменить ученика</button>
+    </div>
   </div>
 
   <main class="shell">
@@ -300,20 +366,10 @@
         </form>
       </div>
     </section>
-
-    <section class="screen" id="checkingScreen">
-      <div class="panel login-panel" style="text-align:center">
-        <h2 class="pixel">Проверяем доступ</h2>
-        <div class="spinner" aria-hidden="true"></div>
-        <p id="checkingText">Проверяем, не отправлялась ли эта работа в текущем месяце…</p>
-        <button class="block-button secondary" id="retryCheck" type="button" hidden>Повторить проверку</button>
-      </div>
-    </section>
-
-    <section class="screen" id="welcomeScreen">
+<section class="screen" id="welcomeScreen">
       <div class="panel">
         <h2 class="pixel">🗺 Карта работы 3</h2>
-        <p class="lead">Задания идут в порядке изучения прототипов. Проверка появится только после отправки.</p>
+        <p class="lead">Задания идут в порядке изучения прототипов. Ответы сохраняются автоматически, разбор появится после отправки.</p>
         <div class="welcome-grid">
           <div class="map-card">
             <strong class="pixel">Сегодняшние прототипы</strong>
@@ -341,31 +397,9 @@
         <div class="submit-row"><button class="block-button pixel" id="submitButton" type="submit" disabled>Отправить ответы</button></div>
         <p class="submit-note" id="submitStatus" aria-live="polite">Заполни все пятнадцать полей — кнопка отправки станет активной.</p>
       </form>
+      <section class="panel inline-result" id="inlineResult" hidden aria-live="polite"></section>
     </section>
-
-    <section class="screen" id="resultScreen">
-      <div class="panel">
-        <h2 class="pixel" style="text-align:center">🏆 Работа отправлена</h2>
-        <div class="result-score pixel" id="scoreValue">0%</div>
-        <div class="result-stats">
-          <div class="stat"><b id="correctValue">0 / 15</b>правильных</div>
-          <div class="stat"><b id="timeValue">0:00</b>время</div>
-          <div class="stat"><b>✓</b>сохранено</div>
-        </div>
-        <div class="result-actions"><button class="block-button pixel" id="solutionsButton" type="button">Разобрать решения</button></div>
-        <div class="solutions" id="solutions"></div>
-      </div>
-    </section>
-
-    <section class="screen" id="lockedScreen">
-      <div class="panel locked">
-        <div class="lock-icon">🔒</div>
-        <h2 class="pixel">Работа уже отправлена</h2>
-        <p>В текущем календарном месяце эту домашнюю работу можно было отправить только один раз.</p>
-        <p class="lead">Новая попытка откроется автоматически в следующем месяце.</p><button class="block-button secondary" id="reviewLocked" type="button">Просмотреть задания</button>
-      </div>
-    </section>
-  </main>
+</main>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -687,25 +721,8 @@
           step("sin²"+angle+"°−cos²"+angle+"° = −cos"+(2*angle)+"°.","Сокращаем cos"+(2*angle)+"°.","Остаётся −"+c+"/2 = "+showNum(ans)+"."));
       }
     };
-
-    function buildQuestions(){
-      const result=PART_CONFIG.generators.map(name=>{
-        if(!GENERATORS[name]) throw new Error("Неизвестный генератор "+name);
-        return GENERATORS[name]();
-      });
-      if(result.length!==PART_CONFIG.generators.length||new Set(result.map(q=>q.id)).size!==result.length) throw new Error("Некорректный набор заданий");
-      return result;
-    }
-
-    const state={
-      student:null,
-      questions:buildQuestions(),
-      startedAt:0,
-      durationSeconds:0,
-      correct:0,
-      scorePercent:0,
-      submitted:false
-    };
+    const FIXED_QUESTIONS=[{"id":"t07","prototype":"Косинус двойного угла","text":"Найдите <b>4cos 2α<\/b>, если sin α = -0,3.","answer":3.28,"recall":"Косинус двойного угла можно выразить только через синус: cos2α=1−2sin²α.","formula":"cos 2α = 1 − 2sin²α","tip":"Знак sin α исчезает после возведения в квадрат.","steps":["sin²α = 0,09.","cos2α = 1 − 2·0,09 = 0,82.","4cos2α = 3,28."]},{"id":"e01","prototype":"Табличные значения углов","text":"Найдите значение: <b>12sin60°·cos150°<\/b>.","answer":-9,"recall":"Используем табличные значения, формулы приведения, двойного угла и основное тригонометрическое тождество.","formula":"sin60°=√3/2, cos150°=−√3/2","tip":"Сразу перемножьте два табличных значения.","steps":["Подставляем: 12·√3/2·(−√3/2).","Произведение корней равно 3, знаменатель — 4.","Получаем −12·3/4 = -9."]},{"id":"e02","prototype":"Косинус отрицательного угла","text":"Найдите значение: <b>28√2·cos(−135°)<\/b>.","answer":-28,"recall":"Используем табличные значения, формулы приведения, двойного угла и основное тригонометрическое тождество.","formula":"cos(−x)=cosx, cos135°=−√2/2","tip":"Косинус — чётная функция.","steps":["cos(−135°)=cos135°=−√2/2.","28√2·(−√2/2) = −28·2/2.","Ответ: -28."]},{"id":"e03","prototype":"Произведение табличных косинусов","text":"Найдите значение: <b>20√2·cos(5π/4)·cos(2π/3)<\/b>.","answer":10,"recall":"Используем табличные значения, формулы приведения, двойного угла и основное тригонометрическое тождество.","formula":"cos(5π/4)=−√2/2, cos(2π/3)=−1/2","tip":"Два минуса дают плюс.","steps":["Подставляем табличные значения.","20√2·(−√2/2)·(−1/2) = 20·2/4.","Ответ: 10."]},{"id":"e04","prototype":"Тангенс и синус табличных углов","text":"Найдите значение: <b>16√2·tg(3π/4)·sin(5π/4)<\/b>.","answer":16,"recall":"Используем табличные значения, формулы приведения, двойного угла и основное тригонометрическое тождество.","formula":"tg(3π/4)=−1, sin(5π/4)=−√2/2","tip":"Следите за двумя отрицательными множителями.","steps":["Подставляем: 16√2·(−1)·(−√2/2).","Знаки дают плюс, √2·√2=2.","Получаем 16·2/2 = 16."]},{"id":"e05","prototype":"Дополнительные углы","text":"Найдите значение: <b><span style='display:inline-block;text-align:center;vertical-align:middle'><span style='display:block;border-bottom:1px solid'>29cos41°<\/span><span style='display:block'>sin49°<\/span><\/span> + 3<\/b>.","answer":32,"recall":"Используем табличные значения, формулы приведения, двойного угла и основное тригонометрическое тождество.","formula":"sin(90°−α)=cosα","tip":"Дополнительные функции в дроби полностью сокращаются.","steps":["sin49° = cos41°.","Дробь равна 29.","29 + 3 = 32."]},{"id":"e06","prototype":"Периодичность синуса","text":"Найдите значение: <b><span style='display:inline-block;text-align:center;vertical-align:middle'><span style='display:block;border-bottom:1px solid'>−13sin430°<\/span><span style='display:block'>sin70°<\/span><\/span><\/b>.","answer":-13,"recall":"Используем табличные значения, формулы приведения, двойного угла и основное тригонометрическое тождество.","formula":"sin(α+360°)=sinα","tip":"Сначала уберите полный оборот.","steps":["sin430° = sin70°.","Одинаковые синусы сокращаются.","Остаётся −13."]},{"id":"e07","prototype":"Тангенсы дополнительных углов","text":"Найдите значение: <b>−47tg40°·tg50° + 7<\/b>.","answer":-40,"recall":"Используем табличные значения, формулы приведения, двойного угла и основное тригонометрическое тождество.","formula":"tg(90°−α)=ctgα, tgα·ctgα=1","tip":"Произведение тангенсов дополнительных углов равно 1.","steps":["tg50° = ctg40°.","tg40°·ctg40° = 1.","−47·1 + 7 = -40."]},{"id":"e08","prototype":"Сумма квадратов дополнительных функций","text":"Найдите значение: <b><span style='display:inline-block;text-align:center;vertical-align:middle'><span style='display:block;border-bottom:1px solid'>12<\/span><span style='display:block'>cos²62° + 2 + cos²152°<\/span><\/span><\/b>.","answer":4,"recall":"Используем табличные значения, формулы приведения, двойного угла и основное тригонометрическое тождество.","formula":"cos(α+90°)=−sinα, поэтому cos²α+cos²(α+90°)=1.","tip":"Знак минус пропадёт после возведения в квадрат.","steps":["cos²152° = sin²62°.","Сумма квадратов равна 1, знаменатель: 1+2=3.","12:3 = 4."]},{"id":"e10","prototype":"Формула синуса двойного угла","text":"Найдите значение: <b>20√2·sin(π/8)·cos(π/8)<\/b>.","answer":10,"recall":"Используем табличные значения, формулы приведения, двойного угла и основное тригонометрическое тождество.","formula":"2sinx cosx = sin2x","tip":"Выделите множитель 2 перед произведением.","steps":["2sin(π/8)cos(π/8)=sin(π/4)=√2/2.","sin(π/8)cos(π/8)=√2/4.","20√2·√2/4 = 20/2 = 10."]},{"id":"e11","prototype":"Синус двойного угла в дроби","text":"Найдите значение: <b><span style='display:inline-block;text-align:center;vertical-align:middle'><span style='display:block;border-bottom:1px solid'>12sin49°·cos49°<\/span><span style='display:block'>sin98°<\/span><\/span><\/b>.","answer":6,"recall":"Используем табличные значения, формулы приведения, двойного угла и основное тригонометрическое тождество.","formula":"sin2α=2sinαcosα","tip":"Замените знаменатель удвоенным произведением.","steps":["sin98° = 2sin49°cos49°.","Сокращаем одинаковое произведение.","Остаётся 12/2 = 6."]},{"id":"e12","prototype":"Синус двойного угла и дополнительные углы","text":"Найдите значение: <b><span style='display:inline-block;text-align:center;vertical-align:middle'><span style='display:block;border-bottom:1px solid'>4sin74°<\/span><span style='display:block'>cos37°·cos53°<\/span><\/span><\/b>.","answer":8,"recall":"Используем табличные значения, формулы приведения, двойного угла и основное тригонометрическое тождество.","formula":"sin2α=2sinαcosα, cos(90°−α)=sinα","tip":"Преобразуйте и числитель, и второй косинус.","steps":["cos53° = sin37°.","sin74° = 2sin37°cos37°.","После сокращения получаем 2·4 = 8."]},{"id":"e13","prototype":"Разность квадратов синуса и косинуса","text":"Найдите значение: <b>7√2·cos²(5π/8) − 7√2·sin²(5π/8)<\/b>.","answer":-7,"recall":"Используем табличные значения, формулы приведения, двойного угла и основное тригонометрическое тождество.","formula":"cos²x−sin²x=cos2x","tip":"Вынесите общий множитель и примените косинус двойного угла.","steps":["Выносим 7√2: 7√2(cos²x−sin²x).","В скобках cos(5π/4)=−√2/2.","7√2·(−√2/2) = −7."]},{"id":"e14","prototype":"Квадрат косинуса сложного угла","text":"Найдите значение: <b>√768·cos²(17π/12) − √192<\/b>.","answer":-12,"recall":"Используем табличные значения, формулы приведения, двойного угла и основное тригонометрическое тождество.","formula":"cos²x=(1+cos2x)/2; cos(17π/6)=−√3/2","tip":"Сначала упростите корни: √(48m²)=4m√3.","steps":["cos²(17π/12)=(1−√3/2)/2=(2−√3)/4.","Первое слагаемое: 4·4√3·(2−√3)/4 = 4(2√3−3).","Вычитаем 2·4√3 и получаем −3·4 = -12."]},{"id":"e16","prototype":"Разность квадратов и двойной угол","text":"Найдите значение: <b><span style='display:inline-block;text-align:center;vertical-align:middle'><span style='display:block;border-bottom:1px solid'>9(sin²47° − cos²47°)<\/span><span style='display:block'>2cos94°<\/span><\/span><\/b>.","answer":-4.5,"recall":"Используем табличные значения, формулы приведения, двойного угла и основное тригонометрическое тождество.","formula":"sin²α−cos²α=−cos2α","tip":"Числитель и знаменатель содержат один и тот же cos2α.","steps":["sin²47°−cos²47° = −cos94°.","Сокращаем cos94°.","Остаётся −9/2 = -4,5."]}];
+    const state={student:null,questions:FIXED_QUESTIONS,startedAt:0,durationSeconds:0,correct:0,scorePercent:0,submitted:false};
 
 
 
@@ -734,105 +751,33 @@
 
 
 
+
     function showScreen(id){
       $$(".screen").forEach(screen=>screen.classList.toggle("on",screen.id===id));
-      window.scrollTo({top:Math.max(0,$(".hero").offsetHeight-10),behavior:"smooth"});
-    }
-    function toast(message,error=false){
-      const box=$("#toast");box.textContent=message;box.classList.toggle("error",error);box.classList.add("on");
-      clearTimeout(toast.timer);toast.timer=setTimeout(()=>box.classList.remove("on"),3500);
-    }
-    function jsonp(params,timeout=12000){
-      return new Promise((resolve,reject)=>{
-        const callback="egeCb_"+Date.now()+"_"+Math.random().toString(36).slice(2);
-        const script=document.createElement("script");
-        const timer=setTimeout(()=>finish(new Error("Сервер не ответил")),timeout);
-        const finish=(error,data)=>{
-          clearTimeout(timer);delete window[callback];script.remove();error?reject(error):resolve(data);
-        };
-        window[callback]=data=>finish(null,data);
-        script.onerror=()=>finish(new Error("Не удалось подключиться к серверу"));
-        script.src=API_URL+"?"+new URLSearchParams({...params,callback}).toString();
-        document.head.appendChild(script);
-      });
-    }
-    async function postApi(payload){
-      const response=await fetch(API_URL,{
-        method:"POST",
-        headers:{"Content-Type":"text/plain;charset=utf-8"},
-        body:JSON.stringify(payload),
-        redirect:"follow"
-      });
-      const text=await response.text();
-      let data;
-      try{data=JSON.parse(text)}catch{throw new Error("Сервер вернул непонятный ответ")}
-      if(!response.ok||data?.success===false||data?.ok===false)throw new Error(data?.message||data?.error||"Запрос отклонён");
-      return data;
-    }
-    async function checkHomework(){
-      const payload={action:"checkHomeworkSubmission",studentId:state.student.id,assignmentId:HOMEWORK_META.assignmentId};
-      try{return await postApi(payload)}catch(firstError){
-        try{
-          const data=await jsonp(payload);
-          if(data?.success===false||data?.ok===false)throw new Error(data?.message||data?.error||"Проверка отклонена");
-          return data;
-        }catch(secondError){
-          throw secondError?.message?secondError:firstError;
-        }
+      if(!document.body.classList.contains("screenshot-mode")){
+        window.scrollTo({top:Math.max(0,$(".hero").offsetHeight-10),behavior:"smooth"});
       }
     }
-    function alreadySubmitted(data){
-      const values=[
-        data?.submitted,data?.alreadySubmitted,data?.hasSubmission,data?.hasSubmitted,data?.submittedThisMonth,
-        data?.data?.submitted,data?.data?.alreadySubmitted,data?.data?.hasSubmitted,data?.data?.submittedThisMonth,
-        data?.result?.submitted,data?.result?.alreadySubmitted,data?.result?.hasSubmitted,data?.result?.submittedThisMonth
-      ];
-      if(data?.canSubmit===false||data?.data?.canSubmit===false)return true;
-      return values.some(v=>v===true||v===1||v==="true"||v==="yes");
+    function normalizeAnswer(value){
+      const clean=String(value).trim().replace(/\s+/g,"").replace(",",".");
+      return clean===""?NaN:Number(clean);
     }
-    function extractStudent(data,code){
-      const source=data?.student||data?.data?.student||data?.data||data?.result||data||{};
-      const id=source.id||source.studentId||data?.studentId;
-      const name=source.name||source.studentName||data?.studentName||"Ученик";
-      const valid=data?.valid===true||data?.success===true||data?.ok===true||data?.status==="ok"||Boolean(id);
-      if(!valid||!id)throw new Error(data?.message||data?.error||"Код ученика не найден");
-      return {id:String(id),name:String(name),code:String(code)};
+    function normalizeCode(raw){return String(raw||"").trim().toUpperCase()}
+    function currentMonth(){
+      const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
     }
-    function saveStudent(student){
-      localStorage.setItem("egeStudentId",student.id);
-      localStorage.setItem("egeStudentName",student.name);
-      localStorage.setItem("egeStudentCode",student.code);
-    }
-    function cachedStudent(){
-      const id=localStorage.getItem("egeStudentId"),name=localStorage.getItem("egeStudentName"),code=localStorage.getItem("egeStudentCode");
-      return id&&code?{id,name:name||"Ученик",code}:null;
-    }
-    function monthKey(){
-      const d=new Date();
-      return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
-    }
-    function localLockKey(){return "egeHomeworkSubmitted:"+HOMEWORK_META.assignmentId+":"+monthKey()}
-    async function activateStudent(student){
-      state.student=student;saveStudent(student);
-      $("#studentName").firstChild.textContent=student.name;
-      $("#studentBar").hidden=false;
-      showScreen("checkingScreen");
-      $("#retryCheck").hidden=true;$("#checkingText").textContent="Проверяем, не отправлялась ли эта работа в текущем месяце…";
-      try{
-        const result=await checkHomework();
-        if(alreadySubmitted(result)||localStorage.getItem(localLockKey())==="1"){
-          showScreen("lockedScreen");return;
-        }
-        showScreen("welcomeScreen");
-      }catch(error){
-        $("#checkingText").textContent="Не удалось проверить доступ: "+error.message;
-        $("#retryCheck").hidden=false;
-      }
-    }
-    async function validateCode(code){
-      const data=await jsonp({action:"validateStudent",code});
-      return extractStudent(data,code);
-    }
+    function safeGet(k){try{return localStorage.getItem(k)}catch(_){return null}}
+    function safeStore(k,v){try{localStorage.setItem(k,v);return true}catch(_){return false}}
+    function safeRemove(k){try{localStorage.removeItem(k)}catch(_){}}
+    function readJson(k,fallback){try{const v=safeGet(k);return v?JSON.parse(v):fallback}catch(_){return fallback}}
+    function escapeHtml(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+
+    let submissionLocked=false,submittedNow=false,sendingQueue=false;
+    function draftKey(code=state.student?.code){return code?`homeworkDraft:${HOMEWORK_META.assignmentId}:${code}`:""}
+    function queueKey(){return`pendingHomeworkResults:${HOMEWORK_META.assignmentId}`}
+    function monthLockKey(code=state.student?.code){return code?`egeHomeworkSubmission:${HOMEWORK_META.assignmentId}:${code}:${currentMonth()}`:""}
+    function localLocked(){const k=monthLockKey();return k?Boolean(safeGet(k)):false}
+
     function renderSummary(){
       const counts=new Map();
       state.questions.forEach(q=>counts.set(q.prototype,(counts.get(q.prototype)||0)+1));
@@ -850,129 +795,272 @@
             <label for="answer-${index}">Ответ:</label>
             <input class="answer-input" id="answer-${index}" name="answer-${index}" inputmode="decimal" autocomplete="off" aria-label="Ответ на задание ${index+1}">
           </div>
+          <button class="solution-toggle pixel" type="button" data-solution-index="${index}">Показать решение</button>
+          <div class="task-solution" id="task-solution-${index}"></div>
         </article>`).join("");
-    }
-    function normalizeAnswer(value){
-      const clean=String(value).trim().replace(/\s+/g,"").replace(",",".");
-      if(clean==="")return NaN;
-      return Number(clean);
     }
     function updateProgress(){
       const inputs=$$(".answer-input"),filled=inputs.filter(input=>input.value.trim()!=="").length;
       inputs.forEach(input=>input.closest(".task").classList.toggle("answered",input.value.trim()!==""));
       $("#progressText").textContent=filled+" / "+inputs.length;
-      $("#progressFill").style.width=(filled/inputs.length*100)+"%";
-      $("#submitButton").disabled=filled!==inputs.length||state.submitted;
-      $("#submitStatus").textContent=filled===inputs.length?"Ответы заполнены. Проверка появится только после отправки.":"Заполни все пятнадцать полей — кнопка отправки станет активной.";
+      $("#progressFill").style.width=(inputs.length?filled/inputs.length*100:0)+"%";
+      $("#submitButton").disabled=filled!==inputs.length||submittedNow||submissionLocked;
+      if(submittedNow)$("#submitStatus").textContent="Работа завершена. Решение каждого номера открывается прямо под заданием.";
+      else if(submissionLocked)$("#submitStatus").textContent="Эта работа уже завершена в текущем месяце.";
+      else $("#submitStatus").textContent=filled===inputs.length?"Все ответы заполнены — можно отправлять.":"Ответы сохраняются автоматически: "+filled+" из "+inputs.length+".";
     }
-    function uuid(){
-      if(crypto?.randomUUID)return crypto.randomUUID();
-      return "hw-"+Date.now()+"-"+Math.random().toString(16).slice(2)+"-"+Math.random().toString(16).slice(2);
+    function getDraft(code=state.student?.code){const k=draftKey(code);return k?readJson(k,null):null}
+    function saveDraft(extra={}){
+      if(!state.student?.code)return;
+      const prev=getDraft()||{},answers=$$(".answer-input").map(x=>x.value);
+      const draft={...prev,assignmentId:HOMEWORK_META.assignmentId,studentCode:state.student.code,answers,startedAt:state.startedAt||Date.now(),updatedAt:Date.now(),...extra};
+      safeStore(draftKey(),JSON.stringify(draft));
     }
-    function buildSubmissionPayload(durationSeconds,scorePercent){
-      return {
-        action:"submitHomework",
-        eventId:uuid(),
-        studentId:state.student.id,
-        assignmentId:HOMEWORK_META.assignmentId,
-        taskNumber:HOMEWORK_META.taskNumber,
-        topicId:HOMEWORK_META.topicId,
-        topicName:HOMEWORK_META.topicName,
-        scorePercent,
-        durationSeconds,
-        schemaVersion:1
-      };
-    }
-    function grade(){
-      const values=$$(".answer-input").map(input=>normalizeAnswer(input.value));
-      const correct=values.reduce((sum,value,index)=>sum+(Number.isFinite(value)&&Math.abs(value-state.questions[index].answer)<1e-7?1:0),0);
-      return {correct,scorePercent:Math.round(correct/state.questions.length*100)};
-    }
-    function renderSolutions(){
-      $("#solutions").innerHTML=state.questions.map((q,index)=>`
-        <article class="solution">
-          <h3 class="pixel">Задание ${index+1} · Ответ: ${showNum(q.answer)}</h3>
-          <div class="solution-condition">${q.text}</div><div class="recall"><b>Вспомним.</b> ${q.recall}</div>
-          <div class="formula">${q.formula}</div>
-          <div class="lifehack"><b>Лайфхак.</b> ${q.tip}</div>
-          <ol class="steps">${q.steps.map(step=>"<li>"+step+"</li>").join("")}</ol>
-        </article>`).join("");
-    }
-    function lockInputs(){
-      $$(".answer-input").forEach(input=>input.disabled=true);
-      $("#submitButton").disabled=true;
+    function restoreDraft(){
+      const draft=getDraft();if(!draft)return null;
+      if(Array.isArray(draft.answers))$$(".answer-input").forEach((x,i)=>x.value=draft.answers[i]??"");
+      if(Number.isFinite(Number(draft.startedAt)))state.startedAt=Number(draft.startedAt);
+      updateProgress();return draft;
     }
 
-    $("#loginForm").addEventListener("submit",async event=>{
-      event.preventDefault();audio.click();
-      const code=$("#studentCode").value.trim();
-      if(!code)return;
-      $("#loginButton").disabled=true;$("#loginStatus").className="status";$("#loginStatus").textContent="Проверяем код…";
+    async function postApi(payload){
+      const response=await fetch(API_URL,{
+        method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
+        body:JSON.stringify(payload),redirect:"follow"
+      });
+      const text=await response.text();let data;
+      try{data=JSON.parse(text)}catch(_){data={success:response.ok,raw:text}}
+      if(!response.ok)throw new Error("network");
+      return data;
+    }
+    function responseBody(data){return data&&typeof data==="object"?(data.result&&typeof data.result==="object"?data.result:data):{}}
+    function saysSubmitted(data){
+      const d=responseBody(data),message=String(data?.message||data?.error||d?.message||d?.error||"").toLowerCase();
+      return Boolean(
+        d.submitted||d.exists||d.hasSubmission||d.alreadySubmitted||d.hasSubmitted||d.submittedThisMonth||
+        d.found||d.isSubmitted||d.status==="submitted"||d.canSubmit===false||
+        /already|отправлен|уже.*сдан|повторн/.test(message)
+      );
+    }
+    function saysError(data){
+      const d=responseBody(data);
+      return data?.success===false||data?.ok===false||d.success===false||d.ok===false||Boolean(data?.error||d.error);
+    }
+    function getQueue(){const q=readJson(queueKey(),[]);return Array.isArray(q)?q:[]}
+    function setQueue(q){q.length?safeStore(queueKey(),JSON.stringify(q)):safeRemove(queueKey())}
+    function enqueueResult(payload){
+      const q=getQueue(),i=q.findIndex(x=>x&&x.eventId===payload.eventId);
+      i>=0?q[i]=payload:q.push(payload);setQueue(q);
+    }
+    function upgradeQueuedStudentId(code,id){
+      if(!code||!id||code===id)return;
+      const q=getQueue();let changed=false;
+      q.forEach(p=>{if(p&&p.studentId===code){p.studentId=id;changed=true}});
+      if(changed)setQueue(q);
+    }
+    async function sendQueuedResults(){
+      if(sendingQueue)return;
+      const q=getQueue();if(!q.length)return;
+      sendingQueue=true;
       try{
-        const student=await validateCode(code);
-        $("#loginStatus").className="status ok";$("#loginStatus").textContent="✓ Код подтверждён";
-        await activateStudent(student);
-      }catch(error){
-        audio.bad();$("#loginStatus").className="status error";$("#loginStatus").textContent=error.message;
-      }finally{$("#loginButton").disabled=false}
-    });
-    $("#retryCheck").addEventListener("click",()=>activateStudent(state.student));
-    $("#reviewLocked").addEventListener("click",()=>{renderTasks();lockInputs();showScreen("workScreen");$("#submitStatus").textContent="Эта работа уже отправлена в текущем месяце. Доступен режим просмотра.";});
-    $("#changeStudent").addEventListener("click",()=>{
-      if($("#workScreen").classList.contains("on"))return;
-      ["egeStudentId","egeStudentName","egeStudentCode"].forEach(key=>localStorage.removeItem(key));
-      const url=new URL(location.href);url.searchParams.delete("code");location.href=url.pathname+url.search;
-    });
-    $("#startButton").addEventListener("click",()=>{
-      audio.click();audio.startMusic();renderTasks();state.startedAt=Date.now();
-      $("#changeStudent").disabled=true;showScreen("workScreen");updateProgress();
-    });
-    $("#taskList").addEventListener("input",updateProgress);
-    $("#homeworkForm").addEventListener("submit",async event=>{
-      event.preventDefault();
-      if($("#submitButton").disabled||state.submitted)return;
-      state.submitted=true;$("#submitButton").disabled=true;$("#submitStatus").textContent="Проверяем право на отправку…";
-      try{
-        const access=await checkHomework();
-        if(alreadySubmitted(access)){showScreen("lockedScreen");return}
-        state.durationSeconds=Math.max(1,Math.round((Date.now()-state.startedAt)/1000));
-        const result=grade();state.correct=result.correct;state.scorePercent=result.scorePercent;
-        $("#submitStatus").textContent="Сохраняем результат…";
-        const payload=buildSubmissionPayload(state.durationSeconds,state.scorePercent);
-        await postApi(payload);
-        localStorage.setItem(localLockKey(),"1");lockInputs();renderSolutions();
-        $("#scoreValue").textContent=state.scorePercent+"%";
-        $("#correctValue").textContent=state.correct+" / "+state.questions.length;
-        $("#timeValue").textContent=minutes(state.durationSeconds);
-        showScreen("resultScreen");
-        state.correct===state.questions.length?audio.good():audio.bad();
-      }catch(error){
-        state.submitted=false;$("#submitButton").disabled=false;
-        $("#submitStatus").textContent="Не удалось отправить: "+error.message+". Ответы сохранены на странице — попробуй ещё раз.";
-        toast("Результат не отправлен",true);audio.bad();
+        const remain=[];
+        for(const payload of q){
+          try{
+            const data=await postApi(payload);
+            if(saysError(data)&&!saysSubmitted(data))remain.push(payload);
+          }catch(_){remain.push(payload)}
+        }
+        setQueue(remain);
+      }finally{sendingQueue=false}
+    }
+    function flushQueueKeepalive(){
+      for(const payload of getQueue()){
+        try{
+          fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload),keepalive:true,redirect:"follow"}).catch(()=>{});
+        }catch(_){}
       }
+    }
+
+    function readStudent(){
+      const code=normalizeCode(safeGet("egeStudentCode"));if(!code)return null;
+      return{id:safeGet("egeStudentId")||code,name:safeGet("egeStudentName")||"Ученик",code};
+    }
+    function storeStudent(student){
+      safeStore("egeStudentCode",student.code);
+      safeStore("egeStudentId",student.id||student.code);
+      safeStore("egeStudentName",student.name||"Ученик");
+    }
+    function clearStudent(){
+      safeRemove("egeStudentId");safeRemove("egeStudentName");safeRemove("egeStudentCode");
+    }
+    function extractStudent(data,code){
+      const root=data&&typeof data==="object"?data:{},source=root.student||root.data?.student||root.data||root.result?.student||root.result||root;
+      if(root.success===false||root.valid===false||root.ok===false||source.success===false||source.valid===false||source.ok===false)throw new Error("invalid");
+      const id=source.id||source.studentId||root.studentId,name=source.name||source.studentName||root.studentName;
+      if(!id||!name)throw new Error("invalid");
+      return{id:String(id),name:String(name),code};
+    }
+    function validateStudentCode(raw){
+      const code=normalizeCode(raw);
+      return new Promise((resolve,reject)=>{
+        if(!code){reject(new Error("empty"));return}
+        const callback="egeCb_"+Date.now()+"_"+Math.random().toString(36).slice(2),script=document.createElement("script");
+        const timer=setTimeout(()=>finish(new Error("timeout")),20000);
+        function finish(error,data){
+          clearTimeout(timer);try{delete window[callback]}catch(_){}
+          script.remove();error?reject(error):resolve(data);
+        }
+        window[callback]=data=>{try{finish(null,extractStudent(data,code))}catch(error){finish(error)}};
+        script.onerror=()=>finish(new Error("network"));
+        script.src=API_URL+"?"+new URLSearchParams({action:"validateStudent",code,callback}).toString();
+        document.head.appendChild(script);
+      });
+    }
+    async function validateInBackground(code){
+      try{
+        const found=await validateStudentCode(code);
+        if(!state.student||state.student.code!==code)return;
+        state.student={...state.student,...found};storeStudent(state.student);
+        $("#studentName").childNodes[0].nodeValue=(state.student.name||"Ученик");
+        upgradeQueuedStudentId(code,state.student.id);
+        checkAvailability();sendQueuedResults();
+      }catch(_){}
+    }
+    async function checkAvailability(){
+      if(!state.student)return;
+      if(localLocked())submissionLocked=true;
+      try{
+        const data=await postApi({action:"checkHomeworkSubmission",studentId:state.student.id||state.student.code,assignmentId:HOMEWORK_META.assignmentId});
+        if(saysSubmitted(data))submissionLocked=true;
+      }catch(_){}
+      updateProgress();
+    }
+
+    function solutionHtml(q,userAnswer){
+      return `<div class="task-solution-grid">
+        <div class="task-solution-box"><h4>Вспомним</h4><p>${q.recall}</p></div>
+        <div class="task-solution-box"><h4>Формула</h4><p>${q.formula}</p></div>
+        <div class="task-solution-box"><h4>Подсказка</h4><p>${q.tip}</p></div>
+        <div class="task-solution-box"><h4>Ответ</h4><p>Ваш ответ: <b>${escapeHtml(userAnswer||"не введён")}</b><br>Правильный ответ: <b>${showNum(q.answer)}</b></p></div>
+        <div class="task-solution-box full"><h4>Пошаговое решение</h4><ol>${q.steps.map(step=>"<li>"+step+"</li>").join("")}</ol></div>
+      </div>`;
+    }
+    function decorateSubmitted(answers){
+      $$(".task").forEach((card,index)=>{
+        const value=normalizeAnswer(answers[index]),ok=Number.isFinite(value)&&Math.abs(value-state.questions[index].answer)<1e-7;
+        card.classList.remove("correct","wrong");
+        card.classList.add("submitted",ok?"correct":"wrong");
+        const input=card.querySelector(".answer-input");if(input)input.disabled=true;
+        const box=$("#task-solution-"+index);
+        if(box&&!box.innerHTML)box.innerHTML=solutionHtml(state.questions[index],answers[index]);
+      });
+    }
+    function showInlineResult(correct,durationSeconds,answers){
+      const percent=Math.round(correct/state.questions.length*100),box=$("#inlineResult");
+      box.innerHTML=`<h2 class="pixel">🏆 Результат</h2>
+        <div class="result-score pixel">${percent}%</div>
+        <div class="result-stats">
+          <div class="stat"><b>${correct} / ${state.questions.length}</b>правильных</div>
+          <div class="stat"><b>${minutes(durationSeconds)}</b>время</div>
+          <div class="stat"><b>✓</b>результат зафиксирован</div>
+        </div>
+        <p class="lead">Решение каждого номера открывается кнопкой прямо под соответствующим заданием.</p>`;
+      box.hidden=false;decorateSubmitted(answers);
+    }
+    function restoreSubmittedResult(draft){
+      if(!draft?.submittedResult)return false;
+      const r=draft.submittedResult,answers=Array.isArray(r.answers)?r.answers:(draft.answers||[]);
+      submittedNow=true;submissionLocked=true;state.submitted=true;
+      state.durationSeconds=Number(r.durationSeconds)||1;state.correct=Number(r.correct)||0;state.scorePercent=Number(r.scorePercent)||0;
+      showInlineResult(state.correct,state.durationSeconds,answers);updateProgress();return true;
+    }
+    function beginSession(student){
+      state.student={id:student.id||student.code,name:student.name||"Ученик",code:normalizeCode(student.code)};
+      storeStudent(state.student);
+      $("#studentName").childNodes[0].nodeValue=(state.student.name||"Ученик");
+      $("#studentBar").hidden=false;
+      renderTasks();state.startedAt=Date.now();
+      const draft=restoreDraft();if(!draft)saveDraft();
+      restoreSubmittedResult(draft);
+      showScreen("workScreen");audio.startMusic();
+      checkAvailability();sendQueuedResults();validateInBackground(state.student.code);
+    }
+    function loginWithCode(raw){
+      const code=normalizeCode(raw);
+      if(!code){$("#loginStatus").textContent="Введите код ученика";return}
+      $("#loginStatus").textContent="";
+      const saved=readStudent(),student=saved&&saved.code===code?saved:{id:code,name:"Ученик",code};
+      beginSession(student);
+    }
+
+    $("#loginForm").addEventListener("submit",event=>{event.preventDefault();audio.click();loginWithCode($("#studentCode").value)});
+    $("#startButton")?.addEventListener("click",()=>showScreen("workScreen"));
+    $("#changeStudent").addEventListener("click",()=>{
+      saveDraft();clearStudent();
+      const url=new URL(location.href);url.searchParams.delete("code");
+      history.replaceState(null,"",url.href);location.reload();
     });
-    $("#solutionsButton").addEventListener("click",()=>{
-      audio.click();const box=$("#solutions"),open=box.classList.toggle("on");
-      $("#solutionsButton").textContent=open?"Скрыть разбор":"Разобрать решения";
-      if(open)box.scrollIntoView({behavior:"smooth",block:"start"});
+    $("#taskList").addEventListener("input",()=>{updateProgress();saveDraft()});
+    $("#taskList").addEventListener("click",event=>{
+      const button=event.target.closest?.("[data-solution-index]");if(!button)return;
+      audio.click();const index=Number(button.dataset.solutionIndex),box=$("#task-solution-"+index);if(!box)return;
+      const open=!box.classList.contains("open");box.classList.toggle("open",open);
+      button.textContent=open?"Скрыть решение":"Показать решение";
+    });
+    $("#homeworkForm").addEventListener("submit",event=>{
+      event.preventDefault();if(submittedNow)return;
+      const answers=$$(".answer-input").map(input=>input.value.trim());
+      if(answers.some(value=>!value)){updateProgress();return}
+      if(submissionLocked){updateProgress();return}
+      const correct=answers.reduce((sum,answer,index)=>{
+        const value=normalizeAnswer(answer);
+        return sum+(Number.isFinite(value)&&Math.abs(value-state.questions[index].answer)<1e-7?1:0);
+      },0);
+      const scorePercent=Math.round(correct/state.questions.length*100);
+      const durationSeconds=Math.max(1,Math.floor((Date.now()-state.startedAt)/1000));
+      const eventId=`${HOMEWORK_META.assignmentId}-${state.student.code}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+      const payload={
+        action:"submitHomework",eventId,studentId:state.student.id||state.student.code,
+        assignmentId:HOMEWORK_META.assignmentId,taskNumber:HOMEWORK_META.taskNumber,
+        topicId:HOMEWORK_META.topicId,topicName:HOMEWORK_META.topicName,
+        scorePercent,durationSeconds,schemaVersion:1
+      };
+      enqueueResult(payload);
+      safeStore(monthLockKey(),JSON.stringify({eventId,sentAt:new Date().toISOString(),scorePercent,durationSeconds}));
+      const submittedResult={eventId,correct,scorePercent,durationSeconds,answers,submittedAt:Date.now()};
+      saveDraft({submittedResult});
+      submittedNow=true;submissionLocked=true;state.submitted=true;
+      state.correct=correct;state.scorePercent=scorePercent;state.durationSeconds=durationSeconds;
+      showInlineResult(correct,durationSeconds,answers);updateProgress();
+      correct===state.questions.length?audio.good():audio.bad();
+      $("#inlineResult").scrollIntoView({behavior:"smooth",block:"start"});
+      sendQueuedResults();
     });
     $("#soundButton").addEventListener("click",()=>{
       const enabled=audio.toggle();$("#soundButton").textContent=enabled?"🔊":"🔇";
       $("#soundButton").setAttribute("aria-pressed",String(enabled));
     });
+    function setScreenshotMode(on){
+      document.body.classList.toggle("screenshot-mode",on);
+      document.documentElement.style.scrollBehavior=on?"auto":"smooth";
+      if(on)window.scrollTo(0,0);
+    }
+    $("#screenshotButton").addEventListener("click",()=>setScreenshotMode(true));
+    document.addEventListener("keydown",event=>{
+      if(event.key==="Escape"&&document.body.classList.contains("screenshot-mode"))setScreenshotMode(false);
+    });
+    window.addEventListener("online",()=>sendQueuedResults());
+    window.addEventListener("pagehide",()=>{saveDraft();flushQueueKeepalive()});
+    window.addEventListener("beforeunload",()=>saveDraft());
+    setInterval(()=>sendQueuedResults(),60000);
 
-    async function boot(){
-      renderSummary();
-      const codeFromUrl=new URLSearchParams(location.search).get("code");
-      if(codeFromUrl){
-        $("#studentCode").value=codeFromUrl;
-        $("#loginStatus").textContent="Проверяем код из ссылки…";
-        try{await activateStudent(await validateCode(codeFromUrl))}catch(error){$("#loginStatus").className="status error";$("#loginStatus").textContent=error.message}
-        return;
-      }
-      const cached=cachedStudent();
-      if(cached)await activateStudent(cached);
+    function init(){
+      renderSummary();renderTasks();updateProgress();
+      const code=new URLSearchParams(location.search).get("code");
+      if(code){$("#studentCode").value=code;loginWithCode(code);return}
+      const saved=readStudent();
+      if(saved){beginSession(saved);return}
+      showScreen("authScreen");
     }
 
     window.__HOMEWORK_DIAGNOSTICS__={
@@ -980,9 +1068,44 @@
       questionCount:state.questions.length,
       prototypes:state.questions.map(q=>q.prototype),
       answersValid:state.questions.every(q=>Number.isFinite(q.answer)),
-      submissionKeys:["action","eventId","studentId","assignmentId","taskNumber","topicId","topicName","scorePercent","durationSeconds","schemaVersion"]
+      fixedQuestionSignature:state.questions.map(q=>q.text+"|"+q.answer).join("||"),
+      queueKey:queueKey()
     };
-    boot();
+    init();
+
+    /* Встроенный тестовый режим; обычному использованию не мешает. */
+    const selftestMode=new URLSearchParams(location.search).get("selftest");
+    if(selftestMode){
+      setTimeout(()=>{
+        if(!state.student)loginWithCode("SELFTEST");
+        setTimeout(()=>{
+          if(selftestMode==="draftWrite"){
+            const a=$$(".answer-input");["11","22","33"].forEach((v,i)=>{if(a[i])a[i].value=v});
+            $("#taskList").dispatchEvent(new Event("input",{bubbles:true}));
+          }else if(selftestMode==="submit"){
+            $$(".answer-input").forEach((x,i)=>x.value=showNum(state.questions[i].answer));
+            $("#taskList").dispatchEvent(new Event("input",{bubbles:true}));
+            $("#submitButton").click();
+            const buttons=$$(".solution-toggle");if(buttons[0])buttons[0].click();if(buttons[1])buttons[1].click();
+            $("#screenshotButton").click();
+          }
+          setTimeout(()=>{
+            document.documentElement.dataset.selftest=JSON.stringify({
+              assignmentId:HOMEWORK_META.assignmentId,
+              answers:$$(".answer-input").slice(0,3).map(x=>x.value),
+              questionSignature:state.questions.map(q=>q.text+"|"+q.answer).join("||"),
+              studentLabel:$("#studentName").childNodes[0]?.nodeValue?.trim()||"",
+              submitted:submittedNow,resultVisible:!$("#inlineResult").hidden,
+              queue:getQueue().length,
+              solution0:$("#task-solution-0")?.classList.contains("open")||false,
+              solution1:$("#task-solution-1")?.classList.contains("open")||false,
+              screenshot:document.body.classList.contains("screenshot-mode")
+            });
+          },250);
+        },80);
+      },30);
+    }
+
   </script>
 </body>
 </html>
