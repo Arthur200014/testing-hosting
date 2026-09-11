@@ -61,8 +61,8 @@
     .number{padding:3px 6px;color:#ffeabb;background:var(--red);border:1px solid #4d2822;font:900 .75rem "Courier New",monospace}
     .prototype{color:#725c43;font:700 .67rem "Courier New",monospace;text-align:right}
     .task-body{padding:5px 12px 12px}.task-prompt{margin:0 0 5px;color:#624f3e;font-size:.8rem}
-    .math{min-height:42px;display:flex;align-items:center;margin:4px 0 9px;color:#241b15;font-size:clamp(1.08rem,2.4vw,1.34rem);line-height:1.6}
-    .math sup,.math sub{line-height:0}.frac{display:inline-grid;grid-template-rows:auto auto;vertical-align:middle;text-align:center;line-height:1.05;margin:0 .1em}.frac>span:first-child{padding:0 .12em .06em;border-bottom:1.5px solid}.frac>span:last-child{padding:.06em .12em 0}.rad{white-space:nowrap}.radicand{border-top:1.5px solid;padding:.06em .08em 0}.root-index{position:relative;top:-.65em;left:.22em;font-size:.52em}
+    .math{min-height:42px;display:flex;align-items:center;margin:4px 0 9px;color:#241b15;font-size:clamp(1.08rem,2.4vw,1.34rem);line-height:1.6}.power{display:inline-block;white-space:nowrap;vertical-align:middle}
+    .math sup{position:relative;top:-.62em;margin-left:.04em;font-size:.66em;line-height:1;vertical-align:baseline;white-space:nowrap}.math sub{position:relative;top:.22em;font-size:.66em;line-height:1;vertical-align:baseline;white-space:nowrap}.frac{display:inline-grid;grid-template-rows:auto auto;vertical-align:middle;text-align:center;line-height:1.05;margin:0 .1em}.frac>span:first-child{padding:0 .12em .06em;border-bottom:1.5px solid}.frac>span:last-child{padding:.06em .12em 0}.rad{display:inline-flex;align-items:flex-start;white-space:nowrap;vertical-align:middle}.radicand{border-top:1.5px solid;padding:.06em .08em 0}.root-index{position:relative;top:-.52em;left:.18em;margin-right:.04em;font-size:.52em;line-height:1}.solution-box sup{position:relative;top:-.48em;margin-left:.03em;font-size:.72em;line-height:1;vertical-align:baseline;white-space:nowrap}.solution-box sub{position:relative;top:.18em;font-size:.72em;line-height:1;vertical-align:baseline;white-space:nowrap}.solution-box .frac{font-size:.98em}.inline-solution{overflow:visible}
     .answer-label{display:block;margin-bottom:4px;color:#6a523d;font:700 .7rem "Courier New",monospace}
     .answer-input{width:100%;padding:9px 10px;color:#2c2119;background:#fff9dc;border:2px solid #806142;border-radius:0;font:700 1rem Georgia,serif}
     .task-card.correct{border-color:#477d4d}.task-card.wrong{border-color:#a54438}.task-card.correct::after,.task-card.wrong::after{position:absolute;top:11px;left:78px;font:900 .72rem "Courier New",monospace}.task-card.correct::after{content:"ВЕРНО";color:#2d6a3c}.task-card.wrong::after{content:"ОШИБКА";color:#9e382e}
@@ -98,6 +98,7 @@
     body.screenshot-mode .task-body{padding:2px 7px 6px}
     body.screenshot-mode .task-prompt{margin:0 0 1px;font-size:.58rem;line-height:1.05}
     body.screenshot-mode .math{min-height:27px;margin:1px 0 0;font-size:clamp(.78rem,1.18vw,1rem);line-height:1.22}
+     body.screenshot-mode .math sup{top:-.58em;font-size:.67em}body.screenshot-mode .math sub{top:.18em;font-size:.67em}
     body.screenshot-mode .frac{line-height:.95}
     body.screenshot-mode .frac>span:first-child{padding-bottom:.02em}
     body.screenshot-mode .frac>span:last-child{padding-top:.02em}
@@ -118,7 +119,7 @@
       <label for="studentCode">Код ученика</label>
       <input id="studentCode" name="student-code" type="text" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" required maxlength="80">
       <p class="login-error" id="loginError"></p>
-      <button class="login-btn" type="submit">Проверить код</button>
+      <button class="login-btn" type="submit">Войти</button>
     </form>
   </div>
   <div class="loading hidden" id="loading">Проверяем архив попыток…</div>
@@ -168,7 +169,7 @@
   <script>
   "use strict";
   const API_URL="https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
-  const HOMEWORK_META={"taskNumber":6,"topicId":"task-06","topicName":"Простейшие уравнения","assignmentId":"HW-EGE06-PART1-MONTHLY-GF20260725","partLabel":"Домашняя работа 1 из 3","title":"Дело I: Основы и корни","subtitle":"Линейные, рациональные, степенные и иррациональные уравнения. В конце — первые показательные прототипы."};
+  const HOMEWORK_META={"taskNumber":6,"topicId":"task-06","topicName":"Простейшие уравнения","assignmentId":"HW-EGE06-PART1-MONTHLY-GF20260725","partLabel":"Домашняя работа 1 из 3","title":"Дело I: Основы и корни","subtitle":"Линейные, рациональные, степенные и иррациональные уравнения. В конце — первые показательные прототипы.","schemaVersion":3};
   const TASK_SPECS=["linear","rationalNumber","rationalFraction","rationalBoth","powerOdd","powerOddNegative","equalSquares","quadraticSpecial","sqrtUp","sqrtDown","cubeRoot","sqrtEqualsX","exp01","exp02"];
 
   function hashSeed(str){
@@ -192,7 +193,7 @@
   const shifted=(v,h)=>h===0?v:`${v}${h>0?` − ${h}`:` + ${Math.abs(h)}`}`;
   const frac=(a,b)=>`<span class="frac"><span>${a}</span><span>${b}</span></span>`;
   const root=(x,i="")=>`<span class="rad">${i?`<span class="root-index">${i}</span>`:""}√<span class="radicand">${x}</span></span>`;
-  const pow=(a,b)=>`${a}<sup>${b}</sup>`;
+  const pow=(a,b)=>`<span class="power">${a}<sup>${b}</sup></span>`;
   const log=(a,x)=>`log<sub>${a}</sub>(${x})`;
   const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
   const gcd=(a,b)=>{a=Math.abs(a);b=Math.abs(b);while(b)[a,b]=[b,a%b];return a||1};
