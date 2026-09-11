@@ -68,6 +68,23 @@ body.ink-eraser{cursor:cell}
 .teacher-cursor::after{content:'УЧИТЕЛЬ';position:absolute;left:17px;top:15px;padding:3px 6px;border-radius:6px;background:#17100ae8;border:1px solid var(--gold);color:#ffe9a8;font:700 9px "Special Elite";white-space:nowrap}
 .teacher-cursor.hidden{display:none}
 @media(max-width:700px){.board-toolbar{top:68px;right:6px;left:auto;width:min(340px,calc(100vw - 12px))}}
+
+/* v4: мини-схемы тригонометрической окружности внутри шагов */
+.trig-diagram{display:block;width:min(360px,100%);margin:9px auto 2px;padding:7px;border:1px solid #b18a4a;border-radius:9px;background:#fffdf4}
+.trig-diagram svg{display:block;width:100%;height:auto}
+.trig-diagram .axis{stroke:#5f4930;stroke-width:1.4}
+.trig-diagram .circle{fill:none;stroke:#6e5739;stroke-width:1.8}
+.trig-diagram .guide{stroke:#bc3528;stroke-width:2.2;stroke-dasharray:5 4}
+.trig-diagram .point{fill:#bc3528;stroke:#fff;stroke-width:1.2}
+.trig-diagram text{font:11px Arial,sans-serif;fill:#4e3924}
+.step sup{font-size:.68em;vertical-align:super;line-height:0}
+.step sub{font-size:.68em;vertical-align:sub;line-height:0}
+
+
+/* v5: шаги отображаются как строки решения */
+.step{font-family:Georgia,"Times New Roman",serif;font-weight:700;line-height:1.45}
+.step sup{font-size:.68em;vertical-align:.62em;line-height:0}.step sub{font-size:.68em;vertical-align:-.2em;line-height:0}
+.step b{font-family:"Special Elite",monospace;font-size:.72em;color:#7c231a;margin-right:.25em}
 </style>
 
 </head>
@@ -126,60 +143,159 @@ const sign=n=>n<0?`− ${Math.abs(n)}`:`+ ${n}`,pm=n=>n<0?`−${Math.abs(n)}`:`$
 function shuffle(rng,a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function frac(a,b){return`<span class="frac"><span>${a}</span><span>${b}</span></span>`}
 
-/* 15 генераторов: 5 показательных + 5 логарифмических + 5 тригонометрических. */
+/* 15 генераторов: 5 показательных + 5 логарифмических + 5 тригонометрических.
+   v4 CONTENT: ошибки метода, без отдельного шага «Ответ»; тригонометрия — через рисунок и алгоритм окружности. */
+function trigSketch(kind,label,points=2){
+  const isSin=kind==='sin', isCos=kind==='cos';
+  const guide=isSin?'<line class="guide" x1="35" y1="52" x2="185" y2="52"/>':isCos?'<line class="guide" x1="142" y1="15" x2="142" y2="135"/>':'<line class="guide" x1="180" y1="24" x2="180" y2="126"/>';
+  const pts=isSin?(points===1?'<circle class="point" cx="157" cy="52" r="5"/>':'<circle class="point" cx="157" cy="52" r="5"/><circle class="point" cx="63" cy="52" r="5"/>'):
+    isCos?(points===1?'<circle class="point" cx="142" cy="39" r="5"/>':'<circle class="point" cx="142" cy="39" r="5"/><circle class="point" cx="142" cy="111" r="5"/>'):
+    '<circle class="point" cx="180" cy="48" r="5"/>';
+  const axisLabel=isSin?'Oy':isCos?'Ox':'ось tg';
+  return `<span class="trig-diagram"><svg viewBox="0 0 220 150" aria-label="Схема тригонометрической окружности"><line class="axis" x1="20" y1="75" x2="200" y2="75"/><line class="axis" x1="110" y1="8" x2="110" y2="142"/><circle class="circle" cx="110" cy="75" r="58"/>${guide}${pts}<text x="193" y="69">x</text><text x="116" y="14">y</text><text x="12" y="145">${axisLabel}: ${label}</text></svg></span>`;
+}
+
 function qExpSameBase(rng){
   const base=pick(rng,[2,3,5,7]),a=ri(rng,1,4),x=nz(rng,-5,7),b=nz(rng,-7,7),e=a*x+b;
-  const wrongE=e+pick(rng,[1,2,-1]);
-  return{theme:'Показательные',title:'Одинаковые основания',steps:[`${base}<sup>${a}x ${sign(b)}</sup> = ${base}<sup>${e}</sup>`,`${a}x ${sign(b)} = ${wrongE}`,`${a}x = ${wrongE-b}`,`x = ${frac(wrongE-b,a)}`],bad:1,explain:'При одинаковых основаниях нужно приравнять реальные показатели степеней без изменения числа справа.',rule:`${a}x ${sign(b)} = ${e} ⇒ ${a}x = ${e-b} ⇒ x = ${x}.`}}
+  return{theme:'Показательные',title:'Одинаковые основания',steps:[
+    `${base}<sup>${a}x ${sign(b)}</sup> = ${base}<sup>${e}</sup>`,
+    `${a}x ${sign(b)} = ±${e}`,
+    `${a}x ${sign(b)} = ${e} &nbsp; или &nbsp; ${a}x ${sign(b)} = ${-e}`
+  ],bad:1,explain:'К равенству показателей ошибочно добавили ±, как будто решали A²=B².',rule:`При a>0, a≠1: a<sup>u</sup>=a<sup>v</sup> ⇒ u=v.`}
+}
 function qExpConvert(rng){
   const base=pick(rng,[2,3,5]),m=pick(rng,[2,3]),a=ri(rng,1,3),x=nz(rng,-4,6),b=nz(rng,-6,6),rightExp=a*x+b;
-  const power=m*rightExp;
-  return{theme:'Показательные',title:'Приведение к одному основанию',steps:[`${base}<sup>${m}(${a}x ${sign(b)})</sup> = ${base**m}<sup>${rightExp}</sup>`,`${base}<sup>${m}(${a}x ${sign(b)})</sup> = ${base}<sup>${rightExp}</sup>`,`${m}(${a}x ${sign(b)}) = ${rightExp}`,`x = ${x}`],bad:1,explain:`Основание ${base**m} нужно представить как ${base}<sup>${m}</sup>, поэтому показатель справа умножается на ${m}.`,rule:`Справа должно быть ${base}<sup>${m*rightExp}</sup>. Только после этого приравниваем показатели.`}}
+  return{theme:'Показательные',title:'Приведение к одному основанию',steps:[
+    `${base}<sup>${m}(${a}x ${sign(b)})</sup> = ${base**m}<sup>${rightExp}</sup>`,
+    `${base}<sup>${m}(${a}x ${sign(b)})</sup> = (${base}<sup>${m}</sup>)<sup>${rightExp}</sup>`,
+    `${base}<sup>${m}(${a}x ${sign(b)})</sup> = ${base}<sup>${rightExp}</sup>`,
+    `${m}(${a}x ${sign(b)}) = ${rightExp}`
+  ],bad:2,explain:'При раскрытии степени степени справа потерян множитель m.',rule:`(${base}<sup>${m}</sup>)<sup>${rightExp}</sup>=${base}<sup>${m}(${rightExp})</sup>.`}
+}
 function qExpFraction(rng){
   const base=pick(rng,[2,3,4,5]),a=ri(rng,1,3),x=nz(rng,-4,6),b=nz(rng,-5,5),e=a*x+b;
-  return{theme:'Показательные',title:'Дробное основание',steps:[`(${frac(1,base)})<sup>${a}x ${sign(b)}</sup> = ${base}<sup>${-e}</sup>`,` ${base}<sup>−(${a}x ${sign(b)})</sup> = ${base}<sup>${-e}</sup>`,`−${a}x ${sign(-b)} = ${e}`,`x = ${frac(e+b,-a)}`],bad:2,explain:'После перехода к основанию больше единицы знак меняется у всего показателя. Справа показатель остаётся тем же.',rule:`−(${a}x ${sign(b)}) = ${-e} ⇒ ${a}x ${sign(b)} = ${e} ⇒ x = ${x}.`}}
+  return{theme:'Показательные',title:'Дробное основание',steps:[
+    `(${frac(1,base)})<sup>${a}x ${sign(b)}</sup> = ${base}<sup>${-e}</sup>`,
+    `${base}<sup>−${a}x ${sign(b)}</sup> = ${base}<sup>${-e}</sup>`,
+    `−${a}x ${sign(b)} = ${-e}`
+  ],bad:1,explain:'Минус от обратного основания применён только к члену с x, а не ко всему показателю.',rule:`(${frac(1,base)})<sup>E</sup>=${base}<sup>−E</sup>; значит показатель равен −(${a}x ${sign(b)}).`}
+}
 function qExpBothSides(rng){
   const base=pick(rng,[2,3]),m=pick(rng,[2,3]),a=ri(rng,1,4),c=ri(rng,1,3),x=nz(rng,-4,6),d=nz(rng,-4,4),b=m*(c*x+d)-a*x;
   if(a===m*c)return qExpBothSides(rng);
-  const wrongCoeff=m*c-a;
-  return{theme:'Показательные',title:'Переменная в обеих степенях',steps:[`${base}<sup>${a}x ${sign(b)}</sup> = ${base**m}<sup>${c}x ${sign(d)}</sup>`,`${base}<sup>${a}x ${sign(b)}</sup> = ${base}<sup>${m*c}x ${sign(m*d)}</sup>`,`${a}x ${sign(b)} = ${m*c}x ${sign(m*d)}`,`${wrongCoeff}x = ${m*d-b}`,`x = ${frac(m*d-b,wrongCoeff)}`],bad:3,explain:'При переносе членов с x коэффициенты нужно вычитать в правильном порядке; знак коэффициента при x потерян.',rule:`(${a}-${m*c})x = ${m*d-b} ⇒ x = ${x}.`}}
+  return{theme:'Показательные',title:'Переменная в обеих степенях',steps:[
+    `${base}<sup>${a}x ${sign(b)}</sup> = (${base}<sup>${m}</sup>)<sup>${c}x ${sign(d)}</sup>`,
+    `${base}<sup>${a}x ${sign(b)}</sup> = ${base}<sup>${m*c}x ${sign(d)}</sup>`,
+    `${a}x ${sign(b)} = ${m*c}x ${sign(d)}`
+  ],bad:1,explain:'При умножении показателя на m умножено только слагаемое с x.',rule:`m(${c}x ${sign(d)})=${m*c}x ${sign(m*d)}.`}
+}
 function qExpNumber(rng){
   const base=pick(rng,[2,3,5]),p=ri(rng,2,5),a=ri(rng,1,4),x=nz(rng,-4,6),b=p-a*x;
-  return{theme:'Показательные',title:'Число как степень основания',steps:[`${base}<sup>${a}x ${sign(b)}</sup> = ${base**p}`,`${base}<sup>${a}x ${sign(b)}</sup> = ${base}<sup>${base**p}</sup>`,`${a}x ${sign(b)} = ${base**p}`,`x = ${frac(base**p-b,a)}`],bad:1,explain:`Число ${base**p} равно ${base}<sup>${p}</sup>, а не степени с показателем ${base**p}.`,rule:`${a}x ${sign(b)} = ${p} ⇒ x = ${x}.`}}
-
+  return{theme:'Показательные',title:'Число как степень основания',steps:[
+    `${base}<sup>${a}x ${sign(b)}</sup> = ${base**p}`,
+    `${base**p} = ${base}<sup>${base**p}</sup>`,
+    `${a}x ${sign(b)} = ${base**p}`
+  ],bad:1,explain:'Число справа ошибочно использовано как показатель самого себя.',rule:`${base**p}=${base}<sup>${p}</sup>, поэтому показатель справа равен ${p}.`}
+}
 function qLogSame(rng){
   const base=pick(rng,[2,3,5,7]),a=ri(rng,1,5),x=ri(rng,1,8),b=nz(rng,-5,5),arg=a*x+b;if(arg<=0)return qLogSame(rng);
-  return{theme:'Логарифмические',title:'Одинаковые логарифмы',steps:[`log<sub>${base}</sub>(${a}x ${sign(b)}) = log<sub>${base}</sub>${arg}; ${a}x ${sign(b)} > 0`,`${a}x ${sign(b)} = ${arg}`,`${a}x = ${arg+b}`,`x = ${frac(arg+b,a)}`],bad:2,explain:'При переносе свободного слагаемого его знак нужно изменить.',rule:`${a}x = ${arg-b} ⇒ x = ${x}; ограничение выполнено.`}}
+  return{theme:'Логарифмические',title:'Одинаковые логарифмы',steps:[
+    `log<sub>${base}</sub>(${a}x ${sign(b)}) = log<sub>${base}</sub>${arg}`,
+    `${a}x ${sign(b)} ≠ 0`,
+    `${a}x ${sign(b)} = ${arg}`,
+    `x = ${x}`
+  ],bad:1,explain:'Для аргумента логарифма записано условие ≠0 вместо строгой положительности.',rule:`ОДЗ: ${a}x ${sign(b)}>0.`}
+}
 function qLogDefinition(rng){
   const base=pick(rng,[2,3,4,5]),p=ri(rng,2,4),a=ri(rng,1,5),x=ri(rng,1,8),b=base**p-a*x;
-  return{theme:'Логарифмические',title:'По определению логарифма',steps:[`log<sub>${base}</sub>(${a}x ${sign(b)}) = ${p}; ${a}x ${sign(b)} > 0`,`${a}x ${sign(b)} = ${p}<sup>${base}</sup>`,`${a}x = ${p**base-b}`,`x = ${frac(p**base-b,a)}`],bad:1,explain:'В показательной форме основание логарифма становится основанием степени, а значение логарифма — показателем.',rule:`${a}x ${sign(b)} = ${base}<sup>${p}</sup> = ${base**p} ⇒ x = ${x}.`}}
+  return{theme:'Логарифмические',title:'По определению логарифма',steps:[
+    `log<sub>${base}</sub>(${a}x ${sign(b)}) = ${p}`,
+    `${a}x ${sign(b)} = ${p}<sup>${base}</sup>`,
+    `${a}x = ${p**base-b}`
+  ],bad:1,explain:'В определении логарифма поменяны местами основание и значение логарифма.',rule:`log<sub>a</sub>A=b ⇔ A=a<sup>b</sup>.`}
+}
 function qLogLinear(rng){
   const base=pick(rng,[2,3,5]),p=ri(rng,2,4),a=ri(rng,2,6),x=ri(rng,1,8),b=base**p-a*x;
-  const n=base**p-b;
-  return{theme:'Логарифмические',title:'Линейный аргумент',steps:[`log<sub>${base}</sub>(${a}x ${sign(b)}) = ${p}; ${a}x ${sign(b)} > 0`,`${a}x ${sign(b)} = ${base**p}`,`${a}x = ${n}`,`x = ${n}`],bad:3,explain:'На последнем шаге забыли разделить обе части на коэффициент при x.',rule:`x = ${n}/${a} = ${x}.`}}
+  return{theme:'Логарифмические',title:'Линейный аргумент',steps:[
+    `log<sub>${base}</sub>(${a}x ${sign(b)}) = ${p}`,
+    `log<sub>${base}</sub>(${a}x) ${b>=0?'+':'−'} log<sub>${base}</sub>${Math.abs(b)} = ${p}`,
+    `log<sub>${base}</sub>(${a}x) = ${p} ${b>=0?'−':'+'} log<sub>${base}</sub>${Math.abs(b)}`
+  ],bad:1,explain:'Логарифм суммы/разности ошибочно разложен на сумму/разность логарифмов.',rule:'Свойства log(AB) и log(A/B) есть, а свойства log(A±B) нет.'}
+}
 function qLogNegative(rng){
   const base=pick(rng,[2,3,5]),p=ri(rng,2,4),a=ri(rng,2,6),x=-ri(rng,2,8),C=base**p+a*x;
-  return{theme:'Логарифмические',title:'Отрицательный коэффициент',steps:[`log<sub>${base}</sub>(${C} − ${a}x) = ${p}; ${C} − ${a}x > 0`,`${C} − ${a}x = ${base**p}`,`−${a}x = ${base**p+C}`,`x = ${frac(-(base**p+C),a)}`],bad:2,explain:'При переносе свободного слагаемого нужно вычесть его из правой части, а не прибавлять.',rule:`−${a}x = ${base**p-C} ⇒ x = ${x}; ОДЗ выполняется.`}}
+  return{theme:'Логарифмические',title:'Отрицательный коэффициент',steps:[
+    `log<sub>${base}</sub>(${C} − ${a}x) = ${p}`,
+    `${C} − ${a}x > 0`,
+    `−${a}x > −${C}`,
+    `x > ${frac(C,a)}`
+  ],bad:3,explain:'При делении неравенства на отрицательное число знак неравенства не изменён.',rule:`−${a}x>−${C} ⇒ x<${frac(C,a)}.`}
+}
 function qLogInPower(rng){
   const base=pick(rng,[2,3]),q=ri(rng,1,3),a=ri(rng,1,4),x=ri(rng,1,7),target=base**(2*q),b=target-a*x;
-  return{theme:'Логарифмические',title:'Степень с логарифмом',steps:[`${base}<sup>log<sub>${base**2}</sub>(${a}x ${sign(b)})</sup> = ${base**q}; ${a}x ${sign(b)} > 0`,`${a}x ${sign(b)} = ${base**q}`,`${a}x = ${base**q-b}`,`x = ${frac(base**q-b,a)}`],bad:1,explain:'Основание степени и основание логарифма различаются: здесь нельзя напрямую применять a^(log_a t)=t.',rule:`${base}=(${base**2})<sup>1/2</sup>, поэтому левая часть равна √(${a}x ${sign(b)}). Тогда ${a}x ${sign(b)}=${target} и x=${x}.`}}
-
+  return{theme:'Логарифмические',title:'Степень с логарифмом',steps:[
+    `${base}<sup>log<sub>${base**2}</sub>(${a}x ${sign(b)})</sup> = ${base**q}`,
+    `${a}x ${sign(b)} = ${base**q}`,
+    `${a}x = ${base**q-b}`
+  ],bad:1,explain:'Формула a^(log_a t)=t применена при разных основаниях.',rule:`Сначала нужно согласовать основания ${base} и ${base**2}.`}
+}
 function qTrigSinZero(rng){
-  const shift=pick(rng,[1,2,3]);
-  return{theme:'Тригонометрические',title:'Синус равен нулю',steps:[`sin x = 0`,`x = 2πk, k∈Z`,`k = ${shift} ⇒ x = ${2*shift}π`,`Наименьший положительный корень: ${2*shift}π`],bad:1,explain:'Нули синуса повторяются через π, а не только через 2π.',rule:'Общее решение: x = πk, k∈Z. Наименьший положительный корень получается при k=1: x=π.'}}
+  return{theme:'Тригонометрические',title:'Синус равен нулю',steps:[
+    `sin x = 0`,
+    `<b>1.</b> sin x = y &nbsp; ⇒ &nbsp; Oy`,
+    `<b>2.</b> y = 0`,
+    `<b>3.</b> y = 0 &nbsp; ⟂ &nbsp; Oy ${trigSketch('sin','y = 0',1)}`,
+    `<b>4.</b> A(1;0)`,
+    `x = 0 + 2πk`
+  ],bad:4,explain:'На окружности записана только одна из двух точек пересечения прямой y=0.',rule:'Нужно A(1;0) и B(−1;0), поэтому x=πk.'}
+}
 function qTrigCos(rng){
-  const variants=[{v:'1/2',a:'π/3',wrong:'π/6'},{v:'√2/2',a:'π/4',wrong:'π/3'},{v:'√3/2',a:'π/6',wrong:'π/4'}],t=pick(rng,variants);
-  return{theme:'Тригонометрические',title:'Табличное значение косинуса',steps:[`cos x = ${t.v}`,`arccos(${t.v}) = ${t.wrong}`,`x = ±${t.wrong} + 2πk`,`Наименьший положительный корень: ${t.wrong}`],bad:1,explain:'Табличное значение arccos определено неверно.',rule:`arccos(${t.v}) = ${t.a}; поэтому x = ±${t.a}+2πk, а наименьший положительный корень ${t.a}.`}}
+  const variants=[{v:'1/2',a:'π/3',y:'√3/2'},{v:'√2/2',a:'π/4',y:'√2/2'},{v:'√3/2',a:'π/6',y:'1/2'}],t=pick(rng,variants);
+  return{theme:'Тригонометрические',title:'Табличное значение косинуса',steps:[
+    `cos x = ${t.v}`,
+    `<b>1.</b> cos x = x<sub>A</sub> &nbsp; ⇒ &nbsp; Ox`,
+    `<b>2.</b> x<sub>A</sub> = ${t.v}`,
+    `<b>3.</b> x = ${t.v} &nbsp; ⟂ &nbsp; Ox ${trigSketch('cos',`x = ${t.v}`,2)}`,
+    `<b>4.</b> A(${t.v}; ${t.y}), &nbsp; B(${t.v}; −${t.y})`,
+    `x₁=${t.a}; &nbsp; x₂=${t.a}`,
+    `x=${t.a}+2πk`
+  ],bad:5,explain:'Две симметричные точки подписаны одним и тем же углом.',rule:`Для cos x=${t.v}: углы ±${t.a}.`}
+}
 function qTrigSinTable(rng){
-  const variants=[{v:'1/2',small:'π/6',other:'5π/6'},{v:'√2/2',small:'π/4',other:'3π/4'},{v:'√3/2',small:'π/3',other:'2π/3'}],t=pick(rng,variants);
-  return{theme:'Тригонометрические',title:'Табличное значение синуса',steps:[`sin x = ${t.v}`,`x = ${t.other} + 2πk`,`k=0 ⇒ x=${t.other}`,`Наименьший положительный корень: ${t.other}`],bad:1,explain:'Для положительного значения синуса есть две серии корней; серия с меньшим углом пропущена.',rule:`Есть серия x=${t.small}+2πk. Поэтому наименьший положительный корень ${t.small}.`}}
+  const variants=[{v:'1/2',small:'π/6',other:'5π/6',x:'√3/2'},{v:'√2/2',small:'π/4',other:'3π/4',x:'√2/2'},{v:'√3/2',small:'π/3',other:'2π/3',x:'1/2'}],t=pick(rng,variants);
+  return{theme:'Тригонометрические',title:'Табличное значение синуса',steps:[
+    `sin x = ${t.v}`,
+    `<b>1.</b> sin x = y<sub>A</sub> &nbsp; ⇒ &nbsp; Oy`,
+    `<b>2.</b> y<sub>A</sub> = ${t.v}`,
+    `<b>3.</b> y = ${t.v} &nbsp; ⟂ &nbsp; Oy ${trigSketch('sin',`y = ${t.v}`,2)}`,
+    `<b>4.</b> A(${t.x}; ${t.v}), &nbsp; B(−${t.x}; ${t.v})`,
+    `x₁=${t.small}; &nbsp; x₂=π+${t.small}`,
+    `x=${t.small}+2πk &nbsp; или &nbsp; x=π+${t.small}+2πk`
+  ],bad:5,explain:'Для точки во II четверти взят угол π+α, который лежит в III четверти.',rule:`Вторая точка: x₂=π−${t.small}=${t.other}.`}
+}
 function qTrigTan(rng){
-  const variants=[{v:'1',a:'π/4'},{v:'√3',a:'π/3'},{v:'1/√3',a:'π/6'}],t=pick(rng,variants),k=ri(rng,1,2);
-  return{theme:'Тригонометрические',title:'Тангенс',steps:[`tg x = ${t.v}`,`x = ${t.a} + πk, k∈Z`,`k=${k} ⇒ x=${t.a}+${k}π`,`Наименьший положительный корень получен при k=${k}`],bad:2,explain:'Выбран допустимый корень, но пропущено значение k=0, которое даёт меньший положительный корень.',rule:`При k=0 получаем x=${t.a}; это и есть наименьший положительный корень.`}}
+  const variants=[{v:'1',a:'π/4'},{v:'√3',a:'π/3'},{v:'1/√3',a:'π/6'}],t=pick(rng,variants);
+  return{theme:'Тригонометрические',title:'Тангенс',steps:[
+    `tg x = ${t.v}`,
+    `<b>1.</b> tg x &nbsp; ⇒ &nbsp; ось tg: x=1`,
+    `<b>2.</b> T(1; ${t.v})`,
+    `<b>3.</b> O(0;0)T ${trigSketch('tan',`tg = ${t.v}`,1)}`,
+    `<b>4.</b> x₀=${t.a}`,
+    `x=${t.a}+2πk`
+  ],bad:5,explain:'Для тангенса использован период 2π.',rule:`tg(x+π)=tg x, поэтому x=${t.a}+πk.`}
+}
 function qTrigDouble(rng){
-  const rhs=pick(rng,['1','√2/2','√3/2']);
-  const ruleMap={'1':'sin 2x = 1 ⇒ 2x = π/2 + 2πk ⇒ x = π/4 + πk. Наименьший положительный: π/4.','√2/2':'sin 2x = √2/2. Наименьший положительный 2x=π/4, значит x=π/8.','√3/2':'sin 2x = √3/2. Наименьший положительный 2x=π/3, значит x=π/6.'};
-  return{theme:'Тригонометрические',title:'Формула двойного угла',steps:[`2sin x cos x = ${rhs}`,`2sin 2x = ${rhs}`,`sin 2x = ${rhs==='1'?'1/2':rhs+' / 2'}`,`Решаем полученное уравнение для 2x`],bad:1,explain:'По формуле двойного угла 2sin x cos x = sin 2x. Дополнительная двойка перед sin 2x не появляется.',rule:ruleMap[rhs]}}
+  const variants=[{rhs:'1',alpha:'π/2',other:'π/2',xalpha:'π/4'},{rhs:'√2/2',alpha:'π/4',other:'3π/4',xalpha:'π/8'},{rhs:'√3/2',alpha:'π/3',other:'2π/3',xalpha:'π/6'}],t=pick(rng,variants);
+  return{theme:'Тригонометрические',title:'Формула двойного угла',steps:[
+    `2sin x cos x = ${t.rhs}`,
+    `sin 2x = ${t.rhs}`,
+    `<b>1.</b> sin(2x)=y &nbsp; ⇒ &nbsp; Oy`,
+    `<b>2.</b> y=${t.rhs}`,
+    `<b>3.</b> y=${t.rhs} &nbsp; ⟂ &nbsp; Oy ${trigSketch('sin',`y = ${t.rhs}`,2)}`,
+    `<b>4.</b> 2x₁=${t.alpha}; &nbsp; 2x₂=${t.other}`,
+    `x₁=${t.alpha}; &nbsp; x₂=${t.other}`
+  ],bad:6,explain:'После окружности найдены значения угла 2x, но они сразу записаны как значения x.',rule:`Нужно разделить каждый найденный угол на 2; например ${t.alpha}:2=${t.xalpha}.`}
+}
 const GENERATORS=[qExpSameBase,qExpConvert,qExpFraction,qExpBothSides,qExpNumber,qLogSame,qLogDefinition,qLogLinear,qLogNegative,qLogInPower,qTrigSinZero,qTrigCos,qTrigSinTable,qTrigTan,qTrigDouble];
 function buildQuestionSet(seed){const rng=makeRng(seed),qs=GENERATORS.map(fn=>fn(rng));return shuffle(rng,qs)}
 
