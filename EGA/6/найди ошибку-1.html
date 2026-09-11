@@ -68,6 +68,11 @@ body.ink-eraser{cursor:cell}
 .teacher-cursor::after{content:'УЧИТЕЛЬ';position:absolute;left:17px;top:15px;padding:3px 6px;border-radius:6px;background:#17100ae8;border:1px solid var(--gold);color:#ffe9a8;font:700 9px "Special Elite";white-space:nowrap}
 .teacher-cursor.hidden{display:none}
 @media(max-width:700px){.board-toolbar{top:68px;right:6px;left:auto;width:min(340px,calc(100vw - 12px))}}
+
+/* v5: шаги отображаются как строки решения */
+.step{font-family:Georgia,"Times New Roman",serif;font-weight:700;line-height:1.45}
+.step sup{font-size:.68em;vertical-align:.62em;line-height:0}.step sub{font-size:.68em;vertical-align:-.2em;line-height:0}
+.step b{font-family:"Special Elite",monospace;font-size:.72em;color:#7c231a;margin-right:.25em}
 </style>
 
 </head>
@@ -126,22 +131,141 @@ const sign=n=>n<0?`− ${Math.abs(n)}`:`+ ${n}`,pm=n=>n<0?`−${Math.abs(n)}`:`$
 function shuffle(rng,a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function frac(a,b){return`<span class="frac"><span>${a}</span><span>${b}</span></span>`}
 
-/* 15 генераторов: по 5 на каждый из 3 блоков. */
-function qLinear(rng){const a=ri(rng,2,8),x=nz(rng,-9,9),b=nz(rng,-12,12),c=a*x+b,r=c-b,wrong=r+a;return{theme:'Линейные и рациональные',title:'Линейное уравнение',steps:[`${a}x ${sign(b)} = ${c}`,`${a}x = ${r}`,`x = ${r} ${sign(a)}`,`Ответ: ${wrong}`],bad:2,explain:'До третьего шага преобразования верны. Затем вместо деления на коэффициент при x выполнено сложение.',rule:`Нужно разделить обе части на ${a}: x = ${r}/${a} = ${x}.`}}
-function qFracNumber(rng){const a=ri(rng,2,7),k=ri(rng,2,6),b=nz(rng,-8,8),num=1,wrong=`${frac(1,k)} ${sign(b)}`;return{theme:'Линейные и рациональные',title:'Дробь равна числу',steps:[`${frac(num,`${a}x ${sign(b)}`)} = ${k}; ${a}x ${sign(b)} ≠ 0`,`${a}x ${sign(b)} = ${frac(1,k)}`,`${a}x = ${wrong}`,`x = ${frac(`1 − ${k*Math.abs(b)}`,`${a*k}`)}`],bad:2,explain:'При переносе свободного слагаемого его знак должен измениться.',rule:`Из ${a}x ${sign(b)} = 1/${k} получаем ${a}x = 1/${k} ${b<0?'+':'−'} ${Math.abs(b)}.`}}
-function qFracFrac(rng){const a=ri(rng,2,7),x=nz(rng,-7,8),b=nz(rng,-8,8),d=a*x+b;if(d===0)return qFracFrac(rng);return{theme:'Линейные и рациональные',title:'Дробь равна дроби',steps:[`${frac(1,`${a}x ${sign(b)}`)} = ${frac(1,d)}; ${a}x ${sign(b)} ≠ 0`,`${a}x ${sign(b)} = ${d}`,`${a}x = ${d-b}`,`x = ${d-b}`],bad:3,explain:'На последнем шаге забыли разделить обе части на коэффициент при x.',rule:`x = ${d-b}/${a} = ${x}.`}}
-function qTwoDen(rng){let a=ri(rng,2,6),c=ri(rng,1,5);if(a===c)c+=1;const x=nz(rng,-8,8),b=nz(rng,-8,8),d=(a-c)*x+b;return{theme:'Линейные и рациональные',title:'Переменная в двух знаменателях',steps:[`${frac(1,`${a}x ${sign(b)}`)} = ${frac(1,`${c}x ${sign(d)}`)}`,`${a}x ${sign(b)} = ${c}x ${sign(d)}`,`${a-c}x = ${d-b}`,`x = ${-x}`],bad:3,explain:'Последнее деление выполнено с ошибкой в знаке.',rule:`x = (${d-b})/(${a-c}) = ${x}; после этого нужно проверить знаменатели.`}}
-function qCross(rng){const a=ri(rng,1,4),b=nz(rng,-4,4),x=2*b+3*a;if(x===a||x===-b)return qCross(rng);return{theme:'Линейные и рациональные',title:'Рациональное уравнение',steps:[`${frac(2,`x − ${a}`)} = ${frac(3,`x ${sign(b)}`)}; x≠${a}, x≠${-b}`,`2(x ${sign(b)}) = 3(x − ${a})`,`2x ${sign(2*b)} = 3x − ${3*a}`,`x = ${x-1}`],bad:3,explain:'После раскрытия скобок уравнение составлено верно, но при переносе слагаемых потеряна единица.',rule:`2x ${sign(2*b)} = 3x − ${3*a} ⇒ x = ${2*b+3*a}.`}}
-function qOdd(rng){const p=pick(rng,[3,5]),root=ri(rng,2,6),s=nz(rng,2,8),rhs=root**p;return{theme:'Степенные',title:'Нечётная степень',steps:[`(x − ${s})<sup>${p}</sup> = ${rhs}`,`x − ${s} = ${root}`,`x = ${root} − ${s}`,`Ответ: ${root-s}`],bad:2,explain:'При переносе −s в правую часть знак должен стать плюсом.',rule:`x = ${root} + ${s} = ${root+s}.`}}
-function qOddNeg(rng){const p=3,root=-ri(rng,2,9),s=ri(rng,2,7),rhs=root**p;return{theme:'Степенные',title:'Нечётная степень и отрицательное число',steps:[`(x + ${s})³ = ${rhs}`,`x + ${s} = ${root}`,`x = ${root} + ${s}`,`Ответ: ${root+s}`],bad:2,explain:'При переносе +s в правую часть нужно вычесть s.',rule:`x = ${root} − ${s} = ${root-s}.`}}
-function qSquares(rng){const a=ri(rng,1,4),target=nz(rng,-5,5),b=nz(rng,-7,7),c=-2*a*target-b;if(c===b)return qSquares(rng);return{theme:'Степенные',title:'Равенство квадратов',steps:[`(${a}x ${sign(b)})² = (${a}x ${sign(c)})²`,`${a}x ${sign(b)} = ${a}x ${sign(c)}`,`${b} = ${c}`,`Корней нет`],bad:1,explain:'Из равенства квадратов следуют две ветви, а здесь рассмотрена только одна.',rule:`Нужно также решить ${a}x ${sign(b)} = −(${a}x ${sign(c)}); она даёт x = ${target}.`}}
-function qSquareSpecial(rng){const s=ri(rng,3,14);return{theme:'Степенные',title:'Квадратное уравнение специального вида',steps:[`(x + ${s})² = ${4*s}x`,`x² + ${2*s}x + ${s*s} = ${4*s}x`,`x² − ${2*s}x + ${s*s} = 0`,`D = (${2*s})² + 4·${s*s}`,`Получаются два корня`],bad:3,explain:'В формуле дискриминанта перед 4ac должен стоять минус.',rule:`D = (${2*s})² − 4·${s*s} = 0, поэтому x = ${s}.`}}
-function qFourth(rng){const r=ri(rng,2,6),rhs=r**4;return{theme:'Степенные',title:'Уравнение четвёртой степени',steps:[`x⁴ = ${rhs}`,`x² = ${r*r}`,`x = ${r}`,`Ответ: ${r}`],bad:2,explain:'Из x² = a² следуют два значения x = ±a.',rule:`x = −${r} или x = ${r}.`}}
-function qSqrt(rng){const a=ri(rng,2,7),x=ri(rng,-4,8),k=ri(rng,3,9),b=k*k-a*x;return{theme:'Иррациональные',title:'Квадратный корень',steps:[`√(${a}x ${sign(b)}) = ${k}`,`${a}x ${sign(b)} = ${k}`,`${a}x = ${k-b}`,`x = ${(k-b)/a}`],bad:1,explain:'При возведении обеих частей в квадрат число справа тоже нужно возвести в квадрат.',rule:`${a}x ${sign(b)} = ${k*k}, откуда x = ${x}.`}}
-function qSqrtDown(rng){const a=ri(rng,2,6),x=ri(rng,1,8),k=ri(rng,2,9),C=k*k+a*x;return{theme:'Иррациональные',title:'Корень с убывающим выражением',steps:[`√(${C} − ${a}x) = ${k}`,`${C} − ${a}x = ${k*k}`,`−${a}x = ${k*k-C}`,`x = ${(k*k-C)/a}`],bad:3,explain:'При делении на отрицательный коэффициент знак результата меняется.',rule:`x = (${k*k-C})/(−${a}) = ${x}.`}}
-function qCube(rng){const a=ri(rng,2,7),x=nz(rng,-7,9),k=nz(rng,-4,4),b=k**3-a*x;return{theme:'Иррациональные',title:'Кубический корень',steps:[`∛(${a}x ${sign(b)}) = ${k}`,`${a}x ${sign(b)} = ${k**3}`,`${a}x = ${k**3-b}`,`x = ${k**3-b}`],bad:3,explain:'После устранения кубического корня забыли разделить на коэффициент при x.',rule:`x = (${k**3-b})/${a} = ${x}.`}}
-function qRootEqualsX(rng){const x=ri(rng,2,7),b=ri(rng,2,6),A=x*x+b*x,neg=-(b+x);return{theme:'Иррациональные',title:'Корень равен переменной',steps:[`√(${A} − ${b}x) = x; x≥0`,`${A} − ${b}x = x²`,`x² + ${b}x − ${A} = 0`,`x = ${x} или x = ${neg}`,`Меньший корень: ${neg}`],bad:4,explain:'Отрицательный корень нарушает ограничение x≥0, которое следует из исходного уравнения.',rule:`После проверки остаётся x = ${x}.`}}
-function qRootLinear(rng){const c=ri(rng,2,4),q=ri(rng,1,2),r=ri(rng,4,7),A=c+r-q,B=c*c+r*(c+q),badRoot=-(c+q);return{theme:'Иррациональные',title:'Корень и линейное выражение',steps:[`√(${A}x + ${B}) = x + ${c}; x≥−${c}`,`${A}x + ${B} = (x + ${c})²`,`Получено квадратное уравнение с корнями ${r} и ${badRoot}`,`x = ${r} или x = ${badRoot}`,`Оба корня подходят`],bad:4,explain:`Корень ${badRoot} меньше −${c}, поэтому правая часть исходного уравнения отрицательна.`,rule:`Проверку проходит только x = ${r}.`}}
+/* 15 генераторов: по 5 на каждый из 3 блоков.
+   v5 CONTENT: каждый шаг — строка РЕШЕНИЯ, а не инструкция/описание. */
+function qLinear(rng){
+  const a=ri(rng,2,8),x=nz(rng,-9,9),b=nz(rng,-12,12),c=a*x+b;
+  const rhs=c-b;
+  return{theme:'Линейные и рациональные',title:'Линейное уравнение',steps:[
+    `${a}x ${sign(b)} = ${c}`,
+    `${frac(`${a}x ${sign(b)}`,a)} = ${frac(c,a)}`,
+    `x ${sign(b)} = ${frac(c,a)}`,
+    `x = ${frac(c,a)} ${b<0?'−':'+'} ${Math.abs(b)}`
+  ],bad:2,explain:'Ошибка появляется при сокращении дроби: коэффициент a сократили только у ax, а свободное слагаемое b оставили без деления.',rule:`Если делим уравнение на ${a}, делим КАЖДОЕ слагаемое: ${frac(`${a}x ${sign(b)}`,a)} = x ${sign(b/a)}.`}
+}
+function qFracNumber(rng){
+  const a=ri(rng,2,7),k=ri(rng,2,6),b=nz(rng,-8,8);
+  return{theme:'Линейные и рациональные',title:'Дробь равна числу',steps:[
+    `${frac(1,`${a}x ${sign(b)}`)} = ${k}`,
+    `${a}x ${sign(b)} ≠ 0`,
+    `${a}x ${sign(b)} = ${k}`,
+    `${a}x = ${k-b}`
+  ],bad:2,explain:'Ученик приравнял знаменатель к числу справа. Это типичная ошибка при уравнениях вида 1/A=k.',rule:`Из ${frac(1,'A')}=k следует A=${frac(1,'k')}, а не A=k.`}
+}
+function qFracFrac(rng){
+  const a=ri(rng,2,7),x=nz(rng,-7,8),b=nz(rng,-8,8),d=a*x+b;if(d===0)return qFracFrac(rng);
+  return{theme:'Линейные и рациональные',title:'Дробь равна дроби',steps:[
+    `${frac(1,`${a}x ${sign(b)}`)} = ${frac(1,d)}`,
+    `${a}x ${sign(b)} ≠ 0`,
+    `${a}x ${sign(b)} = ${frac(1,d)}`,
+    `${a}x = ${frac(1,d)} ${b>0?'−':'+'} ${Math.abs(b)}`
+  ],bad:2,explain:'После равенства двух дробей с одинаковыми ненулевыми числителями знаменатель слева ошибочно приравняли к обратному числу.',rule:`Здесь нужно ${a}x ${sign(b)}=${d}.`}
+}
+function qTwoDen(rng){
+  let a=ri(rng,2,6),c=ri(rng,1,5);if(a===c)c+=1;
+  const x=nz(rng,-8,8),b=nz(rng,-8,8),d=(a-c)*x+b;
+  return{theme:'Линейные и рациональные',title:'Переменная в двух знаменателях',steps:[
+    `${frac(1,`${a}x ${sign(b)}`)} = ${frac(1,`${c}x ${sign(d)}`)}`,
+    `${a}x ${sign(b)} ≠ 0; &nbsp; ${c}x ${sign(d)} ≠ 0`,
+    `${a}x ${sign(b)} = −(${c}x ${sign(d)})`,
+    `${a+c}x = ${-d-b}`
+  ],bad:2,explain:'Знаменатели сделали противоположными, как при равенстве квадратов. Для равных дробей с одинаковыми числителями это неверно.',rule:`Нужно ${a}x ${sign(b)}=${c}x ${sign(d)}.`}
+}
+function qCross(rng){
+  const a=ri(rng,1,4),b=nz(rng,-4,4),x=2*b+3*a;if(x===a||x===-b)return qCross(rng);
+  return{theme:'Линейные и рациональные',title:'Рациональное уравнение',steps:[
+    `${frac(2,`x − ${a}`)} = ${frac(3,`x ${sign(b)}`)}`,
+    `x ≠ ${a}; &nbsp; x ≠ ${-b}`,
+    `2(x − ${a}) = 3(x ${sign(b)})`,
+    `2x − ${2*a} = 3x ${sign(3*b)}`
+  ],bad:2,explain:'Крест-накрест перемножены не диагональные элементы, а числитель со своим знаменателем.',rule:`Правильно: 2(x ${sign(b)})=3(x−${a}).`}
+}
+function qOdd(rng){
+  const p=pick(rng,[3,5]),root=ri(rng,2,6),s=ri(rng,2,8),rhs=root**p;
+  return{theme:'Степенные',title:'Нечётная степень',steps:[
+    `(x − ${s})<sup>${p}</sup> = ${rhs}`,
+    `x − ${s} = ±${root}`,
+    `x = ${s+root} &nbsp; или &nbsp; x = ${s-root}`
+  ],bad:1,explain:'В нечётной степени появился лишний знак ±.',rule:`Для нечётного ${p}: x−${s}=${root}. У действительного числа один действительный корень нечётной степени.`}
+}
+function qOddNeg(rng){
+  const root=-ri(rng,2,9),s=ri(rng,2,7),rhs=root**3;
+  return{theme:'Степенные',title:'Нечётная степень и отрицательное число',steps:[
+    `(x + ${s})³ = ${rhs}`,
+    `x + ${s} = ${Math.abs(root)}`,
+    `x = ${Math.abs(root)-s}`
+  ],bad:1,explain:'При извлечении кубического корня потерян знак отрицательного числа.',rule:`∛(${rhs})=${root}, поэтому x+${s}=${root}.`}
+}
+function qSquares(rng){
+  const a=ri(rng,1,4),target=nz(rng,-5,5),b=nz(rng,-7,7),c=-2*a*target-b;if(c===b)return qSquares(rng);
+  return{theme:'Степенные',title:'Равенство квадратов',steps:[
+    `(${a}x ${sign(b)})² = (${a}x ${sign(c)})²`,
+    `${a}x ${sign(b)} = ${a}x ${sign(c)}`,
+    `${b} = ${c}`
+  ],bad:1,explain:'При снятии квадратов оставлена только ветвь A=B.',rule:`Из A²=B² следует A=B ИЛИ A=−B. Именно вторая ветвь даёт x=${target}.`}
+}
+function qSquareSpecial(rng){
+  const s=ri(rng,3,14),B=-2*s,C=s*s;
+  return{theme:'Степенные',title:'Квадратное уравнение специального вида',steps:[
+    `(x + ${s})² = ${4*s}x`,
+    `x² − ${2*s}x + ${s*s} = 0`,
+    `D = (${B})² + 4·1·${C}`,
+    `D = ${B*B+4*C}`
+  ],bad:2,explain:'В решении использована неправильная формула дискриминанта.',rule:'Для ax²+bx+c=0: D=b²−4ac.'}
+}
+function qFourth(rng){
+  const r=ri(rng,2,6),rhs=r**4;
+  return{theme:'Степенные',title:'Уравнение четвёртой степени',steps:[
+    `x⁴ = ${rhs}`,
+    `x² = ${r*r}`,
+    `x = ${r}`
+  ],bad:2,explain:'При переходе от x²=r² потерян отрицательный корень.',rule:`x²=${r*r} ⇒ x=±${r}.`}
+}
+function qSqrt(rng){
+  const a=ri(rng,2,7),x=ri(rng,-4,8),k=ri(rng,3,9),b=k*k-a*x;
+  return{theme:'Иррациональные',title:'Квадратный корень',steps:[
+    `√(${a}x ${sign(b)}) = ${k}`,
+    `${a}x ${sign(b)} = ${k}`,
+    `${a}x = ${k-b}`
+  ],bad:1,explain:'Знак квадратного корня просто убран без возведения обеих частей в квадрат.',rule:`Нужно получить ${a}x ${sign(b)}=${k}²=${k*k}.`}
+}
+function qSqrtDown(rng){
+  const a=ri(rng,2,6),x=ri(rng,1,8),k=ri(rng,2,9),C=k*k+a*x;
+  return{theme:'Иррациональные',title:'Корень с убывающим выражением',steps:[
+    `√(${C} − ${a}x) = ${k}`,
+    `${C} − ${a}x = ±${k*k}`,
+    `${C} − ${a}x = ${k*k} &nbsp; или &nbsp; ${C} − ${a}x = −${k*k}`
+  ],bad:1,explain:'После возведения обеих частей в квадрат ошибочно появился ±.',rule:`(√A)²=k² ⇒ A=k². Здесь только ${C}−${a}x=${k*k}.`}
+}
+function qCube(rng){
+  const a=ri(rng,2,7),x=nz(rng,-7,9),k=-ri(rng,2,5),b=k**3-a*x;
+  return{theme:'Иррациональные',title:'Кубический корень',steps:[
+    `∛(${a}x ${sign(b)}) = ${k}`,
+    `${a}x ${sign(b)} ≥ 0`,
+    `${a}x ${sign(b)} = ${k**3}`,
+    `∅`
+  ],bad:1,explain:'Для кубического корня ошибочно введено ОДЗ подкоренного выражения ≥0.',rule:'Кубический корень определён при любом действительном подкоренном выражении.'}
+}
+function qRootEqualsX(rng){
+  const x=ri(rng,2,7),b=ri(rng,2,6),A=x*x+b*x,neg=-(b+x);
+  return{theme:'Иррациональные',title:'Корень равен переменной',steps:[
+    `√(${A} − ${b}x) = x`,
+    `x ≥ 0`,
+    `${A} − ${b}x = x²`,
+    `x₁=${x}; &nbsp; x₂=${neg}`,
+    `{${x}; ${neg}}`
+  ],bad:4,explain:'В итоговое множество попал отрицательный кандидат, хотя ещё в начале было условие x≥0.',rule:`${neg}<0, поэтому он не удовлетворяет исходному уравнению.`}
+}
+function qRootLinear(rng){
+  const c=ri(rng,2,4),q=ri(rng,1,2),r=ri(rng,4,7),A=c+r-q,B=c*c+r*(c+q),badRoot=-(c+q);
+  return{theme:'Иррациональные',title:'Корень и линейное выражение',steps:[
+    `√(${A}x + ${B}) = x + ${c}`,
+    `x + ${c} ≥ 0`,
+    `${A}x + ${B} = (x + ${c})²`,
+    `x₁=${r}; &nbsp; x₂=${badRoot}`,
+    `{${r}; ${badRoot}}`
+  ],bad:4,explain:'После возведения в квадрат в ответ записаны оба корня квадратного уравнения без проверки ограничения правой части.',rule:`Для x=${badRoot}: x+${c}<0, поэтому этот кандидат посторонний.`}
+}
 const GENERATORS=[qLinear,qFracNumber,qFracFrac,qTwoDen,qCross,qOdd,qOddNeg,qSquares,qSquareSpecial,qFourth,qSqrt,qSqrtDown,qCube,qRootEqualsX,qRootLinear];
 function buildQuestionSet(seed){const rng=makeRng(seed),qs=GENERATORS.map(fn=>fn(rng));return shuffle(rng,qs)}
 
