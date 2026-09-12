@@ -464,6 +464,34 @@ figure.art figcaption{font-size:12.5px;font-weight:500;text-align:center;padding
 [data-board-anchor]{position:relative}.shared-board-layer{position:absolute;inset:0;z-index:55;width:100%;height:100%;pointer-events:none;overflow:visible}.shared-board-layer.active{pointer-events:auto;touch-action:none;cursor:crosshair}.shared-board-layer path{fill:none!important;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;filter:none!important}.teacher-cursor{position:absolute;z-index:58;pointer-events:none;transform:translate(7px,7px);padding:3px 7px;border:2px solid var(--soil-dark);border-radius:999px;background:var(--sun);color:var(--soil-dark);font:700 10px 'Rubik',sans-serif}.teacher-cursor.hidden{display:none}
 @media(max-width:700px){.music-volume{padding:4px 6px}.music-volume input{width:72px}.lesson-mini{right:8px;left:8px;overflow-x:auto}.board-toolbar{min-width:0;right:8px;left:8px}.lesson-who{max-width:110px}}
 
+
+/* ===== v3: компактная теория + стабильное рисование по всему экрану ===== */
+.screen.on{position:relative}
+.shared-board-layer{contain:layout paint}
+.theory-mini-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,.9fr);gap:14px;align-items:center;margin-top:10px}
+@media(max-width:760px){.theory-mini-grid{grid-template-columns:1fr}}
+.theory-rule{font-size:15px;font-weight:700;line-height:1.45;padding:10px 12px;border:3px solid var(--soil-dark);border-radius:12px;background:#fff8dc}
+.theory-example{margin-top:8px;padding:10px 12px;border:3px dashed #b99a52;border-radius:12px;background:var(--panel-2);font-size:14.5px;font-weight:600;line-height:1.5}
+.theory-example b{color:#7a1b1b}
+.eq{display:inline-block;padding:2px 7px;border:2px solid rgba(47,28,13,.35);border-radius:7px;background:#fff;font-family:'Russo One',system-ui,sans-serif;white-space:nowrap}
+.vfrac{display:inline-grid;grid-template-rows:auto auto;vertical-align:middle;line-height:1;text-align:center;margin:0 3px;font-family:'Russo One',system-ui,sans-serif}
+.vfrac>span:first-child{padding:0 4px 2px;border-bottom:2px solid currentColor}.vfrac>span:last-child{padding:2px 4px 0}
+.theory-viz{margin:0;background:#fbf6de;border:3px solid var(--soil-dark);border-radius:14px;padding:7px;overflow:hidden}
+.theory-viz svg{display:block;width:100%;height:auto}
+.theory-viz figcaption{font-size:12px;font-weight:700;text-align:center;padding:5px 4px 1px;color:#4b3a1c}
+.phys-dashboard{display:grid;grid-template-columns:1.2fr .8fr;gap:12px;align-items:start;margin-top:10px}
+@media(max-width:820px){.phys-dashboard{grid-template-columns:1fr}}
+.phys-panel{background:#fbf6de;border:3px solid var(--soil-dark);border-radius:14px;padding:8px}
+.phys-panel h3{font-size:14px;margin:0 0 5px;color:var(--soil-dark)}
+.phys-panel svg{width:100%;height:auto;display:block}
+.phys-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+@media(max-width:650px){.phys-summary{grid-template-columns:1fr}}
+.phys-chip{padding:8px 10px;border:3px solid var(--soil-dark);border-radius:11px;background:var(--panel-2);font-weight:700;text-align:center}
+.phys-chip strong{display:block;font-family:'Russo One',sans-serif;font-size:17px;color:#7a1b1b;margin-top:2px}
+.phys-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.phys-controls input[type=range]{flex:1;min-width:220px;accent-color:var(--pea)}
+.phys-formula{font-family:'Russo One',sans-serif;font-size:clamp(17px,2.2vw,23px);text-align:center;padding:9px 12px;background:#fff8dc;border:3px solid var(--soil-dark);border-radius:12px}
+
 </style>
 </head>
 <body>
@@ -1238,16 +1266,16 @@ const STATIONS=[
   games:[{k:'A',name:'Скоростная разминка',desc:'Пять коротких задач с пошаговой подсказкой: превращаем закон движения в формулу скорости.',meta:'5 задач · без таймера'},
          {k:'B',name:'Отработка прототипов',desc:'Скорость в заданный момент и момент, когда достигнута заданная скорость — как в прежнем гайде.',meta:'20 задач · при двух учениках по очереди'}],
   tip:'Прототип №1: мгновенная скорость равна производной координаты.', th:[8]},
- {id:6,name:'Первообразная',short:'знак, нули и площадь через первообразную',count:15,
-  games:[{k:'A',name:'Сад площадей',desc:'Пять тренировочных заданий: знак F′, горизонтальные касательные и площадь под графиком.',meta:'5 задач · без таймера'},
+ {id:6,name:'Первообразная',short:'почему появляется площадь и что значит F(b)−F(a)',count:15,
+  games:[{k:'A',name:'Как первообразная накапливает площадь',desc:'Не задачи: три интерактивные модели — полоски площади, смысл F(b)−F(a) и связь графиков f и F.',meta:'обучающая модель · без таймера'},
          {k:'B',name:'Отработка прототипов',desc:'Прототипы №22–25: знак, корни, разность значений первообразной и площадь фигуры — как в прежнем гайде.',meta:'20 задач · при двух учениках по очереди'}],
-  tip:'Прототипы №22–25: f=F′, а F(b)−F(a) равно определённому интегралу.', th:[9]},
+  tip:'Сначала поймём смысл: площадь складывается из узких полосок, а F(b)−F(a) оставляет только участок от a до b.', th:[9]},
  {id:7,name:'Марафон-битва',short:'все прототипы в фиксированном порядке',count:25,single:true,
   games:[{k:'A',name:'Марафон-битва',desc:'25 фиксированных задач из всех прототипов, 3 жизни, босс-зомби и разбор после каждого ответа.',meta:'25 задач · 3 жизни'}],
   tip:'Все прототипы задания №8 вперемешку. Ошибка стоит жизни.', th:[1,2,3,4,5,6,7,8,9,10]}
 ];
 STATIONS.splice(6);
-const A_COUNTS={1:5,2:4,3:6,4:3,5:5,6:5};
+const A_COUNTS={1:5,2:4,3:6,4:3,5:1,6:5};
 const B_COUNTS={1:20,2:20,3:20,4:20,5:20,6:20};
 STATIONS.forEach(s=>{
   s.games=s.games.filter(g=>g.k==='A'||g.k==='B');
@@ -1257,15 +1285,15 @@ const IMPL={};
 
 /* ---------------- ДОПОЛНИТЕЛЬНАЯ ТЕОРИЯ ---------------- */
 const TH_PHYS={id:8,name:'Физический смысл производной',tag:'скорость',
-  cheat:'Если <b>x(t)</b> — координата тела, то мгновенная скорость <b>v(t)=x′(t)</b>. Чтобы найти момент по известной скорости, решаем уравнение x′(t)=v.',
-  steps:['Выписать закон движения x(t).','Найти производную: v(t)=x′(t).','Подставить заданный момент или приравнять v(t) к заданной скорости.','Проверить, что найденное время входит в физический промежуток t≥0.'],
-  tips:['Сначала один раз найдите v(t), и только потом подставляйте числа.','Производная константы равна нулю: начальная координата на скорость не влияет.','Если спрашивают момент времени, ответом будет t, а не скорость.'],
-  art:[[S.tangent,'Скорость — это наклон графика координаты в выбранный момент.']]};
+  cheat:'<b>x(t)=t²+2t</b> → <b>v(t)=2t+2</b>. Производная координаты — это скорость.',
+  steps:['t=1 → v=4.','t=3 → v=8.'],
+  tips:['Сначала найдите v(t)=x′(t), потом подставляйте время.','Если дана скорость, приравняйте v(t) к этому числу.'],
+  art:[]};
 const TH_ANTI={id:9,name:'Первообразная и площадь',tag:'F′ = f',
-  cheat:'Если <b>F′(x)=f(x)</b>, то знак f показывает рост F. По формуле Ньютона–Лейбница: <b>F(b)−F(a)=∫ₐᵇf(x)dx</b>. Для положительного f это площадь под графиком.',
-  steps:['Проверить подпись графика: F или f.','Если дан F, то f=F′: подъём F означает f>0, горизонтальная касательная — f=0.','Если дан f, вычислить площадь с учётом знака.','Для площади фигуры над осью использовать F(b)−F(a).'],
-  tips:['График F выше оси не означает f>0: важен наклон F.','В F(b)−F(a) сначала подставляется правая граница.','Геометрическая площадь всегда неотрицательна; определённый интеграл может быть отрицательным.'],
-  art:[[S.hill,'Рост и убывание первообразной определяют знак исходной функции.']]};
+  cheat:'<b>F(x)</b> можно понимать как накопление площади. Поэтому участок от <b>a</b> до <b>b</b> получаем так: <b>F(b)−F(a)</b>.',
+  steps:['Пример: f(x)=2x, первообразная F(x)=x².','Нужно от 1 до 3: F(3)=3²=9, F(1)=1²=1.','Вычитаем: 9−1=8. Это площадь между x=1 и x=3.'],
+  tips:['В F(b)−F(a): сначала в F(x) подставляем b, отдельно подставляем a, потом вычитаем.','Почему площадь: очень узкая полоска имеет площадь примерно f(x)·Δx; сумма всех полосок и есть площадь.','Ниже оси интеграл идёт со знаком «−», выше оси — со знаком «+».'],
+  art:[]};
 const TH_PAR={id:10,name:'Горизонтальная и параллельная касательные',tag:'f′ = k',
   cheat:'Касательная параллельна прямой <b>y=kx+b</b>, когда её наклон такой же: <b>f′(x)=k</b>. Горизонтальная касательная — частный случай <b>k=0</b>.',
   steps:['Из уравнения прямой взять коэффициент k перед x.','На графике y=f′(x) провести мысленную горизонталь y=k.','Посчитать пересечения или назвать нужную абсциссу.','Свободный член b на параллельность не влияет.'],
@@ -1274,19 +1302,49 @@ const TH_PAR={id:10,name:'Горизонтальная и параллельна
 const ALLTH=LEVELS.concat([TH_PHYS,TH_ANTI,TH_PAR]);
 const thById=id=>ALLTH.find(l=>l.id===id);
 
+const THEORY_MINI={
+  1:{rule:'Смотри не на высоту точки, а на направление графика.',ex:'В точке A график идёт вверх → <span class="eq">f′(A)&gt;0</span>. В точке B вниз → <span class="eq">f′(B)&lt;0</span>.'},
+  2:{rule:'Производная в точке — это наклон касательной.',ex:'По касательной: вправо на 4, вверх на 2 → <span class="eq">f′(x₀)=<span class="vfrac"><span>2</span><span>4</span></span>=0,5</span>.'},
+  3:{rule:'Производная равна нулю там, где касательная горизонтальна.',ex:'У параболы вершина при <span class="eq">x=2</span> → именно там <span class="eq">f′(2)=0</span>.'},
+  4:{rule:'Если нарисован график f′: выше оси — f растёт, ниже — f убывает.',ex:'Например, <span class="eq">f′(2)=3&gt;0</span> → функция f в этот момент растёт.'},
+  5:{rule:'Экстремум появляется только при смене знака производной.',ex:'<span class="eq">− → +</span> даёт минимум. <span class="eq">+ → −</span> даёт максимум.'},
+  6:{rule:'Для наибольшего/наименьшего значения следим, где f растёт и где падает.',ex:'Если до <span class="eq">x=2</span> f′&gt;0, а после f′&lt;0, то в <span class="eq">x=2</span> — максимум f.'},
+  7:{rule:'Касание = одна общая точка.',ex:'Пример: <span class="eq">y=x²</span> и <span class="eq">y=2x−1</span>. Получаем <span class="eq">(x−1)²=0</span> → один корень → касание.'},
+  8:{rule:'Если x(t) — координата, то производная x′(t) — скорость.',ex:'<span class="eq">x(t)=t²+2t</span> → <span class="eq">v(t)=2t+2</span>. При t=3 скорость равна 8.'},
+  9:{rule:'<b>F(x)</b> — счётчик накопленной площади. Поэтому <span class="eq">F(b)−F(a)</span> убирает всё, что было до a, и оставляет площадь только от a до b.',ex:'<span class="eq">f(x)=2x</span>, <span class="eq">F(x)=x²</span>. Подставляем <b>b=3</b>: <span class="eq">F(3)=3²=9</span>. Подставляем <b>a=1</b>: <span class="eq">F(1)=1²=1</span>. Значит площадь: <span class="eq">9−1=8</span>.'},
+ 10:{rule:'Параллельные прямые имеют одинаковый наклон.',ex:'У <span class="eq">y=−x+7</span> наклон −1. Значит параллельная касательная ищется из <span class="eq">f′(x)=−1</span>.'}
+};
+function theoryVisual(id){
+  const common=`<rect x="1" y="1" width="358" height="198" rx="14" fill="#fffaf0" stroke="#2f1c0d" stroke-width="2"/>`;
+  if(id===1)return `<svg viewBox="0 0 360 200">${common}<line x1="35" y1="160" x2="330" y2="160" stroke="#8b7b55"/><line x1="55" y1="180" x2="55" y2="25" stroke="#8b7b55"/><path d="M55 145 C105 135 125 55 180 78 S245 155 325 72" fill="none" stroke="#4a63d8" stroke-width="4"/><circle cx="118" cy="83" r="6" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/><line x1="83" y1="112" x2="151" y2="55" stroke="#2f8f1c" stroke-width="4"/><text x="105" y="47" font-size="15" font-family="Russo One" fill="#2f8f1c">f′ &gt; 0</text><circle cx="239" cy="135" r="6" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/><line x1="205" y1="102" x2="272" y2="164" stroke="#c94f2f" stroke-width="4"/><text x="235" y="95" font-size="15" font-family="Russo One" fill="#c94f2f">f′ &lt; 0</text></svg>`;
+  if(id===2)return `<svg viewBox="0 0 360 200">${common}${[60,110,160,210,260,310].map(x=>`<line x1="${x}" y1="25" x2="${x}" y2="175" stroke="#ddd0aa"/>`).join('')}${[40,70,100,130,160].map(y=>`<line x1="35" y1="${y}" x2="330" y2="${y}" stroke="#ddd0aa"/>`).join('')}<line x1="55" y1="160" x2="315" y2="30" stroke="#c94f2f" stroke-width="4"/><circle cx="110" cy="132" r="6" fill="#ffd23f"/><circle cx="310" cy="32" r="6" fill="#ffd23f"/><line x1="110" y1="132" x2="310" y2="132" stroke="#2f8f1c" stroke-width="3" stroke-dasharray="7 5"/><line x1="310" y1="132" x2="310" y2="32" stroke="#2f8f1c" stroke-width="3" stroke-dasharray="7 5"/><text x="202" y="152" font-size="14" font-family="Russo One" fill="#2f8f1c">Δx = 4</text><text x="314" y="85" font-size="14" font-family="Russo One" fill="#2f8f1c">Δy = 2</text></svg>`;
+  if(id===3)return `<svg viewBox="0 0 360 200">${common}<line x1="30" y1="160" x2="330" y2="160" stroke="#8b7b55"/><path d="M55 45 Q180 188 305 45" fill="none" stroke="#4a63d8" stroke-width="4"/><line x1="115" y1="146" x2="245" y2="146" stroke="#c94f2f" stroke-width="4"/><circle cx="180" cy="146" r="7" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/><text x="195" y="130" font-size="15" font-family="Russo One" fill="#c94f2f">f′(2)=0</text></svg>`;
+  if(id===4)return `<svg viewBox="0 0 360 200">${common}<line x1="30" y1="100" x2="330" y2="100" stroke="#2f1c0d" stroke-width="3"/><path d="M35 142 C95 25 145 35 185 100 S270 178 328 58" fill="none" stroke="#7a3fb8" stroke-width="4"/><rect x="45" y="42" width="105" height="38" rx="10" fill="#d9f5c2"/><text x="97" y="66" text-anchor="middle" font-size="14" font-family="Russo One" fill="#1f5312">f′ &gt; 0 → f растёт</text><rect x="205" y="122" width="118" height="38" rx="10" fill="#f8d7d7"/><text x="264" y="146" text-anchor="middle" font-size="14" font-family="Russo One" fill="#7a1b1b">f′ &lt; 0 → f падает</text></svg>`;
+  if(id===5)return `<svg viewBox="0 0 360 200">${common}<line x1="30" y1="100" x2="330" y2="100" stroke="#2f1c0d" stroke-width="3"/><path d="M35 150 C90 150 105 40 160 70 S220 150 325 45" fill="none" stroke="#7a3fb8" stroke-width="4"/><circle cx="92" cy="100" r="6" fill="#ffd23f"/><text x="92" y="83" text-anchor="middle" font-size="14" font-family="Russo One" fill="#2f8f1c">− → + : min</text><circle cx="205" cy="100" r="6" fill="#ffd23f"/><text x="205" y="122" text-anchor="middle" font-size="14" font-family="Russo One" fill="#c94f2f">+ → − : max</text></svg>`;
+  if(id===6)return `<svg viewBox="0 0 360 200">${common}<line x1="35" y1="105" x2="325" y2="105" stroke="#2f1c0d" stroke-width="3"/><path d="M40 70 Q180 25 320 145" fill="none" stroke="#7a3fb8" stroke-width="4"/><line x1="180" y1="35" x2="180" y2="165" stroke="#c94f2f" stroke-width="2" stroke-dasharray="6 4"/><text x="108" y="155" font-size="15" font-family="Russo One" fill="#2f8f1c">f растёт ↗</text><text x="220" y="155" font-size="15" font-family="Russo One" fill="#c94f2f">f падает ↘</text><text x="180" y="25" text-anchor="middle" font-size="14" font-family="Russo One" fill="#2f1c0d">максимум f</text></svg>`;
+  if(id===7)return `<svg viewBox="0 0 360 200">${common}<line x1="30" y1="165" x2="330" y2="165" stroke="#8b7b55"/><path d="M55 150 Q180 20 305 150" fill="none" stroke="#4a63d8" stroke-width="4"/><line x1="70" y1="145" x2="300" y2="45" stroke="#c94f2f" stroke-width="4"/><circle cx="180" cy="95" r="7" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/><text x="196" y="84" font-size="14" font-family="Russo One" fill="#7a1b1b">1 общая точка</text><text x="180" y="187" text-anchor="middle" font-size="15" font-family="Russo One">D = 0</text></svg>`;
+  if(id===8)return `<svg viewBox="0 0 360 200">${common}<line x1="35" y1="165" x2="330" y2="165" stroke="#2f1c0d" stroke-width="3"/><line x1="45" y1="175" x2="45" y2="25" stroke="#2f1c0d" stroke-width="3"/><path d="M45 158 C115 150 190 115 320 40" fill="none" stroke="#4a63d8" stroke-width="4"/><line x1="95" y1="165" x2="95" y2="145" stroke="#c94f2f" stroke-dasharray="6 4" stroke-width="2"/><line x1="155" y1="165" x2="155" y2="125" stroke="#c94f2f" stroke-dasharray="6 4" stroke-width="2"/><line x1="230" y1="165" x2="230" y2="88" stroke="#c94f2f" stroke-dasharray="6 4" stroke-width="2"/><line x1="290" y1="165" x2="290" y2="55" stroke="#c94f2f" stroke-dasharray="6 4" stroke-width="2"/><text x="125" y="185" text-anchor="middle" font-size="12" font-family="Russo One" fill="#2f8f1c">1 c</text><text x="260" y="185" text-anchor="middle" font-size="12" font-family="Russo One" fill="#2f8f1c">1 c</text><text x="72" y="120" font-size="12" font-family="Russo One" fill="#7a1b1b">Δx меньше</text><text x="242" y="78" font-size="12" font-family="Russo One" fill="#7a1b1b">Δx больше</text></svg>`;
+  if(id===9)return `<svg viewBox="0 0 360 200">${common}
+    <line x1="38" y1="165" x2="330" y2="165" stroke="#2f1c0d" stroke-width="3"/>
+    <line x1="55" y1="177" x2="55" y2="25" stroke="#2f1c0d" stroke-width="3"/>
+    <line x1="110" y1="165" x2="110" y2="132" stroke="#c94f2f" stroke-width="2" stroke-dasharray="6 4"/>
+    <line x1="275" y1="165" x2="275" y2="55" stroke="#c94f2f" stroke-width="2" stroke-dasharray="6 4"/>
+    <polygon points="110,165 110,132 275,55 275,165" fill="#ffd23f" opacity=".5"/>
+    <line x1="55" y1="158" x2="310" y2="38" stroke="#4a63d8" stroke-width="4"/>
+    <text x="110" y="184" text-anchor="middle" font-size="12" font-family="Russo One">a=1</text>
+    <text x="275" y="184" text-anchor="middle" font-size="12" font-family="Russo One">b=3</text>
+    <rect x="128" y="18" width="190" height="38" rx="10" fill="#fff3c2" stroke="#b99a52" stroke-width="2"/>
+    <text x="223" y="34" text-anchor="middle" font-size="12" font-family="Russo One">F(3)=9, F(1)=1</text>
+    <text x="223" y="49" text-anchor="middle" font-size="13" font-family="Russo One" fill="#1f5312">9 − 1 = 8</text>
+  </svg>`;
+  return `<svg viewBox="0 0 360 200">${common}<line x1="35" y1="160" x2="325" y2="160" stroke="#2f1c0d" stroke-width="3"/><path d="M40 140 C100 25 190 45 325 135" fill="none" stroke="#4a63d8" stroke-width="4"/><line x1="45" y1="112" x2="315" y2="112" stroke="#c94f2f" stroke-width="3" stroke-dasharray="8 5"/><text x="250" y="102" font-size="14" font-family="Russo One" fill="#c94f2f">f′(x)=−1</text></svg>`;
+}
 function theoryHTML(ids,full){
-  return ids.map(id=>{ const L=thById(id); if(!L) return '';
-    return `<div class="card"><h3>${L.name}</h3>
-      <div class="cheat">${L.cheat}</div>
-      ${full?`<div class="thgrid" style="margin-top:12px">
-        <ol class="steps" style="margin:0">${L.steps.map(s=>`<li>${s}</li>`).join('')}</ol>
-        <div>${L.art.map(a=>`<figure class="art">${a[0]}<figcaption>${a[1]}</figcaption></figure>`).join('')}</div>
-      </div>`:''}
-    </div>`; }).join('');
+  return ids.map(id=>{const L=thById(id),M=THEORY_MINI[id];if(!L||!M)return'';return `<div class="card"><h3>${L.name}</h3><div class="theory-mini-grid"><div><div class="theory-rule">${M.rule}</div><div class="theory-example"><b>Пример.</b> ${M.ex}</div></div><figure class="theory-viz">${theoryVisual(id)}</figure></div></div>`}).join('');
 }
 $('#theoryBody').innerHTML=theoryHTML(ALLTH.map(l=>l.id),true)+
   `<p style="color:#eaffd8;text-align:center;font-weight:500;text-shadow:0 1px 0 rgba(0,0,0,.4)">Пошаговые алгоритмы и схемы — в блоке «Зарядка для мозга» на каждой станции. Приёмы — в Секретном арсенале.</p>`;
-$('#arsBody').innerHTML=ALLTH.map(L=>`<div class="tool"><h4>${L.name}</h4><ul>${L.tips.map(t=>`<li>${t}</li>`).join('')}</ul></div>`).join('')
+$('#arsBody').innerHTML=ALLTH.map(L=>`<div class="tool"><h4>${L.name}</h4><ul>${(L.tips||[]).slice(0,2).map(t=>`<li>${t}</li>`).join('')}</ul></div>`).join('')
  +`<div class="tool"><h4>Общий боезапас</h4><ul>
    <li>Ответ в задании 8 — всегда число. Дробь пишем через запятую: <kbd>0,6</kbd>.</li>
    <li>Первым делом читайте подпись у графика: <kbd>f(x)</kbd> или <kbd>f′(x)</kbd>. Половина ошибок — здесь.</li>
@@ -1322,6 +1380,7 @@ $('#studentCode').addEventListener('keydown',e=>{if(e.key==='Enter')$('#btnLogin
 let timerHandle=null;
 function go(id){
   if(timerHandle){ clearInterval(timerHandle); timerHandle=null; }
+  window.__PVZ_RESET_BOARD__?.();
   document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id==='screen-'+id));
   if(!window.__PVZ_KEEP_LOCAL_SCROLL)scrollTo(0,0);
 }
@@ -1366,6 +1425,7 @@ $('#lawn').addEventListener('click',e=>{ const b=e.target.closest('[data-open]')
 function gameStars(st,k){ return (GS.gstars[st]||{})[k]||0; }
 function openStation(id){
   sfx('step');
+  window.__PVZ_RESET_BOARD__?.();
   const s=STATIONS.find(x=>x.id===id);
   if(s.single){ startGame(id,'A'); return; }
   $('#stationBody').innerHTML=`
@@ -1389,6 +1449,7 @@ function openStation(id){
   go('station');
 }
 function startGame(id,k){
+  window.__PVZ_RESET_BOARD__?.();
   if(k==='B'){
     const ident=currentResultStudent();
     if(!ident){openLogin('control:'+id+':'+k);return}
@@ -1540,7 +1601,7 @@ function explain(box,ok,title,html,btnText,next){
   d.innerHTML=`<h4>${ok?'✅ ':'❌ '}${title}</h4><div>${html}</div>
     <div class="next"><button class="bigbtn">${btnText||'Далее →'}</button></div>`;
   box.appendChild(d); d.scrollIntoView({behavior:'smooth',block:'nearest'});
-  d.querySelector('button').onclick=()=>{ d.remove(); next(); };
+  d.querySelector('button').onclick=()=>{ window.__PVZ_RESET_BOARD__?.(); d.remove(); next(); };
   return d;
 }
 const starsBy=bad=>bad===0?3:bad<=2?2:1;
@@ -2612,9 +2673,113 @@ IMPL['2B']=makeQuiz(2,20);
 IMPL['3A']=IMPL['3B'];
 IMPL['3B']=makeQuiz(3,20);
 IMPL['4B']=makeQuiz(4,20);
-IMPL['5A']=makeQuiz(5,5);
+IMPL['5A']=function(host,fin){
+  let t=2,playing=false,raf=0,started=performance.now();
+  const x=s=>s*s+2*s, v=s=>2*s+2;
+  host.innerHTML=bar(5,`<span class="pill">5A · живая модель</span><span class="pill">никаких задач</span>`)+`<div class="field">
+    <div class="phys-formula"><span class="eq">x(t)=t²+2t</span> &nbsp;→&nbsp; производная &nbsp;→&nbsp; <span class="eq">v(t)=2t+2</span></div>
+    <div class="phys-summary">
+      <div class="phys-chip">Одинаковое время<strong>Δt = 1 c</strong></div>
+      <div class="phys-chip">Раньше: 0,5 → 1,5 c<strong>Δx = 4</strong></div>
+      <div class="phys-chip">Позже: 3 → 4 c<strong>Δx = 9</strong></div>
+    </div>
+    <div class="phys-dashboard"><div class="phys-panel"><h3>Координата x(t): где график круче — скорость больше</h3><div id="physX"></div></div><div class="phys-panel"><h3>Скорость v(t)=x′(t)</h3><div id="physV"></div></div></div>
+    <div class="phys-controls"><button id="physPlay">▶ Движение</button><input id="physSlider" type="range" min="0.5" max="4.5" step="0.05" value="2"><span class="pill">t=<b id="physT">2</b></span><span class="pill">x=<b id="physPos">8</b></span><span class="pill">v=<b id="physSpeed">6</b></span></div>
+    <div class="inline-fb" style="text-align:center;margin-top:10px"><span style="color:#1f5312"><b>Смысл:</b> производная отвечает на вопрос «как быстро меняется координата прямо сейчас?»</span></div>
+    <div class="controls"><button id="physDone" class="bigbtn">Понял → завершить 5А</button></div>
+  </div>`;
+  const svgX=()=>{
+    const W=610,H=330,L=54,R=20,T=22,B=42,xMax=5,yMax=36,X=q=>L+(W-L-R)*q/xMax,Y=q=>H-B-(H-T-B)*q/yMax;
+    const pts=[];for(let s=0;s<=5;s+=.04)pts.push(`${X(s).toFixed(1)},${Y(x(s)).toFixed(1)}`);
+    const y=x(t),k=v(t),ta=Math.max(0,t-.85),tb=Math.min(5,t+.85),ya=y+k*(ta-t),yb=y+k*(tb-t);
+    const interval=(a,b,color,label)=>`<line x1="${X(a)}" y1="${H-B+23}" x2="${X(b)}" y2="${H-B+23}" stroke="${color}" stroke-width="5"/><line x1="${X(a)}" y1="${H-B}" x2="${X(a)}" y2="${Y(x(a))}" stroke="${color}" stroke-width="2" stroke-dasharray="6 5"/><line x1="${X(b)}" y1="${H-B}" x2="${X(b)}" y2="${Y(x(b))}" stroke="${color}" stroke-width="2" stroke-dasharray="6 5"/><line x1="${X(a)}" y1="${Y(x(a))}" x2="${X(b)}" y2="${Y(x(a))}" stroke="${color}" stroke-width="2" stroke-dasharray="6 5"/><line x1="${X(b)}" y1="${Y(x(a))}" x2="${X(b)}" y2="${Y(x(b))}" stroke="${color}" stroke-width="4"/><text x="${(X(a)+X(b))/2}" y="${H-B+38}" text-anchor="middle" font-size="12" font-family="Russo One" fill="${color}">${label}</text>`;
+    return `<svg viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" rx="14" fill="#fffaf0"/>${[0,1,2,3,4,5].map(n=>`<line x1="${X(n)}" y1="${T}" x2="${X(n)}" y2="${H-B}" stroke="#eadfbf"/><text x="${X(n)}" y="${H-B+16}" text-anchor="middle" font-size="11">${n}</text>`).join('')}${[0,8,16,24,32].map(n=>`<line x1="${L}" y1="${Y(n)}" x2="${W-R}" y2="${Y(n)}" stroke="#eadfbf"/><text x="${L-7}" y="${Y(n)+4}" text-anchor="end" font-size="11">${n}</text>`).join('')}<line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="#2f1c0d" stroke-width="3"/><line x1="${L}" y1="${H-B}" x2="${L}" y2="${T}" stroke="#2f1c0d" stroke-width="3"/><text x="${W-R+4}" y="${H-B+5}" font-size="13" font-family="Russo One">t</text><text x="${L-18}" y="${T+4}" font-size="13" font-family="Russo One">x</text><path d="M ${pts.join(' L ')}" fill="none" stroke="#4a63d8" stroke-width="4.5"/>${interval(.5,1.5,'#2f8f1c','1 c · Δx=4')}${interval(3,4,'#7a3fb8','1 c · Δx=9')}<line x1="${X(ta)}" y1="${Y(ya)}" x2="${X(tb)}" y2="${Y(yb)}" stroke="#c94f2f" stroke-width="4"/><line x1="${X(t)}" y1="${H-B}" x2="${X(t)}" y2="${Y(y)}" stroke="#c94f2f" stroke-width="2" stroke-dasharray="6 5"/><line x1="${L}" y1="${Y(y)}" x2="${X(t)}" y2="${Y(y)}" stroke="#c94f2f" stroke-width="2" stroke-dasharray="6 5"/><circle cx="${X(t)}" cy="${Y(y)}" r="7" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/><text x="${X(t)+10}" y="${Math.max(25,Y(y)-10)}" font-size="12" font-family="Russo One" fill="#c94f2f">касательная: наклон = ${fmtNum(k)}</text></svg>`;
+  };
+  const svgV=()=>{
+    const W=390,H=330,L=48,R=18,T=22,B=42,X=q=>L+(W-L-R)*q/5,Y=q=>H-B-(H-T-B)*(q-2)/10;
+    const pts=[];for(let s=0;s<=5;s+=.05)pts.push(`${X(s).toFixed(1)},${Y(v(s)).toFixed(1)}`);
+    return `<svg viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" rx="14" fill="#fffaf0"/>${[0,1,2,3,4,5].map(n=>`<line x1="${X(n)}" y1="${T}" x2="${X(n)}" y2="${H-B}" stroke="#eadfbf"/><text x="${X(n)}" y="${H-B+16}" text-anchor="middle" font-size="11">${n}</text>`).join('')}${[2,4,6,8,10,12].map(n=>`<line x1="${L}" y1="${Y(n)}" x2="${W-R}" y2="${Y(n)}" stroke="#eadfbf"/><text x="${L-7}" y="${Y(n)+4}" text-anchor="end" font-size="11">${n}</text>`).join('')}<line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="#2f1c0d" stroke-width="3"/><line x1="${L}" y1="${H-B}" x2="${L}" y2="${T}" stroke="#2f1c0d" stroke-width="3"/><text x="${W-R+3}" y="${H-B+5}" font-size="13" font-family="Russo One">t</text><text x="${L-18}" y="${T+4}" font-size="13" font-family="Russo One">v</text><path d="M ${pts.join(' L ')}" fill="none" stroke="#2f8f1c" stroke-width="4.5"/><line x1="${X(t)}" y1="${H-B}" x2="${X(t)}" y2="${Y(v(t))}" stroke="#c94f2f" stroke-width="2" stroke-dasharray="6 5"/><line x1="${L}" y1="${Y(v(t))}" x2="${X(t)}" y2="${Y(v(t))}" stroke="#c94f2f" stroke-width="2" stroke-dasharray="6 5"/><circle cx="${X(t)}" cy="${Y(v(t))}" r="8" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/><text x="${Math.min(W-120,X(t)+10)}" y="${Math.max(24,Y(v(t))-10)}" font-size="13" font-family="Russo One" fill="#1f5312">v=${fmtNum(v(t))}</text></svg>`;
+  };
+  function draw(){
+    $('#physX').innerHTML=svgX();$('#physV').innerHTML=svgV();$('#physT').textContent=fmtNum(t);$('#physPos').textContent=fmtNum(x(t));$('#physSpeed').textContent=fmtNum(v(t));$('#physSlider').value=t;
+  }
+  $('#physSlider').oninput=e=>{playing=false;cancelAnimationFrame(raf);$('#physPlay').textContent='▶ Движение';t=+e.target.value;draw()};
+  $('#physPlay').onclick=()=>{playing=!playing;$('#physPlay').textContent=playing?'⏸ Пауза':'▶ Движение';if(!playing){cancelAnimationFrame(raf);return}let last=performance.now();const tick=now=>{if(!playing)return;const dt=(now-last)/1000;last=now;t+=dt*.65;if(t>4.5)t=.5;draw();raf=requestAnimationFrame(tick)};raf=requestAnimationFrame(tick)};
+  $('#physDone').onclick=()=>{playing=false;cancelAnimationFrame(raf);window.__PVZ_RESET_BOARD__?.();fin(3,1,0,{durationSeconds:Math.max(1,Math.round((performance.now()-started)/1000))})};
+  draw();
+};
 IMPL['5B']=makeQuiz(5,20);
-IMPL['6A']=makeQuiz(6,5);
+IMPL['6A']=function(host,fin){
+  let step=0, strips=8, a=1, b=3, probe=1.5;
+  const started=performance.now();
+  const F=x=>x*x/2+x;
+  const f=x=>x+1;
+  const G=x=>x*x/2-2*x;
+  const g=x=>x-2;
+  host.innerHTML=bar(6,`<span class="pill">6A · понять первообразную</span><span class="pill">без задач</span>`)+
+    `<div class="field">
+      <div class="controls" style="justify-content:flex-start;gap:8px;flex-wrap:wrap;margin:0 0 10px">
+        <button class="iconbtn antiTab" data-s="0">1. Почему площадь</button>
+        <button class="iconbtn antiTab" data-s="1">2. Почему F(b)−F(a)</button>
+        <button class="iconbtn antiTab" data-s="2">3. Как связаны f и F</button>
+      </div>
+      <div id="antiBody"></div>
+      <div class="controls" style="justify-content:space-between;margin-top:12px" id="antiNav"></div>
+    </div>`;
+
+  const frame=(W,H,L,R,T,B)=>`<rect width="${W}" height="${H}" rx="14" fill="#fffaf0"/><line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="#2f1c0d" stroke-width="3"/><line x1="${L}" y1="${H-B}" x2="${L}" y2="${T}" stroke="#2f1c0d" stroke-width="3"/>`;
+
+  function stripSvg(){
+    const W=520,H=270,L=52,R=20,T=18,B=42,xmax=4.4,ymax=5.8, X=x=>L+(W-L-R)*x/xmax, Y=y=>H-B-(H-T-B)*y/ymax;
+    const dx=4/strips, rects=[]; let approx=0;
+    for(let i=0;i<strips;i++){const x=i*dx,y=f(x);approx+=y*dx;rects.push(`<rect x="${X(x)}" y="${Y(y)}" width="${Math.max(1,X(x+dx)-X(x))}" height="${Y(0)-Y(y)}" fill="#ffd23f" opacity=".38" stroke="#c99a18" stroke-width="1"/>`)}
+    const pts=[];for(let x=0;x<=4;x+=.05)pts.push(`${X(x).toFixed(1)},${Y(f(x)).toFixed(1)}`);
+    return {svg:`<svg viewBox="0 0 ${W} ${H}">${frame(W,H,L,R,T,B)}${[0,1,2,3,4].map(n=>`<line x1="${X(n)}" y1="${H-B-4}" x2="${X(n)}" y2="${H-B+4}" stroke="#2f1c0d"/><text x="${X(n)}" y="${H-B+18}" text-anchor="middle" font-size="11">${n}</text>`).join('')}${rects.join('')}<path d="M ${pts.join(' L ')}" fill="none" stroke="#4a63d8" stroke-width="4"/><text x="${W-130}" y="30" font-size="14" font-family="Russo One" fill="#4a63d8">f(x)=x+1</text><text x="70" y="38" font-size="12" font-family="Russo One" fill="#8a5b00">полоска ≈ высота × ширина</text></svg>`,approx};
+  }
+
+  function areaSvg(){
+    const W=520,H=270,L=52,R=20,T=18,B=42,xmax=5,ymax=6.4,X=x=>L+(W-L-R)*x/xmax,Y=y=>H-B-(H-T-B)*y/ymax;
+    const pts=[];for(let x=0;x<=5;x+=.05)pts.push(`${X(x).toFixed(1)},${Y(f(x)).toFixed(1)}`);
+    const poly=[];poly.push(`${X(a)},${Y(0)}`);for(let x=a;x<=b+.001;x+=Math.max(.03,(b-a)/80))poly.push(`${X(Math.min(x,b))},${Y(f(Math.min(x,b)))}`);poly.push(`${X(b)},${Y(0)}`);
+    const fb=F(b),fa=F(a),diff=fb-fa;
+    return `<svg viewBox="0 0 ${W} ${H}">${frame(W,H,L,R,T,B)}${[0,1,2,3,4,5].map(n=>`<line x1="${X(n)}" y1="${H-B-4}" x2="${X(n)}" y2="${H-B+4}" stroke="#2f1c0d"/><text x="${X(n)}" y="${H-B+18}" text-anchor="middle" font-size="11">${n}</text>`).join('')}<polygon points="${poly.join(' ')}" fill="#ffd23f" opacity=".48"/><path d="M ${pts.join(' L ')}" fill="none" stroke="#4a63d8" stroke-width="4"/><line x1="${X(a)}" y1="${H-B}" x2="${X(a)}" y2="${Y(f(a))}" stroke="#c94f2f" stroke-width="2.2" stroke-dasharray="6 5"/><line x1="${X(b)}" y1="${H-B}" x2="${X(b)}" y2="${Y(f(b))}" stroke="#c94f2f" stroke-width="2.2" stroke-dasharray="6 5"/><text x="${X(a)}" y="${H-B+32}" text-anchor="middle" font-size="12" font-family="Russo One">a=${fmtNum(a)}</text><text x="${X(b)}" y="${H-B+32}" text-anchor="middle" font-size="12" font-family="Russo One">b=${fmtNum(b)}</text><rect x="238" y="20" width="260" height="52" rx="10" fill="#fff3c2" stroke="#b99a52" stroke-width="2"/><text x="368" y="40" text-anchor="middle" font-size="12" font-family="Russo One">F(b)=${fmtNum(fb)} · F(a)=${fmtNum(fa)}</text><text x="368" y="60" text-anchor="middle" font-size="15" font-family="Russo One" fill="#1f5312">площадь = ${fmtNum(fb)} − ${fmtNum(fa)} = ${fmtNum(diff)}</text></svg>`;
+  }
+
+  function linkedSvg(){
+    const W=520,H=360,L=55,R=20,xmax=4, X=x=>L+(W-L-R)*x/xmax;
+    const top={t:22,b:162,ymin:-2.5,ymax:2.5}, bot={t:204,b:338,ymin:-2.4,ymax:.4};
+    const Y=(y,p)=>p.b-(p.b-p.t)*(y-p.ymin)/(p.ymax-p.ymin);
+    const path=(fn,p)=>{const pts=[];for(let x=0;x<=4;x+=.04)pts.push(`${X(x).toFixed(1)},${Y(fn(x),p).toFixed(1)}`);return `M ${pts.join(' L ')}`};
+    const gv=g(probe),Gv=G(probe),state=gv>0.08?'F растёт':gv<-.08?'F падает':'F разворачивается';
+    return `<svg viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" rx="14" fill="#fffaf0"/>
+      <line x1="${L}" y1="${Y(0,top)}" x2="${W-R}" y2="${Y(0,top)}" stroke="#2f1c0d" stroke-width="2.5"/><line x1="${L}" y1="${top.b}" x2="${L}" y2="${top.t}" stroke="#2f1c0d" stroke-width="2.5"/>
+      <path d="${path(g,top)}" fill="none" stroke="#4a63d8" stroke-width="4"/><line x1="${X(probe)}" y1="${top.t}" x2="${X(probe)}" y2="${bot.b}" stroke="#c94f2f" stroke-width="2" stroke-dasharray="6 5"/><circle cx="${X(probe)}" cy="${Y(gv,top)}" r="7" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/><text x="70" y="38" font-size="14" font-family="Russo One" fill="#4a63d8">f(x)=x−2</text><text x="${Math.min(W-155,X(probe)+10)}" y="${Math.max(top.t+20,Y(gv,top)-10)}" font-size="13" font-family="Russo One" fill="#7a1b1b">f=${fmtNum(gv)}</text>
+      <line x1="${L}" y1="${Y(0,bot)}" x2="${W-R}" y2="${Y(0,bot)}" stroke="#2f1c0d" stroke-width="2.5"/><line x1="${L}" y1="${bot.b}" x2="${L}" y2="${bot.t}" stroke="#2f1c0d" stroke-width="2.5"/><path d="${path(G,bot)}" fill="none" stroke="#2f8f1c" stroke-width="4"/><circle cx="${X(probe)}" cy="${Y(Gv,bot)}" r="7" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/><text x="70" y="220" font-size="14" font-family="Russo One" fill="#2f8f1c">F(x)=x²/2−2x</text><rect x="285" y="208" width="205" height="44" rx="10" fill="${gv>0.08?'#d9f5c2':gv<-.08?'#f8d7d7':'#fff3c2'}"/><text x="388" y="226" text-anchor="middle" font-size="12" font-family="Russo One">f(${fmtNum(probe)})=${fmtNum(gv)}</text><text x="388" y="244" text-anchor="middle" font-size="14" font-family="Russo One">${state}</text>
+      ${[0,1,2,3,4].map(n=>`<text x="${X(n)}" y="354" text-anchor="middle" font-size="11">${n}</text>`).join('')}
+    </svg>`;
+  }
+
+  function page0(){const d=stripSvg();return `<div class="theory-rule">Площадь складывается из узких полосок: <b>высота f(x) × ширина Δx</b>. Чем полоски уже, тем точнее сумма.</div><div class="stage" id="antiStage">${d.svg}</div><div class="controls" style="gap:10px"><input id="antiStrips" type="range" min="4" max="32" step="4" value="${strips}" style="flex:1;min-width:220px"><span class="pill">полосок: <b id="antiN">${strips}</b></span><span class="pill">сумма ≈ <b id="antiApprox">${fmtNum(d.approx)}</b></span><span class="pill">точная площадь = <b>12</b></span></div><div class="theory-example"><b>Смотри:</b> 4 полоски дают грубую оценку. Сделай 32 — сумма приблизится к 12. Так появляется площадь под графиком.</div>`}
+  function page1(){return `<div class="theory-rule"><b>F(x)</b> хранит накопление от начала до x. Поэтому из накопления до <b>b</b> вычитаем накопление до <b>a</b> — остаётся только участок между ними.</div><div class="stage" id="antiArea">${areaSvg()}</div><div class="controls" style="gap:10px;align-items:center"><span class="pill">a</span><input id="antiA" type="range" min="0" max="4" step="0.5" value="${a}" style="flex:1;min-width:140px"><span class="pill">b</span><input id="antiB" type="range" min="0.5" max="5" step="0.5" value="${b}" style="flex:1;min-width:140px"></div><div class="theory-example"><b>Куда подставлять:</b> если <span class="eq">F(x)=x²/2+x</span>, то вместо x сначала ставим <b>b</b> → получаем F(b). Потом вместо x ставим <b>a</b> → получаем F(a). После этого считаем <b>F(b)−F(a)</b>.</div>`}
+  function page2(){const gv=g(probe);return `<div class="theory-rule"><b>f(x)=F′(x)</b>: значение f показывает, что прямо сейчас делает F. <b>f&lt;0</b> → F падает, <b>f=0</b> → горизонтальная касательная, <b>f&gt;0</b> → F растёт.</div><div class="stage" id="antiLinked">${linkedSvg()}</div><div class="controls"><input id="antiProbe" type="range" min="0" max="4" step="0.1" value="${probe}" style="flex:1;min-width:230px"><span class="pill">x=<b id="antiProbeX">${fmtNum(probe)}</b></span><span class="pill">f(x)=<b id="antiProbeY">${fmtNum(gv)}</b></span></div><div class="theory-example"><b>Особенно важно x=2:</b> там f(2)=0, поэтому график F перестаёт падать и начинает расти — у F получается минимум.</div>`}
+
+  function bind(){
+    host.querySelectorAll('.antiTab').forEach((btn,n)=>{btn.classList.toggle('on',n===step);btn.onclick=()=>{window.__PVZ_RESET_BOARD__?.();step=n;draw()}});
+    if($('#antiStrips'))$('#antiStrips').oninput=e=>{strips=+e.target.value;const d=stripSvg();$('#antiStage').innerHTML=d.svg;$('#antiN').textContent=strips;$('#antiApprox').textContent=fmtNum(d.approx)};
+    if($('#antiA'))$('#antiA').oninput=e=>{a=+e.target.value;if(a>=b)b=Math.min(5,a+.5);$('#antiB').value=b;$('#antiArea').innerHTML=areaSvg()};
+    if($('#antiB'))$('#antiB').oninput=e=>{b=+e.target.value;if(b<=a)a=Math.max(0,b-.5);$('#antiA').value=a;$('#antiArea').innerHTML=areaSvg()};
+    if($('#antiProbe'))$('#antiProbe').oninput=e=>{probe=+e.target.value;$('#antiLinked').innerHTML=linkedSvg();$('#antiProbeX').textContent=fmtNum(probe);$('#antiProbeY').textContent=fmtNum(g(probe))};
+    if($('#antiPrev'))$('#antiPrev').onclick=()=>{window.__PVZ_RESET_BOARD__?.();step=Math.max(0,step-1);draw()};
+    if($('#antiNext'))$('#antiNext').onclick=()=>{window.__PVZ_RESET_BOARD__?.();step=Math.min(2,step+1);draw()};
+    if($('#antiDone'))$('#antiDone').onclick=()=>{window.__PVZ_RESET_BOARD__?.();fin(3,1,0,{durationSeconds:Math.max(1,Math.round((performance.now()-started)/1000))})};
+  }
+  function draw(){
+    $('#antiBody').innerHTML=[page0,page1,page2][step]();
+    $('#antiNav').innerHTML=`<button class="iconbtn" id="antiPrev" ${step===0?'disabled':''}>← Назад</button><span class="pill">Шаг ${step+1} / 3</span>${step<2?'<button id="antiNext">Далее →</button>':'<button id="antiDone">Готово</button>'}`;
+    bind();
+  }
+  draw();
+};
 IMPL['6B']=makeQuiz(6,20);
 IMPL['7A']=MARATHON_IMPL;
 
@@ -3183,17 +3348,22 @@ setInterval(updateTeacherFinishButton,300);updateTeacherFinishButton();
 const layers=new Map(),cursorEls=new Map();let boardEpoch=0,boardCache={},tool='off',drawing=null,lastPoint=null,lastSend=0,localRev=new Map(),optimisticDeleted=new Set();
 function installBoards(){document.querySelectorAll('.screen').forEach((a,i)=>{if(!a.dataset.boardAnchor)a.dataset.boardAnchor=a.id||('screen-'+i);if(a.querySelector(':scope > .shared-board-layer'))return;const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.classList.add('shared-board-layer');svg.dataset.anchor=a.dataset.boardAnchor;svg.setAttribute('preserveAspectRatio','none');svg.innerHTML='<g class="stroke-root"></g>';a.appendChild(svg);const c=document.createElement('div');c.className='teacher-cursor hidden';c.textContent='Учитель';a.appendChild(c);layers.set(a.dataset.boardAnchor,svg);cursorEls.set(a.dataset.boardAnchor,c);svg.addEventListener('pointerdown',boardDown);svg.addEventListener('pointermove',boardMove);svg.addEventListener('pointerup',boardUp);svg.addEventListener('pointercancel',boardUp)})}installBoards();
 function setTool(t){tool=t;['toolOff','toolPen','toolEraser'].forEach(id=>E(id).classList.toggle('on',id===({off:'toolOff',pen:'toolPen',eraser:'toolEraser'}[t])));layers.forEach(svg=>svg.classList.toggle('active',t!=='off'))}E('toolOff').onclick=()=>setTool('off');E('toolPen').onclick=()=>setTool('pen');E('toolEraser').onclick=()=>setTool('eraser');
-function pt(svg,e){const r=svg.getBoundingClientRect();return{x:Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),y:Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))}}
-function strokePath(points){if(!points?.length)return'';return points.map((p,i)=>(i?'L':'M')+(p.x*1000).toFixed(1)+' '+(p.y*1000).toFixed(1)).join(' ')}
-function renderBoards(){layers.forEach((svg,anchor)=>{svg.setAttribute('viewBox','0 0 1000 1000');const root=svg.querySelector('.stroke-root');root.innerHTML='';for(const s of Object.values(boardCache)){if(!s||s.anchorId!==anchor||+s.epoch!==boardEpoch||!s.points?.length||optimisticDeleted.has(s.id))continue;const p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d',strokePath(s.points));p.setAttribute('stroke',s.color||'#2f8f1c');p.setAttribute('stroke-width',String((+s.width||4)*1000/(svg.getBoundingClientRect().width||1000)));p.setAttribute('fill','none');root.appendChild(p)}})}
+function boardGeom(svg){const r=svg.getBoundingClientRect(),scale=1000/Math.max(1,r.width);return{r,scale,h:Math.max(1,r.height)*scale}}
+function pt(svg,e){const g=boardGeom(svg);return{x:Math.max(0,Math.min(1000,(e.clientX-g.r.left)*g.scale)),y:Math.max(0,Math.min(g.h,(e.clientY-g.r.top)*g.scale))}}
+function strokePath(points){if(!points?.length)return'';if(points.length===1)return`M${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)} l.1 .1`;let d=`M${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;for(let i=1;i<points.length-1;i++){const p=points[i],n=points[i+1],mx=(p.x+n.x)/2,my=(p.y+n.y)/2;d+=` Q${p.x.toFixed(1)} ${p.y.toFixed(1)} ${mx.toFixed(1)} ${my.toFixed(1)}`}const p=points.at(-2),n=points.at(-1);return d+` Q${p.x.toFixed(1)} ${p.y.toFixed(1)} ${n.x.toFixed(1)} ${n.y.toFixed(1)}`}
+function renderBoards(){layers.forEach((svg,anchor)=>{const g=boardGeom(svg);svg.setAttribute('viewBox',`0 0 1000 ${g.h}`);const root=svg.querySelector('.stroke-root');root.innerHTML='';for(const s of Object.values(boardCache)){if(!s||s.anchorId!==anchor||+s.epoch!==boardEpoch||!s.points?.length||optimisticDeleted.has(s.id))continue;const p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d',strokePath(s.points));p.setAttribute('stroke',s.color||'#2f8f1c');p.setAttribute('stroke-width',String((+s.width||4)*g.scale));p.setAttribute('fill','none');root.appendChild(p)}})}
 function boardDown(e){if(tool==='off')return;const svg=e.currentTarget,p=pt(svg,e);svg.setPointerCapture?.(e.pointerId);lastPoint=p;if(tool==='pen'){const id='stroke-'+uid();drawing={id,anchorId:svg.dataset.anchor,authorId:participantId||('local-'+clientId),authorName:participantName||'Участник',color:E('toolColor').value,width:+E('toolWidth').value||4,points:[p],done:false,epoch:boardEpoch,rev:1,createdAt:Date.now(),updatedAt:Date.now()};boardCache[id]=clone(drawing);localRev.set(id,1);renderBoards();sendStroke(drawing,true)}else eraseAt(svg,p,p);e.preventDefault()}
-function boardMove(e){if(tool==='off'||!lastPoint)return;const svg=e.currentTarget,p=pt(svg,e);if(tool==='pen'&&drawing){const r=svg.getBoundingClientRect(),q=drawing.points.at(-1),d=Math.hypot((p.x-q.x)*r.width,(p.y-q.y)*r.height);if(d>2){drawing.points.push(p);drawing.rev++;drawing.updatedAt=Date.now();localRev.set(drawing.id,drawing.rev);boardCache[drawing.id]=clone(drawing);renderBoards();if(performance.now()-lastSend>55){lastSend=performance.now();sendStroke(drawing,false)}}}else if(tool==='eraser')eraseAt(svg,lastPoint,p);lastPoint=p;e.preventDefault()}
+function boardMove(e){if(tool==='off'||!lastPoint)return;const svg=e.currentTarget,p=pt(svg,e);if(tool==='pen'&&drawing){const g=boardGeom(svg),q=drawing.points.at(-1),d=Math.hypot(p.x-q.x,p.y-q.y)/g.scale;if(d>.7){const parts=Math.max(1,Math.ceil(d/4));for(let j=1;j<=parts;j++){const z=j/parts;drawing.points.push({x:q.x+(p.x-q.x)*z,y:q.y+(p.y-q.y)*z})}drawing.rev++;drawing.updatedAt=Date.now();localRev.set(drawing.id,drawing.rev);boardCache[drawing.id]=clone(drawing);renderBoards();if(performance.now()-lastSend>28){lastSend=performance.now();sendStroke(drawing,false)}}}else if(tool==='eraser')eraseAt(svg,lastPoint,p);lastPoint=p;e.preventDefault()}
 function boardUp(){if(drawing){drawing.done=true;drawing.rev++;drawing.updatedAt=Date.now();localRev.set(drawing.id,drawing.rev);boardCache[drawing.id]=clone(drawing);renderBoards();sendStroke(drawing,true);drawing=null}lastPoint=null}
 function sendStroke(s,final){if(!connected||!F)return;F.set(F.ref(db,rootPath()+'/pads/strokes/'+s.id),clone(s)).catch(()=>{})}
 function distPointSeg(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy;if(!l)return Math.hypot(px-ax,py-ay);let t=((px-ax)*dx+(py-ay)*dy)/l;t=Math.max(0,Math.min(1,t));return Math.hypot(px-(ax+t*dx),py-(ay+t*dy))}
-function eraseAt(svg,a,b){const r=svg.getBoundingClientRect(),radius=14,steps=Math.max(1,Math.ceil(Math.hypot((b.x-a.x)*r.width,(b.y-a.y)*r.height)/(radius*.55))),samples=[];for(let i=0;i<=steps;i++){const t=i/steps;samples.push({x:(a.x+(b.x-a.x)*t)*r.width,y:(a.y+(b.y-a.y)*t)*r.height})}const victims=[];for(const[id,s]of Object.entries(boardCache)){if(!s||optimisticDeleted.has(id)||s.anchorId!==svg.dataset.anchor||+s.epoch!==boardEpoch||!s.points?.length)continue;let hit=false;if(s.points.length===1){const p=s.points[0];hit=samples.some(z=>Math.hypot(z.x-p.x*r.width,z.y-p.y*r.height)<=radius+(+s.width||4)/2)}for(let j=1;j<s.points.length&&!hit;j++){const p=s.points[j-1],q=s.points[j],ax=p.x*r.width,ay=p.y*r.height,bx=q.x*r.width,by=q.y*r.height;for(const z of samples)if(distPointSeg(z.x,z.y,ax,ay,bx,by)<=radius+(+s.width||4)/2){hit=true;break}}if(hit)victims.push(id)}for(const id of victims){const backup=boardCache[id];optimisticDeleted.add(id);delete boardCache[id];renderBoards();if(connected&&F)F.remove(F.ref(db,rootPath()+'/pads/strokes/'+id)).then(()=>optimisticDeleted.delete(id)).catch(()=>{optimisticDeleted.delete(id);boardCache[id]=backup;renderBoards()});else optimisticDeleted.delete(id)}}
+function eraseAt(svg,a,b){const g=boardGeom(svg),radius=14*g.scale,steps=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.y-a.y)/(radius*.55))),samples=[];for(let i=0;i<=steps;i++){const z=i/steps;samples.push({x:a.x+(b.x-a.x)*z,y:a.y+(b.y-a.y)*z})}const victims=[];for(const[id,s]of Object.entries(boardCache)){if(!s||optimisticDeleted.has(id)||s.anchorId!==svg.dataset.anchor||+s.epoch!==boardEpoch||!s.points?.length)continue;let hit=false;if(s.points.length===1){const p=s.points[0];hit=samples.some(z=>Math.hypot(z.x-p.x,z.y-p.y)<=radius+(+s.width||4)*g.scale/2)}for(let j=1;j<s.points.length&&!hit;j++){const p=s.points[j-1],q=s.points[j];for(const z of samples)if(distPointSeg(z.x,z.y,p.x,p.y,q.x,q.y)<=radius+(+s.width||4)*g.scale/2){hit=true;break}}if(hit)victims.push(id)}for(const id of victims){const backup=boardCache[id];optimisticDeleted.add(id);delete boardCache[id];renderBoards();if(connected&&F)F.remove(F.ref(db,rootPath()+'/pads/strokes/'+id)).then(()=>optimisticDeleted.delete(id)).catch(()=>{optimisticDeleted.delete(id);boardCache[id]=backup;renderBoards()});else optimisticDeleted.delete(id)}}
 function undoMine(){const author=participantId||('local-'+clientId),own=Object.values(boardCache).filter(s=>s&&s.authorId===author&&+s.epoch===boardEpoch).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));if(!own[0])return;const id=own[0].id,backup=boardCache[id];delete boardCache[id];renderBoards();if(connected&&F)F.remove(F.ref(db,rootPath()+'/pads/strokes/'+id)).catch(()=>{boardCache[id]=backup;renderBoards()})}E('toolUndo').onclick=undoMine;document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!/INPUT|TEXTAREA/.test(document.activeElement?.tagName||'')){e.preventDefault();undoMine()}});
-E('toolClear').onclick=async()=>{if(!connected){boardCache={};boardEpoch++;renderBoards();return}if(role!=='teacher'){alert('В совместном уроке очистить всё может только учитель.');return}await F.runTransaction(F.ref(db,rootPath()+'/pads/boardEpoch'),v=>(+v||0)+1);await F.set(F.ref(db,rootPath()+'/pads/strokes'),null)};function updateBoardPermissions(){E('toolClear').textContent=connected&&role!=='teacher'?'Очистить всё (учитель)':'Очистить всё'}
+E('toolClear').onclick=async()=>{if(!connected){boardCache={};boardEpoch++;drawing=null;lastPoint=null;renderBoards();return}if(role!=='teacher'){alert('В совместном уроке очистить всё может только учитель.');return}await F.runTransaction(F.ref(db,rootPath()+'/pads/boardEpoch'),v=>(+v||0)+1);await F.set(F.ref(db,rootPath()+'/pads/strokes'),null)};
+async function autoClearBoard(){drawing=null;lastPoint=null;boardCache={};renderBoards();if(connected&&role==='teacher'&&F){try{await F.runTransaction(F.ref(db,rootPath()+'/pads/boardEpoch'),v=>(+v||0)+1);await F.set(F.ref(db,rootPath()+'/pads/strokes'),null)}catch(e){}}else if(!connected){boardEpoch++}}
+window.__PVZ_RESET_BOARD__=()=>{autoClearBoard().catch(()=>{})};
+window.addEventListener('resize',()=>requestAnimationFrame(renderBoards));
+function updateBoardPermissions(){E('toolClear').textContent=connected&&role!=='teacher'?'Очистить всё (учитель)':'Очистить всё'}
 function applyPads(pads){const ep=+pads.boardEpoch||0;if(ep!==boardEpoch){boardEpoch=ep;drawing=null;boardCache={}}const incoming=pads.strokes||{},merged={};for(const[id,s]of Object.entries(incoming)){if(!s||+s.epoch!==boardEpoch)continue;const lr=localRev.get(id)||0;if(s.authorId===participantId&&lr>(+s.rev||0)&&boardCache[id])merged[id]=boardCache[id];else merged[id]=s}for(const[id,s]of Object.entries(boardCache)){if(s&&s.authorId===participantId&&+s.epoch===boardEpoch&&(localRev.get(id)||0)>(+(incoming[id]?.rev||0)))merged[id]=s}boardCache=merged;renderBoards()}
 let cursorLast=0;document.addEventListener('pointermove',e=>{if(!connected||role!=='teacher'||tool!=='off'||performance.now()-cursorLast<75)return;const a=e.target.closest?.('[data-board-anchor]');if(!a)return;cursorLast=performance.now();const r=a.getBoundingClientRect();F.set(cursorRef(),{anchorId:a.dataset.boardAnchor,x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height,at:Date.now()}).catch(()=>{})});function renderTeacherCursor(c){hideCursors();if(role==='teacher'||!c||Date.now()-(c.at||0)>2500)return;const el=cursorEls.get(c.anchorId);if(!el)return;el.style.left=Math.max(0,Math.min(1,+c.x||0))*100+'%';el.style.top=Math.max(0,Math.min(1,+c.y||0))*100+'%';el.classList.remove('hidden');clearTimeout(renderTeacherCursor.t);renderTeacherCursor.t=setTimeout(()=>el.classList.add('hidden'),1600)}function hideCursors(){cursorEls.forEach(x=>x.classList.add('hidden'))}
 /* локальное положение панели */const toolbar=E('boardToolbar'),handle=E('boardHandle'),TBKEY=APP_ID+':toolbar';let dragBar=null;try{const p=JSON.parse(localStorage.getItem(TBKEY)||'null');if(p){if(p.left)toolbar.style.left=p.left;if(p.top){toolbar.style.top=p.top;toolbar.style.bottom='auto'}if(p.collapsed)toolbar.classList.add('collapsed')}}catch{}handle.addEventListener('pointerdown',e=>{if(e.target.tagName==='BUTTON')return;const r=toolbar.getBoundingClientRect();dragBar={dx:e.clientX-r.left,dy:e.clientY-r.top};handle.setPointerCapture(e.pointerId)});handle.addEventListener('pointermove',e=>{if(!dragBar)return;toolbar.style.left=Math.max(4,Math.min(innerWidth-toolbar.offsetWidth-4,e.clientX-dragBar.dx))+'px';toolbar.style.top=Math.max(4,Math.min(innerHeight-toolbar.offsetHeight-4,e.clientY-dragBar.dy))+'px';toolbar.style.bottom='auto'});handle.addEventListener('pointerup',()=>{dragBar=null;localStorage.setItem(TBKEY,JSON.stringify({left:toolbar.style.left,top:toolbar.style.top,collapsed:toolbar.classList.contains('collapsed')}))});E('boardCollapse').onclick=()=>{toolbar.classList.toggle('collapsed');E('boardCollapse').textContent=toolbar.classList.contains('collapsed')?'+':'−';localStorage.setItem(TBKEY,JSON.stringify({left:toolbar.style.left,top:toolbar.style.top,collapsed:toolbar.classList.contains('collapsed')}))};setTool('off');
