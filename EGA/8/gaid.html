@@ -465,6 +465,16 @@ figure.art figcaption{font-size:12.5px;font-weight:500;text-align:center;padding
 @media(max-width:700px){.music-volume{padding:4px 6px}.music-volume input{width:72px}.lesson-mini{right:8px;left:8px;overflow-x:auto}.board-toolbar{min-width:0;right:8px;left:8px}.lesson-who{max-width:110px}}
 
 
+
+/* ===== v4: интерактивные учебные модели ===== */
+.lab-range{height:28px;cursor:grab;touch-action:pan-x;user-select:none;-webkit-user-select:none}
+.lab-range:active{cursor:grabbing}
+.lab-range::-webkit-slider-thumb{cursor:grab}
+.lab-range:active::-webkit-slider-thumb{cursor:grabbing}
+#stationTheoryLab .stage{max-width:580px}
+#stationTheoryLab .controls{align-items:center}
+#stationTheoryLab .pill b{color:var(--sun)}
+
 /* ===== v3: компактная теория + стабильное рисование по всему экрану ===== */
 .screen.on{position:relative}
 .shared-board-layer{contain:layout paint}
@@ -1421,6 +1431,232 @@ function renderLawn(){
 }
 $('#lawn').addEventListener('click',e=>{ const b=e.target.closest('[data-open]'); if(b) openStation(+b.dataset.open); });
 
+
+function stationTheoryHTML(id){
+  return `<div class="field" id="stationTheoryLab" data-st="${id}" style="margin-top:14px"></div>`;
+}
+function initStationTheoryLab(id){
+  const box=document.getElementById('stationTheoryLab');
+  if(!box)return;
+  const renderers={1:renderStationLab1,2:renderStationLab2,3:renderStationLab3,4:renderStationLab4,5:renderStationLab5,6:renderStationLab6};
+  renderers[+id]?.(box);
+}
+function labWrap(box,title,tabs){
+  box.innerHTML=`<div class="theory-example" style="margin-top:0"><b>Интерактивная теория.</b> ${title}</div>
+    <div class="controls" style="justify-content:flex-start;gap:8px;flex-wrap:wrap;margin:0 0 10px">
+      ${tabs.map((t,i)=>`<button class="iconbtn lab-tab ${i===0?'on':''}" data-tab="${i}">${t}</button>`).join('')}
+    </div>
+    <div data-role="body"></div>
+    <div class="theory-example" data-role="hint" style="margin-top:10px"></div>`;
+}
+function labRange(min,max,step,value,role){return `<input class="lab-range" data-role="${role}" type="range" min="${min}" max="${max}" step="${step}" value="${value}" style="flex:1;min-width:240px;accent-color:var(--sun);touch-action:pan-x">`}
+function setText(root,role,value){const el=root.querySelector(`[data-out="${role}"]`);if(el)el.textContent=value}
+function clampLab(v,a,b){return Math.max(a,Math.min(b,v))}
+function labNice(v,d=2){const n=Math.abs(v)<1e-9?0:v;return String(Math.round(n*10**d)/10**d).replace('.',',')}
+
+/* ---------- СТАНЦИЯ 1: наклон -> tan(alpha) -> производная ---------- */
+function renderStationLab1(box){
+  let tab=0, angle=28, run=2, x0=1.15;
+  const tabs=['1. Угол и наклон','2. Почему именно tg α','3. Касательная и f′'];
+  const f=x=>x*x*x/3-x, fp=x=>x*x-1;
+  function lineViz(a,h=2){
+    const W=560,H=320,cx=260,cy=205,S=48,k=Math.tan(a*Math.PI/180), dx=h*S,dy=-k*dx;
+    const x1=cx-260,x2=cx+260,y1=cy+k*260,y2=cy-k*260;
+    const arcR=55, arcEndX=cx+arcR*Math.cos(a*Math.PI/180),arcEndY=cy-arcR*Math.sin(a*Math.PI/180);
+    const sweep=a>=0?0:1;
+    const triX=cx+dx, triY=cy+dy;
+    return `<svg viewBox="0 0 ${W} ${H}" aria-label="Наклон прямой и тангенс угла"><rect width="${W}" height="${H}" rx="16" fill="#fffaf0"/>
+      <g stroke="#e3d6ae" stroke-width="1">${[60,120,180,240,300,360,420,480].map(x=>`<line x1="${x}" y1="18" x2="${x}" y2="292"/>`).join('')}${[50,100,150,200,250].map(y=>`<line x1="25" y1="${y}" x2="535" y2="${y}"/>`).join('')}</g>
+      <line x1="25" y1="${cy}" x2="535" y2="${cy}" stroke="#2f1c0d" stroke-width="3"/><line x1="${cx}" y1="18" x2="${cx}" y2="292" stroke="#2f1c0d" stroke-width="3"/>
+      <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#4a63d8" stroke-width="5" stroke-linecap="round"/>
+      <line x1="${cx}" y1="${cy}" x2="${triX}" y2="${cy}" stroke="#2f8f1c" stroke-width="4"/><line x1="${triX}" y1="${cy}" x2="${triX}" y2="${triY}" stroke="#c94f2f" stroke-width="4"/><line x1="${cx}" y1="${cy}" x2="${triX}" y2="${triY}" stroke="#7a6231" stroke-width="2" stroke-dasharray="7 5"/>
+      <path d="M ${cx+arcR} ${cy} A ${arcR} ${arcR} 0 0 ${sweep} ${arcEndX} ${arcEndY}" fill="none" stroke="#f0a01e" stroke-width="6"/>
+      <text x="${cx+62}" y="${cy-12}" font-size="16" font-family="Russo One" fill="#8a5b00">α=${labNice(a,0)}°</text>
+      <text x="${(cx+triX)/2}" y="${cy+24}" text-anchor="middle" font-size="14" font-family="Russo One" fill="#2f8f1c">Δx=${labNice(h)}</text>
+      <text x="${triX+12}" y="${(cy+triY)/2}" font-size="14" font-family="Russo One" fill="#c94f2f">Δy=${labNice(k*h)}</text>
+      <rect x="26" y="24" width="205" height="76" rx="12" fill="#fff3c2" stroke="#b99a52" stroke-width="2"/><text x="128" y="48" text-anchor="middle" font-size="14" font-family="Russo One">k = Δy / Δx</text><text x="128" y="72" text-anchor="middle" font-size="16" font-family="Russo One" fill="#7a1b1b">${labNice(k*h)} / ${labNice(h)} = ${labNice(k)}</text><text x="128" y="94" text-anchor="middle" font-size="14" font-family="Russo One">tg α = ${labNice(k)}</text>
+    </svg>`;
+  }
+  function tangentViz(x){
+    const W=560,H=330,p=IP([-2.4,2.4],[-3.1,3.1],W,H), y=f(x),k=fp(x),a=Math.atan(k)*180/Math.PI, line=t=>y+k*(t-x);
+    const h=0.9, xA=x, xB=clampLab(x+h,-2.2,2.2), yA=line(xA),yB=line(xB);
+    return `<svg viewBox="0 0 ${W} ${H}">${p.frame()}${p.path(f,'#4a63d8',4)}<path d="M ${p.px(-2.35)} ${p.py(line(-2.35))} L ${p.px(2.35)} ${p.py(line(2.35))}" stroke="#2f8f1c" stroke-width="4" fill="none"/>
+      <circle cx="${p.px(x)}" cy="${p.py(y)}" r="8" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/>
+      <line x1="${p.px(xA)}" y1="${p.py(yA)}" x2="${p.px(xB)}" y2="${p.py(yA)}" stroke="#2f8f1c" stroke-width="3"/><line x1="${p.px(xB)}" y1="${p.py(yA)}" x2="${p.px(xB)}" y2="${p.py(yB)}" stroke="#c94f2f" stroke-width="3"/>
+      <rect x="325" y="20" width="210" height="84" rx="12" fill="#fff3c2" stroke="#b99a52" stroke-width="2"/><text x="430" y="44" text-anchor="middle" font-size="13" font-family="Russo One">x=${labNice(x)} · α≈${labNice(a,1)}°</text><text x="430" y="67" text-anchor="middle" font-size="15" font-family="Russo One">tg α=${labNice(Math.tan(a*Math.PI/180))}</text><text x="430" y="91" text-anchor="middle" font-size="15" font-family="Russo One" fill="#1f5312">f′(x)=${labNice(k)}</text>
+      <text x="20" y="27" font-size="13" font-family="Russo One" fill="#4a63d8">f(x)=x³/3−x</text></svg>`;
+  }
+  function bindTabs(){box.querySelectorAll('.lab-tab').forEach((b,i)=>{b.classList.toggle('on',i===tab);b.onclick=()=>{tab=i;draw()}})}
+  function draw(){
+    labWrap(box,'Здесь наклон не просто «показывается»: его можно менять и видеть, откуда берётся численное значение производной.',tabs);bindTabs();
+    const body=box.querySelector('[data-role="body"]'),hint=box.querySelector('[data-role="hint"]');
+    if(tab===0){
+      body.innerHTML=`<div class="theory-rule">Поворачивай прямую. Чем круче она поднимается, тем больше отношение <b>Δy/Δx</b>. Это и есть её угловой коэффициент.</div><div class="stage" data-stage>${lineViz(angle,2)}</div><div class="controls">${labRange(-60,60,1,angle,'angle')}<span class="pill">α=<b data-out="angle">${labNice(angle,0)}°</b></span><span class="pill">k=<b data-out="k">${labNice(Math.tan(angle*Math.PI/180))}</b></span></div>`;
+      hint.innerHTML=`<b>Смысл:</b> один и тот же горизонтальный шаг Δx даёт разный подъём Δy. Поэтому число k напрямую измеряет крутизну.`;
+      const r=body.querySelector('[data-role="angle"]'),stage=body.querySelector('[data-stage]');r.oninput=()=>{angle=+r.value;stage.innerHTML=lineViz(angle,2);setText(body,'angle',labNice(angle,0)+'°');setText(body,'k',labNice(Math.tan(angle*Math.PI/180)))};
+    }else if(tab===1){
+      body.innerHTML=`<div class="theory-rule">Почему именно <b>tg α</b>? В прямоугольном треугольнике у линии <b>tg α = противолежащий катет / прилежащий = Δy/Δx</b>. Меняй и угол, и длину шага: отношение останется тем же для одной прямой.</div><div class="stage" data-stage>${lineViz(angle,run)}</div><div class="controls">${labRange(-55,55,1,angle,'angle')}<span class="pill">угол α=<b data-out="angle">${labNice(angle,0)}°</b></span></div><div class="controls">${labRange(.5,3,.1,run,'run')}<span class="pill">Δx=<b data-out="run">${labNice(run)}</b></span><span class="pill">Δy/Δx=<b data-out="ratio">${labNice(Math.tan(angle*Math.PI/180))}</b></span></div>`;
+      hint.innerHTML=`<b>Проверь:</b> при фиксированном α меняй только Δx. Треугольник станет больше или меньше, но отношение Δy/Δx не изменится — именно поэтому наклон описывается тангенсом.`;
+      const a=body.querySelector('[data-role="angle"]'),h=body.querySelector('[data-role="run"]'),stage=body.querySelector('[data-stage]');const upd=()=>{angle=+a.value;run=+h.value;stage.innerHTML=lineViz(angle,run);setText(body,'angle',labNice(angle,0)+'°');setText(body,'run',labNice(run));setText(body,'ratio',labNice(Math.tan(angle*Math.PI/180)))};a.oninput=upd;h.oninput=upd;
+    }else{
+      const k=fp(x0),ang=Math.atan(k)*180/Math.PI;
+      body.innerHTML=`<div class="theory-rule">Теперь тот же смысл переносим на кривую: в выбранной точке берём <b>касательную</b>. Её наклон k равен tg α, а это и есть <b>f′(x)</b>.</div><div class="stage" data-stage>${tangentViz(x0)}</div><div class="controls">${labRange(-2,2,.02,x0,'x')}<span class="pill">x=<b data-out="x">${labNice(x0)}</b></span><span class="pill">α≈<b data-out="ang">${labNice(ang,1)}°</b></span><span class="pill">f′(x)=<b data-out="fp">${labNice(k)}</b></span></div>`;
+      hint.innerHTML=`<b>Главная связь станции:</b> положение точки меняется → касательная поворачивается → меняется α → меняется tg α → меняется значение производной.`;
+      const r=body.querySelector('[data-role="x"]'),stage=body.querySelector('[data-stage]');r.oninput=()=>{x0=+r.value;const kk=fp(x0),aa=Math.atan(kk)*180/Math.PI;stage.innerHTML=tangentViz(x0);setText(body,'x',labNice(x0));setText(body,'ang',labNice(aa,1)+'°');setText(body,'fp',labNice(kk))};
+    }
+  }
+  draw();
+}
+
+/* ---------- СТАНЦИЯ 2: функция -> производная, два синхронных графика ---------- */
+function renderStationLab2(box){
+  let tab=0,x=.4;
+  const tabs=['1. Точка f → точка f′','2. Нули f′','3. Знак f′'];
+  const f=t=>t*t*t/3-t, d=t=>t*t-1;
+  function linked(x0){
+    const W=580,H=430,L=58,R=24,xmin=-2.25,xmax=2.25,X=x=>L+(W-L-R)*(x-xmin)/(xmax-xmin);
+    const top={t:28,b:190,ymin:-2.3,ymax:2.3},bot={t:240,b:400,ymin:-1.4,ymax:4.2};
+    const Y=(y,p)=>p.b-(p.b-p.t)*(y-p.ymin)/(p.ymax-p.ymin);
+    const path=(fn,p)=>{let a=[];for(let z=xmin;z<=xmax;z+=.025)a.push(`${X(z).toFixed(1)},${Y(fn(z),p).toFixed(1)}`);return `M ${a.join(' L ')}`};
+    const y=f(x0),k=d(x0),tan=z=>y+k*(z-x0);
+    const state=k>0.03?'f растёт, поэтому f′>0':k<-.03?'f убывает, поэтому f′<0':'касательная горизонтальна, f′=0';
+    return `<svg viewBox="0 0 ${W} ${H}" aria-label="Связанные графики функции и производной"><rect width="${W}" height="${H}" rx="16" fill="#fffaf0"/>
+      <rect x="12" y="14" width="556" height="190" rx="14" fill="#fffdf4" stroke="#cbbd8a" stroke-width="2"/><rect x="12" y="226" width="556" height="190" rx="14" fill="#fffdf4" stroke="#cbbd8a" stroke-width="2"/>
+      <line x1="${L}" y1="${Y(0,top)}" x2="${W-R}" y2="${Y(0,top)}" stroke="#2f1c0d" stroke-width="2"/><line x1="${L}" y1="${top.b}" x2="${L}" y2="${top.t}" stroke="#2f1c0d" stroke-width="2"/><path d="${path(f,top)}" fill="none" stroke="#4a63d8" stroke-width="4"/>
+      <path d="M ${X(xmin)} ${Y(tan(xmin),top)} L ${X(xmax)} ${Y(tan(xmax),top)}" stroke="#2f8f1c" stroke-width="3.5" fill="none"/><circle cx="${X(x0)}" cy="${Y(y,top)}" r="7" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/>
+      <line x1="${L}" y1="${Y(0,bot)}" x2="${W-R}" y2="${Y(0,bot)}" stroke="#2f1c0d" stroke-width="2"/><line x1="${L}" y1="${bot.b}" x2="${L}" y2="${bot.t}" stroke="#2f1c0d" stroke-width="2"/><path d="${path(d,bot)}" fill="none" stroke="#b044c8" stroke-width="4"/><circle cx="${X(x0)}" cy="${Y(k,bot)}" r="8" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/>
+      <line x1="${X(x0)}" y1="20" x2="${X(x0)}" y2="410" stroke="#c94f2f" stroke-width="2" stroke-dasharray="7 6"/>
+      <text x="80" y="42" font-size="14" font-family="Russo One" fill="#4a63d8">сверху: f(x)</text><text x="80" y="254" font-size="14" font-family="Russo One" fill="#9a2eb4">снизу: f′(x)</text>
+      <rect x="330" y="44" width="210" height="58" rx="10" fill="#fff3c2"/><text x="435" y="66" text-anchor="middle" font-size="13" font-family="Russo One">наклон касательной = ${labNice(k)}</text><text x="435" y="89" text-anchor="middle" font-size="13" font-family="Russo One" fill="#7a1b1b">точка на f′ имеет y=${labNice(k)}</text>
+      <rect x="304" y="336" width="238" height="48" rx="10" fill="${k>0.03?'#d9f5c2':k<-.03?'#f8d7d7':'#fff3c2'}"/><text x="423" y="365" text-anchor="middle" font-size="13" font-family="Russo One">${state}</text>
+    </svg>`;
+  }
+  function draw(){
+    labWrap(box,'Одна и та же координата x одновременно отмечается на графике функции и на графике её производной.',tabs);
+    box.querySelectorAll('.lab-tab').forEach((b,i)=>{b.classList.toggle('on',i===tab);b.onclick=()=>{tab=i;draw()}});
+    const body=box.querySelector('[data-role="body"]'),hint=box.querySelector('[data-role="hint"]');
+    const rule=tab===0?'Двигай x по графику f. Касательная сверху меняет наклон, а снизу точка f′(x) поднимается или опускается ровно до этого численного значения.':tab===1?'Когда касательная к f горизонтальна, её наклон равен нулю. Внизу в этот же x график f′ пересекает ось Ox.':'Если f растёт, точка на f′ находится выше оси; если f падает — ниже. Так знак производной кодирует направление движения функции.';
+    body.innerHTML=`<div class="theory-rule">${rule}</div><div class="stage" style="max-width:580px" data-stage>${linked(x)}</div><div class="controls">${labRange(-2.1,2.1,.02,x,'x')}<span class="pill">x=<b data-out="x">${labNice(x)}</b></span><span class="pill">наклон=<b data-out="d">${labNice(d(x))}</b></span></div>${tab===1?'<div class="controls" style="gap:8px"><button class="iconbtn" data-j="-1">к x=−1</button><button class="iconbtn" data-j="1">к x=1</button></div>':''}`;
+    hint.innerHTML=tab===0?`<b>Смотри вертикально:</b> одна красная линия связывает одну и ту же x на двух графиках.`:tab===1?`<b>Ключ:</b> «горизонтальная касательная на f» и «ноль f′» — это одно и то же событие в двух разных представлениях.`:`<b>Ключ:</b> высота графика f не определяет знак производной; важен только локальный ход f вверх или вниз.`;
+    const r=body.querySelector('[data-role="x"]'),stage=body.querySelector('[data-stage]');const upd=()=>{x=+r.value;stage.innerHTML=linked(x);setText(body,'x',labNice(x));setText(body,'d',labNice(d(x)))};r.oninput=upd;body.querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{x=+b.dataset.j;r.value=x;upd()});
+  }
+  draw();
+}
+
+/* ---------- СТАНЦИЯ 3: производная -> функция, знак и экстремумы ---------- */
+function renderStationLab3(box){
+  let tab=0,x=-1.4, left=-2.2,right=2.2;
+  const tabs=['1. Знак f′ → движение f','2. Ноль f′ → экстремум','3. Максимум/минимум на отрезке'];
+  const d=t=>t*t*t-3*t, F=t=>t*t*t*t/4-1.5*t*t;
+  const crit=[-Math.sqrt(3),0,Math.sqrt(3)];
+  function linked(x0,a=left,b=right){
+    const W=580,H=440,L=58,R=24,xmin=-2.35,xmax=2.35,X=z=>L+(W-L-R)*(z-xmin)/(xmax-xmin);
+    const top={t:28,b:190,ymin:-4.5,ymax:4.5},bot={t:242,b:408,ymin:-2.8,ymax:2.0};
+    const Y=(y,p)=>p.b-(p.b-p.t)*(y-p.ymin)/(p.ymax-p.ymin);
+    const path=(fn,p)=>{let pts=[];for(let z=xmin;z<=xmax;z+=.022)pts.push(`${X(z).toFixed(1)},${Y(fn(z),p).toFixed(1)}`);return `M ${pts.join(' L ')}`};
+    const q=d(x0),fy=F(x0),state=q>0.03?'f′>0 → f растёт':q<-.03?'f′<0 → f убывает':'f′=0 → возможен экстремум';
+    const valid=[a,b,...crit.filter(c=>c>a&&c<b)]; const vals=valid.map(z=>({x:z,y:F(z)})); const mx=vals.reduce((m,v)=>v.y>m.y?v:m,vals[0]),mn=vals.reduce((m,v)=>v.y<m.y?v:m,vals[0]);
+    const shadeTop=`<rect x="${X(xmin)}" y="${top.t}" width="${X(-Math.sqrt(3))-X(xmin)}" height="${top.b-top.t}" fill="rgba(248,215,215,.22)"/><rect x="${X(-Math.sqrt(3))}" y="${top.t}" width="${X(0)-X(-Math.sqrt(3))}" height="${top.b-top.t}" fill="rgba(217,245,194,.25)"/><rect x="${X(0)}" y="${top.t}" width="${X(Math.sqrt(3))-X(0)}" height="${top.b-top.t}" fill="rgba(248,215,215,.22)"/><rect x="${X(Math.sqrt(3))}" y="${top.t}" width="${X(xmax)-X(Math.sqrt(3))}" height="${top.b-top.t}" fill="rgba(217,245,194,.25)"/>`;
+    return {svg:`<svg viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" rx="16" fill="#fffaf0"/><rect x="12" y="14" width="556" height="190" rx="14" fill="#fffdf4" stroke="#cbbd8a" stroke-width="2"/><rect x="12" y="226" width="556" height="200" rx="14" fill="#fffdf4" stroke="#cbbd8a" stroke-width="2"/>
+      ${shadeTop}<line x1="${L}" y1="${Y(0,top)}" x2="${W-R}" y2="${Y(0,top)}" stroke="#2f1c0d" stroke-width="2"/><line x1="${L}" y1="${top.b}" x2="${L}" y2="${top.t}" stroke="#2f1c0d" stroke-width="2"/><path d="${path(d,top)}" fill="none" stroke="#b044c8" stroke-width="4"/><circle cx="${X(x0)}" cy="${Y(q,top)}" r="8" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/>
+      <line x1="${L}" y1="${Y(0,bot)}" x2="${W-R}" y2="${Y(0,bot)}" stroke="#2f1c0d" stroke-width="2"/><line x1="${L}" y1="${bot.b}" x2="${L}" y2="${bot.t}" stroke="#2f1c0d" stroke-width="2"/><path d="${path(F,bot)}" fill="none" stroke="#2f8f1c" stroke-width="4"/><circle cx="${X(x0)}" cy="${Y(fy,bot)}" r="8" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/>
+      ${crit.map(c=>`<line x1="${X(c)}" y1="${bot.t}" x2="${X(c)}" y2="${bot.b}" stroke="#c94f2f" stroke-width="1.5" stroke-dasharray="5 5"/>`).join('')}
+      <line x1="${X(x0)}" y1="20" x2="${X(x0)}" y2="416" stroke="#c94f2f" stroke-width="2" stroke-dasharray="7 6"/>
+      ${tab===2?`<rect x="${X(a)}" y="${bot.t}" width="${X(b)-X(a)}" height="${bot.b-bot.t}" fill="rgba(255,210,63,.16)"/><line x1="${X(a)}" y1="${bot.t}" x2="${X(a)}" y2="${bot.b}" stroke="#f0a01e" stroke-width="3"/><line x1="${X(b)}" y1="${bot.t}" x2="${X(b)}" y2="${bot.b}" stroke="#f0a01e" stroke-width="3"/>`:''}
+      <text x="80" y="42" font-size="14" font-family="Russo One" fill="#9a2eb4">сверху: f′(x)</text><text x="80" y="256" font-size="14" font-family="Russo One" fill="#2f8f1c">снизу: f(x)</text>
+      <rect x="316" y="330" width="226" height="52" rx="10" fill="${q>0.03?'#d9f5c2':q<-.03?'#f8d7d7':'#fff3c2'}"/><text x="429" y="360" text-anchor="middle" font-size="13" font-family="Russo One">${state}</text>
+      ${tab===2?`<rect x="314" y="54" width="230" height="66" rx="10" fill="#fff3c2"/><text x="429" y="78" text-anchor="middle" font-size="12" font-family="Russo One">на [${labNice(a)}; ${labNice(b)}]</text><text x="429" y="99" text-anchor="middle" font-size="12" font-family="Russo One">max при x=${labNice(mx.x)}</text><text x="429" y="116" text-anchor="middle" font-size="12" font-family="Russo One">min при x=${labNice(mn.x)}</text>`:''}
+    </svg>`,q,state,mx,mn};
+  }
+  function draw(){
+    labWrap(box,'Здесь главным становится верхний график f′: по его знаку и нулям мы восстанавливаем, что делает функция снизу.',tabs);
+    box.querySelectorAll('.lab-tab').forEach((b,i)=>{b.classList.toggle('on',i===tab);b.onclick=()=>{tab=i;draw()}});
+    const body=box.querySelector('[data-role="body"]'),hint=box.querySelector('[data-role="hint"]'),v=linked(x);
+    if(tab<2){
+      const rule=tab===0?'Цветные вертикальные зоны сверху показывают знак производной. Зелёная зона — f′>0 и функция снизу растёт; красная — f′<0 и функция падает.':'В точках, где график f′ пересекает ось Ox, проверяем смену знака. Именно она определяет максимум или минимум функции.';
+      body.innerHTML=`<div class="theory-rule">${rule}</div><div class="stage" style="max-width:580px" data-stage>${v.svg}</div><div class="controls">${labRange(-2.25,2.25,.02,x,'x')}<span class="pill">x=<b data-out="x">${labNice(x)}</b></span><span class="pill">f′(x)=<b data-out="d">${labNice(d(x))}</b></span></div>${tab===1?`<div class="controls" style="gap:8px">${crit.map(c=>`<button class="iconbtn" data-j="${c}">x≈${labNice(c)}</button>`).join('')}</div>`:''}`;
+      hint.innerHTML=tab===0?`<b>Читай сверху вниз:</b> знак f′ сообщает направление движения f. Поэтому нам не нужна формула функции, чтобы понять интервалы роста и убывания.`:`<b>Смена знака:</b> «+ → −» даёт максимум, «− → +» — минимум. Если знак не меняется, экстремума нет.`;
+      const r=body.querySelector('[data-role="x"]'),stage=body.querySelector('[data-stage]');const upd=()=>{x=+r.value;const z=linked(x);stage.innerHTML=z.svg;setText(body,'x',labNice(x));setText(body,'d',labNice(d(x)))};r.oninput=upd;body.querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{x=+b.dataset.j;r.value=x;upd()});
+    }else{
+      body.innerHTML=`<div class="theory-rule">Для глобального максимума и минимума на отрезке нужны не только экстремумы, но и <b>концы отрезка</b>. Двигай две границы и смотри, какие критические точки остаются внутри.</div><div class="stage" style="max-width:580px" data-stage>${v.svg}</div><div class="controls"><span class="pill">левая граница</span>${labRange(-2.25,1.7,.05,left,'left')}<b data-out="left">${labNice(left)}</b></div><div class="controls"><span class="pill">правая граница</span>${labRange(-1.7,2.25,.05,right,'right')}<b data-out="right">${labNice(right)}</b></div>`;
+      hint.innerHTML=`<b>Алгоритм:</b> сравни значения f в двух концах отрезка и во всех точках внутри, где f′=0. Самое большое — максимум, самое маленькое — минимум.`;
+      const l=body.querySelector('[data-role="left"]'),r=body.querySelector('[data-role="right"]'),stage=body.querySelector('[data-stage]');const upd=()=>{left=+l.value;right=+r.value;if(left>right-.2){if(document.activeElement===l){left=right-.2;l.value=left}else{right=left+.2;r.value=right}}const z=linked(x,left,right);stage.innerHTML=z.svg;setText(body,'left',labNice(left));setText(body,'right',labNice(right))};l.oninput=upd;r.oninput=upd;
+    }
+  }
+  draw();
+}
+
+/* ---------- СТАНЦИЯ 4: касание параболы, число пересечений и D ---------- */
+function renderStationLab4(box){
+  let tab=0,c=-2.2;
+  const tabs=['1. Двигаем прямую','2. Видим дискриминант','3. Поймай D=0'];
+  const pfn=x=>x*x, line=(x,c)=>2*x+c;
+  function viz(cv,showMeter=true){
+    const W=560,H=320,p=IP([-3,3],[-4.5,9],W,H),D=4+4*cv;
+    let pts='';if(D>=0){const a=(2-Math.sqrt(D))/2,b=(2+Math.sqrt(D))/2;[a,b].forEach(r=>pts+=`<circle cx="${p.px(r)}" cy="${p.py(pfn(r))}" r="${Math.abs(a-b)<.03?8:6}" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/>`)}
+    const n=D>0?2:Math.abs(D)<.04?1:0,mx=clampLab((D+12)/28,0,1),meterX=338;
+    return `<svg viewBox="0 0 ${W} ${H}">${p.frame()}${p.path(pfn,'#4a63d8',4)}${p.path(x=>line(x,cv),'#c94f2f',4)}${pts}<text x="20" y="28" font-size="13" font-family="Russo One" fill="#4a63d8">y=x²</text><text x="20" y="49" font-size="13" font-family="Russo One" fill="#c94f2f">y=2x+c</text><rect x="325" y="18" width="210" height="82" rx="12" fill="#fff3c2" stroke="#b99a52" stroke-width="2"/><text x="430" y="42" text-anchor="middle" font-size="13" font-family="Russo One">пересечений: ${n}</text><text x="430" y="64" text-anchor="middle" font-size="13" font-family="Russo One">D = 4 + 4c = ${labNice(D)}</text>${showMeter?`<rect x="346" y="78" width="168" height="10" rx="5" fill="#d3c59a"/><rect x="${meterX+84}" y="72" width="3" height="22" fill="#2f1c0d"/><circle cx="${346+168*mx}" cy="83" r="7" fill="${Math.abs(D)<.04?'#2f8f1c':'#f0a01e'}" stroke="#2f1c0d" stroke-width="2"/>`:''}</svg>`;
+  }
+  function draw(){
+    labWrap(box,'Здесь прямая действительно двигается относительно параболы: две точки пересечения сливаются в одну в момент касания.',tabs);
+    box.querySelectorAll('.lab-tab').forEach((b,i)=>{b.classList.toggle('on',i===tab);b.onclick=()=>{tab=i;draw()}});
+    const body=box.querySelector('[data-role="body"]'),hint=box.querySelector('[data-role="hint"]');
+    const rule=tab===0?'Меняй c: это двигает прямую вверх и вниз, не меняя её наклон. Смотри, как меняется число общих точек.':tab===1?'После приравнивания x²=2x+c получаем квадратное уравнение x²−2x−c=0. Число пересечений полностью определяется знаком D.':'Твоя цель — руками поймать момент, когда две точки пересечения сольются в одну. Именно тогда прямая становится касательной и D=0.';
+    body.innerHTML=`<div class="theory-rule">${rule}</div><div class="stage" data-stage>${viz(c)}</div><div class="controls">${labRange(-4,2,.02,c,'c')}<span class="pill">c=<b data-out="c">${labNice(c)}</b></span><span class="pill">D=<b data-out="D">${labNice(4+4*c)}</b></span></div>`;
+    hint.innerHTML=tab===0?`<b>Геометрия:</b> D&gt;0 — две общие точки, D&lt;0 — ни одной, D=0 — ровно одна.`:tab===1?`<b>Почему D=0:</b> касание означает один общий x, а квадратное уравнение имеет ровно один корень именно при нулевом дискриминанте.`:Math.abs(c+1)<.04?`<b>Поймано:</b> c≈−1, точки слились, D≈0.`:`<b>Подсказка:</b> двигай ползунок к значению c=−1.`;
+    const r=body.querySelector('[data-role="c"]'),stage=body.querySelector('[data-stage]');r.oninput=()=>{c=+r.value;stage.innerHTML=viz(c);setText(body,'c',labNice(c));setText(body,'D',labNice(4+4*c));if(tab===2){hint.innerHTML=Math.abs(c+1)<.04?'<b>Поймано:</b> c≈−1, точки слились, D≈0.':'<b>Подсказка:</b> двигай ползунок к значению c=−1.'}};
+  }
+  draw();
+}
+
+/* ---------- СТАНЦИЯ 5: движение, координата и скорость ---------- */
+function renderStationLab5(box){
+  let tab=0,t=1.1,target=2;
+  const tabs=['1. Машина и касательная','2. Два графика s и v','3. Когда v задана'];
+  const s=x=>x*x-4*x+3,v=x=>2*x-4;
+  function carViz(tt){
+    const pos=s(tt),vel=v(tt),W=560,H=230,left=-2,right=8,X=x=>48+(W-96)*(x-left)/(right-left),dir=vel>0?1:vel<0?-1:0;
+    const carX=X(clampLab(pos,left,right));
+    return `<svg viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" rx="16" fill="#dff1ff"/><rect y="128" width="${W}" height="102" fill="#e7d49f"/><line x1="42" y1="166" x2="518" y2="166" stroke="#2f1c0d" stroke-width="5"/>${[-2,0,2,4,6,8].map(n=>`<line x1="${X(n)}" y1="156" x2="${X(n)}" y2="176" stroke="#2f1c0d" stroke-width="2"/><text x="${X(n)}" y="194" text-anchor="middle" font-size="11">${n}</text>`).join('')}<g transform="translate(${carX-32} 116)"><rect x="0" y="8" width="64" height="30" rx="9" fill="#4a63d8" stroke="#2f1c0d" stroke-width="3"/><rect x="14" y="0" width="30" height="17" rx="6" fill="#bfe9ff" stroke="#2f1c0d" stroke-width="3"/><circle cx="15" cy="40" r="8" fill="#2f1c0d"/><circle cx="50" cy="40" r="8" fill="#2f1c0d"/></g>${dir?`<path d="M ${carX+dir*42} 105 L ${carX+dir*82} 105 M ${carX+dir*68} 93 L ${carX+dir*82} 105 L ${carX+dir*68} 117" stroke="#c94f2f" stroke-width="5" fill="none"/>`:''}<rect x="24" y="20" width="240" height="72" rx="12" fill="#fff3c2" stroke="#b99a52" stroke-width="2"/><text x="144" y="45" text-anchor="middle" font-size="14" font-family="Russo One">t=${labNice(tt)} · s(t)=${labNice(pos)}</text><text x="144" y="69" text-anchor="middle" font-size="15" font-family="Russo One" fill="#1f5312">v(t)=${labNice(vel)}</text><text x="144" y="88" text-anchor="middle" font-size="12" font-family="Russo One">${vel>0?'едет вправо':vel<0?'едет влево':'мгновенно стоит'}</text></svg>`;
+  }
+  function dual(tt,goal=null){
+    const W=580,H=430,L=58,R=24,xmin=0,xmax=5,X=x=>L+(W-L-R)*(x-xmin)/(xmax-xmin),top={t:28,b:190,ymin:-2,ymax:8},bot={t:242,b:400,ymin:-4.5,ymax:6.5};
+    const Y=(y,p)=>p.b-(p.b-p.t)*(y-p.ymin)/(p.ymax-p.ymin),path=(fn,p)=>{let pts=[];for(let z=0;z<=5;z+=.025)pts.push(`${X(z)},${Y(fn(z),p)}`);return `M ${pts.join(' L ')}`};
+    const y=s(tt),k=v(tt),tan=z=>y+k*(z-tt),hit=goal==null?tt:(goal+4)/2;
+    return `<svg viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" rx="16" fill="#fffaf0"/><line x1="${L}" y1="${Y(0,top)}" x2="${W-R}" y2="${Y(0,top)}" stroke="#2f1c0d" stroke-width="2"/><path d="${path(s,top)}" fill="none" stroke="#4a63d8" stroke-width="4"/><path d="M ${X(0)} ${Y(tan(0),top)} L ${X(5)} ${Y(tan(5),top)}" stroke="#2f8f1c" stroke-width="3" fill="none"/><circle cx="${X(tt)}" cy="${Y(y,top)}" r="7" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/>
+      <line x1="${L}" y1="${Y(0,bot)}" x2="${W-R}" y2="${Y(0,bot)}" stroke="#2f1c0d" stroke-width="2"/><path d="${path(v,bot)}" fill="none" stroke="#b044c8" stroke-width="4"/>${goal!=null?`<line x1="${L}" y1="${Y(goal,bot)}" x2="${W-R}" y2="${Y(goal,bot)}" stroke="#c94f2f" stroke-width="3" stroke-dasharray="7 5"/><circle cx="${X(hit)}" cy="${Y(goal,bot)}" r="8" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/>`:`<circle cx="${X(tt)}" cy="${Y(k,bot)}" r="8" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/><line x1="${X(tt)}" y1="18" x2="${X(tt)}" y2="408" stroke="#c94f2f" stroke-width="2" stroke-dasharray="7 6"/>`}<text x="82" y="42" font-size="14" font-family="Russo One" fill="#4a63d8">координата s(t)</text><text x="82" y="256" font-size="14" font-family="Russo One" fill="#9a2eb4">скорость v(t)=s′(t)</text></svg>`;
+  }
+  function draw(){
+    labWrap(box,'Физическая станция работает как модель движения: ползунок — это время, а графики и машинка меняются синхронно.',tabs);
+    box.querySelectorAll('.lab-tab').forEach((b,i)=>{b.classList.toggle('on',i===tab);b.onclick=()=>{tab=i;draw()}});
+    const body=box.querySelector('[data-role="body"]'),hint=box.querySelector('[data-role="hint"]');
+    if(tab===0){
+      body.innerHTML=`<div class="theory-rule">Двигай время. Машина меняет положение по s(t), а направление стрелки определяется знаком v(t)=s′(t).</div><div class="stage" data-stage>${carViz(t)}</div><div class="controls">${labRange(0,5,.02,t,'t')}<span class="pill">t=<b data-out="t">${labNice(t)}</b></span><span class="pill">v=<b data-out="v">${labNice(v(t))}</b></span></div>`;hint.innerHTML=`<b>Физический смысл:</b> производная координаты показывает не «где тело», а насколько быстро и в каком направлении меняется его координата.`;
+      const r=body.querySelector('[data-role="t"]'),stage=body.querySelector('[data-stage]');r.oninput=()=>{t=+r.value;stage.innerHTML=carViz(t);setText(body,'t',labNice(t));setText(body,'v',labNice(v(t)))};
+    }else if(tab===1){
+      body.innerHTML=`<div class="theory-rule">Сверху — координата s(t) и её касательная. Снизу — скорость v(t). Число наклона касательной сверху равно высоте точки снизу.</div><div class="stage" style="max-width:580px" data-stage>${dual(t)}</div><div class="controls">${labRange(0,5,.02,t,'t')}<span class="pill">t=<b data-out="t">${labNice(t)}</b></span><span class="pill">наклон=<b data-out="v">${labNice(v(t))}</b></span></div>`;hint.innerHTML=`<b>Это та же производная, но в физическом языке:</b> наклон графика координаты = мгновенная скорость.`;
+      const r=body.querySelector('[data-role="t"]'),stage=body.querySelector('[data-stage]');r.oninput=()=>{t=+r.value;stage.innerHTML=dual(t);setText(body,'t',labNice(t));setText(body,'v',labNice(v(t)))};
+    }else{
+      body.innerHTML=`<div class="theory-rule">Теперь задаём не время, а нужную скорость. Горизонтальная красная линия пересекает график v(t), и по x пересечения сразу читается момент времени.</div><div class="stage" style="max-width:580px" data-stage>${dual(t,target)}</div><div class="controls">${labRange(-3.5,5.5,.1,target,'target')}<span class="pill">нужная v=<b data-out="target">${labNice(target)}</b></span><span class="pill">t=<b data-out="hit">${labNice((target+4)/2)}</b></span></div>`;hint.innerHTML=`<b>В задаче:</b> сначала получаем формулу v(t), затем решаем уравнение v(t)=v₀.`;
+      const r=body.querySelector('[data-role="target"]'),stage=body.querySelector('[data-stage]');r.oninput=()=>{target=+r.value;stage.innerHTML=dual(t,target);setText(body,'target',labNice(target));setText(body,'hit',labNice((target+4)/2))};
+    }
+  }
+  draw();
+}
+
+/* ---------- СТАНЦИЯ 6: накопление площади ---------- */
+function renderStationLab6(box){
+  let tab=0,strips=8,a=1,b=3,probe=1.5;
+  const tabs=['1. Полоски площади','2. Разность F(b)−F(a)','3. f управляет F'];
+  const f=x=>x+1,F=x=>x*x/2+x,g=x=>x-2,G=x=>x*x/2-2*x;
+  const frame=(W,H,L,R,T,B)=>`<rect width="${W}" height="${H}" rx="14" fill="#fffaf0"/><line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="#2f1c0d" stroke-width="3"/><line x1="${L}" y1="${H-B}" x2="${L}" y2="${T}" stroke="#2f1c0d" stroke-width="3"/>`;
+  function stripsViz(){const W=560,H=300,L=54,R=22,T=18,B=44,xmax=4.4,ymax=5.8,X=x=>L+(W-L-R)*x/xmax,Y=y=>H-B-(H-T-B)*y/ymax,dx=4/strips;let rects='',sum=0;for(let i=0;i<strips;i++){const x=i*dx,y=f(x);sum+=y*dx;rects+=`<rect x="${X(x)}" y="${Y(y)}" width="${Math.max(1,X(x+dx)-X(x))}" height="${Y(0)-Y(y)}" fill="#ffd23f" opacity=".42" stroke="#c99a18"/>`}let pts=[];for(let x=0;x<=4;x+=.04)pts.push(`${X(x)},${Y(f(x))}`);return {sum,svg:`<svg viewBox="0 0 ${W} ${H}">${frame(W,H,L,R,T,B)}${rects}<path d="M ${pts.join(' L ')}" fill="none" stroke="#4a63d8" stroke-width="4"/><rect x="328" y="24" width="204" height="64" rx="11" fill="#fff3c2"/><text x="430" y="49" text-anchor="middle" font-size="13" font-family="Russo One">полосок: ${strips}</text><text x="430" y="72" text-anchor="middle" font-size="13" font-family="Russo One">сумма ≈ ${labNice(sum)}</text></svg>`}};
+  function areaViz(){const W=560,H=300,L=54,R=22,T=18,B=44,xmax=5,ymax=6.4,X=x=>L+(W-L-R)*x/xmax,Y=y=>H-B-(H-T-B)*y/ymax;let pts=[];for(let x=0;x<=5;x+=.04)pts.push(`${X(x)},${Y(f(x))}`);let poly=[`${X(a)},${Y(0)}`];for(let x=a;x<=b;x+=.025)poly.push(`${X(x)},${Y(f(x))}`);poly.push(`${X(b)},${Y(0)}`);return `<svg viewBox="0 0 ${W} ${H}">${frame(W,H,L,R,T,B)}<polygon points="${poly.join(' ')}" fill="#ffd23f" opacity=".48"/><path d="M ${pts.join(' L ')}" fill="none" stroke="#4a63d8" stroke-width="4"/><line x1="${X(a)}" y1="${H-B}" x2="${X(a)}" y2="${Y(f(a))}" stroke="#c94f2f" stroke-width="3" stroke-dasharray="6 5"/><line x1="${X(b)}" y1="${H-B}" x2="${X(b)}" y2="${Y(f(b))}" stroke="#c94f2f" stroke-width="3" stroke-dasharray="6 5"/><rect x="306" y="22" width="228" height="72" rx="11" fill="#fff3c2"/><text x="420" y="46" text-anchor="middle" font-size="13" font-family="Russo One">F(b)=${labNice(F(b))}, F(a)=${labNice(F(a))}</text><text x="420" y="70" text-anchor="middle" font-size="15" font-family="Russo One" fill="#1f5312">F(b)−F(a)=${labNice(F(b)-F(a))}</text></svg>`};
+  function linkViz(){const W=580,H=430,L=58,R=24,xmin=0,xmax=4,X=x=>L+(W-L-R)*(x-xmin)/(xmax-xmin),top={t:28,b:190,ymin:-2.5,ymax:2.5},bot={t:242,b:400,ymin:-2.4,ymax:.5};const Y=(y,p)=>p.b-(p.b-p.t)*(y-p.ymin)/(p.ymax-p.ymin),path=(fn,p)=>{let pts=[];for(let z=0;z<=4;z+=.025)pts.push(`${X(z)},${Y(fn(z),p)}`);return `M ${pts.join(' L ')}`};const q=g(probe),fy=G(probe);return `<svg viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" rx="16" fill="#fffaf0"/><line x1="${L}" y1="${Y(0,top)}" x2="${W-R}" y2="${Y(0,top)}" stroke="#2f1c0d" stroke-width="2"/><path d="${path(g,top)}" fill="none" stroke="#4a63d8" stroke-width="4"/><circle cx="${X(probe)}" cy="${Y(q,top)}" r="8" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/><line x1="${L}" y1="${Y(0,bot)}" x2="${W-R}" y2="${Y(0,bot)}" stroke="#2f1c0d" stroke-width="2"/><path d="${path(G,bot)}" fill="none" stroke="#2f8f1c" stroke-width="4"/><circle cx="${X(probe)}" cy="${Y(fy,bot)}" r="8" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/><line x1="${X(probe)}" y1="20" x2="${X(probe)}" y2="408" stroke="#c94f2f" stroke-width="2" stroke-dasharray="7 6"/><text x="78" y="42" font-size="14" font-family="Russo One" fill="#4a63d8">f(x)=F′(x)</text><text x="78" y="256" font-size="14" font-family="Russo One" fill="#2f8f1c">первообразная F(x)</text><rect x="328" y="328" width="210" height="52" rx="10" fill="${q>0?'#d9f5c2':q<0?'#f8d7d7':'#fff3c2'}"/><text x="433" y="358" text-anchor="middle" font-size="13" font-family="Russo One">${q>0?'f>0 → F растёт':q<0?'f<0 → F падает':'f=0 → F разворачивается'}</text></svg>`};
+  function draw(){labWrap(box,'Здесь управление идёт через площадь и накопление, а не через наклон касательной.',tabs);box.querySelectorAll('.lab-tab').forEach((b,i)=>{b.classList.toggle('on',i===tab);b.onclick=()=>{tab=i;draw()}});const body=box.querySelector('[data-role="body"]'),hint=box.querySelector('[data-role="hint"]');if(tab===0){const z=stripsViz();body.innerHTML=`<div class="theory-rule">Разбиваем площадь под графиком на прямоугольные полоски. Чем их больше, тем ближе сумма площадей к точному значению.</div><div class="stage" data-stage>${z.svg}</div><div class="controls">${labRange(4,40,1,strips,'n')}<span class="pill">полосок=<b data-out="n">${strips}</b></span><span class="pill">сумма≈<b data-out="sum">${labNice(z.sum)}</b></span></div>`;hint.innerHTML=`<b>Смысл интеграла:</b> мы накапливаем много маленьких площадей.`;const r=body.querySelector('[data-role="n"]'),stage=body.querySelector('[data-stage]');r.oninput=()=>{strips=+r.value;const q=stripsViz();stage.innerHTML=q.svg;setText(body,'n',strips);setText(body,'sum',labNice(q.sum))}}else if(tab===1){body.innerHTML=`<div class="theory-rule">F(b) хранит всё накопление до b, F(a) — всё накопление до a. Разность оставляет только кусок между a и b.</div><div class="stage" data-stage>${areaViz()}</div><div class="controls"><span class="pill">a</span>${labRange(0,4,.05,a,'a')}<b data-out="a">${labNice(a)}</b></div><div class="controls"><span class="pill">b</span>${labRange(.2,5,.05,b,'b')}<b data-out="b">${labNice(b)}</b></div>`;hint.innerHTML=`<b>Поэтому формула имеет вид:</b> значение первообразной в правом конце минус значение в левом.`;const ar=body.querySelector('[data-role="a"]'),br=body.querySelector('[data-role="b"]'),stage=body.querySelector('[data-stage]');const upd=()=>{a=+ar.value;b=+br.value;if(a>b-.1){if(document.activeElement===ar){a=b-.1;ar.value=a}else{b=a+.1;br.value=b}}stage.innerHTML=areaViz();setText(body,'a',labNice(a));setText(body,'b',labNice(b))};ar.oninput=upd;br.oninput=upd}else{body.innerHTML=`<div class="theory-rule">f(x)=F′(x): знак верхнего графика говорит, растёт или падает первообразная снизу.</div><div class="stage" style="max-width:580px" data-stage>${linkViz()}</div><div class="controls">${labRange(0,4,.02,probe,'x')}<span class="pill">x=<b data-out="x">${labNice(probe)}</b></span><span class="pill">f(x)=<b data-out="f">${labNice(g(probe))}</b></span></div>`;hint.innerHTML=`<b>Связь:</b> первообразная меняется быстрее там, где |f(x)| больше.`;const r=body.querySelector('[data-role="x"]'),stage=body.querySelector('[data-stage]');r.oninput=()=>{probe=+r.value;stage.innerHTML=linkViz();setText(body,'x',labNice(probe));setText(body,'f',labNice(g(probe)))}}}
+  draw();
+}
+
 /* ---------------- ХАБ СТАНЦИИ ---------------- */
 function gameStars(st,k){ return (GS.gstars[st]||{})[k]||0; }
 function openStation(id){
@@ -1434,7 +1670,7 @@ function openStation(id){
     <p style="color:#eaffd8;font-weight:500;text-shadow:0 1px 0 rgba(0,0,0,.4);margin:6px 0 0">${s.tip} Сначала разберите теорию, затем потренируйтесь в A и закрепите прототипы в контрольной B.</p>
     <details class="theory" ${GS.done[id]?'':'open'}>
       <summary>🧠 Зарядка для мозга: теория, алгоритм и рисунки</summary>
-      <div>${theoryHTML(s.th,true)}</div>
+      <div>${theoryHTML(s.th,true)}${stationTheoryHTML(id)}</div>
     </details>
     <div class="hub">
       ${s.games.map(g=>`<article class="gamecard">
@@ -1446,6 +1682,7 @@ function openStation(id){
         </div></article>`).join('')}
     </div>`;
   $('#stationBody').querySelectorAll('[data-game]').forEach(b=>b.onclick=()=>startGame(id,b.dataset.game));
+  initStationTheoryLab(id);
   go('station');
 }
 function startGame(id,k){
