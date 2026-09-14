@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>ЕГЭ 15 · ОДЗ в два шага</title>
+  <title>ЕГЭ 15 · ОДЗ · сложные конструкции</title>
   <style>
     :root{--night:#102c3a;--ink:#18323f;--muted:#607582;--paper:#fffdf7;--mint:#35a98d;--mint2:#16766e;--gold:#f5b642;--coral:#ee7259;--sky:#d9f1f1;--shadow:#0e2835}
     *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--ink);font-family:Inter,ui-rounded,"Segoe UI",Arial,sans-serif;background:radial-gradient(circle at 8% 22%,#ffd86f88 0 9rem,transparent 9.2rem),radial-gradient(circle at 92% 38%,#ef73a766 0 11rem,transparent 11.2rem),radial-gradient(circle at 16% 78%,#65c7ea66 0 10rem,transparent 10.2rem),linear-gradient(145deg,#b9f1e2 0%,#fff0b8 43%,#ffd5df 72%,#cce7ff 100%);background-attachment:fixed;min-height:100vh}
@@ -16,69 +16,325 @@
     .result{text-align:center}.score-orbit{display:grid;place-items:center;width:170px;height:170px;margin:20px auto;border:15px solid #d7eee7;border-top-color:var(--gold);border-radius:50%;background:#fff;animation:arrive .7s ease}.score-orbit b{display:block;font-size:42px}.score-orbit span{color:var(--muted)}@keyframes arrive{from{transform:scale(.5) rotate(-60deg);opacity:0}}.stats{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:600px;margin:20px auto}.stat{padding:18px;border:2px solid #bcd8d1;border-radius:16px;background:#f5fbf9}.stat span{display:block;color:var(--muted)}.stat b{font-size:24px}.result-actions,.locked-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}.solutions{margin-top:28px;text-align:left}.solution{margin:18px 0;padding:20px;border:3px solid var(--shadow);border-radius:18px;background:#fff}.solution-condition{text-align:center;font:24px/1.6 "Cambria Math","Times New Roman",serif}.recall,.formula,.lifehack,.right-answer{margin:10px 0;padding:12px;border-radius:10px}.recall{background:#e9f7f1}.formula{background:#eaf3ff}.lifehack{background:#fff1d4}.right-answer{background:#e3f7e6;font-weight:1000}.steps li{margin:8px 0;line-height:1.45}.toast{position:fixed;right:18px;bottom:18px;z-index:80;max-width:360px;padding:14px;border-radius:12px;color:#fff;background:#126a60;transform:translateY(130%);transition:.25s}.toast.on{transform:none}.toast.error{background:#a83a31}
     @media(max-width:700px){.fox{display:none}.hero{padding-bottom:78px}.briefing{grid-template-columns:1fr}.task{padding:22px 14px 18px}.task-title{align-items:flex-start}.prototype-tag{padding-top:5px;line-height:1.4}.step{padding:13px}.option{padding:13px 11px;font-size:14px}.option-letter{flex-basis:28px;width:28px;height:28px}.code-row,.submit-dock{align-items:stretch;flex-direction:column}.stats{grid-template-columns:1fr}.progress-wrap{top:60px}}
     @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
-  </style>
+  
+    /* Новая техническая система */
+    .student-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .inline-result{text-align:center;margin:18px 0;padding:18px;border:3px solid var(--shadow);border-radius:20px;background:#fffdf7}
+    .solution-toggle{display:none;margin-top:14px;padding:10px 14px;border:2px solid var(--shadow);border-radius:11px;background:#ffe06a;color:var(--ink);font-weight:1000;cursor:pointer;box-shadow:0 3px 0 #173a4822}
+    .task.submitted .solution-toggle,.task.review-locked .solution-toggle{display:inline-block}
+    .task-solution{display:none;margin-top:12px;padding:15px;border:2px solid #8fd3c0;border-radius:14px;background:linear-gradient(135deg,#f5fff9,#eef7ff)}
+    .task-solution.open{display:block}
+    .task.correct{border-color:#23996a}
+    .task.wrong{border-color:#d94f53}
+    .task-verdict{margin-left:8px;font-weight:1000}
+    .task.correct .task-verdict{color:#16825a}
+    .task.wrong .task-verdict{color:#c13f45}
+    .task.submitted input,.task.review-locked input{pointer-events:none}
+    .solution-system,.solution-region{padding:11px 13px;margin:10px 0;border-radius:12px;background:#fff;border:2px solid #c8dfd9;line-height:1.5}
+    .solution-system b,.solution-region b{color:#126b62}
+    .solution-steps{margin:12px 0 0;padding-left:23px}
+    .solution-steps li{margin:8px 0;line-height:1.55}
+    .solution-recall{padding:12px 13px;border-radius:12px;background:#eaf3ff;line-height:1.5}
+    .solution-warning{padding:12px 13px;border-left:5px solid var(--coral);border-radius:9px;background:#fff0d8;line-height:1.5}
+    body.screenshot-mode .hero,
+    body.screenshot-mode .student-bar,
+    body.screenshot-mode .progress-wrap,
+    body.screenshot-mode .submit-dock,
+    body.screenshot-mode .step,
+    body.screenshot-mode .task-help,
+    body.screenshot-mode .solution-toggle,
+    body.screenshot-mode .task-solution,
+    body.screenshot-mode .inline-result,
+    body.screenshot-mode .sound,
+    body.screenshot-mode .toast{display:none!important}
+    body.screenshot-mode main{max-width:none;margin:4px auto;padding:0 6px}
+    body.screenshot-mode .screen{display:none!important}
+    body.screenshot-mode #workScreen{display:block!important}
+    body.screenshot-mode .work-head{margin:0 0 5px}
+    body.screenshot-mode .work-head .lead{display:none}
+    body.screenshot-mode .task-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:5px}
+    body.screenshot-mode .task{padding:10px 9px;border-width:2px;border-radius:12px;box-shadow:none}
+    body.screenshot-mode .task:before{height:6px}
+    body.screenshot-mode .task-title{gap:7px}
+    body.screenshot-mode .task-num{width:29px;height:29px;flex-basis:29px;font-size:.78rem}
+    body.screenshot-mode .prototype-tag{font-size:.62rem}
+    body.screenshot-mode .expression{margin:6px 0 0;padding:6px;font-size:clamp(14px,1.5vw,20px);line-height:1.3;white-space:normal}
+    @media(max-width:700px){.student-actions{width:100%}.student-actions .mini-button{flex:1}}
+
+</style>
 </head>
 <body>
   <a class="skip" href="#main">К содержанию</a><button class="sound" id="soundButton" type="button" aria-label="Выключить звук" aria-pressed="true">🔊</button>
-  <header class="hero"><div class="hero-inner"><div class="eyebrow">ЕГЭ · задание 15 · специальная тренировка</div><h1>Академия ОДЗ: два шага</h1><p>Сначала найди правильную систему ограничений, затем выбери допустимые области x. Восемь расследований без подсказки о правильности до отправки.</p><div class="badge">🛡 Отдел математической безопасности · Зверополис</div><div class="fox" aria-hidden="true"><i class="ear left"></i><i class="ear right"></i><i class="head"></i><i class="eye left"></i><i class="eye right"></i><i class="muzzle"></i><i class="body"></i></div></div><div class="skyline"></div></header>
-  <div class="student-bar" id="studentBar" hidden><div><b id="studentName">Ученик</b><span>Домашняя работа · 8 номеров</span></div><button class="mini-button" id="changeStudent" type="button">Сменить ученика</button></div>
-  <main id="main">
+  <header class="hero"><div class="hero-inner"><div class="eyebrow">ЕГЭ · задание 15 · специальная тренировка</div><h1>Академия ОДЗ: сложные конструкции</h1><p>Сначала собери полную систему ограничений, затем найди допустимую область x. Восемь более сложных конструкций: вложенные корни, дроби и логарифмы с переменным основанием.</p><div class="badge">🛡 Отдел математической безопасности · Зверополис</div><div class="fox" aria-hidden="true"><i class="ear left"></i><i class="ear right"></i><i class="head"></i><i class="eye left"></i><i class="eye right"></i><i class="muzzle"></i><i class="body"></i></div></div><div class="skyline"></div></header>
+  <div class="student-bar" id="studentBar" hidden>
+      <div><b id="studentName">Ученик</b><span>Домашняя работа · 8 сложных ОДЗ</span></div>
+      <div class="student-actions"><button class="mini-button" id="screenshotButton" type="button">📸 Скриншот</button><button class="mini-button" id="changeStudent" type="button">Сменить ученика</button></div>
+    </div>
+    <main id="main">
     <section class="screen on" id="authScreen"><div class="panel login-panel"><h2>Вход в академию</h2><p class="lead">Введи личный код ученика. Он сохранится на этом устройстве.</p><form id="loginForm"><div class="code-row"><input class="code-input" id="studentCode" autocomplete="one-time-code" placeholder="Личный код" required><button class="button" id="loginButton" type="submit">Войти</button></div><p class="status" id="loginStatus" aria-live="polite"></p></form></div></section>
-    <section class="screen" id="checkingScreen"><div class="panel login-panel" style="text-align:center"><h2>Проверяем маршрут</h2><div class="spinner"></div><p id="checkingText">Проверяем отправку в текущем месяце…</p><button class="button secondary" id="retryCheck" type="button" hidden>Повторить проверку</button></div></section>
-    <section class="screen" id="welcomeScreen"><div class="panel"><div class="briefing"><div class="map-card"><h2>Как устроен каждый номер</h2><p>Шаг 1 — отметить полную систему ограничений. Шаг 2 — решить эту систему и выбрать допустимые области x.</p><div class="formula-banner">знаменатель ≠ 0 · под корнем ≥ 0 · аргумент log &gt; 0</div></div><aside class="rules"><b>Правила академии</b><ul><li>8 заданий с фиксированными выражениями.</li><li>Номер засчитывается, только если верны оба шага.</li><li>Подсказки не уменьшают результат.</li><li>Правильность и решения появятся после отправки.</li><li>Отправка доступна один раз в календарном месяце.</li></ul></aside></div><div class="start-row"><button class="button" id="startButton" type="button">Начать работу</button></div></div></section>
-    <section class="screen" id="workScreen"><div class="work-head"><div><h2>Системы ограничений и области x</h2><p class="lead">В каждом номере выполни оба шага.</p></div></div><div class="progress-wrap"><div class="progress-copy"><span>Готово номеров</span><span id="progressText">0 из 8 · 0%</span></div><div class="progress-line"><div class="progress-fill" id="progressFill"></div></div></div><form id="homeworkForm"><div class="task-list" id="taskList"></div><div class="submit-dock"><p id="submitStatus">Выполни оба шага во всех номерах.</p><button class="button" id="submitButton" type="submit" disabled>Отправить работу</button></div></form></section>
+    <section class="screen" id="checkingScreen" hidden><div class="panel login-panel" style="text-align:center"><h2>Проверяем маршрут</h2><div class="spinner"></div><p id="checkingText">Проверяем отправку в текущем месяце…</p><button class="button secondary" id="retryCheck" type="button" hidden>Повторить проверку</button></div></section>
+    <section class="screen" id="welcomeScreen"><div class="panel"><div class="briefing"><div class="map-card"><h2>Как устроен каждый номер</h2><p>Шаг 1 — собрать все ограничения сложного выражения. Шаг 2 — пересечь их и выбрать итоговую область x.</p><div class="formula-banner">знаменатель ≠ 0 · под корнем ≥ 0 · аргумент log &gt; 0</div></div><aside class="rules"><b>Правила академии</b><ul><li>8 заданий с фиксированными выражениями.</li><li>Номер засчитывается, только если верны оба шага.</li><li>Подсказки не уменьшают результат.</li><li>Правильность и решения появятся после отправки.</li><li>Отправка доступна один раз в календарном месяце.</li></ul></aside></div><div class="start-row"><button class="button" id="startButton" type="button">Начать работу</button></div></div></section>
+    <section class="screen" id="workScreen"><div class="work-head"><div><h2>Сложные ОДЗ и области x</h2><p class="lead">В каждом номере выполни оба шага.</p></div></div><div class="progress-wrap"><div class="progress-copy"><span>Готово номеров</span><span id="progressText">0 из 8 · 0%</span></div><div class="progress-line"><div class="progress-fill" id="progressFill"></div></div></div><div class="inline-result" id="inlineResult" hidden></div><form id="homeworkForm"><div class="task-list" id="taskList"></div><div class="submit-dock"><p id="submitStatus">Можно завершить в любой момент. Пустые шаги считаются неверными.</p><button class="button" id="submitButton" type="submit">Завершить работу</button></div></form></section>
     <section class="screen" id="resultScreen"><div class="panel result"><h2>Расследование завершено</h2><div class="score-orbit"><div><b id="scorePercent">0%</b><span>результат</span></div></div><div class="stats"><div class="stat"><span>Полностью верных номеров</span><b id="correctCount">0 из 8</b></div><div class="stat"><span>Полное время</span><b id="durationText">00:00</b></div></div><div class="result-actions"><button class="button" id="showSolutions" type="button">Разобрать решения</button></div><div id="solutions" class="solutions" hidden></div></div></section>
     <section class="screen" id="lockedScreen"><div class="panel"><h2>Форма уже отправлена</h2><p class="lead">Её можно отправить только один раз в календарном месяце. Просматривать задания и решения можно всегда.</p><div class="locked-actions"><button class="button secondary" id="reviewLocked" type="button">Просмотреть задания</button><button class="button" id="solutionsLocked" type="button">Разобрать решения</button></div></div></section>
   </main><div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script>
-  "use strict";
-  const API_URL="https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
-  const CONFIG={"assignmentId":"HW-EGE15-ODZ-2STEP-8-MONTHLY-ZOO20260803B","title":"ОДЗ: два шага","tasks":[{"expression":"log<sub>x−1</sub>(5−x) ≥ 0","systems":[{"id":"A","text":"x−1 &gt; 0; &nbsp; x−1 ≠ 1; &nbsp; 5−x &gt; 0"},{"id":"B","text":"x−1 ≥ 0; &nbsp; 5−x ≥ 0"},{"id":"C","text":"x−1 &gt; 1; &nbsp; 5−x &gt; 0"},{"id":"D","text":"x−1 ≠ 0; &nbsp; 5−x &gt; 0"}],"correctSystem":"A","regions":[{"id":"A","text":"(1; 2) ∪ (2; 5)"},{"id":"B","text":"(1; 5)"},{"id":"C","text":"(2; 5)"},{"id":"D","text":"(−∞; 1) ∪ (5; +∞)"}],"correctRegion":"A","hint":"Вспомни три условия существования логарифма с переменным основанием.","caution":"Основание логарифма не только положительно: оно ещё не может равняться 1.","recall":"Для log<sub>a(x)</sub>b(x) одновременно нужны a(x)&gt;0, a(x)≠1 и b(x)&gt;0.","formula":"a(x)&gt;0; &nbsp; a(x)≠1; &nbsp; b(x)&gt;0.","steps":["Основание x−1 должно быть положительным: x&gt;1.","Основание не равно 1: x−1≠1, поэтому x≠2.","Аргумент положителен: 5−x&gt;0, то есть x&lt;5.","Пересекаем условия x&gt;1, x≠2 и x&lt;5.","Допустимая область: (1;2) ∪ (2;5)."]},{"expression":"√<span class='radicand'>log<sub>2</sub>(x²−5x+6)</span> ≤ 2","systems":[{"id":"A","text":"x²−5x+6 &gt; 0; &nbsp; log<sub>2</sub>(x²−5x+6) ≥ 0"},{"id":"B","text":"x²−5x+6 ≥ 0"},{"id":"C","text":"x²−5x+6 &gt; 0"},{"id":"D","text":"x²−5x+6 &gt; 0; &nbsp; log<sub>2</sub>(x²−5x+6) &gt; 0"}],"correctSystem":"A","regions":[{"id":"A","text":"(−∞; (5−√5)/2] ∪ [(5+√5)/2; +∞)"},{"id":"B","text":"(−∞; 2) ∪ (3; +∞)"},{"id":"C","text":"(−∞; (5−√5)/2) ∪ ((5+√5)/2; +∞)"},{"id":"D","text":"[(5−√5)/2; (5+√5)/2]"}],"correctRegion":"A","hint":"Под корнем находится весь логарифм, поэтому значение логарифма должно быть неотрицательным.","caution":"Не замени ≥ на >: нулевое значение под квадратным корнем разрешено.","recall":"Аргумент логарифма положителен, а подкоренное выражение неотрицательно.","formula":"log<sub>2</sub>u≥0 ⇔ u≥1, потому что 2&gt;1.","steps":["Требуем x²−5x+6&gt;0 и log₂(x²−5x+6)≥0.","Так как основание 2 больше 1, второе условие равносильно x²−5x+6≥1.","Получаем x²−5x+5≥0. Это условие уже гарантирует положительность аргумента.","Корни: (5−√5)/2 и (5+√5)/2; парабола направлена вверх.","Допустимая область: (−∞;(5−√5)/2] ∪ [(5+√5)/2;+∞)."]},{"expression":"<span class='frac'><span>1</span><span>log<sub>3</sub>(x²−5x+6)</span></span> ≥ 1","systems":[{"id":"A","text":"x²−5x+6 &gt; 0; &nbsp; log<sub>3</sub>(x²−5x+6) ≠ 0"},{"id":"B","text":"x²−5x+6 ≥ 0"},{"id":"C","text":"x²−5x+6 &gt; 0"},{"id":"D","text":"x²−5x+6 ≠ 0; &nbsp; log<sub>3</sub>(x²−5x+6) &gt; 0"}],"correctSystem":"A","regions":[{"id":"A","text":"(−∞; 2) ∪ (3; +∞)"},{"id":"B","text":"(−∞; (5−√5)/2) ∪ ((5−√5)/2; 2) ∪ (3; (5+√5)/2) ∪ ((5+√5)/2; +∞)"},{"id":"C","text":"((5−√5)/2; (5+√5)/2)"},{"id":"D","text":"(2; 3)"}],"correctRegion":"B","hint":"Здесь есть два уровня ограничений: аргумент логарифма и знаменатель всей дроби.","caution":"Условие log₃(… )≠0 означает, что его аргумент не равен 1, а не нулю.","recall":"В знаменателе логарифм должен существовать и не равняться нулю.","formula":"log<sub>a</sub>u=0 ⇔ u=1.","steps":["Аргумент положителен: x²−5x+6&gt;0, откуда x&lt;2 или x&gt;3.","Знаменатель не равен нулю: x²−5x+6≠1.","Решаем x²−5x+5=0 и получаем точки (5−√5)/2 и (5+√5)/2.","Обе точки лежат внутри промежутков, найденных на первом шаге, поэтому их выколем.","Получаем четыре открытых промежутка из варианта B."]},{"expression":"√<span class='radicand'><span class='frac'><span>x+3</span><span>x−2</span></span></span> + <span class='frac'><span>1</span><span>x−5</span></span> ≤ 3","systems":[{"id":"A","text":"(x+3)/(x−2) ≥ 0; &nbsp; x−2 ≠ 0; &nbsp; x−5 ≠ 0"},{"id":"B","text":"x+3 ≥ 0; &nbsp; x−2 &gt; 0; &nbsp; x−5 ≠ 0"},{"id":"C","text":"(x+3)/(x−2) &gt; 0; &nbsp; x−5 ≠ 0"},{"id":"D","text":"x+3 ≥ 0; &nbsp; x−2 ≠ 0; &nbsp; x−5 &gt; 0"}],"correctSystem":"A","regions":[{"id":"A","text":"[−3; 2) ∪ (5; +∞)"},{"id":"B","text":"(−∞; −3] ∪ (2; +∞)"},{"id":"C","text":"(−∞; −3] ∪ (2; 5) ∪ (5; +∞)"},{"id":"D","text":"(−3; 2) ∪ (2; 5)"}],"correctRegion":"C","hint":"Для корня из дроби исследуй знак всей дроби методом интервалов.","caution":"Ноль числителя под корнем разрешён, а ноль знаменателя — никогда.","recall":"Подкоренное выражение должно быть ≥0; каждый внешний знаменатель должен быть ненулевым.","formula":"(x+3)/(x−2)≥0; &nbsp; x≠2; &nbsp; x≠5.","steps":["Решаем (x+3)/(x−2)≥0. Критические точки: −3 и 2.","Получаем (−∞;−3] ∪ (2;+∞); точка −3 включена, точка 2 исключена.","Вторая дробь требует x≠5.","Выкалываем 5 из промежутка (2;+∞).","Допустимая область: (−∞;−3] ∪ (2;5) ∪ (5;+∞)."]},{"expression":"log<sub>1/2</sub><span class='paren'>(</span><span class='frac'><span>√<span class='radicand'>4−x</span></span><span>x+1</span></span><span class='paren'>)</span> &gt; −2","systems":[{"id":"A","text":"4−x ≥ 0; &nbsp; x+1 ≠ 0; &nbsp; √(4−x)/(x+1) &gt; 0"},{"id":"B","text":"4−x &gt; 0; &nbsp; x+1 &gt; 0"},{"id":"C","text":"4−x ≥ 0; &nbsp; x+1 &gt; 0"},{"id":"D","text":"4−x &gt; 0; &nbsp; x+1 ≠ 0"}],"correctSystem":"A","regions":[{"id":"A","text":"(−∞; −1)"},{"id":"B","text":"(−1; 4)"},{"id":"C","text":"(−1; 4]"},{"id":"D","text":"(4; +∞)"}],"correctRegion":"B","hint":"Сначала обеспечь существование корня, затем положительность всей дроби внутри логарифма.","caution":"В точке x=4 корень существует, но аргумент логарифма равен нулю — точка не подходит.","recall":"Аргумент логарифма строго положителен; выражение под обычным квадратным корнем неотрицательно.","formula":"4−x≥0; &nbsp; x≠−1; &nbsp; √(4−x)/(x+1)&gt;0.","steps":["Для корня нужно x≤4, для знаменателя — x≠−1.","Аргумент логарифма должен быть строго положительным.","При x&lt;4 числитель положителен, поэтому знаменатель должен быть положительным: x&gt;−1.","При x=4 числитель равен нулю, а логарифм нуля не существует.","Допустимая область: (−1;4)."]},{"expression":"√<span class='radicand'>log<sub>x+4</sub>(9−x²)</span> ≤ 1","systems":[{"id":"A","text":"x+4 &gt; 0; &nbsp; x+4 ≠ 1; &nbsp; 9−x² &gt; 0; &nbsp; log<sub>x+4</sub>(9−x²) ≥ 0"},{"id":"B","text":"x+4 ≥ 0; &nbsp; 9−x² ≥ 0"},{"id":"C","text":"x+4 &gt; 1; &nbsp; 9−x² ≥ 1"},{"id":"D","text":"x+4 &gt; 0; &nbsp; x+4 ≠ 1; &nbsp; 9−x² ≥ 0"}],"correctSystem":"A","regions":[{"id":"A","text":"(−3; 3)"},{"id":"B","text":"[−2√2; 2√2]"},{"id":"C","text":"(−2√2; 2√2)"},{"id":"D","text":"[−3; 3]"}],"correctRegion":"B","hint":"Сначала найди общий коридор основания и аргумента; в нём станет понятна монотонность логарифма.","caution":"Не сравнивай аргумент с 1, пока не установишь: основание больше 1 или находится между 0 и 1.","recall":"Для корня нужен неотрицательный логарифм, а переменное основание требует двух отдельных условий.","formula":"a&gt;1: log<sub>a</sub>u≥0 ⇔ u≥1.","steps":["Основание: x+4&gt;0 и x+4≠1. Аргумент: 9−x²&gt;0, то есть −3&lt;x&lt;3.","На промежутке (−3;3) основание x+4 строго больше 1.","Поэтому log_(x+4)(9−x²)≥0 равносильно 9−x²≥1.","Получаем x²≤8, то есть −2√2≤x≤2√2.","Этот отрезок лежит внутри исходного коридора. Ответ: [−2√2;2√2]."]},{"expression":"ln<span class='paren'>(</span><span class='frac'><span>√<span class='radicand'>x−1</span></span><span>x−4</span></span><span class='paren'>)</span> ≥ 0","systems":[{"id":"A","text":"x−1 ≥ 0; &nbsp; x−4 ≠ 0; &nbsp; √(x−1)/(x−4) &gt; 0"},{"id":"B","text":"x−1 &gt; 0; &nbsp; x−4 &gt; 0"},{"id":"C","text":"x−1 ≥ 0; &nbsp; x−4 &gt; 0"},{"id":"D","text":"x−1 &gt; 0; &nbsp; x−4 ≠ 0"}],"correctSystem":"A","regions":[{"id":"A","text":"[1; 4)"},{"id":"B","text":"(1; 4)"},{"id":"C","text":"(4; +∞)"},{"id":"D","text":"[4; +∞)"}],"correctRegion":"C","hint":"Положительность дроби сильнее простого существования корня и знаменателя.","caution":"В точке x=1 числитель равен нулю, но аргумент логарифма обязан быть строго положительным.","recall":"Для ln u требуется u&gt;0; корень и знаменатель внутри u проверяются отдельно.","formula":"x−1≥0; &nbsp; x≠4; &nbsp; √(x−1)/(x−4)&gt;0.","steps":["Корень существует при x≥1, знаменатель требует x≠4.","В x=1 дробь равна нулю, поэтому логарифм не существует.","При x&gt;1 числитель положителен; для положительности дроби требуется x−4&gt;0.","Отсюда x&gt;4.","Допустимая область: (4;+∞)."]},{"expression":"<span class='frac'><span>√<span class='radicand'>log<sub>3</sub><span class='paren'>(</span><span class='frac'><span>x²−1</span><span>x−2</span></span><span class='paren'>)</span></span></span><span>log<sub>x+2</sub>4</span></span> ≤ 2","systems":[{"id":"A","text":"x+2 &gt; 0; x+2 ≠ 1; (x²−1)/(x−2) &gt; 0; log<sub>3</sub>((x²−1)/(x−2)) ≥ 0; log<sub>x+2</sub>4 ≠ 0"},{"id":"B","text":"x+2 &gt; 0; (x²−1)/(x−2) ≥ 0"},{"id":"C","text":"x+2 ≠ 1; (x²−1)/(x−2) &gt; 0; log<sub>3</sub>((x²−1)/(x−2)) &gt; 0"},{"id":"D","text":"x+2 &gt; 0; x+2 ≠ 1; (x²−1)/(x−2) &gt; 0"}],"correctSystem":"A","regions":[{"id":"A","text":"(−2; −1) ∪ (2; +∞)"},{"id":"B","text":"[2; +∞)"},{"id":"C","text":"(2; +∞)"},{"id":"D","text":"(−∞; −1) ∪ (1; 2)"}],"correctRegion":"C","hint":"Раздели выражение на два блока: корень в числителе и логарифм в знаменателе.","caution":"Не забудь: знаменатель обязан не только существовать, но и быть ненулевым.","recall":"В сложной дроби объединяются ограничения корня, обоих логарифмов и внешнего знаменателя.","formula":"log<sub>3</sub>u≥0 ⇔ u≥1; &nbsp; (x²−1)/(x−2)−1=(x²−x+1)/(x−2).","steps":["Для основания знаменателя: x+2&gt;0 и x+2≠1. Логарифм log_(x+2)4 не равен нулю, поскольку 4≠1.","Для числителя требуется дробь (x²−1)/(x−2)&gt;0 и её логарифм по основанию 3 неотрицателен.","Последнее равносильно (x²−1)/(x−2)≥1.","После переноса единицы: (x²−x+1)/(x−2)≥0. Числитель всегда положителен, поэтому x−2&gt;0.","Получаем x&gt;2; остальные ограничения выполнены. Ответ: (2;+∞)."]}]};
-  const HOMEWORK_META=Object.freeze({assignmentId:CONFIG.assignmentId,taskNumber:15,topicId:"task-15",topicName:"Неравенства",schemaVersion:1});
-  const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-  const state={student:null,startedAt:0,submitted:false,result:null,reviewOnly:false};
-  function showScreen(id){$$('.screen').forEach(s=>s.classList.toggle('on',s.id===id));scrollTo({top:Math.max(0,$('.hero').offsetHeight-8),behavior:'smooth'})}
-  function toast(message,error=false){const box=$('#toast');box.textContent=message;box.classList.toggle('error',error);box.classList.add('on');clearTimeout(toast.timer);toast.timer=setTimeout(()=>box.classList.remove('on'),3300)}
-  function escapeHtml(value){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-  function optionMarkup(task,index,kind){const options=kind==='system'?task.systems:task.regions,label=kind==='system'?'Шаг 1. Выбери систему ограничений':'Шаг 2. Выбери допустимые области x',name=`${kind}-${index}`;return `<section class="step ${kind==='region'?'locked':''}" data-step="${kind}"><h3><span class="step-badge">${kind==='system'?1:2}</span>${label}</h3><div class="options">${options.map(option=>`<label class="option"><input type="radio" name="${name}" value="${option.id}" ${kind==='region'?'disabled':''}><span class="option-letter">${option.id}</span><span class="option-text">${option.text}</span></label>`).join('')}</div></section>`}
-  function renderTasks(){
-    $('#taskList').innerHTML=CONFIG.tasks.map((task,index)=>`<article class="task" data-task="${index}"><div class="task-title"><span class="task-num">${index+1}</span><div class="prototype-tag">Дело об ограничениях · район ${index+1}</div></div><div class="expression">${task.expression}</div><details class="task-help"><summary>💡 Небольшая подсказка</summary><p>${task.hint}</p><p class="caution"><b>⚠ Осторожно:</b> ${task.caution}</p><p class="help-note">Использование подсказки не влияет на результат.</p></details>${optionMarkup(task,index,'system')}${optionMarkup(task,index,'region')}</article>`).join('');
+  
+<script>
+"use strict";
+const API_URL="https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
+const CONFIG={"assignmentId":"HW-EGE15-ODZ-COMPLEX-8-MONTHLY-ZOO20260915C","title":"ОДЗ: сложные конструкции","tasks":[{"expression":"√<span class='radicand'>log<sub>x+2</sub><span class='frac'><span>6−x</span><span>x+1</span></span></span> ≤ 2","systems":[{"id":"A","text":"x+2 &gt; 0; &nbsp; x+2 ≠ 1; &nbsp; <span class='frac'><span>6−x</span><span>x+1</span></span> &gt; 0; &nbsp; log<sub>x+2</sub><span class='frac'><span>6−x</span><span>x+1</span></span> ≥ 0"},{"id":"B","text":"x+2 ≥ 0; &nbsp; <span class='frac'><span>6−x</span><span>x+1</span></span> ≥ 0"},{"id":"C","text":"x+2 &gt; 1; &nbsp; <span class='frac'><span>6−x</span><span>x+1</span></span> ≥ 1"},{"id":"D","text":"x+2 &gt; 0; &nbsp; x+2 ≠ 1; &nbsp; <span class='frac'><span>6−x</span><span>x+1</span></span> &gt; 0"}],"correctSystem":"A","regions":[{"id":"A","text":"(−1; 5/2]"},{"id":"B","text":"(−1; 6)"},{"id":"C","text":"[−1; 5/2]"},{"id":"D","text":"(5/2; 6)"}],"correctRegion":"A","hint":"Здесь четыре ограничения: основание логарифма, аргумент логарифма и неотрицательность самого логарифма под корнем.","caution":"После пересечения первых условий окажется, что основание больше 1. Только после этого сравнивай аргумент с 1.","recall":"Для √(logₐu) нужны: a&gt;0, a≠1, u&gt;0 и logₐu≥0.","formula":"После x∈(−1;6) имеем x+2&gt;1, поэтому log<sub>x+2</sub>u≥0 означает u≥1.","steps":["Основание: x+2&gt;0 и x+2≠1.","Аргумент дроби положителен: (6−x)/(x+1)&gt;0, откуда −1&lt;x&lt;6.","На этом промежутке основание x+2&gt;1.","Под корнем требуется log≥0, поэтому (6−x)/(x+1)≥1.","Так как x+1&gt;0: 6−x≥x+1, откуда x≤5/2. Ответ: (−1;5/2]."]},{"expression":"<span class='frac'><span>1</span><span>√<span class='radicand'>log<sub>2</sub><span class='frac'><span>x²−5x+6</span><span>x−4</span></span></span></span></span> &lt; 3","systems":[{"id":"A","text":"<span class='frac'><span>x²−5x+6</span><span>x−4</span></span> &gt; 0; &nbsp; log<sub>2</sub><span class='frac'><span>x²−5x+6</span><span>x−4</span></span> &gt; 0"},{"id":"B","text":"<span class='frac'><span>x²−5x+6</span><span>x−4</span></span> ≥ 0; &nbsp; log<sub>2</sub><span class='frac'><span>x²−5x+6</span><span>x−4</span></span> ≥ 0"},{"id":"C","text":"x²−5x+6 &gt; 0; &nbsp; x−4 ≠ 0"},{"id":"D","text":"<span class='frac'><span>x²−5x+6</span><span>x−4</span></span> &gt; 0"}],"correctSystem":"A","regions":[{"id":"A","text":"(4; +∞)"},{"id":"B","text":"[4; +∞)"},{"id":"C","text":"(−∞; 4)"},{"id":"D","text":"(2; 3) ∪ (4; +∞)"}],"correctRegion":"A","hint":"Квадратный корень находится в знаменателе, поэтому его значение должно быть строго положительным.","caution":"Здесь недостаточно log≥0: при log=0 весь знаменатель становится нулём.","recall":"Если √A стоит в знаменателе, то A&gt;0.","formula":"log₂u&gt;0 означает u&gt;1.","steps":["Из знаменателя получаем log₂((x²−5x+6)/(x−4))&gt;0.","Так как 2&gt;1, требуется (x²−5x+6)/(x−4)&gt;1.","Переносим 1: (x²−6x+10)/(x−4)&gt;0.","Числитель x²−6x+10=(x−3)²+1 всегда положителен.","Поэтому нужен x−4&gt;0. Ответ: (4;+∞)."]},{"expression":"ln<span class='paren'>(</span><span class='frac'><span>√<span class='radicand'>x+2</span></span><span>x²−5x+6</span></span><span class='paren'>)</span> ≤ 1","systems":[{"id":"A","text":"x+2 ≥ 0; &nbsp; x²−5x+6 ≠ 0; &nbsp; <span class='frac'><span>√(x+2)</span><span>x²−5x+6</span></span> &gt; 0"},{"id":"B","text":"x+2 ≥ 0; &nbsp; x²−5x+6 &gt; 0"},{"id":"C","text":"x+2 &gt; 0; &nbsp; x²−5x+6 ≠ 0"},{"id":"D","text":"x+2 &gt; 0; &nbsp; x²−5x+6 &lt; 0"}],"correctSystem":"A","regions":[{"id":"A","text":"(−2; 2) ∪ (3; +∞)"},{"id":"B","text":"[−2; 2) ∪ (3; +∞)"},{"id":"C","text":"(−2; 3)"},{"id":"D","text":"(2; 3)"}],"correctRegion":"A","hint":"Аргумент натурального логарифма должен быть строго положительным — это сильнее простого существования корня.","caution":"При x=−2 числитель равен нулю, поэтому ln(0) не существует.","recall":"Для ln u нужно u&gt;0.","formula":"√(x+2)&gt;0 и x²−5x+6&gt;0.","steps":["Корень существует при x≥−2.","Но аргумент ln должен быть строго положительным, поэтому числитель √(x+2)&gt;0: x&gt;−2.","При положительном числителе знаменатель тоже должен быть положительным.","(x−2)(x−3)&gt;0 даёт x&lt;2 или x&gt;3.","Пересечение с x&gt;−2: (−2;2) ∪ (3;+∞)."]},{"expression":"<span class='frac'><span>√<span class='radicand'><span class='frac'><span>x−1</span><span>x+2</span></span></span></span><span>log<sub>x+4</sub>9</span></span> ≥ 0","systems":[{"id":"A","text":"<span class='frac'><span>x−1</span><span>x+2</span></span> ≥ 0; &nbsp; x+2 ≠ 0; &nbsp; x+4 &gt; 0; &nbsp; x+4 ≠ 1; &nbsp; log<sub>x+4</sub>9 ≠ 0"},{"id":"B","text":"x−1 ≥ 0; &nbsp; x+2 &gt; 0; &nbsp; x+4 &gt; 0"},{"id":"C","text":"<span class='frac'><span>x−1</span><span>x+2</span></span> &gt; 0; &nbsp; x+4 &gt; 0"},{"id":"D","text":"<span class='frac'><span>x−1</span><span>x+2</span></span> ≥ 0; &nbsp; x+4 ≥ 0"}],"correctSystem":"A","regions":[{"id":"A","text":"(−4; −3) ∪ (−3; −2) ∪ [1; +∞)"},{"id":"B","text":"(−4; −2) ∪ [1; +∞)"},{"id":"C","text":"(−∞; −2) ∪ [1; +∞)"},{"id":"D","text":"(−3; −2) ∪ (1; +∞)"}],"correctRegion":"A","hint":"Ограничения идут сразу из трёх мест: корень, дробь под корнем и основание логарифма в знаменателе.","caution":"x=−3 запрещён, потому что основание логарифма становится равным 1.","recall":"Для logₐ9 нужны a&gt;0 и a≠1; знаменатель дополнительно не должен быть нулём.","formula":"(x−1)/(x+2)≥0; x≠−2; x&gt;−4; x≠−3.","steps":["Под корнем: (x−1)/(x+2)≥0. Получаем x&lt;−2 или x≥1.","Точка x=−2 исключается знаменателем внутренней дроби.","Основание логарифма: x+4&gt;0, значит x&gt;−4.","Основание не равно 1: x≠−3. Сам log₍x+4₎9 не может быть нулём, потому что 9≠1.","Ответ: (−4;−3) ∪ (−3;−2) ∪ [1;+∞)."]},{"expression":"log<sub>√<span class='radicand'>x+5</span></sub><span class='paren'>(</span><span class='frac'><span>x²−1</span><span>x−2</span></span><span class='paren'>)</span> &lt; 2","systems":[{"id":"A","text":"x+5 &gt; 0; &nbsp; √(x+5) ≠ 1; &nbsp; <span class='frac'><span>x²−1</span><span>x−2</span></span> &gt; 0; &nbsp; x−2 ≠ 0"},{"id":"B","text":"x+5 ≥ 0; &nbsp; <span class='frac'><span>x²−1</span><span>x−2</span></span> ≥ 0"},{"id":"C","text":"x+5 &gt; 1; &nbsp; <span class='frac'><span>x²−1</span><span>x−2</span></span> &gt; 0"},{"id":"D","text":"x+5 &gt; 0; &nbsp; √(x+5) ≠ 0; &nbsp; <span class='frac'><span>x²−1</span><span>x−2</span></span> &gt; 0"}],"correctSystem":"A","regions":[{"id":"A","text":"(−1; 1) ∪ (2; +∞)"},{"id":"B","text":"(−5; −4) ∪ (−4; −1) ∪ (1; 2)"},{"id":"C","text":"[−1; 1] ∪ [2; +∞)"},{"id":"D","text":"(−5; 1) ∪ (2; +∞)"}],"correctRegion":"A","hint":"Основание само содержит квадратный корень: оно должно быть положительным и не равняться 1.","caution":"Условие √(x+5)≠1 даёт x≠−4, но после пересечения с аргументом эта точка всё равно исчезнет.","recall":"Для logₐu: a&gt;0, a≠1, u&gt;0.","formula":"√(x+5)&gt;0 ⇒ x&gt;−5; √(x+5)≠1 ⇒ x≠−4.","steps":["Основание положительно: x&gt;−5.","Основание не равно 1: x≠−4.","Аргумент: (x²−1)/(x−2)&gt;0.","По точкам −1, 1 и 2 получаем (−1;1) ∪ (2;+∞).","Эти промежутки уже удовлетворяют ограничениям основания. Ответ: (−1;1) ∪ (2;+∞)."]},{"expression":"<span class='frac'><span>√<span class='radicand'>log<sub>3</sub><span class='frac'><span>x²−4</span><span>x−1</span></span></span></span><span>x−5</span></span> ≤ 0","systems":[{"id":"A","text":"<span class='frac'><span>x²−4</span><span>x−1</span></span> &gt; 0; &nbsp; log<sub>3</sub><span class='frac'><span>x²−4</span><span>x−1</span></span> ≥ 0; &nbsp; x−5 ≠ 0"},{"id":"B","text":"<span class='frac'><span>x²−4</span><span>x−1</span></span> ≥ 0; &nbsp; x−5 ≠ 0"},{"id":"C","text":"x²−4 &gt; 0; &nbsp; x−1 ≠ 0; &nbsp; x−5 ≠ 0"},{"id":"D","text":"<span class='frac'><span>x²−4</span><span>x−1</span></span> &gt; 1; &nbsp; x−5 ≠ 0"}],"correctSystem":"A","regions":[{"id":"A","text":"[(1−√13)/2; 1) ∪ [(1+√13)/2; 5) ∪ (5; +∞)"},{"id":"B","text":"((1−√13)/2; 1) ∪ ((1+√13)/2; +∞)"},{"id":"C","text":"(−∞; −2] ∪ (1; 2]"},{"id":"D","text":"[(1−√13)/2; (1+√13)/2]"}],"correctRegion":"A","hint":"Так как основание логарифма 3 больше 1, условие под корнем можно сразу заменить сравнением аргумента с 1.","caution":"Точка x=5 не связана с логарифмом — она отдельно выколота внешним знаменателем.","recall":"Для √(log₃u) нужно log₃u≥0, то есть u≥1.","formula":"(x²−4)/(x−1)≥1.","steps":["Под корнем требуется log₃((x²−4)/(x−1))≥0.","Так как 3&gt;1, получаем (x²−4)/(x−1)≥1.","Переносим 1: (x²−x−3)/(x−1)≥0.","Корни числителя: (1−√13)/2 и (1+√13)/2; точка x=1 выколота.","Получаем [(1−√13)/2;1) ∪ [(1+√13)/2;+∞), затем исключаем x=5."]},{"expression":"<span class='frac'><span>1</span><span>log<sub>√<span class='radicand'>x+5</span></sub><span class='frac'><span>x+3</span><span>x−1</span></span></span></span> ≥ 0","systems":[{"id":"A","text":"x+5 &gt; 0; &nbsp; √(x+5) ≠ 1; &nbsp; <span class='frac'><span>x+3</span><span>x−1</span></span> &gt; 0; &nbsp; log<sub>√(x+5)</sub><span class='frac'><span>x+3</span><span>x−1</span></span> ≠ 0"},{"id":"B","text":"x+5 ≥ 0; &nbsp; <span class='frac'><span>x+3</span><span>x−1</span></span> ≥ 0"},{"id":"C","text":"x+5 &gt; 0; &nbsp; <span class='frac'><span>x+3</span><span>x−1</span></span> &gt; 0"},{"id":"D","text":"√(x+5) &gt; 1; &nbsp; <span class='frac'><span>x+3</span><span>x−1</span></span> &gt; 0"}],"correctSystem":"A","regions":[{"id":"A","text":"(−5; −4) ∪ (−4; −3) ∪ (1; +∞)"},{"id":"B","text":"(−5; −3) ∪ (1; +∞)"},{"id":"C","text":"(−∞; −3) ∪ (1; +∞)"},{"id":"D","text":"(−4; −3) ∪ (1; +∞)"}],"correctRegion":"A","hint":"Здесь переменное основание находится в знаменателе всей дроби, поэтому проверок больше обычного.","caution":"Логарифм в знаменателе не должен быть равен нулю. Здесь уравнение аргумент=1 решений не имеет.","recall":"Для знаменателя logₐu: a&gt;0, a≠1, u&gt;0 и u≠1.","formula":"x&gt;−5; x≠−4; (x+3)/(x−1)&gt;0.","steps":["Основание √(x+5)&gt;0 даёт x&gt;−5.","Основание не равно 1: x≠−4.","Аргумент (x+3)/(x−1)&gt;0 даёт x&lt;−3 или x&gt;1.","Условие log≠0 требует аргумент≠1; уравнение (x+3)/(x−1)=1 решений не имеет.","Пересечение: (−5;−4) ∪ (−4;−3) ∪ (1;+∞)."]},{"expression":"<span class='frac'><span>√<span class='radicand'>ln<span class='paren'>(</span><span class='frac'><span>x²−2x−3</span><span>x−4</span></span><span class='paren'>)</span></span></span><span>log<sub>2</sub>(x−1)</span></span> ≤ 4","systems":[{"id":"A","text":"<span class='frac'><span>x²−2x−3</span><span>x−4</span></span> &gt; 0; &nbsp; ln<span class='frac'><span>x²−2x−3</span><span>x−4</span></span> ≥ 0; &nbsp; x−1 &gt; 0; &nbsp; log<sub>2</sub>(x−1) ≠ 0"},{"id":"B","text":"<span class='frac'><span>x²−2x−3</span><span>x−4</span></span> ≥ 0; &nbsp; x−1 ≥ 0"},{"id":"C","text":"<span class='frac'><span>x²−2x−3</span><span>x−4</span></span> &gt; 1; &nbsp; x−1 &gt; 0"},{"id":"D","text":"x²−2x−3 &gt; 0; &nbsp; x−4 ≠ 0; &nbsp; x−1 &gt; 0"}],"correctSystem":"A","regions":[{"id":"A","text":"(1; 2) ∪ (2; (3+√5)/2] ∪ (4; +∞)"},{"id":"B","text":"[1; (3+√5)/2] ∪ (4; +∞)"},{"id":"C","text":"(2; (3+√5)/2] ∪ (4; +∞)"},{"id":"D","text":"(1; 2) ∪ ((3+√5)/2; 4)"}],"correctRegion":"A","hint":"Числитель содержит корень из ln, а знаменатель — ещё один логарифм. Разбери ограничения двух блоков отдельно.","caution":"Для √(ln u) разрешено ln u=0, а логарифм в знаменателе, наоборот, не может быть нулём.","recall":"√(ln u): ln u≥0 ⇒ u≥1. Для log₂(x−1) в знаменателе: x&gt;1 и x≠2.","formula":"(x²−2x−3)/(x−4)≥1.","steps":["Из числителя: ln((x²−2x−3)/(x−4))≥0, значит дробь ≥1.","Переносим 1: (x²−3x+1)/(x−4)≥0.","Корни числителя: (3−√5)/2 и (3+√5)/2. Получаем [(3−√5)/2;(3+√5)/2] ∪ (4;+∞).","Знаменатель log₂(x−1) требует x&gt;1 и x≠2.","Пересечение: (1;2) ∪ (2;(3+√5)/2] ∪ (4;+∞)."]}]};
+const TECH_SYSTEM_VERSION="2026-09-odz-complex-v2";
+const HOMEWORK_META=Object.freeze({assignmentId:CONFIG.assignmentId,taskNumber:15,topicId:"task-15",topicName:"Неравенства · ОДЗ",schemaVersion:1});
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const state={student:null,startedAt:0,submitted:false,correct:0,scorePercent:0,durationSeconds:0};
+let submissionLocked=false,submittedNow=false,sendingQueue=false;
+
+function showScreen(id){$$(".screen").forEach(s=>s.classList.toggle("on",s.id===id));if(!document.body.classList.contains("screenshot-mode"))window.scrollTo({top:Math.max(0,$(".hero").offsetHeight-8),behavior:"smooth"})}
+function escapeHtml(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function normalizeCode(v){return String(v||"").trim().toUpperCase()}
+function currentMonth(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")}
+function safeGet(k){try{return localStorage.getItem(k)}catch(_){return null}}
+function safeStore(k,v){try{localStorage.setItem(k,v);return true}catch(_){return false}}
+function safeRemove(k){try{localStorage.removeItem(k)}catch(_){}}
+function readJson(k,f){try{const v=safeGet(k);return v?JSON.parse(v):f}catch(_){return f}}
+function formatDuration(sec){sec=Math.max(0,Math.floor(Number(sec)||0));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return h?`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`:`${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`}
+
+function draftKey(code=state.student?.code){return code?`homeworkDraft:${HOMEWORK_META.assignmentId}:${code}`:""}
+function queueKey(){return `pendingHomeworkResults:${HOMEWORK_META.assignmentId}`}
+function monthLockKey(code=state.student?.code){return code?`egeHomeworkSubmission:${HOMEWORK_META.assignmentId}:${code}:${currentMonth()}`:""}
+function localLocked(){const k=monthLockKey();return k?Boolean(safeGet(k)):false}
+
+function optionMarkup(task,index,kind){
+  const options=kind==="system"?task.systems:task.regions;
+  const label=kind==="system"?"Шаг 1. Выбери полную систему ограничений":"Шаг 2. Выбери итоговую область x";
+  const name=`${kind}-${index}`;
+  return `<section class="step ${kind==="region"?"locked":""}" data-step="${kind}">
+    <h3><span class="step-badge">${kind==="system"?1:2}</span>${label}</h3>
+    <div class="options">${options.map(o=>`<label class="option"><input type="radio" name="${name}" value="${o.id}" ${kind==="region"?"disabled":""}><span class="option-letter">${o.id}</span><span class="option-text">${o.text}</span></label>`).join("")}</div>
+  </section>`;
+}
+function renderTasks(){
+  $("#taskList").innerHTML=CONFIG.tasks.map((task,index)=>`<article class="task" data-task="${index}">
+    <div class="task-title"><span class="task-num">${index+1}</span><div class="prototype-tag">Сложное ОДЗ · дело ${index+1}<span class="task-verdict"></span></div></div>
+    <div class="expression">${task.expression}</div>
+    <details class="task-help"><summary>💡 Небольшая подсказка</summary><p>${task.hint}</p><p class="caution"><b>⚠ Осторожно:</b> ${task.caution}</p><p class="help-note">Подсказка не влияет на результат.</p></details>
+    ${optionMarkup(task,index,"system")}${optionMarkup(task,index,"region")}
+    <button class="solution-toggle" type="button" data-solution-index="${index}">Показать решение</button>
+    <div class="task-solution" id="task-solution-${index}"></div>
+  </article>`).join("");
+}
+function selected(index,kind){return document.querySelector(`input[name="${kind}-${index}"]:checked`)?.value||""}
+function collectSelections(){return CONFIG.tasks.map((_,i)=>({system:selected(i,"system"),region:selected(i,"region")}))}
+function unlockRegion(card){const region=card?.querySelector('[data-step="region"]');if(!region)return;region.classList.remove("locked");region.querySelectorAll('input').forEach(x=>x.disabled=submittedNow||submissionLocked)}
+function updateProgress(){
+  const selections=collectSelections();
+  const complete=selections.filter(x=>x.system&&x.region).length;
+  const percent=Math.round(complete/CONFIG.tasks.length*100);
+  $("#progressText").textContent=`${complete} из ${CONFIG.tasks.length} · ${percent}%`;
+  $("#progressFill").style.width=percent+"%";
+  $("#submitButton").disabled=submittedNow||submissionLocked;
+  const blank=CONFIG.tasks.length-complete;
+  if(submittedNow)$("#submitStatus").textContent="Работа завершена. Решение каждого номера открывается под ним.";
+  else if(submissionLocked)$("#submitStatus").textContent="Повторная отправка в этом месяце закрыта. Задания и решения можно просматривать.";
+  else if(blank)$("#submitStatus").textContent=`Можно завершить сейчас. Не полностью выполненных номеров: ${blank} — они будут засчитаны как неверные.`;
+  else $("#submitStatus").textContent="Все 8 номеров заполнены — можно завершать.";
+}
+
+function getDraft(code=state.student?.code){const k=draftKey(code);return k?readJson(k,null):null}
+function saveDraft(extra={}){
+  if(!state.student?.code)return;
+  const prev=getDraft()||{};
+  const draft={...prev,assignmentId:HOMEWORK_META.assignmentId,studentCode:state.student.code,selections:collectSelections(),startedAt:state.startedAt||Date.now(),updatedAt:Date.now(),...extra};
+  safeStore(draftKey(),JSON.stringify(draft));
+}
+function restoreDraft(){
+  const d=getDraft(); if(!d)return null;
+  if(Array.isArray(d.selections)){
+    d.selections.forEach((sel,i)=>{
+      const card=document.querySelector(`.task[data-task="${i}"]`); if(!card)return;
+      if(sel?.system){
+        const s=card.querySelector(`input[name="system-${i}"][value="${CSS.escape(sel.system)}"]`);
+        if(s){s.checked=true;unlockRegion(card)}
+      }
+      if(sel?.region){
+        const r=card.querySelector(`input[name="region-${i}"][value="${CSS.escape(sel.region)}"]`);
+        if(r){r.disabled=false;r.checked=true}
+      }
+    });
   }
-  function selected(index,kind){return document.querySelector(`input[name="${kind}-${index}"]:checked`)?.value||''}
-  function updateProgress(){const complete=CONFIG.tasks.reduce((sum,task,index)=>sum+(selected(index,'system')&&selected(index,'region')?1:0),0),percent=Math.round(complete/CONFIG.tasks.length*100);$('#progressText').textContent=`${complete} из ${CONFIG.tasks.length} · ${percent}%`;$('#progressFill').style.width=percent+'%';$('#submitButton').disabled=complete!==CONFIG.tasks.length||state.submitted||state.reviewOnly;$('#submitStatus').textContent=complete===CONFIG.tasks.length?'Все шаги заполнены. Проверка появится после отправки.':'Выполни оба шага во всех номерах.'}
-  function renderSolutions(){
-    $('#solutions').innerHTML=CONFIG.tasks.map((task,index)=>{const system=selected(index,'system'),region=selected(index,'region'),correct=system===task.correctSystem&&region===task.correctRegion,systemText=task.systems.find(o=>o.id===task.correctSystem).text,regionText=task.regions.find(o=>o.id===task.correctRegion).text;return `<article class="solution"><h3>Задание ${index+1} · ${correct?'верно':'есть ошибка'}</h3><div class="solution-condition">${task.expression}</div><div class="recall"><b>Вспомним.</b> ${task.recall}</div><div class="formula"><b>Формулы и ограничения.</b> ${task.formula}</div><div class="lifehack"><b>Лайфхак.</b> ${task.caution}</div><ol class="steps">${task.steps.map(step=>`<li>${step}</li>`).join('')}</ol><p class="right-answer">Правильная система: ${systemText}<br>Допустимые области x: ${regionText}</p>${system||region?`<p>Твой выбор: шаг 1 — ${escapeHtml(system||'не выбран')}; шаг 2 — ${escapeHtml(region||'не выбран')}.</p>`:''}</article>`}).join('');
-  }
-  function jsonp(params,timeout=12000){return new Promise((resolve,reject)=>{const callback='egeCb_'+Date.now()+'_'+Math.random().toString(36).slice(2),script=document.createElement('script'),timer=setTimeout(()=>finish(new Error('Сервер не ответил')),timeout);function finish(error,data){clearTimeout(timer);delete window[callback];script.remove();error?reject(error):resolve(data)}window[callback]=data=>finish(null,data);script.onerror=()=>finish(new Error('Не удалось подключиться к серверу'));script.src=API_URL+'?'+new URLSearchParams({...params,callback});document.head.appendChild(script)})}
-  async function postApi(payload){const response=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow'}),text=await response.text();let data;try{data=JSON.parse(text)}catch{throw new Error('Сервер вернул непонятный ответ')}if(!response.ok||data?.success===false||data?.ok===false)throw new Error(data?.message||data?.error||'Запрос отклонён');return data}
-  async function validateCode(code){return extractStudent(await jsonp({action:'validateStudent',code}),code)}
-  function extractStudent(data,code){const source=data?.student||data?.data?.student||data?.data||data?.result||data||{},id=source.id||source.studentId||data?.studentId,name=source.name||source.studentName||data?.studentName||'Ученик',valid=data?.valid===true||data?.success===true||data?.ok===true||data?.status==='ok'||Boolean(id);if(!valid||!id)throw new Error(data?.message||data?.error||'Код ученика не найден');return{id:String(id),name:String(name),code:String(code)}}
-  function saveStudent(student){localStorage.setItem('egeStudentId',student.id);localStorage.setItem('egeStudentName',student.name);localStorage.setItem('egeStudentCode',student.code)}
-  function cachedStudent(){const id=localStorage.getItem('egeStudentId'),name=localStorage.getItem('egeStudentName'),code=localStorage.getItem('egeStudentCode');return id&&code?{id,name:name||'Ученик',code}:null}
-  function monthKey(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
-  function localLockKey(){return'egeHomeworkSubmitted:'+HOMEWORK_META.assignmentId+':'+monthKey()}
-  async function checkHomework(){const payload={action:'checkHomeworkSubmission',studentId:state.student.id,assignmentId:HOMEWORK_META.assignmentId};try{return await postApi(payload)}catch(first){try{return await jsonp(payload)}catch(second){throw second?.message?second:first}}}
-  function alreadySubmitted(data){const values=[data?.submitted,data?.alreadySubmitted,data?.hasSubmission,data?.hasSubmitted,data?.submittedThisMonth,data?.data?.submitted,data?.data?.alreadySubmitted,data?.data?.hasSubmitted,data?.data?.submittedThisMonth,data?.result?.submitted,data?.result?.alreadySubmitted,data?.result?.hasSubmitted,data?.result?.submittedThisMonth];return data?.canSubmit===false||data?.data?.canSubmit===false||values.some(v=>v===true||v===1||v==='true'||v==='yes')}
-  async function activateStudent(student){state.student=student;saveStudent(student);$('#studentName').textContent=student.name;$('#studentBar').hidden=false;showScreen('checkingScreen');$('#retryCheck').hidden=true;$('#checkingText').textContent='Проверяем отправку в текущем месяце…';try{const result=await checkHomework();showScreen(alreadySubmitted(result)||localStorage.getItem(localLockKey())==='1'?'lockedScreen':'welcomeScreen')}catch(error){$('#checkingText').textContent='Не удалось проверить доступ: '+error.message;$('#retryCheck').hidden=false}}
-  function uuid(){return globalThis.crypto?.randomUUID?crypto.randomUUID():'hw-'+Date.now()+'-'+Math.random().toString(16).slice(2)}
-  function buildSubmissionPayload(durationSeconds,scorePercent){return{action:'submitHomework',eventId:uuid(),studentId:state.student.id,assignmentId:HOMEWORK_META.assignmentId,taskNumber:HOMEWORK_META.taskNumber,topicId:HOMEWORK_META.topicId,topicName:HOMEWORK_META.topicName,scorePercent,durationSeconds,schemaVersion:1}}
-  function grade(){const correct=CONFIG.tasks.reduce((sum,task,index)=>sum+(selected(index,'system')===task.correctSystem&&selected(index,'region')===task.correctRegion?1:0),0);return{correct,scorePercent:Math.round(correct/CONFIG.tasks.length*100)}}
-  function formatTime(seconds){const m=Math.floor(seconds/60),s=seconds%60;return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')}
-  class AudioEngine{constructor(){this.enabled=localStorage.getItem('egeSoundOff')!=='1';this.context=null;this.timer=null;this.step=0}ensure(){if(!this.context)this.context=new(window.AudioContext||window.webkitAudioContext)();if(this.context.state==='suspended')this.context.resume()}tone(freq,duration=.11,type='sine',volume=.035){if(!this.enabled)return;this.ensure();const osc=this.context.createOscillator(),gain=this.context.createGain(),now=this.context.currentTime;osc.type=type;osc.frequency.setValueAtTime(freq,now);gain.gain.setValueAtTime(volume,now);gain.gain.exponentialRampToValueAtTime(.0001,now+duration);osc.connect(gain).connect(this.context.destination);osc.start(now);osc.stop(now+duration)}click(){this.tone(520,.07,'triangle',.04)}good(){[523,659,784].forEach((n,i)=>setTimeout(()=>this.tone(n,.18,'triangle',.05),i*85))}bad(){this.tone(150,.25,'sawtooth',.025)}startMusic(){if(!this.enabled||this.timer)return;this.ensure();const melody=[294,370,440,370,330,392,494,392];this.timer=setInterval(()=>this.tone(melody[this.step++%melody.length],.25,'sine',.012),450)}stopMusic(){clearInterval(this.timer);this.timer=null}toggle(){this.enabled=!this.enabled;localStorage.setItem('egeSoundOff',this.enabled?'0':'1');if(this.enabled)this.startMusic();else this.stopMusic();return this.enabled}}
-  const audio=new AudioEngine();
-  $('#loginForm').addEventListener('submit',async event=>{event.preventDefault();audio.click();const code=$('#studentCode').value.trim();if(!code)return;$('#loginButton').disabled=true;$('#loginStatus').className='status';$('#loginStatus').textContent='Проверяем код…';try{const student=await validateCode(code);$('#loginStatus').className='status ok';$('#loginStatus').textContent='✓ Код подтверждён';await activateStudent(student)}catch(error){audio.bad();$('#loginStatus').className='status error';$('#loginStatus').textContent=error.message}finally{$('#loginButton').disabled=false}})
-  $('#retryCheck').addEventListener('click',()=>activateStudent(state.student));
-  $('#changeStudent').addEventListener('click',()=>{if($('#workScreen').classList.contains('on'))return;['egeStudentId','egeStudentName','egeStudentCode'].forEach(k=>localStorage.removeItem(k));location.href=location.pathname});
-  $('#startButton').addEventListener('click',()=>{audio.click();audio.startMusic();state.startedAt=Date.now();renderTasks();showScreen('workScreen');updateProgress()});
-  $('#taskList').addEventListener('change',event=>{const input=event.target;if(!(input instanceof HTMLInputElement))return;const task=input.closest('.task');if(input.name.startsWith('system-')){const region=task.querySelector('[data-step="region"]');region.classList.remove('locked');region.querySelectorAll('input').forEach(item=>item.disabled=false)}updateProgress();audio.click()});
-  $('#homeworkForm').addEventListener('submit',async event=>{event.preventDefault();if($('#submitButton').disabled||state.submitted)return;$('#submitButton').disabled=true;$('#submitStatus').textContent='Проверяем право отправки…';try{const access=await checkHomework();if(alreadySubmitted(access))throw new Error('Эта форма уже отправлена в текущем месяце');const durationSeconds=Math.max(1,Math.round((Date.now()-state.startedAt)/1000)),result=grade();$('#submitStatus').textContent='Отправляем итог…';await postApi(buildSubmissionPayload(durationSeconds,result.scorePercent));localStorage.setItem(localLockKey(),'1');state.submitted=true;state.result={...result,durationSeconds};$$('input[type="radio"]').forEach(i=>i.disabled=true);$('#scorePercent').textContent=result.scorePercent+'%';$('#correctCount').textContent=result.correct+' из '+CONFIG.tasks.length;$('#durationText').textContent=formatTime(durationSeconds);audio.good();audio.stopMusic();showScreen('resultScreen')}catch(error){audio.bad();$('#submitStatus').textContent='Не удалось отправить: '+error.message;$('#submitButton').disabled=false;toast(error.message,true)}});
-  $('#showSolutions').addEventListener('click',()=>{renderSolutions();$('#solutions').hidden=false;$('#showSolutions').hidden=true;$('#solutions').scrollIntoView({behavior:'smooth'})});
-  $('#reviewLocked').addEventListener('click',()=>{state.reviewOnly=true;renderTasks();showScreen('workScreen');$('#submitStatus').textContent='Режим просмотра: повторная отправка закрыта';$('#submitButton').disabled=true});
-  $('#solutionsLocked').addEventListener('click',()=>{state.reviewOnly=true;renderTasks();renderSolutions();showScreen('resultScreen');$('.score-orbit').hidden=true;$('.stats').hidden=true;$('#showSolutions').hidden=true;$('#solutions').hidden=false});
-  $('#soundButton').addEventListener('click',()=>{const on=audio.toggle();$('#soundButton').textContent=on?'🔊':'🔇';$('#soundButton').setAttribute('aria-pressed',String(on));$('#soundButton').setAttribute('aria-label',on?'Выключить звук':'Включить звук')});
-  async function boot(){const on=audio.enabled;$('#soundButton').textContent=on?'🔊':'🔇';$('#soundButton').setAttribute('aria-pressed',String(on));const fromUrl=new URLSearchParams(location.search).get('code');if(fromUrl){$('#studentCode').value=fromUrl;try{await activateStudent(await validateCode(fromUrl))}catch(error){$('#loginStatus').className='status error';$('#loginStatus').textContent=error.message}return}const cached=cachedStudent();if(cached)await activateStudent(cached)}
-  window.__HOMEWORK_DIAGNOSTICS__={meta:HOMEWORK_META,questionCount:CONFIG.tasks.length,fixedNumbers:true,twoStep:true,answersValid:CONFIG.tasks.every(t=>t.systems.some(o=>o.id===t.correctSystem)&&t.regions.some(o=>o.id===t.correctRegion)&&t.steps.length>=4),submissionKeys:['action','eventId','studentId','assignmentId','taskNumber','topicId','topicName','scorePercent','durationSeconds','schemaVersion'],buildSubmissionPayload,grade};
-  boot();
-  </script>
+  if(Number.isFinite(Number(d.startedAt)))state.startedAt=Number(d.startedAt);
+  updateProgress(); return d;
+}
+
+async function postApi(payload){
+  const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload),redirect:"follow"});
+  const tx=await r.text(); let d;
+  try{d=JSON.parse(tx)}catch(_){d={success:r.ok,raw:tx}}
+  if(!r.ok)throw new Error("network");
+  return d;
+}
+function responseBody(d){return d&&typeof d==="object"?(d.result&&typeof d.result==="object"?d.result:d):{}}
+function saysSubmitted(data){const d=responseBody(data);return Boolean(d.submitted||d.exists||d.hasSubmission||d.alreadySubmitted||d.hasSubmitted||d.submittedThisMonth||d.found||d.isSubmitted||d.status==="submitted"||d.canSubmit===false)}
+function saysError(data){const d=responseBody(data);return data?.success===false||data?.ok===false||d.success===false||d.ok===false||Boolean(data?.error||d.error)}
+
+function getQueue(){const q=readJson(queueKey(),[]);return Array.isArray(q)?q:[]}
+function setQueue(q){q.length?safeStore(queueKey(),JSON.stringify(q)):safeRemove(queueKey())}
+function enqueueResult(p){const q=getQueue(),i=q.findIndex(x=>x&&x.eventId===p.eventId);i>=0?q[i]=p:q.push(p);setQueue(q)}
+function upgradeQueuedStudentId(code,id){if(!code||!id||code===id)return;const q=getQueue();let changed=false;q.forEach(p=>{if(p&&p.studentId===code){p.studentId=id;changed=true}});if(changed)setQueue(q)}
+async function sendQueuedResults(){
+  if(sendingQueue)return; const q=getQueue(); if(!q.length)return;
+  sendingQueue=true;
+  try{const remain=[];for(const p of q){try{const d=await postApi(p);if(saysError(d)&&!saysSubmitted(d))remain.push(p)}catch(_){remain.push(p)}}setQueue(remain)}
+  finally{sendingQueue=false}
+}
+function flushQueueKeepalive(){for(const p of getQueue()){try{fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(p),keepalive:true,redirect:"follow"})}catch(_){}}}
+
+function readStudent(){const code=normalizeCode(safeGet("egeStudentCode"));if(!code)return null;return{id:safeGet("egeStudentId")||code,name:safeGet("egeStudentName")||"Ученик",code}}
+function storeStudent(s){safeStore("egeStudentCode",s.code);safeStore("egeStudentId",s.id||s.code);safeStore("egeStudentName",s.name||"Ученик")}
+function clearStudent(){["egeStudentCode","egeStudentId","egeStudentName"].forEach(safeRemove)}
+
+function validateStudentCode(code){
+  return new Promise((resolve,reject)=>{
+    const cb="hwValidate_"+Date.now()+"_"+Math.random().toString(36).slice(2);
+    const script=document.createElement("script"); let timer;
+    const finish=(err,data)=>{clearTimeout(timer);try{delete window[cb]}catch(_){};script.remove();err?reject(err):resolve(data)};
+    timer=setTimeout(()=>finish(new Error("network")),9000);
+    window[cb]=data=>finish(null,data);
+    script.onerror=()=>finish(new Error("network"));
+    script.src=API_URL+"?"+new URLSearchParams({action:"validateStudent",code,callback:cb});
+    document.head.appendChild(script);
+  });
+}
+function parseValidatedStudent(data,code){
+  const src=data?.student||data?.data?.student||data?.data||data?.result||data||{};
+  const id=src.id||src.studentId||data?.studentId;
+  const name=src.name||src.studentName||data?.studentName;
+  const valid=data?.valid===true||data?.success===true||data?.ok===true||data?.status==="ok"||Boolean(id);
+  return valid&&id?{id:String(id),name:String(name||"Ученик"),code}:null;
+}
+async function validateInBackground(code){
+  try{
+    const raw=await validateStudentCode(code),found=parseValidatedStudent(raw,code);
+    if(!found||!state.student||state.student.code!==code)return;
+    state.student={...state.student,...found};storeStudent(state.student);$("#studentName").textContent=state.student.name||"Ученик";
+    upgradeQueuedStudentId(code,state.student.id);checkAvailability();sendQueuedResults();
+  }catch(_){}
+}
+async function checkAvailability(){
+  if(!state.student)return;
+  if(localLocked())submissionLocked=true;
+  try{
+    const d=await postApi({action:"checkHomeworkSubmission",studentId:state.student.id||state.student.code,assignmentId:HOMEWORK_META.assignmentId});
+    if(saysSubmitted(d))submissionLocked=true;
+  }catch(_){}
+  if(submissionLocked&&!submittedNow)enableLockedReview();
+  updateProgress();
+}
+
+function solutionHtml(task,sel,index){
+  const systemText=task.systems.find(o=>o.id===task.correctSystem)?.text||"";
+  const regionText=task.regions.find(o=>o.id===task.correctRegion)?.text||"";
+  return `<div class="solution-recall"><b>Что проверяем.</b> ${task.recall}</div>
+    <div class="solution-warning"><b>Важно.</b> ${task.caution}</div>
+    <ol class="solution-steps">${task.steps.map(s=>`<li>${s}</li>`).join("")}</ol>
+    <div class="solution-system"><b>Правильная система:</b><br>${systemText}</div>
+    <div class="solution-region"><b>Итоговая область:</b><br>${regionText}</div>
+    <p><b>Твой выбор:</b> шаг 1 — ${escapeHtml(sel?.system||"не выбран")}; шаг 2 — ${escapeHtml(sel?.region||"не выбран")}.</p>`;
+}
+function decorateSubmitted(selections,showVerdict=true){
+  $$(".task").forEach((card,i)=>{
+    const sel=selections[i]||{},ok=sel.system===CONFIG.tasks[i].correctSystem&&sel.region===CONFIG.tasks[i].correctRegion;
+    card.classList.add("submitted");card.classList.remove("correct","wrong");
+    if(showVerdict)card.classList.add(ok?"correct":"wrong");
+    const v=card.querySelector(".task-verdict"); if(v)v.textContent=showVerdict?(ok?" · ВЕРНО":" · ОШИБКА"):"";
+    card.querySelectorAll("input").forEach(x=>x.disabled=true);
+    const box=$("#task-solution-"+i); if(box&&!box.innerHTML)box.innerHTML=solutionHtml(CONFIG.tasks[i],sel,i);
+  });
+}
+function enableLockedReview(){
+  const sels=collectSelections();
+  $$(".task").forEach((card,i)=>{
+    card.classList.add("review-locked");
+    card.querySelectorAll("input").forEach(x=>x.disabled=true);
+    const box=$("#task-solution-"+i); if(box&&!box.innerHTML)box.innerHTML=solutionHtml(CONFIG.tasks[i],sels[i],i);
+  });
+}
+function showInlineResult(correct,duration,selections){
+  const percent=Math.round(correct/CONFIG.tasks.length*100),box=$("#inlineResult");
+  box.innerHTML=`<div class="score-orbit"><div><b>${percent}%</b><span>результат</span></div></div>
+    <div class="stats"><div class="stat"><span>Полностью верных номеров</span><b>${correct} из ${CONFIG.tasks.length}</b></div>
+    <div class="stat"><span>Полное время</span><b>${formatDuration(duration)}</b></div></div>
+    <p class="lead">Разбор каждого номера открывается кнопкой прямо под ним.</p>`;
+  box.hidden=false;decorateSubmitted(selections,true);
+}
+function restoreSubmittedResult(d){
+  if(!d?.submittedResult)return false;
+  const r=d.submittedResult,selections=Array.isArray(r.selections)?r.selections:(d.selections||[]);
+  submittedNow=true;submissionLocked=true;state.submitted=true;state.correct=Number(r.correct)||0;state.scorePercent=Number(r.scorePercent)||0;state.durationSeconds=Number(r.durationSeconds)||1;
+  showInlineResult(state.correct,state.durationSeconds,selections);updateProgress();return true;
+}
+function grade(selections){const correct=CONFIG.tasks.reduce((n,t,i)=>n+((selections[i]?.system===t.correctSystem&&selections[i]?.region===t.correctRegion)?1:0),0);return{correct,scorePercent:Math.round(correct/CONFIG.tasks.length*100)}}
+function makeEventId(){return `${HOMEWORK_META.assignmentId}-${state.student.code}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`}
+
+function beginSession(s){
+  state.student={id:s.id||s.code,name:s.name||"Ученик",code:normalizeCode(s.code)};
+  storeStudent(state.student);$("#studentName").textContent=state.student.name||"Ученик";$("#studentBar").hidden=false;
+  renderTasks();state.startedAt=Date.now();
+  const d=restoreDraft();if(!d)saveDraft();
+  restoreSubmittedResult(d);showScreen("workScreen");audio.startMusic();checkAvailability();sendQueuedResults();validateInBackground(state.student.code);
+}
+
+class AudioEngine{
+  constructor(){this.enabled=safeGet("egeSoundOff")!=="1";this.context=null;this.timer=null;this.step=0}
+  ensure(){if(!this.context)this.context=new(window.AudioContext||window.webkitAudioContext)();if(this.context.state==="suspended")this.context.resume()}
+  tone(f,d=.11,type="sine",v=.035){if(!this.enabled)return;this.ensure();const o=this.context.createOscillator(),g=this.context.createGain(),n=this.context.currentTime;o.type=type;o.frequency.setValueAtTime(f,n);g.gain.setValueAtTime(v,n);g.gain.exponentialRampToValueAtTime(.0001,n+d);o.connect(g).connect(this.context.destination);o.start(n);o.stop(n+d)}
+  click(){this.tone(520,.07,"triangle",.04)} good(){[523,659,784].forEach((n,i)=>setTimeout(()=>this.tone(n,.18,"triangle",.05),i*85))} bad(){this.tone(150,.25,"sawtooth",.025)}
+  startMusic(){if(!this.enabled||this.timer)return;this.ensure();const m=[294,370,440,370,330,392,494,392];this.timer=setInterval(()=>this.tone(m[this.step++%m.length],.25,"sine",.012),450)}
+  stopMusic(){clearInterval(this.timer);this.timer=null} toggle(){this.enabled=!this.enabled;safeStore("egeSoundOff",this.enabled?"0":"1");if(this.enabled)this.startMusic();else this.stopMusic();return this.enabled}
+}
+const audio=new AudioEngine();
+
+$("#loginForm").addEventListener("submit",e=>{e.preventDefault();const code=normalizeCode($("#studentCode").value);if(!code)return;audio.click();$("#loginStatus").textContent="";beginSession({id:code,name:"Ученик",code})});
+$("#changeStudent").addEventListener("click",()=>{saveDraft();clearStudent();location.reload()});
+$("#taskList").addEventListener("change",e=>{
+  const input=e.target;if(!(input instanceof HTMLInputElement))return;
+  const card=input.closest(".task");if(input.name.startsWith("system-"))unlockRegion(card);
+  saveDraft();updateProgress();audio.click();
+});
+$("#taskList").addEventListener("click",e=>{
+  const btn=e.target.closest(".solution-toggle");if(!btn)return;
+  const i=Number(btn.dataset.solutionIndex),box=$("#task-solution-"+i);
+  if(!box.innerHTML)box.innerHTML=solutionHtml(CONFIG.tasks[i],collectSelections()[i],i);
+  const open=box.classList.toggle("open");btn.textContent=open?"Скрыть решение":"Показать решение";audio.click();
+});
+$("#homeworkForm").addEventListener("submit",e=>{
+  e.preventDefault();if(submittedNow||submissionLocked)return;
+  const selections=collectSelections(),result=grade(selections),durationSeconds=Math.max(1,Math.floor((Date.now()-state.startedAt)/1000)),eventId=makeEventId();
+  const payload={action:"submitHomework",eventId,studentId:state.student.id||state.student.code,assignmentId:HOMEWORK_META.assignmentId,taskNumber:HOMEWORK_META.taskNumber,topicId:HOMEWORK_META.topicId,topicName:HOMEWORK_META.topicName,scorePercent:result.scorePercent,durationSeconds,schemaVersion:1};
+  enqueueResult(payload);safeStore(monthLockKey(),JSON.stringify({eventId,sentAt:new Date().toISOString(),scorePercent:result.scorePercent,durationSeconds}));
+  const submittedResult={eventId,correct:result.correct,scorePercent:result.scorePercent,durationSeconds,selections,submittedAt:Date.now()};
+  saveDraft({submittedResult});submittedNow=true;submissionLocked=true;state.submitted=true;state.correct=result.correct;state.scorePercent=result.scorePercent;state.durationSeconds=durationSeconds;
+  showInlineResult(result.correct,durationSeconds,selections);updateProgress();result.correct===CONFIG.tasks.length?audio.good():audio.bad();audio.stopMusic();$("#inlineResult").scrollIntoView({behavior:"smooth",block:"start"});sendQueuedResults();
+});
+$("#soundButton").addEventListener("click",()=>{const on=audio.toggle();$("#soundButton").textContent=on?"🔊":"🔇";$("#soundButton").setAttribute("aria-pressed",String(on));$("#soundButton").setAttribute("aria-label",on?"Выключить звук":"Включить звук")});
+function setScreenshotMode(on){document.body.classList.toggle("screenshot-mode",on);document.documentElement.style.scrollBehavior=on?"auto":"smooth";if(on)window.scrollTo(0,0)}
+$("#screenshotButton").addEventListener("click",()=>setScreenshotMode(!document.body.classList.contains("screenshot-mode")));
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.body.classList.contains("screenshot-mode"))setScreenshotMode(false)});
+window.addEventListener("online",sendQueuedResults);
+window.addEventListener("pagehide",()=>{saveDraft();flushQueueKeepalive()});
+window.addEventListener("beforeunload",()=>saveDraft());
+setInterval(sendQueuedResults,60000);
+
+(function init(){
+  renderTasks();updateProgress();
+  const on=audio.enabled;$("#soundButton").textContent=on?"🔊":"🔇";$("#soundButton").setAttribute("aria-pressed",String(on));
+  const fromUrl=normalizeCode(new URLSearchParams(location.search).get("code"));
+  if(fromUrl){$("#studentCode").value=fromUrl;beginSession({id:fromUrl,name:"Ученик",code:fromUrl});return}
+  const saved=readStudent();if(saved){beginSession(saved);return}
+  showScreen("authScreen");
+})();
+window.__HOMEWORK_DIAGNOSTICS__={meta:HOMEWORK_META,questionCount:CONFIG.tasks.length,twoStep:true,fixedNumbers:true,techSystem:TECH_SYSTEM_VERSION,queueSize:()=>getQueue().length,grade,collectSelections};
+</script>
+
 </body>
 </html>
