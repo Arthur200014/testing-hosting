@@ -17,6 +17,28 @@ button,input{font:inherit}.ambient{position:fixed;inset:0;z-index:0;pointer-even
 dialog{width:min(1100px,96vw);max-height:92vh;padding:0;border:1px solid var(--line);border-radius:24px;background:#071226;color:var(--ink);box-shadow:0 35px 120px #000}dialog::backdrop{background:rgba(0,0,0,.8);backdrop-filter:blur(5px)}.dialog-head{position:sticky;top:0;z-index:5;display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line);background:#09162c}.dialog-body{padding:20px}.solution{margin-bottom:22px;padding:20px;border:1px solid var(--line);border-radius:20px;background:rgba(255,255,255,.04)}.solution-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}.recall{margin:14px 0;padding:14px;border-left:5px solid var(--blue);border-radius:12px;background:rgba(255,255,255,.05)}.steps li{margin:8px 0}.answer-tag{display:inline-block;margin:8px 6px 0 0;padding:8px 11px;border-radius:10px;background:rgba(105,241,173,.13);color:var(--green)}.login-layer{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:18px;background:rgba(2,5,16,.95)}.login-card{width:min(520px,100%);padding:30px;border:1px solid var(--line);border-radius:28px;background:linear-gradient(145deg,#101d3b,#061022);box-shadow:0 30px 100px #000}.login-card h2{margin:4px 0}.code-input{width:100%;padding:15px;margin:12px 0;border:3px solid transparent;border-radius:13px;font:800 20px system-ui}.code-input:focus{outline:none;border-color:var(--blue)}.confetti{position:fixed;z-index:120;top:-20px;width:10px;height:18px;background:var(--green);animation:fall 2.4s linear forwards;pointer-events:none}@keyframes fall{to{transform:translate(var(--dx),105vh) rotate(720deg)}}.footer{text-align:center;color:var(--muted);padding:35px}
 @media(max-width:820px){body{font-size:16px}.hero{grid-template-columns:1fr;min-height:0;padding:22px}.hero-visual{order:-1;text-align:center}.monster{width:190px}.work-grid,.solution-grid{grid-template-columns:1fr}.task{padding:16px}.arc-grid{grid-template-columns:1fr}.toprow{padding:8px 10px}.brand{font-size:13px}.student{max-width:115px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ghost,.sound{padding:8px 9px}.task-nav{top:53px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}}
+
+/* v2 · единая offline-first система ДЗ */
+.frac{display:inline-grid;grid-template-rows:auto auto;vertical-align:middle;text-align:center;line-height:1.02;margin:0 .12em}
+.frac>span:first-child{padding:0 .14em .07em;border-bottom:1.5px solid currentColor}
+.frac>span:last-child{padding:.07em .14em 0}
+.task-solution-toggle{display:none;margin-top:14px;border:1px solid var(--line);border-radius:13px;padding:10px 14px;background:rgba(88,239,165,.14);color:var(--good);font-weight:900;cursor:pointer}
+.task.submitted .task-solution-toggle{display:inline-flex}
+.solution-slot{display:none;margin-top:14px}.solution-slot.open{display:block}
+.inline-solution{margin:0}
+.task-check{display:none;margin-top:10px;font-weight:900}.task.submitted .task-check{display:block}.task.correct .task-check{color:var(--good)}.task.wrong .task-check{color:var(--bad)}
+.circle-explain{margin:12px 0;padding:12px 14px;border-left:4px solid var(--hot);border-radius:10px;background:rgba(255,255,255,.05)}
+.svg-root-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.svg-root-list span{padding:6px 9px;border-radius:9px;background:rgba(255,255,255,.06)}
+#reviewBtn{display:none!important}
+.screenshot-mode .topbar,.screenshot-mode .hero,.screenshot-mode .task-nav,.screenshot-mode .submit-zone,.screenshot-mode .final,.screenshot-mode .footer,.screenshot-mode .ambient,.screenshot-mode .login-layer{display:none!important}
+.screenshot-mode .wrap{max-width:none;width:100%;padding:7px}
+.screenshot-mode .tasks{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.screenshot-mode .task{padding:10px 12px;border-radius:14px;box-shadow:none;animation:none}
+.screenshot-mode .task-head{margin-bottom:4px}.screenshot-mode .num{width:30px;height:30px;font-size:14px;border-radius:9px}
+.screenshot-mode .proto,.screenshot-mode .source{font-size:11px}.screenshot-mode .equation,.screenshot-mode .condition{margin:5px 0;padding:8px;font-size:16px;line-height:1.25}
+.screenshot-mode .parts,.screenshot-mode .work-grid,.screenshot-mode .task-check,.screenshot-mode .task-solution-toggle,.screenshot-mode .solution-slot{display:none!important}
+@media(max-width:760px){.screenshot-mode .tasks{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -29,7 +51,7 @@ dialog{width:min(1100px,96vw);max-height:92vh;padding:0;border:1px solid var(--l
 </section>
 <nav class="task-nav hidden" id="taskNav"></nav>
 <section class="tasks hidden" id="tasks"></section>
-<section class="submit-zone hidden" id="submitZone"><h2>Отправить работу?</h2><p>До отправки правильные точки, дуги и корни не показываются. После отправки изменить результат в этом месяце нельзя.</p><button class="primary" id="submitBtn">Отправить домашнюю работу</button><div class="status" id="submitStatus"></div></section>
+<section class="submit-zone hidden" id="submitZone"><h2>Отправить работу?</h2><p>Можно завершить работу в любой момент: незаполненные элементы считаются неверными. После отправки изменить результат в этом месяце нельзя.</p><button class="primary" id="submitBtn">Отправить домашнюю работу</button><div class="status" id="submitStatus"></div></section>
 <section class="final" id="final"><div class="eyebrow">Маршрут построен</div><div class="score" id="scoreText">0%</div><h2 id="correctText"></h2><p id="timeText"></p><p class="status" id="saveStatus"></p><button class="primary" id="reviewBtn">Разобрать решения</button></section>
 <div class="footer">В таблицу отправляются только итоговый процент и время</div>
 </main>
@@ -39,16 +61,16 @@ dialog{width:min(1100px,96vw);max-height:92vh;padding:0;border:1px solid var(--l
 const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
 const HOMEWORK_META={assignmentId:'HW-EGE13-POINTB-10-MONTHLY-MI26-C1',taskNumber:13,topicId:'task-13',topicName:'Тригонометрические уравнения — отбор корней',schemaVersion:1};
 const TASKS=[
-{source:'Материал · №1',left:-3,right:-1.5,leftText:'−3π',rightText:'−3π/2',leftClosed:true,rightClosed:true,series:'x = −π/6 + πk;  x = π/6 + πk,  k∈ℤ',roots:['-17/6','-13/6','-11/6'],arc:'ccw0'},
-{source:'Материал · №3',left:-3.5,right:-2,leftText:'−7π/2',rightText:'−2π',leftClosed:true,rightClosed:true,series:'x = π/4 + πk/2,  k∈ℤ',roots:['-13/4','-11/4','-9/4'],arc:'ccw0'},
-{source:'Материал · №4',left:-2,right:-1,leftText:'−2π',rightText:'−π',leftClosed:true,rightClosed:true,series:'x = 2πk;  x = ±2π/3 + 2πk,  k∈ℤ',roots:['-2','-4/3'],arc:'ccw0'},
-{source:'Материал · №5',left:-2.5,right:-1,leftText:'−5π/2',rightText:'−π',leftClosed:true,rightClosed:false,series:'x = πn;  x = (−1)^k·π/6 + πk,  n,k∈ℤ',roots:['-2','-11/6','-7/6'],arc:'ccw0'},
-{source:'Материал · №6',left:-15/7,right:15/7,leftText:'−15π/7',rightText:'15π/7',leftClosed:true,rightClosed:true,series:'x = π + 2πn,  n∈ℤ',roots:['-1','1'],arc:'ccw2'},
-{source:'Материал · №7',left:4.5,right:5,leftText:'9π/2',rightText:'5π',leftClosed:true,rightClosed:true,series:'x = −π/2 + 2πk;  x = π/3 + 2πm;  x = 2π/3 + 2πn',roots:['14/3'],arc:'ccw0'},
-{source:'Материал · №8',left:2/3,right:4/3,leftText:'2π/3',rightText:'4π/3',leftClosed:true,rightClosed:true,series:'x = π/6 + 2πn/3,  n∈ℤ',roots:['5/6'],arc:'ccw0'},
-{source:'Аналог · полный оборот',left:-5/3,right:1/3,leftText:'−5π/3',rightText:'π/3',leftClosed:true,rightClosed:true,series:'x = π/6 + πn,  n∈ℤ',roots:['-5/6','1/6'],arc:'ccw1'},
-{source:'Аналог · открытая граница',left:-0.5,right:7/6,leftText:'−π/2',rightText:'7π/6',leftClosed:false,rightClosed:true,series:'x = −π/6 + 2πn;  x = π/2 + πn,  n∈ℤ',roots:['-1/6','1/2'],arc:'ccw0'},
-{source:'Аналог · исключение конца',left:7/6,right:17/6,leftText:'7π/6',rightText:'17π/6',leftClosed:true,rightClosed:false,series:'x = π/3 + πn;  x = 5π/6 + 2πn,  n∈ℤ',roots:['4/3','7/3'],arc:'ccw0'}
+{source:'Материал · №1',left:-2,right:-0.5,leftText:'−2π',rightText:'−π/2',leftClosed:true,rightClosed:true,series:'x = −π/6 + πk;  x = π/6 + πk,  k∈ℤ',roots:['-11/6','-7/6','-5/6'],arc:'ccw0'},
+{source:'Материал · №3',left:-1.5,right:0,leftText:'−3π/2',rightText:'0',leftClosed:true,rightClosed:true,series:'x = π/4 + πk/2,  k∈ℤ',roots:['-5/4','-3/4','-1/4'],arc:'ccw0'},
+{source:'Материал · №4',left:-2,right:0,leftText:'−2π',rightText:'0',leftClosed:true,rightClosed:true,series:'x = 2πk;  x = ±2π/3 + 2πk,  k∈ℤ',roots:['-2','-4/3','-2/3','0'],arc:'ccw0'},
+{source:'Материал · №5',left:-0.5,right:1,leftText:'−π/2',rightText:'π',leftClosed:true,rightClosed:true,series:'x = πn;  x = (−1)^k·π/6 + πk,  n,k∈ℤ',roots:['0','1/6','5/6','1'],arc:'ccw0'},
+{source:'Материал · №6',left:-1.5,right:1.5,leftText:'−3π/2',rightText:'3π/2',leftClosed:true,rightClosed:true,series:'x = π + 2πn,  n∈ℤ',roots:['-1','1'],arc:'ccw0'},
+{source:'Материал · №7',left:0.5,right:2,leftText:'π/2',rightText:'2π',leftClosed:true,rightClosed:true,series:'x = −π/2 + 2πk;  x = π/3 + 2πm;  x = 2π/3 + 2πn',roots:['2/3','3/2'],arc:'ccw0'},
+{source:'Материал · №8',left:0,right:1.5,leftText:'0',rightText:'3π/2',leftClosed:true,rightClosed:true,series:'x = π/6 + 2πn/3,  n∈ℤ',roots:['1/6','5/6','3/2'],arc:'ccw0'},
+{source:'Аналог · вариант 1',left:0,right:1.5,leftText:'0',rightText:'3π/2',leftClosed:true,rightClosed:true,series:'x = π/6 + πn,  n∈ℤ',roots:['1/6','7/6'],arc:'ccw0'},
+{source:'Аналог · вариант 2',left:-1.5,right:1,leftText:'−3π/2',rightText:'π',leftClosed:false,rightClosed:true,series:'x = −π/6 + 2πn;  x = π/2 + πn,  n∈ℤ',roots:['-1/2','-1/6','1/2'],arc:'ccw0'},
+{source:'Аналог · вариант 3',left:0,right:1.5,leftText:'0',rightText:'3π/2',leftClosed:true,rightClosed:false,series:'x = π/3 + πn;  x = 5π/6 + 2πn,  n∈ℤ',roots:['1/3','5/6','4/3'],arc:'ccw0'}
 ];
 const ARC_LABELS={ccw0:'↺ Против часовой, без полного оборота',cw0:'↻ По часовой, без полного оборота',ccw1:'↺ Один полный оборот + остаток',ccw2:'↺ Два полных оборота + остаток'};
 const PENDING_KEY='egePendingHomeworkResults';
@@ -76,7 +98,7 @@ function close(a,b){return Math.abs(a-b)<1e-6}
 function piText(v){let n=Math.round(norm(v)*84),d=84,g=gcd(n,d);n/=g;d/=g;if(n===0)return'0';if(d===1)return n===1?'π':n+'π';return(n===1?'':n)+'π/'+d}
 function clean(v){return String(v??'').trim().replaceAll('−','-').replaceAll(' ','').replaceAll('π','')}
 function canon(v){let s=clean(v),m=s.match(/^([+-]?\d+)(?:\/(\d+))?$/);if(!m)return s;let n=Number(m[1]),d=Number(m[2]||1);if(!d)return'bad';if(d<0){n=-n;d=-d}const g=gcd(n,d);return(d/g===1?String(n/g):(n/g)+'/'+(d/g))}
-function optionsFor(t,i){const pool=[0,1/7,1/6,1/4,1/3,1/2,2/3,3/4,1,7/6,5/4,4/3,3/2,5/3,7/4,11/6,13/7];const out=[norm(t.left),norm(t.right)];for(let j=0;out.length<6&&j<pool.length;j++){const v=pool[(j*3+i*2)%pool.length];if(!out.some(x=>close(x,v)))out.push(v)}return out.sort((a,b)=>a-b)}
+function optionsFor(t,i){return [0,0.5,1,1.5]}
 function point(v,r=102){const a=v*Math.PI;return{x:150+r*Math.cos(a),y:150-r*Math.sin(a)}}
 function arcPath(start,end,clockwise){let d=clockwise?norm(start-end):norm(end-start);if(close(d,0))return'';const s=point(start),e=point(end),large=d>1?1:0,sweep=clockwise?1:0;return'M'+s.x.toFixed(1)+' '+s.y.toFixed(1)+' A102 102 0 '+large+' '+sweep+' '+e.x.toFixed(1)+' '+e.y.toFixed(1)}
 function circleMarkup(t,st,review){const opts=optionsFor(t,TASKS.indexOf(t));let svg='<path class="axis" d="M28 150H272M150 28V272"/><text x="275" y="145" fill="white">x</text><text x="157" y="30" fill="white">y</text><circle class="unit" cx="150" cy="150" r="102"/>';
@@ -92,7 +114,7 @@ function modeButtons(i){return'<div class="mode-row"><button type="button" class
 function markerButtons(i,side){return'<div class="marker-row"><button type="button" class="mark" data-marker="'+side+'" data-closed="true" data-i="'+i+'">● закрашенная</button><button type="button" class="mark" data-marker="'+side+'" data-closed="false" data-i="'+i+'">○ пустая</button></div>'}
 function arcButtons(i){return'<div class="arc-grid">'+Object.entries(ARC_LABELS).map(([k,v])=>'<button type="button" class="choice" data-arc="'+k+'" data-i="'+i+'">'+v+'</button>').join('')+'</div>'}
 function rootsHtml(i){return state[i].roots.map((v,j)=>'<div class="root-row"><span class="pi">x =</span><input class="math-input" data-root-i="'+i+'" data-root-j="'+j+'" value="'+v+'" placeholder="например −5/6"><span class="pi">π</span>'+(j?'<button type="button" class="remove-root" data-remove-i="'+i+'" data-remove-j="'+j+'">×</button>':'')+'</div>').join('')}
-function render(){const nav=$('#taskNav'),box=$('#tasks');nav.innerHTML=TASKS.map((_,i)=>'<a href="#task-'+i+'">'+(i+1)+'</a>').join('');box.innerHTML=TASKS.map((t,i)=>'<article class="task" id="task-'+i+'"><div class="task-head"><div class="num">'+(i+1)+'</div><div><div class="source">'+t.source+'</div><b>Отбор корней из готовых серий</b></div></div><div class="condition">Отрезок: '+(t.leftClosed?'[':'(')+t.leftText+'; '+t.rightText+(t.rightClosed?']':')')+'<br><span style="color:var(--muted);font-size:.72em">Серии пункта а): '+t.series+'</span></div><div class="work-grid"><section class="circle-panel"><h3>Перенеси границы на окружность</h3><div class="helper">Выбери режим, затем нажми на одну из подписанных точек. Готового интервала здесь нет.</div><div data-circle="'+i+'">'+circleMarkup(t,state[i],false)+'</div><div class="state-line" data-state-line="'+i+'"></div></section><section class="control-panel"><div class="control-block"><b>А. Какая точка является началом, а какая концом?</b>'+modeButtons(i)+'</div><div class="control-block"><b>Б. Как обозначить начало интервала?</b>'+markerButtons(i,'start')+'</div><div class="control-block"><b>В. Как обозначить конец интервала?</b>'+markerButtons(i,'end')+'</div><div class="control-block"><b>Г. Выбери сам интервал</b>'+arcButtons(i)+'</div><div class="control-block"><b>Д. Выпиши корни</b><div class="helper">Сколько корней получилось — столько полей и добавь.</div><div class="answer-roots" data-roots="'+i+'">'+rootsHtml(i)+'</div><button type="button" class="add-root" data-add-root="'+i+'">+ Добавить корень</button></div></section></div></article>').join('');bindTaskEvents();TASKS.forEach((_,i)=>updateCircle(i));updateProgress()}
+function render(){const nav=$('#taskNav'),box=$('#tasks');nav.innerHTML=TASKS.map((_,i)=>'<a href="#task-'+i+'">'+(i+1)+'</a>').join('');box.innerHTML=TASKS.map((t,i)=>'<article class="task" id="task-'+i+'"><div class="task-head"><div class="num">'+(i+1)+'</div><div><div class="source">'+t.source+'</div><b>Отбор корней из готовых серий</b></div></div><div class="condition">Отрезок: '+(t.leftClosed?'[':'(')+t.leftText+'; '+t.rightText+(t.rightClosed?']':')')+'<br><span style="color:var(--muted);font-size:.72em">Серии пункта а): '+t.series+'</span></div><div class="work-grid"><section class="circle-panel"><h3>Перенеси границы на окружность</h3><div class="helper">В пункте Б границы всегда попадают в четверти окружности: 0, π/2, π, 3π/2. Выбери режим и поставь начало и конец на одной из этих точек.</div><div data-circle="'+i+'">'+circleMarkup(t,state[i],false)+'</div><div class="state-line" data-state-line="'+i+'"></div></section><section class="control-panel"><div class="control-block"><b>А. Какая точка является началом, а какая концом?</b>'+modeButtons(i)+'</div><div class="control-block"><b>Б. Как обозначить начало интервала?</b>'+markerButtons(i,'start')+'</div><div class="control-block"><b>В. Как обозначить конец интервала?</b>'+markerButtons(i,'end')+'</div><div class="control-block"><b>Г. Выбери сам интервал</b>'+arcButtons(i)+'</div><div class="control-block"><b>Д. Выпиши корни</b><div class="helper">Сколько корней получилось — столько полей и добавь.</div><div class="answer-roots" data-roots="'+i+'">'+rootsHtml(i)+'</div><button type="button" class="add-root" data-add-root="'+i+'">+ Добавить корень</button></div></section></div></article>').join('');bindTaskEvents();TASKS.forEach((_,i)=>updateCircle(i));updateProgress()}
 function bindTaskEvents(){
  $$('.mode').forEach(b=>b.onclick=()=>{const i=+b.dataset.i;state[i].mode=b.dataset.mode;$$('.mode[data-i="'+i+'"]').forEach(x=>x.classList.toggle('active',x===b));sfx('click')});
  $$('.orbit').forEach(svg=>svg.addEventListener('click',e=>{const c=e.target.closest('.candidate');if(!c)return;const i=+svg.closest('[data-circle]').dataset.circle,v=+c.dataset.angle;if(state[i].mode==='start')state[i].start=v;else state[i].end=v;updateCircle(i);updateProgress();sfx('click')}));
@@ -126,11 +148,167 @@ function sfx(k){if(!audio)return;if(k==='good'){tone(523,.16,.08);setTimeout(()=
 function toggleSound(){if(!audio){initAudio();return}clearInterval(musicTimer);audio.close();audio=null;$('#soundBtn').textContent='🔇'}
 function confetti(){for(let i=0;i<38;i++){const e=document.createElement('i');e.className='confetti';e.style.left=Math.random()*100+'vw';e.style.setProperty('--dx',(Math.random()*300-150)+'px');e.style.background=i%2?'var(--blue)':'var(--green)';e.style.animationDelay=Math.random()*.7+'s';document.body.appendChild(e);setTimeout(()=>e.remove(),3300)}}
 
-$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();const code=$('#codeInput').value.trim();if(!code)return;$('#loginBtn').disabled=true;$('#loginStatus').textContent='Проверяем пропуск…';try{student=await validateStudent(code);saveStudent(student);$('#loginStatus').className='status good';$('#loginStatus').textContent='Код принят';await afterLogin()}catch(err){$('#loginStatus').className='status bad';$('#loginStatus').textContent=err.message||'Ошибка входа';$('#loginBtn').disabled=false}});
-$('#switchBtn').addEventListener('click',()=>{if(started&&!locked)return;['egeStudentId','egeStudentName','egeStudentCode'].forEach(k=>localStorage.removeItem(k));student=null;$('#codeInput').value='';$('#loginLayer').classList.remove('hidden')});
-$('#startBtn').addEventListener('click',()=>{if(!student)return $('#loginLayer').classList.remove('hidden');if(!audio)initAudio();started=true;startedAt=Date.now();$('#switchBtn').disabled=!locked;render();$('#taskNav').classList.remove('hidden');$('#tasks').classList.remove('hidden');if(!locked)$('#submitZone').classList.remove('hidden');else{lockForm();$('#reviewBtn').onclick=openReview;$('#final').classList.add('show');$('#scoreText').textContent='Просмотр';$('#correctText').textContent='Работа уже отправлена в этом месяце';$('#timeText').textContent='Можно открыть подробный разбор';$('#saveStatus').textContent='✓ Отправка закрыта до следующего месяца'}$('#taskNav').scrollIntoView({behavior:'smooth'})});
-$('#submitBtn').addEventListener('click',submitHomework);$('#reviewBtn').addEventListener('click',openReview);$('#closeReview').addEventListener('click',()=>$('#reviewDialog').close());$('#soundBtn').addEventListener('click',toggleSound);window.addEventListener('online',flushPending);
-ambient();setIdentity();const urlCode=new URLSearchParams(location.search).get('code');if(urlCode){$('#codeInput').value=urlCode;$('#loginForm').requestSubmit()}else if(student)afterLogin();
+
+/* --- v2 offline-first overrides --- */
+
+function vf(value){
+  let s=String(value??"");
+  const F=(a,b)=>'<span class="frac"><span>'+a+'</span><span>'+b+'</span></span>';
+  s=s.replace(/\[([^\[\]]+)\]\s*\/\s*\(([^()]+)\)/g,(_,a,b)=>F('['+a+']','('+b+')'));
+  s=s.replace(/\(([^()]+)\)\s*\/\s*\(([^()]+)\)/g,(_,a,b)=>F('('+a+')','('+b+')'));
+  s=s.replace(/\(([^()]+)\)\s*\/\s*([A-Za-zА-Яа-яЁё√][A-Za-zА-Яа-яЁё0-9√²³₀-₉]*)/g,(_,a,b)=>F('('+a+')',b));
+  s=s.replace(/([−-]?(?:\d*π[A-Za-zА-Яа-яЁё]*|√\d+|\d+))\/(\d+)/g,(_,a,b)=>F(a,b));
+  return s;
+}
+function draftKey(){return student?.code?'homeworkDraft:'+HOMEWORK_META.assignmentId+':'+student.code:''}
+function queueKey(){return 'pendingHomeworkResults:'+HOMEWORK_META.assignmentId}
+function currentMonth(){return new Date().toISOString().slice(0,7)}
+localLockKey=function(){return student?.code?'egeHomeworkSubmission:'+HOMEWORK_META.assignmentId+':'+student.code+':'+currentMonth():''}
+function readJson(k,f){try{const s=localStorage.getItem(k);return s?JSON.parse(s):f}catch{return f}}
+function getQueue(){const q=readJson(queueKey(),[]);return Array.isArray(q)?q:[]}
+function setQueue(q){try{if(q.length)localStorage.setItem(queueKey(),JSON.stringify(q));else localStorage.removeItem(queueKey())}catch{}}
+function enqueueResult(body){const q=getQueue(),i=q.findIndex(x=>x&&x.eventId===body.eventId);if(i>=0)q[i]=body;else q.push(body);setQueue(q)}
+async function sendQueuedResults(){const q=getQueue();if(!q.length)return;const left=[];for(const body of q){try{await post(body)}catch{left.push(body)}}setQueue(left)}
+function flushKeepalive(){for(const body of getQueue()){try{fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body),keepalive:true,redirect:'follow'}).catch(()=>{})}catch{}}}
+function saveStudentLocal(s){try{localStorage.setItem('egeStudentId',s.id||s.code);localStorage.setItem('egeStudentName',s.name||'Ученик');localStorage.setItem('egeStudentCode',s.code)}catch{}}
+readStudent=function(){const code=(localStorage.getItem('egeStudentCode')||'').trim();if(!code)return null;return{id:localStorage.getItem('egeStudentId')||code,name:localStorage.getItem('egeStudentName')||'Ученик',code}}
+saveStudent=function(s){saveStudentLocal(s)}
+function clearIdentity(){['egeStudentId','egeStudentName','egeStudentCode'].forEach(k=>localStorage.removeItem(k))}
+async function validateInBackground(code){
+  try{
+    const found=await validateStudent(code);
+    if(!student||student.code!==code)return;
+    student={...student,...found,code};
+    saveStudentLocal(student);
+    $('#studentName').textContent=student.name||'Ученик';
+    const q=getQueue();let changed=false;
+    q.forEach(x=>{if(x&&x.studentId===code){x.studentId=student.id;changed=true}});
+    if(changed)setQueue(q);
+    sendQueuedResults();
+    checkAvailabilityInBackground();
+  }catch{}
+}
+async function checkAvailabilityInBackground(){
+  if(!student||submitted)return;
+  const lk=localLockKey();
+  if(lk&&localStorage.getItem(lk)){locked=true;if(started)applyLockedView();return}
+  try{
+    const d=await post({action:'checkHomeworkSubmission',studentId:student.id||student.code,assignmentId:HOMEWORK_META.assignmentId});
+    if(isAlready(d)){locked=true;if(lk)localStorage.setItem(lk,'server');if(started)applyLockedView()}
+  }catch{}
+}
+function toggleScreenshot(){
+  document.documentElement.classList.toggle('screenshot-mode');
+  const on=document.documentElement.classList.contains('screenshot-mode');
+  const b=$('#shotBtn');if(b)b.textContent=on?'↩ Обычный режим':'📸';
+  if(on)window.scrollTo(0,0);
+}
+
+function saveDraft(extra={}){
+  if(!student?.code||!started)return;
+  const old=readJson(draftKey(),{});
+  const snapshot=state.map(s=>JSON.parse(JSON.stringify(s)));
+  const data={...old,assignmentId:HOMEWORK_META.assignmentId,studentCode:student.code,startedAt,state:snapshot,updatedAt:Date.now(),...extra};
+  try{localStorage.setItem(draftKey(),JSON.stringify(data))}catch{}
+}
+function getDraft(){return draftKey()?readJson(draftKey(),null):null}
+function restorePointState(saved){
+  if(!Array.isArray(saved))return;
+  saved.forEach((x,i)=>{if(!state[i]||!x)return;Object.keys(state[i]).forEach(k=>delete state[i][k]);Object.assign(state[i],JSON.parse(JSON.stringify(x)))});
+}
+const __oldRender=render;
+render=function(){
+  __oldRender();
+  TASKS.forEach((t,i)=>{
+    const card=$('#task-'+i);
+    if(card){
+      const c=card.querySelector('.condition');
+      if(c)c.innerHTML='Отрезок: '+(t.leftClosed?'[':'(')+vf(t.leftText)+'; '+vf(t.rightText)+(t.rightClosed?']':')')+'<br><span style="color:var(--muted);font-size:.72em">Серии пункта а): '+vf(t.series)+'</span>';
+      card.insertAdjacentHTML('beforeend','<div class="task-check"></div><button class="task-solution-toggle" type="button" data-solution-index="'+i+'">Показать решение</button><div class="solution-slot" id="solution-'+i+'"></div>');
+    }
+  });
+};
+const __oldUpdateProgress=updateProgress;
+updateProgress=function(){__oldUpdateProgress();if(started&&!submitted&&!locked)$('#submitBtn').disabled=false;saveDraft()};
+function correctStateFor(t){return{mode:'start',start:norm(t.left),end:norm(t.right),startClosed:t.leftClosed,endClosed:t.rightClosed,arc:t.arc,roots:[...t.roots]}}
+function rootListHtml(t){return t.roots.map(v=>'<span>x = '+vf(v+'π')+'</span>').join('')}
+function solutionOne(t,i){
+  const cs=correctStateFor(t);
+  return '<article class="solution inline-solution"><div class="recall"><b>Как работаем с окружностью.</b> Переносим левую и правую границы по модулю 2π. В этих заданиях границы всегда попадают в четверти окружности, поэтому начало и конец ставим только на 0, π/2, π или 3π/2. Интервалы здесь обычные: без лишних оборотов, просто разные пары четвертей и разные виды скобок. После этого проверяем серии пункта а) и оставляем только корни внутри интервала.</div><div class="circle-explain"><b>Почему получились эти корни.</b> На правильной окружности ниже показаны границы, направление интервала и все подходящие точки-корни. Корень остаётся только если он попал на выделенный интервал и не запрещён открытой границей.</div><div class="solution-grid"><div><h3>Пошаговый отбор</h3><ol class="steps"><li>Начало: '+vf(t.leftText)+' ≡ '+vf(piText(t.left))+' (mod 2π).</li><li>Конец: '+vf(t.rightText)+' ≡ '+vf(piText(t.right))+' (mod 2π).</li><li>От старта идём к финишу против часовой стрелки.</li><li>Длина интервала: '+vf(spanText(t))+'.</li><li>Границы: начало '+(t.leftClosed?'закрашенное':'пустое')+', конец '+(t.rightClosed?'закрашенный':'пустой')+'.</li><li>Подставляем целые параметры в серии и оставляем только значения внутри заданного промежутка.</li></ol><div class="answer-tag"><b>Корни:</b></div><div class="svg-root-list">'+rootListHtml(t)+'</div><div class="answer-tag"><b>Интервал:</b> '+ARC_LABELS[t.arc]+'</div></div><div>'+circleMarkup(t,cs,true)+'</div></div></article>';
+}
+function decorateSubmitted(){
+  TASKS.forEach((t,i)=>{
+    const card=$('#task-'+i);if(!card)return;
+    let ok=false;try{ok=checkTask(i,t)}catch{}
+    card.classList.add('submitted',ok?'correct':'wrong');
+    const check=card.querySelector('.task-check');if(check)check.textContent=ok?'✓ Верно':'✕ Неверно';
+    const slot=card.querySelector('.solution-slot');if(slot&&!slot.childElementCount)slot.innerHTML=solutionOne(t,i);
+  });
+}
+lockForm=function(){
+  locked=true;
+  $$('#tasks input,#tasks .mode,#tasks .mark,#tasks .choice,#tasks .add-root,#tasks .remove-root').forEach(e=>e.disabled=true);
+  $('#submitBtn').disabled=true;$('#switchBtn').disabled=false;
+  $$('.task-solution-toggle').forEach(e=>e.disabled=false);
+};
+function applyLockedView(){
+  if(!started)return;
+  lockForm();decorateSubmitted();$('#submitZone').classList.add('hidden');$('#final').classList.add('show');
+  if(!submitted){$('#scoreText').textContent='Просмотр';$('#correctText').textContent='Работа уже завершена в этом месяце';$('#timeText').textContent='Решения доступны под каждым заданием';$('#saveStatus').textContent=''}
+}
+showFinal=function(score,correct,sec){
+  $('#final').classList.add('show');$('#scoreText').textContent=score+'%';$('#correctText').textContent='Правильно: '+correct+' из '+TASKS.length;$('#timeText').textContent='Время: '+timeText(sec);$('#saveStatus').className='status good';$('#saveStatus').textContent='Работа завершена.';$('#submitZone').classList.add('hidden');decorateSubmitted();sfx(score>=70?'good':'bad');$('#final').scrollIntoView({behavior:'smooth'})
+};
+submitHomework=function(){
+  if(submitted||locked)return;
+  const correct=TASKS.filter((t,i)=>{try{return checkTask(i,t)}catch{return false}}).length,score=Math.round(correct/TASKS.length*100),sec=duration();
+  const old=getDraft()?.submittedResult,eventId=old?.eventId||uid();
+  const body={action:'submitHomework',eventId,studentId:student.id||student.code,assignmentId:HOMEWORK_META.assignmentId,taskNumber:HOMEWORK_META.taskNumber,topicId:HOMEWORK_META.topicId,topicName:HOMEWORK_META.topicName,scorePercent:score,durationSeconds:sec,schemaVersion:HOMEWORK_META.schemaVersion};
+  enqueueResult(body);
+  const result={eventId,correct,score,durationSeconds:sec,state:state.map(s=>JSON.parse(JSON.stringify(s))),submittedAt:Date.now()};
+  submitted=true;locked=true;try{localStorage.setItem(localLockKey(),JSON.stringify(result))}catch{}saveDraft({submittedResult:result});
+  lockForm();showFinal(score,correct,sec);sendQueuedResults();
+};
+function restoreSubmitted(draft){if(!draft?.submittedResult)return false;const r=draft.submittedResult;submitted=true;locked=true;lockForm();showFinal(Number(r.score)||0,Number(r.correct)||0,Number(r.durationSeconds)||1);return true}
+function startWork(fromGesture=false){
+  if(!student)return $('#loginLayer').classList.remove('hidden');
+  if(fromGesture&&!audio)initAudio();
+  started=true;const draft=getDraft();startedAt=Number(draft?.startedAt)||Date.now();
+  if(draft?.state)restorePointState(draft.state);
+  render();$('#taskNav').classList.remove('hidden');$('#tasks').classList.remove('hidden');$('#submitZone').classList.remove('hidden');$('#switchBtn').disabled=false;updateProgress();saveDraft();
+  if(!restoreSubmitted(draft)&&locked)applyLockedView();
+  sendQueuedResults();checkAvailabilityInBackground();validateInBackground(student.code);
+}
+function quickLogin(raw){
+  const code=String(raw||'').trim().toUpperCase();if(!code){$('#loginStatus').textContent='Введите личный код';return}
+  const cached=readStudent();student=cached&&cached.code===code?cached:{id:code,name:'Ученик',code};saveStudentLocal(student);$('#studentName').textContent=student.name||'Ученик';$('#loginLayer').classList.add('hidden');$('#loginStatus').textContent='';
+  const draft=getDraft();if(draft)startWork(false);validateInBackground(code);checkAvailabilityInBackground();sendQueuedResults();
+}
+
+
+$('#loginForm').addEventListener('submit',e=>{e.preventDefault();quickLogin($('#codeInput').value)});
+$('#switchBtn').addEventListener('click',()=>{saveDraft();clearIdentity();location.reload()});
+$('#startBtn').addEventListener('click',()=>startWork(true));
+$('#submitBtn').addEventListener('click',submitHomework);
+$('#reviewBtn').addEventListener('click',()=>$('#tasks').scrollIntoView({behavior:'smooth'}));
+$('#closeReview').addEventListener('click',()=>$('#reviewDialog').close());
+$('#soundBtn').addEventListener('click',toggleSound);
+document.addEventListener('click',e=>{
+  const b=e.target.closest?.('[data-solution-index]');if(b){const i=Number(b.dataset.solutionIndex),slot=$('#solution-'+i),open=!slot.classList.contains('open');slot.classList.toggle('open',open);b.textContent=open?'Скрыть решение':'Показать решение'}
+});
+window.addEventListener('online',sendQueuedResults);
+window.addEventListener('pagehide',()=>{saveDraft();flushKeepalive()});
+window.addEventListener('beforeunload',saveDraft);
+window.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.documentElement.classList.contains('screenshot-mode'))toggleScreenshot()});
+setInterval(sendQueuedResults,60000);
+ambient();
+const shot=document.createElement('button');shot.className='ghost';shot.id='shotBtn';shot.type='button';shot.textContent='📸';shot.title='Режим скриншота';$('#soundBtn').before(shot);shot.addEventListener('click',toggleScreenshot);
+student=readStudent();
+if(student){$('#studentName').textContent=student.name||'Ученик';$('#loginLayer').classList.add('hidden')}
+const urlCode=new URLSearchParams(location.search).get('code');
+if(urlCode){$('#codeInput').value=urlCode;quickLogin(urlCode)}
+else if(student){const draft=getDraft();if(draft)startWork(false);else{validateInBackground(student.code);checkAvailabilityInBackground();sendQueuedResults()}}
+
 </script>
 </body>
 </html>
