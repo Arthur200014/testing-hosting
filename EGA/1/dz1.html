@@ -182,7 +182,58 @@
       body{background:#fff}.hero,.topbar,.progress-card,.submit-zone,.result,footer,.notice,.mission{display:none!important}
       main{width:100%;margin:0}.task-grid{grid-template-columns:1fr;gap:4mm}.task-card{box-shadow:none;break-inside:avoid}
     }
+
+    /* === Новая система ДЗ + нормальное математическое отображение === */
+    .solution-toggle{
+      display:none;align-self:flex-start;margin-top:9px;padding:7px 11px;border:1px solid #7baa83;border-radius:10px;
+      color:#174f36;background:#eef8ea;font-size:11px;font-weight:900;box-shadow:0 2px 6px rgba(17,71,49,.08)
+    }
+    .solution-toggle.visible{display:inline-flex}
+    .solution-slot[hidden]{display:none!important}
+    .solution-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+    .solution-block.formula{
+      grid-column:1/-1;text-align:center;overflow-x:auto;padding:10px 12px;background:rgba(255,255,255,.9)
+    }
+    .solution-block.formula mjx-container[display="true"]{margin:.25em 0!important;font-size:112%!important}
+    .steps-block{grid-column:1/-1!important}
+    .math-step{
+      margin-top:7px;padding:8px 10px;border-radius:9px;background:rgba(255,255,255,.78);
+      line-height:1.5;overflow-x:auto
+    }
+    .math-step mjx-container{font-size:105%!important}
+    .condition mjx-container,.solution-condition mjx-container,.solution-block mjx-container{max-width:100%}
+    .condition mjx-container{font-size:106%!important}
+    .correct-answer mjx-container{margin:0 .15em!important}
+    #screenshotButton{white-space:nowrap}
+    body.screenshot-mode{background:#fff!important}
+    body.screenshot-mode:before,
+    .screenshot-mode .hero,.screenshot-mode .mission,.screenshot-mode .notice,.screenshot-mode .progress-card,
+    .screenshot-mode .submit-zone,.screenshot-mode .result,.screenshot-mode footer,.screenshot-mode .answer-row,
+    .screenshot-mode .solution-slot,.screenshot-mode .solution-toggle,.screenshot-mode .top-left,
+    .screenshot-mode #soundButton,.screenshot-mode #logoutButton{display:none!important}
+    .screenshot-mode .topbar{
+      position:static;justify-content:flex-end;padding:6px 12px;background:transparent;border:0;box-shadow:none
+    }
+    .screenshot-mode #screenshotButton{color:#173448;background:#fff;border:1px solid #b6c8c4;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+    .screenshot-mode main{width:min(1380px,calc(100% - 20px));margin:4px auto 20px}
+    .screenshot-mode .task-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .screenshot-mode .task-card{box-shadow:none;border:1px solid #d5ddd9;background:#fff;break-inside:avoid}
+    @media(max-width:850px){
+      .screenshot-mode .task-grid{grid-template-columns:1fr}
+      .solution-grid{grid-template-columns:1fr!important}
+      .solution-block.formula,.steps-block{grid-column:auto!important}
+    }
+
 </style>
+
+  <script>
+    window.MathJax={
+      tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]]},
+      options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
 </head>
 <body>
   <section class="gate" id="loginLayer">
@@ -196,11 +247,7 @@
       </form>
     </div>
   </section>
-  <section class="gate" id="loadingLayer" hidden>
-    <div class="gate-card loading-card"><div class="spinner"></div><strong>Проверяем отправку за текущий месяц…</strong></div>
-  </section>
-
-  <div class="app" id="appShell" hidden>
+<div class="app" id="appShell" hidden>
     <header class="hero">
       <div class="hero-grid">
         <div class="hero-copy">
@@ -241,343 +288,39 @@
     </header>
     <nav class="topbar">
       <div class="top-left"><span class="pill" id="partTop"></span><span class="pill" id="studentChip">Ученик</span><span class="pill">⏱ <b id="timer">00:00</b></span></div>
-      <div class="top-right"><button class="sound-btn" id="soundButton" type="button" aria-pressed="true">🔊 Звук</button><button class="sound-btn" id="logoutButton" type="button">Сменить код</button></div>
+      <div class="top-right"><button class="sound-btn" id="soundButton" type="button" aria-pressed="true">🔊 Звук</button><button class="sound-btn" id="screenshotButton" type="button">📸 Скриншот</button><button class="sound-btn" id="logoutButton" type="button">Сменить ученика</button></div>
     </nav>
     <main>
       <section class="mission"><div><strong id="sectionsText"></strong><br><span id="focusTextMirror">Углы, линии в треугольнике и четырёхугольники</span></div><div>Проводники: <strong id="guideText"></strong></div></section>
-      <div class="notice ok" id="notice">Проверяем возможность отправки…</div>
+      <div class="notice ok" id="notice">Можно завершить в любой момент. Пустые ответы считаются неверными.</div>
       <section class="progress-card">
         <div class="progress-head"><span>Маршрут по джунглям</span><span id="progressCount">0 / 12</span></div>
         <div class="track"><div class="fill" id="progressFill"></div><div class="runner" id="runner">🦓</div></div>
       </section>
       <section class="task-grid" id="taskGrid"></section>
       <section class="submit-zone">
-        <div class="submit-copy"><strong id="submitTitle">Отправить домашнюю работу</strong><span id="submitHint">Заполните все 12 ответов. До отправки проверка и решения скрыты.</span></div>
+        <div class="submit-copy"><strong id="submitTitle">Отправить домашнюю работу</strong><span id="submitHint">Можно завершить в любой момент. Пустые ответы считаются неверными.</span></div>
         <button class="primary" id="submitButton" type="button">Отправить результат</button>
       </section>
       <section class="result" id="resultPanel" hidden>
         <div class="result-main"><div class="score-orb" id="scoreOrb">0%</div><div><h2 id="resultTitle">Маршрут пройден</h2><p id="resultText"></p></div></div>
-        <div class="result-actions"><button class="secondary" id="solutionsButton" type="button">Разобрать решения</button></div>
+        <div class="result-actions"></div>
       </section>
     </main>
     <footer>Математическая экспедиция по Мадагаскару · ЕГЭ №1 · <span id="footerPart">Домашняя работа 1 из 4</span></footer>
   </div>
   <script>
-    "use strict";
-    const API_URL="https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
-    const HOMEWORK_META={"part":1,"taskNumber":1,"topicId":"task-01","topicName":"Планиметрия","documentTitle":"ЕГЭ №1 — Домашняя работа 1 из 4","assignmentId":"HW-EGE01-PART1-MONTHLY-MADAGASCAR20260726A","sections":"Разделы I–II","focus":"Углы, линии в треугольнике и четырёхугольники","guide":"Алекс и Марти","generatorKeys":["isoBase","isoApex","isoExterior","rightMedian","bisectorMedian","heightBisector","heightMedian","orthocenter","incenter","parallelogram","rhombusA","rhombusC"]};
-    const pick=list=>list[Math.floor(Math.random()*list.length)];
-    const int=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
-    const round=(v,p=8)=>Math.round((v+Number.EPSILON)*10**p)/10**p;
-    const fmt=v=>Number.isInteger(v)?String(v):round(v,6).toFixed(6).replace(/0+$/,"").replace(/\.$/,"").replace(".",",");
-    const mk=(id,section,prototype,prompt,answer,recall,formula,hack,steps,kind)=>{
-      if(!Number.isFinite(answer))throw new Error("Некорректный ответ генератора "+id);
-      return {id,section,prototype,prompt,answer:round(answer),answerText:fmt(answer),recall,formula,hack,steps,kind};
-    };
+  "use strict";
+  const API_URL="https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
+  const HOMEWORK_META={"part":1,"taskNumber":1,"topicId":"task-01","topicName":"Планиметрия","documentTitle":"ЕГЭ №1 — Домашняя работа 1 из 4","assignmentId":"HW-EGE01-PART1-MONTHLY-MADAGASCAR20260726A","sections":"Разделы I–II","focus":"Углы, линии в треугольнике и четырёхугольники","guide":"Алекс и Марти","generatorKeys":["isoBase","isoApex","isoExterior","rightMedian","bisectorMedian","heightBisector","heightMedian","orthocenter","incenter","parallelogram","rhombusA","rhombusC"]};
+  const TASKS=[{"id":"isoBase","section":"I","prototype":"Равнобедренный треугольник","prompt":"В треугольнике ABC стороны AC и BC равны, угол A равен 41°. Найдите угол C. Ответ дайте в градусах.","answer":98,"answerText":"98","recall":"В равнобедренном треугольнике углы при основании равны.","formula":"∠A = ∠B; ∠A + ∠B + ∠C = 180°","hack":"Сначала удвойте известный угол при основании, затем вычтите из 180°.","steps":["Так как AC = BC, то ∠A = ∠B = 41°.","∠C = 180° − 2 · 41° = 98°."],"kind":"iso","promptHtml":"В треугольнике ABC стороны AC и BC равны, угол A равен \\(41^{\\circ}\\). Найдите угол C. Ответ дайте в градусах.","recallHtml":"В равнобедренном треугольнике углы при основании равны.","formulaLatex":"\\angle A = \\angle B; \\angle A + \\angle B + \\angle C = 180^{\\circ}","hackHtml":"Сначала удвойте известный угол при основании, затем вычтите из \\(180^{\\circ}\\).","stepsHtml":["Так как \\(AC = BC\\), то \\(\\angle A = \\angle B = 41^{\\circ}\\).","\\(\\angle C = 180^{\\circ} - 2 \\cdot 41^{\\circ} = 98^{\\circ}\\)."],"answerLatex":"98"},{"id":"isoApex","section":"I","prototype":"Равнобедренный треугольник","prompt":"В треугольнике ABC стороны AC и BC равны, угол C равен 76°. Найдите угол A. Ответ дайте в градусах.","answer":52,"answerText":"52","recall":"Углы при основании равнобедренного треугольника равны.","formula":"∠A = ∠B = (180° − ∠C) / 2","hack":"Вычтите угол при вершине из 180° и разделите остаток пополам.","steps":["Сумма углов A и B: 180° − 76° = 104°.","∠A = 104° / 2 = 52°."],"kind":"iso","promptHtml":"В треугольнике ABC стороны AC и BC равны, угол C равен \\(76^{\\circ}\\). Найдите угол A. Ответ дайте в градусах.","recallHtml":"Углы при основании равнобедренного треугольника равны.","formulaLatex":"\\angle A = \\angle B = \\frac{180^{\\circ} - \\angle C}{2}","hackHtml":"Вычтите угол при вершине из \\(180^{\\circ}\\) и разделите остаток пополам.","stepsHtml":["Сумма углов A и B: \\(180^{\\circ} - 76^{\\circ} = 104^{\\circ}\\).","\\(\\angle A = \\frac{104^{\\circ}}{2} = 52^{\\circ}\\)."],"answerLatex":"52"},{"id":"isoExterior","section":"I","prototype":"Внешний угол равнобедренного треугольника","prompt":"В треугольнике ABC стороны AC и BC равны. Внешний угол при вершине B равен 111°. Найдите угол C. Ответ дайте в градусах.","answer":42,"answerText":"42","recall":"Внутренний и смежный с ним внешний угол дают 180°. Углы при основании равны.","formula":"∠B = 180° − внеш.; ∠C = 180° − 2∠B","hack":"Сначала превратите внешний угол во внутренний.","steps":["∠B = 180° − 111° = 69°.","AC = BC, значит ∠A = ∠B = 69°.","∠C = 180° − 2 · 69° = 42°."],"kind":"iso","promptHtml":"В треугольнике ABC стороны AC и BC равны. Внешний угол при вершине B равен \\(111^{\\circ}\\). Найдите угол C. Ответ дайте в градусах.","recallHtml":"Внутренний и смежный с ним внешний угол дают \\(180^{\\circ}\\). Углы при основании равны.","formulaLatex":"\\angle B = 180^{\\circ} - \\text{внеш.};\\qquad \\angle C = 180^{\\circ} - 2\\angle B","hackHtml":"Сначала превратите внешний угол во внутренний.","stepsHtml":["\\(\\angle B = 180^{\\circ} - 111^{\\circ} = 69^{\\circ}\\).","\\(AC = BC\\), значит \\(\\angle A = \\angle B = 69^{\\circ}\\).","\\(\\angle C = 180^{\\circ} - 2 \\cdot 69^{\\circ} = 42^{\\circ}\\)."],"answerLatex":"42"},{"id":"rightMedian","section":"I","prototype":"Медиана прямоугольного треугольника","prompt":"В прямоугольном треугольнике ABC угол C равен 90°, угол B равен 29°. CD — медиана к гипотенузе AB. Найдите угол ACD. Ответ дайте в градусах.","answer":61,"answerText":"61","recall":"Середина гипотенузы равноудалена от всех вершин: CD = AD. Треугольник ACD равнобедренный.","formula":"∠ACD = ∠CAD = ∠A = 90° − ∠B","hack":"Угол между катетом и медианой равен противоположному острому углу.","steps":["∠A = 90° − 29° = 61°.","CD = AD, поэтому ∠ACD = ∠CAD.","Следовательно, ∠ACD = 61°."],"kind":"right","promptHtml":"В прямоугольном треугольнике ABC угол C равен \\(90^{\\circ}\\), угол B равен \\(29^{\\circ}\\). CD — медиана к гипотенузе AB. Найдите угол ACD. Ответ дайте в градусах.","recallHtml":"Середина гипотенузы равноудалена от всех вершин: \\(CD = AD\\). Треугольник ACD равнобедренный.","formulaLatex":"\\angle ACD = \\angle CAD = \\angle A = 90^{\\circ} - \\angle B","hackHtml":"Угол между катетом и медианой равен противоположному острому углу.","stepsHtml":["\\(\\angle A = 90^{\\circ} - 29^{\\circ} = 61^{\\circ}\\).","\\(CD = AD\\), поэтому \\(\\angle ACD = \\angle CAD\\).","Следовательно, \\(\\angle ACD = 61^{\\circ}\\)."],"answerLatex":"61"},{"id":"bisectorMedian","section":"I","prototype":"Биссектриса и медиана","prompt":"Острый угол B прямоугольного треугольника ABC равен 22°. Найдите угол между биссектрисой и медианой, проведёнными из вершины прямого угла C.","answer":23,"answerText":"23","recall":"Биссектриса прямого угла образует 45° с катетом. Медиана к гипотенузе образует с катетом угол, равный одному из острых углов.","formula":"φ = 45° − ∠B","hack":"Для меньшего острого угла просто найдите разность с 45°.","steps":["Биссектриса делит 90° пополам: получаем 45°.","Направление медианы даёт угол 22° относительно второго катета.","Искомый угол: 45° − 22° = 23°."],"kind":"lines","promptHtml":"Острый угол B прямоугольного треугольника ABC равен \\(22^{\\circ}\\). Найдите угол между биссектрисой и медианой, проведёнными из вершины прямого угла C.","recallHtml":"Биссектриса прямого угла образует \\(45^{\\circ}\\) с катетом. Медиана к гипотенузе образует с катетом угол, равный одному из острых углов.","formulaLatex":"\\varphi = 45^{\\circ} - \\angle B","hackHtml":"Для меньшего острого угла просто найдите разность с \\(45^{\\circ}\\).","stepsHtml":["Биссектриса делит \\(90^{\\circ}\\) пополам: получаем \\(45^{\\circ}\\).","Направление медианы даёт угол \\(22^{\\circ}\\) относительно второго катета.","Искомый угол: \\(45^{\\circ} - 22^{\\circ} = 23^{\\circ}\\)."],"answerLatex":"23"},{"id":"heightBisector","section":"I","prototype":"Высота и биссектриса","prompt":"В прямоугольном треугольнике угол между высотой и биссектрисой, проведёнными из вершины прямого угла, равен 25°. Найдите меньший острый угол треугольника.","answer":20,"answerText":"20","recall":"Высота к гипотенузе образует с катетом угол, равный острому углу исходного треугольника. Биссектриса даёт 45°.","formula":"α = 45° − φ","hack":"Меньший острый угол находится вычитанием данного угла из 45°.","steps":["Биссектриса прямого угла образует угол 45°.","Разность между высотой и биссектрисой равна 25°.","Меньший угол: 45° − 25° = 20°."],"kind":"lines","promptHtml":"В прямоугольном треугольнике угол между высотой и биссектрисой, проведёнными из вершины прямого угла, равен \\(25^{\\circ}\\). Найдите меньший острый угол треугольника.","recallHtml":"Высота к гипотенузе образует с катетом угол, равный острому углу исходного треугольника. Биссектриса даёт \\(45^{\\circ}\\).","formulaLatex":"\\alpha = 45^{\\circ} - \\varphi","hackHtml":"Меньший острый угол находится вычитанием данного угла из \\(45^{\\circ}\\).","stepsHtml":["Биссектриса прямого угла образует угол \\(45^{\\circ}\\).","Разность между высотой и биссектрисой равна \\(25^{\\circ}\\).","Меньший угол: \\(45^{\\circ} - 25^{\\circ} = 20^{\\circ}\\)."],"answerLatex":"20"},{"id":"heightMedian","section":"I","prototype":"Высота и медиана","prompt":"Острые углы прямоугольного треугольника равны 34° и 56°. Найдите угол между высотой и медианой, проведёнными из вершины прямого угла.","answer":22,"answerText":"22","recall":"Высота и медиана из прямого угла образуют с катетами углы, связанные с двумя острыми углами треугольника.","formula":"φ = |α − β|","hack":"Для этой конфигурации достаточно найти разность острых углов.","steps":["Больший острый угол равен 56°, меньший — 34°.","φ = 56° − 34° = 22°."],"kind":"lines","promptHtml":"Острые углы прямоугольного треугольника равны \\(34^{\\circ}\\) и \\(56^{\\circ}\\). Найдите угол между высотой и медианой, проведёнными из вершины прямого угла.","recallHtml":"Высота и медиана из прямого угла образуют с катетами углы, связанные с двумя острыми углами треугольника.","formulaLatex":"\\varphi = |\\alpha - \\beta |","hackHtml":"Для этой конфигурации достаточно найти разность острых углов.","stepsHtml":["Больший острый угол равен \\(56^{\\circ}\\), меньший — \\(34^{\\circ}\\).","\\(\\varphi = 56^{\\circ} - 34^{\\circ} = 22^{\\circ}\\)."],"answerLatex":"22"},{"id":"orthocenter","section":"II","prototype":"Высоты и четырёхугольник","prompt":"В остроугольном треугольнике ABC угол A равен 53°. Высоты BD и CE пересекаются в точке O. Найдите угол DOE.","answer":127,"answerText":"127","recall":"Углы ADB и AEC прямые, поэтому точки D, E, B, C образуют связи через высоты; искомый угол дополнительный к углу A.","formula":"∠DOE = 180° − ∠A","hack":"В задачах с двумя высотами ищите пару дополнительных углов.","steps":["BD ⟂ AC и CE ⟂ AB.","Угол между высотами дополнительный к углу между сторонами AB и AC.","∠DOE = 180° − 53° = 127°."],"kind":"orthocenter","promptHtml":"В остроугольном треугольнике ABC угол A равен \\(53^{\\circ}\\). Высоты BD и CE пересекаются в точке O. Найдите угол DOE.","recallHtml":"Углы ADB и AEC прямые, поэтому точки D, E, B, C образуют связи через высоты; искомый угол дополнительный к углу A.","formulaLatex":"\\angle DOE = 180^{\\circ} - \\angle A","hackHtml":"В задачах с двумя высотами ищите пару дополнительных углов.","stepsHtml":["\\(BD \\perp AC\\) и \\(CE \\perp AB\\).","Угол между высотами дополнительный к углу между сторонами AB и AC.","\\(\\angle DOE = 180^{\\circ} - 53^{\\circ} = 127^{\\circ}\\)."],"answerLatex":"127"},{"id":"incenter","section":"II","prototype":"Пересечение биссектрис","prompt":"В треугольнике ABC угол C равен 56°. Биссектрисы AD и BE пересекаются в точке O. Найдите угол AOB.","answer":118,"answerText":"118","recall":"Угол между двумя внутренними биссектрисами равен 90° плюс половина третьего угла.","formula":"∠AOB = 90° + ∠C / 2","hack":"Запомните готовую формулу для центра вписанной окружности.","steps":["Половина угла C: 56° / 2 = 28°.","∠AOB = 90° + 28° = 118°."],"kind":"incenter","promptHtml":"В треугольнике ABC угол C равен \\(56^{\\circ}\\). Биссектрисы AD и BE пересекаются в точке O. Найдите угол AOB.","recallHtml":"Угол между двумя внутренними биссектрисами равен \\(90^{\\circ}\\) плюс половина третьего угла.","formulaLatex":"\\angle AOB = 90^{\\circ} + \\frac{\\angle C}{2}","hackHtml":"Запомните готовую формулу для центра вписанной окружности.","stepsHtml":["Половина угла C: \\(\\frac{56^{\\circ}}{2} = 28^{\\circ}\\).","\\(\\angle AOB = 90^{\\circ} + 28^{\\circ} = 118^{\\circ}\\)."],"answerLatex":"118"},{"id":"parallelogram","section":"II","prototype":"Углы параллелограмма","prompt":"Один угол параллелограмма больше другого на 54°. Найдите больший угол.","answer":117,"answerText":"117","recall":"Соседние углы параллелограмма в сумме дают 180°.","formula":"x + y = 180°; x − y = d","hack":"Больший угол равен половине суммы 180° и разности.","steps":["Пусть больший угол x, меньший y.","x + y = 180°, x − y = 54°.","2x = 234°, поэтому x = 117°. Меньший угол для проверки: 63°."],"kind":"para","promptHtml":"Один угол параллелограмма больше другого на \\(54^{\\circ}\\). Найдите больший угол.","recallHtml":"Соседние углы параллелограмма в сумме дают \\(180^{\\circ}\\).","formulaLatex":"x + y = 180^{\\circ}; x - y = d","hackHtml":"Больший угол равен половине суммы \\(180^{\\circ}\\) и разности.","stepsHtml":["Пусть больший угол x, меньший y.","\\(x + y = 180^{\\circ}, x - y = 54^{\\circ}\\).","\\(2x = 234^{\\circ}\\), поэтому \\(x = 117^{\\circ}\\). Меньший угол для проверки: \\(63^{\\circ}\\)."],"answerLatex":"117"},{"id":"rhombusA","section":"II","prototype":"Диагональ ромба","prompt":"В ромбе ABCD угол DAB равен 136°. Найдите угол BDC.","answer":22,"answerText":"22","recall":"Соседние углы ромба дополнительны, а диагональ ромба делит углы пополам.","formula":"∠BDC = (180° − ∠DAB) / 2","hack":"Сначала найдите соседний угол D, затем поделите его пополам.","steps":["∠D = 180° − 136° = 44°.","Диагональ BD делит угол D пополам.","∠BDC = 44° / 2 = 22°."],"kind":"rhombus","promptHtml":"В ромбе ABCD угол DAB равен \\(136^{\\circ}\\). Найдите угол BDC.","recallHtml":"Соседние углы ромба дополнительны, а диагональ ромба делит углы пополам.","formulaLatex":"\\angle BDC = \\frac{180^{\\circ} - \\angle DAB}{2}","hackHtml":"Сначала найдите соседний угол D, затем поделите его пополам.","stepsHtml":["\\(\\angle D = 180^{\\circ} - 136^{\\circ} = 44^{\\circ}\\).","Диагональ BD делит угол D пополам.","\\(\\angle BDC = \\frac{44^{\\circ}}{2} = 22^{\\circ}\\)."],"answerLatex":"22"},{"id":"rhombusC","section":"II","prototype":"Диагональ ромба","prompt":"В ромбе ABCD угол BCD равен 36°. Найдите угол DBA.","answer":72,"answerText":"72","recall":"Соседние углы ромба в сумме дают 180°, диагональ BD является биссектрисой угла B.","formula":"∠DBA = (180° − ∠BCD) / 2","hack":"Найдите угол B и сразу разделите его на два.","steps":["∠B = 180° − 36° = 144°.","BD — биссектриса угла B.","∠DBA = 144° / 2 = 72°."],"kind":"rhombus","promptHtml":"В ромбе ABCD угол BCD равен \\(36^{\\circ}\\). Найдите угол DBA.","recallHtml":"Соседние углы ромба в сумме дают \\(180^{\\circ}\\), диагональ BD является биссектрисой угла B.","formulaLatex":"\\angle DBA = \\frac{180^{\\circ} - \\angle BCD}{2}","hackHtml":"Найдите угол B и сразу разделите его на два.","stepsHtml":["\\(\\angle B = 180^{\\circ} - 36^{\\circ} = 144^{\\circ}\\).","BD — биссектриса угла B.","\\(\\angle DBA = \\frac{144^{\\circ}}{2} = 72^{\\circ}\\)."],"answerLatex":"72"}];
 
-    const G={
-      isoBase(){
-        const a=int(32,72),ans=180-2*a;
-        return mk("isoBase","I","Равнобедренный треугольник","В треугольнике ABC стороны AC и BC равны, угол A равен "+a+"°. Найдите угол C. Ответ дайте в градусах.",ans,
-          "В равнобедренном треугольнике углы при основании равны.","∠A = ∠B; ∠A + ∠B + ∠C = 180°","Сначала удвойте известный угол при основании, затем вычтите из 180°.",
-          ["Так как AC = BC, то ∠A = ∠B = "+a+"°.","∠C = 180° − 2 · "+a+"° = "+ans+"°."],"iso");
-      },
-      isoApex(){
-        const half=int(22,69),c=180-2*half;
-        return mk("isoApex","I","Равнобедренный треугольник","В треугольнике ABC стороны AC и BC равны, угол C равен "+c+"°. Найдите угол A. Ответ дайте в градусах.",half,
-          "Углы при основании равнобедренного треугольника равны.","∠A = ∠B = (180° − ∠C) / 2","Вычтите угол при вершине из 180° и разделите остаток пополам.",
-          ["Сумма углов A и B: 180° − "+c+"° = "+(180-c)+"°.","∠A = "+(180-c)+"° / 2 = "+half+"°."],"iso");
-      },
-      isoExterior(){
-        const ext=int(108,151),b=180-ext,ans=180-2*b;
-        return mk("isoExterior","I","Внешний угол равнобедренного треугольника","В треугольнике ABC стороны AC и BC равны. Внешний угол при вершине B равен "+ext+"°. Найдите угол C. Ответ дайте в градусах.",ans,
-          "Внутренний и смежный с ним внешний угол дают 180°. Углы при основании равны.","∠B = 180° − внеш.; ∠C = 180° − 2∠B","Сначала превратите внешний угол во внутренний.",
-          ["∠B = 180° − "+ext+"° = "+b+"°.","AC = BC, значит ∠A = ∠B = "+b+"°.","∠C = 180° − 2 · "+b+"° = "+ans+"°."],"iso");
-      },
-      rightMedian(){
-        const b=int(18,67),ans=90-b;
-        return mk("rightMedian","I","Медиана прямоугольного треугольника","В прямоугольном треугольнике ABC угол C равен 90°, угол B равен "+b+"°. CD — медиана к гипотенузе AB. Найдите угол ACD. Ответ дайте в градусах.",ans,
-          "Середина гипотенузы равноудалена от всех вершин: CD = AD. Треугольник ACD равнобедренный.","∠ACD = ∠CAD = ∠A = 90° − ∠B","Угол между катетом и медианой равен противоположному острому углу.",
-          ["∠A = 90° − "+b+"° = "+ans+"°.","CD = AD, поэтому ∠ACD = ∠CAD.","Следовательно, ∠ACD = "+ans+"°."],"right");
-      },
-      bisectorMedian(){
-        const b=int(11,39),ans=45-b;
-        return mk("bisectorMedian","I","Биссектриса и медиана","Острый угол B прямоугольного треугольника ABC равен "+b+"°. Найдите угол между биссектрисой и медианой, проведёнными из вершины прямого угла C.",ans,
-          "Биссектриса прямого угла образует 45° с катетом. Медиана к гипотенузе образует с катетом угол, равный одному из острых углов.","φ = 45° − ∠B","Для меньшего острого угла просто найдите разность с 45°.",
-          ["Биссектриса делит 90° пополам: получаем 45°.","Направление медианы даёт угол "+b+"° относительно второго катета.","Искомый угол: 45° − "+b+"° = "+ans+"°."],"lines");
-      },
-      heightBisector(){
-        const d=int(6,28),ans=45-d;
-        return mk("heightBisector","I","Высота и биссектриса","В прямоугольном треугольнике угол между высотой и биссектрисой, проведёнными из вершины прямого угла, равен "+d+"°. Найдите меньший острый угол треугольника.",ans,
-          "Высота к гипотенузе образует с катетом угол, равный острому углу исходного треугольника. Биссектриса даёт 45°.","α = 45° − φ","Меньший острый угол находится вычитанием данного угла из 45°.",
-          ["Биссектриса прямого угла образует угол 45°.","Разность между высотой и биссектрисой равна "+d+"°.","Меньший угол: 45° − "+d+"° = "+ans+"°."],"lines");
-      },
-      heightMedian(){
-        const small=int(11,39),large=90-small,ans=large-small;
-        return mk("heightMedian","I","Высота и медиана","Острые углы прямоугольного треугольника равны "+small+"° и "+large+"°. Найдите угол между высотой и медианой, проведёнными из вершины прямого угла.",ans,
-          "Высота и медиана из прямого угла образуют с катетами углы, связанные с двумя острыми углами треугольника.","φ = |α − β|","Для этой конфигурации достаточно найти разность острых углов.",
-          ["Больший острый угол равен "+large+"°, меньший — "+small+"°.","φ = "+large+"° − "+small+"° = "+ans+"°."],"lines");
-      },
-      orthocenter(){
-        const a=int(38,78),ans=180-a;
-        return mk("orthocenter","II","Высоты и четырёхугольник","В остроугольном треугольнике ABC угол A равен "+a+"°. Высоты BD и CE пересекаются в точке O. Найдите угол DOE.",ans,
-          "Углы ADB и AEC прямые, поэтому точки D, E, B, C образуют связи через высоты; искомый угол дополнительный к углу A.","∠DOE = 180° − ∠A","В задачах с двумя высотами ищите пару дополнительных углов.",
-          ["BD ⟂ AC и CE ⟂ AB.","Угол между высотами дополнительный к углу между сторонами AB и AC.","∠DOE = 180° − "+a+"° = "+ans+"°."],"orthocenter");
-      },
-      incenter(){
-        const c=2*int(22,69),ans=90+c/2;
-        return mk("incenter","II","Пересечение биссектрис","В треугольнике ABC угол C равен "+c+"°. Биссектрисы AD и BE пересекаются в точке O. Найдите угол AOB.",ans,
-          "Угол между двумя внутренними биссектрисами равен 90° плюс половина третьего угла.","∠AOB = 90° + ∠C / 2","Запомните готовую формулу для центра вписанной окружности.",
-          ["Половина угла C: "+c+"° / 2 = "+(c/2)+"°.","∠AOB = 90° + "+(c/2)+"° = "+ans+"°."],"incenter");
-      },
-      parallelogram(){
-        const d=2*int(12,46),ans=(180+d)/2,small=180-ans;
-        return mk("parallelogram","II","Углы параллелограмма","Один угол параллелограмма больше другого на "+d+"°. Найдите больший угол.",ans,
-          "Соседние углы параллелограмма в сумме дают 180°.","x + y = 180°; x − y = d","Больший угол равен половине суммы 180° и разности.",
-          ["Пусть больший угол x, меньший y.","x + y = 180°, x − y = "+d+"°.","2x = "+(180+d)+"°, поэтому x = "+ans+"°. Меньший угол для проверки: "+small+"°."],"para");
-      },
-      rhombusA(){
-        const a=2*int(51,79),ans=(180-a)/2;
-        return mk("rhombusA","II","Диагональ ромба","В ромбе ABCD угол DAB равен "+a+"°. Найдите угол BDC.",ans,
-          "Соседние углы ромба дополнительны, а диагональ ромба делит углы пополам.","∠BDC = (180° − ∠DAB) / 2","Сначала найдите соседний угол D, затем поделите его пополам.",
-          ["∠D = 180° − "+a+"° = "+(180-a)+"°.","Диагональ BD делит угол D пополам.","∠BDC = "+(180-a)+"° / 2 = "+ans+"°."],"rhombus");
-      },
-      rhombusC(){
-        const c=2*int(18,69),ans=(180-c)/2;
-        return mk("rhombusC","II","Диагональ ромба","В ромбе ABCD угол BCD равен "+c+"°. Найдите угол DBA.",ans,
-          "Соседние углы ромба в сумме дают 180°, диагональ BD является биссектрисой угла B.","∠DBA = (180° − ∠BCD) / 2","Найдите угол B и сразу разделите его на два.",
-          ["∠B = 180° − "+c+"° = "+(180-c)+"°.","BD — биссектриса угла B.","∠DBA = "+(180-c)+"° / 2 = "+ans+"°."],"rhombus");
-      },
-      paraHeights(){
-        const ratio=pick([2,3,4]),a=int(5,16),b=a*ratio,h=ratio*int(3,12),ans=h/ratio;
-        return mk("paraHeights","III","Высоты параллелограмма","Стороны параллелограмма равны "+a+" и "+b+". Высота к меньшей стороне равна "+h+". Найдите высоту к большей стороне.",ans,
-          "Площадь параллелограмма одинакова при выборе любой стороны в качестве основания.","a · hₐ = b · hᵦ","У большей стороны соответствующая высота меньше во столько же раз.",
-          ["S = "+a+" · "+h+".","Также S = "+b+" · hᵦ.","hᵦ = "+a+" · "+h+" / "+b+" = "+ans+"."],"area");
-      },
-      paraTrapezoidArea(){
-        const s=4*int(12,38),ans=3*s/4;
-        return mk("paraTrapezoidArea","III","Площадь части параллелограмма","Площадь параллелограмма ABCD равна "+s+". Точка H — середина стороны AB. Найдите площадь трапеции AHCD.",ans,
-          "Треугольник HBC имеет основание вдвое меньше AB и ту же высоту, поэтому его площадь равна четверти площади параллелограмма.","S(AHCD) = 3S(ABCD) / 4","Из всей площади вычтите маленький треугольник площадью S/4.",
-          ["S(HBC) = "+s+" / 4 = "+(s/4)+".","S(AHCD) = "+s+" − "+(s/4)+" = "+ans+"."],"area");
-      },
-      triangleHeights(){
-        const k=int(4,11),a=3*k,b=4*k,hb=3*int(4,12),ans=b*hb/a;
-        return mk("triangleHeights","III","Высоты треугольника","Две стороны треугольника равны "+a+" и "+b+". Высота к большей стороне равна "+hb+". Найдите высоту к меньшей стороне.",ans,
-          "Площадь треугольника через разные основания остаётся одной и той же.","a · hₐ = b · hᵦ","Множитель 1/2 сокращается, поэтому можно сразу приравнять произведения.",
-          ["Площади равны: "+a+" · hₐ = "+b+" · "+hb+".","hₐ = "+b+" · "+hb+" / "+a+" = "+ans+"."],"triangle");
-      },
-      isoArea(){
-        const angle=pick([30,90]),side=angle===30?2*int(5,13):int(8,22),sin=angle===30?.5:1,ans=.5*side*side*sin;
-        return mk("isoArea","III","Площадь по двум сторонам и углу","Боковая сторона равнобедренного треугольника равна "+side+", угол между боковыми сторонами равен "+angle+"°. Найдите площадь треугольника.",ans,
-          "Площадь по двум сторонам и углу между ними равна половине произведения сторон на синус угла.","S = 1/2 · a · b · sin γ","В равнобедренном треугольнике обе боковые стороны одинаковы: подставляйте a².",
-          ["S = 1/2 · "+side+" · "+side+" · sin "+angle+"°.","sin "+angle+"° = "+fmt(sin)+".","S = "+fmt(ans)+"."],"triangle");
-      },
-      equilateral(){
-        const k=int(7,35),hText=k+"√3",ans=2*k;
-        return mk("equilateral","III","Высота равностороннего треугольника","В равностороннем треугольнике ABC высота CH равна "+hText+". Найдите сторону AB.",ans,
-          "Высота равностороннего треугольника со стороной a равна a√3/2.","h = a√3 / 2","Если высота записана как k√3, сторона сразу равна 2k.",
-          ["Подставим: "+k+"√3 = a√3 / 2.","Сокращаем на √3: "+k+" = a/2.","a = "+ans+"."],"triangle");
-      },
-      rightPythagoras(){
-        const t=pick([[3,4,5],[5,12,13],[8,15,17],[7,24,25]]),m=int(2,7),a=t[0]*m,b=t[1]*m,ans=t[2]*m;
-        return mk("rightPythagoras","III","Теорема Пифагора","Катеты прямоугольного треугольника равны "+a+" и "+b+". Найдите гипотенузу.",ans,
-          "Квадрат гипотенузы равен сумме квадратов катетов.","c² = a² + b²","Проверяйте, не является ли тройка масштабированной пифагоровой тройкой.",
-          ["c² = "+a+"² + "+b+"² = "+(a*a)+" + "+(b*b)+" = "+(ans*ans)+".","c = √"+(ans*ans)+" = "+ans+"."],"right");
-      },
-      paraArea(){
-        const a=int(7,28),h=int(5,24),ans=a*h;
-        return mk("paraArea","III","Площадь параллелограмма","Основание параллелограмма равно "+a+", высота к нему равна "+h+". Найдите площадь.",ans,
-          "Площадь параллелограмма равна произведению основания на проведённую к нему высоту.","S = a · h","Берите именно высоту к выбранному основанию, а не боковую сторону.",
-          ["S = "+a+" · "+h+" = "+ans+"."],"area");
-      },
-      triangleArea(){
-        const a=2*int(5,23),h=int(4,26),ans=a*h/2;
-        return mk("triangleArea","III","Площадь треугольника","Основание треугольника равно "+a+", высота к нему равна "+h+". Найдите площадь.",ans,
-          "Площадь треугольника равна половине произведения основания на высоту.","S = a · h / 2","Сначала перемножьте основание и высоту, затем поделите на 2.",
-          ["S = "+a+" · "+h+" / 2 = "+ans+"."],"triangle");
-      },
-      midlineArea(){
-        const s=4*int(8,33),ans=s/4;
-        return mk("midlineArea","IV","Средняя линия и площадь","Площадь треугольника ABC равна "+s+". DE — средняя линия, параллельная AB. Найдите площадь треугольника CDE.",ans,
-          "Средняя линия уменьшает все линейные размеры в 2 раза, а площадь — в 2² = 4 раза.","Sмал = Sбол / 4","Площадь меняется как квадрат коэффициента подобия.",
-          ["Коэффициент подобия k = 1/2.","Отношение площадей k² = 1/4.","S(CDE) = "+s+" / 4 = "+ans+"."],"similar");
-      },
-      midlineAreaInverse(){
-        const small=int(5,28),ans=4*small;
-        return mk("midlineAreaInverse","IV","Обратная задача на среднюю линию","В треугольнике ABC отрезок EF — средняя линия. Площадь малого треугольника, отсечённого средней линией, равна "+small+". Найдите площадь треугольника ABC.",ans,
-          "Малый треугольник подобен большому с коэффициентом 1/2, его площадь в 4 раза меньше.","Sбол = 4Sмал","В обратной задаче не делите, а умножайте малую площадь на 4.",
-          ["Отношение площадей равно (1/2)² = 1/4.","S(ABC) = 4 · "+small+" = "+ans+"."],"similar");
-      },
-      trapezoidDiagonal(){
-        const a=int(4,10),b=int(a+3,18),ans=b/2;
-        return mk("trapezoidDiagonal","IV","Диагональ и средняя линия трапеции","Основания трапеции равны "+a+" и "+b+". Найдите больший из отрезков, на которые диагональ делит среднюю линию трапеции.",ans,
-          "Диагональ делит среднюю линию трапеции на отрезки, равные половинам оснований.","x = a/2; y = b/2","Большему основанию соответствует больший отрезок.",
-          ["Большее основание равно "+b+".","Больший отрезок равен "+b+" / 2 = "+fmt(ans)+"."],"trapezoid");
-      },
-      similarArea(){
-        const k=pick([2,3,4]),small=int(3,18),ans=small*k*k;
-        return mk("similarArea","IV","Площади подобных треугольников","Два треугольника подобны. Стороны второго треугольника в "+k+" раза больше соответствующих сторон первого. Площадь первого равна "+small+". Найдите площадь второго.",ans,
-          "Площади подобных фигур относятся как квадраты соответствующих линейных размеров.","S₂ / S₁ = k²","Если стороны выросли в k раз, площадь выросла в k² раз.",
-          ["Коэффициент подобия k = "+k+".","k² = "+(k*k)+".","S₂ = "+small+" · "+(k*k)+" = "+ans+"."],"similar");
-      },
-      rightSin(){
-        const t=pick([[3,4,5],[5,12,13],[8,15,17],[7,24,25]]),m=int(2,6),bc=t[0]*m,ac=t[1]*m,ab=t[2]*m,ans=ac/ab;
-        return mk("rightSin","V","Синус острого угла","В прямоугольном треугольнике ABC угол C равен 90°, AC = "+ac+", AB = "+ab+". Найдите sin B.",ans,
-          "Синус острого угла равен отношению противолежащего катета к гипотенузе.","sin B = AC / AB","Сначала найдите сторону напротив нужного угла.",
-          ["Напротив угла B лежит катет AC = "+ac+".","Гипотенуза AB = "+ab+".","sin B = "+ac+" / "+ab+" = "+fmt(ans)+"."],"right");
-      },
-      rightCosHyp(){
-        const t=pick([[3,4,5],[5,12,13],[8,15,17]]),m=int(2,7),bc=t[1]*m,ab=t[2]*m,cos=t[1]/t[2];
-        return mk("rightCosHyp","V","Косинус и гипотенуза","В прямоугольном треугольнике ABC угол C равен 90°, BC = "+bc+", cos B = "+fmt(cos)+". Найдите AB.",ab,
-          "Косинус острого угла равен отношению прилежащего катета к гипотенузе.","cos B = BC / AB","Чтобы найти гипотенузу, разделите прилежащий катет на косинус.",
-          ["cos B = BC / AB.","AB = "+bc+" / "+fmt(cos)+" = "+ab+"."],"right");
-      },
-      rightRadicalSin(){
-        const t=pick([[3,4,5],[5,12,13],[8,15,17],[7,24,25]]),m=int(1,5),ac=t[1]*m,bc=t[0]*m,ab=t[2]*m,ans=bc/ab;
-        return mk("rightRadicalSin","V","Пифагор и синус","В прямоугольном треугольнике ABC угол C равен 90°, AB = "+ab+", AC = "+ac+". Найдите sin A.",ans,
-          "Сначала по теореме Пифагора найдите второй катет, затем используйте определение синуса.","BC = √(AB² − AC²); sin A = BC / AB","Если узнаётся пифагорова тройка, извлекать корень можно устно.",
-          ["BC = √("+ab+"² − "+ac+"²) = √"+(bc*bc)+" = "+bc+".","sin A = BC / AB = "+bc+" / "+ab+" = "+fmt(ans)+"."],"right");
-      },
-      complementSin(){
-        const t=pick([[3,4,5],[5,12,13],[8,15,17]]),sinA=t[0]/t[2],ans=t[1]/t[2];
-        return mk("complementSin","V","Дополнительные углы","В прямоугольном треугольнике ABC угол C равен 90°, sin A = "+fmt(sinA)+". Найдите sin B.",ans,
-          "Острые углы прямоугольного треугольника дополняют друг друга до 90°, поэтому sin B = cos A.","sin B = cos A = √(1 − sin²A)","Используйте основное тригонометрическое тождество и берите положительный корень.",
-          ["sin²A + cos²A = 1.","cos A = √(1 − "+fmt(sinA)+"²) = "+fmt(ans)+".","Так как B = 90° − A, sin B = cos A = "+fmt(ans)+"."],"right");
-      },
-      tangentHyp(){
-        const t=pick([[3,4,5],[5,12,13],[8,15,17],[7,24,25]]),m=int(2,6),ac=t[0]*m,bc=t[1]*m,ab=t[2]*m,tan=bc/ac;
-        return mk("tangentHyp","V","Тангенс и теорема Пифагора","В прямоугольном треугольнике ABC угол C равен 90°, AC = "+ac+", tg A = "+fmt(tan)+". Найдите AB.",ab,
-          "Тангенс равен отношению противолежащего катета к прилежащему. После нахождения катета примените теорему Пифагора.","tg A = BC / AC; AB = √(AC² + BC²)","По тангенсу восстановите второй катет, затем ищите гипотенузу.",
-          ["BC = AC · tg A = "+ac+" · "+fmt(tan)+" = "+bc+".","AB = √("+ac+"² + "+bc+"²) = √"+(ab*ab)+" = "+ab+"."],"right");
-      },
-      isoCos(){
-        const l=pick([10,15,20,25,30]),ratio=pick([.2,.3,.4,.5,.6,.8]),half=l*ratio,base=2*half,ans=ratio;
-        return mk("isoCos","V","Косинус в равнобедренном треугольнике","В треугольнике ABC стороны AC и BC равны "+l+", основание AB равно "+fmt(base)+". Найдите cos A.",ans,
-          "Высота из вершины равнобедренного треугольника делит основание пополам. В полученном прямоугольном треугольнике используем косинус.","cos A = (AB/2) / AC","Сразу делите основание пополам — это прилежащий катет.",
-          ["Половина основания: "+fmt(base)+" / 2 = "+fmt(half)+".","cos A = "+fmt(half)+" / "+l+" = "+fmt(ans)+"."],"iso");
-      },
-      centralFromDifference(){
-        const d=int(17,62),ans=2*d;
-        return mk("centralFromDifference","VI","Центральный и вписанный углы","Центральный угол на "+d+"° больше острого вписанного угла, опирающегося на ту же дугу. Найдите центральный угол.",ans,
-          "Центральный угол в два раза больше вписанного, опирающегося на ту же дугу.","y = 2x; y − x = d","Разность между центральным и вписанным углами равна самому вписанному углу.",
-          ["Пусть вписанный угол x, тогда центральный 2x.","2x − x = "+d+"°, значит x = "+d+"°.","Центральный угол 2 · "+d+"° = "+ans+"°."],"circle");
-      },
-      inscribedFromDifference(){
-        const d=int(14,68);
-        return mk("inscribedFromDifference","VI","Центральный и вписанный углы","Центральный угол на "+d+"° больше острого вписанного угла, опирающегося на ту же дугу. Найдите вписанный угол.",d,
-          "Центральный угол равен удвоенному вписанному.","2x − x = d","В такой формулировке численная разность сразу равна вписанному углу.",
-          ["Пусть вписанный угол x, центральный — 2x.","2x − x = "+d+"°.","x = "+d+"°."],"circle");
-      },
-      diameterInscribed(){
-        const central=2*int(36,76),ans=(180-central)/2;
-        return mk("diameterInscribed","VI","Два диаметра","Отрезки AC и BD — диаметры окружности с центром O. Угол AOD равен "+central+"°. Найдите вписанный угол ACB.",ans,
-          "Вертикальный центральный угол BOC равен AOD. Дуга AB дополняет дугу BC до полуокружности.","∠ACB = (180° − ∠AOD) / 2","Сначала найдите оставшуюся дугу полуокружности, затем разделите пополам.",
-          ["Дуга AB равна 180° − "+central+"° = "+(180-central)+"°.","Вписанный угол ACB равен половине этой дуги.","∠ACB = "+(180-central)+"° / 2 = "+ans+"°."],"circle");
-      },
-      diameterCentral(){
-        const ins=int(16,63),ans=180-2*ins;
-        return mk("diameterCentral","VI","Два диаметра","Отрезки AC и BD — диаметры окружности с центром O. Угол ACB равен "+ins+"°. Найдите угол AOD.",ans,
-          "Дуга AB вдвое больше вписанного угла ACB. В нужной полуокружности оставшаяся дуга задаёт центральный угол AOD.","∠AOD = 180° − 2∠ACB","Удвойте вписанный угол и вычтите результат из 180°.",
-          ["Дуга AB = 2 · "+ins+"° = "+(2*ins)+"°.","∠AOD = 180° − "+(2*ins)+"° = "+ans+"°."],"circle");
-      },
-      arcFraction(){
-        const den=pick([5,6,8,10]),num=int(1,Math.floor((den-1)/2)),arc=360*num/den,ans=arc/2;
-        return mk("arcFraction","VI","Вписанный угол по дуге","Вписанный угол опирается на дугу, равную "+num+"/"+den+" окружности. Найдите этот угол в градусах.",ans,
-          "Полная окружность содержит 360°, а вписанный угол равен половине дуги.","α = 1/2 · 360° · m/n","Сначала переведите долю окружности в градусы.",
-          ["Дуга равна 360° · "+num+"/"+den+" = "+fmt(arc)+"°.","Вписанный угол равен половине дуги: "+fmt(arc)+"° / 2 = "+fmt(ans)+"°."],"circle");
-      },
-      tangentAngle(){
-        const arc=2*int(24,76),ans=180-arc;
-        return mk("tangentAngle","VI","Угол между касательными","Через концы A и B меньшей дуги окружности проведены касательные AC и BC. Меньшая дуга AB равна "+arc+"°. Найдите угол ACB.",ans,
-          "Угол между двумя касательными равен 180° минус градусная мера меньшей дуги между точками касания.","∠ACB = 180° − ⌒AB","Для двух касательных достаточно одного вычитания из 180°.",
-          ["∠ACB = 180° − "+arc+"° = "+ans+"°."],"tangent");
-      },
-      tangentQuadrilateral(){
-        let ab=int(12,28),bc=int(8,22),ad=int(10,25),ans=bc+ad-ab;
-        while(ans<=3){ab=int(12,24);bc=int(12,24);ad=int(12,24);ans=bc+ad-ab;}
-        return mk("tangentQuadrilateral","VII","Описанный четырёхугольник","В четырёхугольник ABCD вписана окружность. AB = "+ab+", BC = "+bc+", AD = "+ad+". Найдите CD.",ans,
-          "В описанном четырёхугольнике суммы длин противоположных сторон равны.","AB + CD = BC + AD","Перенесите известную сторону AB в правую часть.",
-          ["CD = BC + AD − AB.","CD = "+bc+" + "+ad+" − "+ab+" = "+ans+"."],"incircle");
-      },
-      tangentPerimeter(){
-        const ab=int(16,38),cd=int(10,32),ans=2*(ab+cd);
-        return mk("tangentPerimeter","VII","Периметр описанного четырёхугольника","В четырёхугольник ABCD вписана окружность. AB = "+ab+", CD = "+cd+". Найдите периметр четырёхугольника.",ans,
-          "Суммы противоположных сторон описанного четырёхугольника равны, поэтому каждая такая сумма составляет половину периметра.","P = 2(AB + CD)","Сложите известные противоположные стороны и удвойте.",
-          ["AB + CD = "+ab+" + "+cd+" = "+(ab+cd)+".","P = 2 · "+(ab+cd)+" = "+ans+"."],"incircle");
-      },
-      tangentTrapezoidMidline(){
-        const l1=int(6,18),l2=int(7,21),ans=(l1+l2)/2;
-        return mk("tangentTrapezoidMidline","VII","Описанная трапеция","Боковые стороны трапеции, описанной около окружности, равны "+l1+" и "+l2+". Найдите среднюю линию трапеции.",ans,
-          "В описанной трапеции сумма оснований равна сумме боковых сторон. Средняя линия равна полусумме оснований.","m = (a+b)/2 = (c+d)/2","Можно сразу сложить боковые стороны и разделить на 2.",
-          ["Сумма оснований равна "+l1+" + "+l2+" = "+(l1+l2)+".","Средняя линия m = "+(l1+l2)+" / 2 = "+fmt(ans)+"."],"incircle");
-      },
-      rightTangentTrapezoid(){
-        const r=int(3,9),side=int(2*r+2,2*r+15),p=4*r+2*side;
-        return mk("rightTangentTrapezoid","VII","Прямоугольная описанная трапеция","Периметр прямоугольной трапеции, описанной около окружности, равен "+p+", её большая боковая сторона равна "+side+". Найдите радиус окружности.",r,
-          "В описанной трапеции сумма оснований равна сумме боковых сторон, то есть половине периметра. Перпендикулярная боковая сторона равна диаметру.","2r + l = P/2","Из половины периметра вычтите наклонную боковую сторону и поделите остаток на 2.",
-          ["Сумма боковых сторон P/2 = "+p+"/2 = "+(p/2)+".","Перпендикулярная сторона: "+(p/2)+" − "+side+" = "+(2*r)+".","Это диаметр 2r, поэтому r = "+r+"."],"incircle");
-      },
-      cyclicOpposite(){
-        const a=int(52,142),ans=180-a;
-        return mk("cyclicOpposite","VIII","Противоположные углы","Четырёхугольник ABCD вписан в окружность. Угол BAD равен "+a+"°. Найдите угол BCD.",ans,
-          "Сумма противоположных углов вписанного четырёхугольника равна 180°.","∠BAD + ∠BCD = 180°","Искомый противоположный угол находится вычитанием из 180°.",
-          ["∠BCD = 180° − "+a+"° = "+ans+"°."],"cyclic");
-      },
-      cyclicTwoSmaller(){
-        let a=int(42,88),b=int(55,118);while(a+b===180)b=int(55,118);
-        const r1=180-a,r2=180-b,ans=Math.min(r1,r2);
-        return mk("cyclicTwoSmaller","VIII","Два угла вписанного четырёхугольника","Два соседних угла вписанного в окружность четырёхугольника равны "+a+"° и "+b+"°. Найдите меньший из оставшихся углов.",ans,
-          "Каждый из оставшихся углов дополняет один из данных до 180°.","x = 180° − a; y = 180° − b","Найдите оба дополнительных угла и выберите меньший.",
-          ["Оставшиеся углы: 180° − "+a+"° = "+r1+"° и 180° − "+b+"° = "+r2+"°.","Меньший из них равен "+ans+"°."],"cyclic");
-      },
-      cyclicTwoLarger(){
-        let a=int(43,98),b=int(61,132);while(a+b===180)b=int(61,132);
-        const r1=180-a,r2=180-b,ans=Math.max(r1,r2);
-        return mk("cyclicTwoLarger","VIII","Два угла вписанного четырёхугольника","Два соседних угла вписанного в окружность четырёхугольника равны "+a+"° и "+b+"°. Найдите больший из оставшихся углов.",ans,
-          "Противоположные углы вписанного четырёхугольника в сумме дают 180°.","x = 180° − a; y = 180° − b","После двух вычитаний выберите больший результат.",
-          ["Оставшиеся углы: "+(180-a)+"° и "+(180-b)+"°.","Больший угол равен "+ans+"°."],"cyclic");
-      },
-      cyclicSplit(){
-        const part=int(18,48),abd=int(26,64),abc=part+abd;
-        return mk("cyclicSplit","VIII","Равные вписанные углы","Четырёхугольник ABCD вписан в окружность. Угол ABC равен "+abc+"°, угол ABD равен "+abd+"°. Найдите угол CAD.",part,
-          "Угол ABC состоит из ABD и DBC. Вписанные углы DBC и DAC опираются на одну дугу DC и потому равны.","∠CAD = ∠DBC = ∠ABC − ∠ABD","Сначала вычтите часть угла при B.",
-          ["∠DBC = "+abc+"° − "+abd+"° = "+part+"°.","∠CAD и ∠DBC опираются на дугу DC.","Следовательно, ∠CAD = "+part+"°."],"cyclic");
-      },
-      cyclicDifference(){
-        const cad=int(28,72),abd=int(14,48),abc=cad+abd;
-        return mk("cyclicDifference","VIII","Углы вписанного четырёхугольника","Четырёхугольник ABCD вписан в окружность. Угол ABC равен "+abc+"°, угол CAD равен "+cad+"°. Найдите угол ABD.",abd,
-          "Вписанные углы CAD и CBD опираются на одну дугу CD, поэтому равны. Угол ABC складывается из ABD и DBC.","∠ABD = ∠ABC − ∠CAD","Равный угол перенесите к вершине B и выполните вычитание.",
-          ["∠DBC = ∠CAD = "+cad+"°.","∠ABD = "+abc+"° − "+cad+"° = "+abd+"°."],"cyclic");
-      },
-      cyclicSum(){
-        const abd=int(35,76),cad=int(18,52),ans=abd+cad;
-        return mk("cyclicSum","VIII","Сумма вписанных углов","Четырёхугольник ABCD вписан в окружность. Угол ABD равен "+abd+"°, угол CAD равен "+cad+"°. Найдите угол ABC.",ans,
-          "Углы CAD и CBD опираются на одну дугу CD, поэтому равны. Затем части угла ABC складываются.","∠ABC = ∠ABD + ∠CAD","Перенесите угол CAD к вершине B как равный вписанный угол.",
-          ["∠DBC = ∠CAD = "+cad+"°.","∠ABC = ∠ABD + ∠DBC = "+abd+"° + "+cad+"° = "+ans+"°."],"cyclic");
-      },
-      extendedSine120(){
-        const k=int(3,14);
-        return mk("extendedSine120","IX","Расширенная теорема синусов","В треугольнике ABC сторона AB равна "+k+"√3, угол C равен 120°. Найдите радиус описанной окружности.",k,
-          "Сторона треугольника равна удвоенному радиусу описанной окружности, умноженному на синус противолежащего угла.","AB = 2R sin C","При C = 120° имеем 2sin120° = √3, поэтому коэффициент при √3 и есть радиус.",
-          [k+"√3 = 2R · sin120° = R√3.","Сокращаем на √3: R = "+k+"."],"sine");
-      },
-      extendedSine45(){
-        const k=int(4,16);
-        return mk("extendedSine45","IX","Расширенная теорема синусов","В треугольнике сторона, лежащая против угла 45°, равна "+k+"√2. Найдите радиус описанной окружности.",k,
-          "По расширенной теореме синусов a = 2R sin A.","a = 2R sin45° = R√2","При угле 45° коэффициент при √2 равен радиусу.",
-          [k+"√2 = 2R · √2/2 = R√2.","R = "+k+"."],"sine");
-      }
-    };
+  const parseNumber=value=>{const s=String(value).trim().replace(/\s+/g,"").replace(",",".");return /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(s)?Number(s):NaN;};
+  const equalAnswer=(a,b)=>Number.isFinite(a)&&Math.abs(a-b)<1e-7;
+  const audit=t=>Boolean(t&&Number.isFinite(t.answer)&&t.prompt&&t.formula&&Array.isArray(t.steps)&&t.steps.length);
+  const fmt=v=>Number.isInteger(Number(v))?String(Number(v)):Number(v).toFixed(6).replace(/0+$/,"").replace(/\.$/,"").replace(".",",");
 
-    const buildTasks=()=>HOMEWORK_META.generatorKeys.map(key=>G[key]());
-    const TASKS=buildTasks();
-    const parseNumber=value=>{
-      const s=String(value).trim().replace(/\s+/g,"").replace(",",".");
-      if(!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(s))return NaN;
-      return Number(s);
-    };
-    const equalAnswer=(a,b)=>Number.isFinite(a)&&Math.abs(a-b)<=1e-6;
-    const byId=id=>document.getElementById(id);
+const byId=id=>document.getElementById(id);
     const svgFor=task=>{
       const P=Math.PI/180, f=v=>Number(v.toFixed(2));
       const T=(x,y,s,anchor="middle",extra="")=>'<text x="'+f(x)+'" y="'+f(y)+'" text-anchor="'+anchor+'" '+extra+'>'+s+'</text>';
@@ -668,124 +411,183 @@
 
       return wrap('<path class="shape" d="M14 88L96 88L55 20Z"/>'+T(11,100,'A','start')+T(99,100,'B','end')+T(55,15,'C'));
     };
-    const formatTime=s=>String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
-    const monthKey=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");};
-    const localSubmissionKey=()=>"homeworkSubmitted:"+HOMEWORK_META.assignmentId+":"+monthKey();
-    const makeEventId=()=>globalThis.crypto&&crypto.randomUUID?crypto.randomUUID():"hw-"+Date.now()+"-"+Math.random().toString(16).slice(2);
-    const loadStudent=()=>{
-      const id=localStorage.getItem("egeStudentId"),name=localStorage.getItem("egeStudentName"),code=localStorage.getItem("egeStudentCode");
-      return id&&name&&code?{id,name,code}:null;
-    };
-    const saveStudent=s=>{
-      localStorage.setItem("egeStudentId",s.id);localStorage.setItem("egeStudentName",s.name);localStorage.setItem("egeStudentCode",s.code);
-    };
-    const clearStudent=()=>["egeStudentId","egeStudentName","egeStudentCode"].forEach(k=>localStorage.removeItem(k));
-    const parseStudent=(data,code)=>{
-      if(!data||data.ok===false||data.success===false||data.valid===false)return null;
-      const src=data.student||data,id=src.studentId!=null?src.studentId:src.id,name=src.studentName||src.name;
-      return id!=null&&name?{id:String(id),name:String(name),code:String(code)}:null;
-    };
-    const jsonp=params=>new Promise((resolve,reject)=>{
-      const callback="__egeCb"+Date.now()+Math.random().toString(36).slice(2),script=document.createElement("script");
-      const cleanup=()=>{clearTimeout(timer);delete globalThis[callback];script.remove();};
-      const timer=setTimeout(()=>{cleanup();reject(new Error("Сервер не ответил вовремя."));},15000);
-      globalThis[callback]=data=>{cleanup();resolve(data||{});};
-      const query=new URLSearchParams({...params,callback,_:Date.now()});
-      script.src=API_URL+"?"+query.toString();script.onerror=()=>{cleanup();reject(new Error("Не удалось связаться с сервером."));};
-      document.head.appendChild(script);
+  const visualFor=task=>svgFor(task);
+
+  const formatTime=s=>String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
+  const normalizeCode=code=>String(code||"").trim().toUpperCase();
+  const monthKey=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");};
+  const draftKey=()=>"homeworkDraft:"+HOMEWORK_META.assignmentId+":"+(student?student.code:"");
+  const queueKey=()=>"pendingHomeworkResults:"+HOMEWORK_META.assignmentId;
+  const localSubmissionKey=(code=student&&student.code)=>"homeworkSubmitted:"+HOMEWORK_META.assignmentId+":"+monthKey()+":"+normalizeCode(code);
+  let idCounter=0;
+  const makeEventId=()=>globalThis.crypto&&crypto.randomUUID?crypto.randomUUID():"hw-"+Date.now()+"-"+(++idCounter);
+  const safeJsonParse=(text,fallback)=>{try{return JSON.parse(text)}catch(_){return fallback}};
+  const loadStudent=()=>{const code=normalizeCode(localStorage.getItem("egeStudentCode"));if(!code)return null;return {id:String(localStorage.getItem("egeStudentId")||code),name:String(localStorage.getItem("egeStudentName")||"Ученик"),code};};
+  const saveVerifiedStudent=s=>{localStorage.setItem("egeStudentId",s.id);localStorage.setItem("egeStudentName",s.name);localStorage.setItem("egeStudentCode",s.code);};
+  const clearStudent=()=>["egeStudentId","egeStudentName","egeStudentCode"].forEach(k=>localStorage.removeItem(k));
+  const parseStudent=(data,code)=>{if(!data||data.ok===false||data.success===false||data.valid===false)return null;const src=data.student||data,id=src.studentId!=null?src.studentId:src.id,name=src.studentName||src.name;return id!=null&&name?{id:String(id),name:String(name),code:normalizeCode(code)}:null;};
+  let jsonpCounter=0;
+  const jsonp=params=>new Promise((resolve,reject)=>{
+    const callback="__egeCb"+Date.now()+"_"+(++jsonpCounter),script=document.createElement("script");
+    const cleanup=()=>{clearTimeout(timer);delete globalThis[callback];script.remove();};
+    const timer=setTimeout(()=>{cleanup();reject(new Error("timeout"));},15000);
+    globalThis[callback]=data=>{cleanup();resolve(data||{});};
+    const query=new URLSearchParams({...params,callback,_:Date.now()});
+    script.src=API_URL+"?"+query.toString();script.onerror=()=>{cleanup();reject(new Error("network"));};document.head.appendChild(script);
+  });
+  const postJson=async payload=>{
+    const response=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload),redirect:"follow"});
+    if(!response.ok)throw new Error("network");const text=await response.text();if(!text)return {ok:true};
+    try{return JSON.parse(text)}catch(_){return {ok:true}}
+  };
+  const buildSubmissionPayload=(currentStudent,scorePercent,durationSeconds,eventId)=>({
+    action:"submitHomework",eventId,studentId:verifiedStudentId||currentStudent.id||currentStudent.code,
+    assignmentId:HOMEWORK_META.assignmentId,taskNumber:HOMEWORK_META.taskNumber,topicId:HOMEWORK_META.topicId,
+    topicName:HOMEWORK_META.topicName,scorePercent,durationSeconds,schemaVersion:1
+  });
+  const typeset=container=>{
+    if(globalThis.MathJax&&MathJax.typesetPromise){
+      MathJax.typesetPromise(container?[container]:undefined).catch(()=>{});
+    }
+  };
+
+  let student=null,verifiedStudentId="",startAt=0,timerId=null,monthlySubmitted=false,monthlyCheckDone=false,graded=false,reviewMode=false,sendingQueue=false;
+  const notice=byId("notice"),submitButton=byId("submitButton");
+  const setNotice=(text,type="ok")=>{notice.textContent=text;notice.className="notice "+type;};
+  const loadQueue=()=>{const q=safeJsonParse(localStorage.getItem(queueKey())||"[]",[]);return Array.isArray(q)?q:[];};
+  const saveQueue=q=>localStorage.setItem(queueKey(),JSON.stringify(q));
+  const enqueuePayload=(payload,studentCode)=>{const q=loadQueue();if(!q.some(x=>x&&x.payload&&x.payload.eventId===payload.eventId)){q.push({studentCode:normalizeCode(studentCode),createdAt:Date.now(),payload});saveQueue(q);}};
+  const updateQueuedStudentId=(code,id)=>{const q=loadQueue(),norm=normalizeCode(code);let changed=false;q.forEach(item=>{if(item.studentCode===norm&&item.payload&&item.payload.studentId!==id){item.payload.studentId=id;changed=true;}});if(changed)saveQueue(q);};
+  const dropQueuedForStudent=code=>{const norm=normalizeCode(code);saveQueue(loadQueue().filter(item=>item.studentCode!==norm));};
+  const getDraft=()=>student?safeJsonParse(localStorage.getItem(draftKey())||"null",null):null;
+  const currentAnswers=()=>[...document.querySelectorAll(".answer-input")].map(i=>i.value);
+  const saveDraft=(extra={})=>{
+    if(!student)return;const prev=getDraft()||{};
+    const draft={...prev,assignmentId:HOMEWORK_META.assignmentId,studentCode:student.code,answers:currentAnswers(),
+      startedAt:startAt||prev.startedAt||Date.now(),updatedAt:Date.now(),...extra};
+    localStorage.setItem(draftKey(),JSON.stringify(draft));
+  };
+  const revealSolutionButtons=()=>document.querySelectorAll(".solution-toggle").forEach(b=>b.classList.add("visible"));
+
+  const renderTasks=()=>{
+    const grid=byId("taskGrid");grid.textContent="";
+    TASKS.forEach((task,index)=>{
+      const card=document.createElement("article");card.className="task-card";card.dataset.index=String(index);
+      const sketch=document.createElement("div");sketch.className="sketch";sketch.innerHTML=visualFor(task);
+      const content=document.createElement("div");content.className="task-content";
+      const top=document.createElement("div");top.className="task-top";
+      const no=document.createElement("span");no.className="task-no";no.textContent=String(index+1);
+      const proto=document.createElement("span");proto.className="prototype";proto.textContent=task.prototype;
+      const section=document.createElement("span");section.className="section-tag";section.textContent="Раздел "+task.section;
+      const condition=document.createElement("p");condition.className="condition";condition.innerHTML=task.promptHtml;
+      const row=document.createElement("div");row.className="answer-row";
+      const label=document.createElement("label");label.htmlFor="answer-"+index;label.textContent="Ваш ответ:";
+      const input=document.createElement("input");input.className="answer-input";input.id="answer-"+index;input.inputMode="decimal";input.autocomplete="off";input.placeholder="Введите число";
+      input.addEventListener("input",()=>{updateProgress();saveDraft();});
+      const solBtn=document.createElement("button");solBtn.type="button";solBtn.className="solution-toggle";solBtn.textContent="Показать решение";solBtn.addEventListener("click",()=>toggleSolution(index));
+      const slot=document.createElement("div");slot.className="solution-slot";slot.id="solution-"+index;slot.hidden=true;
+      top.append(no,proto,section);row.append(label,input);content.append(top,condition,row,solBtn);card.append(sketch,content,slot);grid.appendChild(card);
     });
-    const postJson=async payload=>{
-      const response=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload),redirect:"follow"});
-      if(!response.ok)throw new Error("Сервер отклонил отправку.");
-      const text=await response.text();if(!text)return {ok:true};
-      try{return JSON.parse(text);}catch(_){return {ok:true};}
-    };
+    typeset(grid);
+  };
+  const updateProgress=(save=false)=>{
+    const inputs=[...document.querySelectorAll(".answer-input")],count=inputs.filter(i=>i.value.trim()).length,p=count/TASKS.length*100;
+    byId("progressFill").style.width=p+"%";byId("runner").style.left="calc("+p+"% - "+(p?18:0)+"px)";byId("progressCount").textContent=count+" / "+TASKS.length;
+    if(save)saveDraft();
+  };
+  const buildSolution=task=>{
+    const box=document.createElement("div");box.className="solution-box";
+    const cond=document.createElement("p");cond.className="solution-condition";cond.innerHTML=task.promptHtml;
+    const grid=document.createElement("div");grid.className="solution-grid";
+    const block=(title,content,cls="")=>{const el=document.createElement("div");el.className="solution-block "+cls;const s=document.createElement("strong");s.textContent=title;const d=document.createElement("div");d.innerHTML=content;el.append(s,d);return el;};
+    const recall=block("Вспомним",task.recallHtml,"recall");
+    const formula=block("Формула","\\["+task.formulaLatex+"\\]","formula");
+    const hack=block("Лайфхак",task.hackHtml,"hack");
+    const steps=document.createElement("div");steps.className="solution-block steps-block";
+    const st=document.createElement("strong");st.textContent="Решение по шагам";steps.appendChild(st);
+    task.stepsHtml.forEach(t=>{const line=document.createElement("div");line.className="math-step";line.innerHTML=t;steps.appendChild(line);});
+    const ans=document.createElement("span");ans.className="correct-answer";ans.innerHTML="Ответ: \\("+task.answerLatex+"\\)";steps.appendChild(ans);
+    grid.append(recall,hack,formula,steps);box.append(cond,grid);return box;
+  };
+  const toggleSolution=index=>{
+    if(!(graded||reviewMode))return;
+    const slot=byId("solution-"+index),button=document.querySelector('.task-card[data-index="'+index+'"] .solution-toggle');
+    if(!slot.firstChild){slot.appendChild(buildSolution(TASKS[index]));typeset(slot);}
+    slot.hidden=!slot.hidden;button.textContent=slot.hidden?"Показать решение":"Скрыть решение";
+  };
+  const startTimer=()=>{
+    clearInterval(timerId);
+    const tick=()=>byId("timer").textContent=formatTime(Math.max(0,Math.floor((Date.now()-startAt)/1000)));
+    tick();timerId=setInterval(tick,1000);
+  };
+  const grade=()=>{
+    let score=0;document.querySelectorAll(".answer-input").forEach((input,index)=>{
+      input.classList.remove("correct","wrong");input.closest(".task-card").classList.remove("correct","wrong");
+      const ok=equalAnswer(parseNumber(input.value),TASKS[index].answer);input.classList.add(ok?"correct":"wrong");input.readOnly=true;
+      input.closest(".task-card").classList.add(ok?"correct":"wrong");if(ok)score++;
+    });return score;
+  };
+  const showResult=(score,duration,{scroll=true,sound=true}={})=>{
+    graded=true;reviewMode=true;clearInterval(timerId);const percent=Math.round(score/TASKS.length*100);
+    byId("scoreOrb").textContent=percent+"%";byId("resultTitle").textContent=percent===100?"Идеальная экспедиция!":percent>=70?"Отличный маршрут!":"Маршрут пройден";
+    byId("resultText").textContent="Правильных ответов: "+score+" из "+TASKS.length+". Время: "+formatTime(duration)+".";
+    byId("resultPanel").hidden=false;submitButton.disabled=true;revealSolutionButtons();
+    if(sound)playEffect(percent>=70?"success":"finish");if(scroll)byId("resultPanel").scrollIntoView({behavior:"smooth",block:"center"});
+  };
+  const setReviewMode=()=>{
+    reviewMode=true;monthlySubmitted=true;document.querySelectorAll(".answer-input").forEach(i=>i.readOnly=true);revealSolutionButtons();submitButton.disabled=true;
+    byId("submitTitle").textContent="Режим просмотра и разбора";byId("submitHint").textContent="Эта работа уже была отправлена в этом месяце.";submitButton.textContent="Уже отправлено";
+    setNotice("Эта работа уже была отправлена в этом месяце. Доступен режим просмотра и разбора.","warn");
+  };
+  const restoreDraft=()=>{
+    const d=getDraft();if(d&&Array.isArray(d.answers)){document.querySelectorAll(".answer-input").forEach((input,i)=>{input.value=d.answers[i]??"";});}
+    startAt=d&&Number.isFinite(Number(d.startedAt))?Number(d.startedAt):Date.now();if(!d||!d.startedAt)saveDraft();
+    updateProgress(false);startTimer();
+    if(d&&d.submittedResult){const score=grade();showResult(score,Math.max(1,Number(d.submittedResult.durationSeconds)||1),{scroll:false,sound:false});}
+  };
 
-    let student=null,startAt=0,timerId=null,monthlySubmitted=false,officialAvailable=false,graded=false,solutionsVisible=false;
-    const notice=byId("notice"),submitButton=byId("submitButton");
-    const setNotice=(text,type)=>{notice.textContent=text;notice.className="notice "+type;};
-    const renderTasks=()=>{
-      const grid=byId("taskGrid");grid.textContent="";
-      TASKS.forEach((task,index)=>{
-        const card=document.createElement("article");card.className="task-card";card.dataset.index=String(index);
-        const sketch=document.createElement("div");sketch.className="sketch";sketch.innerHTML=svgFor(task);
-        const content=document.createElement("div");content.className="task-content";
-        const top=document.createElement("div");top.className="task-top";
-        const no=document.createElement("span");no.className="task-no";no.textContent=String(index+1);
-        const proto=document.createElement("span");proto.className="prototype";proto.textContent=task.prototype;
-        const section=document.createElement("span");section.className="section-tag";section.textContent="Раздел "+task.section;
-        const condition=document.createElement("p");condition.className="condition";condition.textContent=task.prompt;
-        const row=document.createElement("div");row.className="answer-row";
-        const label=document.createElement("label");label.htmlFor="answer-"+index;label.textContent="Ваш ответ:";
-        const input=document.createElement("input");input.className="answer-input";input.id="answer-"+index;input.inputMode="decimal";input.autocomplete="off";input.placeholder="Введите число";input.addEventListener("input",updateProgress);
-        const slot=document.createElement("div");slot.className="solution-slot";slot.id="solution-"+index;
-        top.append(no,proto,section);row.append(label,input);content.append(top,condition,row);card.append(sketch,content,slot);grid.appendChild(card);
-      });
-    };
-    const updateProgress=()=>{
-      const inputs=[...document.querySelectorAll(".answer-input")],count=inputs.filter(i=>i.value.trim()).length,p=count/TASKS.length*100;
-      byId("progressFill").style.width=p+"%";byId("runner").style.left="calc("+p+"% - "+(p?18:0)+"px)";byId("progressCount").textContent=count+" / "+TASKS.length;
-    };
-    const buildSolution=(task,index)=>{
-      const box=document.createElement("div");box.className="solution-box";
-      const cond=document.createElement("p");cond.className="solution-condition";cond.textContent=task.prompt;
-      const grid=document.createElement("div");grid.className="solution-grid";
-      const block=(title,text,cls="")=>{const el=document.createElement("div");el.className="solution-block "+cls;const s=document.createElement("strong");s.textContent=title;const d=document.createElement("div");d.textContent=text;el.append(s,d);return el;};
-      const recall=block("Вспомним",task.recall),formula=block("Формула",task.formula,"formula"),hack=block("Лайфхак",task.hack);
-      const steps=document.createElement("div");steps.className="solution-block steps-block";const st=document.createElement("strong");st.textContent="Решение по шагам";const ol=document.createElement("ol");
-      task.steps.forEach(t=>{const li=document.createElement("li");li.textContent=t;ol.appendChild(li);});
-      const ans=document.createElement("span");ans.className="correct-answer";ans.textContent="Ответ: "+task.answerText;steps.append(st,ol,ans);grid.append(recall,formula,hack,steps);box.append(cond,grid);return box;
-    };
-    const toggleSolutions=()=>{
-      solutionsVisible=!solutionsVisible;
-      TASKS.forEach((task,index)=>{const slot=byId("solution-"+index);if(solutionsVisible&&!slot.firstChild)slot.appendChild(buildSolution(task,index));slot.hidden=!solutionsVisible;});
-      byId("solutionsButton").textContent=solutionsVisible?"Скрыть разбор":"Разобрать решения";
-      if(solutionsVisible)byId("solution-0").scrollIntoView({behavior:"smooth",block:"center"});
-    };
-    const startTimer=()=>{startAt=Date.now();clearInterval(timerId);timerId=setInterval(()=>{byId("timer").textContent=formatTime(Math.floor((Date.now()-startAt)/1000));},1000);};
-    const grade=()=>{
-      let score=0;
-      document.querySelectorAll(".answer-input").forEach((input,index)=>{
-        const ok=equalAnswer(parseNumber(input.value),TASKS[index].answer);input.classList.add(ok?"correct":"wrong");input.readOnly=true;
-        const card=input.closest(".task-card");card.classList.add(ok?"correct":"wrong");if(ok)score++;
-      });return score;
-    };
-    const showResult=(score,duration)=>{
-      graded=true;clearInterval(timerId);const percent=Math.round(score/TASKS.length*100);
-      byId("scoreOrb").textContent=percent+"%";byId("resultTitle").textContent=percent===100?"Идеальная экспедиция!":percent>=70?"Отличный маршрут!":"Маршрут пройден";
-      byId("resultText").textContent="Правильных ответов: "+score+" из "+TASKS.length+". Время: "+formatTime(duration)+".";
-      byId("resultPanel").hidden=false;submitButton.disabled=true;playEffect(percent>=70?"success":"finish");byId("resultPanel").scrollIntoView({behavior:"smooth",block:"center"});
-    };
-    const handleSubmit=async()=>{
-      if(graded)return;
-      const inputs=[...document.querySelectorAll(".answer-input")],empty=inputs.find(i=>!i.value.trim());
-      if(empty){empty.focus();setNotice("Заполните все 12 ответов перед отправкой.","warn");playEffect("error");return;}
-      if(!officialAvailable&&!monthlySubmitted){setNotice("Официальная отправка недоступна без проверки сервера. Обновите страницу позже.","error");playEffect("error");return;}
-      const duration=Math.max(1,Math.floor((Date.now()-startAt)/1000));
-      if(officialAvailable&&!monthlySubmitted){
-        submitButton.disabled=true;submitButton.textContent="Отправляем…";setNotice("Передаём только итоговый процент и время…","warn");
-        const scorePreview=inputs.reduce((sum,input,index)=>sum+(equalAnswer(parseNumber(input.value),TASKS[index].answer)?1:0),0);
-        const payload={
-          action:"submitHomework",
-          eventId:makeEventId(),
-          studentId:student.id,
-          assignmentId:HOMEWORK_META.assignmentId,
-          taskNumber:HOMEWORK_META.taskNumber,
-          topicId:HOMEWORK_META.topicId,
-          topicName:HOMEWORK_META.topicName,
-          scorePercent:Math.round(scorePreview/TASKS.length*100),
-          durationSeconds:duration,
-          schemaVersion:1
-        };
+  const processQueue=async()=>{
+    if(sendingQueue||!student||monthlySubmitted||!monthlyCheckDone||!navigator.onLine)return;sendingQueue=true;
+    try{
+      let q=loadQueue();
+      for(const item of [...q]){
+        if(!item||item.studentCode!==student.code||!item.payload)continue;
         try{
-          const response=await postJson(payload);if(response&&response.ok===false)throw new Error(response.error||"Сервер не принял результат.");
-          monthlySubmitted=true;localStorage.setItem(localSubmissionKey(),"1");setNotice("Результат отправлен. Повторная отправка в этом месяце закрыта.","ok");
-        }catch(error){submitButton.disabled=false;submitButton.textContent="Повторить отправку";setNotice(error.message+" Проверка и решения не раскрыты.","error");playEffect("error");return;}
-      }else setNotice("Тренировочная проверка: результат повторно не отправлялся.","warn");
-      const score=grade();showResult(score,duration);
-    };
+          const response=await postJson(item.payload);if(response&&response.ok===false)throw new Error("server");
+          q=q.filter(x=>!(x&&x.payload&&x.payload.eventId===item.payload.eventId));saveQueue(q);
+          localStorage.setItem(localSubmissionKey(item.studentCode),"1");monthlySubmitted=true;setNotice("Работа завершена. Результат сохранён.","ok");break;
+        }catch(_){break;}
+      }
+    }finally{sendingQueue=false;}
+  };
+  const checkMonthlyInBackground=async()=>{
+    if(!student)return;
+    try{
+      const status=await jsonp({action:"checkHomeworkSubmission",studentId:verifiedStudentId||student.id||student.code,assignmentId:HOMEWORK_META.assignmentId});
+      if(status&&status.ok===false)throw new Error("server");monthlyCheckDone=true;
+      if(Boolean(status&&status.submitted)){localStorage.setItem(localSubmissionKey(),"1");dropQueuedForStudent(student.code);setReviewMode();}
+      else if(!monthlySubmitted)processQueue();
+    }catch(_){monthlyCheckDone=false;}
+  };
+  const validateStudentInBackground=async code=>{
+    try{
+      const data=await jsonp({action:"validateStudent",code});const resolved=parseStudent(data,code);if(!resolved)return;if(!student||student.code!==resolved.code)return;
+      student=resolved;verifiedStudentId=resolved.id;saveVerifiedStudent(resolved);updateQueuedStudentId(resolved.code,resolved.id);
+      byId("studentChip").textContent=resolved.name+" · "+resolved.code;await checkMonthlyInBackground();processQueue();
+    }catch(_){}
+  };
+  const backgroundSync=()=>{if(!student)return;if(!verifiedStudentId)validateStudentInBackground(student.code);checkMonthlyInBackground();processQueue();};
 
-    let audioEnabled=true,audioContext=null,musicTimer=null,musicStarted=false;
+  const handleSubmit=()=>{
+    if(graded||reviewMode)return;
+    const duration=Math.max(1,Math.floor((Date.now()-startAt)/1000)),score=grade(),scorePercent=Math.round(score/TASKS.length*100);
+    const eventId=makeEventId(),answers=currentAnswers(),submittedResult={eventId,correct:score,scorePercent,durationSeconds:duration,answers,submittedAt:new Date().toISOString()};
+    saveDraft({answers,submittedResult,updatedAt:Date.now()});showResult(score,duration);
+    if(!monthlySubmitted){const payload=buildSubmissionPayload(student,scorePercent,duration,eventId);enqueuePayload(payload,student.code);processQueue();}
+    else setNotice("Эта работа уже была отправлена в этом месяце. Доступен режим просмотра и разбора.","warn");
+  };
+
+let audioEnabled=true,audioContext=null,musicTimer=null,musicStarted=false;
     const tone=(freq,when,duration,volume,type="sine")=>{
       if(!audioEnabled||!audioContext)return;const o=audioContext.createOscillator(),g=audioContext.createGain();o.type=type;o.frequency.setValueAtTime(freq,when);
       g.gain.setValueAtTime(.0001,when);g.gain.exponentialRampToValueAtTime(volume,when+.02);g.gain.exponentialRampToValueAtTime(.0001,when+duration);o.connect(g).connect(audioContext.destination);o.start(when);o.stop(when+duration+.03);
@@ -808,41 +610,39 @@
       audioEnabled=!audioEnabled;byId("soundButton").textContent=audioEnabled?"🔊 Звук":"🔇 Без звука";byId("soundButton").setAttribute("aria-pressed",String(audioEnabled));
       if(audioEnabled)ensureAudio();else if(audioContext)audioContext.suspend();
     };
-    const prepareStudent=async current=>{
-      student=current;byId("loginLayer").hidden=true;byId("loadingLayer").hidden=false;let status=null;
-      try{
-        status=await jsonp({action:"checkHomeworkSubmission",studentId:student.id,assignmentId:HOMEWORK_META.assignmentId});
-        if(status&&status.ok===false)throw new Error(status.error||"Не удалось проверить отправку.");
-        monthlySubmitted=Boolean(status&&status.submitted);officialAvailable=!monthlySubmitted;
-      }catch(error){
-        monthlySubmitted=localStorage.getItem(localSubmissionKey())==="1";officialAvailable=false;status={networkError:error.message};
-      }
-      byId("studentChip").textContent=student.name+" · "+student.code;byId("loadingLayer").hidden=true;byId("appShell").hidden=false;
-      if(monthlySubmitted){
-        setNotice("Работа уже отправлена в этом месяце. Доступен просмотр и тренировочное решение без повторной отправки.","warn");
-        byId("submitTitle").textContent="Тренировочная проверка";byId("submitHint").textContent="Результат повторно на сервер не отправится.";submitButton.textContent="Проверить для тренировки";
-      }else if(status&&status.networkError){
-        setNotice("Не удалось проверить сервер. Работу можно просматривать, но отправка временно заблокирована.","error");submitButton.disabled=true;
-      }else setNotice("Отправка в этом календарном месяце доступна. Проверка и решения появятся только после отправки.","ok");
-      startTimer();
-    };
-    const login=async event=>{
-      event.preventDefault();ensureAudio();const code=byId("codeInput").value.trim();if(!code)return;
-      byId("loginButton").disabled=true;byId("loginError").textContent="Проверяем код…";
-      try{const data=await jsonp({action:"validateStudent",code});const resolved=parseStudent(data,code);if(!resolved)throw new Error((data&&data.error)||"Код ученика не найден.");saveStudent(resolved);byId("loginError").textContent="";await prepareStudent(resolved);}
-      catch(error){byId("loginError").textContent=error.message;playEffect("error");}finally{byId("loginButton").disabled=false;}
-    };
-    const init=()=>{
-      document.title=HOMEWORK_META.documentTitle;["partLabel","partTop"].forEach(id=>byId(id).textContent="ДЗ "+HOMEWORK_META.part+" из 4");
-      byId("focusText").textContent=HOMEWORK_META.focus;byId("sectionsText").textContent=HOMEWORK_META.sections;byId("guideText").textContent=HOMEWORK_META.guide;
-      renderTasks();byId("loginForm").addEventListener("submit",login);submitButton.addEventListener("click",handleSubmit);
-      byId("solutionsButton").addEventListener("click",toggleSolutions);byId("soundButton").addEventListener("click",toggleSound);
-      byId("logoutButton").addEventListener("click",()=>{clearStudent();location.reload();});document.addEventListener("pointerdown",ensureAudio,{once:true});
-      const cached=loadStudent();if(cached)prepareStudent(cached);
-    };
-    globalThis.__EGE_TEST__={HOMEWORK_META,G,buildTasks,parseNumber,equalAnswer};
-    // APP-BOOT
-    init();
+
+  const toggleScreenshot=()=>{
+    const on=document.body.classList.toggle("screenshot-mode");byId("screenshotButton").textContent=on?"✕ Выйти из скриншота":"📸 Скриншот";
+    if(!on)typeset(byId("taskGrid"));
+  };
+  const openStudent=current=>{
+    student={id:String(current.id||current.code),name:String(current.name||"Ученик"),code:normalizeCode(current.code)};
+    verifiedStudentId=current.id&&String(current.id)!==student.code?String(current.id):"";
+    byId("loginLayer").hidden=true;byId("appShell").hidden=false;byId("studentChip").textContent=student.name+" · "+student.code;
+    restoreDraft();monthlySubmitted=localStorage.getItem(localSubmissionKey())==="1";
+    if(monthlySubmitted&&!graded)setReviewMode();else if(!graded)setNotice("Можно завершить в любой момент. Пустые ответы считаются неверными.","ok");
+    validateStudentInBackground(student.code);checkMonthlyInBackground();processQueue();
+  };
+  const login=event=>{
+    event.preventDefault();ensureAudio();const code=normalizeCode(byId("codeInput").value);if(!code)return;
+    const cached=loadStudent(),current=cached&&cached.code===code?cached:{id:code,name:"Ученик",code};
+    localStorage.setItem("egeStudentCode",code);byId("loginError").textContent="";openStudent(current);
+  };
+  const init=()=>{
+    document.title=HOMEWORK_META.documentTitle;["partLabel","partTop"].forEach(id=>byId(id).textContent="ДЗ "+HOMEWORK_META.part+" из 4");
+    byId("focusText").textContent=HOMEWORK_META.focus;byId("sectionsText").textContent=HOMEWORK_META.sections;byId("guideText").textContent=HOMEWORK_META.guide;
+    const footerPart=byId("footerPart");if(footerPart)footerPart.textContent="Домашняя работа "+HOMEWORK_META.part+" из 4";
+    renderTasks();byId("loginForm").addEventListener("submit",login);submitButton.addEventListener("click",handleSubmit);
+    byId("soundButton").addEventListener("click",toggleSound);byId("screenshotButton").addEventListener("click",toggleScreenshot);
+    byId("logoutButton").addEventListener("click",()=>{clearStudent();location.reload();});
+    document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.body.classList.contains("screenshot-mode"))toggleScreenshot();});
+    document.addEventListener("pointerdown",ensureAudio,{once:true});window.addEventListener("online",backgroundSync);
+    window.addEventListener("pagehide",()=>{if(student&&!graded)saveDraft();});window.addEventListener("load",()=>typeset(byId("taskGrid")));
+    setInterval(backgroundSync,60000);const cached=loadStudent();if(cached)openStudent(cached);
+  };
+  globalThis.__EGE_TEST__={HOMEWORK_META,TASKS,parseNumber,equalAnswer,audit,parseStudent,buildSubmissionPayload,monthKey,localSubmissionKey,queueKey,draftKey,init};
+  init();
+
 </script>
 </body>
 </html>
