@@ -1,0 +1,67 @@
+name: Embed EGE 11 guide assets
+
+on:
+  push:
+    paths:
+      - ".github/workflows/embed-gaid11-assets.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  embed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Embed extracted images back into gaid.html
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64
+
+          html_path = Path("EGA/11/gaid.html")
+          html = html_path.read_bytes().decode("utf-8")
+
+          assets = [
+              ("assets/gaid-asset-0.jpg", "image/jpeg"),
+              ("assets/gaid-asset-1.png", "image/png"),
+              ("assets/gaid-asset-2.png", "image/png"),
+              ("assets/gaid-asset-3.png", "image/png"),
+              ("assets/gaid-asset-4.png", "image/png"),
+              ("assets/gaid-asset-5.png", "image/png"),
+              ("assets/gaid-asset-6.png", "image/png"),
+          ]
+
+          for rel, mime in assets:
+              asset_path = Path("EGA/11") / rel
+              if not asset_path.exists():
+                  raise SystemExit(f"Missing asset: {asset_path}")
+              if rel not in html:
+                  raise SystemExit(f"Reference not found in gaid.html: {rel}")
+              encoded = base64.b64encode(asset_path.read_bytes()).decode("ascii")
+              html = html.replace(rel, f"data:{mime};base64,{encoded}")
+
+          if "assets/gaid-asset-" in html:
+              raise SystemExit("External gaid asset references still remain")
+
+          html_path.write_bytes(html.encode("utf-8"))
+          PY
+
+          rm -f EGA/11/assets/gaid-asset-0.jpg                 EGA/11/assets/gaid-asset-1.png                 EGA/11/assets/gaid-asset-2.png                 EGA/11/assets/gaid-asset-3.png                 EGA/11/assets/gaid-asset-4.png                 EGA/11/assets/gaid-asset-5.png                 EGA/11/assets/gaid-asset-6.png
+
+      - name: Commit result
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add EGA/11/gaid.html EGA/11/assets
+          git commit -m "вернуть картинки внутрь гайда 11"
+          git push
