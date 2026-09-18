@@ -429,8 +429,31 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-2;bac
 #globalBoardSurface>.shared-board-layer.active{pointer-events:auto!important;touch-action:none!important}
 .practice-work-wrap{width:100%;margin-top:16px;padding:14px;border:1px solid rgba(69,196,255,.34);border-radius:16px;background:linear-gradient(180deg,rgba(8,24,45,.96),rgba(5,15,31,.96));box-shadow:inset 0 0 22px rgba(70,209,255,.04)}
 .practice-work-title{margin:0 0 10px;color:#8eeaff;font-size:12px;font-weight:1000;letter-spacing:.06em;text-transform:uppercase}
-.practice-work-surface{position:relative;width:100%;aspect-ratio:2/3;min-height:420px;border:1px solid rgba(120,181,224,.32);border-radius:14px;background-color:#081523;background-image:linear-gradient(rgba(93,150,195,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(93,150,195,.16) 1px,transparent 1px);background-size:24px 24px;overflow:hidden}
-@media(max-width:620px){.practice-work-surface{min-height:0;aspect-ratio:2/3}}
+.practice-work-surface{position:relative;width:100%;aspect-ratio:4/3;min-height:210px;border:1px solid rgba(120,181,224,.32);border-radius:14px;background-color:#081523;background-image:linear-gradient(rgba(93,150,195,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(93,150,195,.16) 1px,transparent 1px);background-size:24px 24px;overflow:hidden}
+@media(max-width:620px){.practice-work-surface{min-height:0;aspect-ratio:4/3}}
+
+/* ===== chapter-collapse-update-2026-09-18 ===== */
+.proto-head{cursor:pointer!important}
+.proto-body{display:block}
+.proto-section.collapsed .proto-body{display:none}
+.proto-section.collapsed .formula-pill{display:none!important}
+.chapter-toggle{
+  grid-column:1/-1!important;
+  width:100%;
+  margin:2px 0 0;
+  padding:10px 13px;
+  border:1px solid rgba(68,215,255,.42);
+  border-radius:12px;
+  background:linear-gradient(180deg,#0b2949,#081c34);
+  color:#dff7ff;
+  font-weight:1000;
+  font-size:12px;
+  letter-spacing:.04em;
+  cursor:pointer;
+}
+.chapter-toggle:hover{border-color:#74e6ff;background:#0d3459}
+.proto-section.collapsed{padding-bottom:12px!important}
+.proto-section.collapsed .proto-head{padding-bottom:0!important;border-bottom:0!important}
 </style>
 </head>
 <body><div id="globalBoardSurface" data-board-anchor="global-document"></div>
@@ -1112,29 +1135,60 @@ function setupSliders(){for(const p of PROTOS){const box=$('sliders-'+p.id);box.
 function scaleCanvas(canvas){const dpr=Math.max(1,Math.min(2,devicePixelRatio||1)),cssW=canvas.clientWidth||canvas.width,cssH=cssW*(canvas.height/canvas.width);canvas.style.height=cssH+'px';canvas.width=Math.round(cssW*dpr);canvas.height=Math.round(cssH*dpr);const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);return{ctx,w:cssW,h:cssH}}
 function drawGrid(ctx,w,h,range=7){ctx.clearRect(0,0,w,h);const bg=ctx.createLinearGradient(0,0,0,h);bg.addColorStop(0,'#071220');bg.addColorStop(1,'#0d2238');ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);const sx=w/(2*range),sy=h/(2*range),X=x=>w/2+x*sx,Y=y=>h/2-y*sy;ctx.strokeStyle='rgba(140,185,227,.26)';ctx.lineWidth=1;for(let i=-range;i<=range;i++){ctx.beginPath();ctx.moveTo(X(i),0);ctx.lineTo(X(i),h);ctx.stroke();ctx.beginPath();ctx.moveTo(0,Y(i));ctx.lineTo(w,Y(i));ctx.stroke()}ctx.strokeStyle='#7db4df';ctx.lineWidth=1.7;ctx.beginPath();ctx.moveTo(0,Y(0));ctx.lineTo(w,Y(0));ctx.stroke();ctx.beginPath();ctx.moveTo(X(0),0);ctx.lineTo(X(0),h);ctx.stroke();ctx.fillStyle='#d8ebff';ctx.font='11px system-ui';for(let i=-range;i<=range;i++){if(i&&i%2===0){ctx.fillText(i,X(i)+2,Y(0)+13);ctx.fillText(i,X(0)+4,Y(i)-3)}}return{X,Y,range}}
 function graphFn(kind,p,which=1){if(kind==='linear')return x=>p.k*x+p.b;if(kind==='reciprocal')return x=>Math.abs(x)<.03?NaN:p.k/x;if(kind==='exponential')return x=>p.a**x;if(kind==='root')return x=>x<0?NaN:p.a*Math.sqrt(x);if(kind==='log')return x=>x<=0?NaN:Math.log(x)/Math.log(p.a);if(kind==='quadratic')return x=>p.a*x*x+p.b*x+p.c;if(kind==='line-line')return which===1?x=>p.k1*x+p.b1:x=>p.k2*x+p.b2;if(kind==='parabola-line')return which===1?x=>p.a*x*x:x=>p.m*x+p.b;if(kind==='hyperbola-line')return which===1?x=>Math.abs(x)<.03?NaN:p.k/x:x=>p.m*x+p.b;if(kind==='exp-line')return which===1?x=>p.a**x:x=>p.c;if(kind==='mixed')return which===1?x=>x*x:x=>-((x-p.h)**2)+p.c}
-function drawCurve(ctx,geo,fn,color){const{X,Y,range}=geo;ctx.strokeStyle=color;ctx.lineWidth=2.5;ctx.beginPath();let started=false,lastY=null;for(let i=0;i<=900;i++){let x=-range+2*range*i/900,y=fn(x);if(!Number.isFinite(y)||Math.abs(y)>range*4){started=false;lastY=null;continue}let px=X(x),py=Y(y);if(lastY!=null&&Math.abs(py-lastY)>geo.range*25){started=false}if(!started){ctx.moveTo(px,py);started=true}else ctx.lineTo(px,py);lastY=py}ctx.stroke()}
+function drawCurve(ctx,geo,fn,color,opts={}){const{X,Y,range}=geo;const gaps=Array.isArray(opts.gapXs)?opts.gapXs:[];ctx.strokeStyle=color;ctx.lineWidth=2.5;ctx.beginPath();let started=false,lastY=null;for(let i=0;i<=900;i++){let x=-range+2*range*i/900;if(gaps.some(g=>Math.abs(x-g.x)<(g.radius||.85))){started=false;lastY=null;continue}let y=fn(x);if(!Number.isFinite(y)||Math.abs(y)>range*4){started=false;lastY=null;continue}let px=X(x),py=Y(y);if(lastY!=null&&Math.abs(py-lastY)>geo.range*25){started=false}if(!started){ctx.moveTo(px,py);started=true}else ctx.lineTo(px,py);lastY=py}ctx.stroke()}
 function dot(ctx,geo,x,y,color='#ff6b7a'){ctx.fillStyle=color;ctx.beginPath();ctx.arc(geo.X(x),geo.Y(y),5,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#f7fbff';ctx.lineWidth=2;ctx.stroke()}
 function labelBox(ctx,x,y,text,align='left'){ctx.save();ctx.font='bold 12px system-ui';const padX=7,padY=5,w=ctx.measureText(text).width+padX*2,h=24;let bx=x,by=y-h/2;if(align==='center')bx-=w/2;else if(align==='right')bx-=w;ctx.fillStyle='rgba(7,21,38,.92)';ctx.strokeStyle='rgba(116,230,255,.45)';ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(bx,by,w,h,8);ctx.fill();ctx.stroke();ctx.fillStyle='#f6fbff';ctx.fillText(text,bx+padX,by+16);ctx.restore()}
 function annotateModelParameter(ctx,geo,kind,p){
   ctx.save();
+  const guide=(x1,y1,x2,y2)=>{
+    ctx.save();
+    ctx.setLineDash([8,6]);
+    ctx.strokeStyle='rgba(255,213,74,.92)';
+    ctx.lineWidth=1.8;
+    ctx.beginPath();
+    ctx.moveTo(geo.X(x1),geo.Y(y1));
+    ctx.lineTo(geo.X(x2),geo.Y(y2));
+    ctx.stroke();
+    ctx.restore();
+  };
+  const stepGuide=(x0,y0,x1,y1)=>{
+    guide(x0,y0,x1,y0);
+    guide(x1,y0,x1,y1);
+  };
   if(kind==='linear'){
     const x1=0,y1=p.b,x2=1,y2=p.k+p.b;
+    stepGuide(x1,y1,x2,y2);
     dot(ctx,geo,x1,y1,'#ffd54a');dot(ctx,geo,x2,y2,'#ffd54a');
     labelBox(ctx,geo.X(x1)+10,geo.Y(y1)-18,`b = ${fmt(p.b)}`,'left');
-    labelBox(ctx,geo.X(x2)+10,geo.Y(y2)-18,`+1 по x → k = ${fmt(p.k)}`,'left');
+    labelBox(ctx,geo.X(x2)+10,geo.Y(y2)-18,`+1 по x → Δy = k = ${fmt(p.k)}`,'left');
   }else if(kind==='root'){
-    const x=1,y=p.a;dot(ctx,geo,x,y,'#ffd54a');labelBox(ctx,geo.X(x)+10,geo.Y(y)-18,`(1; ${fmt(y)}) → a = ${fmt(p.a)}`,'left');
+    const x=1,y=p.a;
+    stepGuide(0,0,x,y);
+    dot(ctx,geo,x,y,'#ffd54a');
+    labelBox(ctx,geo.X(x)+10,geo.Y(y)-18,`x=1 → a = ${fmt(p.a)}`,'left');
   }else if(kind==='exponential'){
-    const x=1,y=p.a;dot(ctx,geo,x,y,'#ffd54a');labelBox(ctx,geo.X(x)+10,geo.Y(y)-18,`(1; ${fmt(y)}) → a = ${fmt(p.a)}`,'left');
+    const x=1,y=p.a;
+    stepGuide(0,0,x,y);
+    dot(ctx,geo,x,y,'#ffd54a');
+    labelBox(ctx,geo.X(x)+10,geo.Y(y)-18,`x=1 → a = ${fmt(p.a)}`,'left');
   }else if(kind==='log'){
-    const x=p.a,y=1;dot(ctx,geo,x,y,'#ffd54a');labelBox(ctx,geo.X(x)+10,geo.Y(y)-18,`(${fmt(x)}; 1) → a = ${fmt(p.a)}`,'left');
+    const x=p.a,y=1;
+    stepGuide(0,0,x,y);
+    dot(ctx,geo,x,y,'#ffd54a');
+    labelBox(ctx,geo.X(x)+10,geo.Y(y)-18,`y=1 → a = ${fmt(p.a)}`,'left');
   }else if(kind==='reciprocal'){
-    const x=1,y=p.k;if(Number.isFinite(y)&&Math.abs(y)<=6.4){dot(ctx,geo,x,y,'#ffd54a');labelBox(ctx,geo.X(x)+10,geo.Y(y)-18,`(1; ${fmt(y)}) → k = ${fmt(p.k)}`,'left')}
+    const x=1,y=p.k;
+    if(Number.isFinite(y)&&Math.abs(y)<=6.4){
+      stepGuide(0,0,x,y);
+      dot(ctx,geo,x,y,'#ffd54a');
+      labelBox(ctx,geo.X(x)+10,geo.Y(y)-18,`x=1 → k = ${fmt(p.k)}`,'left');
+    }
   }else if(kind==='quadratic'){
     const a=Number(p.a);
     if(Number.isFinite(a)&&Math.abs(a)>1e-9){
       const h=-Number(p.b)/(2*a),v=Number(p.c)-Number(p.b)*Number(p.b)/(4*a),x=h+1,y=v+a;
       if([h,v,x,y].every(Number.isFinite)&&Math.abs(h)<=6.4&&Math.abs(v)<=6.4&&Math.abs(x)<=6.4&&Math.abs(y)<=6.4){
+        stepGuide(h,v,x,y);
         dot(ctx,geo,h,v,'#ffd54a');dot(ctx,geo,x,y,'#ffd54a');
         labelBox(ctx,geo.X(h)+10,geo.Y(v)+20,`V(${fmt(h)}; ${fmt(v)})`,'left');
         labelBox(ctx,geo.X(x)+10,geo.Y(y)-18,`+1 по x → Δy = a = ${fmt(a)}`,'left');
@@ -1143,7 +1197,7 @@ function annotateModelParameter(ctx,geo,kind,p){
   }
   ctx.restore();
 }
-function drawGraph(canvas,kind,p,task=false,extra={}){const{ctx,w,h}=scaleCanvas(canvas),geo=drawGrid(ctx,w,h,7);drawCurve(ctx,geo,graphFn(kind,p,1),'#51c1ff');const intersectionKinds=['line-line','parabola-line','hyperbola-line','exp-line','mixed'];if(intersectionKinds.includes(kind))drawCurve(ctx,geo,graphFn(kind,p,2),'#ffd24f');if(task){if(extra.point&&!intersectionKinds.includes(kind))dot(ctx,geo,extra.point[0],extra.point[1]);if(kind==='exponential')dot(ctx,geo,1,p.a);if(kind==='log')dot(ctx,geo,p.a,1);if(kind==='quadratic'&&extra.vertex)dot(ctx,geo,extra.vertex[0],extra.vertex[1])}else annotateModelParameter(ctx,geo,kind,p);return geo}
+function drawGraph(canvas,kind,p,task=false,extra={}){const{ctx,w,h}=scaleCanvas(canvas),geo=drawGrid(ctx,w,h,7);const intersectionKinds=['line-line','parabola-line','hyperbola-line','exp-line','mixed'];let gapXs=[];if(task&&intersectionKinds.includes(kind)&&extra.point){const targetX=Number(extra.point[0]);if(Number.isFinite(targetX)){gapXs.push({x:targetX,radius:.85});if(kind==='hyperbola-line'&&Math.abs(targetX)>.01)gapXs.push({x:-targetX,radius:.85})}}const curveOpts=gapXs.length?{gapXs}:{};drawCurve(ctx,geo,graphFn(kind,p,1),'#51c1ff',curveOpts);if(intersectionKinds.includes(kind))drawCurve(ctx,geo,graphFn(kind,p,2),'#ffd24f',curveOpts);if(task){if(extra.point&&!intersectionKinds.includes(kind))dot(ctx,geo,extra.point[0],extra.point[1]);if(kind==='exponential')dot(ctx,geo,1,p.a);if(kind==='log')dot(ctx,geo,p.a,1);if(kind==='quadratic'&&extra.vertex)dot(ctx,geo,extra.vertex[0],extra.vertex[1])}else annotateModelParameter(ctx,geo,kind,p);return geo}){const{ctx,w,h}=scaleCanvas(canvas),geo=drawGrid(ctx,w,h,7);drawCurve(ctx,geo,graphFn(kind,p,1),'#51c1ff');const intersectionKinds=['line-line','parabola-line','hyperbola-line','exp-line','mixed'];if(intersectionKinds.includes(kind))drawCurve(ctx,geo,graphFn(kind,p,2),'#ffd24f');if(task){if(extra.point&&!intersectionKinds.includes(kind))dot(ctx,geo,extra.point[0],extra.point[1]);if(kind==='exponential')dot(ctx,geo,1,p.a);if(kind==='log')dot(ctx,geo,p.a,1);if(kind==='quadratic'&&extra.vertex)dot(ctx,geo,extra.vertex[0],extra.vertex[1])}else annotateModelParameter(ctx,geo,kind,p);return geo}
 function renderModel(id){const p=ui.models[id],c=$('model-'+id);if(!p||!c)return;drawGraph(c,id,p);for(const[k,v]of Object.entries(p)){const inp=$(`sl-${id}-${k}`),val=$(`val-${id}-${k}`);if(inp&&document.activeElement!==inp)inp.value=v;if(val)val.textContent=fmt(v)}$('readout-'+id).textContent=modelText(id,p)}
 function modelText(id,p){if(id==='linear')return`y = ${fmt(p.k)}x ${p.b>=0?'+':'−'} ${fmt(Math.abs(p.b))} · при шаге по x на 1, по y меняется на ${fmt(p.k)}`;if(id==='reciprocal')return`y = ${fmt(p.k)} / x · при x = 1 получаем y = ${fmt(p.k)} = k`;if(id==='exponential')return`y = ${fmt(p.a)}ˣ · при x = 1 получаем y = ${fmt(p.a)} = a`;if(id==='root')return`y = ${fmt(p.a)}√x · при x = 1 получаем y = ${fmt(p.a)} = k`;if(id==='log')return`y = log₍${fmt(p.a)}₎x · при y = 1 получаем x = ${fmt(p.a)} = a`;if(id==='quadratic')return`y = ${fmt(p.a)}x² ${p.b>=0?'+':'−'} ${fmt(Math.abs(p.b))}x ${p.c>=0?'+':'−'} ${fmt(Math.abs(p.c))}`;if(id==='line-line')return`y₁=${fmt(p.k1)}x${p.b1>=0?'+':'−'}${fmt(Math.abs(p.b1))} · y₂=${fmt(p.k2)}x${p.b2>=0?'+':'−'}${fmt(Math.abs(p.b2))}`;if(id==='parabola-line')return`y₁=${fmt(p.a)}x² · y₂=${fmt(p.m)}x${p.b>=0?'+':'−'}${fmt(Math.abs(p.b))}`;if(id==='hyperbola-line')return`y₁=${fmt(p.k)}/x · y₂=${fmt(p.m)}x${p.b>=0?'+':'−'}${fmt(Math.abs(p.b))}`;if(id==='exp-line')return`y₁=${fmt(p.a)}ˣ · y₂=${fmt(p.c)}`;return`y₁=x² · y₂=−(x−${fmt(p.h)})²+${fmt(p.c)}`}
 function renderPractice(id){const st=ui.practice[id];if(!st)return;const t=st.task;$('question-'+id).textContent=t.q;const inp=$('answer-'+id);if(inp&&document.activeElement!==inp)inp.value=st.answerText||'';drawGraph($('practice-canvas-'+id),t.kind,t.p,true,t);const f=$('feedback-'+id);f.className='feedback'+(st.checked===true?' good':st.checked===false?' bad':'');f.textContent=st.checked===true?'✓ Верно. Разбор можно раскрыть по шагам.':st.checked===false?`Пока неверно. Проверь чтение графика, точки и коэффициенты по клеткам. Правильный ответ не показываю до разбора.`:'Сначала реши самостоятельно.';const sol=$('solution-'+id);sol.innerHTML='';for(let i=0;i<Math.min(st.reveal||0,t.sol.length);i++){const d=document.createElement('div');d.className='solution-line';d.innerHTML=`<b>Шаг ${i+1}.</b> ${t.sol[i]}`;sol.appendChild(d)}}
@@ -1306,4 +1360,52 @@ $('lessonFab').onclick=()=>{roleHome();openModal()};$('lessonPeople').onclick=pa
 })();
 </script>
 
-<script>(function(){const s=document.getElementById('globalBoardSurface');if(!s)return;function fit(){s.style.height=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight)+'px'}window.addEventListener('load',fit);window.addEventListener('resize',fit);setTimeout(fit,0);setTimeout(fit,800);if(window.ResizeObserver){new ResizeObserver(fit).observe(document.querySelector('main')||document.body)}else{setInterval(fit,1500)}})();</script></body></html>
+<script>(function(){const s=document.getElementById('globalBoardSurface');if(!s)return;function fit(){s.style.height=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight)+'px'}window.addEventListener('load',fit);window.addEventListener('resize',fit);setTimeout(fit,0);setTimeout(fit,800);if(window.ResizeObserver){new ResizeObserver(fit).observe(document.querySelector('main')||document.body)}else{setInterval(fit,1500)}})();</script>
+<script data-feature="chapter-collapse-update-2026-09-18">
+(function(){
+  function initChapters(){
+    const sections=[...document.querySelectorAll('.proto-section')];
+    sections.forEach(sec=>{
+      if(sec.dataset.chapterReady==='1')return;
+      const head=sec.querySelector(':scope > .proto-head');
+      if(!head)return;
+      sec.dataset.chapterReady='1';
+      const body=document.createElement('div');
+      body.className='proto-body';
+      let node=head.nextSibling;
+      while(node){const next=node.nextSibling;body.appendChild(node);node=next}
+      sec.appendChild(body);
+      const btn=document.createElement('button');
+      btn.type='button';
+      btn.className='chapter-toggle';
+      btn.setAttribute('aria-expanded','false');
+      btn.textContent='Раскрыть главу';
+      head.appendChild(btn);
+      const setOpen=open=>{
+        sec.classList.toggle('collapsed',!open);
+        btn.setAttribute('aria-expanded',open?'true':'false');
+        btn.textContent=open?'Свернуть главу':'Раскрыть главу';
+        requestAnimationFrame(()=>window.dispatchEvent(new Event('resize')));
+      };
+      sec.__setChapterOpen=setOpen;
+      setOpen(false);
+      btn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();setOpen(sec.classList.contains('collapsed'))});
+      head.addEventListener('click',e=>{
+        if(e.target.closest('button,a,input,select,textarea,label'))return;
+        setOpen(sec.classList.contains('collapsed'));
+      });
+    });
+    const nav=document.getElementById('protoNav');
+    if(nav){
+      nav.addEventListener('click',e=>{
+        const chip=e.target.closest('[data-proto]');
+        if(!chip)return;
+        const sec=document.getElementById('proto-'+chip.dataset.proto);
+        if(sec&&sec.__setChapterOpen)sec.__setChapterOpen(true);
+      },true);
+    }
+  }
+  window.addEventListener('load',initChapters,{once:true});
+})();
+</script>
+</body></html>
