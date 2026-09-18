@@ -433,7 +433,7 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-2;bac
 .practice-work-surface{position:relative;width:100%;aspect-ratio:4/3;min-height:210px;border:1px solid rgba(120,181,224,.32);border-radius:14px;background-color:#081523;background-image:linear-gradient(rgba(93,150,195,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(93,150,195,.16) 1px,transparent 1px);background-size:24px 24px;overflow:hidden}
 @media(max-width:620px){.practice-work-surface{min-height:0;aspect-ratio:4/3}}
 
-/* ===== chapter-collapse-update-2026-09-18 ===== */
+/* ===== chapter-collapse-update-2026-09-19 ===== */
 .proto-head{cursor:pointer!important}
 .proto-body{display:block}
 .proto-section.collapsed .proto-body{display:none}
@@ -1079,51 +1079,83 @@ function generateTask(id){
      sol:[`Считываем вершину V(${fmt(h)}; ${fmt(v)}).`,`Шаг +1 по x от вершины даёт a=${fmt(a)}; на Oy считываем c=${fmt(c)}; затем b=−2a·x вершины=${fmt(b)}.`,`Записываем y=${fmt(a)}x²${b>=0?'+':''}${fmt(b)}x${c>=0?'+':''}${fmt(c)}.`,`Подставляем x=${fmt(x0)} и получаем f(${fmt(x0)})=${fmt(y0)}.`]};
  }
 
+ // Пересечения: как в приложенном банке — искомая точка находится ЗА пределами показанного окна.
+ // На рисунке остаются только участки графиков и опорные точки, по которым можно восстановить функции.
  if(id==='line-line'){
-   let x,y,k1,k2,b1,b2,guard=0;
-   do{
-     x=rint(-3,3); y=rint(-3,3);
-     k1=pick(cleanSlopes); k2=pick(cleanSlopes.filter(v=>v!==k1));
-     b1=y-k1*x; b2=y-k2*x; guard++;
-   }while((Math.abs(b1)>5||Math.abs(b2)>5||Math.abs(b1*2-Math.round(b1*2))>1e-9||Math.abs(b2*2-Math.round(b2*2))>1e-9)&&guard<80);
-   const askY=Math.random()<.35;
-   return{kind:id,p:{k1,b1,k2,b2},point:[x,y],mode:askY?'findY':'findX',answer:askY?y:x,
-     q:askY?'На рисунке изображены графики двух линейных функций, пересекающиеся в точке A. Найдите ординату точки A.':'На рисунке изображены графики двух линейных функций, пересекающиеся в точке A. Найдите абсциссу точки A.',
-     sol:[`Находим точку пересечения A(${fmt(x)}; ${fmt(y)}).`,askY?`Ордината точки — её y-координата: y_A=${fmt(y)}.`:`Абсцисса точки — её x-координата: x_A=${fmt(x)}.`]};
+   const variants=[
+     {k1:1,b1:2,k2:2,b2:-3,answer:5},
+     {k1:-1,b1:2,k2:-2,b2:-3,answer:-5},
+     {k1:2,b1:1,k2:3,b2:-4,answer:5},
+     {k1:-2,b1:1,k2:-3,b2:-4,answer:-5}
+   ];
+   const p={...pick(variants)},x=p.answer,y=p.k1*x+p.b1;
+   const readPoints=[
+     {which:1,x:0,y:p.b1},{which:1,x:1,y:p.k1+p.b1},
+     {which:2,x:0,y:p.b2},{which:2,x:1,y:p.k2+p.b2}
+   ];
+   return{kind:id,p:{k1:p.k1,b1:p.b1,k2:p.k2,b2:p.b2},mode:'findX',answer:x,intersection:[x,y],view:{x:4,y:5},readPoints,
+     sourcePrototype:'PDF №14/17/31/33/52/55/56',
+     q:'На рисунке изображены графики двух линейных функций, пересекающиеся в точке A за пределами показанного фрагмента. Найдите абсциссу точки A.',sol:[]};
  }
 
  if(id==='parabola-line'){
-   let a,r,m,y,guard=0;
-   do{
-     a=pick([-2,-1,1,2]); r=pick([1,2,3,4]); m=a*r; y=a*r*r; guard++;
-   }while((Math.abs(m)>6||Math.abs(y)>6)&&guard<80);
-   const askY=Math.random()<.35;
-   return{kind:id,p:{a,m,b:0},roots:[0,r],point:[r,y],mode:askY?'findY':'findX',answer:askY?y:r,
-     q:askY?'На рисунке изображены графики f(x)=ax² и g(x)=kx, пересекающиеся в точках O и B. Найдите ординату точки B.':'На рисунке изображены графики f(x)=ax² и g(x)=kx, пересекающиеся в точках O и B. Найдите абсциссу точки B.',
-     sol:[`На рисунке отмечаем вторую точку пересечения B(${fmt(r)}; ${fmt(y)}).`,askY?`Ордината точки B: y_B=${fmt(y)}.`:`Абсцисса точки B: x_B=${fmt(r)}.`]};
+   const variants=[
+     {a:1,b:0,c:4,k:6,d:-1,visible:1,target:5},
+     {a:1,b:0,c:4,k:-6,d:-1,visible:-1,target:-5},
+     {a:-1,b:0,c:-4,k:-6,d:1,visible:1,target:5},
+     {a:-1,b:0,c:-4,k:6,d:1,visible:-1,target:-5}
+   ];
+   const v=pick(variants),roots=[v.visible,v.target].sort((a,b)=>a-b),p={a:v.a,b:v.b,c:v.c,k:v.k,d:v.d};
+   const A=[v.visible,v.a*v.visible*v.visible+v.b*v.visible+v.c];
+   const h=-v.b/(2*v.a),vv=v.a*h*h+v.b*h+v.c;
+   const readPoints=[
+     {which:1,x:h,y:vv},{which:1,x:h+1,y:vv+v.a},{which:1,x:0,y:v.c},
+     {which:2,x:0,y:v.d},{which:2,x:1,y:v.k+v.d}
+   ];
+   return{kind:id,p,roots,mode:'findX',answer:v.target,visibleIntersection:A,visibleLabel:'A',view:{x:4,y:6},readPoints,
+     sourcePrototype:'PDF №12/13/25/32/53',
+     q:'Графики параболы и прямой пересекаются в точках A и B. На рисунке показана точка A, а точка B находится за пределами поля. Найдите абсциссу точки B.',sol:[]};
  }
 
  if(id==='hyperbola-line'){
-   const m=1,r=pick([1,2,3]),k=r*r,y=r;
-   const askY=Math.random()<.3;
-   return{kind:id,p:{k,m,b:0},point:[r,y],mode:askY?'findY':'findX',answer:askY?y:r,
-     q:askY?'На рисунке изображены графики f(x)=k/x и g(x)=x. Найдите ординату точки их пересечения с положительной абсциссой.':'На рисунке изображены графики f(x)=k/x и g(x)=x. Найдите положительную абсциссу точки их пересечения.',
-     sol:[]};
+   const variants=[
+     {k:5,m:1,b:-4,visible:-1,target:5},
+     {k:5,m:1,b:4,visible:1,target:-5},
+     {k:-5,m:1,b:-6,visible:1,target:5},
+     {k:-5,m:1,b:6,visible:-1,target:-5}
+   ];
+   const v=pick(variants),roots=[v.visible,v.target].sort((a,b)=>a-b),p={k:v.k,m:v.m,b:v.b};
+   const A=[v.visible,v.k/v.visible];
+   const readPoints=[
+     {which:1,x:1,y:v.k},
+     {which:2,x:0,y:v.b},{which:2,x:1,y:v.m+v.b}
+   ].filter(pt=>Math.abs(pt.y)<=6);
+   return{kind:id,p,roots,mode:'findX',answer:v.target,visibleIntersection:A,visibleLabel:'A',view:{x:4,y:6},readPoints,
+     sourcePrototype:'PDF №10/35/45',
+     q:'Графики гиперболы и прямой пересекаются в точках A и B. Точка A видна на рисунке, а точка B находится за пределами поля. Найдите абсциссу точки B.',sol:[]};
  }
 
  if(id==='exp-line'){
-   let a,n,c,guard=0;
-   do{
-     a=pick([.5,2,3]); n=pick(a<1?[-2,-1,1]:[1,2]); c=a**n; guard++;
-   }while((c<.5||c>6.5)&&guard<80);
-   return{kind:id,p:{a,c},point:[n,c],mode:'findX',answer:n,q:'На рисунке изображены график функции y=aˣ и горизонтальная прямая. Найдите абсциссу точки их пересечения.',
-     sol:[`По точке A(1; ${fmt(a)}) определяем основание a=${a===.5?'1/2':fmt(a)}.`,`Уровень горизонтальной прямой: y=${fmt(c)}.`,`Решаем ${a===.5?'(1/2)':fmt(a)}ˣ=${fmt(c)} → x=${n}.`]};
+   const p={a:2,c:8},x=3;
+   return{kind:id,p,roots:[x],mode:'findX',answer:x,view:{x:2,y:10},readPoints:[{which:1,x:1,y:2},{which:2,x:0,y:8}],
+     sourcePrototype:'generated by guide method',
+     q:'На рисунке изображены график y=aˣ и горизонтальная прямая. Их точка пересечения находится правее показанного фрагмента. Найдите её абсциссу.',sol:[]};
  }
 
- const h=pick([-2,-1,1,2]),c=h*h,y=c,askY=Math.random()<.35;
- return{kind:'mixed',p:{h,c},point:[h,y],mode:askY?'findY':'findX',answer:askY?y:h,
-   q:askY?'На рисунке изображены две параболы, пересекающиеся в точках O и B. Найдите ординату точки B.':'На рисунке изображены две параболы, пересекающиеся в точках O и B. Найдите абсциссу точки B.',
-   sol:[`Находим вторую точку пересечения B(${fmt(h)}; ${fmt(y)}).`,askY?`Ордината точки B: y_B=${fmt(y)}.`:`Абсцисса точки B: x_B=${fmt(h)}.`]};
+ const variants=[
+   {a1:1,b1:0,c1:0,a2:2,b2:-4,c2:-5,visible:-1,target:5},
+   {a1:1,b1:0,c1:0,a2:2,b2:4,c2:-5,visible:1,target:-5}
+ ];
+ const v=pick(variants),roots=[v.visible,v.target].sort((a,b)=>a-b),p={a1:v.a1,b1:v.b1,c1:v.c1,a2:v.a2,b2:v.b2,c2:v.c2};
+ const A=[v.visible,v.a1*v.visible*v.visible+v.b1*v.visible+v.c1];
+ const h1=-v.b1/(2*v.a1),vv1=v.a1*h1*h1+v.b1*h1+v.c1,h2=-v.b2/(2*v.a2),vv2=v.a2*h2*h2+v.b2*h2+v.c2;
+ const readPoints=[
+   {which:1,x:h1,y:vv1},{which:1,x:h1+1,y:vv1+v.a1},{which:1,x:0,y:v.c1},
+   {which:2,x:h2,y:vv2},{which:2,x:h2+1,y:vv2+v.a2},{which:2,x:0,y:v.c2}
+ ];
+ return{kind:'mixed',p,roots,mode:'findX',answer:v.target,visibleIntersection:A,visibleLabel:'A',view:{x:4,y:8},readPoints,
+   sourcePrototype:'PDF №40/43 + generated by same structure',
+   q:'Графики двух парабол пересекаются в точках A и B. Точка A показана на рисунке, а точка B находится за пределами поля. Найдите абсциссу точки B.',sol:[]};
 }
 function freshUi(){let models={},practice={};for(const p of PROTOS){models[p.id]={};for(const[k,c]of Object.entries(MODEL_CONFIG[p.id].sliders))models[p.id][k]=c.val;practice[p.id]={task:generateTask(p.id),answerText:'',checked:null,reveal:0}}return{activeProto:PROTOS[0].id,models,practice}}
 let ui=freshUi(),applyingShared=false,connected=false,role='',participantId='',participantName='',db=null,fb=null,unsubs=[],activeMembers={},memberRef=null,fastSeen='';
@@ -1136,9 +1168,9 @@ function buildNav(){const n=$('protoNav');for(const p of PROTOS){const b=documen
 const SLIDER_LABELS={linear:{k:'k',b:'b'},reciprocal:{k:'k'},exponential:{a:'a'},root:{a:'k'},log:{a:'a'},quadratic:{a:'a',b:'b',c:'c'},'line-line':{k1:'k₁',b1:'b₁',k2:'k₂',b2:'b₂'},'parabola-line':{a:'a',b:'b',c:'c',k:'k',d:'d'},'hyperbola-line':{k:'k',m:'m',b:'b'},'exp-line':{a:'a',c:'c'},mixed:{a1:'a₁',b1:'b₁',c1:'c₁',a2:'a₂',b2:'b₂',c2:'c₂'}};
 function setupSliders(){for(const p of PROTOS){const box=$('sliders-'+p.id);box.innerHTML='';for(const[k,c]of Object.entries(MODEL_CONFIG[p.id].sliders)){const d=document.createElement('div');d.className='slider-box';const label=SLIDER_LABELS[p.id]?.[k]||k;d.innerHTML=`<label><span>${label}</span><b id="val-${p.id}-${k}"></b></label><input id="sl-${p.id}-${k}" type="range" min="${c.min}" max="${c.max}" step="${c.step}">`;box.appendChild(d);const inp=d.querySelector('input');let timer=0;inp.addEventListener('input',()=>{const v=Number(inp.value);setDeep(ui,`models/${p.id}/${k}`,v);renderModel(p.id);clearTimeout(timer);timer=setTimeout(()=>localPatch(`models/${p.id}/${k}`,v),42)})}}}
 function scaleCanvas(canvas){const dpr=Math.max(1,Math.min(2,devicePixelRatio||1)),cssW=canvas.clientWidth||canvas.width,cssH=cssW*(canvas.height/canvas.width);canvas.style.height=cssH+'px';canvas.width=Math.round(cssW*dpr);canvas.height=Math.round(cssH*dpr);const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);return{ctx,w:cssW,h:cssH}}
-function drawGrid(ctx,w,h,range=7){ctx.clearRect(0,0,w,h);const bg=ctx.createLinearGradient(0,0,0,h);bg.addColorStop(0,'#071220');bg.addColorStop(1,'#0d2238');ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);const sx=w/(2*range),sy=h/(2*range),X=x=>w/2+x*sx,Y=y=>h/2-y*sy;ctx.strokeStyle='rgba(140,185,227,.26)';ctx.lineWidth=1;for(let i=-range;i<=range;i++){ctx.beginPath();ctx.moveTo(X(i),0);ctx.lineTo(X(i),h);ctx.stroke();ctx.beginPath();ctx.moveTo(0,Y(i));ctx.lineTo(w,Y(i));ctx.stroke()}ctx.strokeStyle='#7db4df';ctx.lineWidth=1.7;ctx.beginPath();ctx.moveTo(0,Y(0));ctx.lineTo(w,Y(0));ctx.stroke();ctx.beginPath();ctx.moveTo(X(0),0);ctx.lineTo(X(0),h);ctx.stroke();ctx.fillStyle='#d8ebff';ctx.font='11px system-ui';for(let i=-range;i<=range;i++){if(i&&i%2===0){ctx.fillText(i,X(i)+2,Y(0)+13);ctx.fillText(i,X(0)+4,Y(i)-3)}}return{X,Y,range}}
+function drawGrid(ctx,w,h,range=7){ctx.clearRect(0,0,w,h);const bg=ctx.createLinearGradient(0,0,0,h);bg.addColorStop(0,'#071220');bg.addColorStop(1,'#0d2238');ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);const xRange=typeof range==='object'?(Number(range.x)||7):Number(range),yRange=typeof range==='object'?(Number(range.y)||xRange):Number(range),sx=w/(2*xRange),sy=h/(2*yRange),X=x=>w/2+x*sx,Y=y=>h/2-y*sy;ctx.strokeStyle='rgba(140,185,227,.26)';ctx.lineWidth=1;for(let i=Math.ceil(-xRange);i<=Math.floor(xRange);i++){ctx.beginPath();ctx.moveTo(X(i),0);ctx.lineTo(X(i),h);ctx.stroke()}for(let i=Math.ceil(-yRange);i<=Math.floor(yRange);i++){ctx.beginPath();ctx.moveTo(0,Y(i));ctx.lineTo(w,Y(i));ctx.stroke()}ctx.strokeStyle='#7db4df';ctx.lineWidth=1.7;ctx.beginPath();ctx.moveTo(0,Y(0));ctx.lineTo(w,Y(0));ctx.stroke();ctx.beginPath();ctx.moveTo(X(0),0);ctx.lineTo(X(0),h);ctx.stroke();ctx.fillStyle='#d8ebff';ctx.font='11px system-ui';for(let i=Math.ceil(-xRange);i<=Math.floor(xRange);i++){if(i&&i%2===0)ctx.fillText(i,X(i)+2,Y(0)+13)}for(let i=Math.ceil(-yRange);i<=Math.floor(yRange);i++){if(i&&i%2===0)ctx.fillText(i,X(0)+4,Y(i)-3)}return{X,Y,range:Math.max(xRange,yRange),xRange,yRange}}
 function graphFn(kind,p,which=1){if(kind==='linear')return x=>p.k*x+p.b;if(kind==='reciprocal')return x=>Math.abs(x)<.03?NaN:p.k/x;if(kind==='exponential')return x=>p.a**x;if(kind==='root')return x=>x<0?NaN:p.a*Math.sqrt(x);if(kind==='log')return x=>x<=0?NaN:Math.log(x)/Math.log(p.a);if(kind==='quadratic')return x=>p.a*x*x+p.b*x+p.c;if(kind==='line-line')return which===1?x=>p.k1*x+p.b1:x=>p.k2*x+p.b2;if(kind==='parabola-line'){const live=('k'in p)||('d'in p)||('c'in p);return which===1?(live?x=>p.a*x*x+p.b*x+p.c:x=>p.a*x*x):(live?x=>p.k*x+p.d:x=>p.m*x+p.b)}if(kind==='hyperbola-line')return which===1?x=>Math.abs(x)<.03?NaN:p.k/x:x=>p.m*x+p.b;if(kind==='exp-line')return which===1?x=>p.a**x:x=>p.c;if(kind==='mixed'){const live=('a1'in p)||('a2'in p);return which===1?(live?x=>p.a1*x*x+p.b1*x+p.c1:x=>x*x):(live?x=>p.a2*x*x+p.b2*x+p.c2:x=>-((x-p.h)**2)+p.c)}}
-function drawCurve(ctx,geo,fn,color,opts={}){const{X,Y,range}=geo;const gaps=Array.isArray(opts.gapXs)?opts.gapXs:[];ctx.strokeStyle=color;ctx.lineWidth=2.5;ctx.beginPath();let started=false,lastY=null;for(let i=0;i<=900;i++){let x=-range+2*range*i/900;if(gaps.some(g=>Math.abs(x-g.x)<(g.radius||.85))){started=false;lastY=null;continue}let y=fn(x);if(!Number.isFinite(y)||Math.abs(y)>range*4){started=false;lastY=null;continue}let px=X(x),py=Y(y);if(lastY!=null&&Math.abs(py-lastY)>geo.range*25){started=false}if(!started){ctx.moveTo(px,py);started=true}else ctx.lineTo(px,py);lastY=py}ctx.stroke()}
+function drawCurve(ctx,geo,fn,color,opts={}){const{X,Y}=geo,xRange=geo.xRange||geo.range,yRange=geo.yRange||geo.range;const gaps=Array.isArray(opts.gapXs)?opts.gapXs:[];ctx.strokeStyle=color;ctx.lineWidth=2.5;ctx.beginPath();let started=false,lastY=null;for(let i=0;i<=900;i++){let x=-xRange+2*xRange*i/900;if(gaps.some(g=>Math.abs(x-g.x)<(g.radius||.85))){started=false;lastY=null;continue}let y=fn(x);if(!Number.isFinite(y)||Math.abs(y)>yRange*4){started=false;lastY=null;continue}let px=X(x),py=Y(y);if(lastY!=null&&Math.abs(py-lastY)>Math.max(80,geo.range*25)){started=false}if(!started){ctx.moveTo(px,py);started=true}else ctx.lineTo(px,py);lastY=py}ctx.stroke()}
 function dot(ctx,geo,x,y,color='#ff6b7a'){ctx.fillStyle=color;ctx.beginPath();ctx.arc(geo.X(x),geo.Y(y),5,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#f7fbff';ctx.lineWidth=2;ctx.stroke()}
 function labelBox(ctx,x,y,text,align='left'){ctx.save();ctx.font='bold 12px system-ui';const padX=7,padY=5,w=ctx.measureText(text).width+padX*2,h=24;let bx=x,by=y-h/2;if(align==='center')bx-=w/2;else if(align==='right')bx-=w;ctx.fillStyle='rgba(7,21,38,.92)';ctx.strokeStyle='rgba(116,230,255,.45)';ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(bx,by,w,h,8);ctx.fill();ctx.stroke();ctx.fillStyle='#f6fbff';ctx.fillText(text,bx+padX,by+16);ctx.restore()}
 function annotateModelParameter(ctx,geo,kind,p){
@@ -1200,14 +1232,14 @@ function annotateModelParameter(ctx,geo,kind,p){
   }
   ctx.restore();
 }
-function drawGraph(canvas,kind,p,task=false,extra={}){const{ctx,w,h}=scaleCanvas(canvas),geo=drawGrid(ctx,w,h,7);const intersectionKinds=['line-line','parabola-line','hyperbola-line','exp-line','mixed'];drawCurve(ctx,geo,graphFn(kind,p,1),'#51c1ff');if(intersectionKinds.includes(kind))drawCurve(ctx,geo,graphFn(kind,p,2),'#ffd24f');if(task){if(extra.point&&!intersectionKinds.includes(kind))dot(ctx,geo,extra.point[0],extra.point[1]);if(kind==='exponential')dot(ctx,geo,1,p.a);if(kind==='log')dot(ctx,geo,p.a,1);if(kind==='quadratic'&&extra.vertex)dot(ctx,geo,extra.vertex[0],extra.vertex[1])}else annotateModelParameter(ctx,geo,kind,p);return geo}
+function drawGraph(canvas,kind,p,task=false,extra={}){const{ctx,w,h}=scaleCanvas(canvas),graphRange=(task&&extra.view)?extra.view:(task&&kind==='exp-line'?{x:2,y:10}:7),geo=drawGrid(ctx,w,h,graphRange);const intersectionKinds=['line-line','parabola-line','hyperbola-line','exp-line','mixed'];drawCurve(ctx,geo,graphFn(kind,p,1),'#51c1ff');if(intersectionKinds.includes(kind))drawCurve(ctx,geo,graphFn(kind,p,2),'#ffd24f');if(task){if(extra.point&&!intersectionKinds.includes(kind))dot(ctx,geo,extra.point[0],extra.point[1]);if(kind==='exponential')dot(ctx,geo,1,p.a);if(kind==='log')dot(ctx,geo,p.a,1);if(kind==='quadratic'&&extra.vertex)dot(ctx,geo,extra.vertex[0],extra.vertex[1]);if(Array.isArray(extra.readPoints))for(const pt of extra.readPoints){dot(ctx,geo,pt.x,pt.y,pt.which===2?'#ffd24f':'#51c1ff')}if(extra.visibleIntersection){const [x,y]=extra.visibleIntersection;dot(ctx,geo,x,y,'#ff6b7a');ctx.save();ctx.fillStyle='#fff';ctx.font='bold 13px system-ui';ctx.fillText(extra.visibleLabel||'A',geo.X(x)+9,geo.Y(y)-9);ctx.restore()}}else annotateModelParameter(ctx,geo,kind,p);return geo}
 function normalizedModel(id){const cfg=MODEL_CONFIG[id]?.sliders||{},src=ui.models[id]||{},out={};for(const[k,c]of Object.entries(cfg))out[k]=Number.isFinite(Number(src[k]))?Number(src[k]):c.val;return out}
 function renderModel(id){const p=normalizedModel(id),c=$('model-'+id);if(!c)return;ui.models[id]={...(ui.models[id]||{}),...p};drawGraph(c,id,p);for(const[k,v]of Object.entries(p)){const inp=$(`sl-${id}-${k}`),val=$(`val-${id}-${k}`);if(inp&&document.activeElement!==inp)inp.value=v;if(val)val.textContent=fmt(v)}$('readout-'+id).textContent=modelText(id,p)}
-function signTerm(v,symbol=''){const n=Number(v)||0;return`${n>=0?'+':'−'} ${fmt(Math.abs(n))}${symbol}`}
+function signTerm(v,symbol=''){const n=Number(v)||0;if(Math.abs(n)<1e-9)return'';return`${n>=0?'+':'−'} ${fmt(Math.abs(n))}${symbol}`}
 function modelText(id,p){if(id==='linear')return`y = ${fmt(p.k)}x ${p.b>=0?'+':'−'} ${fmt(Math.abs(p.b))} · b=${fmt(p.b)}, k=${fmt(p.k)}`;if(id==='reciprocal')return`y = ${fmt(p.k)}/x · коэффициент k=${fmt(p.k)}`;if(id==='exponential')return`y = ${fmt(p.a)}ˣ · основание a=${fmt(p.a)}`;if(id==='root')return`y = ${fmt(p.a)}√x · коэффициент k=${fmt(p.a)}`;if(id==='log')return`y = log₍${fmt(p.a)}₎x · основание a=${fmt(p.a)}`;if(id==='quadratic')return`y = ${fmt(p.a)}x² ${signTerm(p.b,'x')} ${signTerm(p.c)}`;if(id==='line-line')return`1) y=${fmt(p.k1)}x ${signTerm(p.b1)}    2) y=${fmt(p.k2)}x ${signTerm(p.b2)}`;if(id==='parabola-line')return`Парабола: y=${fmt(p.a)}x² ${signTerm(p.b,'x')} ${signTerm(p.c)}    ·    Прямая: y=${fmt(p.k)}x ${signTerm(p.d)}`;if(id==='hyperbola-line')return`Гипербола: y=${fmt(p.k)}/x    ·    Прямая: y=${fmt(p.m)}x ${signTerm(p.b)}`;if(id==='exp-line')return`Показательная: y=${fmt(p.a)}ˣ    ·    Прямая: y=${fmt(p.c)}`;return`1-я парабола: y=${fmt(p.a1)}x² ${signTerm(p.b1,'x')} ${signTerm(p.c1)}    ·    2-я: y=${fmt(p.a2)}x² ${signTerm(p.b2,'x')} ${signTerm(p.c2)}`}
 function guideSolutionSteps(id,t){
   const p=t?.p||{},mode=t?.mode||'';
-  const sgn=(v,suffix='')=>`${Number(v)>=0?'+':'−'}${fmt(Math.abs(Number(v)||0))}${suffix}`;
+  const sgn=(v,suffix='')=>{const n=Number(v)||0;return Math.abs(n)<1e-9?'':`${n>=0?'+':'−'}${fmt(Math.abs(n))}${suffix}`};
   const lin=(k,b)=>`y=${fmt(k)}x${sgn(b)}`;
 
   if(id==='linear'){
@@ -1315,74 +1347,64 @@ function guideSolutionSteps(id,t){
   }
 
   if(id==='line-line'){
-    const x=t.point?.[0]??((p.b2-p.b1)/(p.k1-p.k2));
-    const y=p.k1*x+p.b1;
+    const x=(p.b2-p.b1)/(p.k1-p.k2),y=p.k1*x+p.b1;
     return[
       `Для первой прямой: на Oy считываем b₁=${fmt(p.b1)}, шаг +1 по x даёт k₁=${fmt(p.k1)}.`,
       `Для второй прямой: на Oy считываем b₂=${fmt(p.b2)}, шаг +1 по x даёт k₂=${fmt(p.k2)}.`,
       `Записываем функции: ${lin(p.k1,p.b1)} и ${lin(p.k2,p.b2)}.`,
-      `В точке пересечения значения y равны: ${fmt(p.k1)}x${sgn(p.b1)}=${fmt(p.k2)}x${sgn(p.b2)} → x=${fmt(x)}.`,
-      mode==='findY'?`Подставляем x=${fmt(x)} в любую из функций → y=${fmt(y)}.`:`Нужна абсцисса точки пересечения: x=${fmt(x)}.`
+      `В точке пересечения значения y равны: ${fmt(p.k1)}x${sgn(p.b1)}=${fmt(p.k2)}x${sgn(p.b2)}.`,
+      `Решаем уравнение и получаем x=${fmt(x)}. Именно эта точка пересечения находится за пределами показанного фрагмента. Ответ: ${fmt(x)}.`
     ];
   }
 
   if(id==='parabola-line'){
-    // Practice tasks use the clean special case y=a x² and y=kx, but we restore
-    // every coefficient by exactly the same rules stated in the chapter.
-    const a=Number(p.a),b=0,c=0,k=Number(p.m ?? p.k),d=Number(p.b ?? p.d ?? 0);
-    const r=t.point?.[0]??t.answer;
-    const y=a*r*r;
+    const a=Number(p.a),b=Number(p.b),c=Number(p.c),k=Number(p.k),d=Number(p.d);
+    const h=-b/(2*a),v=a*h*h+b*h+c;
+    const roots=[...(t.roots||[])].sort((x,y)=>x-y);
+    const A=a,B=b-k,C=c-d;
     return[
-      `У параболы вершина (0; 0). Шаг +1 по x даёт a=${fmt(a)}.`,
-      `На Oy у параболы c=${fmt(c)}. По формуле b=−2a·x вершины получаем b=${fmt(b)}. Значит y=${fmt(a)}x².`,
-      `У прямой на Oy считываем d=${fmt(d)}, а шаг +1 по x даёт k=${fmt(k)}. Значит y=${fmt(k)}x${sgn(d)}.`,
-      `Приравниваем функции: ${fmt(a)}x²=${fmt(k)}x${sgn(d)}. Получаем x=0 и x=${fmt(r)}.`,
-      mode==='findY'?`Для точки B подставляем x=${fmt(r)} → y=${fmt(y)}.`:`Точка B — не O, поэтому её абсцисса x=${fmt(r)}.`
+      `У параболы считываем вершину (${fmt(h)}; ${fmt(v)}). Шаг +1 по x даёт a=${fmt(a)}, на Oy c=${fmt(c)}, затем b=−2a·x вершины=${fmt(b)}.`,
+      `Значит парабола: y=${fmt(a)}x²${sgn(b,'x')}${sgn(c)}.`,
+      `У прямой на Oy считываем d=${fmt(d)}, а шаг +1 по x даёт k=${fmt(k)}. Значит прямая: y=${fmt(k)}x${sgn(d)}.`,
+      `Приравниваем функции: ${fmt(a)}x²${sgn(b,'x')}${sgn(c)}=${fmt(k)}x${sgn(d)} → ${fmt(A)}x²${sgn(B,'x')}${sgn(C)}=0.`,
+      `Решаем квадратное уравнение: x=${fmt(roots[0])} или x=${fmt(roots[1])}. Одна точка A видна на рисунке; второй корень соответствует точке B за пределами поля. Ответ: ${fmt(t.answer)}.`
     ];
   }
 
   if(id==='hyperbola-line'){
-    const k=Number(p.k),m=Number(p.m),b=Number(p.b||0);
-    const x=t.point?.[0]??t.answer;
-    const y=m*x+b;
-    const steps=[];
-    if(Math.abs(k)<=7){
-      steps.push(`При x=1 считываем y=${fmt(k)}. Значит коэффициент гиперболы k=${fmt(k)}.`);
-    }else if(t.point){
-      steps.push(`Берём удобную точку гиперболы (${fmt(t.point[0])}; ${fmt(k/t.point[0])}) и используем k=x·y. Получаем k=${fmt(k)}.`);
-    }
-    steps.push(`У прямой на Oy считываем b=${fmt(b)}, а шаг +1 по x даёт m=${fmt(m)}. Значит y=${fmt(m)}x${sgn(b)}.`);
-    steps.push(`В точке пересечения приравниваем функции: ${fmt(k)}/x=${fmt(m)}x${sgn(b)}.`);
-    if(Math.abs(b)<1e-9&&Math.abs(m-1)<1e-9){
-      steps.push(`Получаем x²=${fmt(k)}. Положительная абсцисса: x=${fmt(x)}.`);
-    }else{
-      steps.push(`Решаем полученное уравнение и по рисунку выбираем точку с нужной абсциссой: x=${fmt(x)}.`);
-    }
-    steps.push(mode==='findY'?`Подставляем x=${fmt(x)} в прямую → y=${fmt(y)}.`:`Ответ: x=${fmt(x)}.`);
-    return steps;
+    const k=Number(p.k),m=Number(p.m),b=Number(p.b);
+    const roots=[...(t.roots||[])].sort((x,y)=>x-y);
+    return[
+      `При x=1 на гиперболе считываем y=${fmt(k)}. Значит коэффициент k=${fmt(k)} и функция имеет вид y=${fmt(k)}/x.`,
+      `У прямой на Oy считываем b=${fmt(b)}, а шаг +1 по x даёт коэффициент ${fmt(m)}. Получаем y=${fmt(m)}x${sgn(b)}.`,
+      `Приравниваем: ${fmt(k)}/x=${fmt(m)}x${sgn(b)}. Умножаем на x: ${fmt(m)}x²${sgn(b,'x')}${sgn(-k)}=0.`,
+      `Решаем квадратное уравнение: x=${fmt(roots[0])} или x=${fmt(roots[1])}.`,
+      `Один корень соответствует видимой точке A, второй — точке B за пределами поля. Поэтому x_B=${fmt(t.answer)}.`
+    ];
   }
 
   if(id==='exp-line'){
-    const a=Number(p.a),base=a===.5?'1/2':fmt(a),n=t.answer;
+    const a=Number(p.a),x=t.answer;
     return[
-      `При x=1 считываем y=${fmt(a)}. Значит основание a=${base}.`,
-      `По графику горизонтальной прямой считываем c=${fmt(p.c)}.`,
-      `Приравниваем: (${base})ˣ=${fmt(p.c)}. Представляем ${fmt(p.c)} как степень основания ${base} → x=${fmt(n)}.`
+      `При x=1 считываем y=${fmt(a)}. Значит основание показательной функции a=${fmt(a)}.`,
+      `По горизонтальной прямой считываем уровень y=${fmt(p.c)}.`,
+      `Приравниваем функции: ${fmt(a)}ˣ=${fmt(p.c)}.`,
+      `Представляем правую часть как степень основания: ${fmt(p.c)}=${fmt(a)}^(3/2). Значит x=3/2=${fmt(x)}.`
     ];
   }
 
   if(id==='mixed'){
-    const h=Number(p.h),v2=Number(p.c);
-    const a1=1,b1=0,c1=0;
-    const a2=-1,c2=-h*h+v2,b2=-2*a2*h;
-    const x=t.point?.[0]??t.answer;
-    const y=x*x;
+    const a1=Number(p.a1),b1=Number(p.b1),c1=Number(p.c1),a2=Number(p.a2),b2=Number(p.b2),c2=Number(p.c2);
+    const h1=-b1/(2*a1),v1=a1*h1*h1+b1*h1+c1,h2=-b2/(2*a2),v2=a2*h2*h2+b2*h2+c2;
+    const roots=[...(t.roots||[])].sort((x,y)=>x-y);
+    const A=a1-a2,B=b1-b2,C=c1-c2;
     return[
-      `Первая парабола: вершина (0; 0), шаг +1 по x даёт a₁=${fmt(a1)}, на Oy c₁=${fmt(c1)}, поэтому b₁=−2a₁·0=${fmt(b1)}. Получаем y=${fmt(a1)}x².`,
-      `Вторая парабола: вершина (${fmt(h)}; ${fmt(v2)}), шаг +1 по x даёт a₂=${fmt(a2)}. На Oy считываем c₂=${fmt(c2)}.`,
-      `Для второй параболы b₂=−2a₂·x вершины=−2·(${fmt(a2)})·${fmt(h)}=${fmt(b2)}. Получаем y=${fmt(a2)}x²${sgn(b2,'x')}${sgn(c2)}.`,
-      `Приравниваем две функции: ${fmt(a1)}x²=${fmt(a2)}x²${sgn(b2,'x')}${sgn(c2)}. Получаем x=0 и x=${fmt(x)}.`,
-      mode==='findY'?`Точка B соответствует x=${fmt(x)}. Подставляем в y=x² → y=${fmt(y)}.`:`Точка B — не O, поэтому её абсцисса x=${fmt(x)}.`
+      `Первая парабола: вершина (${fmt(h1)}; ${fmt(v1)}), шаг +1 по x даёт a₁=${fmt(a1)}, на Oy c₁=${fmt(c1)}, затем b₁=−2a₁·x вершины=${fmt(b1)}.`,
+      `Получаем первую функцию: y=${fmt(a1)}x²${sgn(b1,'x')}${sgn(c1)}.`,
+      `Вторая парабола: вершина (${fmt(h2)}; ${fmt(v2)}), шаг +1 по x даёт a₂=${fmt(a2)}, на Oy c₂=${fmt(c2)}, затем b₂=−2a₂·x вершины=${fmt(b2)}.`,
+      `Получаем вторую функцию: y=${fmt(a2)}x²${sgn(b2,'x')}${sgn(c2)}.`,
+      `Приравниваем: ${fmt(A)}x²${sgn(B,'x')}${sgn(C)}=0. Решаем и получаем x=${fmt(roots[0])} или x=${fmt(roots[1])}.`,
+      `Один корень соответствует видимой точке A, второй — точке B за пределами поля. Поэтому x_B=${fmt(t.answer)}.`
     ];
   }
 
