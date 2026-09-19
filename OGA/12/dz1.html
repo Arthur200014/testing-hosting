@@ -237,7 +237,22 @@
       .shot-text{font-size:clamp(8.3px,2.25vw,11px);line-height:1.18}.shot-head{font-size:8px;margin-bottom:3px}
     }
 
+
+    /* ===== Новая техническая система ДЗ ===== */
+    .task.correct{border-color:#42a66a;background:#effff4}.task.wrong{border-color:#d85a61;background:#fff3f2}
+    .verdict{display:none;margin-left:8px;font-size:.82rem;font-weight:900}.task.submitted .verdict{display:inline}
+    .task.correct .verdict{color:#188243}.task.wrong .verdict{color:#b62f38}
+    .solution-toggle{display:none;margin-top:12px;min-height:40px;padding:8px 12px;border:3px solid #0a668f;border-radius:12px;background:#dff8fb;color:#07355d;font-weight:900;cursor:pointer}
+    .task.submitted .solution-toggle{display:inline-block}
+    .solution-inline{display:none;margin-top:12px;padding:14px;background:#fbffff;border:3px solid #0a668f;border-radius:16px}
+    .solution-inline.on{display:block}.solution-inline h3{margin:0 0 10px}.math-step{margin:8px 0;padding:8px 10px;background:#f0fbff;border-radius:10px;overflow-x:auto}
+    .answer-row{grid-template-columns:auto minmax(140px,260px) auto}
+    .result-note{max-width:760px;margin:12px auto 0;text-align:center;color:var(--muted);font-weight:800}
+    @media(max-width:720px){.answer-row{grid-template-columns:1fr}.verdict{margin-left:0}}
+
   </style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]]},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 </head>
 <body>
   <button class="sound-button pixel" id="soundButton" type="button" aria-pressed="true" title="Включить или выключить звук">🔊</button>
@@ -282,7 +297,7 @@
     <div class="hero-inner">
       <div class="badge pixel">ОГЭ · ЗАДАНИЕ №12 · ДОМАШНЯЯ РАБОТА 1</div>
       <h1 class="pixel">Линейная зависимость</h1>
-      <p class="hero-copy">6 фиксированных типов задач: подстановка → скобки → выражение неизвестной. При каждом новом открытии меняются только числа, а порядок и типы заданий остаются теми же.</p>
+      <p class="hero-copy">6 фиксированных задач: подстановка → скобки → выражение неизвестной. Условия сохраняются после обновления страницы и повторного входа.</p>
     </div>
   </header>
 
@@ -319,8 +334,8 @@
             <strong class="pixel">Правила мира</strong>
             <div>• 6 числовых ответов</div>
             <div>• запятая и точка допустимы</div>
-            <div>• можно проходить и отправлять повторно</div>
-            <div>• разбор — после отправки</div>
+            <div>• можно завершить даже с пустыми полями</div>
+            <div>• разбор — после завершения</div>
           </div>
         </div>
         <div class="start-row"><button class="block-button pixel" id="startButton" type="button">Начать работу</button></div>
@@ -334,8 +349,8 @@
       </div>
       <form id="homeworkForm">
         <div class="task-list" id="taskList"></div>
-        <div class="submit-row"><button class="block-button pixel" id="submitButton" type="submit" disabled>Отправить ответы</button></div>
-        <p class="submit-note" id="submitStatus" aria-live="polite">Заполни все 6 полей — кнопка отправки станет активной.</p>
+        <div class="submit-row"><button class="block-button pixel" id="submitButton" type="submit">Завершить работу</button></div>
+        <p class="submit-note" id="submitStatus" aria-live="polite">Можно завершить в любой момент. Пустые ответы считаются неверными.</p>
       </form>
     </section>
 
@@ -353,8 +368,8 @@
             <div class="stat"><b>✓</b>сохранено</div>
           </div>
         </div>
-        <div class="result-actions"><button class="block-button pixel" id="solutionsButton" type="button">Разобрать решения</button></div>
-        <div class="solutions" id="solutions"></div>
+        <div class="result-actions"><button class="block-button pixel" id="reviewButton" type="button">Перейти к разбору заданий</button></div>
+        <p class="result-note" id="resultNote"></p>
       </div>
     </section>
   </main>
@@ -365,493 +380,103 @@
     "use strict";
 
     const API_URL = "https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
-    const PART_CONFIG = {"assignmentId":"HW-OGE12-PART1-MONTHLY","generators":["cost","archimedes","temperature","heat","potential","quadrilateral"]};
+    const PROGRAM_ID = "OGE_MATH";
     const HOMEWORK_META = Object.freeze({
-      assignmentId: PART_CONFIG.assignmentId,
+      assignmentId: "HW-OGE12-PART1-MONTHLY",
       taskNumber: 12,
       topicId: "oge-task-12",
       topicName: "Расчёты по формулам",
       schemaVersion: 1
     });
-
+    const FIXED_QUESTIONS = [{"id":"cost","prototype":"Линейная зависимость","skill":"Прямая подстановка","text":"Стоимость установки колодца вычисляется по формуле \\(C=5000+3000n\\), где \\(n\\) — число бетонных колец. Найдите стоимость установки колодца из 4 колец. Ответ дайте в рублях.","answer":17000,"answerDisplay":"17000","solution":{"recall":"Подставляем известное значение переменной в готовую формулу.","formula":"\\(C=5000+3000n\\)","steps":["\\[C=5000+3000\\cdot4\\]","\\[3000\\cdot4=12000\\]","\\[C=5000+12000=17000\\]"]}},{"id":"archimedes","prototype":"Линейная зависимость","skill":"Прямое произведение","text":"Сила Архимеда вычисляется по формуле \\(F=\\rho gV\\). Найдите силу Архимеда, если \\(\\rho=1000\\) кг/м³, \\(g=10\\) Н/кг, \\(V=0{,}004\\) м³. Ответ дайте в ньютонах.","answer":40,"answerDisplay":"40","solution":{"recall":"Все величины известны, поэтому сразу подставляем их в произведение.","formula":"\\(F=\\rho gV\\)","steps":["\\[F=1000\\cdot10\\cdot0{,}004\\]","\\[1000\\cdot0{,}004=4\\]","\\[F=4\\cdot10=40\\]"]}},{"id":"temperature","prototype":"Линейная зависимость","skill":"Скобки и дробь","text":"Температуры по шкалам Цельсия и Фаренгейта связаны формулой \\(t_C=\\frac{5}{9}(t_F-32)\\). Найдите температуру по Цельсию, если \\(t_F=68^\\circ F\\).","answer":20,"answerDisplay":"20","solution":{"recall":"Сначала выполняем действие в скобках, затем умножаем на дробь.","formula":"\\(t_C=\\frac{5}{9}(t_F-32)\\)","steps":["\\[t_C=\\frac{5}{9}(68-32)\\]","\\[68-32=36\\]","\\[t_C=\\frac{5}{9}\\cdot36=5\\cdot4=20\\]"]}},{"id":"heat","prototype":"Линейная зависимость","skill":"Неизвестная внутри скобок","text":"Количество теплоты вычисляется по формуле \\(Q=cm(t_2-t_1)\\). Найдите конечную температуру \\(t_2\\), если \\(Q=12000\\) Дж, \\(c=400\\) Дж/(кг·°C), \\(m=3\\) кг, \\(t_1=20^\\circ C\\).","answer":30,"answerDisplay":"30","solution":{"recall":"Сначала делением на коэффициент перед скобками находим значение всей скобки.","formula":"\\(Q=cm(t_2-t_1)\\)","steps":["\\[12000=400\\cdot3(t_2-20)\\]","\\[12000=1200(t_2-20)\\]","\\[t_2-20=\\frac{12000}{1200}=10\\]","\\[t_2=10+20=30\\]"]}},{"id":"potential","prototype":"Линейная зависимость","skill":"Выразить неизвестный множитель","text":"Потенциальная энергия тела вычисляется по формуле \\(P=mgh\\). Найдите массу тела \\(m\\), если \\(P=280\\) Дж, \\(g=10\\) Н/кг, \\(h=4\\) м. Ответ дайте в килограммах.","answer":7,"answerDisplay":"7","solution":{"recall":"Неизвестный множитель равен произведению, делённому на остальные известные множители.","formula":"\\(m=\\frac{P}{gh}\\)","steps":["\\[m=\\frac{280}{10\\cdot4}\\]","\\[10\\cdot4=40\\]","\\[m=\\frac{280}{40}=7\\]"]}},{"id":"quadrilateral","prototype":"Линейная зависимость","skill":"Дробная формула: выразить диагональ","text":"Площадь четырёхугольника вычисляется по формуле \\(S=\\frac{d_1d_2\\sin\\alpha}{2}\\). Найдите диагональ \\(d_1\\), если \\(S=12\\), \\(d_2=8\\), \\(\\sin\\alpha=\\frac12\\).","answer":6,"answerDisplay":"6","solution":{"recall":"Выражаем неизвестную диагональ из дробной формулы.","formula":"\\(d_1=\\frac{2S}{d_2\\sin\\alpha}\\)","steps":["\\[d_1=\\frac{2\\cdot12}{8\\cdot\\frac12}\\]","\\[8\\cdot\\frac12=4\\]","\\[d_1=\\frac{24}{4}=6\\]"]}}];
 
     const $ = selector => document.querySelector(selector);
     const $$ = selector => [...document.querySelectorAll(selector)];
-    const rand = (min,max) => Math.floor(Math.random()*(max-min+1))+min;
-    const pick = values => values[rand(0,values.length-1)];
-    const num = value => Number(value.toFixed(8));
-    const showNum = value => String(num(value)).replace(".",",");
-    const minutes = seconds => {
-      const m=Math.floor(seconds/60),s=seconds%60;
-      return m+":"+String(s).padStart(2,"0");
-    };
+    const memoryStore = new Map();
+    function storeGet(k){try{return localStorage.getItem(k)}catch{return memoryStore.get(k)||null}}
+    function storeSet(k,v){try{localStorage.setItem(k,v)}catch{memoryStore.set(k,String(v))}}
+    function storeRemove(k){try{localStorage.removeItem(k)}catch{memoryStore.delete(k)}}
+    function jsonGet(k,fallback=null){try{const v=storeGet(k);return v?JSON.parse(v):fallback}catch{return fallback}}
+    const normalizeCode = value => String(value||"").trim().toUpperCase();
+    const showNum = value => String(value).replace(".",",").replace("-","−");
+    const minutes = seconds => {const m=Math.floor(seconds/60),s=Math.floor(seconds%60);return m+":"+String(s).padStart(2,"0")};
+    function normalizeAnswer(value){const clean=String(value||"").trim().replace(/\s+/g,"").replace("−","-").replace(",",".");if(clean==="")return null;const n=Number(clean);return Number.isFinite(n)?n:null}
+    function isCorrect(value,answer){const n=normalizeAnswer(value);return n!==null&&Math.abs(n-Number(answer))<1e-7}
+    function monthKey(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`}
+    function uuid(){return globalThis.crypto&&crypto.randomUUID?crypto.randomUUID():`evt-${Date.now()}-${Math.random().toString(36).slice(2)}`}
+    function typeset(container=document.body){if(window.MathJax?.typesetPromise)window.MathJax.typesetPromise([container]).catch(()=>{})}
 
-    function question(id,prototype,skill,text,answer,recall,formula,tip,steps){
-      const q={id,prototype,skill,text,answer:num(answer),recall,formula,tip,steps};
-      if(!Number.isFinite(q.answer)||!q.text||!q.steps.length) throw new Error("Некорректная генерация "+id);
-      return q;
-    }
-
-
-
-    const GENERATORS = {
-      cost(){
-        const base=pick([4000,5000,6000,7000]), per=pick([2500,3000,3500,4000,4500]), n=rand(2,6), C=base+per*n;
-        return question("cost","Линейная зависимость","Прямая подстановка",
-          "Стоимость установки колодца вычисляется по формуле <b>C = "+base+" + "+per+"n</b>, где <i>n</i> — число бетонных колец. Найдите стоимость установки колодца из "+n+" колец. Ответ дайте в рублях.",
-          C,
-          "Если нужная величина уже выражена формулой, ничего переносить не надо: аккуратно подставляем известное значение переменной и считаем по порядку.",
-          "C = C₀ + kn",
-          "Сначала посчитай стоимость всех колец <b>kn</b>, и только потом прибавляй постоянную часть <b>C₀</b>.",
-          ["В формуле <b>C = "+base+" + "+per+"n</b> вместо <i>n</i> подставляем "+n+".",
-           "Получаем: <b>C = "+base+" + "+per+"·"+n+"</b>.",
-           "Стоимость колец: "+per+"·"+n+" = <b>"+(per*n)+"</b> руб.",
-           "Прибавляем постоянную часть: "+base+" + "+(per*n)+" = <b>"+C+"</b> руб.",
-           "Ответ: <b>"+C+"</b>."]);
-      },
-      archimedes(){
-        const rho=pick([800,900,1000]), V=pick([0.002,0.003,0.004,0.005,0.006]), g=10, F=num(rho*g*V);
-        return question("archimedes","Линейная зависимость","Прямое произведение",
-          "Сила Архимеда вычисляется по формуле <b>F = ρgV</b>. Найдите силу Архимеда, если плотность жидкости ρ = "+rho+" кг/м³, g = "+g+" Н/кг, а объём погружённой части тела V = "+showNum(V)+" м³. Ответ дайте в ньютонах.",
-          F,
-          "В произведении из нескольких множителей можно подставить все данные сразу. Важно не потерять десятичную дробь в объёме.",
-          "F = ρgV",
-          "Удобно сначала умножить ρ на V: при умножении на 0,00… следи за запятой, а затем домножай на g.",
-          ["Записываем формулу: <b>F = ρgV</b>.",
-           "Подставляем данные: <b>F = "+rho+"·"+g+"·"+showNum(V)+"</b>.",
-           rho+"·"+showNum(V)+" = <b>"+showNum(rho*V)+"</b>.",
-           "Теперь "+showNum(rho*V)+"·"+g+" = <b>"+showNum(F)+"</b> Н.",
-           "Ответ: <b>"+showNum(F)+"</b>."]);
-      },
-      temperature(){
-        const tC=pick([-30,-20,-10,0,10,20,30,40]), tF=num(tC*9/5+32);
-        return question("temperature","Линейная зависимость","Скобки и дробь",
-          "Температуры по шкалам Цельсия и Фаренгейта связаны формулой <b>t<sub>C</sub> = (5/9)(t<sub>F</sub> − 32)</b>. Найдите температуру по Цельсию, если t<sub>F</sub> = "+showNum(tF)+" °F.",
-          tC,
-          "Если в формуле есть скобки, сначала выполняем действие внутри скобок, а затем умножаем результат на дробь.",
-          "tC = (5/9)(tF − 32)",
-          "Не умножай 32 на 5/9 отдельно: выражение <b>tF − 32</b> — единый блок в скобках.",
-          ["Подставляем t<sub>F</sub> = "+showNum(tF)+": <b>t<sub>C</sub> = (5/9)("+showNum(tF)+" − 32)</b>.",
-           "Сначала считаем скобки: "+showNum(tF)+" − 32 = <b>"+showNum(tF-32)+"</b>.",
-           "Получаем: <b>t<sub>C</sub> = (5/9)·"+showNum(tF-32)+"</b>.",
-           "Делим "+showNum(tF-32)+" на 9 и умножаем на 5: получаем <b>"+showNum(tC)+"</b>.",
-           "Ответ: <b>"+showNum(tC)+"</b>."]);
-      },
-      heat(){
-        const c=pick([200,400,500]), m=pick([2,3,4]), t1=pick([10,15,20]), delta=pick([5,10,15]), t2=t1+delta, Q=c*m*delta;
-        return question("heat","Линейная зависимость","Неизвестная внутри скобок",
-          "Количество теплоты вычисляется по формуле <b>Q = cm(t₂ − t₁)</b>. Найдите конечную температуру t₂, если Q = "+Q+" Дж, c = "+c+" Дж/(кг·°C), m = "+m+" кг, t₁ = "+t1+" °C.",
-          t2,
-          "Когда неизвестная находится внутри скобок, сначала удобно найти значение всей скобки, разделив обе части равенства на коэффициент перед ней.",
-          "t₂ − t₁ = Q/(cm)",
-          "Считай <b>cm</b> одним коэффициентом. После деления получишь именно изменение температуры, а не конечную температуру.",
-          ["Подставляем данные: <b>"+Q+" = "+c+"·"+m+"·(t₂ − "+t1+")</b>.",
-           "Вычисляем коэффициент: "+c+"·"+m+" = <b>"+(c*m)+"</b>.",
-           "Делим обе части на "+(c*m)+": <b>t₂ − "+t1+" = "+Q+"/"+(c*m)+" = "+delta+"</b>.",
-           "Чтобы найти t₂, прибавляем "+t1+": <b>t₂ = "+delta+" + "+t1+" = "+t2+"</b> °C.",
-           "Ответ: <b>"+t2+"</b>."]);
-      },
-      potential(){
-        const m=rand(2,12), g=10, h=rand(2,8), P=m*g*h;
-        return question("potential","Линейная зависимость","Выразить неизвестный множитель",
-          "Потенциальная энергия тела вычисляется по формуле <b>P = mgh</b>. Найдите массу тела m, если P = "+P+" Дж, g = "+g+" Н/кг, h = "+h+" м. Ответ дайте в килограммах.",
-          m,
-          "Если неизвестная — один из множителей произведения, нужно разделить известный результат на произведение остальных множителей.",
-          "m = P/(gh)",
-          "Сначала вычисли <b>gh</b>, затем дели P. Так меньше шансов ошибиться в длинной дроби.",
-          ["Исходная формула: <b>P = mgh</b>.",
-           "Нам нужна масса m. Делим обе части на gh: <b>m = P/(gh)</b>.",
-           "Подставляем числа: <b>m = "+P+"/("+g+"·"+h+")</b>.",
-           g+"·"+h+" = "+(g*h)+", поэтому m = "+P+"/"+(g*h)+" = <b>"+m+"</b> кг.",
-           "Ответ: <b>"+m+"</b>."]);
-      },
-      quadrilateral(){
-        const d1=rand(2,10), d2=pick([4,8,12,16]), s=0.5, S=d1*d2*s/2;
-        return question("quadrilateral","Линейная зависимость","Дробная формула: выразить диагональ",
-          "Площадь четырёхугольника вычисляется по формуле <b>S = d₁d₂·sinα / 2</b>. Найдите диагональ d₁, если S = "+showNum(S)+", d₂ = "+d2+", sinα = 1/2.",
-          d1,
-          "Чтобы выразить d₁, сначала избавляемся от деления на 2: умножаем обе части на 2, затем делим на d₂·sinα.",
-          "d₁ = 2S/(d₂·sinα)",
-          "Если sinα = 1/2, произведение d₂·sinα равно половине d₂. Это сильно упрощает вычисления.",
-          ["Записываем: <b>"+showNum(S)+" = d₁·"+d2+"·(1/2)/2</b>.",
-           "Выражаем d₁ по общей формуле: <b>d₁ = 2S/(d₂·sinα)</b>.",
-           "Числитель: 2S = 2·"+showNum(S)+" = <b>"+showNum(2*S)+"</b>.",
-           "Знаменатель: "+d2+"·1/2 = <b>"+(d2/2)+"</b>.",
-           "d₁ = "+showNum(2*S)+"/"+(d2/2)+" = <b>"+d1+"</b>. Ответ: <b>"+d1+"</b>."]);
-      }
-    };
-
-
-    function buildQuestions(){
-      const result=PART_CONFIG.generators.map(name=>{
-        if(!GENERATORS[name]) throw new Error("Неизвестный генератор "+name);
-        return GENERATORS[name]();
-      });
-      if(result.length!==PART_CONFIG.generators.length||new Set(result.map(q=>q.id)).size!==result.length) throw new Error("Некорректный набор заданий");
-      return result;
-    }
-
-    const state={
-      student:null,
-      questions:buildQuestions(),
-      startedAt:0,
-      durationSeconds:0,
-      correct:0,
-      scorePercent:0,
-      submitted:false
-    };
-
+    const state={student:null,verifiedStudentId:null,questions:FIXED_QUESTIONS,startedAt:0,durationSeconds:0,submitted:false,monthlySubmitted:false,monthlyChecked:false,timerId:null,screenshot:false};
+    function draftKey(){return `homeworkDraft:${HOMEWORK_META.assignmentId}:${state.student.code}`}
+    function resultKey(){return `homeworkSubmittedResult:${HOMEWORK_META.assignmentId}:${state.student.code}:${monthKey()}`}
+    function markerKey(){return `homeworkSubmittedMarker:${HOMEWORK_META.assignmentId}:${state.student.code}:${monthKey()}`}
+    function pendingKey(){return `pendingHomeworkResults:${HOMEWORK_META.assignmentId}`}
 
     class AudioEngine{
       constructor(){this.enabled=true;this.ctx=null;this.timer=null;this.step=0}
-      ensure(){
-        if(!this.enabled)return;
-        if(!this.ctx)this.ctx=new (window.AudioContext||window.webkitAudioContext)();
-        if(this.ctx.state==="suspended")this.ctx.resume();
-      }
-      tone(freq,duration=.18,type="sine",volume=.018,delay=0){
-        if(!this.enabled)return;this.ensure();if(!this.ctx)return;
-        const now=this.ctx.currentTime+delay,o=this.ctx.createOscillator(),g=this.ctx.createGain();
-        o.type=type;o.frequency.setValueAtTime(freq,now);
-        g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(volume,now+.025);
-        g.gain.exponentialRampToValueAtTime(.0001,now+duration);
-        o.connect(g).connect(this.ctx.destination);o.start(now);o.stop(now+duration+.04);
-      }
+      ensure(){if(!this.enabled)return;if(!this.ctx)this.ctx=new (window.AudioContext||window.webkitAudioContext)();if(this.ctx.state==="suspended")this.ctx.resume()}
+      tone(freq,duration=.18,type="sine",volume=.018,delay=0){if(!this.enabled)return;this.ensure();if(!this.ctx)return;const now=this.ctx.currentTime+delay,o=this.ctx.createOscillator(),g=this.ctx.createGain();o.type=type;o.frequency.setValueAtTime(freq,now);g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(volume,now+.025);g.gain.exponentialRampToValueAtTime(.0001,now+duration);o.connect(g).connect(this.ctx.destination);o.start(now);o.stop(now+duration+.04)}
       click(){this.tone(720,.055,"sine",.016);this.tone(1040,.07,"sine",.008,.035)}
       good(){[523,659,784,1047].forEach((n,i)=>this.tone(n,.22,"triangle",.02,i*.11))}
       bad(){this.tone(210,.22,"sine",.019);this.tone(160,.26,"triangle",.015,.13)}
-      startMusic(){
-        if(!this.enabled||this.timer)return;this.ensure();
-        const melody=[262,330,392,523,440,392,330,294,349,440,587,523,440,349,330,294];
-        const tick=()=>{
-          if(!this.enabled)return;
-          const n=melody[this.step%melody.length];
-          this.tone(n,.32,"sine",.007);
-          if(this.step%4===0)this.tone(n/2,.7,"triangle",.004);
-          if(this.step%8===6)this.tone(n*2,.08,"sine",.004,.12);
-          this.step++;
-        };
-        tick();this.timer=setInterval(tick,430);
-      }
+      startMusic(){if(!this.enabled||this.timer)return;this.ensure();const melody=[262,330,392,523,440,392,330,294,349,440,587,523,440,349,330,294];const tick=()=>{if(!this.enabled)return;const n=melody[this.step%melody.length];this.tone(n,.32,"sine",.007);if(this.step%4===0)this.tone(n/2,.7,"triangle",.004);if(this.step%8===6)this.tone(n*2,.08,"sine",.004,.12);this.step++};tick();this.timer=setInterval(tick,430)}
       stopMusic(){if(this.timer){clearInterval(this.timer);this.timer=null}}
       toggle(){this.enabled=!this.enabled;if(this.enabled)this.startMusic();else this.stopMusic();return this.enabled}
     }
     const audio=new AudioEngine();
 
-
-
-    function renderScreenshot(){
-      const grid=$("#shotGrid");
-      grid.innerHTML=state.questions.map((q,index)=>`<article class="shot-card"><div class="shot-head"><span class="shot-num">№ ${index+1}</span><span class="shot-skill">${q.skill}</span></div><div class="shot-text">${q.text}</div></article>`).join("");
-    }
-    function openScreenshot(){renderScreenshot();$("#screenshotOverlay").classList.add("on");document.documentElement.style.overflow="hidden";document.body.style.overflow="hidden";}
-    function closeScreenshot(){$("#screenshotOverlay").classList.remove("on");document.documentElement.style.overflow="";document.body.style.overflow="";}
-
-    function showScreen(id){
-      $$(".screen").forEach(screen=>screen.classList.toggle("on",screen.id===id));
-      window.scrollTo({top:Math.max(0,$(".hero").offsetHeight-10),behavior:"smooth"});
-    }
-    function toast(message,error=false){
-      const box=$("#toast");box.textContent=message;box.classList.toggle("error",error);box.classList.add("on");
-      clearTimeout(toast.timer);toast.timer=setTimeout(()=>box.classList.remove("on"),3500);
-    }
-    function jsonp(params,timeout=12000){
-      return new Promise((resolve,reject)=>{
-        const callback="egeCb_"+Date.now()+"_"+Math.random().toString(36).slice(2);
-        const script=document.createElement("script");
-        const timer=setTimeout(()=>finish(new Error("Сервер не ответил")),timeout);
-        const finish=(error,data)=>{
-          clearTimeout(timer);delete window[callback];script.remove();error?reject(error):resolve(data);
-        };
-        window[callback]=data=>finish(null,data);
-        script.onerror=()=>finish(new Error("Не удалось подключиться к серверу"));
-        script.src=API_URL+"?"+new URLSearchParams({...params,callback}).toString();
-        document.head.appendChild(script);
-      });
-    }
-    async function postApi(payload){
-      // Основной запрос — ровно как у тестов: POST text/plain + JSON.
-      // Для локального открытия file:// оставляем только сетевой fallback,
-      // потому что браузер может скрыть уже принятый Apps Script ответ как Failed to fetch.
-      const body=JSON.stringify(payload);
-      const controller=new AbortController();
-      const timer=setTimeout(()=>controller.abort(),60000);
-      try{
-        const response=await fetch(API_URL,{
-          method:"POST",
-          headers:{"Content-Type":"text/plain;charset=utf-8"},
-          body,
-          redirect:"follow",
-          signal:controller.signal
-        });
-        const text=await response.text();
-        let data;
-        try{data=JSON.parse(text)}catch{throw new Error("Система результатов не ответила JSON.")}
-        if(!response.ok||data?.success===false||data?.ok===false)throw new Error(data?.message||data?.error||"Результат не принят.");
-        return {data,confirmed:true,fallback:false};
-      }catch(error){
-        if(error?.name==="AbortError")throw new Error("Сервер результатов не ответил за 60 секунд.");
-        // Если это именно сетевой/CORS сбой, повторяем тот же payload с тем же eventId.
-        // Сервер дедуплицирует eventId, поэтому двойной строки не появится.
-        let sent=false;
-        try{
-          if(navigator.sendBeacon){
-            sent=navigator.sendBeacon(API_URL,new Blob([body],{type:"text/plain;charset=utf-8"}));
-          }
-        }catch(_){sent=false}
-        if(!sent){
-          try{
-            await fetch(API_URL,{
-              method:"POST",
-              headers:{"Content-Type":"text/plain;charset=utf-8"},
-              body,
-              mode:"no-cors",
-              keepalive:true
-            });
-            sent=true;
-          }catch(_){sent=false}
-        }
-        if(!sent)throw error;
-        return {data:null,confirmed:false,fallback:true};
-      }finally{clearTimeout(timer)}
-    }
-    async function checkHomeworkAfterSubmit(){
-      const params={action:"checkHomeworkSubmission",studentId:state.student.id,assignmentId:HOMEWORK_META.assignmentId};
-      let lastError=null;
-      for(let attempt=0;attempt<5;attempt++){
-        if(attempt)await new Promise(resolve=>setTimeout(resolve,900+attempt*250));
-        try{
-          const data=await jsonp(params,20000);
-          if(data?.success===false||data?.ok===false)throw new Error(data?.message||data?.error||"Проверка сдачи отклонена.");
-          if(data?.submitted===true)return data;
-          lastError=new Error("Сдача ещё не появилась на сервере.");
-        }catch(error){lastError=error}
-      }
-      throw lastError||new Error("Не удалось подтвердить сдачу.");
-    }
-    function isEarlierMonthlySubmission(check,payload,submitStartedAt){
-      if(!check?.submitted)return false;
-      const savedScore=Number(check.scorePercent),savedDuration=Number(check.durationSeconds);
-      if(Number.isFinite(savedScore)&&savedScore!==Number(payload.scorePercent))return true;
-      if(Number.isFinite(savedDuration)&&savedDuration!==Number(payload.durationSeconds))return true;
-      const savedAt=Date.parse(check.submittedAt||"");
-      if(Number.isFinite(savedAt)&&savedAt<submitStartedAt-10000)return true;
-      return false;
-    }
-    function extractStudent(data,code){
-      const source=data?.student||data?.data?.student||data?.data||data?.result||data||{};
-      const id=source.id||source.studentId||data?.studentId;
-      const name=source.name||source.studentName||data?.studentName||"Ученик";
-      const valid=data?.valid===true||data?.success===true||data?.ok===true||data?.status==="ok"||Boolean(id);
-      if(!valid||!id)throw new Error(data?.message||data?.error||"Код ученика не найден");
-      return {id:String(id),name:String(name),code:String(code)};
-    }
-    function saveStudent(student){
-      localStorage.setItem("egeStudentId",student.id);
-      localStorage.setItem("egeStudentName",student.name);
-      localStorage.setItem("egeStudentCode",student.code);
-    }
-    function cachedStudent(){
-      const id=localStorage.getItem("egeStudentId"),name=localStorage.getItem("egeStudentName"),code=localStorage.getItem("egeStudentCode");
-      return id&&code?{id,name:name||"Ученик",code}:null;
-    }
-    async function activateStudent(student){
-      state.student=student;saveStudent(student);
-      $("#studentName").firstChild.textContent=student.name;
-      $("#studentBar").hidden=false;
-      $("#screenshotButton").hidden=false;
-      // До отправки домашней работы никаких месячных проверок и блокировок.
-      showScreen("welcomeScreen");
-    }
-    async function validateCode(code){
-      const data=await jsonp({action:"validateStudent",code});
-      return extractStudent(data,code);
-    }
-    function renderSummary(){
-      const counts=new Map();
-      state.questions.forEach(q=>counts.set(q.prototype,(counts.get(q.prototype)||0)+1));
-      $("#prototypeSummary").innerHTML=[...counts].map(([name,count])=>"<li><b>"+name+"</b> — "+count+" "+(count===1?"задача":count<5?"задачи":"задач")+"</li>").join("");
-    }
+    function renderScreenshot(){const grid=$("#shotGrid");grid.innerHTML=state.questions.map((q,index)=>`<article class="shot-card"><div class="shot-head"><span class="shot-num">№ ${index+1}</span><span class="shot-skill">${q.skill}</span></div><div class="shot-text">${q.text}</div></article>`).join("");typeset(grid)}
+    function openScreenshot(){renderScreenshot();$("#screenshotOverlay").classList.add("on");document.documentElement.style.overflow="hidden";document.body.style.overflow="hidden";state.screenshot=true}
+    function closeScreenshot(){$("#screenshotOverlay").classList.remove("on");document.documentElement.style.overflow="";document.body.style.overflow="";state.screenshot=false}
+    function showScreen(id){$$('.screen').forEach(screen=>screen.classList.toggle('on',screen.id===id));window.scrollTo({top:Math.max(0,$('.hero').offsetHeight-10),behavior:'smooth'})}
+    function renderSummary(){const counts=new Map();state.questions.forEach(q=>counts.set(q.prototype,(counts.get(q.prototype)||0)+1));$("#prototypeSummary").innerHTML=[...counts].map(([name,count])=>`<li><b>${name}</b> — ${count} ${count===1?'задача':count<5?'задачи':'задач'}</li>`).join('')}
     function renderTasks(){
-      $("#taskList").innerHTML=state.questions.map((q,index)=>`
-        <article class="task" data-index="${index}">
-          <div class="task-head">
-            <span class="task-num pixel">Задание ${index+1}</span>
-            <span class="prototype-tag">${q.skill}</span>
-          </div>
-          <div class="task-text">${q.text}</div>
-          <div class="answer-row">
-            <label for="answer-${index}">Ответ:</label>
-            <input class="answer-input" id="answer-${index}" name="answer-${index}" inputmode="decimal" autocomplete="off" aria-label="Ответ на задание ${index+1}">
-          </div>
-        </article>`).join("");
+      $("#taskList").innerHTML=state.questions.map((q,index)=>`<article class="task" data-index="${index}"><div class="task-head"><span class="task-num pixel">Задание ${index+1}</span><span class="prototype-tag">${q.skill}</span></div><div class="task-text">${q.text}</div><div class="answer-row"><label for="answer-${index}">Ответ:</label><input class="answer-input" id="answer-${index}" data-index="${index}" inputmode="decimal" autocomplete="off" aria-label="Ответ на задание ${index+1}"><span class="verdict"></span></div><button class="solution-toggle" type="button" data-solution="${index}">Показать решение</button><div class="solution-inline" id="solution-${index}"></div></article>`).join('');
+      $$('.answer-input').forEach(input=>input.addEventListener('input',()=>{saveDraft();updateProgress()}));
+      $$('.solution-toggle').forEach(button=>button.addEventListener('click',()=>toggleSolution(Number(button.dataset.solution),button)));
+      updateProgress();typeset($("#taskList"));
     }
-    function normalizeAnswer(value){
-      const clean=String(value).trim().replace(/\s+/g,"").replace(",",".");
-      if(clean==="")return NaN;
-      return Number(clean);
-    }
-    function updateProgress(){
-      const inputs=$$(".answer-input"),filled=inputs.filter(input=>input.value.trim()!=="").length;
-      inputs.forEach(input=>input.closest(".task").classList.toggle("answered",input.value.trim()!==""));
-      $("#progressText").textContent=filled+" / "+inputs.length;
-      $("#progressFill").style.width=(filled/inputs.length*100)+"%";
-      $("#submitButton").disabled=filled!==inputs.length||state.submitted;
-      $("#submitStatus").textContent=filled===inputs.length?"Ответы заполнены. Проверка появится только после отправки.":"Заполни все 6 полей — кнопка отправки станет активной.";
-    }
-    function uuid(){
-      if(crypto?.randomUUID)return crypto.randomUUID();
-      return "hw-"+Date.now()+"-"+Math.random().toString(16).slice(2)+"-"+Math.random().toString(16).slice(2);
-    }
-    function showReviewOnly(message){
-      lockInputs();renderSolutions();
-      $("#resultTitle").textContent="📚 Работа уже была отправлена";
-      $("#repeatWarning").hidden=false;
-      if(message)$("#repeatWarning").textContent=message;
-      $("#resultSummary").hidden=true;
-      $("#solutions").classList.add("on");
-      $("#solutionsButton").textContent="Скрыть разбор";
-      showScreen("resultScreen");
-    }
-    function showSavedResult(){
-      $("#resultTitle").textContent="🏆 Работа отправлена";
-      $("#repeatWarning").hidden=true;
-      $("#resultSummary").hidden=false;
-      $("#scoreValue").textContent=state.scorePercent+"%";
-      $("#correctValue").textContent=state.correct+" / "+state.questions.length;
-      $("#timeValue").textContent=minutes(state.durationSeconds);
-      showScreen("resultScreen");
-    }
-    function buildSubmissionPayload(durationSeconds,scorePercent){
-      return {
-        action:"submitHomework",
-        eventId:uuid(),
-        studentId:state.student.id,
-        assignmentId:HOMEWORK_META.assignmentId,
-        taskNumber:HOMEWORK_META.taskNumber,
-        topicId:HOMEWORK_META.topicId,
-        topicName:HOMEWORK_META.topicName,
-        scorePercent,
-        durationSeconds,
-        schemaVersion:1,
-        programId:"OGE_MATH"
-      };
-    }
-    function grade(){
-      const values=$$(".answer-input").map(input=>normalizeAnswer(input.value));
-      const correct=values.reduce((sum,value,index)=>sum+(Number.isFinite(value)&&Math.abs(value-state.questions[index].answer)<1e-7?1:0),0);
-      return {correct,scorePercent:Math.round(correct/state.questions.length*100)};
-    }
-    function renderSolutions(){
-      $("#solutions").innerHTML=state.questions.map((q,index)=>`
-        <article class="solution">
-          <h3 class="pixel">Задание ${index+1} · Ответ: ${showNum(q.answer)}</h3>
-          <div class="solution-condition">${q.text}</div><div class="recall"><b>Вспомним.</b> ${q.recall}</div>
-          <div class="formula">${q.formula}</div>
-          <div class="lifehack"><b>Лайфхак.</b> ${q.tip}</div>
-          <ol class="steps">${q.steps.map(step=>"<li>"+step+"</li>").join("")}</ol>
-        </article>`).join("");
-    }
-    function lockInputs(){
-      $$(".answer-input").forEach(input=>input.disabled=true);
-      $("#submitButton").disabled=true;
-    }
+    function renderSolution(index){const q=state.questions[index],box=$(`#solution-${index}`);if(box.dataset.ready)return;box.innerHTML=`<h3 class="pixel">Разбор задания ${index+1}</h3><div class="recall"><b>Что используем.</b> ${q.solution.recall}</div><div class="formula">${q.solution.formula}</div><div>${q.solution.steps.map(step=>`<div class="math-step">${step}</div>`).join('')}</div><div class="lifehack"><b>Ответ:</b> ${q.answerDisplay}</div>`;box.dataset.ready='1';typeset(box)}
+    function toggleSolution(index,button){renderSolution(index);const box=$(`#solution-${index}`),open=!box.classList.contains('on');box.classList.toggle('on',open);button.textContent=open?'Скрыть решение':'Показать решение'}
+    function updateProgress(){const inputs=$$('.answer-input'),filled=inputs.filter(input=>input.value.trim()!=='').length;inputs.forEach(input=>input.closest('.task').classList.toggle('answered',input.value.trim()!==''));$("#progressText").textContent=`${filled} / ${inputs.length}`;$("#progressFill").style.width=(filled/inputs.length*100)+'%';$("#submitButton").disabled=state.submitted;$("#submitStatus").textContent=`Заполнено ${filled} из ${inputs.length}. Можно завершить в любой момент. Пустые ответы считаются неверными.`}
+    function saveDraft(){if(!state.student||state.submitted||!$("#workScreen").classList.contains('on'))return;const answers=$$('.answer-input').map(input=>input.value);storeSet(draftKey(),JSON.stringify({assignmentId:HOMEWORK_META.assignmentId,studentCode:state.student.code,answers,startedAt:state.startedAt||Date.now(),updatedAt:Date.now()}))}
+    function restoreDraft(){if(!state.student)return false;const draft=jsonGet(draftKey());if(!draft||draft.assignmentId!==HOMEWORK_META.assignmentId||normalizeCode(draft.studentCode)!==state.student.code)return false;renderTasks();(draft.answers||[]).forEach((value,index)=>{const input=$(`#answer-${index}`);if(input)input.value=value||''});state.startedAt=Number(draft.startedAt)||Date.now();showScreen('workScreen');startTimer();updateProgress();return true}
+    function startTimer(){clearInterval(state.timerId);const tick=()=>{state.durationSeconds=Math.max(1,Math.round((Date.now()-state.startedAt)/1000))};tick();state.timerId=setInterval(tick,1000)}
+    function startHomework(){audio.click();audio.startMusic();if(!$("#taskList").children.length)renderTasks();state.startedAt=state.startedAt||Date.now();showScreen('workScreen');startTimer();saveDraft();updateProgress()}
+    function grade(){const answers=$$('.answer-input').map(input=>input.value.trim());const correct=answers.reduce((sum,value,index)=>sum+(isCorrect(value,state.questions[index].answer)?1:0),0);return {answers,correct,scorePercent:Math.round(correct/state.questions.length*100)}}
+    function markSubmitted(answers){if(!$("#taskList").children.length)renderTasks();state.questions.forEach((q,index)=>{const card=$(`.task[data-index="${index}"]`),input=$(`#answer-${index}`),value=(answers||[])[index]||'';input.value=value;input.disabled=true;card.classList.add('submitted');const ok=isCorrect(value,q.answer);card.classList.toggle('correct',ok);card.classList.toggle('wrong',!ok);card.querySelector('.verdict').textContent=ok?'✓ Верно':'✗ Неверно'});updateProgress()}
+    function showResult(result,restored=false){state.submitted=true;clearInterval(state.timerId);markSubmitted(result.answers||[]);$("#scoreValue").textContent=result.scorePercent+'%';$("#correctValue").textContent=`${result.correct} / ${state.questions.length}`;$("#timeValue").textContent=minutes(result.durationSeconds);$("#resultTitle").textContent=restored?'📚 Результат восстановлен':'🏆 Работа завершена';$("#repeatWarning").hidden=true;$("#resultSummary").hidden=false;$("#resultNote").textContent=state.monthlySubmitted?'Эта работа уже была отправлена в этом месяце. Доступен просмотр результата и разбор заданий.':'Результат рассчитан сразу на устройстве. Можно перейти к разбору заданий.';showScreen('resultScreen')}
+    function finishHomework(){if(state.submitted)return;const graded=grade();state.durationSeconds=Math.max(1,Math.round((Date.now()-(state.startedAt||Date.now()-1000))/1000));const result={eventId:uuid(),correct:graded.correct,scorePercent:graded.scorePercent,durationSeconds:state.durationSeconds,answers:graded.answers,submittedAt:new Date().toISOString()};storeSet(resultKey(),JSON.stringify(result));storeRemove(draftKey());showResult(result);graded.scorePercent===100?audio.good():audio.bad();if(!state.monthlySubmitted&&!storeGet(markerKey())){const payload={action:'submitHomework',eventId:result.eventId,studentId:state.verifiedStudentId||state.student.code,assignmentId:HOMEWORK_META.assignmentId,taskNumber:HOMEWORK_META.taskNumber,topicId:HOMEWORK_META.topicId,topicName:HOMEWORK_META.topicName,scorePercent:result.scorePercent,durationSeconds:result.durationSeconds,schemaVersion:1,programId:PROGRAM_ID};enqueuePayload(payload);flushQueue()}}
+    function reviewTasks(){if(!$("#taskList").children.length)renderTasks();const saved=jsonGet(resultKey());if(saved)markSubmitted(saved.answers||[]);showScreen('workScreen');typeset($("#taskList"))}
 
-    $("#loginForm").addEventListener("submit",async event=>{
-      event.preventDefault();audio.click();
-      const code=$("#studentCode").value.trim();
-      if(!code)return;
-      $("#loginButton").disabled=true;$("#loginStatus").className="status";$("#loginStatus").textContent="Проверяем код…";
-      try{
-        const student=await validateCode(code);
-        $("#loginStatus").className="status ok";$("#loginStatus").textContent="✓ Код подтверждён";
-        await activateStudent(student);
-      }catch(error){
-        audio.bad();$("#loginStatus").className="status error";$("#loginStatus").textContent=error.message;
-      }finally{$("#loginButton").disabled=false}
-    });
-    $("#changeStudent").addEventListener("click",()=>{
-      if($("#workScreen").classList.contains("on"))return;
-      ["egeStudentId","egeStudentName","egeStudentCode"].forEach(key=>localStorage.removeItem(key));
-      const url=new URL(location.href);url.searchParams.delete("code");location.href=url.pathname+url.search;
-    });
-    $("#startButton").addEventListener("click",()=>{
-      audio.click();audio.startMusic();renderTasks();state.startedAt=Date.now();
-      $("#changeStudent").disabled=true;showScreen("workScreen");updateProgress();
-    });
-    $("#taskList").addEventListener("input",updateProgress);
-    $("#homeworkForm").addEventListener("submit",async event=>{
-      event.preventDefault();
-      if($("#submitButton").disabled||state.submitted)return;
-      state.submitted=true;$("#submitButton").disabled=true;$("#submitStatus").textContent="Сохраняем результат…";
-      try{
-        state.durationSeconds=Math.max(1,Math.round((Date.now()-state.startedAt)/1000));
-        const result=grade();state.correct=result.correct;state.scorePercent=result.scorePercent;
-        const payload=buildSubmissionPayload(state.durationSeconds,state.scorePercent);
-        const submitStartedAt=Date.now();
-        const delivery=await postApi(payload);
+    function normalizeQueueItem(item){return item&&item.payload?item:{studentCode:null,payload:item}}
+    function enqueuePayload(payload){const queue=jsonGet(pendingKey(),[]).map(normalizeQueueItem);if(!queue.some(item=>item.payload?.eventId===payload.eventId)){queue.push({studentCode:state.student.code,payload});storeSet(pendingKey(),JSON.stringify(queue))}}
+    function updateQueuedStudentId(){if(!state.student||!state.verifiedStudentId)return;const queue=jsonGet(pendingKey(),[]).map(normalizeQueueItem);let changed=false;queue.forEach(item=>{if(item.studentCode===state.student.code&&item.payload?.studentId===state.student.code){item.payload.studentId=state.verifiedStudentId;changed=true}});if(changed)storeSet(pendingKey(),JSON.stringify(queue))}
+    async function postPayload(payload,keepalive=false){const response=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow',keepalive});if(!response.ok)throw Error('HTTP '+response.status);const text=await response.text();let data;try{data=JSON.parse(text)}catch{throw Error('invalid response')}if(data?.success===false||data?.ok===false)throw Error('not saved');return data}
+    let flushing=false;
+    async function flushQueue(){if(flushing||!navigator.onLine)return;flushing=true;try{const queue=jsonGet(pendingKey(),[]).map(normalizeQueueItem),remaining=[];for(const item of queue){try{const data=await postPayload(item.payload);if(state.student&&item.studentCode===state.student.code){state.monthlySubmitted=true;storeSet(markerKey(),'1');if(state.submitted)$("#resultNote").textContent='Эта работа уже была отправлена в этом месяце. Доступен просмотр результата и разбор заданий.'}}catch{remaining.push(item)}}storeSet(pendingKey(),JSON.stringify(remaining))}finally{flushing=false}}
+    function jsonp(params,timeout=15000){return new Promise((resolve,reject)=>{const callback=`hwcb_${Date.now()}_${Math.random().toString(36).slice(2)}`,script=document.createElement('script');let done=false;const timer=setTimeout(()=>finish(Error('timeout')),timeout);function cleanup(){clearTimeout(timer);try{delete window[callback]}catch{window[callback]=undefined}script.remove()}function finish(error,data){if(done)return;done=true;cleanup();error?reject(error):resolve(data)}window[callback]=data=>finish(null,data);script.onerror=()=>finish(Error('network'));script.src=`${API_URL}?${new URLSearchParams({...params,callback})}`;document.head.appendChild(script)})}
+    function parseStudent(data,code){if(!data||data.ok===false||data.success===false||data.valid===false)return null;const raw=data.student||data.data?.student||data.data||data.result||data,id=raw.studentId??raw.id??data.studentId??data.id,name=raw.studentName??raw.name??data.studentName??data.name;return id!==undefined&&id!==null&&id!==''?{id:String(id),name:String(name||'Ученик'),code}:null}
+    async function validateInBackground(code){try{const data=await jsonp({action:'validateStudent',code},15000),student=parseStudent(data,code);if(!student)return;state.verifiedStudentId=student.id;state.student={...student};storeSet('egeStudentId',student.id);storeSet('egeStudentName',student.name);storeSet('egeStudentCode',student.code);$("#studentName").firstChild.textContent=student.name;updateQueuedStudentId();checkMonthlyInBackground();flushQueue()}catch{}}
+    async function checkMonthlyInBackground(){if(!state.student||!state.verifiedStudentId)return;try{const data=await jsonp({action:'checkHomeworkSubmission',studentId:state.verifiedStudentId,assignmentId:HOMEWORK_META.assignmentId},15000);state.monthlyChecked=true;if(data?.submitted===true||data?.alreadySubmitted===true){state.monthlySubmitted=true;storeSet(markerKey(),'1');const queue=jsonGet(pendingKey(),[]).map(normalizeQueueItem).filter(item=>item.studentCode!==state.student.code);storeSet(pendingKey(),JSON.stringify(queue));if(state.submitted)$("#resultNote").textContent='Эта работа уже была отправлена в этом месяце. Доступен просмотр результата и разбор заданий.'}}catch{}}
+    function enterStudent(code,name='Ученик',id=null){code=normalizeCode(code);state.student={code,name,id:id||code};state.verifiedStudentId=id&&id!==code?id:null;state.monthlySubmitted=Boolean(storeGet(markerKey()));storeSet('egeStudentCode',code);if(id)storeSet('egeStudentId',id);if(name)storeSet('egeStudentName',name);$("#studentName").firstChild.textContent=name;$("#studentBar").hidden=false;$("#screenshotButton").hidden=false;const saved=jsonGet(resultKey());if(saved){renderTasks();showResult(saved,true)}else if(!restoreDraft()){showScreen('welcomeScreen')}if(state.verifiedStudentId)checkMonthlyInBackground();validateInBackground(code);flushQueue()}
+    function cachedStudent(){const code=normalizeCode(storeGet('egeStudentCode')),id=storeGet('egeStudentId'),name=storeGet('egeStudentName')||'Ученик';return code?{code,id,name}:null}
+    function changeStudent(){saveDraft();clearInterval(state.timerId);['egeStudentId','egeStudentName','egeStudentCode'].forEach(storeRemove);state.student=null;state.verifiedStudentId=null;state.submitted=false;state.startedAt=0;state.durationSeconds=0;state.monthlySubmitted=false;state.monthlyChecked=false;$("#taskList").innerHTML='';$("#studentBar").hidden=true;$("#screenshotButton").hidden=true;$("#studentCode").value='';$("#loginStatus").textContent='';showScreen('authScreen');$("#studentCode").focus()}
 
-        // Месячная проверка выполняется ТОЛЬКО ПОСЛЕ отправки ДЗ.
-        $("#submitStatus").textContent="Проверяем, была ли работа уже отправлена в этом месяце…";
-        const monthly=await checkHomeworkAfterSubmit();
+    $("#loginForm").addEventListener('submit',event=>{event.preventDefault();audio.click();const code=normalizeCode($("#studentCode").value);if(!code)return;$("#loginStatus").className='status ok';$("#loginStatus").textContent='✓ Можно начинать';enterStudent(code)});
+    $("#changeStudent").addEventListener('click',changeStudent);
+    $("#startButton").addEventListener('click',startHomework);
+    $("#homeworkForm").addEventListener('submit',event=>{event.preventDefault();finishHomework()});
+    $("#reviewButton").addEventListener('click',reviewTasks);
+    $("#screenshotButton").addEventListener('click',()=>{audio.click();openScreenshot()});
+    $("#shotExit").addEventListener('click',closeScreenshot);
+    document.addEventListener('keydown',event=>{if(event.key==='Escape'&&state.screenshot)closeScreenshot()});
+    $("#soundButton").addEventListener('click',()=>{const enabled=audio.toggle();$("#soundButton").textContent=enabled?'🔊':'🔇';$("#soundButton").setAttribute('aria-pressed',String(enabled))});
+    window.addEventListener('online',flushQueue);setInterval(flushQueue,60000);
+    window.addEventListener('pagehide',()=>{saveDraft();const queue=jsonGet(pendingKey(),[]).map(normalizeQueueItem);queue.forEach(item=>{try{fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(item.payload),keepalive:true})}catch{}})});
 
-        // При обычном POST ответ submitHomework даёт точный alreadySubmitted.
-        // При CORS-fallback сравниваем сохранённую сервером попытку с текущей.
-        const repeat=delivery.confirmed
-          ? Boolean(delivery.data?.alreadySubmitted)
-          : isEarlierMonthlySubmission(monthly,payload,submitStartedAt);
-
-        lockInputs();renderSolutions();
-        if(repeat){
-          showReviewOnly("⚠️ Ты уже отправлял эту домашнюю работу в этом календарном месяце. В таблице сохранена первая попытка. Эта попытка не учитывается — сейчас доступен только разбор задач.");
-          audio.bad();
-          return;
-        }
-
-        showSavedResult();
-        state.correct===state.questions.length?audio.good():audio.bad();
-      }catch(error){
-        state.submitted=false;$("#submitButton").disabled=false;
-        $("#submitStatus").textContent="Не удалось отправить или подтвердить результат: "+error.message+". Ответы сохранены на странице — попробуй ещё раз.";
-        toast("Результат не подтверждён",true);audio.bad();
-      }
-    });
-    $("#solutionsButton").addEventListener("click",()=>{
-      audio.click();const box=$("#solutions"),open=box.classList.toggle("on");
-      $("#solutionsButton").textContent=open?"Скрыть разбор":"Разобрать решения";
-      if(open)box.scrollIntoView({behavior:"smooth",block:"start"});
-    });
-
-    $("#screenshotButton").addEventListener("click",()=>{audio.click();openScreenshot()});
-    $("#shotExit").addEventListener("click",closeScreenshot);
-    document.addEventListener("keydown",event=>{if(event.key==="Escape")closeScreenshot()});
-    $("#soundButton").addEventListener("click",()=>{
-      const enabled=audio.toggle();$("#soundButton").textContent=enabled?"🔊":"🔇";
-      $("#soundButton").setAttribute("aria-pressed",String(enabled));
-    });
-
-    async function boot(){
-      renderSummary();
-      const codeFromUrl=new URLSearchParams(location.search).get("code");
-      if(codeFromUrl){
-        $("#studentCode").value=codeFromUrl;
-        $("#loginStatus").textContent="Проверяем код из ссылки…";
-        try{await activateStudent(await validateCode(codeFromUrl))}catch(error){$("#loginStatus").className="status error";$("#loginStatus").textContent=error.message}
-        return;
-      }
-      const cached=cachedStudent();
-      if(cached)await activateStudent(cached);
-    }
-
-    window.__HOMEWORK_DIAGNOSTICS__={
-      meta:HOMEWORK_META,
-      questionCount:state.questions.length,
-      prototypes:state.questions.map(q=>q.prototype),
-      skills:state.questions.map(q=>q.skill),
-      screenshotMode:true,
-      answersValid:state.questions.every(q=>Number.isFinite(q.answer)),
-      submissionKeys:["action","eventId","studentId","assignmentId","taskNumber","topicId","topicName","scorePercent","durationSeconds","schemaVersion","programId"],monthlyCheckTiming:"after-submit-only",corsFallback:true
-    };
+    function boot(){renderSummary();const codeFromUrl=normalizeCode(new URLSearchParams(location.search).get('code'));if(codeFromUrl){$("#studentCode").value=codeFromUrl;enterStudent(codeFromUrl);return}const cached=cachedStudent();if(cached){enterStudent(cached.code,cached.name,cached.id);return}showScreen('authScreen')}
+    window.__HOMEWORK_DIAGNOSTICS__={meta:HOMEWORK_META,questionCount:state.questions.length,fixed:true,screenshotMode:true,answersValid:state.questions.every(q=>Number.isFinite(q.answer)),submissionKeys:['action','eventId','studentId','assignmentId','taskNumber','topicId','topicName','scorePercent','durationSeconds','schemaVersion','programId']};
     boot();
   </script>
 </body>
