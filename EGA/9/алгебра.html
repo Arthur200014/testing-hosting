@@ -123,11 +123,11 @@ button{cursor:pointer}
 
 /* ===== Общая доска ===== */
 .stationView{position:relative}
-.sharedBoardSvg{position:absolute;inset:0;width:100%;height:100%;z-index:45;pointer-events:none;overflow:visible}
+.sharedBoardSvg{position:absolute;left:0;top:0;width:100%;height:100%;z-index:11950;pointer-events:none;overflow:visible}
 .sharedBoardSvg.drawing{pointer-events:auto;touch-action:none;cursor:crosshair}
 .sharedBoardSvg.erasing{pointer-events:auto;touch-action:none;cursor:cell}
-.sharedBoardSvg path{fill:none;stroke-linecap:round;stroke-linejoin:round}
-.teacherCursor{position:absolute;z-index:47;pointer-events:none;transform:translate(-2px,-2px);display:none}
+.sharedBoardSvg path{fill:none;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.teacherCursor{position:absolute;z-index:11960;pointer-events:none;transform:translate(-2px,-2px);display:none}
 .teacherCursor.show{display:block}.teacherCursor::before{content:"";display:block;width:16px;height:22px;background:#ff5378;
   clip-path:polygon(0 0,0 100%,28% 72%,45% 100%,58% 93%,41% 66%,74% 66%)}
 .teacherCursor span{position:absolute;left:14px;top:14px;white-space:nowrap;background:#073f61;color:#fff;border-radius:8px;padding:3px 6px;font-size:.7rem;font-weight:850}
@@ -147,6 +147,8 @@ button{cursor:pointer}
 <body>
 <div class="bg" aria-hidden="true"><div class="flower f1"></div><div class="flower f2"></div><div class="flower f3"></div><div class="seabed"></div><div id="bubbles"></div></div>
 <div class="bubbleOverlay" id="bubbleOverlay" aria-hidden="true"></div>
+<svg id="sharedBoardSvg" class="sharedBoardSvg" aria-label="Общая доска рисования по всей странице"></svg>
+<div class="teacherCursor" id="teacherCursor"><span>Учитель</span></div>
 <div class="shell">
   <div class="topbar">
     <div class="brand">🧽 <span>АЛГЕБРА <b>БИКИНИ-БОТТОМ</b></span></div>
@@ -174,7 +176,7 @@ button{cursor:pointer}
             <li>выбери любой пробел — станции не заблокированы;</li>
             <li><b>«Покажи»</b> объясняет через анимацию и метафору;</li>
             <li><b>«Вместе»</b> даёт управлять шагами с подсказками;</li>
-            <li><b>«Сам»</b> — 15 коротких тренировок навыка.</li>
+            <li><b>«Сам»</b> — 15 коротких тренировок с разными знаками, дробями и структурами.</li>
           </ul>
         </div>
       </div>
@@ -184,8 +186,6 @@ button{cursor:pointer}
     </section>
 
     <section id="stationView" class="stationView hidden" data-board-anchor="station-screen">
-      <svg id="sharedBoardSvg" class="sharedBoardSvg" aria-label="Общая доска рисования"></svg>
-      <div class="teacherCursor" id="teacherCursor"><span>Учитель</span></div>
       <div class="stationHead">
         <div><h2 id="stationTitle">Станция</h2><p id="stationDesc"></p></div>
         <div class="stationMascot" id="stationMascot">🧽</div>
@@ -296,9 +296,9 @@ const F=s=>`<div class="formula">${s}</div>`;
 const toast=(msg)=>{const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2400)};
 
 /* ===== Совместный урок: fixed currentSession, режим ГАЙДА ===== */
-const APP_ID="ege9-algebra-bikini-bottom-guide-v1";
+const APP_ID="ege9-algebra-bikini-bottom-guide-v2";
 const FIXED_SESSION_ID="currentSession";
-const SCHEMA_VERSION=1;
+const SCHEMA_VERSION=2;
 const MAX_GUIDE_STUDENTS=8;
 const TEACHER_CODE_HASH="b0a83a3919eba1d2a99034f2d94e5a47590f1710595c04bd64b5c8f21456a7c6";
 const API_URL="https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
@@ -378,7 +378,7 @@ function setSessionUi(connected){
  sessionConnected=connected;
  $('#collabLaunch').classList.toggle('hidden',connected);
  $('#collabPanel').classList.toggle('hidden',!connected);
- $('#boardToolbar').classList.toggle('hidden',!connected||!currentStation);
+ $('#boardToolbar').classList.toggle('hidden',!connected);
  $('#boardClear').classList.toggle('hidden',participantRole!=="teacher");
  $('#changeStudentBtn').classList.toggle('hidden',participantRole!=="student");
  if(connected){$('#collabWho').textContent=participantRole==="teacher"?"Учитель":participantName||"Ученик";$('#sessionBanner').classList.remove('hidden');setTimeout(()=>$('#sessionBanner').classList.add('hidden'),1800)}
@@ -393,7 +393,14 @@ async function attachSessionListeners(){
  uiUnsub?.();membersUnsub?.();strokesUnsub?.();cursorUnsub?.();connectionUnsub?.();
  uiUnsub=onValue(uiRef(),snap=>{const ui=snap.val();if(ui)applyRemoteUi(ui)});
  membersUnsub=onValue(membersRef(),snap=>{latestMembers=snap.val()||{};renderMembers()});
- strokesUnsub=onValue(strokesRef(),snap=>{latestStrokes=snap.val()||{};renderBoard()});
+ strokesUnsub=onValue(strokesRef(),snap=>{
+  const incoming=snap.val()||{};
+  if(activeStroke?.id){
+    const local=latestStrokes?.[activeStroke.id]||activeStroke;
+    incoming[activeStroke.id]=local;
+  }
+  latestStrokes=incoming;renderBoard();
+ });
  cursorUnsub=onValue(ref(database,`${lessonRoot()}/messages/teacherCursor`),snap=>renderTeacherCursor(snap.val()));
  connectionUnsub=onValue(ref(database,".info/connected"),snap=>{const on=!!snap.val();$('#collabDot').className=`collabDot ${on?'online':'offline'}`;$('#connectionText').textContent=on?"Связь с занятием активна.":"Нет связи. Текущее состояние на экране не сбрасывается.";if(on&&sessionConnected)registerPresence().catch(console.error)});
 }
@@ -454,7 +461,28 @@ function snapshotCurrentUi(){
   firstMoveIndex,firstMoveStep,practiceIndex,practiceItems:practiceItems||[],choice:null,transferSolved
  };
 }
-function shareCurrentUi(extra={}){return writeSharedUi({...snapshotCurrentUi(),...extra})}
+function shouldClearBoardForUiChange(extra={}){
+ const keys=['stationId','mode','practiceIndex','xrayIndex','bossIndex','firstMoveIndex'];
+ return keys.some(k=>Object.prototype.hasOwnProperty.call(extra,k));
+}
+async function clearSharedBoardForSwitch(){
+ activeStroke=null;eraseLast=null;latestStrokes={};renderBoard();
+ if(!sessionConnected)return;
+ try{
+  await runTransaction(stateRef(),state=>{
+   if(!state)return state;
+   state.boardEpoch=(Number(state.boardEpoch)||0)+1;
+   state.strokes={};
+   state.version=(Number(state.version)||0)+1;
+   return state;
+  });
+ }catch(e){console.warn('Не удалось очистить доску при переключении',e)}
+}
+function shareCurrentUi(extra={}){
+ const payload={...snapshotCurrentUi(),...extra};
+ if(!applyingRemote&&shouldClearBoardForUiChange(extra))return clearSharedBoardForSwitch().then(()=>writeSharedUi(payload));
+ return writeSharedUi(payload);
+}
 
 function applyRemoteUi(ui){
  if(!sessionConnected||!ui)return;
@@ -528,65 +556,79 @@ $('#studentForm').addEventListener("submit",async e=>{
  catch(err){setStatus("studentStatus",err.message,"bad")}
 });
 
-/* ===== Общая живая доска ===== */
+/* ===== Общая живая доска · документные координаты ===== */
 let boardTool="cursor",boardColor="#e53935",boardWidth=5,activeStroke=null,strokeDirty=false,lastStrokeSend=0,eraseLast=null;
-const boardSvg=$('#sharedBoardSvg'),boardAnchor=$('#stationView'),teacherCursor=$('#teacherCursor');
-function setBoardTool(tool){boardTool=tool;$$("[data-board-tool]").forEach(b=>b.classList.toggle("active",b.dataset.boardTool===tool));boardSvg.classList.toggle("drawing",tool==="pencil");boardSvg.classList.toggle("erasing",tool==="eraser")}
-$$("[data-board-tool]").forEach(b=>b.onclick=()=>setBoardTool(b.dataset.boardTool));
+const boardSvg=$('#sharedBoardSvg'),boardAnchor=document.body,teacherCursor=$('#teacherCursor');
+function setBoardTool(tool){boardTool=tool;$$('[data-board-tool]').forEach(b=>b.classList.toggle('active',b.dataset.boardTool===tool));boardSvg.classList.toggle('drawing',tool==='pencil');boardSvg.classList.toggle('erasing',tool==='eraser')}
+$$('[data-board-tool]').forEach(b=>b.onclick=()=>setBoardTool(b.dataset.boardTool));
 $('#boardColor').oninput=e=>boardColor=e.target.value;
 $('#boardWidth').oninput=e=>boardWidth=Number(e.target.value)||5;
-$('#boardCollapse').onclick=()=>{$('#boardToolbar').classList.toggle("collapsed");$('#boardCollapse').textContent=$('#boardToolbar').classList.contains("collapsed")?"+":"−"};
-function boardPoint(e){const r=boardAnchor.getBoundingClientRect();return[Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))]}
-function strokePath(points){if(!points?.length)return"";const r=boardAnchor.getBoundingClientRect();return points.map((p,i)=>`${i?"L":"M"}${(p[0]*r.width).toFixed(1)},${(p[1]*r.height).toFixed(1)}`).join(" ")}
-boardAnchor.addEventListener("pointermove",e=>{if(participantRole==="teacher"&&sessionConnected)sendTeacherCursor(e)});window.addEventListener("resize",()=>requestAnimationFrame(renderBoard));
+$('#boardCollapse').onclick=()=>{$('#boardToolbar').classList.toggle('collapsed');$('#boardCollapse').textContent=$('#boardToolbar').classList.contains('collapsed')?'+':'−'};
+function documentSize(){return[Math.max(document.documentElement.scrollWidth,document.body.scrollWidth,innerWidth),Math.max(document.documentElement.scrollHeight,document.body.scrollHeight,innerHeight)]}
+function boardPoint(e){return[e.pageX,e.pageY]}
+function strokePath(points){
+ if(!points?.length)return'';
+ if(points.length===1)return`M${points[0][0].toFixed(1)},${points[0][1].toFixed(1)} l0.01,0`;
+ let d=`M${points[0][0].toFixed(1)},${points[0][1].toFixed(1)}`;
+ for(let i=1;i<points.length-1;i++){
+  const p=points[i],n=points[i+1],mx=(p[0]+n[0])/2,my=(p[1]+n[1])/2;
+  d+=` Q${p[0].toFixed(1)},${p[1].toFixed(1)} ${mx.toFixed(1)},${my.toFixed(1)}`;
+ }
+ const last=points.at(-1);d+=` L${last[0].toFixed(1)},${last[1].toFixed(1)}`;return d;
+}
+function addSmoothPoint(st,p){
+ const last=st.points.at(-1);if(!last){st.points.push(p);return true}
+ const dist=Math.hypot(p[0]-last[0],p[1]-last[1]);if(dist<1.15)return false;
+ if(dist>7){const parts=Math.min(5,Math.ceil(dist/4));for(let i=1;i<parts;i++){const t=i/parts;st.points.push([last[0]+(p[0]-last[0])*t,last[1]+(p[1]-last[1])*t])}}
+ st.points.push(p);return true;
+}
 function renderBoard(){
- const rect=boardAnchor.getBoundingClientRect();boardSvg.setAttribute("viewBox",`0 0 ${Math.max(1,rect.width)} ${Math.max(1,rect.height)}`);
- const epoch=Number(currentBoardEpoch)||0;boardSvg.innerHTML="";
- Object.values(latestStrokes||{}).forEach(st=>{if(!st||Number(st.epoch)!==epoch||!Array.isArray(st.points)||!st.points.length)return;const path=document.createElementNS("http://www.w3.org/2000/svg","path");path.setAttribute("d",strokePath(st.points));path.setAttribute("stroke",st.color||"#e53935");path.setAttribute("stroke-width",String(st.width||5));path.dataset.strokeId=st.id;boardSvg.appendChild(path)});
- if(activeStroke&&activeStroke.points?.length){const path=document.createElementNS("http://www.w3.org/2000/svg","path");path.setAttribute("d",strokePath(activeStroke.points));path.setAttribute("stroke",activeStroke.color);path.setAttribute("stroke-width",String(activeStroke.width));path.dataset.strokeId=activeStroke.id;boardSvg.appendChild(path)}
+ const [w,h]=documentSize();boardSvg.setAttribute('viewBox',`0 0 ${w} ${h}`);boardSvg.style.width=`${w}px`;boardSvg.style.height=`${h}px`;
+ const epoch=Number(currentBoardEpoch)||0;boardSvg.innerHTML='';
+ Object.values(latestStrokes||{}).forEach(st=>{if(!st||st.id===activeStroke?.id||Number(st.epoch)!==epoch||!Array.isArray(st.points)||!st.points.length)return;const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',strokePath(st.points));path.setAttribute('stroke',st.color||'#e53935');path.setAttribute('stroke-width',String(st.width||5));path.dataset.strokeId=st.id;boardSvg.appendChild(path)});
+ if(activeStroke?.points?.length){const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',strokePath(activeStroke.points));path.setAttribute('stroke',activeStroke.color);path.setAttribute('stroke-width',String(activeStroke.width));path.dataset.strokeId=activeStroke.id;boardSvg.appendChild(path)}
 }
 let currentBoardEpoch=0;
 onValue(ref(database,`${lessonRoot()}/state/boardEpoch`),snap=>{currentBoardEpoch=Number(snap.val())||0;renderBoard()});
 async function sendStroke(st){if(!sessionConnected||!st)return;await set(ref(database,`${lessonRoot()}/state/strokes/${st.id}`),st)}
 function pointDist(a,b){return Math.hypot(a[0]-b[0],a[1]-b[1])}
-boardSvg.addEventListener("pointerdown",e=>{
- if(!sessionConnected||!currentStation)return;
- if(boardTool==="pencil"){
-  boardSvg.setPointerCapture(e.pointerId);const p=boardPoint(e);activeStroke={id:`stroke-${browserClientId}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,anchorId:"station-screen",authorId:participantId,authorName:participantName,color:boardColor,width:boardWidth,points:[p],done:false,epoch:currentBoardEpoch,rev:Date.now()};latestStrokes[activeStroke.id]=structuredClone(activeStroke);renderBoard();sendStroke(structuredClone(activeStroke)).catch(console.warn);lastStrokeSend=performance.now();
- }else if(boardTool==="eraser"){boardSvg.setPointerCapture(e.pointerId);eraseLast=boardPoint(e);eraseAt(eraseLast,eraseLast)}
+boardSvg.addEventListener('pointerdown',e=>{
+ if(!sessionConnected)return;
+ if(boardTool==='pencil'){
+  e.preventDefault();boardSvg.setPointerCapture(e.pointerId);const p=boardPoint(e),created=Date.now();activeStroke={id:`stroke-${browserClientId}-${created}-${Math.random().toString(36).slice(2,6)}`,anchorId:'document',authorId:participantId||browserClientId,authorName:participantName,color:boardColor,width:boardWidth,points:[p],done:false,epoch:currentBoardEpoch,createdAt:created,rev:created};latestStrokes[activeStroke.id]=structuredClone(activeStroke);renderBoard();sendStroke(structuredClone(activeStroke)).catch(console.warn);lastStrokeSend=performance.now();
+ }else if(boardTool==='eraser'){e.preventDefault();boardSvg.setPointerCapture(e.pointerId);eraseLast=boardPoint(e);eraseAt(eraseLast,eraseLast)}
 });
-boardSvg.addEventListener("pointermove",e=>{
- if(participantRole==="teacher"&&sessionConnected)sendTeacherCursor(e);
- if(boardTool==="pencil"&&activeStroke){
-  const p=boardPoint(e),last=activeStroke.points.at(-1);const rect=boardAnchor.getBoundingClientRect();if(Math.hypot((p[0]-last[0])*rect.width,(p[1]-last[1])*rect.height)<2.5)return;activeStroke.points.push(p);activeStroke.rev=Date.now();latestStrokes[activeStroke.id]=structuredClone(activeStroke);renderBoard();
-  if(performance.now()-lastStrokeSend>=55){lastStrokeSend=performance.now();sendStroke(structuredClone(activeStroke)).catch(console.warn)}
- }else if(boardTool==="eraser"&&eraseLast){const p=boardPoint(e);eraseAt(eraseLast,p);eraseLast=p}
+boardSvg.addEventListener('pointermove',e=>{
+ if(participantRole==='teacher'&&sessionConnected)sendTeacherCursor(e);
+ if(boardTool==='pencil'&&activeStroke){
+  e.preventDefault();const events=typeof e.getCoalescedEvents==='function'?e.getCoalescedEvents():[e];let changed=false;
+  for(const ev of events)changed=addSmoothPoint(activeStroke,boardPoint(ev))||changed;
+  if(!changed)return;activeStroke.rev=Date.now();latestStrokes[activeStroke.id]=structuredClone(activeStroke);requestAnimationFrame(renderBoard);
+  if(performance.now()-lastStrokeSend>=34){lastStrokeSend=performance.now();sendStroke(structuredClone(activeStroke)).catch(console.warn)}
+ }else if(boardTool==='eraser'&&eraseLast){e.preventDefault();const p=boardPoint(e);eraseAt(eraseLast,p);eraseLast=p}
 });
 async function finishStroke(e){
  if(activeStroke){const finalStroke=structuredClone(activeStroke);finalStroke.done=true;finalStroke.rev=Date.now();latestStrokes[finalStroke.id]=finalStroke;activeStroke=null;renderBoard();await sendStroke(finalStroke).catch(console.warn)}
  eraseLast=null;try{boardSvg.releasePointerCapture(e.pointerId)}catch{}
 }
-boardSvg.addEventListener("pointerup",finishStroke);boardSvg.addEventListener("pointercancel",finishStroke);
+boardSvg.addEventListener('pointerup',finishStroke);boardSvg.addEventListener('pointercancel',finishStroke);
 function segDist(px,py,x1,y1,x2,y2){const dx=x2-x1,dy=y2-y1,l2=dx*dx+dy*dy;if(!l2)return Math.hypot(px-x1,py-y1);let t=((px-x1)*dx+(py-y1)*dy)/l2;t=Math.max(0,Math.min(1,t));return Math.hypot(px-(x1+t*dx),py-(y1+t*dy))}
 async function eraseAt(a,b){
- const rect=boardAnchor.getBoundingClientRect(),steps=Math.max(1,Math.ceil(Math.hypot((b[0]-a[0])*rect.width,(b[1]-a[1])*rect.height)/6)),removeIds=new Set();
- for(let k=0;k<=steps;k++){const t=k/steps,px=(a[0]+(b[0]-a[0])*t)*rect.width,py=(a[1]+(b[1]-a[1])*t)*rect.height;
-  Object.values(latestStrokes||{}).forEach(st=>{if(!st||Number(st.epoch)!==currentBoardEpoch||removeIds.has(st.id))return;const pts=st.points||[];for(let i=0;i<pts.length-1;i++){const x1=pts[i][0]*rect.width,y1=pts[i][1]*rect.height,x2=pts[i+1][0]*rect.width,y2=pts[i+1][1]*rect.height;if(segDist(px,py,x1,y1,x2,y2)<=10+(Number(st.width)||5)/2){removeIds.add(st.id);break}}});
- }
- if(!removeIds.size)return;const backup={};const patch={};removeIds.forEach(id=>{backup[id]=latestStrokes[id];delete latestStrokes[id];patch[id]=null});renderBoard();
- try{await update(strokesRef(),patch)}catch(e){Object.assign(latestStrokes,backup);renderBoard();console.warn(e)}
+ const steps=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/6)),removeIds=new Set();
+ for(let k=0;k<=steps;k++){const t=k/steps,px=a[0]+(b[0]-a[0])*t,py=a[1]+(b[1]-a[1])*t;Object.values(latestStrokes||{}).forEach(st=>{if(!st||Number(st.epoch)!==currentBoardEpoch||removeIds.has(st.id))return;const pts=st.points||[];for(let i=0;i<pts.length-1;i++){if(segDist(px,py,pts[i][0],pts[i][1],pts[i+1][0],pts[i+1][1])<=10+(Number(st.width)||5)/2){removeIds.add(st.id);break}}})}
+ if(!removeIds.size)return;const backup={},patch={};removeIds.forEach(id=>{backup[id]=latestStrokes[id];delete latestStrokes[id];patch[id]=null});renderBoard();try{await update(strokesRef(),patch)}catch(e){Object.assign(latestStrokes,backup);renderBoard();console.warn(e)}
 }
-$('#boardClear').onclick=async()=>{
- if(participantRole!=="teacher"||!sessionConnected)return;
- await runTransaction(stateRef(),state=>{if(!state)return state;state.boardEpoch=(Number(state.boardEpoch)||0)+1;state.strokes={};state.version=(Number(state.version)||0)+1;return state});
-};
-function sendTeacherCursor(e){
- const now=performance.now();if(sendTeacherCursor.last&&now-sendTeacherCursor.last<75)return;sendTeacherCursor.last=now;const p=boardPoint(e);set(ref(database,`${lessonRoot()}/messages/teacherCursor`),{x:p[0],y:p[1],name:participantName||"Учитель",at:Date.now()}).catch(()=>{});
+async function undoLastStroke(){
+ if(activeStroke){delete latestStrokes[activeStroke.id];activeStroke=null;renderBoard();return}
+ const mine=Object.values(latestStrokes||{}).filter(st=>st&&Number(st.epoch)===currentBoardEpoch&&(st.authorId===(participantId||browserClientId)||st.authorId===participantId));
+ if(!mine.length)return;mine.sort((a,b)=>Number(b.createdAt||b.rev||0)-Number(a.createdAt||a.rev||0));const st=mine[0];delete latestStrokes[st.id];renderBoard();if(sessionConnected)await set(ref(database,`${lessonRoot()}/state/strokes/${st.id}`),null).catch(console.warn)
 }
-function renderTeacherCursor(cur){
- if(!cur||participantRole==="teacher"||!sessionConnected||!currentStation){teacherCursor.classList.remove("show");return}
- const r=boardAnchor.getBoundingClientRect();teacherCursor.style.left=`${Math.max(0,Math.min(1,cur.x))*r.width}px`;teacherCursor.style.top=`${Math.max(0,Math.min(1,cur.y))*r.height}px`;teacherCursor.querySelector("span").textContent=cur.name||"Учитель";teacherCursor.classList.add("show")
-}
+document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||String(e.key).toLowerCase()!=='z')return;const tag=e.target?.tagName;if(tag==='INPUT'||tag==='TEXTAREA'||e.target?.isContentEditable)return;e.preventDefault();undoLastStroke()});
+$('#boardClear').onclick=async()=>{if(participantRole!=='teacher'||!sessionConnected)return;await clearSharedBoardForSwitch()};
+function sendTeacherCursor(e){const now=performance.now();if(sendTeacherCursor.last&&now-sendTeacherCursor.last<55)return;sendTeacherCursor.last=now;const p=boardPoint(e);set(ref(database,`${lessonRoot()}/messages/teacherCursor`),{x:p[0],y:p[1],name:participantName||'Учитель',at:Date.now()}).catch(()=>{})}
+function renderTeacherCursor(cur){if(!cur||participantRole==='teacher'||!sessionConnected){teacherCursor.classList.remove('show');return}teacherCursor.style.left=`${Number(cur.x)||0}px`;teacherCursor.style.top=`${Number(cur.y)||0}px`;teacherCursor.querySelector('span').textContent=cur.name||'Учитель';teacherCursor.classList.add('show')}
+window.addEventListener('resize',()=>requestAnimationFrame(renderBoard));
+new ResizeObserver(()=>requestAnimationFrame(renderBoard)).observe(document.body);
 function initToolbarDrag(){
  const bar=$('#boardToolbar'),head=$('#boardHead');let drag=null;
  try{const saved=JSON.parse(localStorage.getItem(TOOLBAR_POSITION_KEY)||"null");if(saved){bar.style.left=saved.left+"px";bar.style.top=saved.top+"px";bar.style.bottom="auto"} }catch{}
@@ -803,18 +845,23 @@ function genFractions(){
 }
 
 function genDenominator(){
- const type=nextVariant('denominator',4),x=ri(2,10),k=ri(2,8),rhs=ri(2,8);
+ const type=nextVariant('denominator',6),x=ri(2,10),k=ri(2,8),rhs=ri(2,8);
  if(type===0){const num=x*rhs;return qObj(`${frac(num,'x')} = ${rhs}`,'Как убрать x из знаменателя?',`Умножить обе части на x`,['Разделить обе части на x','Перенести x вправо со знаком минус',`Умножить только левую часть на x`],`x стоит в знаменателе, поэтому домножаем ОБЕ части на x (x≠0).`,`${num} = ${rhs}x`)}
  if(type===1)return qObj(`${frac('x',k)} = ${rhs}`,'Как убрать знаменатель '+k+'?',`Умножить обе части на ${k}`,[`Разделить обе части на ${k}`,`Умножить только x на ${k}`,`Перенести ${k} вправо со знаком минус`],`Знаменатель — число ${k}; умножаем обе части на ${k}.`,`x = ${k*rhs}`);
  if(type===2){const b=ri(1,6);return qObj(`${frac(k,`x+${b}`)} = ${rhs}`,'Как убрать знаменатель x+'+b+'?',`Умножить обе части на (x+${b})`,[`Разделить обе части на (x+${b})`,`Умножить только левую часть на x`,`Перенести +${b} вправо`],`Знаменатель — ВСЁ выражение x+${b}; домножаем на него обе части.`,`${k} = ${rhs}(x+${b})`)}
- const b=ri(1,6);return qObj(`${frac(`x−${b}`,k)} = ${rhs}`,'Какой первый шаг уберёт дробную черту?',`Умножить обе части на ${k}`,[`Прибавить ${b} сразу`,`Разделить обе части на ${k}`,`Умножить только числитель на ${k}`],`Сначала снимаем внешний знаменатель ${k}, а уже потом работаем с x−${b}.`,`x−${b} = ${k*rhs}`)
+ if(type===3){const b=ri(1,6);return qObj(`${frac(`x−${b}`,k)} = ${rhs}`,'Какой первый шаг уберёт дробную черту?',`Умножить обе части на ${k}`,[`Прибавить ${b} сразу`,`Разделить обе части на ${k}`,`Умножить только числитель на ${k}`],`Сначала снимаем внешний знаменатель ${k}, а уже потом работаем с x−${b}.`,`x−${b} = ${k*rhs}`)}
+ if(type===4){const b=ri(1,6),r=-rhs;return qObj(`${frac(k,`x−${b}`)} = −${rhs}`,'Как избавиться от знаменателя x−'+b+'?',`Умножить обе части на (x−${b})`,[`Разделить на (x−${b})`,`Умножить только числитель на x`,`Поменять знак у ${rhs}`],`Домножаем обе части на весь знаменатель x−${b}; отрицательный знак справа сохраняется.`,`${k} = −${rhs}(x−${b})`)}
+ return qObj(`${frac('x',`−${k}`)} = ${rhs}`,'Как убрать отрицательный знаменатель?',`Умножить обе части на −${k}`,[`Умножить обе части на ${k}`,`Вычесть ${k}`,`Поменять знак только у x`],`Знаменатель равен −${k}; обратное действие — умножение обеих частей на −${k}.`,`x = −${k*rhs}`)
 }
 
 function genTower(){
- const type=nextVariant('tower',3),a=ri(2,9),b=ri(2,9),c=ri(2,9),d=ri(2,9);
+ const type=nextVariant('tower',6),a=ri(2,9),b=ri(2,9),c=ri(2,9),d=ri(2,9);
  if(type===0)return qObj(frac(frac(a,b,'smallfrac'),c),'Как правильно прочитать трёхэтажную дробь?',`${frac(a,b)} · ${frac(1,c)}`,[`${frac(b,a)} · ${c}`,`${frac(a,b*c)} · ${c}`,`${frac(a*c,b)}`],`(a/b)/c — это деление дроби a/b на число c, то есть умножение на 1/c.`,frac(a,b*c));
  if(type===1)return qObj(frac(a,frac(b,c,'smallfrac')),'Что делаем с нижней дробью?',`${a} · ${frac(c,b)}`,[`${frac(1,a)} · ${frac(c,b)}`,`${a} · ${frac(b,c)}`,`${frac(a,b+c)}`],`a/(b/c) — это a : (b/c), поэтому переворачивается именно b/c.`,frac(a*c,b));
- return qObj(frac(frac(a,b,'smallfrac'),frac(c,d,'smallfrac')),'Какой вид получим первым?',`${frac(a,b)} · ${frac(d,c)}`,[`${frac(b,a)} · ${frac(d,c)}`,`${frac(a,b)} · ${frac(c,d)}`,`${frac(a*d,b+c)}`],`Большая дробная черта — деление. Переворачивается только нижняя дробь-делитель.`,frac(a*d,b*c))
+ if(type===2)return qObj(frac(frac(a,b,'smallfrac'),frac(c,d,'smallfrac')),'Какой вид получим первым?',`${frac(a,b)} · ${frac(d,c)}`,[`${frac(b,a)} · ${frac(d,c)}`,`${frac(a,b)} · ${frac(c,d)}`,`${frac(a*d,b+c)}`],`Большая дробная черта — деление. Переворачивается только нижняя дробь-делитель.`,frac(a*d,b*c));
+ if(type===3)return qObj(frac(`−${frac(a,b,'smallfrac')}`,c),'Как переписать эту дробь без трёх этажей?',`−${frac(a,b)} · ${frac(1,c)}`,[`${frac(a,b)} · ${frac(1,c)}`,`−${frac(b,a)} · ${c}`,`−${frac(a*c,b)}`],`Минус относится ко всей верхней дроби и сохраняется; деление на c заменяем умножением на 1/c.`,`−${frac(a,b*c)}`);
+ if(type===4)return qObj(frac(a,`−${frac(b,c,'smallfrac')}`),'Что произойдёт со знаком?',`−${a} · ${frac(c,b)}`,[`${a} · ${frac(c,b)}`,`−${a} · ${frac(b,c)}`,`${frac(-a,b+c)}`],`Деление на отрицательную дробь даёт общий минус, а сам делитель переворачивается.`,`−${frac(a*c,b)}`);
+ return qObj(frac(frac(`x`,b,'smallfrac'),frac(c,d,'smallfrac')),'Как начать упрощение дроби с переменной?',`${frac('x',b)} · ${frac(d,c)}`,[`${frac(b,'x')} · ${frac(d,c)}`,`${frac('x',b)} · ${frac(c,d)}`,`${frac('xd',b+c)}`],`Наличие x ничего не меняет: нижняя дробь остаётся делителем и переворачивается.`,frac(`x·${d}`,b*c))
 }
 
 function genFlip(){
@@ -834,11 +881,15 @@ function genProportion(){
 }
 
 function genBulldozer(){
- const pairs=[[4,6],[6,8],[3,10],[4,9],[5,6],[8,12]],pair=pick(pairs),a=pair[0],b=pair[1],m=lcm(a,b),rhs=ri(2,8),minus=Math.random()<.45,coef=Math.random()<.4?2:1;
- const sign=minus?'−':'+';
- const first=frac(`${coef===1?'':coef}x`,a),second=frac('x',b);
- const after=`${coef*(m/a)}x ${sign} ${m/b}x = ${rhs*m}`;
- return qObj(`${first} ${sign} ${second} = ${rhs}`,'Какой общий множитель удобнее применить ко ВСЕМУ уравнению?',`Умножить ВСЕ слагаемые на ${m}`,[`Умножить только первую дробь на ${m}`,`Умножить всё только на ${a}`,`Сложить знаменатели: ${a+b}`],`НОК(${a},${b})=${m}. Домножаем каждое слагаемое, включая правую часть.`,after)
+ const type=nextVariant('bulldozer',6),pairs=[[4,6],[6,8],[3,10],[4,9],[5,6],[8,12]],pair=pick(pairs),a=pair[0],b=pair[1],m=lcm(a,b),rhs=ri(2,8);
+ let formula,after;
+ if(type===0){formula=`${frac('x',a)} + ${frac('x',b)} = ${rhs}`;after=`${m/a}x + ${m/b}x = ${rhs*m}`}
+ else if(type===1){formula=`${frac('2x',a)} − ${frac('x',b)} = ${rhs}`;after=`${2*(m/a)}x − ${m/b}x = ${rhs*m}`}
+ else if(type===2){formula=`−${frac('x',a)} + ${frac('2x',b)} = ${rhs}`;after=`−${m/a}x + ${2*(m/b)}x = ${rhs*m}`}
+ else if(type===3){const c=ri(2,6);formula=`${frac('x',a)} − ${frac(c,b)} = ${rhs}`;after=`${m/a}x − ${c*(m/b)} = ${rhs*m}`}
+ else if(type===4){const c=ri(1,5);formula=`${frac(`x+${c}`,a)} + ${frac('x',b)} = ${rhs}`;after=`${m/a}(x+${c}) + ${m/b}x = ${rhs*m}`}
+ else{formula=`${frac('x',a)} + ${frac('x',b)} = −${rhs}`;after=`${m/a}x + ${m/b}x = −${rhs*m}`}
+ return qObj(formula,'Какой общий множитель удобнее применить ко ВСЕМУ уравнению?',`Умножить ВСЕ слагаемые на ${m}`,[`Умножить только первую дробь на ${m}`,`Умножить всё только на ${a}`,`Сложить знаменатели: ${a+b}`],`НОК(${a},${b})=${m}. Домножаем каждое слагаемое, включая целые числа и правую часть.`,after)
 }
 
 function genPowers(){
@@ -876,7 +927,7 @@ function genIsolate(){const variants=[
  {f:`S = v₀t + ${frac('at²','2')}`,p:'Выразить a. Что сделать первым?',c:'Вычесть v₀t из обеих частей',w:['Сразу разделить на t²','Умножить на a','Извлечь квадратный корень'],e:'Сначала убираем слагаемое, не содержащее a: S−v₀t=at²/2.',a:`S − v₀t = ${frac('at²','2')}`},
  {f:`l = √${frac('Rh','500')}`,p:'Выразить h. Что сделать первым?',c:'Возвести обе части в квадрат',w:['Умножить сразу на 500','Разделить на R','Извлечь корень из l'],e:'Корень — внешняя операция, поэтому сначала l²=Rh/500.',a:`l² = ${frac('Rh','500')}`},
  {f:'Q = mv²sin²α',p:'Выразить m. Что сделать?',c:'Разделить обе части на v²sin²α',w:['Вычесть v²sin²α','Возвести обе части в квадрат','Разделить только на v'],e:'m умножается на весь множитель v²sin²α, поэтому делим на него обе части.',a:`m = ${frac('Q','v²sin²α')}`}
-];const v=pick(variants);return qObj(v.f,v.p,v.c,v.w,v.e,v.a)}
+];const v=variants[nextVariant('isolate',variants.length)];return qObj(v.f,v.p,v.c,v.w,v.e,v.a)}
 
 const XRAYS=[
  {name:'Закон Ома · выразить R',initial:`I = ${frac('U','R')}`,steps:[
@@ -962,6 +1013,66 @@ const BOSSES=[
  ],final:XRAYS[5].steps.at(-1)[1]}
 ];
 
+
+/* ===== Более контрастные объясняющие примеры ===== */
+const DIVERSE_DEMOS={
+ transfer:{initial:'18 − <span class="hot">4x</span> = −6',steps:[
+  {name:'Убираем 18',formula:'18 − 4x <span class="hot">− 18</span> = −6 <span class="hot">− 18</span>',caption:'Вычитаем 18 из обеих частей — здесь перенос идёт не через «плюс», а через положительное свободное слагаемое.',why:'Одинаковое вычитание сохраняет равенство.'},
+  {name:'Получаем отрицательный коэффициент',formula:'−4x = −24',caption:'Теперь около x остался коэффициент −4.',why:'Не нужно менять знаки вручную: они получились после вычисления.'},
+  {name:'Делим на −4',formula:`${frac('−4x','−4')} = ${frac('−24','−4')}`,caption:'Делим обе части на отрицательный коэффициент.',why:'В равенстве при делении на отрицательное число знак = не меняется.'},
+  {name:'Готово',formula:'x = 6',caption:'Получили положительный ответ после деления двух отрицательных чисел.',why:'(−24):(−4)=6.'}]},
+ balance:{initial:`${frac('x','−3')} = 4`,steps:[
+  {name:'Убираем деление на −3',formula:`−3·${frac('x','−3')} = 4·(−3)`,caption:'Умножаем обе части на −3.',why:'Умножение обеих частей на одно и то же ненулевое число сохраняет равенство.'},
+  {name:'Готово',formula:'x = −12',caption:'Слева знаменатель сократился.',why:'4·(−3)=−12.'}]},
+ signs:{initial:'−3(2x − 5)',steps:[
+  {name:'Распределяем отрицательный множитель',formula:'(−3)·2x + (−3)·(−5)',caption:'−3 умножается на каждое слагаемое.',why:'Распределительный закон действует и для отрицательного множителя.'},
+  {name:'Считаем знаки',formula:'−6x + 15',caption:'Первое произведение отрицательное, второе — положительное.',why:'Минус на минус даёт плюс.'}]},
+ brackets:{initial:'−4(2x − 3)',steps:[
+  {name:'Раздаём −4',formula:'−4·2x + (−4)·(−3)',caption:'Один множитель работает с обоими членами скобки.',why:'a(b−c)=ab−ac; при отрицательном a знак второго произведения меняется.'},
+  {name:'Упрощаем',formula:'−8x + 12',caption:'Получилось выражение с разными знаками.',why:'−4·2x=−8x, а −4·−3=+12.'}]},
+ fractions:{initial:`${frac('−18xy','24y')}`,steps:[
+  {name:'Раскладываем множители',formula:`${frac('−3·6·x·y','4·6·y')}`,caption:'Видим общий множитель 6 и общий множитель y.',why:'Сокращаем только множители, не слагаемые.'},
+  {name:'Сокращаем',formula:`−${frac('3x','4')}`,caption:'6 и y сократились, общий минус остался.',why:'Знак можно держать перед всей дробью.'}]},
+ denominator:{initial:`${frac('−12','x−1')} = 3`,steps:[
+  {name:'Убираем знаменатель',formula:'−12 = 3(x−1)',caption:'Домножаем обе части на x−1.',why:'Весь знаменатель x−1 рассматриваем как единый множитель; x≠1.'},
+  {name:'Раскрываем скобки',formula:'−12 = 3x − 3',caption:'Теперь дробной черты нет.',why:'3(x−1)=3x−3.'},
+  {name:'Прибавляем 3',formula:'−9 = 3x',caption:'Прибавили 3 к обеим частям.',why:'Равенство сохраняется.'},
+  {name:'Делим на 3',formula:'x = −3',caption:'Ответ отрицательный — это нормально.',why:'−9:3=−3.'}]},
+ tower:{initial:`${frac(`−${frac('3','4','smallfrac')}`,frac('5','−2','smallfrac'))}`,steps:[
+  {name:'Читаем большую дробь как деление',formula:`−${frac('3','4')} : ${frac('5','−2')}`,caption:'Верхняя и нижняя дроби — отдельные этажи.',why:'Большая дробная черта означает деление.'},
+  {name:'Переворачиваем делитель',formula:`−${frac('3','4')} · ${frac('−2','5')}`,caption:'Переворачивается только нижняя дробь.',why:'Деление на дробь заменяем умножением на обратную.'},
+  {name:'Считаем знаки и сокращаем',formula:`${frac('3','10')}`,caption:'Два минуса дают плюс, 2 сокращается с 4.',why:'−·−=+, затем сокращаем общие множители.'}]},
+ flip:{initial:`−${frac('5','6')} : ${frac('10','9')}`,steps:[
+  {name:'Оставляем первую дробь как есть',formula:`−${frac('5','6')} · ${frac('9','10')}`,caption:'Переворачиваем только 10/9.',why:'Минус первой дроби никуда не исчезает.'},
+  {name:'Сокращаем до умножения',formula:`−${frac('1','2')} · ${frac('3','2')}`,caption:'5 сокращаем с 10, 9 с 6.',why:'Перекрёстное сокращение — сокращение общих множителей.'},
+  {name:'Перемножаем',formula:`−${frac('3','4')}`,caption:'Получили отрицательную дробь.',why:'Знак определяется отдельно от модулей.'}]},
+ proportion:{initial:`${frac('3x−5','4')} = ${frac('2−x','3')}`,steps:[
+  {name:'Убираем знаменатели',formula:'3(3x−5) = 4(2−x)',caption:'Здесь справа в числителе стоит разность, а не сумма.',why:'После домножения оба числителя сохраняются целиком.'},
+  {name:'Раскрываем скобки',formula:'9x − 15 = 8 − 4x',caption:'Получили x с разными знаками по обе стороны.',why:'4(2−x)=8−4x.'},
+  {name:'Собираем x',formula:'13x = 23',caption:'Прибавляем 4x и 15 к обеим частям.',why:'Все x собираем с одной стороны, числа — с другой.'},
+  {name:'Делим',formula:`x = ${frac('23','13')}`,caption:'Ответ не обязан быть целым.',why:'Делим обе части на 13.'}]},
+ bulldozer:{initial:`${frac('x','4')} − ${frac('3x','10')} = −1`,steps:[
+  {name:'Берём НОК 20',formula:`20·${frac('x','4')} − 20·${frac('3x','10')} = 20·(−1)`,caption:'Домножаем ВСЕ слагаемые, включая отрицательную правую часть.',why:'НОК(4,10)=20.'},
+  {name:'Убираем знаменатели',formula:'5x − 6x = −20',caption:'20/4=5, 20·3/10=6.',why:'Знаки сохраняются.'},
+  {name:'Собираем',formula:'−x = −20',caption:'5x−6x=−x.',why:'Подобные слагаемые складываем с учётом знаков.'},
+  {name:'Готово',formula:'x = 20',caption:'Делим на −1.',why:'Два минуса дают плюс.'}]},
+ powers:{initial:'x³ = −125',steps:[
+  {name:'Берём кубический корень',formula:'x = ∛(−125)',caption:'Для нечётной степени сохраняется знак числа.',why:'Кубический корень определён и для отрицательных чисел.'},
+  {name:'Вычисляем',formula:'x = −5',caption:'(−5)³=−125.',why:'У нечётной степени один действительный корень.'}]},
+ roots:{initial:'2√(x − 1) − 3 = 7',steps:[
+  {name:'Убираем −3',formula:'2√(x − 1) = 10',caption:'Прибавляем 3 к обеим частям.',why:'Сначала изолируем выражение с корнем.'},
+  {name:'Делим на 2',formula:'√(x − 1) = 5',caption:'Корень остался один.',why:'Делим обе части на положительный коэффициент 2.'},
+  {name:'Возводим в квадрат',formula:'x − 1 = 25',caption:'Теперь снимаем корень.',why:'Возводим в квадрат обе части.'},
+  {name:'Готово',formula:'x = 26',caption:'Прибавляем 1.',why:'Проверка: 2√25−3=7.'}]},
+ inequality:{initial:'−3x + 5 ≤ −7',steps:[
+  {name:'Убираем +5',formula:'−3x ≤ −12',caption:'Вычитаем 5 из обеих частей.',why:'При сложении/вычитании знак неравенства не меняется.'},
+  {name:'Делим на −3',formula:'x ≥ 4',caption:'Знак ≤ переворачивается в ≥.',why:'При делении на отрицательное число порядок меняется на противоположный.'}]},
+ isolate:{initial:`S = ${frac('v²−v₀²','2a')}`,steps:[
+  {name:'Убираем знаменатель 2a',formula:'2aS = v² − v₀²',caption:'Домножаем обе части на 2a.',why:'Весь знаменатель является множителем.'},
+  {name:'Освобождаем a',formula:`a = ${frac('v²−v₀²','2S')}`,caption:'Делим обе части на 2S.',why:'В числителе остаётся разность, её нельзя «разнести» без необходимости.'}]}
+};
+Object.entries(DIVERSE_DEMOS).forEach(([id,demo])=>{const st=STATIONS.find(s=>s.id===id);if(st)st.demo=demo});
+
 let currentStation=null,currentMode='show',demoStep=0,practiceIndex=0,practiceItems=[],locked=false,xrayIndex=0,bossStep=0,bossIndex=0,firstMoveIndex=0,firstMoveStep=0,transferSolved=false;
 const grid=$('#stationGrid');
 STATIONS.forEach((s,i)=>{const b=document.createElement('button');b.type='button';b.className='station';b.style.setProperty('--theme',s.theme);b.innerHTML=`<span class="stationNum">${i+1}</span><span class="stationIcon">${s.icon}</span><h3>${s.title}</h3><p>${s.desc}</p><div class="skills">${s.skills.map(x=>`<span class="chip">${x}</span>`).join('')}</div>`;b.addEventListener('click',()=>openStation(s.id));grid.appendChild(b)});
@@ -977,7 +1088,7 @@ $('#modebar').addEventListener('click',e=>{
  setMode(btn.dataset.mode);
 });
 
-function showMap(sync=true){currentStation=null;$('#mapView').classList.remove('hidden');$('#stationView').classList.add('hidden');$('#randomBtn').classList.add('hidden');teacherCursor.classList.remove('show');$('#boardToolbar').classList.add('hidden');if(sync)shareCurrentUi({screen:'map',stationId:''});scrollTo({top:0,behavior:'smooth'})}
+function showMap(sync=true){currentStation=null;$('#mapView').classList.remove('hidden');$('#stationView').classList.add('hidden');$('#randomBtn').classList.add('hidden');teacherCursor.classList.remove('show');if(sessionConnected)$('#boardToolbar').classList.remove('hidden');if(sync)shareCurrentUi({screen:'map',stationId:''});scrollTo({top:0,behavior:'smooth'})}
 function openStation(id,sync=true,mode='show'){currentStation=STATIONS.find(s=>s.id===id);if(!currentStation)return;demoStep=0;practiceIndex=0;practiceItems=[];xrayIndex=0;bossStep=0;firstMoveStep=0;transferSolved=false;$('#mapView').classList.add('hidden');$('#stationView').classList.remove('hidden');$('#randomBtn').classList.remove('hidden');$('#stationTitle').textContent=currentStation.title;$('#stationDesc').textContent=currentStation.desc;$('#stationMascot').textContent=currentStation.mascot;if(sessionConnected)$('#boardToolbar').classList.remove('hidden');if(sync)setMode(mode,true);else currentMode=mode;scrollTo({top:0,behavior:'smooth'});requestAnimationFrame(renderBoard)}
 function setMode(mode,sync=true){
  if(!currentStation)return;
@@ -1030,7 +1141,19 @@ function renderSelf(){
  if(!practiceItems.length)throw new Error('Не удалось создать самостоятельные примеры');
  renderPracticeCard(false);
 }
-function preparePractice(n){practiceIndex=0;practiceItems=Array.from({length:n},()=>currentStation.generator())}
+function practiceShape(item){return String(item?.formula||'').replace(/\d+(?:[.,]\d+)?/g,'#').replace(/−#/g,'±#')+'|'+String(item?.prompt||'')}
+function preparePractice(n){
+ practiceIndex=0;
+ if(currentStation?.id)generatorDecks[currentStation.id]=[];
+ const items=[],shapeCounts=new Map();let tries=0,lastShape='';
+ while(items.length<n&&tries<n*30){
+  tries++;const item=currentStation.generator();if(!item)continue;const shape=practiceShape(item),count=shapeCounts.get(shape)||0;
+  if((shape===lastShape||count>=Math.ceil(n/4))&&tries<n*20)continue;
+  items.push(item);shapeCounts.set(shape,count+1);lastShape=shape;
+ }
+ while(items.length<n)items.push(currentStation.generator());
+ practiceItems=items;
+}
 function dotsHTML(){return `<div class="dots">${practiceItems.map((_,i)=>`<span class="dot ${i<practiceIndex?'done':i===practiceIndex?'current':''}"></span>`).join('')}</div>`}
 function renderPracticeCard(guided){
  if(practiceIndex>=practiceItems.length){finishPractice();return;}
