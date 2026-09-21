@@ -89,7 +89,7 @@ dialog{width:min(1100px,96vw);max-height:92vh;padding:0;border:1px solid var(--l
 <section class="final" id="final"><div class="eyebrow">Маршрут построен</div><div class="score" id="scoreText">0%</div><h2 id="correctText"></h2><p id="timeText"></p><p class="status" id="saveStatus"></p><button class="primary" id="reviewBtn">Разобрать решения</button></section>
 <div class="footer">В таблицу отправляются только итоговый процент и время</div>
 </main>
-<div class="login-layer" id="loginLayer"><form class="login-card" id="loginForm"><div class="eyebrow">Пропуск на фабрику</div><h2>Введи личный код</h2><p>Имя подгрузится автоматически, код сохранится на устройстве.</p><input class="code-input" id="codeInput" autocomplete="one-time-code" placeholder="Личный код"><button class="primary" id="loginBtn" type="submit">Проверить код</button><div class="status" id="loginStatus"></div></form></div>
+<div class="login-layer" id="loginLayer"><form class="login-card" id="loginForm"><div class="eyebrow">Пропуск на фабрику</div><h2>Введи личный код</h2><p>Имя подгрузится автоматически, код сохранится на устройстве.</p><input class="code-input" id="codeInput" autocomplete="one-time-code" placeholder="Личный код"><button class="primary" id="loginBtn" type="submit">Войти</button><div class="status" id="loginStatus"></div></form></div>
 <dialog id="reviewDialog"><div class="dialog-head"><h2>Разбор пункта Б</h2><div class="grow"></div><button class="ghost" id="closeReview">Закрыть</button></div><div class="dialog-body" id="reviewBody"></div></dialog>
 <script>
 const API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
@@ -108,7 +108,7 @@ const TASKS=[
 ];
 
 function inferArcKind(t){const d=t.right-t.left,turns=Math.floor((d+1e-7)/2);if(turns>=2)return 'ccw2';if(turns===1)return 'ccw1';return 'ccw0'}
-TASKS=TASKS.map(t=>({...t,arc:t.arc||inferArcKind(t)}));
+TASKS.forEach(t=>{if(!t.arc)t.arc=inferArcKind(t)});
 const ARC_LABELS={ccw0:'↺ Против часовой, без полного оборота',cw0:'↻ По часовой, без полного оборота',ccw1:'↺ Один полный оборот + остаток',ccw2:'↺ Два полных оборота + остаток'};
 const PENDING_KEY='egePendingHomeworkResults';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
@@ -355,9 +355,15 @@ function startWork(fromGesture=false){
   sendQueuedResults();checkAvailabilityInBackground();validateInBackground(student.code);
 }
 function quickLogin(raw){
-  const code=String(raw||'').trim().toUpperCase();if(!code){$('#loginStatus').textContent='Введите личный код';return}
-  const cached=readStudent();student=cached&&cached.code===code?cached:{id:code,name:'Ученик',code};saveStudentLocal(student);$('#studentName').textContent=student.name||'Ученик';$('#loginLayer').classList.add('hidden');$('#loginStatus').textContent='';
-  const draft=getDraft();if(draft)startWork(false);validateInBackground(code);checkAvailabilityInBackground();sendQueuedResults();
+  const code=String(raw||'').trim().toUpperCase();
+  if(!code){$('#loginStatus').textContent='Введите личный код';return}
+  const cached=readStudent();
+  student=cached&&cached.code===code?cached:{id:code,name:'Ученик',code};
+  saveStudentLocal(student);
+  $('#studentName').textContent=student.name||'Ученик';
+  $('#loginStatus').textContent='';
+  $('#loginLayer').classList.add('hidden');
+  startWork(false);
 }
 
 
@@ -422,8 +428,9 @@ student=readStudent();
 if(student){$('#studentName').textContent=student.name||'Ученик';$('#loginLayer').classList.add('hidden')}
 const urlCode=new URLSearchParams(location.search).get('code');
 if(urlCode){$('#codeInput').value=urlCode;quickLogin(urlCode)}
-else if(student){const draft=getDraft();if(draft)startWork(false);else{validateInBackground(student.code);checkAvailabilityInBackground();sendQueuedResults()}}
+else if(student){startWork(false)}
 
+window.__LOGIN_FIX__='v4-const-task-runtime-fixed';
 window.__ARC_DIAGNOSTICS__=TASKS.map((t,i)=>({task:i+1,left:t.left,right:t.right,leftText:t.leftText,rightText:t.rightText,arc:t.arc,roots:t.roots}));
 </script>
 </body>
