@@ -520,7 +520,15 @@ function renderBoardToolbar(){const t=$('#boardToolbar');t.classList.toggle('col
 function installToolbarDrag(){const t=$('#boardToolbar'),h=t.querySelector('.boardHead');if(!h)return;try{const saved=JSON.parse(localStorage.getItem(TOOLBAR_POSITION_KEY)||'null');if(saved){t.style.left=saved.x+'px';t.style.top=saved.y+'px';t.style.right='auto'}}catch{}h.onpointerdown=e=>{if(e.target.closest('button'))return;const r=t.getBoundingClientRect();toolbarDrag={pid:e.pointerId,dx:e.clientX-r.left,dy:e.clientY-r.top};h.setPointerCapture?.(e.pointerId)};h.onpointermove=e=>{if(!toolbarDrag||toolbarDrag.pid!==e.pointerId)return;const x=Math.max(4,Math.min(innerWidth-t.offsetWidth-4,e.clientX-toolbarDrag.dx)),y=Math.max(4,Math.min(innerHeight-t.offsetHeight-4,e.clientY-toolbarDrag.dy));t.style.left=x+'px';t.style.top=y+'px';t.style.right='auto'};h.onpointerup=()=>{const r=t.getBoundingClientRect();localStorage.setItem(TOOLBAR_POSITION_KEY,JSON.stringify({x:r.left,y:r.top}));toolbarDrag=null}}
 function syncBoardSurfaceSize(){const host=$('#boardHost');if(!host)return;const doc=document.documentElement,body=document.body;const w=Math.max(innerWidth,doc.scrollWidth,body?.scrollWidth||0),h=Math.max(innerHeight,doc.scrollHeight,body?.scrollHeight||0);host.style.width=w+'px';host.style.height=h+'px';const svg=$('#sharedBoard');if(svg){svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.setAttribute('width',w);svg.setAttribute('height',h)}}
 function attachSharedBoard(){const host=$('#boardHost');if(!host)return;syncBoardSurfaceSize();if($('#sharedBoard')){renderStrokes();setBoardPointerMode();return}const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.id='sharedBoard';svg.setAttribute('preserveAspectRatio','none');svg.classList.add('sharedBoard');host.appendChild(svg);syncBoardSurfaceSize();svg.addEventListener('pointerdown',boardPointerDown);svg.addEventListener('pointermove',boardPointerMove);svg.addEventListener('pointerup',boardPointerUp);svg.addEventListener('pointercancel',boardPointerUp);setBoardPointerMode();renderStrokes()}
-function setBoardPointerMode(){const host=$('#boardHost'),b=$('#sharedBoard'),drawing=boardTool!=='cursor';document.body.classList.toggle('ink-active',drawing);document.body.classList.toggle('ink-eraser',boardTool==='eraser');if(host)host.style.pointerEvents=drawing?'auto':'none';if(b)b.style.pointerEvents=drawing?'auto':'none'}function boardPoint(e){syncBoardSurfaceSize();const host=$('#boardHost'),w=Math.max(1,host?.offsetWidth||document.documentElement.scrollWidth||innerWidth),h=Math.max(1,host?.offsetHeight||document.documentElement.scrollHeight||innerHeight);return[Math.max(0,Math.min(1,e.pageX/w)),Math.max(0,Math.min(1,e.pageY/h))]}
+function setBoardPointerMode(){const host=$('#boardHost'),b=$('#sharedBoard'),drawing=boardTool!=='cursor';document.body.classList.toggle('ink-active',drawing);document.body.classList.toggle('ink-eraser',boardTool==='eraser');if(host)host.style.pointerEvents=drawing?'auto':'none';if(b)b.style.pointerEvents=drawing?'auto':'none'}const SHARED_INK_ANCHOR_ID='content-v2';
+function sharedInkAnchor(){const list=[...document.querySelectorAll('main.app')];return list.find(el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&r.width>40&&r.height>40})||list[0]||document.body}
+function sharedInkMetrics(){const el=sharedInkAnchor(),r=el.getBoundingClientRect();return{left:r.left+window.scrollX,top:r.top+window.scrollY,width:Math.max(1,r.width||el.clientWidth||innerWidth),height:Math.max(1,el.scrollHeight||r.height||innerHeight)}}
+function sharedInkEventPoint(e){const m=sharedInkMetrics(),px=e.clientX+window.scrollX,py=e.clientY+window.scrollY;return[Math.max(0,Math.min(1,(px-m.left)/m.width)),Math.max(0,Math.min(1,(py-m.top)/m.height))]}
+function sharedInkPagePoint(p){const m=sharedInkMetrics();return[m.left+Number(p?.[0]||0)*m.width,m.top+Number(p?.[1]||0)*m.height]}
+function sharedInkDistancePx(a,b){const m=sharedInkMetrics();return Math.hypot((Number(a?.[0]||0)-Number(b?.[0]||0))*m.width,(Number(a?.[1]||0)-Number(b?.[1]||0))*m.height)}
+function sharedInkStrokePagePoints(st,w,h){if(st?.anchorId===SHARED_INK_ANCHOR_ID)return(st.points||[]).map(sharedInkPagePoint);return(st?.points||[]).map(p=>[Number(p?.[0]||0)*w,Number(p?.[1]||0)*h])}
+function sharedInkPointSegDist(p,a,b){const vx=b[0]-a[0],vy=b[1]-a[1],wx=p[0]-a[0],wy=p[1]-a[1],c1=vx*wx+vy*wy;if(c1<=0)return Math.hypot(p[0]-a[0],p[1]-a[1]);const c2=vx*vx+vy*vy;if(c2<=c1)return Math.hypot(p[0]-b[0],p[1]-b[1]);const t=c1/c2,x=a[0]+t*vx,y=a[1]+t*vy;return Math.hypot(p[0]-x,p[1]-y)}
+function boardPoint(e){return sharedInkEventPoint(e)}
 function startStrokeListeners(){
   strokesUnsub?.();strokesCache={};
   strokesUnsub=onValue(strokesRef(),snap=>{
@@ -533,27 +541,9 @@ function startStrokeListeners(){
   });
   attachSharedBoard();
 }
-function renderStrokes(){const svg=$('#sharedBoard'),host=$('#boardHost');if(!svg||!host)return;syncBoardSurfaceSize();const w=Math.max(1,host.offsetWidth),h=Math.max(1,host.offsetHeight),epoch=Number(serverState?.boardEpoch)||0;svg.innerHTML='';for(const [id,s] of Object.entries(strokesCache)){if(!s||Number(s.epoch||0)!==epoch||!Array.isArray(s.points)||s.points.length<2)continue;const pl=document.createElementNS('http://www.w3.org/2000/svg','polyline');pl.setAttribute('points',s.points.map(p=>`${p[0]*w},${p[1]*h}`).join(' '));pl.setAttribute('fill','none');pl.setAttribute('stroke',s.color||'#b0392b');pl.setAttribute('stroke-width',Math.max(1,Number(s.width)||5));pl.setAttribute('stroke-linecap','round');pl.setAttribute('stroke-linejoin','round');pl.setAttribute('vector-effect','non-scaling-stroke');svg.appendChild(pl)}}
-async function boardPointerDown(e){
-  if(boardTool==='cursor'||!role)return;e.preventDefault();
-  boardPointerId=e.pointerId;$('#sharedBoard')?.setPointerCapture?.(e.pointerId);
-  const p=boardPoint(e),epoch=Number(serverState?.boardEpoch)||0;
-  if(boardTool==='eraser'){boardErasing=true;lastErasePoint=p;await eraseAt(p);return}
-  const id=push(strokesRef()).key;
-  activeStroke={id,anchorId:'page',authorId:role==='teacher'?`teacher_${browserClientId}`:(participantPlayerKey||playerKey(student?.studentId||browserClientId)),authorName:role==='teacher'?'Учитель':student?.name||'Ученик',points:[p],color:boardColor,width:boardWidth,done:false,epoch,rev:1};
-  strokesCache[id]=clone(activeStroke);renderStrokes();
-  await set(ref(database,`${lessonRoot()}/strokes/${id}`),clone(activeStroke)).catch(()=>{});
-  lastStrokePush=performance.now();
-}
-async function boardPointerMove(e){
-  if(e.pointerId!==boardPointerId)return;const p=boardPoint(e);
-  if(boardErasing){await eraseSegment(lastErasePoint,p);lastErasePoint=p;return}
-  if(!activeStroke)return;const pts=activeStroke.points,last=pts[pts.length-1];
-  if(Math.hypot(p[0]-last[0],p[1]-last[1])<.0015)return;
-  pts.push(p);activeStroke.rev++;
-  strokesCache[activeStroke.id]=clone(activeStroke);renderStrokes();
-  if(performance.now()-lastStrokePush>=50){lastStrokePush=performance.now();update(ref(database,`${lessonRoot()}/strokes/${activeStroke.id}`),{points:pts.slice(),rev:activeStroke.rev,done:false,epoch:activeStroke.epoch}).catch(()=>{})}
-}
+function renderStrokes(){const svg=$('#sharedBoard'),host=$('#boardHost');if(!svg||!host)return;syncBoardSurfaceSize();const w=Math.max(1,host.offsetWidth),h=Math.max(1,host.offsetHeight),epoch=Number(serverState?.boardEpoch)||0;svg.innerHTML='';for(const [id,s] of Object.entries(strokesCache)){if(!s||Number(s.epoch||0)!==epoch||!Array.isArray(s.points)||s.points.length<2)continue;const pts=sharedInkStrokePagePoints(s,w,h);const pl=document.createElementNS('http://www.w3.org/2000/svg','polyline');pl.setAttribute('points',pts.map(p=>`${p[0]},${p[1]}`).join(' '));pl.setAttribute('fill','none');pl.setAttribute('stroke',s.color||'#b0392b');pl.setAttribute('stroke-width',Math.max(1,Number(s.width)||5));pl.setAttribute('stroke-linecap','round');pl.setAttribute('stroke-linejoin','round');pl.setAttribute('vector-effect','non-scaling-stroke');svg.appendChild(pl)}}
+async function boardPointerDown(e){if(boardTool==='cursor'||!role)return;e.preventDefault();boardPointerId=e.pointerId;$('#sharedBoard')?.setPointerCapture?.(e.pointerId);const p=boardPoint(e),epoch=Number(serverState?.boardEpoch)||0;if(boardTool==='eraser'){boardErasing=true;lastErasePoint=p;await eraseAt(p);return}const id=push(strokesRef()).key;activeStroke={id,anchorId:SHARED_INK_ANCHOR_ID,authorId:role==='teacher'?`teacher_${browserClientId}`:(participantPlayerKey||playerKey(student?.studentId||browserClientId)),authorName:role==='teacher'?'Учитель':student?.name||'Ученик',points:[p],color:boardColor,width:boardWidth,done:false,epoch,rev:1};strokesCache[id]=clone(activeStroke);renderStrokes();await set(ref(database,`${lessonRoot()}/strokes/${id}`),clone(activeStroke)).catch(()=>{});lastStrokePush=performance.now()}
+async function boardPointerMove(e){if(e.pointerId!==boardPointerId)return;const p=boardPoint(e);if(boardErasing){await eraseSegment(lastErasePoint,p);lastErasePoint=p;return}if(!activeStroke)return;const pts=activeStroke.points,events=e.getCoalescedEvents?.()||[e];let added=false;for(const ev of events){const q=boardPoint(ev),last=pts[pts.length-1];if(!last||sharedInkDistancePx(q,last)>=1.4){pts.push(q);added=true}}if(!added)return;activeStroke.rev++;strokesCache[activeStroke.id]=clone(activeStroke);renderStrokes();if(performance.now()-lastStrokePush>=36){lastStrokePush=performance.now();update(ref(database,`${lessonRoot()}/strokes/${activeStroke.id}`),{points:pts.slice(),rev:activeStroke.rev,done:false,epoch:activeStroke.epoch,anchorId:activeStroke.anchorId}).catch(()=>{})}}
 async function boardPointerUp(e){
   if(e.pointerId!==boardPointerId)return;
   if(activeStroke){
@@ -565,18 +555,8 @@ async function boardPointerUp(e){
   boardErasing=false;lastErasePoint=null;boardPointerId=null;
 }
 function pointSegDist(p,a,b){const vx=b[0]-a[0],vy=b[1]-a[1],wx=p[0]-a[0],wy=p[1]-a[1],c1=vx*wx+vy*wy;if(c1<=0)return Math.hypot(p[0]-a[0],p[1]-a[1]);const c2=vx*vx+vy*vy;if(c2<=c1)return Math.hypot(p[0]-b[0],p[1]-b[1]);const tt=c1/c2,x=a[0]+tt*vx,y=a[1]+tt*vy;return Math.hypot(p[0]-x,p[1]-y)}
-async function eraseAt(p){
-  const victims=[],host=$('#boardHost'),w=Math.max(1,host?.offsetWidth||innerWidth),h=Math.max(1,host?.offsetHeight||innerHeight),scale=Math.max(w,h),epoch=Number(serverState?.boardEpoch)||0;
-  for(const [id,s] of Object.entries(strokesCache)){
-    if(!s||Number(s.epoch||0)!==epoch)continue;
-    const pts=s.points||[],tol=Math.max(7,(Number(s.width)||5)*1.4)/scale;
-    for(let i=1;i<pts.length;i++)if(pointSegDist(p,pts[i-1],pts[i])<=tol){victims.push(id);break}
-  }
-  if(!victims.length)return;
-  const backup={};const patch={};for(const id of victims){backup[id]=strokesCache[id];delete strokesCache[id];patch[id]=null}renderStrokes();
-  try{await update(strokesRef(),patch)}catch{Object.assign(strokesCache,backup);renderStrokes()}
-}
-async function eraseSegment(a,b){if(!a)return eraseAt(b);const host=$('#boardHost'),w=Math.max(1,host?.offsetWidth||innerWidth),h=Math.max(1,host?.offsetHeight||innerHeight),stepPx=7,dx=(b[0]-a[0])*w,dy=(b[1]-a[1])*h,steps=Math.max(1,Math.ceil(Math.hypot(dx,dy)/stepPx));for(let i=1;i<=steps;i++)await eraseAt([a[0]+(b[0]-a[0])*i/steps,a[1]+(b[1]-a[1])*i/steps])}
+async function eraseAt(p){const victims=[],host=$('#boardHost'),w=Math.max(1,host?.offsetWidth||innerWidth),h=Math.max(1,host?.offsetHeight||innerHeight),epoch=Number(serverState?.boardEpoch)||0,cursor=sharedInkPagePoint(p);for(const [id,s] of Object.entries(strokesCache)){if(!s||Number(s.epoch||0)!==epoch)continue;const pts=sharedInkStrokePagePoints(s,w,h),tol=Math.max(8,(Number(s.width)||5)*1.55);let hit=false;if(pts.length===1)hit=Math.hypot(cursor[0]-pts[0][0],cursor[1]-pts[0][1])<=tol;for(let i=1;!hit&&i<pts.length;i++)if(sharedInkPointSegDist(cursor,pts[i-1],pts[i])<=tol)hit=true;if(hit)victims.push(id)}if(!victims.length)return;const backup={},patch={};for(const id of victims){backup[id]=strokesCache[id];delete strokesCache[id];patch[id]=null}renderStrokes();try{await update(strokesRef(),patch)}catch{Object.assign(strokesCache,backup);renderStrokes()}}
+async function eraseSegment(a,b){if(!a)return eraseAt(b);const steps=Math.max(1,Math.ceil(sharedInkDistancePx(a,b)/7));for(let i=1;i<=steps;i++)await eraseAt([a[0]+(b[0]-a[0])*i/steps,a[1]+(b[1]-a[1])*i/steps])}
 async function clearSharedBoard(){
   if(role!=='teacher')return;
   const snap=await get(stateRef());const base=snap.exists()?normalizeState(snap.val()):normalizeState(serverState||{});
