@@ -636,44 +636,28 @@ $("#boardColor").oninput=e=>{boardColor=e.target.value;localStorage.setItem(`${A
 $("#boardWidth").oninput=e=>{boardWidth=Math.min(14,Math.max(2,Number(e.target.value)||4));$("#boardWidthOut").textContent=String(boardWidth);localStorage.setItem(`${APP_ID}:width`,String(boardWidth))};
 $("#clearBoard").onclick=async()=>{if(role!=="teacher")return;if(!confirm("Очистить все рисунки у участников?"))return;await runTransaction(stateRef(),cur=>{if(!cur)return cur;cur=normalizeStateShape(clone(cur));cur.boardEpoch=(cur.boardEpoch||0)+1;cur.version++;return cur});await remove(strokesRef())};
 
-function boardPoint(e){const r=svg.getBoundingClientRect();return[Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))]}
-function boardPath(pts){return pts.map((p,i)=>`${i?"L":"M"}${p[0]*1000},${p[1]*1000}`).join(" ")}
-function renderBoard(){
-  const epoch=state?.boardEpoch||0;
-  svg.innerHTML=Object.values(strokeCache).filter(st=>st&&st.epoch===epoch&&(!currentStroke||st.id!==currentStroke.id)).map(st=>`<path data-stroke-id="${esc(st.id)}" d="${boardPath(st.points||[])}" fill="none" stroke="${esc(st.color||"#174f71")}" stroke-width="${Number(st.width)||4}" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`).join("");
-  if(currentStroke)renderBoardTemp();
-}
-function renderBoardTemp(){
-  if(!currentStroke)return;
-  let p=$("#tempStroke",svg);if(!p){p=document.createElementNS("http://www.w3.org/2000/svg","path");p.id="tempStroke";svg.appendChild(p)}
-  p.setAttribute("d",boardPath(currentStroke.points));p.setAttribute("fill","none");p.setAttribute("stroke",currentStroke.color);p.setAttribute("stroke-width",currentStroke.width);p.setAttribute("stroke-linecap","round");p.setAttribute("stroke-linejoin","round");p.setAttribute("vector-effect","non-scaling-stroke");
-}
+const SHARED_INK_ELEMENT_PREFIX='element:';
+function boardAnchorElement(anchorId){const key=String(anchorId||'');if(key===SHARED_INK_ELEMENT_PREFIX+'card')return $('#card');if(key===SHARED_INK_ELEMENT_PREFIX+'dockYes')return $('#dockYes');if(key===SHARED_INK_ELEMENT_PREFIX+'dockNo')return $('#dockNo');if(key===SHARED_INK_ELEMENT_PREFIX+'sign')return $('.sign');return null}
+function boardAnchorIdForEvent(e){const candidates=[['card',$('#card')],['dockYes',$('#dockYes')],['dockNo',$('#dockNo')],['sign',$('.sign')]];for(const [id,el] of candidates){if(!el)continue;const r=el.getBoundingClientRect();if(r.width>5&&r.height>5&&e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom)return SHARED_INK_ELEMENT_PREFIX+id}return 'game-screen'}
+function boardAnchorRect(anchorId){const el=boardAnchorElement(anchorId);if(el){const r=el.getBoundingClientRect();if(r.width>1&&r.height>1)return r}return svg.getBoundingClientRect()}
+function boardPointForAnchor(e,anchorId){const r=boardAnchorRect(anchorId);return[Math.max(0,Math.min(1,(e.clientX-r.left)/Math.max(1,r.width))),Math.max(0,Math.min(1,(e.clientY-r.top)/Math.max(1,r.height)))]}
+function boardScreenPoint(anchorId,p){const r=boardAnchorRect(anchorId);return[r.left+Number(p?.[0]||0)*r.width,r.top+Number(p?.[1]||0)*r.height]}
+function boardStrokeScreenPoints(st){return(st?.points||[]).map(p=>boardScreenPoint(st?.anchorId||'game-screen',p))}
+function boardDistancePx(anchorId,a,b){const r=boardAnchorRect(anchorId);return Math.hypot((a[0]-b[0])*r.width,(a[1]-b[1])*r.height)}
+function boardPoint(e,anchorId=currentStroke?.anchorId||'game-screen'){return boardPointForAnchor(e,anchorId)}
+function boardPath(st){const r=svg.getBoundingClientRect(),pts=boardStrokeScreenPoints(st);return pts.map((p,i)=>`${i?'L':'M'}${((p[0]-r.left)/Math.max(1,r.width)*1000).toFixed(2)},${((p[1]-r.top)/Math.max(1,r.height)*1000).toFixed(2)}`).join(' ')}
+function renderBoard(){const epoch=state?.boardEpoch||0;svg.innerHTML=Object.values(strokeCache).filter(st=>st&&st.epoch===epoch&&(!currentStroke||st.id!==currentStroke.id)).map(st=>`<path data-stroke-id="${esc(st.id)}" d="${boardPath(st)}" fill="none" stroke="${esc(st.color||'#174f71')}" stroke-width="${Number(st.width)||4}" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`).join('');if(currentStroke)renderBoardTemp()}
+function renderBoardTemp(){if(!currentStroke)return;let p=$('#tempStroke',svg);if(!p){p=document.createElementNS('http://www.w3.org/2000/svg','path');p.id='tempStroke';svg.appendChild(p)}p.setAttribute('d',boardPath(currentStroke));p.setAttribute('fill','none');p.setAttribute('stroke',currentStroke.color);p.setAttribute('stroke-width',currentStroke.width);p.setAttribute('stroke-linecap','round');p.setAttribute('stroke-linejoin','round');p.setAttribute('vector-effect','non-scaling-stroke')}
 function scheduleStrokeWrite(force=false){
   if(!currentStroke)return;
-  const now=performance.now(),wait=Math.max(0,58-(now-lastBoardWrite));
+  const now=performance.now(),wait=Math.max(0,36-(now-lastBoardWrite));
   if(!force&&wait>0){if(!boardWriteTimer)boardWriteTimer=setTimeout(()=>{boardWriteTimer=0;scheduleStrokeWrite(true)},wait);return}
   lastBoardWrite=now;
   const st={...currentStroke,points:currentStroke.points.map(p=>[p[0],p[1]]),rev:Date.now(),done:false};
   set(ref(db,`${root()}/strokes/${st.id}`),st).catch(()=>{});
 }
 function segDist(px,py,ax,ay,bx,by){const vx=bx-ax,vy=by-ay,wx=px-ax,wy=py-ay,c1=vx*wx+vy*wy;if(c1<=0)return Math.hypot(px-ax,py-ay);const c2=vx*vx+vy*vy;if(c2<=c1)return Math.hypot(px-bx,py-by);const t=c1/c2,cx=ax+t*vx,cy=ay+t*vy;return Math.hypot(px-cx,py-cy)}
-function eraseAtPx(px,py){
-  const r=svg.getBoundingClientRect(),epoch=state?.boardEpoch||0,radius=Math.max(16,boardWidth*2.4),hits=[];
-  for(const [id,st] of Object.entries(strokeCache)){
-    if(!st||st.epoch!==epoch||eraseBusy.has(id))continue;
-    const pts=st.points||[];let hit=false;
-    for(let i=0;i<pts.length;i++){
-      const ax=pts[i][0]*r.width,ay=pts[i][1]*r.height;
-      if(i===0){if(Math.hypot(px-ax,py-ay)<=radius+(Number(st.width)||4)/2){hit=true;break}}
-      else{const bx=pts[i-1][0]*r.width,by=pts[i-1][1]*r.height;if(segDist(px,py,bx,by,ax,ay)<=radius+(Number(st.width)||4)/2){hit=true;break}}
-    }
-    if(hit)hits.push([id,st]);
-  }
-  for(const [id,st] of hits){
-    eraseBusy.add(id);delete strokeCache[id];renderBoard();
-    remove(ref(db,`${root()}/strokes/${id}`)).catch(()=>{strokeCache[id]=st;renderBoard()}).finally(()=>eraseBusy.delete(id));
-  }
-}
+function eraseAtPx(px,py){const epoch=state?.boardEpoch||0,radius=Math.max(16,boardWidth*2.4),hits=[];for(const [id,st] of Object.entries(strokeCache)){if(!st||st.epoch!==epoch||eraseBusy.has(id))continue;const pts=boardStrokeScreenPoints(st);let hit=false;for(let i=0;i<pts.length;i++){const a=pts[i];if(i===0){if(Math.hypot(px-a[0],py-a[1])<=radius+(Number(st.width)||4)/2){hit=true;break}}else{const b=pts[i-1];if(segDist(px,py,b[0],b[1],a[0],a[1])<=radius+(Number(st.width)||4)/2){hit=true;break}}}if(hit)hits.push([id,st])}for(const [id,st] of hits){eraseBusy.add(id);delete strokeCache[id];renderBoard();remove(ref(db,`${root()}/strokes/${id}`)).catch(()=>{strokeCache[id]=st;renderBoard()}).finally(()=>eraseBusy.delete(id))}}
 function eraseAlong(e){
   const r=svg.getBoundingClientRect(),cur=[e.clientX-r.left,e.clientY-r.top];
   if(!lastErasePx){lastErasePx=cur;eraseAtPx(cur[0],cur[1]);return}
@@ -686,24 +670,23 @@ svg.addEventListener("pointerdown",e=>{
   e.preventDefault();drawing=true;svg.setPointerCapture(e.pointerId);
   if(boardTool==="eraser"){lastErasePx=null;eraseAlong(e);return}
   const authorId=studentId||"teacher",authorName=participantName||role;
-  currentStroke={id:uid("stroke"),anchorId:"game-screen",epoch:state?.boardEpoch||0,color:boardColor,width:boardWidth,points:[boardPoint(e)],authorId,authorName,rev:Date.now(),done:false};
+  const anchorId=boardAnchorIdForEvent(e);currentStroke={id:uid("stroke"),anchorId,epoch:state?.boardEpoch||0,color:boardColor,width:boardWidth,points:[boardPoint(e,anchorId)],authorId,authorName,rev:Date.now(),done:false};
   renderBoardTemp();scheduleStrokeWrite(true);
 });
 svg.addEventListener("pointermove",e=>{
   if(!drawing||boardTool==="cursor")return;e.preventDefault();
   if(boardTool==="eraser"){eraseAlong(e);return}
   if(!currentStroke)return;
-  const pt=boardPoint(e),last=currentStroke.points[currentStroke.points.length-1];
-  const r=svg.getBoundingClientRect();
-  if(Math.hypot((pt[0]-last[0])*r.width,(pt[1]-last[1])*r.height)<2.5)return;
-  currentStroke.points.push(pt);renderBoardTemp();scheduleStrokeWrite();
+  const events=e.getCoalescedEvents?.()||[e];let added=false;
+  for(const ev of events){const pt=boardPoint(ev,currentStroke.anchorId),last=currentStroke.points[currentStroke.points.length-1];if(!last||boardDistancePx(currentStroke.anchorId,pt,last)>=1.4){currentStroke.points.push(pt);added=true}}
+  if(!added)return;renderBoardTemp();scheduleStrokeWrite();
 });
 async function finishStroke(e){
   if(!drawing)return;e?.preventDefault?.();drawing=false;lastErasePx=null;
   try{if(e)svg.releasePointerCapture(e.pointerId)}catch{}
   if(boardTool==="eraser"){return}
   if(!currentStroke)return;
-  if(e)currentStroke.points.push(boardPoint(e));
+  if(e)currentStroke.points.push(boardPoint(e,currentStroke.anchorId));
   clearTimeout(boardWriteTimer);boardWriteTimer=0;
   const st={...currentStroke,points:currentStroke.points.map(p=>[p[0],p[1]]),rev:Date.now(),done:true};
   strokeCache[st.id]=st;currentStroke=null;renderBoard();
