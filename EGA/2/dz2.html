@@ -163,7 +163,19 @@
       .coord{width:178px;height:178px;margin:auto}.solution-grid,.result-cards{grid-template-columns:1fr}.hud{grid-template-columns:1fr auto}
       .counter{display:none}
     }
-  </style>
+  
+/* v2 · актуальная система ДЗ */
+.coord{width:210px;height:210px;max-width:100%;background:#fffdf4}
+.diagram-row{grid-template-columns:minmax(0,1fr) 220px;align-items:center}
+.solution-toggle{display:none;margin-top:10px;border:1px solid var(--jade);border-radius:10px;padding:8px 11px;background:#edf6ef;color:var(--jade2);font-weight:900;cursor:pointer}
+.math-step{margin:7px 0;padding:7px 9px;border-radius:8px;background:#fffdf7;overflow-x:auto}.math-line{overflow-x:auto}
+.screenshot-mode .hero,.screenshot-mode .identity,.screenshot-mode .intro,.screenshot-mode .hud,.screenshot-mode .submit-zone,.screenshot-mode .results,.screenshot-mode footer,.screenshot-mode .login{display:none!important}
+.screenshot-mode .stage{margin:0;padding:7px;background:#fff;box-shadow:none;border:0}.screenshot-mode .work{display:block!important}.screenshot-mode #taskArea{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.screenshot-mode #taskArea>section{display:contents}.screenshot-mode .prototype-title{display:none}.screenshot-mode .tasks{display:contents}.screenshot-mode .task{margin:0;padding:8px 8px 8px 37px;box-shadow:none;border-radius:10px;min-height:0}.screenshot-mode .question{font-size:12px;line-height:1.25}.screenshot-mode .diagram-row{grid-template-columns:1fr 115px;gap:5px}.screenshot-mode .coord{width:112px;height:112px}.screenshot-mode .answer-row,.screenshot-mode .solution-toggle,.screenshot-mode .solution{display:none!important}.screenshot-mode .num{width:23px;height:23px;font-size:10px}.screenshot-mode .app{width:100%;padding:4px}.screenshot-mode main.app{margin:0}
+@media(max-width:760px){.diagram-row{grid-template-columns:1fr}.coord{margin:auto}.screenshot-mode #taskArea{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+</style>
+<script>window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]],processEscapes:true},chtml:{scale:1.02},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 </head>
 <body>
   <div class="login" id="login">
@@ -194,7 +206,7 @@
     <div class="identity"><span>Ученик: <b id="identityName">—</b></span><span>Код: <b id="identityCode">—</b></span><button class="change-student" id="changeStudentBtn" type="button">Сменить ученика</button><span class="status" id="submissionStatus">Ожидание входа</span></div>
 
     <section class="stage intro" id="intro">
-      <div class="scroll"><h2 id="introTitle"></h2><p>Типы заданий идут в фиксированном порядке. При каждом открытии числа создаются заново, но ответы всегда корректны.</p><div class="route" id="route"></div><p>Проверка и решения откроются только после успешной отправки результата.</p></div>
+      <div class="scroll"><h2 id="introTitle"></h2><p>Типы, числа и рисунки зафиксированы: после перезагрузки задания не меняются.</p><div class="route" id="route"></div><p>После завершения результат появится сразу, а решение можно открыть отдельно под каждым заданием.</p></div>
       <aside class="start-panel"><div class="big">12</div><b>испытаний</b><small>без подсказок до отправки</small><button class="primary" id="startBtn" type="button" disabled>Начать домашнюю работу</button><div class="check-note" id="checkNote">Сначала войдите по коду</div></aside>
     </section>
 
@@ -214,391 +226,74 @@
   <div class="toast" id="toast"></div>
 
   <script>
-    "use strict";
-    const API_URL = "https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
-    const HOMEWORK_META = {"file":"ДЗ_ЕГЭ2_Векторы_Кунг-фу_Панда_Часть2_только-код.html","documentTitle":"ДЗ №2 — Глаз мастера | ЕГЭ №2","title":"ДЗ №2. Глаз мастера","subtitle":"Координатные рисунки, углы и скалярные произведения • вторая ступень","introTitle":"Испытание Свитка координат","route":["Прототип 4: длина вектора по координатному рисунку","Прототип 5: скалярное произведение и угол по рисунку"],"assignmentId":"HW-EGE02-PART2-MONTHLY-KFP20260726","taskNumber":2,"topicId":"task-02","topicName":"Векторы на координатной плоскости","prototypeNames":{"1":"Координаты вектора и базовые операции","2":"Длина вектора по заданным координатам","3":"Скалярное произведение по числовым данным","4":"Длина вектора по координатному рисунку","5":"Скалярное произведение и угол по рисунку"},"taskKinds":["graphLenAplus4B","graphLenAplus3B","graphLen2BminusA","graphLenABC","graphDotCompound","graphDotSimple","graphDotSimple","graphDotSimple","graphDotSimple","graphDotSimple","graphCosine","graphDotScaled"]};
-    const state = {student:null,tasks:[],startedAt:0,timerId:null,durationSeconds:0,serverChecked:false,canSubmit:false,submitted:false,solutionsRendered:false};
-    const $ = s => document.querySelector(s);
-    const $$ = s => [...document.querySelectorAll(s)];
-    const ri = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
-    const pick = a => a[ri(0,a.length-1)];
-    const sign = () => Math.random()<.5?-1:1;
-    const clean = n => Math.abs(n)<1e-10?0:Math.round(n*100)/100;
-    const fmt = n => String(clean(n)).replace("-", "−").replace(".", ",");
-    const vec = v => "(" + fmt(v[0]) + "; " + fmt(v[1]) + ")";
-    const add = (a,b) => [a[0]+b[0],a[1]+b[1]];
-    const sub = (a,b) => [a[0]-b[0],a[1]-b[1]];
-    const mul = (k,a) => [k*a[0],k*a[1]];
-    const dot = (a,b) => a[0]*b[0]+a[1]*b[1];
-    const len = a => Math.sqrt(dot(a,a));
-    const triples = [[3,4,5],[5,12,13],[8,15,17],[7,24,25],[20,21,29]];
-    const targetVector = (small=false) => {
-      const t = pick(small?triples.slice(0,2):triples);
-      let x=t[0]*sign(),y=t[1]*sign();
-      if(Math.random()<.5)[x,y]=[y,x];
-      return {v:[x,y],length:t[2]};
-    };
-    const randomVec = (m=7,nonzero=true) => {
-      let v; do{v=[ri(-m,m),ri(-m,m)]}while(nonzero&&v[0]===0&&v[1]===0); return v;
-    };
-    const answerText = x => typeof x==="number"?fmt(x):String(x);
-    const make = (prototype,question,answer,solution,diagram=null) => ({prototype,question,answer:clean(answer),answerDisplay:answerText(answer),solution,diagram});
-    const solution = (recall,formula,lifehack,steps) => ({recall,formula,lifehack,steps});
-
-    const generators = {
-      pointDistance(){
-        const t=targetVector(true), A=randomVec(4,false), B=add(A,t.v);
-        return make(1,`Даны точки <i>A</i>${vec(A)} и <i>B</i>${vec(B)}. Найдите длину вектора <i>AB</i>.`,t.length,
-          solution("Координаты вектора AB получаем вычитанием координат начала из координат конца.","|AB| = √((xB − xA)² + (yB − yA)²)","Сначала найдите приращения по x и y. Обычно они образуют пифагорову тройку.",[
-            `AB = (${fmt(B[0])} − (${fmt(A[0])}); ${fmt(B[1])} − (${fmt(A[1])})) = ${vec(t.v)}.`,
-            `|AB| = √((${fmt(t.v[0])})² + (${fmt(t.v[1])})²).`,
-            `|AB| = √${t.v[0]**2+t.v[1]**2} = ${t.length}.`
-          ]));
-      },
-      coordSumLinear(){
-        const a=randomVec(5),b=randomVec(5),k=pick([2,3]),m=pick([-2,-1,1]),r=add(mul(k,a),mul(m,b)),ans=r[0]+r[1];
-        const op=m>0?`+ ${m}`:`− ${Math.abs(m)}`;
-        return make(1,`Даны векторы <i>a</i>${vec(a)} и <i>b</i>${vec(b)}. Найдите сумму координат вектора ${k}<i>a</i> ${op}<i>b</i>.`,ans,
-          solution("Векторы умножаем на числа покоординатно, затем складываем или вычитаем соответствующие координаты.","k·(x; y) = (kx; ky)","Сначала получите сам результирующий вектор и только потом складывайте его координаты.",[
-            `${k}a = ${vec(mul(k,a))}, ${m}b = ${vec(mul(m,b))}.`,
-            `${k}a ${m>=0?"+":"−"} ${Math.abs(m)}b = ${vec(r)}.`,
-            `Сумма координат: ${fmt(r[0])} + (${fmt(r[1])}) = ${fmt(ans)}.`
-          ]));
-      },
-      len3Plus(){
-        const t=targetVector(true),a=randomVec(4),b=randomVec(4),c=add(sub(t.v,a),b);
-        return make(2,`Даны векторы <i>a</i>${vec(a)}, <i>b</i>${vec(b)} и <i>c</i>${vec(c)}. Найдите длину вектора <i>a</i> − <i>b</i> + <i>c</i>.`,t.length,
-          solution("Линейную комбинацию векторов вычисляем покоординатно, затем применяем формулу длины.","|(x; y)| = √(x² + y²)","Не извлекайте корень, пока не упростили обе координаты.",[
-            `a − b + c = (${fmt(a[0])} − (${fmt(b[0])}) + (${fmt(c[0])}); ${fmt(a[1])} − (${fmt(b[1])}) + (${fmt(c[1])})) = ${vec(t.v)}.`,
-            `Длина равна √((${fmt(t.v[0])})² + (${fmt(t.v[1])})²).`,
-            `√${t.v[0]**2+t.v[1]**2} = ${t.length}.`
-          ]));
-      },
-      len3Minus(){
-        const t=targetVector(true),a=randomVec(4),b=randomVec(4),c=sub(sub(a,b),t.v);
-        return make(2,`Даны векторы <i>a</i>${vec(a)}, <i>b</i>${vec(b)} и <i>c</i>${vec(c)}. Найдите длину вектора <i>a</i> − <i>b</i> − <i>c</i>.`,t.length,
-          solution("При вычитании вектора меняются знаки обеих его координат.","|a − b − c| = √((ax−bx−cx)² + (ay−by−cy)²)","Поставьте скобки вокруг отрицательных координат — так меньше ошибок со знаками.",[
-            `a − b − c = ${vec(t.v)}.`,
-            `|a − b − c| = √((${fmt(t.v[0])})² + (${fmt(t.v[1])})²).`,
-            `√${t.v[0]**2+t.v[1]**2} = ${t.length}.`
-          ]));
-      },
-      len2TwoAminusB(){
-        const t=targetVector(true),a=randomVec(4),b=sub(mul(2,a),t.v);
-        return make(2,`Даны векторы <i>a</i>${vec(a)} и <i>b</i>${vec(b)}. Найдите длину вектора 2<i>a</i> − <i>b</i>.`,t.length,
-          solution("Сначала умножаем a на 2, затем покоординатно вычитаем b.","|2a − b| = √((2ax−bx)² + (2ay−by)²)","Удобно выписать 2a отдельной строкой.",[
-            `2a = ${vec(mul(2,a))}.`,
-            `2a − b = ${vec(t.v)}.`,
-            `|2a − b| = √${t.v[0]**2+t.v[1]**2} = ${t.length}.`
-          ]));
-      },
-      len2Aminus4B(){
-        const t=targetVector(true),b=randomVec(3),a=add(t.v,mul(4,b));
-        return make(2,`Даны векторы <i>a</i>${vec(a)} и <i>b</i>${vec(b)}. Найдите длину вектора <i>a</i> − 4<i>b</i>.`,t.length,
-          solution("Вектор 4b имеет координаты (4bx; 4by). После вычитания найдите длину результата.","|a − 4b| = √((ax−4bx)² + (ay−4by)²)","Сначала вычислите 4b — это защищает от потери множителя во второй координате.",[
-            `4b = ${vec(mul(4,b))}.`,
-            `a − 4b = ${vec(t.v)}.`,
-            `|a − 4b| = √${t.v[0]**2+t.v[1]**2} = ${t.length}.`
-          ]));
-      },
-      dotSimple(){
-        let a,b,d;do{a=randomVec(8);b=randomVec(8);d=dot(a,b)}while(d===0||Math.abs(d)>120);
-        return make(3,`Даны векторы <i>a</i>${vec(a)} и <i>b</i>${vec(b)}. Найдите скалярное произведение <i>a</i> · <i>b</i>.`,d,
-          solution("Скалярное произведение по координатам — сумма произведений соответствующих координат.","a · b = axbx + ayby","Не перемножайте координаты крест-накрест.",[
-            `a · b = (${fmt(a[0])})·(${fmt(b[0])}) + (${fmt(a[1])})·(${fmt(b[1])}).`,
-            `a · b = ${fmt(a[0]*b[0])} + (${fmt(a[1]*b[1])}).`,
-            `a · b = ${fmt(d)}.`
-          ]));
-      },
-      dotScaled(){
-        let a,b,d;const k=pick([2,3]),m=pick([2,4]);do{a=randomVec(5);b=randomVec(5);d=k*m*dot(a,b)}while(d===0||Math.abs(d)>180);
-        return make(3,`Даны векторы <i>a</i>${vec(a)} и <i>b</i>${vec(b)}. Найдите скалярное произведение векторов ${k}<i>a</i> и ${m}<i>b</i>.`,d,
-          solution("Числовые множители можно вынести за знак скалярного произведения.","(ka) · (mb) = km(a · b)","Сначала найдите a · b, а уже затем умножайте на km.",[
-            `a · b = (${fmt(a[0])})·(${fmt(b[0])}) + (${fmt(a[1])})·(${fmt(b[1])}) = ${fmt(dot(a,b))}.`,
-            `(${k}a) · (${m}b) = ${k}·${m}·(${fmt(dot(a,b))}).`,
-            `Ответ: ${fmt(d)}.`
-          ]));
-      },
-      dotMagnitudeAngle(){
-        const la=pick([3,4,5,6,7]),lb=pick([2,4,6,8]),angle=pick([60,120]),cos=angle===60?.5:-.5,d=la*lb*cos;
-        return make(3,`Длины векторов <i>a</i> и <i>b</i> равны ${la} и ${lb}, угол между ними равен ${angle}°. Найдите <i>a</i> · <i>b</i>.`,d,
-          solution("Если известны длины и угол, используем геометрическую формулу скалярного произведения.","a · b = |a|·|b|·cos α",`Запомните: cos 60° = 1/2, а cos 120° = −1/2.`,[
-            `a · b = ${la}·${lb}·cos ${angle}°.`,
-            `a · b = ${la}·${lb}·(${fmt(cos)}).`,
-            `a · b = ${fmt(d)}.`
-          ]));
-      },
-      graphLenAplusKB(k=4){
-        const t=targetVector(true),b=randomVec(2),a=sub(t.v,mul(k,b));
-        return make(4,`На рисунке изображены векторы <i>a</i> и <i>b</i>. Найдите длину вектора <i>a</i> + ${k}<i>b</i>.`,t.length,
-          solution("Сначала считайте с рисунка координаты каждого вектора, затем выполните действия.","|a + kb| = √((ax+kbx)² + (ay+kby)²)","Координаты вектора — это смещение от начала стрелки к её концу.",[
-            `По рисунку: a = ${vec(a)}, b = ${vec(b)}.`,
-            `a + ${k}b = ${vec(t.v)}.`,
-            `|a + ${k}b| = √${t.v[0]**2+t.v[1]**2} = ${t.length}.`
-          ]),[["a",...a],["b",...b]]);
-      },
-      graphLen2BminusA(){
-        const t=targetVector(true),b=randomVec(3),a=sub(mul(2,b),t.v);
-        return make(4,`На рисунке изображены векторы <i>a</i> и <i>b</i>. Найдите длину вектора 2<i>b</i> − <i>a</i>.`,t.length,
-          solution("Считайте координаты, удвойте b и вычтите a.","|2b − a| = √((2bx−ax)² + (2by−ay)²)","Работайте сначала только с координатами, не с длинами исходных векторов.",[
-            `По рисунку: a = ${vec(a)}, b = ${vec(b)}.`,
-            `2b − a = ${vec(t.v)}.`,
-            `|2b − a| = √${t.v[0]**2+t.v[1]**2} = ${t.length}.`
-          ]),[["a",...a],["b",...b]]);
-      },
-      graphLenABC(){
-        const t=targetVector(true),a=randomVec(3),b=randomVec(3),c=sub(sub(t.v,a),b);
-        return make(4,`На рисунке изображены векторы <i>a</i>, <i>b</i> и <i>c</i>. Найдите длину вектора <i>a</i> + <i>b</i> + <i>c</i>.`,t.length,
-          solution("Сложите отдельно все x-координаты и все y-координаты.","|a+b+c| = √((ax+bx+cx)² + (ay+by+cy)²)","Подпишите координаты трёх векторов рядом с рисунком перед вычислениями.",[
-            `По рисунку: a = ${vec(a)}, b = ${vec(b)}, c = ${vec(c)}.`,
-            `a + b + c = ${vec(t.v)}.`,
-            `|a+b+c| = √${t.v[0]**2+t.v[1]**2} = ${t.length}.`
-          ]),[["a",...a],["b",...b],["c",...c]]);
-      },
-      graphDotSimple(){
-        let a,b,d;do{a=randomVec(7);b=randomVec(7);d=dot(a,b)}while(d===0||Math.abs(d)>90);
-        return make(5,"По рисунку найдите скалярное произведение <i>a</i> · <i>b</i>.",d,
-          solution("Считайте координаты стрелок и примените координатную формулу.","a · b = axbx + ayby","Направление стрелки определяет знаки обеих координат.",[
-            `По рисунку: a = ${vec(a)}, b = ${vec(b)}.`,
-            `a · b = (${fmt(a[0])})·(${fmt(b[0])}) + (${fmt(a[1])})·(${fmt(b[1])}).`,
-            `a · b = ${fmt(d)}.`
-          ]),[["a",...a],["b",...b]]);
-      },
-      graphDotCompound(){
-        let a,b,c,r,d;do{a=randomVec(5);b=randomVec(5);c=randomVec(5);r=add(a,b);d=dot(r,c)}while(d===0||Math.abs(d)>120);
-        return make(5,"На рисунке изображены векторы <i>a</i>, <i>b</i> и <i>c</i>. Найдите (<i>a</i> + <i>b</i>) · <i>c</i>.",d,
-          solution("Сначала найдите координаты суммы a+b, затем её скалярное произведение с c.","(a+b) · c = (ax+bx)cx + (ay+by)cy","Не складывайте сразу все шесть чисел: сначала получите один результирующий вектор.",[
-            `По рисунку: a = ${vec(a)}, b = ${vec(b)}, c = ${vec(c)}.`,
-            `a + b = ${vec(r)}.`,
-            `(a+b) · c = (${fmt(r[0])})·(${fmt(c[0])}) + (${fmt(r[1])})·(${fmt(c[1])}) = ${fmt(d)}.`
-          ]),[["a",...a],["b",...b],["c",...c]]);
-      },
-      graphCosine(){
-        const preset=pick([
-          {a:[5,0],b:[3,4],ans:.6},{a:[5,0],b:[-3,4],ans:-.6},
-          {a:[5,0],b:[4,3],ans:.8},{a:[5,0],b:[-4,3],ans:-.8},
-          {a:[3,4],b:[-4,3],ans:0}
-        ]);
-        return make(5,"По рисунку найдите косинус угла между векторами <i>a</i> и <i>b</i>.",preset.ans,
-          solution("Косинус угла равен скалярному произведению, делённому на произведение длин.","cos α = (a · b)/(|a|·|b|)","Если скалярное произведение отрицательно, угол тупой и косинус тоже отрицательный.",[
-            `По рисунку: a = ${vec(preset.a)}, b = ${vec(preset.b)}.`,
-            `a · b = ${fmt(dot(preset.a,preset.b))}, |a| = ${fmt(len(preset.a))}, |b| = ${fmt(len(preset.b))}.`,
-            `cos α = ${fmt(dot(preset.a,preset.b))}/(${fmt(len(preset.a))}·${fmt(len(preset.b))}) = ${fmt(preset.ans)}.`
-          ]),[["a",...preset.a],["b",...preset.b]]);
-      },
-      graphDotScaled(){
-        let a,b,d;do{a=randomVec(5);b=randomVec(5);d=2*dot(a,b)}while(d===0||Math.abs(d)>100);
-        return make(5,"По рисунку найдите скалярное произведение векторов <i>a</i> и 2<i>b</i>.",d,
-          solution("Множитель 2 можно вынести за скалярное произведение.","a · (2b) = 2(a · b)","Найдите обычное a·b и удвойте результат.",[
-            `По рисунку: a = ${vec(a)}, b = ${vec(b)}.`,
-            `a · b = ${fmt(dot(a,b))}.`,
-            `a · (2b) = 2·(${fmt(dot(a,b))}) = ${fmt(d)}.`
-          ]),[["a",...a],["b",...b]]);
-      }
-    };
-
-    function createTask(kind){
-      if(kind==="graphLenAplus4B")return generators.graphLenAplusKB(4);
-      if(kind==="graphLenAplus3B")return generators.graphLenAplusKB(3);
-      return generators[kind]();
-    }
-    function generateTasks(){state.tasks=HOMEWORK_META.taskKinds.map(createTask)}
-    function normalized(value){return String(value).trim().replace("−","-").replace(",",".").replace(/\s+/g,"")}
-    function isCorrect(value,answer){
-      const v=Number(normalized(value)),a=Number(answer);
-      return Number.isFinite(v)&&Math.abs(v-a)<1e-7;
-    }
-    function currentMonth(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`}
-    function eventId(){return globalThis.crypto&&crypto.randomUUID?crypto.randomUUID():`evt-${Date.now()}-${Math.random().toString(36).slice(2)}`}
-    async function postJson(payload){
-      const response=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});
-      const text=await response.text();let data={};try{data=text?JSON.parse(text):{}}catch{data={raw:text}}
-      if(!response.ok||data.success===false||data.ok===false)throw new Error(data.error||data.message||"Сервер не принял запрос");return data
-    }
-    function deepSubmitted(data){
-      if(!data||typeof data!=="object")return false;
-      if(data.canSubmit===false||data.submitted===true||data.alreadySubmitted===true||data.hasSubmitted===true||data.submittedThisMonth===true||data.exists===true||data.duplicate===true)return true;
-      if(["already_submitted","submitted","duplicate"].includes(String(data.status||"").toLowerCase()))return true;
-      return data.data&&data.data!==data?deepSubmitted(data.data):false
-    }
-    async function checkSubmission(){
-      $("#submissionStatus").textContent="Проверяем отправку за текущий месяц…";$("#checkNote").textContent="Проверяем данные на этом устройстве";$("#startBtn").disabled=true;
-      const localKey=`hwSubmitted:${HOMEWORK_META.assignmentId}:${currentMonth()}`;
-      if(localStorage.getItem(localKey)){
-        state.serverChecked=true;state.canSubmit=false;$("#submissionStatus").textContent="В этом месяце результат уже отправлен";$("#checkNote").textContent="Можно открыть задания в режиме просмотра";$("#startBtn").disabled=false;return
-      }
-      /* У сервера нет отдельного действия checkHomeworkSubmission.
-         Повтор на этом устройстве блокирует localStorage, а сервер окончательно
-         проверяет право на отправку при поддерживаемом действии submitHomework. */
-      state.serverChecked=true;state.canSubmit=true;
-      $("#submissionStatus").textContent="Попытка за текущий месяц доступна";
-      $("#checkNote").textContent="Можно начинать — сервер проверит отправку при сдаче";
-      $("#startBtn").disabled=false
-    }
-    function makeDiagram(vectors,uid){
-      const colors=["#9f2923","#276b55","#a36b16","#51457d"];
-      const maxAbs=Math.max(5,...vectors.flatMap(v=>[Math.abs(v[1]),Math.abs(v[2])]))+1,size=170,pad=15,inner=size-pad*2;
-      const px=n=>pad+((n+maxAbs)/(2*maxAbs))*inner,py=n=>size-px(n),labelEvery=maxAbs>9?4:maxAbs>6?2:1;
-      let grid="";
-      for(let i=-maxAbs;i<=maxAbs;i++){
-        grid+=`<line x1="${px(i)}" y1="${pad}" x2="${px(i)}" y2="${size-pad}" stroke="${i===0?"#4c4438":"#ddd2b5"}" stroke-width="${i===0?1.25:.55}"/>`;
-        grid+=`<line x1="${pad}" y1="${py(i)}" x2="${size-pad}" y2="${py(i)}" stroke="${i===0?"#4c4438":"#ddd2b5"}" stroke-width="${i===0?1.25:.55}"/>`;
-        if(i!==0&&i%labelEvery===0){grid+=`<text x="${px(i)}" y="${py(0)+8}" text-anchor="middle" font-size="5.4" fill="#756b59">${i}</text><text x="${px(0)-4}" y="${py(i)+2}" text-anchor="end" font-size="5.4" fill="#756b59">${i}</text>`}
-      }
-      let arrows="";
-      vectors.forEach((v,i)=>{
-        const [name,x,y]=v,color=colors[i%colors.length],marker=`m-${uid}-${i}`,ex=px(x),ey=py(y);
-        arrows+=`<defs><marker id="${marker}" markerWidth="4.4" markerHeight="4.4" refX="3.7" refY="2.2" orient="auto" markerUnits="strokeWidth"><path d="M0 0 L4.4 2.2 L0 4.4Z" fill="${color}"/></marker></defs><line x1="${px(0)}" y1="${py(0)}" x2="${ex}" y2="${ey}" stroke="${color}" stroke-width="2" marker-end="url(#${marker})"/><circle cx="${ex}" cy="${ey}" r="2.9" fill="#fffdf4" stroke="${color}" stroke-width="1.4"/><text x="${Math.max(8,Math.min(161,ex+(x>=0?-7:7)))}" y="${Math.max(10,Math.min(163,ey+(y>=0?11:-5)))}" font-size="9" font-style="italic" font-weight="800" fill="${color}">${name}</text>`
-      });
-      return `<svg class="coord" viewBox="0 0 170 170" role="img" aria-label="Координатная плоскость"><rect x=".5" y=".5" width="169" height="169" rx="8" fill="#fffdf4"/>${grid}<text x="160" y="${py(0)-4}" font-size="7">x</text><text x="${px(0)+4}" y="11" font-size="7">y</text><circle cx="${px(0)}" cy="${py(0)}" r="2" fill="#29251e"/>${arrows}</svg>`
-    }
-    function renderTasks(){
-      const area=$("#taskArea");area.innerHTML="";let last=null,section,grid;
-      state.tasks.forEach((task,i)=>{
-        if(task.prototype!==last){
-          last=task.prototype;section=document.createElement("section");
-          section.innerHTML=`<div class="prototype-title"><b>${task.prototype}</b><h2>${HOMEWORK_META.prototypeNames[task.prototype]}</h2></div><div class="tasks"></div>`;
-          area.appendChild(section);grid=section.querySelector(".tasks")
-        }
-        const card=document.createElement("article");card.className="task";card.dataset.index=i;
-        const content=task.diagram?`<div class="diagram-row"><div class="question">${task.question}</div>${makeDiagram(task.diagram,i)}</div>`:`<div class="question">${task.question}</div>`;
-        card.innerHTML=`<span class="num">${i+1}</span>${content}<div class="answer-row"><label for="ans-${i}">Ответ</label><input class="answer-input" id="ans-${i}" data-index="${i}" inputmode="decimal" autocomplete="off"><span class="verdict"></span></div><div class="solution" id="solution-${i}"></div>`;
-        grid.appendChild(card)
-      });
-      $$(".answer-input").forEach(input=>input.addEventListener("input",updateProgress));updateProgress()
-    }
-    function updateProgress(){
-      const filled=$$(".answer-input").filter(x=>x.value.trim()).length,p=Math.round(filled/state.tasks.length*100);
-      $("#progress").style.width=p+"%";$("#progressLabel").textContent=`Заполнено ${filled} из ${state.tasks.length}`;$("#counter").textContent=`${filled} / ${state.tasks.length}`
-    }
-    function tick(){
-      state.durationSeconds=Math.max(0,Math.floor((Date.now()-state.startedAt)/1000));
-      $("#timer").textContent=formatTime(state.durationSeconds)
-    }
-    function formatTime(s){return `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`}
-    function startHomework(){
-      generateTasks();renderTasks();$("#intro").style.display="none";$("#work").classList.add("active");state.startedAt=Date.now();state.timerId=setInterval(tick,1000);tick();AudioEngine.start()
-      if(!state.canSubmit){$("#submitBtn").textContent="Повторить проверку перед отправкой"}
-    }
-    function renderSolutions(){
-      if(!state.solutionsRendered){
-        state.tasks.forEach((t,i)=>{
-          const s=t.solution,box=$(`#solution-${i}`);
-          box.innerHTML=`<h3>Разбор задания ${i+1}</h3><div class="solution-grid"><div class="solution-box"><b>Вспомним</b>${s.recall}</div><div class="solution-box"><b>Формула</b>${s.formula}</div><div class="solution-box"><b>Лайфхак</b>${s.lifehack}</div><div class="solution-box steps"><b>Пошаговое решение</b><ol>${s.steps.map(x=>`<li>${x}</li>`).join("")}</ol><strong>Ответ: ${t.answerDisplay}</strong></div></div>`
-        });state.solutionsRendered=true
-      }
-      $$(".solution").forEach(x=>x.classList.add("visible"));$("#work").classList.add("active");$("#results").classList.remove("active");$("#solutionsBtn").textContent="Решения открыты";setTimeout(()=>$("#taskArea").scrollIntoView({behavior:"smooth"}),50)
-    }
-    async function submitHomework(){
-      const values=$$(".answer-input").map(x=>x.value.trim());
-      if(values.some(x=>!x)){toast("Заполните ответы во всех 12 заданиях.");return}
-      if(!state.canSubmit){
-        $("#submitBtn").disabled=true;$("#submitBtn").textContent="Проверяем возможность отправки…";await checkSubmission();$("#submitBtn").disabled=false;
-        if(!state.canSubmit){$("#submitBtn").textContent="Отправка в этом месяце недоступна";toast(state.serverChecked?"Результат уже отправлялся в этом месяце.":"Сервер недоступен. Ответы пока не проверяются.");return}
-      }
-      const correct=values.reduce((n,v,i)=>n+(isCorrect(v,state.tasks[i].answer)?1:0),0);
-      const percent=Math.round(correct/state.tasks.length*100);tick();
-      const payload={
-        action:"submitHomework",
-        eventId:eventId(),
-        studentId:state.student.id,
-        assignmentId:HOMEWORK_META.assignmentId,
-        taskNumber:HOMEWORK_META.taskNumber,
-        topicId:HOMEWORK_META.topicId,
-        topicName:HOMEWORK_META.topicName,
-        scorePercent:percent,
-        durationSeconds:state.durationSeconds,
-        schemaVersion:1
-      };
-      $("#submitBtn").disabled=true;$("#submitBtn").textContent="Отправляем результат…";
-      try{
-        await postJson(payload);state.submitted=true;state.canSubmit=false;clearInterval(state.timerId);
-        localStorage.setItem(`hwSubmitted:${HOMEWORK_META.assignmentId}:${currentMonth()}`,"1");
-        values.forEach((v,i)=>{const card=$(`.task[data-index="${i}"]`),ok=isCorrect(v,state.tasks[i].answer);card.classList.add(ok?"correct":"wrong");card.querySelector(".verdict").textContent=ok?"Верно":`Ответ: ${state.tasks[i].answerDisplay}`;card.querySelector(".answer-input").disabled=true});
-        $("#resultPercent").textContent=percent+"%";$("#resultCorrect").textContent=`${correct}/${state.tasks.length}`;$("#resultTime").textContent=formatTime(state.durationSeconds);
-        $("#resultRank").textContent=percent>=90?"Мастер":percent>=70?"Воин":percent>=50?"Ученик":"Новичок";
-        $("#serverMessage").textContent="Результат успешно отправлен. Ответы и решения на сервер не передавались.";
-        $("#work").classList.remove("active");$("#results").classList.add("active");$("#results").scrollIntoView({behavior:"smooth"});
-        AudioEngine.result(percent)
-      }catch(error){
-        $("#submitBtn").disabled=false;$("#submitBtn").textContent="Повторить отправку";
-        const message=String(error&&error.message||"");
-        if(/уже|повтор|месяц|отправлен/i.test(message)){
-          state.serverChecked=true;state.canSubmit=false;
-          localStorage.setItem(`hwSubmitted:${HOMEWORK_META.assignmentId}:${currentMonth()}`,"1");
-          $("#submitBtn").textContent="Результат уже отправлен в этом месяце";
-          toast(message)
-        }else{
-          toast(message&&message!=="Сервер не принял запрос"?message:"Не удалось отправить результат. Проверьте интернет и попробуйте ещё раз.")
-        }
-      }
-    }
-    function toast(message){const el=$("#toast");el.textContent=message;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),3400)}
-    const AudioEngine={
-      ctx:null,master:null,on:true,loop:null,step:0,
-      init(){if(this.ctx)return;this.ctx=new (window.AudioContext||window.webkitAudioContext)();this.master=this.ctx.createGain();this.master.gain.value=.12;this.master.connect(this.ctx.destination)},
-      tone(freq,dur=.24,type="sine",vol=.12,delay=0){
-        if(!this.on)return;this.init();const now=this.ctx.currentTime+delay,o=this.ctx.createOscillator(),g=this.ctx.createGain();
-        o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(vol,now+.025);g.gain.exponentialRampToValueAtTime(.001,now+dur);
-        o.connect(g);g.connect(this.master);o.start(now);o.stop(now+dur+.03)
-      },
-      start(){if(!this.on)return;this.init();if(this.ctx.state==="suspended")this.ctx.resume();if(this.loop)return;
-        const notes=[220,261.63,293.66,329.63,392,329.63,293.66,261.63];
-        const play=()=>{this.tone(notes[this.step++%notes.length],.72,"triangle",.085);if(this.step%4===0)this.tone(110,.9,"sine",.04,.08)};play();this.loop=setInterval(play,1250)
-      },
-      toggle(){this.on=!this.on;if(this.on){this.start()}else if(this.ctx){this.master.gain.setTargetAtTime(.0001,this.ctx.currentTime,.04)};if(this.on&&this.ctx)this.master.gain.setTargetAtTime(.12,this.ctx.currentTime,.04);$("#soundBtn").textContent=this.on?"🔊 Звук включён":"🔇 Звук выключен"},
-      result(percent){if(!this.on)return;const seq=percent>=70?[392,493.88,587.33,783.99]:[293.66,261.63,220];seq.forEach((n,i)=>this.tone(n,.35,"triangle",.15,i*.13))}
-    };
-    function fillMeta(){
-      document.title=HOMEWORK_META.documentTitle;$("#heroTitle").textContent=HOMEWORK_META.title;$("#heroSubtitle").textContent=HOMEWORK_META.subtitle;$("#introTitle").textContent=HOMEWORK_META.introTitle;
-      $("#route").innerHTML=HOMEWORK_META.route.map((x,i)=>`<div class="route-item"><span>${i+1}</span>${x}</div>`).join("")
-    }
-    function validateStudentCode(code){
-      return new Promise((resolve,reject)=>{
-        const callback=`egeStudentCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-        const script=document.createElement("script");
-        const cleanup=()=>{delete window[callback];script.remove();clearTimeout(timer)};
-        const timer=setTimeout(()=>{cleanup();reject(new Error("timeout"))},12000);
-        window[callback]=data=>{
-          try{
-            const raw=data&&data.student?data.student:data||{};
-            if(data&&((data.success===false)||(data.valid===false)||(data.ok===false)))throw new Error(data.message||data.error||"Код не найден");
-            const id=raw.studentId||raw.id||data.studentId||data.id;
-            const name=raw.studentName||raw.name||data.studentName||data.name||"Ученик";
-            if(!id)throw new Error(data&&((data.message||data.error))||"Код не найден");
-            cleanup();resolve({id:String(id),name:String(name),code})
-          }catch(error){cleanup();reject(error)}
-        };
-        script.onerror=()=>{cleanup();reject(new Error("network"))};
-        script.src=`${API_URL}?action=validateStudent&code=${encodeURIComponent(code)}&callback=${encodeURIComponent(callback)}`;
-        document.head.appendChild(script)
-      })
-    }
-    function enterStudent(student){
-      state.student=student;
-      localStorage.setItem("egeStudentId",student.id);localStorage.setItem("egeStudentName",student.name);localStorage.setItem("egeStudentCode",student.code);
-      $("#identityName").textContent=student.name;$("#identityCode").textContent=student.code;$("#login").classList.add("hidden");checkSubmission()
-    }
-    function restoreSavedLogin(){
-      const id=localStorage.getItem("egeStudentId"),name=localStorage.getItem("egeStudentName"),code=localStorage.getItem("egeStudentCode");
-      if(id&&name&&code){enterStudent({id,name,code});return}
-      $("#studentCode").value=code||"";$("#login").classList.remove("hidden")
-    }
-    $("#loginForm").addEventListener("submit",async e=>{
-      e.preventDefault();const code=$("#studentCode").value.trim().toUpperCase();
-      if(code.length<2){$("#loginError").textContent="Введите код ученика.";return}
-      $("#loginError").textContent="Проверяем код…";$("#loginBtn").disabled=true;
-      try{enterStudent(await validateStudentCode(code))}
-      catch(error){$("#loginError").textContent=error.message==="Код не найден"?error.message:"Не удалось проверить код. Проверьте его и попробуйте ещё раз.";$("#loginBtn").disabled=false}
-    });
-    $("#changeStudentBtn").addEventListener("click",()=>{
-      ["egeStudentId","egeStudentName","egeStudentCode"].forEach(key=>localStorage.removeItem(key));
-      state.student=null;$("#studentCode").value="";$("#loginError").textContent="";$("#loginBtn").disabled=false;$("#login").classList.remove("hidden");$("#studentCode").focus()
-    });
-    $("#startBtn").addEventListener("click",startHomework);$("#submitBtn").addEventListener("click",submitHomework);$("#solutionsBtn").addEventListener("click",renderSolutions);
-    $("#backBtn").addEventListener("click",()=>{$("#results").classList.remove("active");$("#work").classList.add("active");$("#work").scrollIntoView({behavior:"smooth"})});
-    $("#soundBtn").addEventListener("click",()=>AudioEngine.toggle());
-    fillMeta();restoreSavedLogin();
-  </script>
+"use strict";
+const API_URL="https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
+const HOMEWORK_META={"file":"ДЗ_ЕГЭ2_Векторы_Кунг-фу_Панда_Часть2_только-код.html","documentTitle":"ДЗ №2 — Глаз мастера | ЕГЭ №2","title":"ДЗ №2. Глаз мастера","subtitle":"Координатные рисунки, углы и скалярные произведения • вторая ступень","introTitle":"Испытание Свитка координат","route":["Прототип 4: длина вектора по координатному рисунку","Прототип 5: скалярное произведение и угол по рисунку"],"assignmentId":"HW-EGE02-PART2-MONTHLY-KFP20260726","taskNumber":2,"topicId":"task-02","topicName":"Векторы на координатной плоскости","prototypeNames":{"1":"Координаты вектора и базовые операции","2":"Длина вектора по заданным координатам","3":"Скалярное произведение по числовым данным","4":"Длина вектора по координатному рисунку","5":"Скалярное произведение и угол по рисунку"},"taskKinds":["graphLenAplus4B","graphLenAplus3B","graphLen2BminusA","graphLenABC","graphDotCompound","graphDotSimple","graphDotSimple","graphDotSimple","graphDotSimple","graphDotSimple","graphCosine","graphDotScaled"]};
+const FIXED_TASKS=[{"prototype":4,"question":"На рисунке изображены \\(\\vec a\\) и \\(\\vec b\\). Найдите \\(|\\vec a+4\\vec b|\\).","answer":5,"answerDisplay":"5","solution":{"recall":"Сначала считай по клеткам координаты обеих стрелок.","formula":"|\\vec a+4\\vec b|=\\sqrt{(a_x+4b_x)^2+(a_y+4b_y)^2}","steps":["\\vec a=(-1;4),\\qquad \\vec b=(1;0)","\\vec a+4\\vec b=(-1+4;\\,4+0)=(3;4)","|\\vec a+4\\vec b|=\\sqrt{3^2+4^2}=5"],"lifehack":""},"diagram":[["a",-1,4],["b",1,0]]},{"prototype":4,"question":"На рисунке изображены \\(\\vec a\\) и \\(\\vec b\\). Найдите \\(|\\vec a+3\\vec b|\\).","answer":5,"answerDisplay":"5","solution":{"recall":"Координата — это число клеток от начала стрелки до конца по каждой оси.","formula":"|\\vec a+3\\vec b|=\\sqrt{(a_x+3b_x)^2+(a_y+3b_y)^2}","steps":["\\vec a=(1;0),\\qquad \\vec b=(1;1)","\\vec a+3\\vec b=(1+3;\\,0+3)=(4;3)","|\\vec a+3\\vec b|=\\sqrt{4^2+3^2}=5"],"lifehack":""},"diagram":[["a",1,0],["b",1,1]]},{"prototype":4,"question":"На рисунке изображены \\(\\vec a\\) и \\(\\vec b\\). Найдите \\(|2\\vec b-\\vec a|\\).","answer":5,"answerDisplay":"5","solution":{"recall":"Сначала считай координаты, затем выполняй действия.","formula":"|2\\vec b-\\vec a|=\\sqrt{(2b_x-a_x)^2+(2b_y-a_y)^2}","steps":["\\vec a=(1;-2),\\qquad \\vec b=(2;1)","2\\vec b-\\vec a=(4-1;\\,2-(-2))=(3;4)","|2\\vec b-\\vec a|=\\sqrt{3^2+4^2}=5"],"lifehack":""},"diagram":[["a",1,-2],["b",2,1]]},{"prototype":4,"question":"На рисунке изображены \\(\\vec a,\\vec b,\\vec c\\). Найдите \\(|\\vec a+\\vec b+\\vec c|\\).","answer":5,"answerDisplay":"5","solution":{"recall":"Сложи отдельно горизонтальные и вертикальные смещения.","formula":"|\\vec a+\\vec b+\\vec c|=\\sqrt{(a_x+b_x+c_x)^2+(a_y+b_y+c_y)^2}","steps":["\\vec a=(1;2),\\quad\\vec b=(-2;1),\\quad\\vec c=(4;1)","\\vec a+\\vec b+\\vec c=(1-2+4;\\,2+1+1)=(3;4)","|\\vec a+\\vec b+\\vec c|=5"],"lifehack":""},"diagram":[["a",1,2],["b",-2,1],["c",4,1]]},{"prototype":5,"question":"По рисунку найдите \\((\\vec a+\\vec b)\\cdot\\vec c\\).","answer":9,"answerDisplay":"9","solution":{"recall":"Сначала преврати сумму двух векторов в один вектор.","formula":"(\\vec a+\\vec b)\\cdot\\vec c=(a_x+b_x)c_x+(a_y+b_y)c_y","steps":["\\vec a=(1;2),\\quad\\vec b=(2;-1),\\quad\\vec c=(2;3)","\\vec a+\\vec b=(3;1)","(\\vec a+\\vec b)\\cdot\\vec c=3\\cdot2+1\\cdot3=9"],"lifehack":""},"diagram":[["a",1,2],["b",2,-1],["c",2,3]]},{"prototype":5,"question":"По рисунку найдите \\(\\vec a\\cdot\\vec b\\).","answer":5,"answerDisplay":"5","solution":{"recall":"Считай координаты стрелок по клеткам, затем перемножь одноимённые координаты.","formula":"\\vec a\\cdot\\vec b=a_xb_x+a_yb_y","steps":["\\vec a=\\left(3;2\\right),\\qquad \\vec b=\\left(-1;4\\right)","\\vec a\\cdot\\vec b=3\\cdot(-1)+(2)\\cdot(4)=5"],"lifehack":""},"diagram":[["a",3,2],["b",-1,4]]},{"prototype":5,"question":"По рисунку найдите \\(\\vec a\\cdot\\vec b\\).","answer":-5,"answerDisplay":"-5","solution":{"recall":"Считай координаты стрелок по клеткам, затем перемножь одноимённые координаты.","formula":"\\vec a\\cdot\\vec b=a_xb_x+a_yb_y","steps":["\\vec a=\\left(-2;3\\right),\\qquad \\vec b=\\left(4;1\\right)","\\vec a\\cdot\\vec b=-2\\cdot(4)+(3)\\cdot(1)=-5"],"lifehack":""},"diagram":[["a",-2,3],["b",4,1]]},{"prototype":5,"question":"По рисунку найдите \\(\\vec a\\cdot\\vec b\\).","answer":5,"answerDisplay":"5","solution":{"recall":"Считай координаты стрелок по клеткам, затем перемножь одноимённые координаты.","formula":"\\vec a\\cdot\\vec b=a_xb_x+a_yb_y","steps":["\\vec a=\\left(4;-1\\right),\\qquad \\vec b=\\left(2;3\\right)","\\vec a\\cdot\\vec b=4\\cdot(2)+(-1)\\cdot(3)=5"],"lifehack":""},"diagram":[["a",4,-1],["b",2,3]]},{"prototype":5,"question":"По рисунку найдите \\(\\vec a\\cdot\\vec b\\).","answer":2,"answerDisplay":"2","solution":{"recall":"Считай координаты стрелок по клеткам, затем перемножь одноимённые координаты.","formula":"\\vec a\\cdot\\vec b=a_xb_x+a_yb_y","steps":["\\vec a=\\left(-3;-2\\right),\\qquad \\vec b=\\left(2;-4\\right)","\\vec a\\cdot\\vec b=-3\\cdot(2)+(-2)\\cdot(-4)=2"],"lifehack":""},"diagram":[["a",-3,-2],["b",2,-4]]},{"prototype":5,"question":"По рисунку найдите \\(\\vec a\\cdot\\vec b\\).","answer":-2,"answerDisplay":"-2","solution":{"recall":"Считай координаты стрелок по клеткам, затем перемножь одноимённые координаты.","formula":"\\vec a\\cdot\\vec b=a_xb_x+a_yb_y","steps":["\\vec a=\\left(1;5\\right),\\qquad \\vec b=\\left(3;-1\\right)","\\vec a\\cdot\\vec b=1\\cdot(3)+(5)\\cdot(-1)=-2"],"lifehack":""},"diagram":[["a",1,5],["b",3,-1]]},{"prototype":5,"question":"По рисунку найдите косинус угла между \\(\\vec a\\) и \\(\\vec b\\).","answer":0.6,"answerDisplay":"0,6","solution":{"recall":"Для косинуса нужны скалярное произведение и обе длины.","formula":"\\cos\\alpha=\\frac{\\vec a\\cdot\\vec b}{|\\vec a|\\,|\\vec b|}","steps":["\\vec a=(5;0),\\qquad\\vec b=(3;4)","\\vec a\\cdot\\vec b=15,\\qquad |\\vec a|=5,\\qquad|\\vec b|=5","\\cos\\alpha=\\frac{15}{5\\cdot5}=\\frac35=0{,}6"],"lifehack":""},"diagram":[["a",5,0],["b",3,4]]},{"prototype":5,"question":"По рисунку найдите \\(\\vec a\\cdot(2\\vec b)\\).","answer":-8,"answerDisplay":"-8","solution":{"recall":"Сначала найди обычное скалярное произведение.","formula":"\\vec a\\cdot(2\\vec b)=2(\\vec a\\cdot\\vec b)","steps":["\\vec a=(2;3),\\qquad\\vec b=(1;-2)","\\vec a\\cdot\\vec b=2\\cdot1+3\\cdot(-2)=-4","\\vec a\\cdot(2\\vec b)=2\\cdot(-4)=-8"],"lifehack":""},"diagram":[["a",2,3],["b",1,-2]]}];
+const state={student:null,verifiedStudentId:null,tasks:FIXED_TASKS,startedAt:0,timerId:null,durationSeconds:0,submitted:false,alreadySubmitted:false};
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const clean=n=>Math.abs(Number(n))<1e-10?0:Math.round(Number(n)*1000000)/1000000;
+const fmt=n=>String(clean(n)).replace("-","−").replace(".",",");
+const normalized=v=>String(v??"").trim().replace(/−/g,"-").replace(/,/g,".").replace(/\s+/g,"");
+const isCorrect=(v,a)=>{const n=Number(normalized(v));return Number.isFinite(n)&&Math.abs(n-Number(a))<1e-7};
+const currentMonth=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`};
+const uid=()=>globalThis.crypto?.randomUUID?.()||`evt-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+const studentCode=()=>state.student?.code||"";
+const draftKey=()=>`homeworkDraft:${HOMEWORK_META.assignmentId}:${studentCode()}`;
+const queueKey=()=>`pendingHomeworkResults:${HOMEWORK_META.assignmentId}`;
+const monthLockKey=()=>`hwSubmitted:${HOMEWORK_META.assignmentId}:${currentMonth()}`;
+function safeGet(k,f=null){try{const v=localStorage.getItem(k);return v==null?f:JSON.parse(v)}catch{return f}}
+function safeSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}
+function readStudent(){const code=localStorage.getItem("egeStudentCode");if(!code)return null;return{id:localStorage.getItem("egeStudentId")||code,name:localStorage.getItem("egeStudentName")||"Ученик",code}}
+function saveStudent(s){localStorage.setItem("egeStudentCode",s.code);localStorage.setItem("egeStudentId",s.id||s.code);localStorage.setItem("egeStudentName",s.name||"Ученик")}
+function clearStudent(){["egeStudentCode","egeStudentId","egeStudentName"].forEach(k=>localStorage.removeItem(k))}
+function getDraft(){return safeGet(draftKey(),null)}
+function captureAnswers(){return $$(".answer-input").map(x=>x.value)}
+function saveDraft(extra={}){if(!state.student)return;const old=getDraft()||{};safeSet(draftKey(),{...old,assignmentId:HOMEWORK_META.assignmentId,studentCode:studentCode(),answers:captureAnswers(),startedAt:Number(old.startedAt)||state.startedAt||Date.now(),updatedAt:Date.now(),...extra})}
+function restoreAnswers(d){if(!d?.answers)return;d.answers.forEach((v,i)=>{const el=$(`#ans-${i}`);if(el)el.value=v??""})}
+function readQueue(){const q=safeGet(queueKey(),[]);return Array.isArray(q)?q:[]}
+function writeQueue(q){safeSet(queueKey(),q)}
+function enqueue(payload){const q=readQueue();if(!q.some(x=>x.eventId===payload.eventId))q.push(payload);writeQueue(q)}
+async function post(payload,keepalive=false){const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload),redirect:"follow",keepalive});if(!r.ok)throw new Error("network");const tx=await r.text();try{return JSON.parse(tx)}catch{return{success:true}}}
+function serverSaysSubmitted(d){const x=d?.data||d||{};return x.submitted===true||x.hasSubmission===true||x.alreadySubmitted===true||x.exists===true||x.duplicate===true||x.canSubmit===false}
+async function sendQueue(){const q=readQueue(),keep=[];for(const item of q){try{await post(item)}catch{keep.push(item)}}writeQueue(keep)}
+function flushKeepalive(){for(const item of readQueue()){try{fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(item),keepalive:true})}catch{}}}
+function validateStudentBackground(code){return new Promise(resolve=>{const cb=`egeV_${Date.now()}_${Math.random().toString(36).slice(2)}`,s=document.createElement("script");let done=false;const finish=x=>{if(done)return;done=true;clearTimeout(timer);try{s.remove()}catch{};try{delete window[cb]}catch{};resolve(x)};const timer=setTimeout(()=>finish(null),8000);window[cb]=data=>{const raw=data?.student||data?.data||data||{};if(data&&(data.success===false||data.valid===false||data.ok===false))return finish(null);const id=raw.studentId??raw.id??data?.studentId??data?.id,name=raw.studentName??raw.name??data?.studentName??data?.name;if(id){state.verifiedStudentId=String(id);state.student={id:String(id),name:String(name||"Ученик"),code};saveStudent(state.student);$("#identityName").textContent=state.student.name;upgradeQueuedStudentId(code,String(id))}finish(true)};s.onerror=()=>finish(null);s.src=`${API_URL}?action=validateStudent&code=${encodeURIComponent(code)}&callback=${encodeURIComponent(cb)}`;document.head.appendChild(s)})}
+function upgradeQueuedStudentId(code,id){const q=readQueue();let ch=false;q.forEach(x=>{if(x.studentId===code){x.studentId=id;ch=true}});if(ch)writeQueue(q)}
+async function checkAvailabilityBackground(){if(!state.student)return;if(localStorage.getItem(monthLockKey())){state.alreadySubmitted=true;setHumanStatus("Эта работа уже была отправлена в этом месяце. Можно повторить её для разбора.");return}try{const d=await post({action:"checkHomeworkSubmission",studentId:state.verifiedStudentId||state.student.id||state.student.code,assignmentId:HOMEWORK_META.assignmentId});if(serverSaysSubmitted(d)){state.alreadySubmitted=true;setHumanStatus("Эта работа уже была отправлена в этом месяце. Можно повторить её для разбора.")}}catch{}}
+function setHumanStatus(t=""){const e=$("#submissionStatus");if(e)e.textContent=t}
+function typeset(root=document.body){if(window.MathJax?.typesetPromise)window.MathJax.typesetPromise(root?[root]:undefined).catch(()=>{})}
+function makeDiagram(vectors,uid){
+  const colors=["#9f2923","#276b55","#a36b16","#51457d"],size=220,pad=24,min=-6,max=6,span=max-min,inner=size-pad*2;
+  const px=n=>pad+((n-min)/span)*inner, py=n=>pad+((max-n)/span)*inner;
+  let grid="";
+  for(let i=min;i<=max;i++){
+    const axis=i===0;
+    grid+=`<line x1="${px(i)}" y1="${pad}" x2="${px(i)}" y2="${size-pad}" stroke="${axis?'#4c4438':'#ded4ba'}" stroke-width="${axis?1.5:.65}"/>`;
+    grid+=`<line x1="${pad}" y1="${py(i)}" x2="${size-pad}" y2="${py(i)}" stroke="${axis?'#4c4438':'#ded4ba'}" stroke-width="${axis?1.5:.65}"/>`;
+    if(i!==0){grid+=`<text x="${px(i)}" y="${py(0)+11}" text-anchor="middle" font-size="7.6" fill="#675d4d">${i}</text><text x="${px(0)-7}" y="${py(i)+2.8}" text-anchor="end" font-size="7.6" fill="#675d4d">${i}</text>`}
+  }
+  let defs='<defs>',arrows='';
+  vectors.forEach((v,i)=>{const[name,x,y]=v,color=colors[i%colors.length],id=`arrow-${uid}-${i}`;defs+=`<marker id="${id}" viewBox="0 0 10 10" refX="8.2" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L10 5 L0 10 z" fill="${color}"/></marker>`;const ex=px(x),ey=py(y),dx=x>=0?-13:8,dy=y>=0?15:-8;arrows+=`<line x1="${px(0)}" y1="${py(0)}" x2="${ex}" y2="${ey}" stroke="${color}" stroke-width="3.2" marker-end="url(#${id})"/><text x="${Math.max(8,Math.min(205,ex+dx))}" y="${Math.max(12,Math.min(210,ey+dy))}" font-size="11" font-style="italic" font-weight="900" fill="${color}">${name}</text>`});defs+='</defs>';
+  return `<svg class="coord" viewBox="0 0 220 220" role="img" aria-label="Координатная плоскость от минус шести до шести"><rect x=".5" y=".5" width="219" height="219" rx="9" fill="#fffdf4"/>${defs}${grid}<text x="204" y="${py(0)-7}" font-size="10" font-weight="800">x</text><text x="${px(0)+7}" y="14" font-size="10" font-weight="800">y</text><text x="${px(0)-7}" y="${py(0)+11}" font-size="7.6" fill="#675d4d">0</text><circle cx="${px(0)}" cy="${py(0)}" r="2.4" fill="#29251e"/>${arrows}</svg>`
+}
+function fillMeta(){document.title=HOMEWORK_META.documentTitle;$("#heroTitle").textContent=HOMEWORK_META.title;$("#heroSubtitle").textContent=HOMEWORK_META.subtitle;$("#introTitle").textContent=HOMEWORK_META.introTitle;$("#route").innerHTML=HOMEWORK_META.route.map((x,i)=>`<div class="route-item"><span>${i+1}</span>${x}</div>`).join("");const big=document.querySelector(".start-panel .big");if(big)big.textContent=FIXED_TASKS.length}
+function renderTasks(){const area=$("#taskArea");area.innerHTML="";let last=null,section,grid;state.tasks.forEach((t,i)=>{if(t.prototype!==last){last=t.prototype;section=document.createElement("section");section.innerHTML=`<div class="prototype-title"><b>${t.prototype}</b><h2>${HOMEWORK_META.prototypeNames[t.prototype]}</h2></div><div class="tasks"></div>`;area.appendChild(section);grid=section.querySelector(".tasks")};const card=document.createElement("article");card.className="task";card.dataset.index=i;const content=t.diagram?`<div class="diagram-row"><div class="question">${t.question}</div>${makeDiagram(t.diagram,i)}</div>`:`<div class="question">${t.question}</div>`;card.innerHTML=`<span class="num">${i+1}</span>${content}<div class="answer-row"><label for="ans-${i}">Ответ</label><input class="answer-input" id="ans-${i}" data-index="${i}" inputmode="decimal" autocomplete="off"><span class="verdict"></span></div><button type="button" class="solution-toggle" data-solution="${i}">Показать решение</button><div class="solution" id="solution-${i}"></div>`;grid.appendChild(card)});$$('.answer-input').forEach(x=>x.addEventListener('input',()=>{updateProgress();saveDraft()}));typeset(area);updateProgress()}
+function updateProgress(){const filled=$$('.answer-input').filter(x=>x.value.trim()).length,p=Math.round(filled/state.tasks.length*100);$("#progress").style.width=p+"%";$("#progressLabel").textContent=`Заполнено ${filled} из ${state.tasks.length}`;$("#counter").textContent=`${filled} / ${state.tasks.length}`}
+function tick(){state.durationSeconds=Math.max(1,Math.floor((Date.now()-state.startedAt)/1000));$("#timer").textContent=formatTime(state.durationSeconds)}
+function formatTime(s){s=Math.max(0,Math.floor(s));return `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`}
+function solutionHTML(t,i){const s=t.solution;return `<h3>Разбор задания ${i+1}</h3><div class="solution-grid"><div class="solution-box"><b>Что используем</b>${s.recall}</div><div class="solution-box"><b>Формула</b><div class="math-line">\\[${s.formula}\\]</div></div>${s.lifehack?`<div class="solution-box"><b>Не ошибись</b>${s.lifehack}</div>`:""}<div class="solution-box steps"><b>Решение</b>${s.steps.map(x=>`<div class="math-step">\\[${x}\\]</div>`).join("")}<strong>Ответ: ${t.answerDisplay}</strong></div></div>`}
+function renderSolution(i){const t=state.tasks[i],box=$(`#solution-${i}`);if(!box.dataset.ready){box.innerHTML=solutionHTML(t,i);box.dataset.ready="1";typeset(box)}}
+function toggleSolution(i,btn){renderSolution(i);const box=$(`#solution-${i}`),open=!box.classList.contains('visible');box.classList.toggle('visible',open);btn.textContent=open?'Скрыть решение':'Показать решение'}
+function startHomework(){if(!state.student)return;const d=getDraft();renderTasks();restoreAnswers(d);$("#intro").style.display="none";$("#work").classList.add("active");state.startedAt=Number(d?.startedAt)||Date.now();clearInterval(state.timerId);state.timerId=setInterval(tick,1000);tick();saveDraft();AudioEngine.start();if(d?.submittedResult&&d.submittedResult.month===currentMonth())restoreSubmitted(d.submittedResult);checkAvailabilityBackground();sendQueue()}
+function markSubmitted(result){state.submitted=true;clearInterval(state.timerId);$$('.answer-input').forEach((el,i)=>{const ok=isCorrect(el.value,state.tasks[i].answer),card=el.closest('.task');card.classList.add(ok?'correct':'wrong');card.querySelector('.verdict').textContent=ok?'Верно':`Ответ: ${state.tasks[i].answerDisplay}`;el.disabled=true});$$('.solution-toggle').forEach(b=>b.style.display='inline-flex');$("#submitBtn").disabled=true;$("#resultPercent").textContent=result.percent+"%";$("#resultCorrect").textContent=`${result.correct}/${state.tasks.length}`;$("#resultTime").textContent=formatTime(result.durationSeconds);$("#resultRank").textContent=result.percent>=90?'Мастер':result.percent>=70?'Воин':result.percent>=50?'Ученик':'Новичок';$("#serverMessage").textContent="Результат рассчитан на устройстве. Решения доступны под каждым заданием.";$("#results").classList.add('active');typeset($("#taskArea"))}
+function restoreSubmitted(r){markSubmitted({percent:Number(r.percent)||0,correct:Number(r.correct)||0,durationSeconds:Number(r.durationSeconds)||1})}
+function submitHomework(){if(state.submitted)return;tick();const values=$$('.answer-input').map(x=>x.value.trim()),correct=values.reduce((n,v,i)=>n+(isCorrect(v,state.tasks[i].answer)?1:0),0),percent=Math.round(correct/state.tasks.length*100);const old=getDraft()?.submittedResult,eventId=old?.month===currentMonth()?old.eventId:uid();const payload={action:"submitHomework",eventId,studentId:state.verifiedStudentId||state.student.id||state.student.code,assignmentId:HOMEWORK_META.assignmentId,taskNumber:HOMEWORK_META.taskNumber,topicId:HOMEWORK_META.topicId,topicName:HOMEWORK_META.topicName,scorePercent:percent,durationSeconds:Math.max(1,state.durationSeconds),schemaVersion:1};const result={eventId,month:currentMonth(),correct,percent,durationSeconds:Math.max(1,state.durationSeconds),answers:values,submittedAt:Date.now()};if(!state.alreadySubmitted){enqueue(payload);localStorage.setItem(monthLockKey(),"1")}saveDraft({submittedResult:result,answers:values});markSubmitted(result);sendQueue();AudioEngine.result(percent);$("#results").scrollIntoView({behavior:"smooth"})}
+function quickLogin(raw){const code=String(raw||'').trim().toUpperCase();if(!code){$("#loginError").textContent='Введите код ученика.';return}const cached=readStudent();state.student=cached&&cached.code===code?cached:{id:code,name:'Ученик',code};saveStudent(state.student);$("#identityName").textContent=state.student.name;$("#login").classList.add('hidden');$("#startBtn").disabled=false;$("#checkNote").textContent='Можно начинать';setHumanStatus('');validateStudentBackground(code).then(()=>sendQueue());checkAvailabilityBackground();const d=getDraft();if(d?.startedAt)startHomework()}
+function screenshot(on){document.body.classList.toggle('screenshot-mode',on);const b=$("#screenshotBtn");if(b)b.textContent=on?'Выйти':'Снимок'}
+const AudioEngine={ctx:null,master:null,on:true,loop:null,step:0,init(){if(this.ctx)return;this.ctx=new(window.AudioContext||window.webkitAudioContext)();this.master=this.ctx.createGain();this.master.gain.value=.12;this.master.connect(this.ctx.destination)},tone(freq,dur=.2,type='sine',vol=.09,delay=0){if(!this.on)return;this.init();const now=this.ctx.currentTime+delay,o=this.ctx.createOscillator(),g=this.ctx.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(.0001,now);g.gain.linearRampToValueAtTime(vol,now+.02);g.gain.exponentialRampToValueAtTime(.001,now+dur);o.connect(g);g.connect(this.master);o.start(now);o.stop(now+dur+.03)},start(){if(!this.on)return;this.init();this.ctx.resume();if(this.loop)return;const notes=[220,261.63,293.66,329.63,392,329.63,293.66,261.63];const play=()=>this.tone(notes[this.step++%notes.length],.55,'triangle',.05);play();this.loop=setInterval(play,1500)},toggle(){this.on=!this.on;if(!this.on&&this.loop){clearInterval(this.loop);this.loop=null}if(this.on)this.start();$("#soundBtn").textContent=this.on?'Звук: вкл':'Звук: выкл'},result(p){const seq=p>=70?[392,494,587]:[294,262,220];seq.forEach((n,i)=>this.tone(n,.3,'triangle',.1,i*.12))}};
+function init(){fillMeta();const introP=document.querySelector('.scroll p');if(introP)introP.textContent='Типы, числа и рисунки зафиксированы: после перезагрузки задания не меняются.';const introPs=document.querySelectorAll('.scroll p');if(introPs[1])introPs[1].textContent='После завершения результат появится сразу, а решение можно открыть отдельно под каждым заданием.';const id=document.querySelector('.identity');if(id)id.innerHTML=`<span>Ученик: <b id="identityName">—</b></span><button class="change-student" id="changeStudentBtn" type="button">Сменить ученика</button><span class="status" id="submissionStatus"></span>`;const hud=document.querySelector('.hud');if(hud&&!$("#screenshotBtn")){const b=document.createElement('button');b.className='ghost';b.id='screenshotBtn';b.type='button';b.textContent='Снимок';hud.appendChild(b)};$("#loginForm").addEventListener('submit',e=>{e.preventDefault();quickLogin($("#studentCode").value)});$("#changeStudentBtn").addEventListener('click',()=>{saveDraft();clearStudent();location.reload()});$("#startBtn").addEventListener('click',startHomework);$("#submitBtn").addEventListener('click',submitHomework);$("#backBtn").addEventListener('click',()=>{$("#results").classList.remove('active');$("#work").classList.add('active');$("#work").scrollIntoView({behavior:'smooth'})});$("#solutionsBtn").style.display='none';$("#soundBtn").addEventListener('click',()=>AudioEngine.toggle());document.addEventListener('click',e=>{const b=e.target.closest?.('[data-solution]');if(b)toggleSolution(Number(b.dataset.solution),b)});$("#screenshotBtn")?.addEventListener('click',()=>screenshot(!document.body.classList.contains('screenshot-mode')));window.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.classList.contains('screenshot-mode'))screenshot(false)});window.addEventListener('online',sendQueue);window.addEventListener('pagehide',()=>{saveDraft();flushKeepalive()});window.addEventListener('beforeunload',saveDraft);setInterval(sendQueue,60000);state.student=readStudent();if(state.student){$("#identityName").textContent=state.student.name;$("#login").classList.add('hidden');$("#startBtn").disabled=false;$("#checkNote").textContent='Можно начинать';validateStudentBackground(state.student.code).then(()=>sendQueue());checkAvailabilityBackground();const d=getDraft();if(d?.startedAt)startHomework()}else{$("#login").classList.remove('hidden')}}
+init();
+</script>
 </body>
 </html>
