@@ -433,28 +433,6 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-2;bac
 .practice-work-surface{position:relative;width:100%;aspect-ratio:4/3;min-height:210px;border:1px solid rgba(120,181,224,.32);border-radius:14px;background-color:#081523;background-image:linear-gradient(rgba(93,150,195,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(93,150,195,.16) 1px,transparent 1px);background-size:24px 24px;overflow:hidden}
 @media(max-width:620px){.practice-work-surface{min-height:0;aspect-ratio:4/3}}
 
-/* ===== chapter-collapse-update-2026-09-19 ===== */
-.proto-head{cursor:pointer!important}
-.proto-body{display:block}
-.proto-section.collapsed .proto-body{display:none}
-.proto-section.collapsed .formula-pill{display:none!important}
-.chapter-toggle{
-  grid-column:1/-1!important;
-  width:100%;
-  margin:2px 0 0;
-  padding:10px 13px;
-  border:1px solid rgba(68,215,255,.42);
-  border-radius:12px;
-  background:linear-gradient(180deg,#0b2949,#081c34);
-  color:#dff7ff;
-  font-weight:1000;
-  font-size:12px;
-  letter-spacing:.04em;
-  cursor:pointer;
-}
-.chapter-toggle:hover{border-color:#74e6ff;background:#0d3459}
-.proto-section.collapsed{padding-bottom:12px!important}
-.proto-section.collapsed .proto-head{padding-bottom:0!important;border-bottom:0!important}
 </style>
 
 <style id="intersection-v2-readability">
@@ -1003,12 +981,14 @@ function generateTask(id){
      mark=[mx,k*mx+b]; guard++;
    }while(Math.abs(mark[1])>6&&guard<60);
    const askX=Math.random()<.42;
-   let x0=pick([-4,-3,-2,-1,1,2,3,4]),y0=k*x0+b;
+   const valueXCandidates=[-6,-5,5,6].filter(x=>Math.abs(k*x+b)<=18);
+   let x0=pick(valueXCandidates.length?valueXCandidates:[-5,5]),y0=k*x0+b;
    if(askX){
+     x0=pick([-4,-3,-2,-1,1,2,3,4]);y0=k*x0+b;
      return{kind:id,p:{k,b},point:mark,mode:'findX',answer:x0,q:`На рисунке изображён график функции f(x)=kx+b. Найдите x, при котором f(x)=${fmt(y0)}.`,
        sol:[`Берём точку A(${fmt(mark[0])}; ${fmt(mark[1])}) на графике.`,`С графика считываем b=${fmt(b)} и подставляем A в y=kx+b: ${fmt(mark[1])}=k·${fmt(mark[0])}${b>=0?'+':''}${fmt(b)}.`,`Отсюда k=${fmt(k)}. Получаем f(x)=${fmt(k)}x${b>=0?'+':''}${fmt(b)}.`,`Решаем ${fmt(k)}x${b>=0?'+':''}${fmt(b)}=${fmt(y0)} → x=${fmt(x0)}.`]};
    }
-   return{kind:id,p:{k,b},point:mark,x0,mode:'findY',answer:y0,q:`На рисунке изображён график функции f(x)=kx+b. Найдите f(${x0}).`,
+   return{kind:id,p:{k,b},point:mark,x0,mode:'findY',answer:y0,view:{x:4,y:7},q:`На рисунке изображён график функции f(x)=kx+b. Найдите f(${x0}).`,
      sol:[`Берём точку A(${fmt(mark[0])}; ${fmt(mark[1])}) на графике.`,`С графика считываем b=${fmt(b)} и подставляем A: ${fmt(mark[1])}=k·${fmt(mark[0])}${b>=0?'+':''}${fmt(b)} → k=${fmt(k)}.`,`f(x)=${fmt(k)}x${b>=0?'+':''}${fmt(b)}.`,`f(${x0})=${fmt(k)}·${x0}${b>=0?'+':''}${fmt(b)}=${fmt(y0)}.`]};
  }
 
@@ -1016,49 +996,55 @@ function generateTask(id){
    const k=pick([-12,-9,-8,-6,-4,-3,3,4,6,8,9,12]);
    const pointCandidates=[1,2,3,4].map(x=>[x,k/x]).filter(([,y])=>Number.isInteger(y)&&Math.abs(y)<=6);
    const mark=pick(pointCandidates.length?pointCandidates:[[1,k]]);
-   const xCandidates=[1,2,3,4,6].filter(x=>Number.isInteger(k/x)&&Math.abs(k/x)<=12);
-   const x0=pick(xCandidates.length?xCandidates:[1]),y0=k/x0,askX=Math.random()<.42;
+   const xCandidates=[1,2,3,4].filter(x=>Number.isInteger(k/x)&&Math.abs(k/x)<=12);
+   let x0=pick([6,8]),y0=k/x0,askX=Math.random()<.42;
    if(askX){
+     x0=pick(xCandidates.length?xCandidates:[1]);y0=k/x0;
      return{kind:id,p:{k},point:mark,mode:'findX',answer:x0,q:`На рисунке изображён график функции f(x)=k/x. Найдите x, при котором f(x)=${fmt(y0)}.`,
        sol:[`Берём точку A(${fmt(mark[0])}; ${fmt(mark[1])}) на графике.`,`Подставляем её координаты: ${fmt(mark[1])}=k/${fmt(mark[0])}.`,`k=${fmt(mark[0])}·${fmt(mark[1])}=${fmt(k)}.`,`Решаем ${fmt(k)}/x=${fmt(y0)} → x=${fmt(x0)}.`]};
    }
-   return{kind:id,p:{k},point:mark,x0,mode:'findY',answer:y0,q:`На рисунке изображён график функции f(x)=k/x. Найдите f(${fmt(x0)}).`,
+   return{kind:id,p:{k},point:mark,x0,mode:'findY',answer:y0,view:{x:4,y:7},q:`На рисунке изображён график функции f(x)=k/x. Найдите f(${fmt(x0)}).`,
      sol:[`Берём точку A(${fmt(mark[0])}; ${fmt(mark[1])}).`,`Подставляем в y=k/x: ${fmt(mark[1])}=k/${fmt(mark[0])} → k=${fmt(k)}.`,`f(x)=${fmt(k)}/x.`,`f(${fmt(x0)})=${fmt(k)}/${fmt(x0)}=${fmt(y0)}.`]};
  }
 
  if(id==='exponential'){
    const a=pick([.5,2,3,4]),basis=a===.5?'1/2':fmt(a);
    const allowed=a<1?[-2,-1,1]:[1,2];
-   const x0=pick(allowed),y0=a**x0,askX=Math.random()<.42;
+   let x0=a===.5?-4:(a===2?4:(a===3?3:2)),y0=a**x0,askX=Math.random()<.42;
    if(askX){
+     x0=pick(allowed);y0=a**x0;
      return{kind:id,p:{a},mode:'findX',answer:x0,q:`На рисунке изображён график функции f(x)=aˣ. Найдите x, при котором f(x)=${fmt(y0)}.`,
        sol:[`Берём точку A(1; ${fmt(a)}) на графике.`,`Подставляем координаты в y=aˣ: ${fmt(a)}=a¹ → a=${basis}.`,`Получаем f(x)=(${basis})ˣ.`,`Решаем (${basis})ˣ=${fmt(y0)} → x=${x0}.`]};
    }
-   return{kind:id,p:{a},x0,mode:'findY',answer:y0,q:`На рисунке изображён график функции f(x)=aˣ. Найдите f(${x0}).`,
+   return{kind:id,p:{a},x0,mode:'findY',answer:y0,view:{x:1.6,y:7},q:`На рисунке изображён график функции f(x)=aˣ. Найдите f(${x0}).`,
      sol:[`Берём точку A(1; ${fmt(a)}).`,`Подставляем в y=aˣ: ${fmt(a)}=a¹ → a=${basis}.`,`f(x)=(${basis})ˣ.`,`f(${x0})=${fmt(y0)}.`]};
  }
 
  if(id==='root'){
    const a=pick([-3,-2,-1,1,2,3]);
-   const possible=[1,4,9].filter(x=>Math.abs(a*Math.sqrt(x))<=7);
-   const x0=pick(possible.length?possible:[1]),y0=a*Math.sqrt(x0);
+   const possible=[1,4].filter(x=>Math.abs(a*Math.sqrt(x))<=7);
+   let x0=pick([9,16]),y0=a*Math.sqrt(x0);
    const markX=pick(possible.length?possible:[1]),mark=[markX,a*Math.sqrt(markX)],askX=Math.random()<.5;
    if(askX){
+     x0=pick([1,4,9].filter(x=>Math.abs(a*Math.sqrt(x))<=7));y0=a*Math.sqrt(x0);
      return{kind:id,p:{a},point:mark,mode:'findX',answer:x0,q:`На рисунке изображён график функции f(x)=k√x. Найдите x, при котором f(x)=${fmt(y0)}.`,
        sol:[`Берём точку A(${fmt(mark[0])}; ${fmt(mark[1])}) на графике.`,`Подставляем координаты: ${fmt(mark[1])}=k√${fmt(mark[0])}.`,`Отсюда k=${fmt(a)}.`,`Решаем ${fmt(a)}√x=${fmt(y0)} → x=${fmt(x0)}.`]};
    }
-   return{kind:id,p:{a},point:mark,x0,mode:'findY',answer:y0,q:`На рисунке изображён график функции f(x)=k√x. Найдите f(${fmt(x0)}).`,
+   return{kind:id,p:{a},point:mark,x0,mode:'findY',answer:y0,view:{x:4,y:7},q:`На рисунке изображён график функции f(x)=k√x. Найдите f(${fmt(x0)}).`,
      sol:[`Берём точку A(${fmt(mark[0])}; ${fmt(mark[1])}).`,`Подставляем в y=k√x: ${fmt(mark[1])}=k√${fmt(mark[0])} → k=${fmt(a)}.`,`f(x)=${fmt(a)}√x.`,`f(${fmt(x0)})=${fmt(y0)}.`]};
  }
 
  if(id==='log'){
-   const a=pick([2,3,4]),n=pick([1,2,3]),x0=a**n,askX=Math.random()<.45;
+   const a=pick([2,3,4]),n=pick([1,2,3]);
+   const valueN=a===2?pick([3,4]):(a===3?pick([2,3]):2);
+   let x0=a**valueN,answerY=valueN,askX=Math.random()<.45;
    if(askX){
-     return{kind:id,p:{a},mode:'findX',answer:x0,q:`На рисунке изображён график функции f(x)=logₐx. Найдите x, при котором f(x)=${n}.`,
-       sol:[`Берём точку A(${a}; 1) на графике.`,`Подставляем её: 1=logₐ${a}. Это возможно при основании a=${a}.`,`Получаем f(x)=log_${a}x.`,`log_${a}x=${n} → x=${a}^${n}=${fmt(x0)}.`]};
+     const solveN=pick([1,2,3]);x0=a**solveN;answerY=solveN;
+     return{kind:id,p:{a},mode:'findX',answer:x0,q:`На рисунке изображён график функции f(x)=logₐx. Найдите x, при котором f(x)=${answerY}.`,
+       sol:[`Берём точку A(${a}; 1) на графике.`,`Подставляем её: 1=logₐ${a}. Это возможно при основании a=${a}.`,`Получаем f(x)=log_${a}x.`,`log_${a}x=${answerY} → x=${a}^${answerY}=${fmt(x0)}.`]};
    }
-   return{kind:id,p:{a},x0,mode:'findY',answer:n,q:`На рисунке изображён график функции f(x)=logₐx. Найдите f(${fmt(x0)}).`,
-     sol:[`Берём точку A(${a}; 1).`,`Из 1=logₐ${a} получаем основание a=${a}.`,`f(x)=log_${a}x.`,`${fmt(x0)}=${a}^${n}, поэтому f(${fmt(x0)})=${n}.`]};
+   return{kind:id,p:{a},x0,mode:'findY',answer:answerY,view:{x:4,y:5},q:`На рисунке изображён график функции f(x)=logₐx. Найдите f(${fmt(x0)}).`,
+     sol:[`Берём точку A(${a}; 1).`,`Из 1=logₐ${a} получаем основание a=${a}.`,`f(x)=log_${a}x.`,`${fmt(x0)}=${a}^${answerY}, поэтому f(${fmt(x0)})=${answerY}.`]};
  }
 
  if(id==='quadratic'){
@@ -1075,7 +1061,9 @@ function generateTask(id){
      return{kind:id,p:{a,b,c},vertex:[h,v],point:mark,mode:'findX',answer:ans,q:`На рисунке изображён график функции f(x)=ax²+bx+c, где a, b и c — целые. Найдите ${which} значение x, при котором f(x)=${fmt(y0)}.`,
        sol:[`Считываем вершину V(${fmt(h)}; ${fmt(v)}).`,`Шаг +1 по x от вершины даёт a=${fmt(a)}; на Oy считываем c=${fmt(c)}; затем b=−2a·x вершины=${fmt(b)}.`,`Записываем y=${fmt(a)}x²${b>=0?'+':''}${fmt(b)}x${c>=0?'+':''}${fmt(c)} и приравниваем к ${fmt(y0)}.`,`Получаем два значения x и по условию выбираем ${which}: ${fmt(ans)}.`]};
    }
-   return{kind:id,p:{a,b,c},vertex:[h,v],point:mark,x0,mode:'findY',answer:y0,q:`На рисунке изображён график функции f(x)=ax²+bx+c, где a, b и c — целые. Найдите f(${fmt(x0)}).`,
+   const valueXs=[-5,-4,4,5].map(xx=>[xx,a*xx*xx+b*xx+c]).filter(([,yy])=>Math.abs(yy)<=40);
+   [x0,y0]=pick(valueXs.length?valueXs:[[4,a*16+b*4+c]]);
+   return{kind:id,p:{a,b,c},vertex:[h,v],point:mark,x0,mode:'findY',answer:y0,view:{x:3.5,y:7},q:`На рисунке изображён график функции f(x)=ax²+bx+c, где a, b и c — целые. Найдите f(${fmt(x0)}).`,
      sol:[`Считываем вершину V(${fmt(h)}; ${fmt(v)}).`,`Шаг +1 по x от вершины даёт a=${fmt(a)}; на Oy считываем c=${fmt(c)}; затем b=−2a·x вершины=${fmt(b)}.`,`Записываем y=${fmt(a)}x²${b>=0?'+':''}${fmt(b)}x${c>=0?'+':''}${fmt(c)}.`,`Подставляем x=${fmt(x0)} и получаем f(${fmt(x0)})=${fmt(y0)}.`]};
  }
 
@@ -1568,69 +1556,6 @@ $('lessonFab').onclick=()=>{roleHome();openModal()};$('lessonPeople').onclick=pa
 })();
 </script>
 <script>(function(){const s=document.getElementById('globalBoardSurface');if(!s)return;function fit(){s.style.height=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight)+'px'}window.addEventListener('load',fit);window.addEventListener('resize',fit);setTimeout(fit,0);setTimeout(fit,800);if(window.ResizeObserver){new ResizeObserver(fit).observe(document.querySelector('main')||document.body)}else{setInterval(fit,1500)}})();</script>
-<script data-feature="chapter-collapse-update-2026-09-18">
-(function(){
-  function initChapters(){
-    const sections=[...document.querySelectorAll('.proto-section')];
-    sections.forEach(sec=>{
-      if(sec.dataset.chapterReady==='1')return;
-      const head=sec.querySelector(':scope > .proto-head');
-      if(!head)return;
-      sec.dataset.chapterReady='1';
-      const body=document.createElement('div');
-      body.className='proto-body';
-      let node=head.nextSibling;
-      while(node){const next=node.nextSibling;body.appendChild(node);node=next}
-      sec.appendChild(body);
-      const btn=document.createElement('button');
-      btn.type='button';
-      btn.className='chapter-toggle';
-      btn.setAttribute('aria-expanded','false');
-      btn.textContent='Раскрыть главу';
-      head.appendChild(btn);
-      const setOpen=open=>{
-        sec.classList.toggle('collapsed',!open);
-        btn.setAttribute('aria-expanded',open?'true':'false');
-        btn.textContent=open?'Свернуть главу':'Раскрыть главу';
-        if(open){
-          const id=sec.dataset.proto;
-          requestAnimationFrame(()=>requestAnimationFrame(()=>{
-            try{renderModel(id);renderPractice(id);renderBoards()}catch(err){console.warn('chapter redraw',err)}
-            window.dispatchEvent(new Event('resize'));
-          }));
-        }else{
-          requestAnimationFrame(()=>window.dispatchEvent(new Event('resize')));
-        }
-      };
-      sec.__setChapterOpen=setOpen;
-      setOpen(false);
-      btn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();setOpen(sec.classList.contains('collapsed'))});
-      head.addEventListener('click',e=>{
-        if(e.target.closest('button,a,input,select,textarea,label'))return;
-        setOpen(sec.classList.contains('collapsed'));
-      });
-    });
-    const nav=document.getElementById('protoNav');
-    if(nav){
-      nav.addEventListener('click',e=>{
-        const chip=e.target.closest('[data-proto]');
-        if(!chip)return;
-        const sec=document.getElementById('proto-'+chip.dataset.proto);
-        if(sec&&sec.__setChapterOpen)sec.__setChapterOpen(true);
-      },true);
-    }
-  }
-  window.addEventListener('load',initChapters,{once:true});
-})();
-</script>
-<script data-feature="chapter-canvas-first-open-fix-2026-09-19">
-(function(){
-  document.addEventListener('transitionend',e=>{
-    const sec=e.target.closest?.('.proto-section');
-    if(!sec||sec.classList.contains('collapsed'))return;
-    const id=sec.dataset.proto;
-    try{renderModel(id);renderPractice(id);renderBoards()}catch{}
-  });
-})();
-</script>
+
+
 </body></html>
