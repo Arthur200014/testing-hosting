@@ -502,6 +502,19 @@ figure.art figcaption{font-size:12.5px;font-weight:500;text-align:center;padding
 .phys-controls input[type=range]{flex:1;min-width:220px;accent-color:var(--pea)}
 .phys-formula{font-family:'Russo One',sans-serif;font-size:clamp(17px,2.2vw,23px);text-align:center;padding:9px 12px;background:#fff8dc;border:3px solid var(--soil-dark);border-radius:12px}
 
+
+/* ===== v97: теория без выхода из игры + адаптивная общая доска ===== */
+.theory-overlay{position:fixed;inset:0;z-index:145;overflow:auto;background:linear-gradient(180deg,rgba(24,55,30,.98),rgba(20,35,24,.985));padding:12px 0 90px}
+.theory-overlay.hidden{display:none!important}
+.theory-overlay-root{position:relative;min-height:100%;padding-top:58px}
+.theory-overlay-head{margin-bottom:10px;text-align:center;color:#fff8d8}
+.theory-overlay-head h2{margin:0 0 6px;font-size:clamp(25px,4vw,40px)}
+.theory-overlay-head p{margin:0;color:#eaffd8}
+.theory-overlay-close{position:fixed;right:18px;top:14px;z-index:230;background:linear-gradient(180deg,#ffd23f,#f0a01e);color:#2f1c0d;text-shadow:none;box-shadow:0 4px 0 #8a5b00}
+.shared-board-layer{will-change:contents}
+.shared-board-layer path[data-stroke-id]{fill:none!important;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;filter:none!important}
+@media(max-width:700px){.theory-overlay-close{right:8px;top:8px}.theory-overlay-root{padding-top:52px}}
+
 </style>
 </head>
 <body>
@@ -565,6 +578,17 @@ figure.art figcaption{font-size:12.5px;font-weight:500;text-align:center;padding
   </header>
   <main class="wrap" id="theoryBody"></main>
 </section>
+
+<div class="theory-overlay hidden" id="theoryOverlay">
+  <button class="theory-overlay-close" id="theoryOverlayClose" type="button">✕ Закрыть теорию</button>
+  <div class="wrap theory-overlay-root" id="theoryOverlayRoot">
+    <div class="theory-overlay-head">
+      <h2>📚 Теория по заданию №8</h2>
+      <p>Закройте окно — текущая игра останется на том же месте.</p>
+    </div>
+    <main id="theoryOverlayBody"></main>
+  </div>
+</div>
 
 <div class="dock">
   <button class="iconbtn" id="btnPad">📝 Блокнот</button>
@@ -3029,6 +3053,243 @@ if(codeFromUrl&&!student){
   validateStudentCode(codeFromUrl.trim().toUpperCase()).then(saveStudent).catch(()=>openLogin('home'));
 }
 
+
+/* ===== v97: минимум 3 задания в первом тренажёре каждой станции ===== */
+(function(){
+  const setFirstGameMeta=(id,meta,desc)=>{
+    const s=STATIONS.find(x=>x.id===id),g=s?.games?.find(x=>x.k==='A');
+    if(g){g.meta=meta;if(desc)g.desc=desc}
+  };
+  Object.assign(A_COUNTS,{1:5,2:12,3:18,4:3,5:3,6:3});
+  STATIONS.forEach(s=>s.count=(A_COUNTS[s.id]||0)+(B_COUNTS[s.id]||0));
+  setFirstGameMeta(1,'5 заданий · без таймера');
+  setFirstGameMeta(2,'3 раунда × 4 карточки · без таймера','Три разных графика: в каждом нужно сопоставить участки со знаком производной, нулём и точкой излома.');
+  setFirstGameMeta(3,'3 раунда × 6 точек · без таймера','Три разных графика производной: сортируем точки на максимум, минимум и не экстремум.');
+  setFirstGameMeta(4,'3 задачи · без таймера');
+  setFirstGameMeta(5,'3 задачи · живая модель · без таймера','Три задачи на физический смысл производной: двигаем момент времени и связываем координату со скоростью.');
+  setFirstGameMeta(6,'3 задачи · интерактивная теория · без таймера','Три закрепления: площадь, F(b)−F(a) и связь знака f со поведением F.');
+
+  /* ---------- 2A: три раунда сопоставления ---------- */
+  IMPL['2A']=function(host,fin){
+    const ORDERS=[['pos','zero','neg'],['neg','pos','zero'],['zero','neg','pos']];
+    const CARDS={pos:"f′(x) > 0",neg:"f′(x) < 0",zero:"f′(x) = 0",none:"f′(x) не существует"};
+    const N=3,P=IP([-6.5,6.5],[-4.8,4.8],460,300);
+    let round=0,bad=0,ok=0;
+    const cols={A:'rgba(74,156,45,.28)',B:'rgba(255,210,63,.35)',C:'rgba(201,79,47,.25)',D:'rgba(122,63,184,.25)'};
+    function build(order){
+      const slopes={pos:.72,neg:-.72,zero:0},bounds=[-6,-3,-1,2];
+      const s1=slopes[order[0]],s2=slopes[order[1]],s3=slopes[order[2]];
+      const y0=.2,yA=y0+s1*3,yB=yA+s2*2,yC=yB+s3*3,dBase=yC-.75;
+      const f=x=>{
+        if(x<-3)return y0+s1*(x+6);
+        if(x<-1)return yA+s2*(x+3);
+        if(x<2)return yB+s3*(x+1);
+        if(x<3)return yC+.25*(x-2);
+        return dBase+1.0*Math.abs(x-4);
+      };
+      const zones=[
+        {z:'A',seg:[-6,-3],ans:order[0]},
+        {z:'B',seg:[-3,-1],ans:order[1]},
+        {z:'C',seg:[-1,2],ans:order[2]},
+        {z:'D',seg:[3,5],ans:'none'}
+      ];
+      return {f,zones};
+    }
+    const why=(zone)=>zone.ans==='pos'?'График на этом участке идёт вверх, поэтому производная положительна.'
+      :zone.ans==='neg'?'График на этом участке идёт вниз, поэтому производная отрицательна.'
+      :zone.ans==='zero'?'Участок горизонтальный: значение функции не меняется, поэтому f′(x)=0.'
+      :'Внутри участка есть острый излом. В точке излома единой касательной нет, поэтому производная там не существует.';
+    function draw(){
+      SEL=null;
+      const data=build(ORDERS[round]);let left=4;
+      host.innerHTML=bar(2,`<span class="pill">Раунд <b>${round+1}</b> / ${N}</span><span class="pill" id="p1">Осталось карточек: 4</span><span class="pill">без таймера</span>`)+
+      `<div class="field">
+        <p class="qtext">Раунд ${round+1}: сопоставь четыре карточки с участками A–D. Карточку можно перетащить или сначала нажать на неё, затем на участок.</p>
+        <div class="stage"><svg viewBox="0 0 ${P.w} ${P.h}">${P.frame()}
+          ${data.zones.map(z=>`<rect class="zone" data-z="${z.z}" x="${P.px(z.seg[0])}" y="0" width="${P.px(z.seg[1])-P.px(z.seg[0])}" height="${P.h}" fill="${cols[z.z]}"/>`).join('')}
+          ${P.path(data.f)}
+          ${data.zones.map(z=>`<text x="${(P.px(z.seg[0])+P.px(z.seg[1]))/2}" y="20" font-size="16" text-anchor="middle" font-family="Russo One">${z.z}</text>`).join('')}
+        </svg></div>
+        <div class="cards" id="cards">${shuf(Object.keys(CARDS)).map(k=>`<div class="dcard" data-c="${k}" style="font-size:15px">${CARDS[k]}</div>`).join('')}</div>
+        <div class="inline-fb" id="fb"></div><div id="ex"></div>
+      </div>`;
+      const drop=(z,el)=>{
+        if(el.classList.contains('used'))return;
+        const zone=data.zones.find(v=>v.z===z.dataset.z),key=el.dataset.c,good=zone.ans===key;
+        if(good){el.classList.add('used');z.setAttribute('fill','rgba(74,156,45,.52)');left--;ok++;sfx('plant')}
+        else{bad++;sfx('zombie');z.setAttribute('fill','rgba(179,51,51,.45)');setTimeout(()=>z.setAttribute('fill',cols[zone.z]),650)}
+        $('#p1').textContent='Осталось карточек: '+left;
+        explain($('#ex'),good,good?`Участок ${zone.z} верно`:`Для участка ${zone.z} нужна другая карточка`,
+          why(zone)+(good?'':`<br>Правильная запись: <b>${CARDS[zone.ans]}</b>.`),
+          left===0?(round+1<N?'Следующий раунд →':'Итог →'):'Продолжить →',
+          ()=>{if(left===0){round++;round<N?draw():fin(starsBy(bad),ok,bad)}});
+      };
+      $('#cards').querySelectorAll('.dcard').forEach(c=>bindDrop(c,'.zone',drop));
+      bindZones('.zone',drop);
+    }
+    draw();
+  };
+
+  /* ---------- 3A: три независимых сортировки ---------- */
+  IMPL['3A']=function(host,fin){
+    const N=3,P=IP([-6.5,6.5],[-3.4,3.4],460,300),BN={max:'Точка максимума',min:'Точка минимума',no:'Не экстремум'};
+    let round=0,bad=0,ok=0;
+    function makeRound(){
+      let g,rs,mins,maxs,tries=0;
+      do{g=rndF();rs=roots(g,-6,6);mins=rs.filter(r=>r.from<0&&r.to>0);maxs=rs.filter(r=>r.from>0&&r.to<0)}
+      while((!mins.length||!maxs.length)&&tries++<100);
+      const flat=marksVal(g,[-6.2,6.2],8).filter(x=>Math.abs(g(x))>.45);
+      const items=shuf([
+        ...mins.slice(0,2).map(r=>({x:r.x,type:'min'})),
+        ...maxs.slice(0,2).map(r=>({x:r.x,type:'max'})),
+        ...flat.map(x=>({x,type:'no'}))
+      ]).slice(0,6).sort((a,b)=>a.x-b.x);
+      if(!items.some(v=>v.type==='min'))items[0]={...items[0],type:'min'};
+      if(!items.some(v=>v.type==='max'))items[1]={...items[1],type:'max'};
+      return {g,items};
+    }
+    function draw(){
+      SEL=null;
+      const data=makeRound(),items=data.items;let left=items.length;
+      host.innerHTML=bar(3,`<span class="pill">Раунд <b>${round+1}</b> / ${N}</span><span class="pill" id="p1">Осталось точек: ${left}</span><span class="pill">без таймера</span>`)+
+      `<div class="field">
+        <p class="qtext">На графике <b>y=f′(x)</b> отмечены шесть точек. Разложи их: максимум, минимум или не экстремум.</p>
+        <div class="stage"><svg viewBox="0 0 ${P.w} ${P.h}">${P.frame()}${P.path(data.g,'#7a3fb8')}
+          <text x="${P.w-70}" y="20" font-size="14" font-family="Russo One" fill="#7a3fb8">y=f′(x)</text>
+          ${items.map((m,j)=>`<g><line x1="${P.px(m.x)}" y1="${P.py(data.g(m.x))}" x2="${P.px(m.x)}" y2="${P.py(0)}" stroke="#5b4a22" stroke-width="1.4" stroke-dasharray="4 3"/><circle id="pt${j}" cx="${P.px(m.x)}" cy="${P.py(0)}" r="11" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2.5"/><text x="${P.px(m.x)}" y="${P.py(0)+4}" font-size="10" text-anchor="middle" font-family="Russo One">${j+1}</text></g>`).join('')}
+        </svg></div>
+        <div class="cards" id="cards">${items.map((m,j)=>`<div class="dcard" data-j="${j}">Точка ${j+1}<span style="font-size:11px;font-family:Rubik">x≈${fmtNum(Math.round(m.x*10)/10)}</span></div>`).join('')}</div>
+        <div class="baskets">${['max','min','no'].map(t=>`<div class="basket" data-b="${t}">${BN[t]}<div class="items"></div></div>`).join('')}</div>
+        <div class="inline-fb"></div><div id="ex"></div>
+      </div>`;
+      const drop=(b,el)=>{
+        if(el.classList.contains('used'))return;
+        const j=+el.dataset.j,m=items[j],good=m.type===b.dataset.b;
+        if(good){el.classList.add('used');b.querySelector('.items').innerHTML+=`<span>${j+1}</span>`;document.getElementById('pt'+j)?.setAttribute('fill','#2f8f1c');left--;ok++;sfx('plant')}
+        else{bad++;sfx('zombie');b.classList.add('hit');setTimeout(()=>b.classList.remove('hit'),300)}
+        $('#p1').textContent='Осталось точек: '+left;
+        const why=m.type==='no'?`В точке ${j+1} график f′ не пересекает ось со сменой знака — экстремума нет.`
+          :`В точке ${j+1} знак меняется ${m.type==='min'?'с − на +, значит это минимум':'с + на −, значит это максимум'}.`;
+        explain($('#ex'),good,good?`Точка ${j+1} на месте`:`Точка ${j+1} не в той корзине`,why,
+          left===0?(round+1<N?'Следующий раунд →':'Итог →'):'Продолжить →',
+          ()=>{if(left===0){round++;round<N?draw():fin(starsBy(bad),ok,bad)}});
+      };
+      $('#cards').querySelectorAll('.dcard').forEach(c=>bindDrop(c,'.basket',drop));
+      bindZones('.basket',drop);
+    }
+    draw();
+  };
+
+  /* ---------- 5A: три задачи на физический смысл ---------- */
+  IMPL['5A']=function(host,fin){
+    const tasks=[
+      {a:1,b:2,c:0,targetT:2},
+      {a:.5,b:3,c:1,targetT:3},
+      {a:1.5,b:1,c:0,targetT:2}
+    ].map(t=>({...t,targetV:2*t.a*t.targetT+t.b}));
+    let i=0,t=.5,ok=0,bad=0,started=performance.now();
+    const W=620,H=310,L=48,R=18,T=20,B=38;
+    function formula(q){
+      const a=q.a===1?'':q.a===.5?'0,5':String(q.a).replace('.',',');
+      const ax=q.a===1?'t²':`${a}t²`, bx=q.b===1?'+t':q.b?`+${String(q.b).replace('.',',')}t`:'';
+      const cc=q.c?`+${String(q.c).replace('.',',')}`:'';
+      return `x(t)=${ax}${bx}${cc}`;
+    }
+    function viz(q){
+      const x=s=>q.a*s*s+q.b*s+q.c,v=s=>2*q.a*s+q.b,xmax=5,ymax=Math.max(16,x(5)+3),vmax=Math.max(10,v(5)+2);
+      const X=s=>L+(W/2-L-20)*s/5,Yx=y=>H-B-(H-T-B)*y/ymax;
+      const off=W/2+15,X2=s=>off+(W-off-R)*s/5,Yv=y=>H-B-(H-T-B)*y/vmax;
+      const p1=[],p2=[];for(let s=0;s<=5;s+=.08){p1.push(`${X(s).toFixed(1)},${Yx(x(s)).toFixed(1)}`);p2.push(`${X2(s).toFixed(1)},${Yv(v(s)).toFixed(1)}`)}
+      return `<svg viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" rx="14" fill="#fffaf0"/>
+        <line x1="${L}" y1="${H-B}" x2="${W/2-20}" y2="${H-B}" stroke="#2f1c0d" stroke-width="2.5"/><line x1="${L}" y1="${H-B}" x2="${L}" y2="${T}" stroke="#2f1c0d" stroke-width="2.5"/>
+        <path d="M ${p1.join(' L ')}" fill="none" stroke="#4a63d8" stroke-width="4"/><line x1="${X(t)}" y1="${H-B}" x2="${X(t)}" y2="${Yx(x(t))}" stroke="#c94f2f" stroke-dasharray="6 5" stroke-width="2"/><circle cx="${X(t)}" cy="${Yx(x(t))}" r="7" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/>
+        <text x="${L+8}" y="35" font-size="13" font-family="Russo One" fill="#4a63d8">координата x(t)</text>
+        <line x1="${off}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="#2f1c0d" stroke-width="2.5"/><line x1="${off}" y1="${H-B}" x2="${off}" y2="${T}" stroke="#2f1c0d" stroke-width="2.5"/>
+        <path d="M ${p2.join(' L ')}" fill="none" stroke="#2f8f1c" stroke-width="4"/><line x1="${X2(t)}" y1="${H-B}" x2="${X2(t)}" y2="${Yv(v(t))}" stroke="#c94f2f" stroke-dasharray="6 5" stroke-width="2"/><circle cx="${X2(t)}" cy="${Yv(v(t))}" r="7" fill="#ffd23f" stroke="#2f1c0d" stroke-width="2"/>
+        <text x="${off+8}" y="35" font-size="13" font-family="Russo One" fill="#2f8f1c">скорость v(t)=x′(t)</text>
+      </svg>`;
+    }
+    function draw(){
+      const q=tasks[i];t=.5;
+      host.innerHTML=bar(5,`<span class="pill">Задача ${i+1} / ${tasks.length}</span><span class="pill">без таймера</span>`)+
+      `<div class="field"><div class="phys-formula"><span class="eq">${formula(q)}</span> → <span class="eq">v(t)=${fmtNum(2*q.a)}t${q.b?`+${fmtNum(q.b)}`:''}</span></div>
+       <p class="qtext">Передвигай момент времени. Найди <b>t</b>, когда скорость равна <b>${fmtNum(q.targetV)}</b>.</p>
+       <div class="stage" id="physStage">${viz(q)}</div>
+       <div class="phys-controls"><input id="physSlider" type="range" min="0" max="5" step="0.1" value="${t}" style="flex:1"><span class="pill">t=<b id="physT">${fmtNum(t)}</b></span><span class="pill">v=<b id="physV">${fmtNum(2*q.a*t+q.b)}</b></span><button id="physCheck">Проверить</button></div>
+       <div class="inline-fb" id="fb"></div><div id="ex"></div></div>`;
+      $('#physSlider').oninput=e=>{t=+e.target.value;$('#physT').textContent=fmtNum(t);$('#physV').textContent=fmtNum(2*q.a*t+q.b);$('#physStage').innerHTML=viz(q)};
+      $('#physCheck').onclick=()=>{
+        const good=Math.abs(t-q.targetT)<.051;
+        if(good){ok++;sfx('plant')}else{bad++;sfx('zombie')}
+        explain($('#ex'),good,good?'Момент найден':'Не тот момент',
+          `Сначала берём производную: <b>v(t)=${fmtNum(2*q.a)}t${q.b?`+${fmtNum(q.b)}`:''}</b>. Приравниваем её к ${fmtNum(q.targetV)} и получаем <b>t=${fmtNum(q.targetT)}</b>.`,
+          i+1<tasks.length?'Следующая задача →':'Итог →',()=>{i++;i<tasks.length?draw():fin(starsBy(bad),ok,bad,{durationSeconds:Math.max(1,Math.round((performance.now()-started)/1000))})});
+      };
+    }
+    draw();
+  };
+
+  /* ---------- 6A: три закрепления по первообразной ---------- */
+  IMPL['6A']=function(host,fin){
+    const tasks=[
+      {title:'Площадь как сумма полосок',q:'Для f(x)=x+1 найдите площадь под графиком на [0;4].',ans:12,opts:[8,10,12,16],mode:'strips'},
+      {title:'Что означает F(b)−F(a)',q:'F(x)=x²/2+x. Найдите F(3)−F(1).',ans:6,opts:[4,6,7.5,9],mode:'area'},
+      {title:'Как связаны f и F',q:'f(x)=x−2 и F′(x)=f(x). При каком x у F минимум?',ans:2,opts:[0,1,2,3],mode:'link'}
+    ];
+    let i=0,ok=0,bad=0,strips=8,probe=1.2,started=performance.now();
+    function stripsSvg(){
+      const W=560,H=290,L=48,R=18,T=18,B=38,X=x=>L+(W-L-R)*x/4.4,Y=y=>H-B-(H-T-B)*y/5.8,dx=4/strips,rects=[];
+      for(let j=0;j<strips;j++){const x=j*dx,y=x+1;rects.push(`<rect x="${X(x)}" y="${Y(y)}" width="${X(x+dx)-X(x)}" height="${Y(0)-Y(y)}" fill="#ffd23f" opacity=".42" stroke="#c99a18"/>`)}
+      const pts=[];for(let x=0;x<=4;x+=.05)pts.push(`${X(x).toFixed(1)},${Y(x+1).toFixed(1)}`);
+      return `<svg viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" rx="14" fill="#fffaf0"/><line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="#2f1c0d" stroke-width="3"/>${rects.join('')}<path d="M ${pts.join(' L ')}" fill="none" stroke="#4a63d8" stroke-width="4"/><text x="70" y="32" font-size="13" font-family="Russo One">f(x)=x+1</text></svg>`;
+    }
+    function areaSvg(){
+      const W=560,H=290,L=48,R=18,T=18,B=38,X=x=>L+(W-L-R)*x/5,Y=y=>H-B-(H-T-B)*y/6.5,pts=[];for(let x=0;x<=5;x+=.05)pts.push(`${X(x).toFixed(1)},${Y(x+1).toFixed(1)}`);
+      const poly=[`${X(1)},${Y(0)}`];for(let x=1;x<=3;x+=.04)poly.push(`${X(x)},${Y(x+1)}`);poly.push(`${X(3)},${Y(0)}`);
+      return `<svg viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" rx="14" fill="#fffaf0"/><line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="#2f1c0d" stroke-width="3"/><polygon points="${poly.join(' ')}" fill="#ffd23f" opacity=".48"/><path d="M ${pts.join(' L ')}" fill="none" stroke="#4a63d8" stroke-width="4"/><text x="260" y="38" font-size="14" font-family="Russo One">F(3)=7,5 · F(1)=1,5</text></svg>`;
+    }
+    function linkSvg(){
+      const W=560,H=320,L=50,R=18,X=x=>L+(W-L-R)*x/4,Y1=y=>135-(y+2)*28,Y2=y=>290-(y+2.2)*31;
+      const p1=[],p2=[];for(let x=0;x<=4;x+=.05){p1.push(`${X(x)},${Y1(x-2)}`);p2.push(`${X(x)},${Y2(x*x/2-2*x)}`)}
+      return `<svg viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" rx="14" fill="#fffaf0"/><line x1="${L}" y1="${Y1(0)}" x2="${W-R}" y2="${Y1(0)}" stroke="#2f1c0d" stroke-width="2"/><path d="M ${p1.join(' L ')}" fill="none" stroke="#4a63d8" stroke-width="4"/><text x="65" y="28" font-size="13" font-family="Russo One">f(x)=x−2</text><line x1="${L}" y1="${Y2(0)}" x2="${W-R}" y2="${Y2(0)}" stroke="#2f1c0d" stroke-width="2"/><path d="M ${p2.join(' L ')}" fill="none" stroke="#2f8f1c" stroke-width="4"/><line x1="${X(probe)}" y1="18" x2="${X(probe)}" y2="300" stroke="#c94f2f" stroke-width="2" stroke-dasharray="6 5"/><text x="65" y="184" font-size="13" font-family="Russo One">F(x)=x²/2−2x</text></svg>`;
+    }
+    function draw(){
+      const t=tasks[i];
+      host.innerHTML=bar(6,`<span class="pill">Задача ${i+1} / 3</span><span class="pill">без таймера</span>`)+`<div class="field"><h3>${t.title}</h3><p class="qtext">${t.q}</p><div class="stage" id="antiStage">${t.mode==='strips'?stripsSvg():t.mode==='area'?areaSvg():linkSvg()}</div><div id="antiControls" class="controls"></div><div class="opts" id="antiOpts">${t.opts.map(v=>`<button class="opt" data-v="${v}">${fmtNum(v)}</button>`).join('')}</div><div id="ex"></div></div>`;
+      if(t.mode==='strips'){$('#antiControls').innerHTML=`<span class="pill">Полосок: <b id="antiN">${strips}</b></span><input id="antiStrips" type="range" min="4" max="32" step="4" value="${strips}" style="flex:1;min-width:220px">`;$('#antiStrips').oninput=e=>{strips=+e.target.value;$('#antiN').textContent=strips;$('#antiStage').innerHTML=stripsSvg()}}
+      if(t.mode==='link'){$('#antiControls').innerHTML=`<span class="pill">x=<b id="antiX">${fmtNum(probe)}</b></span><input id="antiProbe" type="range" min="0" max="4" step="0.1" value="${probe}" style="flex:1;min-width:220px">`;$('#antiProbe').oninput=e=>{probe=+e.target.value;$('#antiX').textContent=fmtNum(probe);$('#antiStage').innerHTML=linkSvg()}}
+      $('#antiOpts').querySelectorAll('.opt').forEach(b=>b.onclick=()=>{
+        const v=parseFloat(b.dataset.v),good=Math.abs(v-t.ans)<1e-9;
+        $('#antiOpts').querySelectorAll('.opt').forEach(o=>{o.disabled=true;if(Math.abs(parseFloat(o.dataset.v)-t.ans)<1e-9)o.classList.add('right')});
+        if(good){ok++;sfx('plant')}else{bad++;b.classList.add('wrong');sfx('zombie')}
+        const why=t.mode==='strips'?'Площадь под y=x+1 на [0;4] равна 12. Чем уже полоски, тем точнее их сумма приближается к этому числу.'
+          :t.mode==='area'?'F(3)=7,5 и F(1)=1,5. Разность 7,5−1,5=6 — это накопление только между 1 и 3.'
+          :'F′(x)=f(x)=x−2. До x=2 производная отрицательна, после положительна: F сначала падает, затем растёт, значит минимум при x=2.';
+        explain($('#ex'),good,good?'Верно':'Разберём',why,i<2?'Следующая задача →':'Итог →',()=>{i++;i<3?draw():fin(starsBy(bad),ok,bad,{durationSeconds:Math.max(1,Math.round((performance.now()-started)/1000))})});
+      });
+    }
+    draw();
+  };
+
+  /* ---------- Теория открывается поверх игры и не меняет состояние ---------- */
+  const theoryOverlay=document.getElementById('theoryOverlay');
+  const theoryOverlayBody=document.getElementById('theoryOverlayBody');
+  function openTheoryOverlay(){
+    theoryOverlayBody.innerHTML=document.getElementById('theoryBody').innerHTML;
+    theoryOverlay.classList.remove('hidden');
+    document.body.style.overflow='hidden';
+    window.__PVZ_REFRESH_BOARD_ROOTS__?.();
+  }
+  function closeTheoryOverlay(){
+    theoryOverlay.classList.add('hidden');
+    document.body.style.overflow='';
+    window.__PVZ_REFRESH_BOARD_ROOTS__?.();
+  }
+  document.getElementById('btnTheory').onclick=()=>{sfx('step');openTheoryOverlay()};
+  document.getElementById('theoryOverlayClose').onclick=closeTheoryOverlay;
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!theoryOverlay.classList.contains('hidden')){e.preventDefault();closeTheoryOverlay()}});
+})();
+
 </script>
 
 <button class="lesson-fab" id="lessonFab">👥 Совместный урок</button>
@@ -3439,7 +3700,7 @@ if(codeFromUrl&&!student){
 </script>
 
 <script type="module">
-const E=id=>document.getElementById(id), APP_ID='ege08-pvz-derivative-theory-full-actions-v5', SCHEMA=2;
+const E=id=>document.getElementById(id), APP_ID='ege08-pvz-derivative-theory-full-actions-v97', SCHEMA=3;
 const API_URL_SHARED='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
 const FIREBASE_CONFIG={apiKey:'AIzaSyBkY5utRlEfGIT_wEW6Dq7TSLr3RqBWJxo',authDomain:'ega-mathematica.firebaseapp.com',databaseURL:'https://ega-mathematica-default-rtdb.europe-west1.firebasedatabase.app',projectId:'ega-mathematica',storageBucket:'ega-mathematica.firebasestorage.app',messagingSenderId:'177632223541',appId:'1:177632223541:web:fbc532216359e34665ec7c',measurementId:'G-K9FZYGKPZS'};
 const TEACHER_HASH='b0a83a3919eba1d2a99034f2d94e5a47590f1710595c04bd64b5c8f21456a7c6';
@@ -3581,28 +3842,277 @@ E('lessonFinishGame').onclick=async()=>{
 E('lessonEnd').onclick=()=>disconnect(false);E('lessonIdentity').onclick=async()=>{const wasStudent=role==='student';await disconnect(wasStudent);if(wasStudent){localStorage.removeItem(studentKey);localStorage.removeItem('egeStudentId');localStorage.removeItem('egeStudentName');localStorage.removeItem('egeStudentCode')}roleHome()};E('lessonModal').addEventListener('click',e=>{if(e.target===E('lessonModal'))closeModal()});
 setInterval(updateTeacherFinishButton,300);updateTeacherFinishButton();
 
-/* ===== Общая доска: доступна и локально, а при подключении синхронизируется ===== */
-const layers=new Map(),cursorEls=new Map();let boardEpoch=0,boardCache={},tool='off',drawing=null,lastPoint=null,lastSend=0,localRev=new Map(),optimisticDeleted=new Set();
-function installBoards(){document.querySelectorAll('.screen').forEach((a,i)=>{if(!a.dataset.boardAnchor)a.dataset.boardAnchor=a.id||('screen-'+i);if(a.querySelector(':scope > .shared-board-layer'))return;const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.classList.add('shared-board-layer');svg.dataset.anchor=a.dataset.boardAnchor;svg.setAttribute('preserveAspectRatio','none');svg.innerHTML='<g class="stroke-root"></g>';a.appendChild(svg);const c=document.createElement('div');c.className='teacher-cursor hidden';c.textContent='Учитель';a.appendChild(c);layers.set(a.dataset.boardAnchor,svg);cursorEls.set(a.dataset.boardAnchor,c);svg.addEventListener('pointerdown',boardDown);svg.addEventListener('pointermove',boardMove);svg.addEventListener('pointerup',boardUp);svg.addEventListener('pointercancel',boardUp)})}installBoards();
-function setTool(t){tool=t;['toolOff','toolPen','toolEraser'].forEach(id=>E(id).classList.toggle('on',id===({off:'toolOff',pen:'toolPen',eraser:'toolEraser'}[t])));layers.forEach(svg=>svg.classList.toggle('active',t!=='off'))}E('toolOff').onclick=()=>setTool('off');E('toolPen').onclick=()=>setTool('pen');E('toolEraser').onclick=()=>setTool('eraser');
-function boardGeom(svg){const r=svg.getBoundingClientRect(),scale=1000/Math.max(1,r.width);return{r,scale,h:Math.max(1,r.height)*scale}}
-function pt(svg,e){const g=boardGeom(svg);return{x:Math.max(0,Math.min(1000,(e.clientX-g.r.left)*g.scale)),y:Math.max(0,Math.min(g.h,(e.clientY-g.r.top)*g.scale))}}
-function strokePath(points){if(!points?.length)return'';if(points.length===1)return`M${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)} l.1 .1`;let d=`M${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;for(let i=1;i<points.length-1;i++){const p=points[i],n=points[i+1],mx=(p.x+n.x)/2,my=(p.y+n.y)/2;d+=` Q${p.x.toFixed(1)} ${p.y.toFixed(1)} ${mx.toFixed(1)} ${my.toFixed(1)}`}const p=points.at(-2),n=points.at(-1);return d+` Q${p.x.toFixed(1)} ${p.y.toFixed(1)} ${n.x.toFixed(1)} ${n.y.toFixed(1)}`}
-function renderBoards(){layers.forEach((svg,anchor)=>{const g=boardGeom(svg);svg.setAttribute('viewBox',`0 0 1000 ${g.h}`);const root=svg.querySelector('.stroke-root');root.innerHTML='';for(const s of Object.values(boardCache)){if(!s||s.anchorId!==anchor||+s.epoch!==boardEpoch||!s.points?.length||optimisticDeleted.has(s.id))continue;const p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d',strokePath(s.points));p.setAttribute('stroke',s.color||'#2f8f1c');p.setAttribute('stroke-width',String((+s.width||4)*g.scale));p.setAttribute('fill','none');root.appendChild(p)}})}
-function boardDown(e){if(tool==='off')return;const svg=e.currentTarget,p=pt(svg,e);svg.setPointerCapture?.(e.pointerId);lastPoint=p;if(tool==='pen'){const id='stroke-'+uid();drawing={id,anchorId:svg.dataset.anchor,authorId:participantId||('local-'+clientId),authorName:participantName||'Участник',color:E('toolColor').value,width:+E('toolWidth').value||4,points:[p],done:false,epoch:boardEpoch,rev:1,createdAt:Date.now(),updatedAt:Date.now()};boardCache[id]=clone(drawing);localRev.set(id,1);renderBoards();sendStroke(drawing,true)}else eraseAt(svg,p,p);e.preventDefault()}
-function boardMove(e){if(tool==='off'||!lastPoint)return;const svg=e.currentTarget,p=pt(svg,e);if(tool==='pen'&&drawing){const g=boardGeom(svg),q=drawing.points.at(-1),d=Math.hypot(p.x-q.x,p.y-q.y)/g.scale;if(d>.7){const parts=Math.max(1,Math.ceil(d/4));for(let j=1;j<=parts;j++){const z=j/parts;drawing.points.push({x:q.x+(p.x-q.x)*z,y:q.y+(p.y-q.y)*z})}drawing.rev++;drawing.updatedAt=Date.now();localRev.set(drawing.id,drawing.rev);boardCache[drawing.id]=clone(drawing);renderBoards();if(performance.now()-lastSend>28){lastSend=performance.now();sendStroke(drawing,false)}}}else if(tool==='eraser')eraseAt(svg,lastPoint,p);lastPoint=p;e.preventDefault()}
-function boardUp(){if(drawing){drawing.done=true;drawing.rev++;drawing.updatedAt=Date.now();localRev.set(drawing.id,drawing.rev);boardCache[drawing.id]=clone(drawing);renderBoards();sendStroke(drawing,true);drawing=null}lastPoint=null}
-function sendStroke(s,final){if(!connected||!F)return;F.set(F.ref(db,rootPath()+'/pads/strokes/'+s.id),clone(s)).catch(()=>{})}
+/* ===== Общая доска v97: семантические якоря + локальная мгновенная отрисовка ===== */
+const layers=new Map(),cursorEls=new Map();
+const INK_ANCHOR_SELECTOR='.stage,.field,.gamecard,.card,.plot-bed,.phys-panel,.theory-viz,.baskets,.marwrap,.hub,.lawn,.wrap';
+let boardEpoch=0,boardCache={},tool='off',drawing=null,lastPoint=null,lastClientPoint=null,lastSend=0,localRev=new Map(),optimisticDeleted=new Set(),activePointerId=null;
+const pendingStrokeWrites=new Map(),activeStrokeWrites=new Set();
+let boardRefreshRAF=0;
+
+function boardRoots(){
+  return [...document.querySelectorAll('.screen'),document.getElementById('theoryOverlayRoot')].filter(Boolean);
+}
+function rootKey(root){return root.id||'board-root'}
+function directBoardLayer(root){return [...root.children].find(x=>x.classList?.contains('shared-board-layer'))||null}
+function ensureBoardRoot(root){
+  const key=rootKey(root);let svg=directBoardLayer(root);
+  if(!svg){
+    if(getComputedStyle(root).position==='static')root.style.position='relative';
+    svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.classList.add('shared-board-layer');svg.dataset.rootKey=key;svg.setAttribute('preserveAspectRatio','none');
+    svg.innerHTML='<g class="stroke-root"></g>';
+    root.appendChild(svg);
+    const c=document.createElement('div');c.className='teacher-cursor hidden';c.textContent='Учитель';root.appendChild(c);
+    svg.__boardRoot=root;
+    svg.addEventListener('pointerdown',boardDown);
+    svg.addEventListener('pointermove',boardMove);
+    svg.addEventListener('pointerup',boardUp);
+    svg.addEventListener('pointercancel',boardUp);
+    svg.addEventListener('lostpointercapture',boardUp);
+    layers.set(key,svg);cursorEls.set(key,c);
+  }else{svg.__boardRoot=root;layers.set(key,svg)}
+  return svg;
+}
+function refreshInkAnchors(root){
+  const rk=rootKey(root);root.dataset.inkAnchor=rk+':root';
+  let i=0;
+  root.querySelectorAll(INK_ANCHOR_SELECTOR).forEach(el=>{
+    if(el.closest('.shared-board-layer'))return;
+    el.dataset.inkAnchor=rk+':a'+(i++);
+  });
+}
+function installBoards(){
+  boardRoots().forEach(root=>{ensureBoardRoot(root);refreshInkAnchors(root)});
+  renderBoards();
+}
+function scheduleBoardRefresh(){
+  if(boardRefreshRAF)return;
+  boardRefreshRAF=requestAnimationFrame(()=>{boardRefreshRAF=0;installBoards()});
+}
+window.__PVZ_REFRESH_BOARD_ROOTS__=scheduleBoardRefresh;
+installBoards();
+
+const boardObserver=new MutationObserver(records=>{
+  let need=false;
+  for(const rec of records){
+    for(const node of [...rec.addedNodes,...rec.removedNodes]){
+      if(!(node instanceof Element))continue;
+      if(node.matches?.(INK_ANCHOR_SELECTOR)||node.querySelector?.(INK_ANCHOR_SELECTOR)){need=true;break}
+    }
+    if(need)break;
+  }
+  if(need)scheduleBoardRefresh();
+});
+['stationBody','resultBody','theoryOverlayBody'].forEach(id=>{const el=E(id);if(el)boardObserver.observe(el,{childList:true,subtree:true})});
+
+function setTool(t){
+  if(tool==='pen'&&t!=='pen')finishStroke();
+  tool=t;
+  ['toolOff','toolPen','toolEraser'].forEach(id=>E(id).classList.toggle('on',id===({off:'toolOff',pen:'toolPen',eraser:'toolEraser'}[t])));
+  layers.forEach(svg=>svg.classList.toggle('active',t!=='off'));
+}
+E('toolOff').onclick=()=>setTool('off');E('toolPen').onclick=()=>setTool('pen');E('toolEraser').onclick=()=>setTool('eraser');
+
+function sizeLayer(svg){
+  const root=svg.__boardRoot;if(!root)return{w:1,h:1};
+  const w=Math.max(1,root.clientWidth||root.getBoundingClientRect().width||1),h=Math.max(1,root.scrollHeight||root.getBoundingClientRect().height||1);
+  svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.setAttribute('width',w);svg.setAttribute('height',h);
+  return{w,h};
+}
+function anchorEl(id){try{return document.querySelector(`[data-ink-anchor="${CSS.escape(id)}"]`)}catch{return null}}
+function underlyingAnchor(root,svg,x,y){
+  const old=svg.style.pointerEvents;svg.style.pointerEvents='none';
+  const under=document.elementFromPoint(x,y);svg.style.pointerEvents=old;
+  let a=under?.closest?.(INK_ANCHOR_SELECTOR);
+  if(!a||!root.contains(a))a=root;
+  if(!a.dataset.inkAnchor)refreshInkAnchors(root);
+  return a;
+}
+function normPoint(anchor,e){
+  const r=anchor.getBoundingClientRect();
+  return{x:Math.max(0,Math.min(1,(e.clientX-r.left)/Math.max(1,r.width))),y:Math.max(0,Math.min(1,(e.clientY-r.top)/Math.max(1,r.height)))};
+}
+function pointPxDistance(a,b,anchor){
+  const r=anchor.getBoundingClientRect();return Math.hypot((a.x-b.x)*r.width,(a.y-b.y)*r.height);
+}
+function strokeRootPoints(s,root){
+  const a=anchorEl(s.anchorId);if(!a||!root.contains(a))return[];
+  const ar=a.getBoundingClientRect(),rr=root.getBoundingClientRect();
+  return(s.points||[]).map(p=>({x:(ar.left-rr.left)+p.x*ar.width,y:(ar.top-rr.top)+p.y*ar.height}));
+}
+function smoothPath(points){
+  if(!points?.length)return'';
+  if(points.length===1)return`M${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)} l.1 .1`;
+  let d=`M${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+  for(let i=1;i<points.length-1;i++){const p=points[i],n=points[i+1],mx=(p.x+n.x)/2,my=(p.y+n.y)/2;d+=` Q${p.x.toFixed(1)} ${p.y.toFixed(1)} ${mx.toFixed(1)} ${my.toFixed(1)}`}
+  const p=points.at(-2),n=points.at(-1);return d+` Q${p.x.toFixed(1)} ${p.y.toFixed(1)} ${n.x.toFixed(1)} ${n.y.toFixed(1)}`;
+}
+function rootForStroke(s){
+  const a=anchorEl(s.anchorId);return a?.closest?.('.screen,#theoryOverlayRoot')||null;
+}
+function renderStroke(s){
+  if(!s||+s.epoch!==boardEpoch||optimisticDeleted.has(s.id))return;
+  const root=rootForStroke(s);if(!root)return;
+  const svg=ensureBoardRoot(root);sizeLayer(svg);
+  const pts=strokeRootPoints(s,root);if(!pts.length)return;
+  const g=svg.querySelector('.stroke-root');let p=g.querySelector(`path[data-stroke-id="${CSS.escape(s.id)}"]`);
+  if(!p){p=document.createElementNS('http://www.w3.org/2000/svg','path');p.dataset.strokeId=s.id;g.appendChild(p)}
+  p.setAttribute('d',smoothPath(pts));p.setAttribute('stroke',s.color||'#2f8f1c');p.setAttribute('stroke-width',String(+s.width||4));p.setAttribute('vector-effect','non-scaling-stroke');p.dataset.rev=String(+s.rev||0);
+}
+function removeStrokeDom(id){layers.forEach(svg=>svg.querySelector(`path[data-stroke-id="${CSS.escape(id)}"]`)?.remove())}
+function renderBoards(){
+  boardRoots().forEach(root=>{ensureBoardRoot(root);refreshInkAnchors(root)});
+  layers.forEach(svg=>sizeLayer(svg));
+  const live=new Set();
+  for(const s of Object.values(boardCache)){if(!s||+s.epoch!==boardEpoch||optimisticDeleted.has(s.id))continue;live.add(s.id);renderStroke(s)}
+  layers.forEach(svg=>svg.querySelectorAll('path[data-stroke-id]').forEach(p=>{if(!live.has(p.dataset.strokeId))p.remove()}));
+}
+let drawRAF=0;
+function scheduleLocalStrokeRender(){
+  if(drawRAF)return;
+  drawRAF=requestAnimationFrame(()=>{drawRAF=0;if(drawing)renderStroke(drawing)});
+}
+function queueStrokeWrite(s){
+  if(!connected||!F||!s)return;
+  pendingStrokeWrites.set(s.id,clone(s));
+  if(activeStrokeWrites.has(s.id))return;
+  activeStrokeWrites.add(s.id);
+  (async()=>{
+    try{
+      while(pendingStrokeWrites.has(s.id)){
+        const latest=pendingStrokeWrites.get(s.id);pendingStrokeWrites.delete(s.id);
+        await F.set(F.ref(db,rootPath()+'/pads/strokes/'+s.id),latest).catch(()=>{});
+      }
+    }finally{
+      activeStrokeWrites.delete(s.id);
+      if(pendingStrokeWrites.has(s.id))queueStrokeWrite(pendingStrokeWrites.get(s.id));
+    }
+  })();
+}
+function boardDown(e){
+  if(tool==='off')return;
+  const svg=e.currentTarget,root=svg.__boardRoot;if(!root)return;
+  activePointerId=e.pointerId;svg.setPointerCapture?.(e.pointerId);e.preventDefault();
+  if(tool==='eraser'){lastClientPoint={x:e.clientX,y:e.clientY};eraseClientSegment(root,lastClientPoint,lastClientPoint);return}
+  const anchor=underlyingAnchor(root,svg,e.clientX,e.clientY),p=normPoint(anchor,e),id='stroke-'+uid();
+  drawing={id,anchorId:anchor.dataset.inkAnchor,authorId:participantId||('local-'+clientId),authorName:participantName||'Участник',color:E('toolColor').value,width:+E('toolWidth').value||4,points:[p],done:false,epoch:boardEpoch,rev:1,createdAt:Date.now(),updatedAt:Date.now()};
+  boardCache[id]=clone(drawing);localRev.set(id,1);lastPoint=p;lastSend=0;renderStroke(drawing);queueStrokeWrite(drawing);
+}
+function boardMove(e){
+  if(tool==='off'||activePointerId!==e.pointerId)return;
+  const svg=e.currentTarget,root=svg.__boardRoot;
+  if(e.pointerType==='mouse'&&e.buttons===0){boardUp(e);return}
+  e.preventDefault();
+  if(tool==='eraser'){
+    const p={x:e.clientX,y:e.clientY};eraseClientSegment(root,lastClientPoint||p,p);lastClientPoint=p;return;
+  }
+  if(!drawing)return;
+  const anchor=anchorEl(drawing.anchorId);if(!anchor)return;
+  const events=e.getCoalescedEvents?.()||[e];let added=false;
+  for(const ev of events){
+    const p=normPoint(anchor,ev),q=drawing.points.at(-1);
+    if(!q||pointPxDistance(p,q,anchor)>=.75){drawing.points.push(p);added=true}
+  }
+  if(!added)return;
+  drawing.rev++;drawing.updatedAt=Date.now();localRev.set(drawing.id,drawing.rev);boardCache[drawing.id]=clone(drawing);scheduleLocalStrokeRender();
+  const now=performance.now();if(now-lastSend>=48){lastSend=now;queueStrokeWrite(drawing)}
+}
+function finishStroke(){
+  if(!drawing){lastPoint=null;lastClientPoint=null;activePointerId=null;return}
+  drawing.done=true;drawing.rev++;drawing.updatedAt=Date.now();localRev.set(drawing.id,drawing.rev);boardCache[drawing.id]=clone(drawing);renderStroke(drawing);queueStrokeWrite(drawing);drawing=null;lastPoint=null;lastClientPoint=null;activePointerId=null;
+}
+function boardUp(e){
+  if(e?.pointerId!=null&&activePointerId!=null&&e.pointerId!==activePointerId)return;
+  if(tool==='eraser'){lastClientPoint=null;activePointerId=null;return}
+  finishStroke();
+}
+document.addEventListener('pointerup',e=>{if(activePointerId===e.pointerId)boardUp(e)},true);
+document.addEventListener('pointercancel',e=>{if(activePointerId===e.pointerId)boardUp(e)},true);
+window.addEventListener('blur',()=>finishStroke());
+document.addEventListener('visibilitychange',()=>{if(document.hidden)finishStroke()});
+
 function distPointSeg(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy;if(!l)return Math.hypot(px-ax,py-ay);let t=((px-ax)*dx+(py-ay)*dy)/l;t=Math.max(0,Math.min(1,t));return Math.hypot(px-(ax+t*dx),py-(ay+t*dy))}
-function eraseAt(svg,a,b){const g=boardGeom(svg),radius=14*g.scale,steps=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.y-a.y)/(radius*.55))),samples=[];for(let i=0;i<=steps;i++){const z=i/steps;samples.push({x:a.x+(b.x-a.x)*z,y:a.y+(b.y-a.y)*z})}const victims=[];for(const[id,s]of Object.entries(boardCache)){if(!s||optimisticDeleted.has(id)||s.anchorId!==svg.dataset.anchor||+s.epoch!==boardEpoch||!s.points?.length)continue;let hit=false;if(s.points.length===1){const p=s.points[0];hit=samples.some(z=>Math.hypot(z.x-p.x,z.y-p.y)<=radius+(+s.width||4)*g.scale/2)}for(let j=1;j<s.points.length&&!hit;j++){const p=s.points[j-1],q=s.points[j];for(const z of samples)if(distPointSeg(z.x,z.y,p.x,p.y,q.x,q.y)<=radius+(+s.width||4)*g.scale/2){hit=true;break}}if(hit)victims.push(id)}for(const id of victims){const backup=boardCache[id];optimisticDeleted.add(id);delete boardCache[id];renderBoards();if(connected&&F)F.remove(F.ref(db,rootPath()+'/pads/strokes/'+id)).then(()=>optimisticDeleted.delete(id)).catch(()=>{optimisticDeleted.delete(id);boardCache[id]=backup;renderBoards()});else optimisticDeleted.delete(id)}}
-function undoMine(){const author=participantId||('local-'+clientId),own=Object.values(boardCache).filter(s=>s&&s.authorId===author&&+s.epoch===boardEpoch).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));if(!own[0])return;const id=own[0].id,backup=boardCache[id];delete boardCache[id];renderBoards();if(connected&&F)F.remove(F.ref(db,rootPath()+'/pads/strokes/'+id)).catch(()=>{boardCache[id]=backup;renderBoards()})}E('toolUndo').onclick=undoMine;document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!/INPUT|TEXTAREA/.test(document.activeElement?.tagName||'')){e.preventDefault();undoMine()}});
-E('toolClear').onclick=async()=>{if(!connected){boardCache={};boardEpoch++;drawing=null;lastPoint=null;renderBoards();return}if(role!=='teacher'){alert('В совместном уроке очистить всё может только учитель.');return}await F.runTransaction(F.ref(db,rootPath()+'/pads/boardEpoch'),v=>(+v||0)+1);await F.set(F.ref(db,rootPath()+'/pads/strokes'),null)};
-async function autoClearBoard(){drawing=null;lastPoint=null;boardCache={};renderBoards();if(connected&&role==='teacher'&&F){try{await F.runTransaction(F.ref(db,rootPath()+'/pads/boardEpoch'),v=>(+v||0)+1);await F.set(F.ref(db,rootPath()+'/pads/strokes'),null)}catch(e){}}else if(!connected){boardEpoch++}}
+function eraseClientSegment(root,a,b){
+  if(!root||!a||!b)return;
+  const rr=root.getBoundingClientRect(),A={x:a.x-rr.left,y:a.y-rr.top},B={x:b.x-rr.left,y:b.y-rr.top},radius=15;
+  const distance=Math.hypot(B.x-A.x,B.y-A.y),steps=Math.max(1,Math.ceil(distance/6)),samples=[];
+  for(let i=0;i<=steps;i++){const z=i/steps;samples.push({x:A.x+(B.x-A.x)*z,y:A.y+(B.y-A.y)*z})}
+  const victims=[];
+  for(const[id,s]of Object.entries(boardCache)){
+    if(!s||optimisticDeleted.has(id)||+s.epoch!==boardEpoch)continue;
+    const sr=rootForStroke(s);if(sr!==root)continue;
+    const pts=strokeRootPoints(s,root);if(!pts.length)continue;
+    let hit=false;
+    if(pts.length===1)hit=samples.some(z=>Math.hypot(z.x-pts[0].x,z.y-pts[0].y)<=radius+(+s.width||4)/2);
+    for(let j=1;j<pts.length&&!hit;j++)for(const z of samples)if(distPointSeg(z.x,z.y,pts[j-1].x,pts[j-1].y,pts[j].x,pts[j].y)<=radius+(+s.width||4)/2){hit=true;break}
+    if(hit)victims.push(id);
+  }
+  for(const id of victims){
+    const backup=boardCache[id];optimisticDeleted.add(id);delete boardCache[id];pendingStrokeWrites.delete(id);removeStrokeDom(id);
+    if(connected&&F)F.remove(F.ref(db,rootPath()+'/pads/strokes/'+id)).then(()=>optimisticDeleted.delete(id)).catch(()=>{optimisticDeleted.delete(id);boardCache[id]=backup;renderStroke(backup)});
+    else optimisticDeleted.delete(id);
+  }
+}
+function undoMine(){
+  const author=participantId||('local-'+clientId),own=Object.values(boardCache).filter(s=>s&&s.authorId===author&&+s.epoch===boardEpoch&&!optimisticDeleted.has(s.id)).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  if(!own[0])return;
+  const id=own[0].id,backup=boardCache[id];optimisticDeleted.add(id);delete boardCache[id];pendingStrokeWrites.delete(id);removeStrokeDom(id);
+  if(connected&&F)F.remove(F.ref(db,rootPath()+'/pads/strokes/'+id)).then(()=>optimisticDeleted.delete(id)).catch(()=>{optimisticDeleted.delete(id);boardCache[id]=backup;renderStroke(backup)});
+  else optimisticDeleted.delete(id);
+}
+E('toolUndo').onclick=undoMine;
+document.addEventListener('keydown',e=>{
+  const tag=document.activeElement?.tagName||'',editing=/INPUT|TEXTAREA|SELECT/.test(tag)||document.activeElement?.isContentEditable;
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!editing){e.preventDefault();undoMine()}
+});
+E('toolClear').onclick=async()=>{
+  finishStroke();
+  if(!connected){boardCache={};boardEpoch++;renderBoards();return}
+  if(role!=='teacher'){alert('В совместном уроке очистить всё может только учитель.');return}
+  await F.runTransaction(F.ref(db,rootPath()+'/pads/boardEpoch'),v=>(+v||0)+1);await F.set(F.ref(db,rootPath()+'/pads/strokes'),null);
+};
+async function autoClearBoard(){
+  finishStroke();boardCache={};renderBoards();
+  if(connected&&role==='teacher'&&F){try{await F.runTransaction(F.ref(db,rootPath()+'/pads/boardEpoch'),v=>(+v||0)+1);await F.set(F.ref(db,rootPath()+'/pads/strokes'),null)}catch{}}
+  else if(!connected)boardEpoch++;
+}
 window.__PVZ_RESET_BOARD__=()=>{autoClearBoard().catch(()=>{})};
-window.addEventListener('resize',()=>requestAnimationFrame(renderBoards));
+window.addEventListener('resize',scheduleBoardRefresh);
+
 function updateBoardPermissions(){E('toolClear').textContent=connected&&role!=='teacher'?'Очистить всё (учитель)':'Очистить всё'}
-function applyPads(pads){const ep=+pads.boardEpoch||0;if(ep!==boardEpoch){boardEpoch=ep;drawing=null;boardCache={}}const incoming=pads.strokes||{},merged={};for(const[id,s]of Object.entries(incoming)){if(!s||+s.epoch!==boardEpoch)continue;const lr=localRev.get(id)||0;if(s.authorId===participantId&&lr>(+s.rev||0)&&boardCache[id])merged[id]=boardCache[id];else merged[id]=s}for(const[id,s]of Object.entries(boardCache)){if(s&&s.authorId===participantId&&+s.epoch===boardEpoch&&(localRev.get(id)||0)>(+(incoming[id]?.rev||0)))merged[id]=s}boardCache=merged;renderBoards()}
-let cursorLast=0;document.addEventListener('pointermove',e=>{if(!connected||role!=='teacher'||tool!=='off'||performance.now()-cursorLast<75)return;const a=e.target.closest?.('[data-board-anchor]');if(!a)return;cursorLast=performance.now();const r=a.getBoundingClientRect();F.set(cursorRef(),{anchorId:a.dataset.boardAnchor,x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height,at:Date.now()}).catch(()=>{})});function renderTeacherCursor(c){hideCursors();if(role==='teacher'||!c||Date.now()-(c.at||0)>2500)return;const el=cursorEls.get(c.anchorId);if(!el)return;el.style.left=Math.max(0,Math.min(1,+c.x||0))*100+'%';el.style.top=Math.max(0,Math.min(1,+c.y||0))*100+'%';el.classList.remove('hidden');clearTimeout(renderTeacherCursor.t);renderTeacherCursor.t=setTimeout(()=>el.classList.add('hidden'),1600)}function hideCursors(){cursorEls.forEach(x=>x.classList.add('hidden'))}
+function applyPads(pads){
+  const ep=+pads.boardEpoch||0;
+  if(ep!==boardEpoch){boardEpoch=ep;drawing=null;activePointerId=null;boardCache={};localRev.clear();optimisticDeleted.clear()}
+  const incoming=pads.strokes||{},merged={};
+  for(const[id,s]of Object.entries(incoming)){
+    if(!s||+s.epoch!==boardEpoch||optimisticDeleted.has(id))continue;
+    const lr=localRev.get(id)||0;
+    if(s.authorId===(participantId||('local-'+clientId))&&lr>(+s.rev||0)&&boardCache[id])merged[id]=boardCache[id];else merged[id]=s;
+  }
+  for(const[id,s]of Object.entries(boardCache)){
+    if(s&&s.authorId===(participantId||('local-'+clientId))&&+s.epoch===boardEpoch&&(localRev.get(id)||0)>(+(incoming[id]?.rev||0))&&!optimisticDeleted.has(id))merged[id]=s;
+  }
+  boardCache=merged;renderBoards();
+}
+let cursorLast=0;
+document.addEventListener('pointermove',e=>{
+  if(!connected||role!=='teacher'||tool!=='off'||performance.now()-cursorLast<75)return;
+  const root=e.target.closest?.('.screen,#theoryOverlayRoot');if(!root)return;
+  const svg=directBoardLayer(root);if(!svg)return;
+  const a=underlyingAnchor(root,svg,e.clientX,e.clientY);if(!a)return;
+  cursorLast=performance.now();const r=a.getBoundingClientRect();
+  F.set(cursorRef(),{anchorId:a.dataset.inkAnchor,x:(e.clientX-r.left)/Math.max(1,r.width),y:(e.clientY-r.top)/Math.max(1,r.height),at:Date.now()}).catch(()=>{});
+});
+function renderTeacherCursor(c){
+  hideCursors();if(role==='teacher'||!c||Date.now()-(c.at||0)>2500)return;
+  const a=anchorEl(c.anchorId);if(!a)return;const root=a.closest('.screen,#theoryOverlayRoot');if(!root)return;
+  const el=cursorEls.get(rootKey(root));if(!el)return;const ar=a.getBoundingClientRect(),rr=root.getBoundingClientRect();
+  el.style.left=((ar.left-rr.left)+Math.max(0,Math.min(1,+c.x||0))*ar.width)+'px';
+  el.style.top=((ar.top-rr.top)+Math.max(0,Math.min(1,+c.y||0))*ar.height)+'px';
+  el.classList.remove('hidden');clearTimeout(renderTeacherCursor.t);renderTeacherCursor.t=setTimeout(()=>el.classList.add('hidden'),1600);
+}
+function hideCursors(){cursorEls.forEach(x=>x.classList.add('hidden'))}
+
 /* локальное положение панели */const toolbar=E('boardToolbar'),handle=E('boardHandle'),TBKEY=APP_ID+':toolbar';let dragBar=null;try{const p=JSON.parse(localStorage.getItem(TBKEY)||'null');if(p){if(p.left)toolbar.style.left=p.left;if(p.top){toolbar.style.top=p.top;toolbar.style.bottom='auto'}if(p.collapsed)toolbar.classList.add('collapsed')}}catch{}handle.addEventListener('pointerdown',e=>{if(e.target.tagName==='BUTTON')return;const r=toolbar.getBoundingClientRect();dragBar={dx:e.clientX-r.left,dy:e.clientY-r.top};handle.setPointerCapture(e.pointerId)});handle.addEventListener('pointermove',e=>{if(!dragBar)return;toolbar.style.left=Math.max(4,Math.min(innerWidth-toolbar.offsetWidth-4,e.clientX-dragBar.dx))+'px';toolbar.style.top=Math.max(4,Math.min(innerHeight-toolbar.offsetHeight-4,e.clientY-dragBar.dy))+'px';toolbar.style.bottom='auto'});handle.addEventListener('pointerup',()=>{dragBar=null;localStorage.setItem(TBKEY,JSON.stringify({left:toolbar.style.left,top:toolbar.style.top,collapsed:toolbar.classList.contains('collapsed')}))});E('boardCollapse').onclick=()=>{toolbar.classList.toggle('collapsed');E('boardCollapse').textContent=toolbar.classList.contains('collapsed')?'+':'−';localStorage.setItem(TBKEY,JSON.stringify({left:toolbar.style.left,top:toolbar.style.top,collapsed:toolbar.classList.contains('collapsed')}))};setTool('off');
 </script>
 
