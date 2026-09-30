@@ -461,7 +461,7 @@ figure.art figcaption{font-size:12.5px;font-weight:500;text-align:center;padding
 .lesson-modal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.lesson-modal-msg{min-height:20px;margin-top:9px;font-weight:700;font-size:12px;color:#765400}.lesson-modal-msg.bad{color:#9b1c1c}.lesson-participants{display:grid;gap:7px;margin-top:10px}.lesson-person{display:flex;align-items:center;gap:8px;padding:8px 10px;border:2px solid #b99a52;border-radius:10px;background:#fff7d8}.lesson-person.offline{opacity:.55}.lesson-person .dot{width:9px;height:9px;border-radius:50%;background:var(--grass)}.lesson-person small{margin-left:auto;color:#7a6231}
 .board-toolbar{position:fixed;left:12px;bottom:62px;z-index:170;min-width:325px;max-width:calc(100vw - 24px);padding:7px;border:3px solid var(--soil-dark);border-radius:14px;background:rgba(47,28,13,.96);box-shadow:0 8px 24px rgba(0,0,0,.38);color:#ffeec2}
 .board-toolbar:not(.connected){opacity:.72}.board-handle{display:flex;align-items:center;gap:7px;cursor:move;user-select:none;font-family:'Russo One',sans-serif;font-size:11px}.board-handle b{flex:1}.board-tools{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:7px}.board-toolbar.collapsed .board-tools{display:none}.board-tool{border:2px solid #b99a52;border-radius:9px;background:linear-gradient(180deg,#d9c489,#b99a52);color:var(--soil-dark);padding:6px 8px;font-size:10px;font-family:'Russo One',sans-serif;text-shadow:none;box-shadow:0 3px 0 #7a6231}.board-tool.on{background:linear-gradient(180deg,var(--sun),var(--sun-deep))}.board-tools input[type=color]{width:34px;height:30px;padding:1px;border:2px solid #b99a52;border-radius:8px;background:#fff7d8}.board-tools input[type=range]{width:84px;accent-color:var(--sun)}
-[data-board-anchor]{position:relative}.shared-board-layer{position:absolute;inset:0;z-index:55;width:100%;height:100%;pointer-events:none;overflow:visible}.shared-board-layer.active{pointer-events:auto;touch-action:none;cursor:crosshair}.shared-board-layer path{fill:none!important;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;filter:none!important}.teacher-cursor{position:absolute;z-index:58;pointer-events:none;transform:translate(7px,7px);padding:3px 7px;border:2px solid var(--soil-dark);border-radius:999px;background:var(--sun);color:var(--soil-dark);font:700 10px 'Rubik',sans-serif}.teacher-cursor.hidden{display:none}
+[data-board-anchor]{position:relative}.shared-board-layer{position:absolute;left:0;top:0;z-index:55;width:100%;height:100%;pointer-events:none;overflow:visible}.shared-board-layer.active{pointer-events:auto;touch-action:none;cursor:crosshair}.shared-board-layer path{fill:none!important;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;filter:none!important}.teacher-cursor{position:absolute;z-index:58;pointer-events:none;transform:translate(7px,7px);padding:3px 7px;border:2px solid var(--soil-dark);border-radius:999px;background:var(--sun);color:var(--soil-dark);font:700 10px 'Rubik',sans-serif}.teacher-cursor.hidden{display:none}
 @media(max-width:700px){.music-volume{padding:4px 6px}.music-volume input{width:72px}.lesson-mini{right:8px;left:8px;overflow-x:auto}.board-toolbar{min-width:0;right:8px;left:8px}.lesson-who{max-width:110px}}
 
 
@@ -3842,12 +3842,12 @@ E('lessonFinishGame').onclick=async()=>{
 E('lessonEnd').onclick=()=>disconnect(false);E('lessonIdentity').onclick=async()=>{const wasStudent=role==='student';await disconnect(wasStudent);if(wasStudent){localStorage.removeItem(studentKey);localStorage.removeItem('egeStudentId');localStorage.removeItem('egeStudentName');localStorage.removeItem('egeStudentCode')}roleHome()};E('lessonModal').addEventListener('click',e=>{if(e.target===E('lessonModal'))closeModal()});
 setInterval(updateTeacherFinishButton,300);updateTeacherFinishButton();
 
-/* ===== Общая доска v97: семантические якоря + локальная мгновенная отрисовка ===== */
+/* ===== Общая доска v98: рисование по всему экрану + адаптивные семантические координаты ===== */
 const layers=new Map(),cursorEls=new Map();
-const INK_ANCHOR_SELECTOR='.stage,.field,.gamecard,.card,.plot-bed,.phys-panel,.theory-viz,.baskets,.marwrap,.hub,.lawn,.wrap';
+const INK_ANCHOR_SELECTOR='.stage,.field,.gamecard,.card,.plot-bed,.phys-panel,.theory-viz,.baskets,.marwrap,.hub,.lawn,.student-panel,.gamebar,.station-head,.result,.wrap';
 let boardEpoch=0,boardCache={},tool='off',drawing=null,lastPoint=null,lastClientPoint=null,lastSend=0,localRev=new Map(),optimisticDeleted=new Set(),activePointerId=null;
 const pendingStrokeWrites=new Map(),activeStrokeWrites=new Set();
-let boardRefreshRAF=0;
+let boardRefreshRAF=0,boardGeometryRAF=0,lastTeacherCursorData=null;
 
 function boardRoots(){
   return [...document.querySelectorAll('.screen'),document.getElementById('theoryOverlayRoot')].filter(Boolean);
@@ -3873,12 +3873,28 @@ function ensureBoardRoot(root){
   }else{svg.__boardRoot=root;layers.set(key,svg)}
   return svg;
 }
+function anchorPath(root,el){
+  const rk=rootKey(root);
+  if(el===root)return rk+':root';
+  if(el.id)return rk+':id:'+el.id;
+  if(el.dataset?.syncId)return rk+':sync:'+el.dataset.syncId;
+  const parts=[];let node=el;
+  while(node&&node!==root&&parts.length<9){
+    const parent=node.parentElement;if(!parent)break;
+    const tag=node.tagName.toLowerCase();
+    const same=[...parent.children].filter(x=>x.tagName===node.tagName&&!x.classList?.contains('shared-board-layer')&&!x.classList?.contains('teacher-cursor'));
+    const pos=Math.max(0,same.indexOf(node));
+    const cls=[...node.classList].filter(c=>!['on','current','done','solved','active','open','hot','sel','wrong','right'].includes(c)).slice(0,2).join('.');
+    parts.unshift(tag+(cls?'.'+cls:'')+'@'+pos);
+    node=parent;
+  }
+  return rk+':path:'+parts.join('>');
+}
 function refreshInkAnchors(root){
-  const rk=rootKey(root);root.dataset.inkAnchor=rk+':root';
-  let i=0;
+  root.dataset.inkAnchor=rootKey(root)+':root';
   root.querySelectorAll(INK_ANCHOR_SELECTOR).forEach(el=>{
     if(el.closest('.shared-board-layer'))return;
-    el.dataset.inkAnchor=rk+':a'+(i++);
+    el.dataset.inkAnchor=anchorPath(root,el);
   });
 }
 function installBoards(){
@@ -3888,6 +3904,15 @@ function installBoards(){
 function scheduleBoardRefresh(){
   if(boardRefreshRAF)return;
   boardRefreshRAF=requestAnimationFrame(()=>{boardRefreshRAF=0;installBoards()});
+}
+function scheduleBoardGeometry(){
+  if(boardGeometryRAF)return;
+  boardGeometryRAF=requestAnimationFrame(()=>{
+    boardGeometryRAF=0;
+    layers.forEach(svg=>sizeLayer(svg));
+    for(const s of Object.values(boardCache))if(s&&+s.epoch===boardEpoch&&!optimisticDeleted.has(s.id))renderStroke(s);
+    if(lastTeacherCursorData)renderTeacherCursor(lastTeacherCursorData,true);
+  });
 }
 window.__PVZ_REFRESH_BOARD_ROOTS__=scheduleBoardRefresh;
 installBoards();
@@ -3915,7 +3940,11 @@ E('toolOff').onclick=()=>setTool('off');E('toolPen').onclick=()=>setTool('pen');
 
 function sizeLayer(svg){
   const root=svg.__boardRoot;if(!root)return{w:1,h:1};
-  const w=Math.max(1,root.clientWidth||root.getBoundingClientRect().width||1),h=Math.max(1,root.scrollHeight||root.getBoundingClientRect().height||1);
+  // client/scroll dimensions are used instead of viewport dimensions, so the board covers
+  // the entire current interactive, including content below the fold.
+  const w=Math.max(1,root.scrollWidth||root.clientWidth||root.getBoundingClientRect().width||1);
+  const h=Math.max(1,root.scrollHeight||root.clientHeight||root.getBoundingClientRect().height||1);
+  svg.style.width=w+'px';svg.style.height=h+'px';
   svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.setAttribute('width',w);svg.setAttribute('height',h);
   return{w,h};
 }
@@ -3930,15 +3959,25 @@ function underlyingAnchor(root,svg,x,y){
 }
 function normPoint(anchor,e){
   const r=anchor.getBoundingClientRect();
-  return{x:Math.max(0,Math.min(1,(e.clientX-r.left)/Math.max(1,r.width))),y:Math.max(0,Math.min(1,(e.clientY-r.top)/Math.max(1,r.height)))};
+  // Do not clamp to 0..1. Pointer capture can continue outside the element where a stroke
+  // started; unclamped coordinates prevent the old "invisible wall" at card boundaries.
+  return{x:(e.clientX-r.left)/Math.max(1,r.width),y:(e.clientY-r.top)/Math.max(1,r.height),a:anchor.dataset.inkAnchor};
 }
-function pointPxDistance(a,b,anchor){
-  const r=anchor.getBoundingClientRect();return Math.hypot((a.x-b.x)*r.width,(a.y-b.y)*r.height);
+function pointPxDistance(a,b,root){
+  const ap=resolveBoardPoint(a,root),bp=resolveBoardPoint(b,root);
+  return ap&&bp?Math.hypot(ap.x-bp.x,ap.y-bp.y):999;
+}
+function resolveBoardPoint(p,root,fallbackAnchorId=''){
+  if(!p)return null;
+  const aid=p.a||fallbackAnchorId;
+  let a=anchorEl(aid);
+  if(!a||!root.contains(a))a=anchorEl(fallbackAnchorId);
+  if(!a||!root.contains(a))a=root;
+  const ar=a.getBoundingClientRect(),rr=root.getBoundingClientRect();
+  return{x:(ar.left-rr.left)+(+p.x||0)*ar.width,y:(ar.top-rr.top)+(+p.y||0)*ar.height};
 }
 function strokeRootPoints(s,root){
-  const a=anchorEl(s.anchorId);if(!a||!root.contains(a))return[];
-  const ar=a.getBoundingClientRect(),rr=root.getBoundingClientRect();
-  return(s.points||[]).map(p=>({x:(ar.left-rr.left)+p.x*ar.width,y:(ar.top-rr.top)+p.y*ar.height}));
+  return(s.points||[]).map(p=>resolveBoardPoint(p,root,s.anchorId)).filter(Boolean);
 }
 function smoothPath(points){
   if(!points?.length)return'';
@@ -3948,7 +3987,9 @@ function smoothPath(points){
   const p=points.at(-2),n=points.at(-1);return d+` Q${p.x.toFixed(1)} ${p.y.toFixed(1)} ${n.x.toFixed(1)} ${n.y.toFixed(1)}`;
 }
 function rootForStroke(s){
-  const a=anchorEl(s.anchorId);return a?.closest?.('.screen,#theoryOverlayRoot')||null;
+  // New strokes may contain points tied to different semantic anchors.
+  for(const p of s?.points||[]){const a=anchorEl(p?.a);const r=a?.closest?.('.screen,#theoryOverlayRoot');if(r)return r}
+  const a=anchorEl(s?.anchorId);return a?.closest?.('.screen,#theoryOverlayRoot')||null;
 }
 function renderStroke(s){
   if(!s||+s.epoch!==boardEpoch||optimisticDeleted.has(s.id))return;
@@ -3995,7 +4036,7 @@ function boardDown(e){
   activePointerId=e.pointerId;svg.setPointerCapture?.(e.pointerId);e.preventDefault();
   if(tool==='eraser'){lastClientPoint={x:e.clientX,y:e.clientY};eraseClientSegment(root,lastClientPoint,lastClientPoint);return}
   const anchor=underlyingAnchor(root,svg,e.clientX,e.clientY),p=normPoint(anchor,e),id='stroke-'+uid();
-  drawing={id,anchorId:anchor.dataset.inkAnchor,authorId:participantId||('local-'+clientId),authorName:participantName||'Участник',color:E('toolColor').value,width:+E('toolWidth').value||4,points:[p],done:false,epoch:boardEpoch,rev:1,createdAt:Date.now(),updatedAt:Date.now()};
+  drawing={id,anchorId:anchor.dataset.inkAnchor,coordVersion:2,authorId:participantId||('local-'+clientId),authorName:participantName||'Участник',color:E('toolColor').value,width:+E('toolWidth').value||4,points:[p],done:false,epoch:boardEpoch,rev:1,createdAt:Date.now(),updatedAt:Date.now()};
   boardCache[id]=clone(drawing);localRev.set(id,1);lastPoint=p;lastSend=0;renderStroke(drawing);queueStrokeWrite(drawing);
 }
 function boardMove(e){
@@ -4007,11 +4048,10 @@ function boardMove(e){
     const p={x:e.clientX,y:e.clientY};eraseClientSegment(root,lastClientPoint||p,p);lastClientPoint=p;return;
   }
   if(!drawing)return;
-  const anchor=anchorEl(drawing.anchorId);if(!anchor)return;
   const events=e.getCoalescedEvents?.()||[e];let added=false;
   for(const ev of events){
-    const p=normPoint(anchor,ev),q=drawing.points.at(-1);
-    if(!q||pointPxDistance(p,q,anchor)>=.75){drawing.points.push(p);added=true}
+    const anchor=underlyingAnchor(root,svg,ev.clientX,ev.clientY),p=normPoint(anchor,ev),q=drawing.points.at(-1);
+    if(!q||pointPxDistance(p,q,root)>=.75){drawing.points.push(p);added=true}
   }
   if(!added)return;
   drawing.rev++;drawing.updatedAt=Date.now();localRev.set(drawing.id,drawing.rev);boardCache[drawing.id]=clone(drawing);scheduleLocalStrokeRender();
@@ -4078,6 +4118,14 @@ async function autoClearBoard(){
 }
 window.__PVZ_RESET_BOARD__=()=>{autoClearBoard().catch(()=>{})};
 window.addEventListener('resize',scheduleBoardRefresh);
+// Recompute semantic positions while any scroll container moves. This is especially important
+// for the fixed theory overlay, which scrolls internally rather than through window.scrollY.
+document.addEventListener('scroll',scheduleBoardGeometry,true);
+window.addEventListener('scroll',scheduleBoardGeometry,{passive:true});
+if('ResizeObserver'in window){
+  const boardResizeObserver=new ResizeObserver(()=>scheduleBoardGeometry());
+  boardRoots().forEach(root=>boardResizeObserver.observe(root));
+}
 
 function updateBoardPermissions(){E('toolClear').textContent=connected&&role!=='teacher'?'Очистить всё (учитель)':'Очистить всё'}
 function applyPads(pads){
@@ -4103,12 +4151,13 @@ document.addEventListener('pointermove',e=>{
   cursorLast=performance.now();const r=a.getBoundingClientRect();
   F.set(cursorRef(),{anchorId:a.dataset.inkAnchor,x:(e.clientX-r.left)/Math.max(1,r.width),y:(e.clientY-r.top)/Math.max(1,r.height),at:Date.now()}).catch(()=>{});
 });
-function renderTeacherCursor(c){
+function renderTeacherCursor(c,fromGeometry=false){
+  if(!fromGeometry)lastTeacherCursorData=c;
   hideCursors();if(role==='teacher'||!c||Date.now()-(c.at||0)>2500)return;
   const a=anchorEl(c.anchorId);if(!a)return;const root=a.closest('.screen,#theoryOverlayRoot');if(!root)return;
   const el=cursorEls.get(rootKey(root));if(!el)return;const ar=a.getBoundingClientRect(),rr=root.getBoundingClientRect();
-  el.style.left=((ar.left-rr.left)+Math.max(0,Math.min(1,+c.x||0))*ar.width)+'px';
-  el.style.top=((ar.top-rr.top)+Math.max(0,Math.min(1,+c.y||0))*ar.height)+'px';
+  el.style.left=((ar.left-rr.left)+(+c.x||0)*ar.width)+'px';
+  el.style.top=((ar.top-rr.top)+(+c.y||0)*ar.height)+'px';
   el.classList.remove('hidden');clearTimeout(renderTeacherCursor.t);renderTeacherCursor.t=setTimeout(()=>el.classList.add('hidden'),1600);
 }
 function hideCursors(){cursorEls.forEach(x=>x.classList.add('hidden'))}
