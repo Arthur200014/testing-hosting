@@ -167,7 +167,7 @@
     <form id="homeworkForm" novalidate>
       <div id="tasksRoot"></div>
       <div class="submit-zone">
-        <p>После отправки появятся результат и возможность разобрать решения. Повторная отправка в этом месяце будет закрыта.</p>
+        <p>После отправки появятся результат и возможность разобрать решения. Работу можно отправлять повторно без ограничений по месяцу.</p>
         <button class="submit-btn" id="submitBtn" type="submit">Отправить работу</button>
       </div>
     </form>
@@ -527,7 +527,7 @@
   function draftKey(code=student?.code){return code?`homeworkDraft:${HOMEWORK_META.assignmentId}:${code}`:""}
   function queueKey(){return`pendingHomeworkResults:${HOMEWORK_META.assignmentId}`}
   function monthLockKey(code=student?.code){return code?`egeHomeworkSubmission:${HOMEWORK_META.assignmentId}:${code}:${currentMonth()}`:""}
-  function localLocked(){const key=monthLockKey();return key?Boolean(safeGet(key)):false}
+  function localLocked(){return false}
 
   function readJson(key,fallback){try{const raw=safeGet(key);return raw?JSON.parse(raw):fallback}catch(_){return fallback}}
   function getDraft(code=student?.code){const key=draftKey(code);return key?readJson(key,null):null}
@@ -596,17 +596,9 @@
 
   async function checkAvailability(){
     if(!student)return;
-    if(localLocked()){
-      submissionLocked=true;submitBtn.disabled=true;attemptLabel.textContent="Работа уже завершена в этом месяце";
-    }else{
-      submissionLocked=false;submitBtn.disabled=false;attemptLabel.textContent="Ответы сохраняются автоматически";
-    }
-    try{
-      const data=await postApi({action:"checkHomeworkSubmission",studentId:student.id||student.code,assignmentId:HOMEWORK_META.assignmentId});
-      if(saysSubmitted(data)){
-        submissionLocked=true;submitBtn.disabled=true;attemptLabel.textContent="Работа уже завершена в этом месяце";
-      }
-    }catch(_){}
+    submissionLocked=false;
+    submitBtn.disabled=false;
+    attemptLabel.textContent="Ответы сохраняются автоматически · повторная отправка разрешена";
   }
 
   function startTimer(){
@@ -695,7 +687,7 @@
     document.querySelectorAll(".task-card").forEach((card,i)=>{
       const ok=isCorrect(answers[i],tasks[i].answer);
       card.classList.remove("correct","wrong");card.classList.add("submitted",ok?"correct":"wrong");
-      const input=card.querySelector(".answer-input");if(input)input.disabled=true;
+      const input=card.querySelector(".answer-input");if(input)input.disabled=false;
       const box=card.querySelector(".task-solution");if(box&&!box.childElementCount)box.innerHTML=solutionInnerHtml(tasks[i],i,ok,answers[i]);
     });
   }
@@ -712,12 +704,11 @@
   }
 
   function restoreSubmittedResult(draft){
-    if(!draft?.submittedResult)return false;
-    const r=draft.submittedResult,answers=Array.isArray(r.answers)?r.answers:(draft.answers||[]);
-    submittedNow=true;submissionLocked=true;submitBtn.disabled=true;clearInterval(timerId);
-    showResult(Number(r.correct)||0,Number(r.durationSeconds)||1,answers);
-    attemptLabel.textContent="Работа уже завершена в этом месяце";
-    return true;
+    // Старые отметки о сдаче больше не блокируют новую попытку.
+    submissionLocked=false;
+    submittedNow=false;
+    submitBtn.disabled=false;
+    return false;
   }
 
   function beginSession(s){
@@ -753,23 +744,22 @@
   });
 
   form.addEventListener("submit",e=>{
-    e.preventDefault();if(submittedNow)return;
+    e.preventDefault();
     const inputs=[...document.querySelectorAll(".answer-input")],answers=inputs.map(x=>x.value.trim());
     if(answers.some(x=>!x)){showNotice("Заполните все поля перед отправкой. Правильность ответов пока не проверялась.","error");return}
-    if(submissionLocked){showNotice("Эта работа уже завершена в текущем месяце.","ok");return}
     hideNotice();
     const correct=answers.reduce((n,a,i)=>n+(isCorrect(a,tasks[i].answer)?1:0),0);
     const scorePercent=Math.round(correct/tasks.length*100),durationSeconds=Math.max(1,Math.floor((Date.now()-startedAt)/1000));
     const eventId=`${HOMEWORK_META.assignmentId}-${student.code}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
     const payload={action:"submitHomework",eventId,studentId:student.id||student.code,assignmentId:HOMEWORK_META.assignmentId,taskNumber:HOMEWORK_META.taskNumber,topicId:HOMEWORK_META.topicId,topicName:HOMEWORK_META.topicName,scorePercent,durationSeconds,schemaVersion:1};
     enqueueResult(payload);
-    safeStore(monthLockKey(),JSON.stringify({eventId,sentAt:new Date().toISOString(),scorePercent,durationSeconds}));
     const submittedResult={eventId,correct,scorePercent,durationSeconds,answers,submittedAt:Date.now()};
-    saveDraft({submittedResult});
-    submittedNow=true;submissionLocked=true;submitBtn.disabled=true;clearInterval(timerId);attemptLabel.textContent="Работа завершена в этом месяце";
+    saveDraft({submittedResult:null,lastSubmittedResult:submittedResult});
+    submittedNow=false;submissionLocked=false;submitBtn.disabled=false;clearInterval(timerId);attemptLabel.textContent="Можно отправлять повторно без ограничений";submitBtn.textContent="Отправить ещё раз";
     showResult(correct,durationSeconds,answers);Sound.result(correct/tasks.length);
     resultSection.scrollIntoView({behavior:"smooth",block:"start"});
     sendQueuedResults();
+    startedAt=Date.now();startTimer();
   });
 
   function setScreenshotMode(on){
