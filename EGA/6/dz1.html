@@ -157,7 +157,7 @@
     <form id="homeworkForm" novalidate>
       <div id="tasksRoot"></div>
       <div class="submit-zone">
-        <p>После отправки появятся результат и возможность разобрать решения. Повторная отправка в этом месяце будет закрыта.</p>
+        <p>После отправки появятся результат и возможность разобрать решения. Работу можно отправлять повторно без ограничений по месяцу.</p>
         <button class="submit-btn" id="submitBtn" type="submit" disabled>Отправить работу</button>
       </div>
     </form>
@@ -495,7 +495,7 @@
   function eventIdKey(s=student){return`egeHomeworkEvent:${HOMEWORK_META.assignmentId}:${identityKey(s)}:${currentMonth()}`}
   const PENDING_RESULTS_KEY=`egeHomeworkPending:${HOMEWORK_META.assignmentId}`;
 
-  function localLocked(s=student){return Boolean(safeGet(monthLockKey(s)))}
+  function localLocked(s=student){return false}
 
   async function postApi(payload,options={}){
     const response=await fetch(API_URL,{
@@ -634,10 +634,7 @@
           // Успех или явное "уже отправлено" — для очереди это конечное подтверждение.
           if(!saysError(sent)||saysSubmitted(sent)){
             delete q[eventId];
-            const code=normalizeCode(payload.studentCode||payload.studentId);
-            const lockKey=`egeHomeworkSubmission:${HOMEWORK_META.assignmentId}:${code}:${currentMonth()}`;
-            let old={};try{old=JSON.parse(safeGet(lockKey)||"{}")}catch(_){}
-            safeStore(lockKey,JSON.stringify({...old,serverConfirmed:true,confirmedAt:new Date().toISOString()}));
+            // Результат подтверждён сервером. Месячная блокировка больше не создаётся.
           }
         }catch(_){
           // Ничего не показываем ученику: payload остаётся в очереди и будет отправлен позже.
@@ -659,22 +656,10 @@
   }
 
   async function checkAvailabilityBackground(){
+    // Повторные сдачи разрешены всегда: серверная проверка прежней месячной сдачи не блокирует форму.
+    attemptCheck={checked:false,alreadySubmitted:false};
     if(!student)return;
-    const snapshotCode=student.code;
-    try{
-      const data=await postApi({
-        action:"checkHomeworkSubmission",
-        studentId:student.id||student.code,
-        studentCode:student.code,
-        assignmentId:HOMEWORK_META.assignmentId
-      });
-      if(student&&student.code===snapshotCode){
-        attemptCheck={checked:true,alreadySubmitted:saysSubmitted(data)||localLocked()};
-      }
-    }catch(_){
-      if(student&&student.code===snapshotCode)attemptCheck={checked:false,alreadySubmitted:localLocked()};
-      setTimeout(()=>{if(student&&student.code===snapshotCode)checkAvailabilityBackground()},60000);
-    }
+    submitBtn.disabled=false;
   }
 
   function validateStudentCode(rawCode){
@@ -729,21 +714,8 @@
   }
 
   function restoreLocalSubmission(){
-    const saved=getLocalSubmission();
-    if(!saved?.submittedLocally||!Array.isArray(saved.answers))return false;
-    const inputs=[...document.querySelectorAll(".answer-input")];
-    saved.answers.forEach((v,i)=>{if(inputs[i])inputs[i].value=String(v??"")});
-    inputs.forEach(x=>x.disabled=true);
-    activeSecondsBase=Math.max(0,Number(saved.durationSeconds)||0);
-    submittedNow=true;
-    submitBtn.disabled=true;
-    clearInterval(timerId);clearInterval(autosaveTimerId);
-    $("#timer").textContent=formatDuration(activeSecondsBase);
-    updateProgress();
-    document.querySelectorAll(".task-card").forEach((card,i)=>card.classList.add(isCorrect(saved.answers[i],tasks[i].answer)?"correct":"wrong"));
-    const correct=Number.isFinite(Number(saved.correct))?Number(saved.correct):saved.answers.reduce((n,a,i)=>n+(isCorrect(a,tasks[i].answer)?1:0),0);
-    showResult(correct,activeSecondsBase,saved.answers,false);
-    return true;
+    // Старые локальные отметки о сдаче игнорируются: новая попытка всегда доступна.
+    return false;
   }
 
   function beginSession(s){
@@ -844,17 +816,12 @@
   }
 
   function getOrCreateEventId(){
-    const key=eventIdKey();
-    let id=safeGet(key);
-    if(!id){
-      id=`${HOMEWORK_META.assignmentId}-${identityKey()}-${currentMonth()}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-      safeStore(key,id);
-    }
-    return id;
+    // Каждая отправка — отдельная попытка с новым eventId.
+    return `${HOMEWORK_META.assignmentId}-${identityKey()}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
   }
 
   form.addEventListener("submit",e=>{
-    e.preventDefault();if(submittedNow)return;
+    e.preventDefault();
     const inputs=[...document.querySelectorAll(".answer-input")],answers=inputs.map(x=>x.value.trim());
     if(answers.some(x=>!x)){
       showNotice("Заполните все поля перед отправкой. Правильность ответов пока не проверялась.","error");
@@ -880,33 +847,27 @@
       topicName:HOMEWORK_META.topicName,
       scorePercent,
       durationSeconds,
-      firstAttemptThisMonth:attemptCheck.checked?!attemptCheck.alreadySubmitted:null,
       schemaVersion:2
     };
 
     // Сначала сохраняем результат локально, потом отправляем. Потеря сети не мешает завершить ДЗ.
     enqueueResult(payload);
-    safeStore(monthLockKey(),JSON.stringify({
-      submittedLocally:true,
-      serverConfirmed:false,
-      eventId,
-      submittedAt:new Date().toISOString(),
-      scorePercent,
-      correct,
-      durationSeconds,
-      answers
-    }));
 
-    submittedNow=true;
     clearInterval(timerId);clearInterval(autosaveTimerId);
-    inputs.forEach(x=>x.disabled=true);
-    submitBtn.disabled=true;
-    attemptLabel.textContent="Ответы сохранены";
-    document.querySelectorAll(".task-card").forEach((card,i)=>card.classList.add(isCorrect(answers[i],tasks[i].answer)?"correct":"wrong"));
+    inputs.forEach(x=>x.disabled=false);
+    submitBtn.disabled=false;
+    submitBtn.textContent="Отправить ещё раз";
+    attemptLabel.textContent="Можно отправлять повторно без ограничений";
+    document.querySelectorAll(".task-card").forEach((card,i)=>{card.classList.remove("correct","wrong");card.classList.add(isCorrect(answers[i],tasks[i].answer)?"correct":"wrong")});
     showResult(correct,durationSeconds,answers,true);
     Sound.result(correct/tasks.length);
 
-    // Никаких сообщений об ошибках: отправка и повторные попытки идут в фоне.
+    // Сразу открываем новую попытку: предыдущий результат уже стоит в очереди на отправку.
+    submittedNow=false;
+    activeSecondsBase=0;
+    startedAt=Date.now();
+    saveDraft();
+    startTimer();
     flushPendingResults();
   });
 
