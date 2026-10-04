@@ -3,8 +3,9 @@
 `$orchestrate` helps an agent delegate work to subagents while retaining task
 understanding, decisions, integration, and final acceptance.
 
-The orchestrator decides which research or implementation can run in parallel,
-assigns bounded workers, gathers evidence, and performs final verification. Small
+The orchestrator first asks Jev for a bounded, cost-aware route using the models
+actually callable in the current runtime. It then assigns explicit minimal models
+to bounded workers, gathers evidence, and performs final verification. Small
 changes should not create unnecessary agents. Coordination stays in native agent
 messages rather than repository bookkeeping files.
 

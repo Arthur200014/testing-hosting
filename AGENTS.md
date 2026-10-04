@@ -63,18 +63,36 @@ Implementer → Tester → fresh Reviewer → Orchestrator acceptance.
 
 ## Jev decision model
 
-Jev is a bounded decision/control model only when the required official TypeSafe
-integration is available and `TYPESAFE_API_KEY` is present in the environment.
-Read that key only from the environment. Never print, expose, log, commit, embed,
-or include it in a report.
+Jev is the mandatory bounded routing/control step for every software-engineering
+task. After the orchestrator has defined the scope, but before implementation or
+delegation, make one bounded Jev request through the official TypeSafe SDK. Use
+the configured `TYPESAFE_BASE_URL` and `TYPESAFE_DEFAULT_MODEL`; never silently
+replace the configured provider or model.
 
-Use Jev only for bounded judgment such as complexity classification,
-model/reasoning or useful-parallelism recommendations, continue/stop, retry,
-escalation, or completion assessment when deterministic evidence is insufficient.
+Give Jev a compact state containing the task type and risk, expected checks,
+budget preference, and the exact models and per-agent controls that the current
+runtime can actually invoke. Ask for typed decisions covering:
 
-Do not use Jev for code or patch generation, architecture design, bulk code
-reading, or questions deterministic tools can answer. Do not call it when
-deterministic evidence already determines the next action.
+- complexity: TRIVIAL / SMALL / MEDIUM / HIGH / CRITICAL;
+- required roles and useful agent count;
+- the minimum sufficient model and reasoning level for each role;
+- useful parallelism, independent-review need, and escalation conditions.
+
+The orchestrator follows this route unless it conflicts with user instructions,
+permissions, repository safety, or actual runtime capability. Report any fallback
+or override honestly. Jev selects and controls the lanes; the orchestrator still
+owns architecture, task packets, integration, verification, and final acceptance.
+
+If the TypeSafe integration or required environment binding is unavailable, make
+no more than one bounded attempt, record `JEV_ROUTE: FAILED` without exposing a
+secret, and use the cheapest conservative deterministic fallback. A routing
+failure must not cause repeated calls or silently promote every role to a strong
+model. A second Jev call is allowed only for a genuinely uncertain
+COMPLETE / RETRY / ESCALATE decision after evidence has been gathered.
+
+Read `TYPESAFE_API_KEY` only from the environment. Never print, expose, log,
+commit, embed, or include it in a report. Jev must not generate code, patches,
+architecture, or bulk summaries, and must not replace deterministic tests.
 
 ## Routing policy and runtime capabilities
 
@@ -90,18 +108,36 @@ Classify work before implementation:
 - ESCALATE / CRITICAL: stronger available model/reasoning and independent review;
   spend more reasoning only when evidence warrants it.
 
-Conceptual preferences, when the runtime supports them, are SMALL → Luna low,
-MEDIUM → Luna medium, HIGH → Luna high or Sol depending on architectural
-uncertainty, ESCALATE → Sol high, and the strongest appropriate model only for very
-high architectural ambiguity. These are preferences, not guarantees.
+Default cost-aware role preferences, subject to the Jev route and actual runtime
+capabilities, are:
 
-Never pretend a model switch occurred. Before selecting a model or reasoning level
-for a subagent, verify that the current runtime supports native subagents,
-per-subagent model selection, Luna workers, per-subagent reasoning effort, and a
-stronger root with cheaper bounded workers. If unavailable, use the nearest
-capability, preserve scope and verification, and report the fallback. Do not move
-the entire workflow elsewhere merely to satisfy a model preference unless the
-capability materially matters.
+- RESEARCHER / context gathering: Luna low, raised only when evidence warrants it;
+- IMPLEMENTER: Terra low or medium when Terra is callable; otherwise Luna medium
+  for routine work and GPT-5.6 Sol only for code that is genuinely complex;
+- TESTER: deterministic commands without an agent when sufficient; when an agent
+  is useful, start with Luna low and raise to Luna medium only for demanding
+  browser, realtime, or integration behavior;
+- REVIEWER: a fresh Luna low or medium by default; GPT-5.6 Sol only for high-risk
+  code or unresolved architectural/data-integrity concerns;
+- ORCHESTRATOR / ARCHITECT: the capable root model may be stronger because it owns
+  planning and integration, but it should not duplicate bounded worker tasks.
+
+Do not launch a model stronger than GPT-5.6 Sol merely to implement code. Models
+above that tier are reserved for orchestration or exceptional architectural
+judgment unless the user explicitly requests otherwise.
+
+Never create a full-history worker that accidentally inherits the root model when
+a cheaper lane was selected. Use a narrow task packet and explicitly set the
+worker model and reasoning level. Omit an explicit model only when Jev selected
+the current inherited model and its cost is justified.
+
+Never pretend a model switch occurred. A model displayed in a product interface
+is not necessarily callable by the current subagent API. Before routing, inspect
+the callable model identifiers exposed in the current runtime. If Terra is shown
+to the user but no Terra identifier is exposed to the agent launcher, report
+`TERRA: UNAVAILABLE_IN_RUNTIME` and use the Jev-selected available fallback; do
+not silently inherit Sol. Do not move the entire workflow elsewhere merely to
+satisfy a model preference unless the capability materially matters.
 
 ## Deterministic verification
 
@@ -115,7 +151,8 @@ After each implementation cycle:
 1. Inspect the actual diff.
 2. Run relevant deterministic checks.
 3. Gather concise evidence.
-4. Use Jev only for unresolved judgment.
+4. Use the initial Jev route; call Jev again only for unresolved completion or
+   escalation judgment.
 5. Choose CONTINUE, RETRY, VERIFY, ESCALATE, or COMPLETE.
 
 A deterministic failure normally means RETRY directly.
