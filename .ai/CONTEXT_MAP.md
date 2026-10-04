@@ -12,6 +12,8 @@ the whole tree unless repository-wide analysis is required.
 For EGA/6 realtime or homework transport work, start at `EGA/6/shared/v1/`
 and `docs/architecture/ega6-shared-runtime.md`; all ten realtime pages use
 the shared layer, and `dz1.html`–`dz3.html` share auth/result transport.
+New or migrated realtime pages should enter through `interactive-runtime.js`;
+`найди ошибку-1.html` and `найди ошибку-2.html` are the provider-neutral pilot.
 
 ## OGE interactives
 

@@ -1,4 +1,5 @@
-import { get, set, update, remove, push, runTransaction, onValue, ref, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js';
+import { get, set, update, remove, push, runTransaction, onValue, onChildAdded, onChildChanged,
+  onChildRemoved, ref, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js';
 
 // Путь всегда задаётся относительно одного занятия.
 export function createFirebaseTransport(realtime) {
@@ -12,7 +13,11 @@ export function createFirebaseTransport(realtime) {
     newKey: path => push(at(path)).key,
     transaction: (path, change, options) => runTransaction(at(path), change, options),
     subscribe: (path, callback, onError) => subscribeValue(path, callback, onError),
+    subscribeChildAdded: (path, callback, onError) => onChildAdded(at(path), callback, onError),
+    subscribeChildChanged: (path, callback, onError) => onChildChanged(at(path), callback, onError),
+    subscribeChildRemoved: (path, callback, onError) => onChildRemoved(at(path), callback, onError),
     subscribeConnection: callback => onValue(ref(realtime.database, '.info/connected'), callback),
+    timestamp: serverTimestamp,
     serverTimestamp
   };
 }

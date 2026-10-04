@@ -16,6 +16,18 @@
 очереди результатов. Содержание домашних работ, payload, draft/localStorage
 ключи, provisional login, retry и pagehide-семантика остаются постраничными.
 
+Публичная поверхность для новых и постепенно мигрируемых интерактивов состоит
+из трёх файлов:
+
+- `platform-data.js` — API/auth/identity/result queues; браузер не обращается
+  напрямую к будущей PostgreSQL.
+- `platform-realtime.js` — provider-neutral realtime contract с относительными
+  путями, транзакциями, подписками, presence, drawing, board и cursor.
+- `interactive-runtime.js` — единственная точка композиции для HTML-страницы.
+
+`найди ошибку-1.html` и `найди ошибку-2.html` — первый pair-пилот этого API:
+каждая страница имеет один shared-import и не вызывает Firebase SDK напрямую.
+
 ## Принятые решения и границы
 
 - `platform-api.js` — точка выбора серверного API. Сейчас она использует
@@ -25,6 +37,10 @@
 - `firebase-transport.js` — операции и подписки RTDB относительно текущего
   занятия. `session-runtime.js` и `realtime-session-adapter.js` управляют
   подписками и восстановлением присутствия после переподключения.
+- `platform-realtime.js` определяет контракт provider/transport. Текущий
+  `firebaseRealtimeProvider` реализует его через `firebase-transport.js`;
+  будущий `SignalRProvider` должен сохранить относительные операции, snapshot и
+  transaction contract, поэтому игровым страницам не требуется смена API.
 - `identity-store.js` сохраняет прежние ключи и поддерживает постраничные
   codecs. `realtime-auth.js` унифицирует безопасный JSONP lifecycle.
 - `realtime-result-queue.js` поддерживает как вложенную очередь
@@ -49,12 +65,12 @@
 
 ## Проверено
 
-2026-10-05: 15/15 модульных тестов; синтаксис 11 изменённых HTML-модулей и
-10 общих модулей; загрузка всех 10 realtime-страниц без `pageerror` в локальном
-browser harness. Для `dz1`–`dz3` проверены provisional login, постановка
-результата в очередь после контролируемого 503 и успешный retry. Production
+2026-10-05: общий rollout — 15/15 тестов и загрузка всех 10 realtime-страниц.
+Публичный фасад — 21/21 тест, две страницы HTTP 200 без `pageerror`; на локальном
+RTDB в двух Chromium contexts проверены teacher/student join, JSONP identity,
+presence, cursor, stroke, игровая транзакция и offline/reconnect. Production
 RTDB/GAS заблокированы в браузерных тестах.
 
 ## Связанная задача
 
-`.ai/tasks/shared-ega6-rollout.md`.
+`.ai/tasks/shared-ega6-rollout.md`, `.ai/tasks/ega6-public-runtime-facade.md`.
