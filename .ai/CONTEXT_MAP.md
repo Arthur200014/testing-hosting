@@ -9,6 +9,10 @@ Path: `EGA/`. Numbered subdirectories contain educational HTML interactives;
 `EGA/config/` also exists. Search a relevant number or page first. Do not scan
 the whole tree unless repository-wide analysis is required.
 
+For the EGA/6 realtime pilot, start at `EGA/6/shared/v1/` and
+`docs/architecture/ega6-shared-runtime.md`; currently only the two
+`что не так` pages use this shared layer.
+
 ## OGE interactives
 
 Path: `OGA/`. Numbered subdirectories contain educational HTML interactives.
