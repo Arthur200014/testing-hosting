@@ -230,8 +230,12 @@ only when meaningful state changes, using confirmed facts rather than speculativ
 reasoning. Reference paths and symbols instead of pasting large code blocks,
 logs, diffs, or conversations.
 
-Before ending substantial work, update the task file's Current state, Decisions,
-Relevant files, Completed, Next step, Verification, and Open questions / risks.
+Write `.ai/tasks/` task files in Russian so the user can read them. Keep exact
+paths, code symbols, commands, and machine-readable status values unchanged.
+Use the Russian headings in `.ai/tasks/_TEMPLATE.md` for new files.
+
+Before ending substantial work, update the task file's current state, decisions,
+relevant files, completed work, next step, verification, and open questions/risks.
 When finished, set Status to DONE, keep the file compact, and avoid an endless
 chronological diary. Summarize important lasting architectural decisions in the
 appropriate `docs/architecture/` file; keep task-specific implementation history

@@ -1,52 +1,51 @@
-# <Task name>
+# <Название задачи>
 
 Status: TODO | IN_PROGRESS | BLOCKED | DONE
 
-## Goal
+## Цель
 
-One concise description of the required outcome.
+Кратко опишите нужный результат.
 
-## Scope
+## Область работы
 
-What is included.
+Что входит в задачу.
 
-## Non-goals
+## Вне области работы
 
-What is intentionally excluded.
+Что намеренно не входит в задачу.
 
-## Current state
+## Текущее состояние
 
-Only confirmed facts required to continue.
+Только проверенные факты, нужные для продолжения работы.
 
-## Decisions
+## Принятые решения
 
-Accepted decisions that affect this task.
+Согласованные решения, влияющие на задачу.
 
-## Relevant files
+## Связанные файлы
 
-Only confirmed relevant paths; do not list files merely because they might be
-relevant.
+Только подтверждённо связанные пути; не перечисляйте файлы на всякий случай.
 
-## Completed
+## Выполнено
 
-Short list of completed milestones.
+Краткий список завершённых этапов.
 
-## Current step
+## Текущий шаг
 
-Exactly what is being worked on now.
+Над чем работают сейчас.
 
-## Next step
+## Следующий шаг
 
-One or a few concrete next actions.
+Одно или несколько конкретных следующих действий.
 
-## Verification
+## Проверка
 
-Checks already performed and their results, including browser checks when used.
+Уже выполненные проверки и результаты, в том числе браузерные.
 
-## Open questions / risks
+## Открытые вопросы и риски
 
-Only unresolved issues.
+Только нерешённые вопросы и реальные риски.
 
-## Last updated
+## Последнее обновление
 
-Date and short update note.
+Дата и короткая заметка об обновлении.
