@@ -200,3 +200,46 @@ Permanent rules:
   other work. Do not overwrite remote changes.
 
 After every task report BRANCH, COMMIT, PUSH_STATUS, and VERIFICATION.
+
+## Context Loading and Project Memory Policy
+
+For every new software-engineering task, do not recursively read or scan the
+entire repository by default. Load context in this order:
+
+1. Read `AGENTS.md` and `.ai/START_HERE.md`.
+2. Determine whether the request is a new task or a continuation.
+3. For a continuation, locate and read only the relevant `.ai/tasks/<task>.md`.
+4. Read `.ai/CONTEXT_MAP.md` to identify likely repository areas.
+5. Search for exact paths, symbols, functions, IDs, URLs, or usages.
+6. Open only the source files needed for the current step.
+7. Expand context only when evidence shows that another dependency matters.
+
+Prefer task memory → targeted search → relevant source files → minimal dependency
+expansion. Avoid whole-repository dumps and repeatedly rediscovering previous
+work. Do not inspect all `EGA/` or `OGA/` files unless repository-wide analysis is
+explicitly required. Do not read every `.ai/tasks/*.md`; select the relevant task
+file. Current source code on `main` remains the source of truth. If task memory
+conflicts with current code, follow the code and report the discrepancy.
+
+For a meaningful multi-step workstream, search `.ai/tasks/` for an existing
+relevant file. Continue it if present; otherwise create one using
+`.ai/tasks/_TEMPLATE.md`. Do not create a task file for a typo, one-line text
+replacement, or tiny CSS adjustment unless continuation context will help. Keep
+task files short, normally hundreds rather than thousands of words. Update them
+only when meaningful state changes, using confirmed facts rather than speculative
+reasoning. Reference paths and symbols instead of pasting large code blocks,
+logs, diffs, or conversations.
+
+Before ending substantial work, update the task file's Current state, Decisions,
+Relevant files, Completed, Next step, Verification, and Open questions / risks.
+When finished, set Status to DONE, keep the file compact, and avoid an endless
+chronological diary. Summarize important lasting architectural decisions in the
+appropriate `docs/architecture/` file; keep task-specific implementation history
+in `.ai/tasks/`.
+
+Before spawning subagents, load enough context to make narrow Task Packets. Give
+each worker only role-relevant context: the relevant task memory, exact known
+paths, specific search targets, and required evidence. A realtime researcher may
+get Firebase/session search targets; a drawing researcher gets drawing-specific
+targets. A Reviewer gets the original request, acceptance criteria, diff, and
+verification evidence. Do not send every worker the entire repository context.
