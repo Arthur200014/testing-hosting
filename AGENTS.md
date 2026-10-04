@@ -173,32 +173,30 @@ verification.
 
 ## Automatic Git completion policy
 
-After a software-engineering task is successfully completed:
+For every successfully completed software-engineering task:
 
-1. Run all required deterministic and behavioral verification first.
-2. If required verification passes, automatically stage the files that belong to
-   the task.
-3. Automatically create a meaningful Git commit.
-4. Automatically push the commit to the current working branch.
-5. Do not wait for an additional `commit` or `push` instruction from the user.
+1. Run all required deterministic checks.
+2. Run browser/behavior verification when applicable.
+3. Run independent review when required by task risk.
+4. Inspect the Git diff and confirm that it matches requested scope.
+5. Stage only files belonging to the task.
+6. Automatically create a meaningful commit.
+7. Automatically push directly to `main`.
+8. Do not wait for an additional commit or push instruction.
 
-Safety rules:
+Permanent rules:
 
-- NEVER push directly to `main` or `master`.
-- NEVER automatically merge into `main` or `master`.
+- `main` is the default working and push branch.
+- Do not create `codex/*` task branches unless the user explicitly asks.
+- Do not create a pull request unless the user explicitly asks.
+- Do not wait for approval before a normal successful push to `main`.
 - NEVER force-push.
 - NEVER rewrite Git history.
-- NEVER commit unrelated changes.
-- NEVER commit secrets, environment credentials, or API keys.
-- If verification fails, do not commit or push the broken implementation unless
-  the user explicitly asks to preserve that state.
-- If no suitable working branch exists, create a descriptive branch such as
-  `codex/<short-task-name>`.
-- Before push, inspect the Git diff and ensure it matches the requested scope.
-- After push report BRANCH, COMMIT, PUSH_STATUS, and VERIFICATION.
+- NEVER commit secrets.
+- NEVER commit unrelated modifications.
+- NEVER push an implementation whose required verification failed.
+- Inspect the actual diff before every commit.
+- If remote `main` moved, fetch or pull safely and integrate without discarding
+  other work. Do not overwrite remote changes.
 
-The user should not need to write `push`, `commit`, or `save to GitHub` after every
-normal successful coding task.
-
-Human approval is still required for merging into `main` or `master`, force pushes,
-destructive history changes, and releases or deployments with external effects.
+After every task report BRANCH, COMMIT, PUSH_STATUS, and VERIFICATION.
