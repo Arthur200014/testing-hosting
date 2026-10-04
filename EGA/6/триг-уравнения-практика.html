@@ -43,17 +43,17 @@ body.ink-eraser{cursor:cell}
 <div class="boardToolbar" id="boardToolbar"></div><div class="lessonModal" id="lessonModal"><div class="lessonCard" id="lessonCard"></div></div>
 <div class="answerFx" id="answerFx"><div class="fxCard"><strong id="fxTitle">ВЕРНО</strong><span id="fxSub"></span></div></div><div class="teacherCursor hidden" id="teacherCursor">➤</div>
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
-import { getDatabase, ref, get, set, update, remove, push, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js";
+import { get, set, update, remove, push, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js";
+import { createRealtimeLifecycle } from "./realtime-lifecycle.js";
 const firebaseConfig={apiKey:"AIzaSyBkY5utRlEfGIT_wEW6Dq7TSLr3RqBWJxo",authDomain:"ega-mathematica.firebaseapp.com",databaseURL:"https://ega-mathematica-default-rtdb.europe-west1.firebasedatabase.app",projectId:"ega-mathematica",storageBucket:"ega-mathematica.firebasestorage.app",messagingSenderId:"177632223541",appId:"1:177632223541:web:fbc532216359e34665ec7c",measurementId:"G-K9FZYGKPZS"};
-const firebaseApp=initializeApp(firebaseConfig),database=getDatabase(firebaseApp);
 const API_URL="https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
 const APP_ID='ege06-trig-circle-two-stage-current-v8-guide6-pattern',FIXED_SESSION_ID='currentSession',SCHEMA_VERSION=3,TOTAL=10;
+const realtime=createRealtimeLifecycle({config:firebaseConfig,namespace:'sharedInteractives',appId:APP_ID,sessionId:FIXED_SESSION_ID});
 const TEACHER_CODE_HASH='b0a83a3919eba1d2a99034f2d94e5a47590f1710595c04bd64b5c8f21456a7c6';
 const TEST_META={testId:'EGE-06-TRIG-CIRCLE-2STAGE-10',topicId:'task-06-trig',topicName:'Простейшие тригонометрические уравнения · 2 этапа',taskNumber:6,schemaVersion:1};
 const STUDENT_SAVE_KEY=`${APP_ID}:student`,CLIENT_ID_KEY=`${APP_ID}:client`,TOOLBAR_POSITION_KEY=`${APP_ID}:toolbar`,PENDING_RESULTS_KEY=`${APP_ID}:pendingTestResults`;
 const $=s=>document.querySelector(s),$$=(s,c=document)=>[...c.querySelectorAll(s)],clone=v=>v==null?v:JSON.parse(JSON.stringify(v)),PI=Math.PI;
-const lessonRoot=()=>`sharedInteractives/${APP_ID}/${FIXED_SESSION_ID}`,sessionRef=()=>ref(database,lessonRoot()),stateRef=()=>ref(database,`${lessonRoot()}/state`),gameRef=()=>ref(database,`${lessonRoot()}/state/game`),membersRef=()=>ref(database,`${lessonRoot()}/members`),memberRef=id=>ref(database,`${lessonRoot()}/members/${id}`),messagesRef=()=>ref(database,`${lessonRoot()}/messages`),teacherCursorRef=()=>ref(database,`${lessonRoot()}/messages/teacherCursor`),strokesRef=()=>ref(database,`${lessonRoot()}/strokes`),boardEpochRef=()=>ref(database,`${lessonRoot()}/state/boardEpoch`);
+const sessionRef=()=>realtime.ref(),stateRef=()=>realtime.ref('state'),gameRef=()=>realtime.ref('state/game'),membersRef=()=>realtime.ref('members'),memberRef=id=>realtime.ref(`members/${id}`),messagesRef=()=>realtime.ref('messages'),teacherCursorRef=()=>realtime.ref('messages/teacherCursor'),strokesRef=()=>realtime.ref('strokes'),boardEpochRef=()=>realtime.ref('state/boardEpoch');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uuid=()=>crypto?.randomUUID?.()||`id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
 const nowIso=ms=>new Date(ms??Date.now()).toISOString();
@@ -203,7 +203,7 @@ function refreshTeacherLobbyLive(){
 }
 function subscribeState(){
   stateUnsub?.();
-  stateUnsub=onValue(stateRef(),snap=>{
+  stateUnsub=realtime.subscribeValue('state',snap=>{
     if(!snap.exists()){serverState=null;updateSessionPanel();return}
     serverState=normalizeState(snap.val());
     renderFromState();
@@ -212,7 +212,7 @@ function subscribeState(){
 }
 function subscribeMembers(){
   membersUnsub?.();
-  membersUnsub=onValue(membersRef(),snap=>{
+  membersUnsub=realtime.subscribeValue('members',snap=>{
     updateSessionPanel();
     refreshTeacherLobbyLive();
   });
@@ -292,7 +292,7 @@ async function joinStudentLikeGuide6(st,{verify=false}={}){
   if(!snap.exists()){
     const status=$('#studentStatus');if(status)status.textContent='Учитель ещё не открыл занятие. Окно можно не трогать — подключимся автоматически.';
     waitingUnsub?.();
-    waitingUnsub=onValue(stateRef(),async ss=>{
+    waitingUnsub=realtime.subscribeValue('state',async ss=>{
       if(!ss.exists())return;
       waitingUnsub?.();waitingUnsub=null;
       try{await claimStudentLikeGuide6(st,ss.val(),verify)}catch(e){const x=$('#studentStatus');if(x)x.textContent=e.message||'Не удалось подключиться.'}
@@ -466,7 +466,7 @@ function showFinal(g){if($('#lessonModal').classList.contains('open')&&role==='t
 function readQueue(){try{return JSON.parse(localStorage.getItem(PENDING_RESULTS_KEY)||'[]')||[]}catch{return[]}}function writeQueue(q){localStorage.setItem(PENDING_RESULTS_KEY,JSON.stringify(q))}function queueResult(payload,pk){const q=readQueue();if(!q.some(x=>x?.payload?.eventId===payload.eventId))q.push({payload,playerKey:pk});writeQueue(q)}function removeQueued(id){writeQueue(readQueue().filter(x=>x?.payload?.eventId!==id))}
 async function postResult(payload){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);let response;try{response=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow',signal:controller.signal})}catch(err){if(err?.name==='AbortError')throw new Error('Сервер результатов не ответил в течение 60 секунд.');throw err}finally{clearTimeout(timer)}let ans;try{ans=await response.json()}catch{throw new Error('Система результатов не ответила.')}if(!response.ok||!ans?.ok)throw new Error(ans?.error||'Результат не принят.');return ans}
 function resultPayload(g,pk){const p=g.players[pk],st=g.progress[pk]||newProgress(),completed=Number(st.completed)||0,total=g.endedEarly?completed:TOTAL,correct=Number(st.firstTryCorrect)||0,scorePercent=total?Math.round(correct/total*100):0,finished=g.finishedAt||Date.now(),started=g.startedAt||finished;return{action:'submitTest',eventId:g.eventIds[pk]||`${g.sessionId}-${pk}`,studentId:p?.studentId||'',testId:TEST_META.testId,testDate:localDate(),topicId:TEST_META.topicId,topicName:TEST_META.topicName,taskNumber:TEST_META.taskNumber,correctCount:correct,totalCount:total,scorePercent,startedAt:nowIso(started),finishedAt:nowIso(finished),durationSeconds:Math.max(0,Math.round((Number(st.ownMs)||0)/1000)),serverSubmittedAt:nowIso(),schemaVersion:1,programId:'EGE_MATH'}}
-async function markSubmission(pk,status,message=''){try{await update(ref(database,`${lessonRoot()}/state/game/submissions/${pk}`),{status,message,updatedAt:Date.now()})}catch{}}
+async function markSubmission(pk,status,message=''){try{await update(realtime.ref(`state/game/submissions/${pk}`),{status,message,updatedAt:Date.now()})}catch{}}
 async function ensureSubmission(pk){if(!pk||submissionInFlight.has(pk)||!serverState||serverState.game.status!=='finished'||serverState.game.submissions?.[pk]?.status==='saved')return;submissionInFlight.add(pk);const payload=resultPayload(clone(serverState.game),pk);try{await markSubmission(pk,'sending','Отправляем…');const receipt=await postResult(payload);removeQueued(payload.eventId);await markSubmission(pk,'saved',receipt?.duplicate?'✓ уже сохранено':'✓ сохранено')}catch(err){queueResult(payload,pk);await markSubmission(pk,'queued',String(err?.message||'Ждёт отправки'))}finally{submissionInFlight.delete(pk)}}
 async function flushPendingResults(){if(!navigator.onLine)return;for(const item of readQueue()){try{await postResult(item.payload);removeQueued(item.payload.eventId)}catch{}}}
 let strokesCache={},strokesUnsub=null,cursorUnsub=null,lastTeacherCursor=null,lastCursorPush=0,boardTool='cursor',boardColor='#b0392b',boardWidth=5,boardPointerId=null,activeStroke=null,drawTimer=0,boardErasing=false,lastErasePoint=null,toolbarCollapsed=false,toolbarDrag=null,erasingStrokeIds=new Set();
@@ -479,10 +479,10 @@ function setBoardTool(tool){if(activeStroke||boardErasing)forceEndStroke();board
 function setBoardPointerMode(){const host=$('#boardHost'),b=$('#sharedBoard'),drawing=boardTool!=='cursor';document.body.classList.toggle('ink-active',drawing);document.body.classList.toggle('ink-eraser',boardTool==='eraser');if(host)host.style.pointerEvents=drawing?'auto':'none';if(b)b.style.pointerEvents=drawing?'auto':'none'}
 function boardPoint(e){const size=docSize();return[(e.clientX+scrollX)/size.w,(e.clientY+scrollY)/size.h]}
 function pointDistPx(a,b){const size=docSize();return Math.hypot((a[0]-b[0])*size.w,(a[1]-b[1])*size.h)}
-function saveStroke(stroke){if(!role||!stroke)return Promise.resolve();return set(ref(database,`${lessonRoot()}/strokes/${stroke.id}`),clone(stroke)).catch(()=>{})}
+function saveStroke(stroke){if(!role||!stroke)return Promise.resolve();return set(realtime.ref(`strokes/${stroke.id}`),clone(stroke)).catch(()=>{})}
 function startStrokeListeners(){
   strokesUnsub?.();strokesCache={};
-  strokesUnsub=onValue(strokesRef(),snap=>{strokesCache=snap.exists()?clone(snap.val()):{};renderStrokes()});
+  strokesUnsub=realtime.subscribeValue('strokes',snap=>{strokesCache=snap.exists()?clone(snap.val()):{};renderStrokes()});
   attachSharedBoard();
 }
 function renderStrokes(){const svg=$('#sharedBoard'),host=$('#boardHost');if(!svg||!host)return;const size=docSize(),epoch=Number(serverState?.boardEpoch)||0;const strokes=[];for(const [id,st] of Object.entries(strokesCache)){if(!st||Number(st.epoch||0)!==epoch||erasingStrokeIds.has(id)||id===activeStroke?.id||!Array.isArray(st.points)||st.points.length<2)continue;strokes.push(st)}if(activeStroke&&Number(activeStroke.epoch||0)===epoch&&activeStroke.points.length>=2)strokes.push(activeStroke);svg.innerHTML=strokes.map(st=>`<polyline points="${(st.points||[]).map(p=>`${Number(p[0])*size.w},${Number(p[1])*size.h}`).join(' ')}" fill="none" stroke="${esc(st.color||'#b0392b')}" stroke-width="${Math.max(1,Number(st.width)||5)}" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"></polyline>`).join('')}
@@ -497,7 +497,7 @@ async function clearSharedBoard(){if(role!=='teacher')return;const snap=await ge
 window.addEventListener('pointerup',e=>{if(boardPointerId===e.pointerId)boardPointerEnd(e)},true);window.addEventListener('pointercancel',e=>{if(boardPointerId===e.pointerId)boardPointerEnd(e)},true);window.addEventListener('blur',forceEndStroke);document.addEventListener('visibilitychange',()=>{if(document.hidden)forceEndStroke()});
 function startTeacherCursorSync(){
   cursorUnsub?.();
-  cursorUnsub=onValue(teacherCursorRef(),snap=>{
+  cursorUnsub=realtime.subscribeValue('messages/teacherCursor',snap=>{
     lastTeacherCursor=snap.val()||null;
     const el=$('#teacherCursor');if(!el)return;
     if(role!=='student'||!lastTeacherCursor){el.classList.add('hidden');return}
