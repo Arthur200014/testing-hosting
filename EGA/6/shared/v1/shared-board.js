@@ -1,7 +1,7 @@
 // Доска поверх всей страницы. Содержимое игры и выбор участников остаются у страницы.
-export function createSharedBoard({ transport, getRole, getState, setState, getAuthor, normalizeState, clone, toolbarPositionKey }) {
+export function createSharedBoard({ transport, getRole, getState, setState, getAuthor, normalizeState, clone, toolbarPositionKey,
+  strokePath = 'strokes', anchorId = 'content-v2', anchorSelector = 'main.app', manageToolbar = true }) {
   const $ = selector => document.querySelector(selector);
-  const anchorId = 'content-v2';
   let tool = 'cursor', color = '#e53935', width = 6, collapsed = false;
   let activeStroke = null, pointerId = null, erasing = false, lastErasePoint = null;
   let lastStrokePush = 0, strokes = {}, unsubscribe = null, toolbarDrag = null;
@@ -21,7 +21,7 @@ export function createSharedBoard({ transport, getRole, getState, setState, getA
   }
 
   function anchor() {
-    const list = [...document.querySelectorAll('main.app')];
+    const list = [...document.querySelectorAll(anchorSelector)];
     return list.find(el => {
       const rect = el.getBoundingClientRect(), style = getComputedStyle(el);
       return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 40 && rect.height > 40;
@@ -79,7 +79,8 @@ export function createSharedBoard({ transport, getRole, getState, setState, getA
     }
   }
 
-  function setPointerMode() {
+  function setPointerMode(nextTool) {
+    if (nextTool) tool = nextTool;
     const host = $('#boardHost'), svg = $('#sharedBoard'), drawing = !!getRole() && tool !== 'cursor';
     document.body.classList.toggle('ink-active', drawing);
     document.body.classList.toggle('ink-eraser', drawing && tool === 'eraser');
@@ -105,6 +106,7 @@ export function createSharedBoard({ transport, getRole, getState, setState, getA
   }
 
   function installToolbarDrag() {
+    if (!manageToolbar) return;
     const toolbar = $('#boardToolbar'), head = toolbar.querySelector('.board-head');
     if (!head) return;
     try {
@@ -131,6 +133,7 @@ export function createSharedBoard({ transport, getRole, getState, setState, getA
   }
 
   function renderToolbar() {
+    if (!manageToolbar) return;
     const toolbar = $('#boardToolbar');
     toolbar.classList.toggle('collapsed', collapsed);
     toolbar.innerHTML = `<div class="board-head"><span>✎ ИНСТРУМЕНТЫ ОБЩЕЙ ДОСКИ</span><button class="sys-mini" id="collapseBoard">${collapsed ? '＋' : '—'}</button></div><div class="board-tools"><button data-tool="cursor">↖ Курсор</button><button data-tool="pen">✎ Карандаш</button><button data-tool="eraser">⌫ Ластик</button><label class="board-setting"><span>Цвет</span><input type="color" id="boardColor" value="${color}"></label><label class="board-setting"><span>Толщина</span><input type="range" id="boardWidth" min="2" max="16" value="${width}"><b class="board-width-value" id="boardWidthValue">${width}</b></label><div class="board-hint">Рисование работает поверх всей страницы. «Курсор» возвращает обычные кнопки и прокрутку.</div>${getRole() === 'teacher' ? '<button class="board-clear" id="clearBoard">🗑 Очистить всю доску</button>' : ''}</div>`;
@@ -148,7 +151,7 @@ export function createSharedBoard({ transport, getRole, getState, setState, getA
   function start() {
     if (unsubscribe) return;
     strokes = {};
-    unsubscribe = transport.subscribe('strokes', snapshot => {
+    unsubscribe = transport.subscribe(strokePath, snapshot => {
       const incoming = snapshot.exists() ? clone(snapshot.val()) : {};
       if (activeStroke && incoming[activeStroke.id]) {
         const local = strokes[activeStroke.id];
@@ -166,11 +169,11 @@ export function createSharedBoard({ transport, getRole, getState, setState, getA
     $('#sharedBoard')?.setPointerCapture?.(event.pointerId);
     const point = eventPoint(event), epoch = Number(getState()?.boardEpoch) || 0;
     if (tool === 'eraser') { erasing = true; lastErasePoint = point; await eraseAt(point); return; }
-    const id = transport.newKey('strokes'), author = getAuthor();
+    const id = transport.newKey(strokePath), author = getAuthor();
     activeStroke = { id, anchorId, authorId: author.id, authorName: author.name,
       points: [point], color, width, done: false, epoch, rev: 1 };
     strokes[id] = clone(activeStroke); render();
-    await transport.set(`strokes/${id}`, clone(activeStroke)).catch(() => {});
+    await transport.set(`${strokePath}/${id}`, clone(activeStroke)).catch(() => {});
     lastStrokePush = performance.now();
   }
 
@@ -189,7 +192,7 @@ export function createSharedBoard({ transport, getRole, getState, setState, getA
     activeStroke.rev++; strokes[activeStroke.id] = clone(activeStroke); render();
     if (performance.now() - lastStrokePush >= 36) {
       lastStrokePush = performance.now();
-      transport.update(`strokes/${activeStroke.id}`, {
+      transport.update(`${strokePath}/${activeStroke.id}`, {
         points: points.slice(), rev: activeStroke.rev, done: false,
         epoch: activeStroke.epoch, anchorId: activeStroke.anchorId
       }).catch(() => {});
@@ -201,7 +204,7 @@ export function createSharedBoard({ transport, getRole, getState, setState, getA
     if (activeStroke) {
       const finalStroke = clone({ ...activeStroke, rev: activeStroke.rev + 1, done: true });
       strokes[finalStroke.id] = finalStroke; render();
-      await transport.set(`strokes/${finalStroke.id}`, finalStroke).catch(() => {});
+      await transport.set(`${strokePath}/${finalStroke.id}`, finalStroke).catch(() => {});
       activeStroke = null;
     }
     erasing = false; lastErasePoint = null; pointerId = null;
@@ -223,7 +226,7 @@ export function createSharedBoard({ transport, getRole, getState, setState, getA
     const backup = {}, patch = {};
     for (const id of victims) { backup[id] = strokes[id]; delete strokes[id]; patch[id] = null; }
     render();
-    try { await transport.update('strokes', patch); }
+    try { await transport.update(strokePath, patch); }
     catch { Object.assign(strokes, backup); render(); }
   }
   async function eraseSegment(a, b) {
@@ -245,7 +248,7 @@ export function createSharedBoard({ transport, getRole, getState, setState, getA
     if (result.committed) {
       setState(normalizeState(result.snapshot.val()));
       strokes = {}; render();
-      await transport.remove('strokes').catch(() => {});
+      await transport.remove(strokePath).catch(() => {});
     }
   }
 

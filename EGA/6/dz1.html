@@ -166,9 +166,10 @@
 
   <footer class="footer"><div class="container"><p>ЕГЭ №6 · Простейшие уравнения · оригинальная музыка создана средствами Web Audio API</p></div></footer>
 
-  <script>
+  <script type="module">
+  import { createHomeworkApi, createHomeworkIdentity, createHomeworkQueueAdapter, createHomeworkOutbox, submissionState, parseDz1Student } from './shared/v1/homework-transport.js';
   "use strict";
-  const API_URL="https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
+  const homeworkApi=createHomeworkApi({timeoutMs:60000,parseStudent:parseDz1Student});
   const HOMEWORK_META={"taskNumber":6,"topicId":"task-06","topicName":"Простейшие уравнения","assignmentId":"HW-EGE06-PART1-MONTHLY-GF20260725","partLabel":"Домашняя работа 1 из 3","title":"Дело I: Основы и корни","subtitle":"Линейные, рациональные, степенные и иррациональные уравнения. В конце — первые показательные прототипы.","schemaVersion":3};
   const TASK_SPECS=["linear","rationalNumber","rationalFraction","rationalBoth","powerOdd","powerOddNegative","equalSquares","quadraticSpecial","sqrtUp","sqrtDown","cubeRoot","sqrtEqualsX","exp01","exp02"];
 
@@ -486,6 +487,7 @@
   function safeStore(key,value){try{localStorage.setItem(key,value)}catch(_){}}
   function safeGet(key){try{return localStorage.getItem(key)}catch(_){return null}}
   function safeRemove(key){try{localStorage.removeItem(key)}catch(_){}}
+  const homeworkIdentity=createHomeworkIdentity({get:safeGet,set:safeStore,remove:safeRemove,dz1:true});
   function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
   function normalizeCode(v){return String(v||"").trim().toUpperCase()}
 
@@ -497,24 +499,8 @@
 
   function localLocked(s=student){return false}
 
-  async function postApi(payload,options={}){
-    const response=await fetch(API_URL,{
-      method:"POST",
-      headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body:JSON.stringify(payload),
-      redirect:"follow",
-      keepalive:Boolean(options.keepalive)
-    });
-    const text=await response.text();
-    let data;
-    try{data=JSON.parse(text)}catch(_){data={success:response.ok,message:text}}
-    if(!response.ok)throw new Error("network");
-    return data;
-  }
-
-  function responseBody(data){return data&&typeof data==="object"?(data.result&&typeof data.result==="object"?data.result:data):{}}
-  function saysSubmitted(data){const d=responseBody(data);return Boolean(d.submitted||d.exists||d.hasSubmission||d.alreadySubmitted||d.found||d.isSubmitted||d.status==="submitted"||d.canSubmit===false)}
-  function saysError(data){const d=responseBody(data);return data?.success===false||data?.ok===false||d.success===false||d.ok===false||Boolean(data?.error||d.error)}
+  const postApi=(payload,options={})=>homeworkApi.submitResult(payload,options);
+  const resultAcknowledged=data=>{const state=submissionState(data);return !state.error||state.submitted};
 
   function currentActiveSeconds(){
     if(!student)return Math.max(0,activeSecondsBase);
@@ -576,22 +562,14 @@
   }
 
   function readStudent(){
-    const id=safeGet("egeStudentId"),name=safeGet("egeStudentName"),code=normalizeCode(safeGet("egeStudentCode"));
-    if(!code)return null;
-    return{id:id||code,name:name||"Ученик",code,verified:Boolean(id&&id!==code&&name)};
+    return homeworkIdentity.read();
   }
 
   function storeStudent(s){
-    const code=normalizeCode(s.code);
-    if(!code)return;
-    safeStore("egeStudentCode",code);
-    if(s.id)safeStore("egeStudentId",String(s.id));
-    if(s.name)safeStore("egeStudentName",String(s.name));
+    homeworkIdentity.store(s);
   }
 
-  function clearStudent(){
-    safeRemove("egeStudentId");safeRemove("egeStudentName");safeRemove("egeStudentCode");
-  }
+  function clearStudent(){homeworkIdentity.clear()}
 
   function readPendingQueue(){
     try{
@@ -602,57 +580,24 @@
 
   function writePendingQueue(q){safeStore(PENDING_RESULTS_KEY,JSON.stringify(q||{}))}
 
-  function enqueueResult(payload){
-    const q=readPendingQueue();
-    q[payload.eventId]={payload,createdAt:Date.now(),lastAttemptAt:0};
-    writePendingQueue(q);
-  }
+  const homeworkQueue=createHomeworkQueueAdapter({read:readPendingQueue,write:writePendingQueue,shape:"object"});
+  const homeworkOutbox=createHomeworkOutbox({queue:homeworkQueue,api:homeworkApi,acknowledge:resultAcknowledged});
+  function enqueueResult(payload){homeworkQueue.enqueue(payload)}
 
   function updateQueuedIdentity(code,found){
-    const q=readPendingQueue();let changed=false;
-    Object.values(q).forEach(item=>{
-      if(normalizeCode(item?.payload?.studentCode)===normalizeCode(code)){
-        item.payload.studentId=String(found.id||code);
-        item.payload.studentName=String(found.name||"Ученик");
-        changed=true;
-      }
-    });
-    if(changed)writePendingQueue(q);
+    for(const {eventId,entry} of homeworkQueue.list()){
+      if(normalizeCode(entry?.payload?.studentCode)===normalizeCode(code))homeworkQueue.replacePayload(eventId,payload=>({...payload,studentId:String(found.id||code),studentName:String(found.name||"Ученик")}));
+    }
   }
 
   async function flushPendingResults(){
     if(flushingPending)return;
     flushingPending=true;
-    try{
-      const q=readPendingQueue();
-      for(const [eventId,item] of Object.entries(q)){
-        const payload=item?.payload;
-        if(!payload){delete q[eventId];continue}
-        item.lastAttemptAt=Date.now();writePendingQueue(q);
-        try{
-          const sent=await postApi(payload);
-          // Успех или явное "уже отправлено" — для очереди это конечное подтверждение.
-          if(!saysError(sent)||saysSubmitted(sent)){
-            delete q[eventId];
-            // Результат подтверждён сервером. Месячная блокировка больше не создаётся.
-          }
-        }catch(_){
-          // Ничего не показываем ученику: payload остаётся в очереди и будет отправлен позже.
-        }
-      }
-      writePendingQueue(q);
-    }finally{flushingPending=false}
+    try{await homeworkOutbox.flush({keepFailed:true})}finally{flushingPending=false}
   }
 
   function bestEffortBeacon(){
-    const q=readPendingQueue();
-    if(!navigator.sendBeacon)return;
-    Object.values(q).forEach(item=>{
-      try{
-        const blob=new Blob([JSON.stringify(item.payload)],{type:"text/plain;charset=utf-8"});
-        navigator.sendBeacon(API_URL,blob);
-      }catch(_){}
-    });
+    homeworkOutbox.sendOnExit("beacon");
   }
 
   async function checkAvailabilityBackground(){
@@ -662,30 +607,7 @@
     submitBtn.disabled=false;
   }
 
-  function validateStudentCode(rawCode){
-    const code=normalizeCode(rawCode);
-    return new Promise((resolve,reject)=>{
-      if(!code){reject(new Error("empty"));return}
-      const callback=`__egeStudent_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      const script=document.createElement("script");
-      let settled=false;
-      const cleanup=()=>{if(settled)return;settled=true;clearTimeout(timeout);try{delete window[callback]}catch(_){window[callback]=undefined}script.remove()};
-      const timeout=setTimeout(()=>{cleanup();reject(new Error("timeout"))},60000);
-      window[callback]=payload=>{
-        try{
-          const root=payload&&typeof payload==="object"?payload:{};
-          const data=root.student||root.result?.student||root.result||root;
-          if(root.success===false||root.valid===false||root.ok===false||data.success===false||data.valid===false||data.ok===false)throw new Error("invalid");
-          const id=data.studentId||data.id,name=data.studentName||data.name;
-          if(!id||!name)throw new Error("invalid");
-          cleanup();resolve({id:String(id),name:String(name),code,verified:true});
-        }catch(err){cleanup();reject(err)}
-      };
-      script.onerror=()=>{cleanup();reject(new Error("network"))};
-      script.src=`${API_URL}?action=validateStudent&code=${encodeURIComponent(code)}&callback=${encodeURIComponent(callback)}`;
-      document.head.appendChild(script);
-    });
-  }
+  const validateStudentCode=homeworkApi.validateStudentCode;
 
   async function validateStudentInBackground(code,cycle){
     let waitMs=15000;

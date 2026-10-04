@@ -70,5 +70,5 @@ export function createLegacyApiClient({ url, teacherCodeHash, timeoutMs = 60000 
     fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body, keepalive: true }).catch(() => {});
   }
 
-  return { verifyTeacher, validateStudentCode, submitResult, sendResultOnExit };
+  return { url, verifyTeacher, validateStudentCode, submitResult, sendResultOnExit };
 }

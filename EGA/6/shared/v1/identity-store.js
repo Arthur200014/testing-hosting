@@ -36,6 +36,38 @@ export function createStudentStore(key) {
   };
 }
 
+// Page-specific codecs preserve historical identity field names while sharing
+// localStorage access and the repository-wide legacy keys.
+export function createRealtimeIdentityAdapter({ key = null, decode = value => value,
+  encode = value => value, legacyProjection = value => value, extraLegacyKeys = [] } = {}) {
+  const read = () => {
+    let saved = null;
+    if (key) {
+      try { saved = JSON.parse(localStorage.getItem(key) || 'null'); } catch {}
+    }
+    const legacy = {
+      studentId: localStorage.getItem('egeStudentId') || '',
+      name: localStorage.getItem('egeStudentName') || '',
+      code: localStorage.getItem('egeStudentCode') || ''
+    };
+    return decode(saved, legacy);
+  };
+  const save = student => {
+    const raw = encode(student);
+    if (key) localStorage.setItem(key, JSON.stringify(raw));
+    for (const [storageKey, value] of Object.entries(legacyProjection(student) || {})) {
+      if (value == null || value === '') localStorage.removeItem(storageKey);
+      else localStorage.setItem(storageKey, String(value));
+    }
+    return student;
+  };
+  const clear = () => {
+    if (key) localStorage.removeItem(key);
+    for (const storageKey of ['egeStudentId', 'egeStudentName', 'egeStudentCode', ...extraLegacyKeys]) localStorage.removeItem(storageKey);
+  };
+  return { load: read, save, clear };
+}
+
 export function sameStudent(player, student) {
   if (!player || !student) return false;
   const playerId = String(player.studentId ?? ''), studentId = String(student.studentId ?? '');

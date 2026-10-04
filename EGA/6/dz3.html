@@ -176,9 +176,10 @@
 
   <footer class="footer"><div class="container"><p>ЕГЭ №6 · Простейшие уравнения · оригинальная музыка создана средствами Web Audio API</p></div></footer>
 
-  <script>
+  <script type="module">
+  import { createHomeworkApi, createHomeworkIdentity, createHomeworkQueueAdapter, createHomeworkOutbox, submissionState, parseDz23Student } from './shared/v1/homework-transport.js';
   "use strict";
-  const API_URL="https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
+  const homeworkApi=createHomeworkApi({timeoutMs:20000,parseStudent:parseDz23Student});
   const HOMEWORK_META={"taskNumber":6,"topicId":"task-06","topicName":"Простейшие уравнения","assignmentId":"HW-EGE06-PART3-MONTHLY-GF20260725","partLabel":"Домашняя работа 3 из 3","title":"Дело III: Шифр окружности","subtitle":"Логарифмические преобразования и семь простейших тригонометрических прототипов. Итоговый ответ — обычное число в формате бланка ЕГЭ."};
   const TASK_SPECS=["log03","log04","log05","log06","log07","log08","log09","log10","trig01","trig02","trig03","trig04","trig05","trig06","trig07"];
 
@@ -523,6 +524,7 @@
   function safeStore(key,value){try{localStorage.setItem(key,value)}catch(_){}}
   function safeGet(key){try{return localStorage.getItem(key)}catch(_){return null}}
   function safeRemove(key){try{localStorage.removeItem(key)}catch(_){}}
+  const homeworkIdentity=createHomeworkIdentity({get:safeGet,set:safeStore,remove:safeRemove});
   function normalizeCode(raw){return String(raw||"").trim().toUpperCase()}
   function draftKey(code=student?.code){return code?`homeworkDraft:${HOMEWORK_META.assignmentId}:${code}`:""}
   function queueKey(){return`pendingHomeworkResults:${HOMEWORK_META.assignmentId}`}
@@ -547,51 +549,23 @@
     return draft;
   }
 
-  async function postApi(payload){
-    const response=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload),redirect:"follow"});
-    const text=await response.text();
-    let data;
-    try{data=JSON.parse(text)}catch(_){data={success:response.ok,message:text}}
-    if(!response.ok)throw new Error("network");
-    return data;
-  }
-  function responseBody(data){return data&&typeof data==="object"?(data.result&&typeof data.result==="object"?data.result:data):{}}
-  function saysSubmitted(data){const d=responseBody(data);return Boolean(d.submitted||d.exists||d.hasSubmission||d.alreadySubmitted||d.found||d.isSubmitted||d.status==="submitted"||d.canSubmit===false)}
-  function saysError(data){const d=responseBody(data);return data?.success===false||data?.ok===false||d.success===false||d.ok===false||Boolean(data?.error||d.error)}
-
   function getQueue(){const q=readJson(queueKey(),[]);return Array.isArray(q)?q:[]}
   function setQueue(q){if(q.length)safeStore(queueKey(),JSON.stringify(q));else safeRemove(queueKey())}
-  function enqueueResult(payload){
-    const q=getQueue();
-    const i=q.findIndex(x=>x&&x.eventId===payload.eventId);
-    if(i>=0)q[i]=payload;else q.push(payload);
-    setQueue(q);
-  }
+  const homeworkQueue=createHomeworkQueueAdapter({read:getQueue,write:setQueue,shape:"array"});
+  const homeworkOutbox=createHomeworkOutbox({queue:homeworkQueue,api:homeworkApi,acknowledge:data=>{const state=submissionState(data);return !state.error||state.submitted}});
+  function enqueueResult(payload){homeworkQueue.enqueue(payload)}
   function upgradeQueuedStudentId(code,id){
     if(!code||!id||code===id)return;
-    const q=getQueue();let changed=false;
-    q.forEach(p=>{if(p&&p.studentId===code&&String(p.eventId||"").includes(HOMEWORK_META.assignmentId)){p.studentId=id;changed=true}});
-    if(changed)setQueue(q);
+    getQueue().forEach(p=>{if(p&&p.studentId===code&&String(p.eventId||"").includes(HOMEWORK_META.assignmentId))homeworkQueue.replacePayload(p.eventId,item=>({...item,studentId:id}))});
   }
   async function sendQueuedResults(){
     if(sendingQueue)return;
-    const original=getQueue();if(!original.length)return;
+    if(!getQueue().length)return;
     sendingQueue=true;
-    try{
-      const remaining=[];
-      for(const payload of original){
-        try{
-          const data=await postApi(payload);
-          if(saysError(data)&&!saysSubmitted(data))remaining.push(payload);
-        }catch(_){remaining.push(payload)}
-      }
-      setQueue(remaining);
-    }finally{sendingQueue=false}
+    try{await homeworkOutbox.flush({keepFailed:true})}finally{sendingQueue=false}
   }
   function flushQueueKeepalive(){
-    for(const payload of getQueue()){
-      try{fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload),keepalive:true,redirect:"follow"}).catch(()=>{})}catch(_){}
-    }
+    homeworkOutbox.sendOnExit("fetch");
   }
 
   async function checkAvailability(){
@@ -609,37 +583,14 @@
   function formatDuration(sec){const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return h?`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`:`${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`}
 
   function readStudent(){
-    const code=normalizeCode(safeGet("egeStudentCode"));if(!code)return null;
-    return{id:safeGet("egeStudentId")||code,name:safeGet("egeStudentName")||"Ученик",code};
+    return homeworkIdentity.read();
   }
   function storeStudent(s){
-    safeStore("egeStudentCode",s.code);safeStore("egeStudentId",s.id||s.code);safeStore("egeStudentName",s.name||"Ученик");
+    homeworkIdentity.store(s);
   }
-  function clearStudent(){safeRemove("egeStudentId");safeRemove("egeStudentName");safeRemove("egeStudentCode")}
+  function clearStudent(){homeworkIdentity.clear()}
 
-  function validateStudentCode(rawCode){
-    const code=normalizeCode(rawCode);
-    return new Promise((resolve,reject)=>{
-      if(!code){reject(new Error("empty"));return}
-      const callback=`__egeStudent_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      const script=document.createElement("script");
-      const cleanup=()=>{clearTimeout(timeout);try{delete window[callback]}catch(_){}script.remove()};
-      const timeout=setTimeout(()=>{cleanup();reject(new Error("timeout"))},20000);
-      window[callback]=payload=>{
-        try{
-          const root=payload&&typeof payload==="object"?payload:{};
-          const data=root.student||root.result?.student||root.result||root;
-          if(root.success===false||root.valid===false||root.ok===false||data.success===false||data.valid===false||data.ok===false)throw new Error("invalid");
-          const id=data.studentId||data.id,name=data.studentName||data.name;
-          if(!id||!name)throw new Error("invalid");
-          cleanup();resolve({id:String(id),name:String(name),code});
-        }catch(err){cleanup();reject(err)}
-      };
-      script.onerror=()=>{cleanup();reject(new Error("network"))};
-      script.src=`${API_URL}?action=validateStudent&code=${encodeURIComponent(code)}&callback=${encodeURIComponent(callback)}`;
-      document.head.appendChild(script);
-    });
-  }
+  const validateStudentCode=homeworkApi.validateStudentCode;
   async function validateInBackground(code){
     try{
       const found=await validateStudentCode(code);
