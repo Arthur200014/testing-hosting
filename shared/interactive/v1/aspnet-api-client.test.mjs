@@ -279,3 +279,77 @@ test('outbox retry after client recreation preserves eventId and completion inst
     else globalThis.localStorage = originalStorage;
   }
 });
+
+
+test('expired cached session is skipped by exit delivery and refreshed by normal submit', async () => {
+  let sessionCalls = 0;
+  const attemptHeaders = [];
+  const client = createAspNetApiClient({
+    baseUrl: 'https://api.example.test', workspace: 'room-a',
+    now: () => Date.parse('2026-10-06T00:00:00Z'),
+    fetchImpl: async (url, options) => {
+      if (url.endsWith('/student-sessions')) {
+        sessionCalls++;
+        return response({
+          accessToken: 'token-' + sessionCalls, tokenType: 'Bearer',
+          expiresAt: sessionCalls === 1 ? '2026-10-06T00:00:10Z' : '2030-01-02T03:04:05Z',
+          student: { id: 'student', displayName: 'Synthetic', programId: 'EGE_MATH', workspaceId: 'room-a' }
+        });
+      }
+      attemptHeaders.push(options.headers.Authorization);
+      const body = JSON.parse(options.body);
+      return response({
+        attemptId: 'attempt-refresh', eventId: body.eventId, duplicate: false,
+        createdAt: '2026-10-06T00:00:00Z',
+        monthlyBest: { attemptId: 'attempt-refresh', percent: body.percent,
+          durationSeconds: body.durationSeconds, completedAt: body.completedAt }
+      }, 201);
+    }
+  });
+  const payload = { action: 'submitTest', eventId: 'evt-refresh', studentCode: 'code',
+    testId: 'test', topicName: 'Topic', taskNumber: 6, correctCount: 1, totalCount: 1,
+    durationSeconds: 1, finishedAt: '2026-10-05T23:59:30Z', schemaVersion: 1 };
+
+  await client.validateStudentCode('code');
+  assert.equal(client.sendResultOnExit(payload), false);
+  await client.submitResult(payload);
+  assert.equal(sessionCalls, 2);
+  assert.deepEqual(attemptHeaders, ['Bearer token-2']);
+});
+
+test('401 attempt response clears bearer cache so the next retry exchanges a new session', async () => {
+  let sessionCalls = 0;
+  let attemptCalls = 0;
+  const client = createAspNetApiClient({
+    baseUrl: 'https://api.example.test', workspace: 'room-a',
+    now: () => Date.parse('2026-10-06T00:00:00Z'),
+    fetchImpl: async (url, options) => {
+      if (url.endsWith('/student-sessions')) {
+        sessionCalls++;
+        return response({
+          accessToken: 'token-' + sessionCalls, tokenType: 'Bearer', expiresAt: '2030-01-02T03:04:05Z',
+          student: { id: 'student', displayName: 'Synthetic', programId: 'EGE_MATH', workspaceId: 'room-a' }
+        });
+      }
+      attemptCalls++;
+      if (attemptCalls === 1) return response({}, 401);
+      const body = JSON.parse(options.body);
+      assert.equal(options.headers.Authorization, 'Bearer token-2');
+      return response({
+        attemptId: 'attempt-after-401', eventId: body.eventId, duplicate: false,
+        createdAt: '2026-10-06T00:00:00Z',
+        monthlyBest: { attemptId: 'attempt-after-401', percent: body.percent,
+          durationSeconds: body.durationSeconds, completedAt: body.completedAt }
+      }, 201);
+    }
+  });
+  const payload = { action: 'submitTest', eventId: 'evt-401-retry', studentCode: 'code',
+    testId: 'test', topicName: 'Topic', taskNumber: 6, correctCount: 1, totalCount: 1,
+    durationSeconds: 1, finishedAt: '2026-10-05T23:59:30Z', schemaVersion: 1 };
+
+  await assert.rejects(client.submitResult(payload),
+    error => error instanceof AspNetApiError && error.code === 'UNAUTHORIZED');
+  const receipt = await client.submitResult(payload);
+  assert.equal(receipt.saved, true);
+  assert.equal(sessionCalls, 2);
+});
