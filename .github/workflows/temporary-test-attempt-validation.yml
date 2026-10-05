@@ -24,19 +24,7 @@ jobs:
         run: |
           set -euo pipefail
           FILTER='FullyQualifiedName~ReplayPreservesHistoricalProgramAfterMembershipProgramReassignment|FullyQualifiedName~DatabaseRejectsMoscowMonthKeyThatDisagreesWithCompletionInstant'
-          docker compose --env-file .env.example --profile test run --rm --entrypoint sh tests -lc '
-            set -eu
-            filter="$1"
-            for project in               tests/Platform.Api.IntegrationTests/Platform.Api.IntegrationTests.csproj               /src/tests/Platform.Api.IntegrationTests/Platform.Api.IntegrationTests.csproj               /workspace/tests/Platform.Api.IntegrationTests/Platform.Api.IntegrationTests.csproj               /app/tests/Platform.Api.IntegrationTests/Platform.Api.IntegrationTests.csproj
-            do
-              if [ -f "$project" ]; then
-                dotnet test "$project" --no-restore --filter "$filter"
-                exit $?
-              fi
-            done
-            echo "Platform.Api.IntegrationTests.csproj not found in expected runner paths" >&2
-            exit 2
-          ' sh "$FILTER"
+          docker compose --env-file .env.example --profile test run --rm --entrypoint dotnet tests             vstest /tests/api/Platform.Api.IntegrationTests.dll --TestCaseFilter:"$FILTER"
 
       - name: Run full PostgreSQL test runner
         run: docker compose --env-file .env.example --profile test run --rm tests
