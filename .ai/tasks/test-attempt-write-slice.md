@@ -79,6 +79,22 @@ PostgreSQL write-срезом: аутентифицированно сохран
 - Проверены текущая JWT identity, persistence model и legacy payload/queue facts.
 - Выполнен обязательный Jev-routing через Polza/официальный TypeSafe SDK.
 
+## Чек-лист выполнения
+
+- [x] Зафиксировать границы write-среза и решения по identity/idempotency/monthly-best.
+- [ ] Добавить PostgreSQL-модель попытки, ограничения и EF migration.
+- [ ] Реализовать authenticated endpoint и атомарную идемпотентную запись.
+- [ ] Добавить integration tests для auth, tenant scope и validation.
+- [ ] Добавить integration tests для duplicate/conflict, concurrency, history и monthly-best.
+- [ ] Обновить архитектурную документацию и команды разработки.
+- [ ] Прогнать полный PostgreSQL integration suite и smoke test API.
+- [ ] Выполнить независимый review и устранить найденные дефекты.
+- [ ] Отметить задачу `DONE`, закоммитить и отправить итог в `main`.
+
+После каждого логически завершённого блока чек-лист обновляется в отдельном
+промежуточном коммите, чтобы работу можно было продолжить с последнего
+подтверждённого состояния.
+
 ## Текущий шаг
 
 Planning checkpoint перед реализацией схемы, сервиса и endpoint.
