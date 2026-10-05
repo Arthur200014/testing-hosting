@@ -17,13 +17,16 @@ async function moduleWithMocks(name, mocks) {
 test('data facade injects an API, centralizes auth/identity, and selects legacy queue shapes', async () => {
   const calls = [];
   const module = await moduleWithMocks('platform-data', {
-    './platform-api.js': `export const platformApi = { url: 'default' };`,
+    './platform-api.js': `export const platformApi = { url: 'default' }; export const createAspNetTestAttemptApi = options => ({ url: 'legacy', marker: 'aspnet', options });`,
     './realtime-auth.js': `export const createStudentJsonpTransport = options => ({ kind: 'auth', options });`,
     './identity-store.js': `export const createRealtimeIdentityAdapter = options => ({ kind: 'identity', options });`,
     './result-outbox.js': `export const createResultOutbox = options => ({ kind: 'outbox', options });`,
     './realtime-result-queue.js': `export const createRealtimeResultQueue = options => ({ kind: 'flat', options });
       export const createRealtimeNestedResultQueue = options => ({ kind: 'nested', options });`
   });
+  const aspNetProvider = module.createAspNetTestAttemptDataProvider({ baseUrl: 'https://api.invalid', workspace: 'room-a' });
+  assert.equal(aspNetProvider.api.marker, 'aspnet');
+  assert.equal(aspNetProvider.api.options.workspace, 'room-a');
   const fakeApi = {
     url: 'https://api.invalid', marker: 'api',
     submitResult(payload) { calls.push([this.marker, payload]); return payload; },

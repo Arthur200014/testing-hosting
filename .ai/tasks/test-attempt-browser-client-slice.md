@@ -73,12 +73,15 @@ default/fallback до отдельного этапа переключения p
 
 - Создан отдельный browser-client workstream после завершения backend write slice.
 - Зафиксированы production safety boundaries и запрет на cutover в этой задаче.
+- Подтверждены 4 фактических `submitTest` builder в `EGA/6` и legacy aliases.
+- Подтверждено, что очереди сохраняют исходный payload и дедуплицируют по `eventId`.
+- Спроектирован hybrid opt-in provider: legacy auth/URL остаются прежними, только test-attempt write идёт в ASP.NET; Bearer session лениво получается по student code и кэшируется в памяти отдельно для каждого кода.
 
 ## Чек-лист выполнения
 
-- [ ] Подтвердить фактические legacy payload aliases и retry/outbox semantics в shared runtime.
+- [x] Подтвердить фактические legacy payload aliases и retry/outbox semantics в shared runtime.
 - [ ] Подтвердить существующие JS tests/test runner и минимальный набор файлов для изменения.
-- [ ] Спроектировать единый compatibility mapper и session lifecycle без изменений отдельных страниц.
+- [x] Спроектировать единый compatibility mapper и session lifecycle без изменений отдельных страниц.
 - [ ] Добавить mapper legacy `submitTest` → `POST /api/v1/test-attempts`.
 - [ ] Добавить authenticated `submitResult` в `AspNetApiClient` с нормализованными ошибками.
 - [ ] Определить безопасное поведение `sendResultOnExit` с Bearer auth и keepalive без потери retry.
@@ -95,13 +98,12 @@ default/fallback до отдельного этапа переключения p
 
 ## Текущий шаг
 
-Research: shared result queues/outbox, реальные legacy payload aliases и текущий JS
-test runner.
+Реализация shared mapper/client и opt-in data provider.
 
 ## Следующий шаг
 
-Открыть только найденные shared transport/queue/test files, определить минимальный
-adapter contract и после этого перейти к реализации mapper/client.
+Прогнать существующие `node:test` suites, затем точечно дополнить payload builders,
+которым не хватает данных для строгого ASP.NET contract.
 
 ## Проверка
 
@@ -123,4 +125,5 @@ adapter contract и после этого перейти к реализации
 
 ## Последнее обновление
 
-2026-10-06 — задача создана; начат узкий research shared browser transport.
+2026-10-06 — research завершён; подготовлен shared mapper/session/provider слой,
+перед push выполнены локальные syntax checks и 5/5 prototype unit tests.

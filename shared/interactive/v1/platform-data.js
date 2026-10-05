@@ -1,22 +1,29 @@
-import { platformApi } from './platform-api.js';
+import { createAspNetTestAttemptApi, platformApi } from './platform-api.js';
 import { createStudentJsonpTransport } from './realtime-auth.js';
 import { createRealtimeIdentityAdapter } from './identity-store.js';
 import { createResultOutbox } from './result-outbox.js';
 import { createRealtimeResultQueue, createRealtimeNestedResultQueue } from './realtime-result-queue.js';
 
-// Browser data boundary. A later ASP.NET provider can replace these factories
-// without exposing its storage or transport details to an interactive page.
-export const browserDataProvider = {
-  api: platformApi,
-  createStudentAuth: options => createStudentJsonpTransport(options),
-  createIdentity: options => createRealtimeIdentityAdapter(options),
-  createResultQueue({ format = 'nested', ...options }) {
-    if (format === 'nested') return createRealtimeNestedResultQueue(options);
-    if (format === 'flat') return createRealtimeResultQueue(options);
-    if (format === 'outbox') return createResultOutbox(options);
-    throw new TypeError(`Unknown result queue format: ${format}`);
-  }
-};
+export function createBrowserDataProvider({ api = platformApi } = {}) {
+  if (!api) throw new TypeError('A data API is required');
+  return {
+    api,
+    createStudentAuth: options => createStudentJsonpTransport(options),
+    createIdentity: options => createRealtimeIdentityAdapter(options),
+    createResultQueue({ format = 'nested', ...options }) {
+      if (format === 'nested') return createRealtimeNestedResultQueue(options);
+      if (format === 'flat') return createRealtimeResultQueue(options);
+      if (format === 'outbox') return createResultOutbox(options);
+      throw new TypeError('Unknown result queue format: ' + format);
+    }
+  };
+}
+
+export const browserDataProvider = createBrowserDataProvider();
+
+export function createAspNetTestAttemptDataProvider(options = {}) {
+  return createBrowserDataProvider({ api: createAspNetTestAttemptApi(options) });
+}
 
 export function createPlatformData({ provider = browserDataProvider, api = provider.api,
   studentAuth = {}, identity = null, resultQueue = null } = {}) {

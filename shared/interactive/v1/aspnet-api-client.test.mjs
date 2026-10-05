@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createAspNetApiClient, AspNetApiError } from './aspnet-api-client.js';
-import { browserDataProvider } from './platform-data.js';
-import { platformApi } from './platform-api.js';
+import { createAspNetApiClient, AspNetApiError, mapLegacyTestAttempt } from './aspnet-api-client.js';
+import { browserDataProvider, createAspNetTestAttemptDataProvider } from './platform-data.js';
+import { createAspNetTestAttemptApi, platformApi } from './platform-api.js';
 
 const session = {
   accessToken: 'access-token-value', tokenType: 'Bearer', expiresAt: '2030-01-02T03:04:05Z',
@@ -75,4 +75,143 @@ test('validates configuration before creating a client', () => {
 test('the default data provider remains on the existing platform API', () => {
   assert.equal(browserDataProvider.api, platformApi);
   assert.equal(browserDataProvider.api.validateStudentCode, platformApi.validateStudentCode);
+});
+
+
+test('maps legacy test result aliases to the strict attempt contract without identity fields', () => {
+  const mapped = mapLegacyTestAttempt({
+    action: 'submitTest', eventId: 'evt-map-1', studentCode: 'SECRET', studentId: 'student-1',
+    studentName: 'Synthetic', programId: 'EGE_MATH', testId: 'test-1', topicName: 'Topic',
+    taskNumber: 6, correctCount: 2, totalCount: 3, scorePercent: 67,
+    startedAt: '2026-10-05T10:00:00Z', finishedAt: '2026-10-05T10:01:00Z',
+    completedAt: '2026-10-06T10:00:00Z', durationSeconds: 30, schemaVersion: 1
+  });
+  assert.deepEqual(mapped, {
+    eventId: 'evt-map-1', testId: 'test-1', topic: 'Topic', taskNumber: 6,
+    correct: 2, total: 3, percent: 66, startedAt: '2026-10-05T10:00:30.000Z',
+    completedAt: '2026-10-05T10:01:00.000Z', durationSeconds: 30, schemaVersion: '1'
+  });
+  assert.equal('studentCode' in mapped, false);
+  assert.equal('studentId' in mapped, false);
+  assert.equal('programId' in mapped, false);
+});
+
+test('lazy student-session exchange is cached per code and test writes carry the matching bearer', async () => {
+  const calls = [];
+  const sessionFor = code => ({
+    accessToken: 'token-' + code, tokenType: 'Bearer', expiresAt: '2030-01-02T03:04:05Z',
+    student: { id: 'student-' + code, displayName: 'Student ' + code, programId: 'EGE_MATH', workspaceId: 'room-a' }
+  });
+  const attemptFor = body => ({
+    attemptId: 'attempt-' + body.eventId, eventId: body.eventId, duplicate: false,
+    createdAt: '2026-10-06T00:00:00Z',
+    monthlyBest: { attemptId: 'attempt-' + body.eventId, percent: body.percent,
+      durationSeconds: body.durationSeconds, completedAt: body.completedAt }
+  });
+  const client = createAspNetApiClient({
+    baseUrl: 'https://api.example.test', workspace: 'room-a',
+    now: () => Date.parse('2026-10-06T00:00:00Z'),
+    fetchImpl: async (url, options) => {
+      calls.push([url, options]);
+      if (url.endsWith('/student-sessions')) {
+        const code = JSON.parse(options.body).code.toUpperCase();
+        return response(sessionFor(code));
+      }
+      return response(attemptFor(JSON.parse(options.body)), 201);
+    }
+  });
+  const payload = code => ({ action: 'submitTest', eventId: 'evt-' + code, studentCode: code,
+    testId: 'test', topicName: 'Topic', taskNumber: 6, correctCount: 8, totalCount: 10,
+    durationSeconds: 30, finishedAt: '2026-10-05T23:59:30Z', schemaVersion: 1 });
+  await client.submitResult(payload('a'));
+  await client.submitResult({ ...payload('a'), eventId: 'evt-a-2' });
+  await client.submitResult(payload('b'));
+
+  assert.equal(calls.filter(([url]) => url.endsWith('/student-sessions')).length, 2);
+  const posts = calls.filter(([url]) => url.endsWith('/test-attempts'));
+  assert.equal(posts.length, 3);
+  assert.equal(posts[0][1].headers.Authorization, 'Bearer token-A');
+  assert.equal(posts[1][1].headers.Authorization, 'Bearer token-A');
+  assert.equal(posts[2][1].headers.Authorization, 'Bearer token-B');
+});
+
+test('test attempt receipt is normalized for legacy callers and 409 is typed', async () => {
+  let conflict = false;
+  const client = createAspNetApiClient({
+    baseUrl: 'https://api.example.test', workspace: 'room-a',
+    getStudentCode: () => 'student-code',
+    now: () => Date.parse('2026-10-06T00:00:00Z'),
+    fetchImpl: async (url, options) => {
+      if (url.endsWith('/student-sessions')) return response({
+        accessToken: 'token', tokenType: 'Bearer', expiresAt: '2030-01-02T03:04:05Z',
+        student: { id: 'student', displayName: 'Synthetic', programId: 'EGE_MATH', workspaceId: 'room-a' }
+      });
+      if (conflict) return response({}, 409);
+      const body = JSON.parse(options.body);
+      return response({
+        attemptId: 'attempt-1', eventId: body.eventId, duplicate: true, createdAt: '2026-10-06T00:00:00Z',
+        monthlyBest: { attemptId: 'attempt-1', percent: body.percent,
+          durationSeconds: body.durationSeconds, completedAt: body.completedAt }
+      });
+    }
+  });
+  const payload = { action: 'submitTest', eventId: 'evt-receipt', testId: 'test', topicId: 'topic',
+    taskNumber: 6, score: 8, maxScore: 10, durationSec: 12,
+    finishedAt: '2026-10-05T23:59:30Z', schemaVersion: '1' };
+  const receipt = await client.submitResult(payload);
+  assert.equal(receipt.saved, true);
+  assert.equal(receipt.duplicate, true);
+  assert.equal(receipt.keptBest, true);
+  assert.equal(receipt.scorePercent, 80);
+  conflict = true;
+  await assert.rejects(client.submitResult({ ...payload, eventId: 'evt-conflict' }),
+    error => error instanceof AspNetApiError && error.code === 'CONFLICT');
+});
+
+test('exit delivery uses authenticated keepalive only after a live session exists', async () => {
+  const calls = [];
+  const client = createAspNetApiClient({
+    baseUrl: 'https://api.example.test', workspace: 'room-a',
+    now: () => Date.parse('2026-10-06T00:00:00Z'),
+    fetchImpl: async (url, options) => {
+      calls.push([url, options]);
+      if (url.endsWith('/student-sessions')) return response({
+        accessToken: 'exit-token', tokenType: 'Bearer', expiresAt: '2030-01-02T03:04:05Z',
+        student: { id: 'student', displayName: 'Synthetic', programId: 'EGE_MATH', workspaceId: 'room-a' }
+      });
+      return response({});
+    }
+  });
+  const payload = { action: 'submitTest', eventId: 'evt-exit', studentCode: 'exit-code',
+    testId: 'test', topicName: 'Topic', taskNumber: 6, correctCount: 1, totalCount: 1,
+    durationSeconds: 1, finishedAt: '2026-10-05T23:59:30Z', schemaVersion: 1 };
+  assert.equal(client.sendResultOnExit(payload), false);
+  await client.validateStudentCode('exit-code');
+  assert.equal(client.sendResultOnExit(payload), true);
+  await Promise.resolve();
+  const [, options] = calls.at(-1);
+  assert.equal(options.keepalive, true);
+  assert.equal(options.headers.Authorization, 'Bearer exit-token');
+});
+
+test('opt-in ASP.NET test-attempt API keeps legacy auth URL and default provider unchanged', async () => {
+  const legacy = {
+    url: 'https://legacy.example.test/exec',
+    verifyTeacher: async () => true,
+    validateStudentCode: async () => ({ legacy: true })
+  };
+  const api = createAspNetTestAttemptApi({
+    baseUrl: 'https://api.example.test', workspace: 'room-a', legacyApi: legacy,
+    fetchImpl: async () => response({}, 500)
+  });
+  assert.equal(api.url, legacy.url);
+  assert.equal(await api.verifyTeacher('x'), true);
+  assert.deepEqual(await api.validateStudentCode('x'), { legacy: true });
+  assert.equal(platformApi, browserDataProvider.api);
+  const provider = createAspNetTestAttemptDataProvider({
+    baseUrl: 'https://api.example.test', workspace: 'room-a', legacyApi: legacy,
+    fetchImpl: async () => response({}, 500)
+  });
+  assert.notEqual(provider.api, platformApi);
+  assert.equal(provider.api.url, legacy.url);
 });
