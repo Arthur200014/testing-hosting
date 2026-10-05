@@ -43,6 +43,45 @@ PostgreSQL is intentionally not published to the host or LAN. For local SQL diag
 
 Migrations are committed under `src/Platform.Api/Persistence/Migrations`. Compose runs them through the one-shot `migrate` service before starting the API. The application never auto-seeds data.
 
+## Test-attempt write API
+
+`POST /api/v1/test-attempts` accepts a student session as `Authorization: Bearer <token>`. The JWT supplies `sub` (student UUID), `workspace_id`, and `membership_id`; it does **not** carry `program_id`. The server rechecks that these IDs still identify an active membership, workspace, student, and program, then derives the program from that membership. Identity fields, student names, and program IDs are not accepted in the request body.
+
+Request JSON:
+
+```json
+{
+  "eventId": "synthetic-event-001",
+  "testId": "synthetic-test",
+  "topic": "synthetic topic",
+  "taskNumber": 1,
+  "correct": 2,
+  "total": 3,
+  "percent": 66,
+  "startedAt": "2026-01-15T10:00:00Z",
+  "completedAt": "2026-01-15T10:00:30Z",
+  "durationSeconds": 30,
+  "schemaVersion": "1"
+}
+```
+
+All fields are required. `eventId` and `testId` are at most 128 characters, `topic` 200, and `schemaVersion` 64. `taskNumber` is 1–1000, `correct` 0–10000, `total` 1–10000, `percent` 0–100, and `correct` cannot exceed `total`. Percent is the integer floor of `correct * 100 / total`. Timestamps must be present, completed must not precede started, elapsed time must be no more than one day, and completion may be no more than five minutes in the future. `durationSeconds` must be 0–86400 and equal the elapsed timestamp difference rounded to the nearest second (midpoints away from zero).
+
+The API responds `201 Created` for a new attempt, `200 OK` with `duplicate: true` for an equivalent replay of the same `(workspace, eventId)`, and `409 Conflict` if that key is reused with different attempt data. Invalid input returns `400`; missing, invalid, expired, or no-longer-valid student identity returns `401`; an authenticated caller without the student role is rejected by authorization with `403`.
+
+The response contains `attemptId`, `eventId`, `duplicate`, `createdAt`, and `monthlyBest` (`attemptId`, `percent`, `durationSeconds`, `completedAt`). Monthly grouping uses the completion timestamp's `Europe/Moscow` calendar month. Monthly best is scoped to workspace, current membership, test, and month, ordered by percent descending, duration ascending, completion timestamp ascending, then attempt UUID ascending.
+
+For a local smoke request, use only fabricated values like the JSON above and an authorized local student token. This foundation has no seed path, so the example cannot create a real student or use production data. With a locally obtained test token, save the JSON as `/tmp/test-attempt.json`, then run:
+
+```sh
+curl -i http://localhost:8080/api/v1/test-attempts \
+  -H "Authorization: Bearer $LOCAL_TEST_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data-binary @/tmp/test-attempt.json
+```
+
+Without a valid local student session, verify the safe rejection with the same synthetic payload and no bearer token; the result should be `401`. The endpoint and integration tests are implemented, but the browser provider and production traffic remain on the legacy path; this is not a production cutover. The API suite has 25 passing tests, including 18 `TestAttemptTests`; the combined API and importer runner has 38 passing tests (2026-10-06).
+
 ## Safe student-directory import
 
 The importer reads only the exact `Ученики` sheet from a local XLSX file. It does not call Google APIs. Keep the workbook and program map outside the repository; the Docker build context also excludes `*.xlsx` and `program-map*.json` inputs. The program map has this synthetic shape:

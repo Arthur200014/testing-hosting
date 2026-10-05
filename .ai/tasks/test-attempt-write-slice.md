@@ -86,8 +86,8 @@ PostgreSQL write-срезом: аутентифицированно сохран
 - [x] Реализовать authenticated endpoint и атомарную идемпотентную запись.
 - [x] Добавить integration tests для auth, tenant scope и validation.
 - [x] Добавить integration tests для duplicate/conflict, concurrency, history и monthly-best.
-- [ ] Обновить архитектурную документацию и команды разработки.
-- [ ] Прогнать полный PostgreSQL integration suite и smoke test API.
+- [x] Обновить архитектурную документацию и команды разработки.
+- [x] Прогнать полный PostgreSQL integration suite и smoke test API.
 - [ ] Выполнить независимый review и устранить найденные дефекты.
 - [ ] Отметить задачу `DONE`, закоммитить и отправить итог в `main`.
 
@@ -97,7 +97,7 @@ PostgreSQL write-срезом: аутентифицированно сохран
 
 ## Текущий шаг
 
-Обновление архитектурной документации и smoke test работающего API.
+Независимый review реализации, тестов и документации.
 
 ## Следующий шаг
 
@@ -115,6 +115,9 @@ PostgreSQL write-срезом: аутентифицированно сохран
 - EF migration `20261005215252_TestAttempts` применена к свежему PostgreSQL 17.
 - Полный real PostgreSQL test runner: 38/38 (`25 API + 13 importer`), включая
   18 новых сценариев `TestAttemptTests`.
+- Runtime smoke: `/health/live` = 200, `/health/ready` = 200, fake student
+  exchange = 401, `POST /api/v1/test-attempts` без Bearer token = 401; активная
+  migration — `20261005215252_TestAttempts`.
 
 ## Открытые вопросы и риски
 
@@ -127,5 +130,5 @@ PostgreSQL write-срезом: аутентифицированно сохран
 
 ## Последнее обновление
 
-2026-10-06 — схема, endpoint и 18 новых integration tests готовы; полный runner
-проходит 38/38. Следующий блок — документация, smoke test и review.
+2026-10-06 — схема, endpoint, 18 новых integration tests, документация и smoke
+test готовы; полный runner проходит 38/38. Следующий блок — независимый review.
