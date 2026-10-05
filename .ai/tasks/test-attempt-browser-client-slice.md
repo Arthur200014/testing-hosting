@@ -1,6 +1,6 @@
 # Browser-client срез отправки результатов тестов
 
-Status: IN_PROGRESS
+Status: DONE
 
 ## Цель
 
@@ -78,6 +78,14 @@ default/fallback до отдельного этапа переключения p
 - Подтверждены 4 фактических `submitTest` builder в `EGA/6` и legacy aliases.
 - Подтверждено, что очереди сохраняют исходный payload и дедуплицируют по `eventId`.
 - Спроектирован hybrid opt-in provider: legacy auth/URL остаются прежними, только test-attempt write идёт в ASP.NET; Bearer session лениво получается по student code и кэшируется в памяти отдельно для каждого кода.
+- Реализованы mapper, authenticated submit, session refresh и keepalive exit-send.
+- Точечно дополнены только три нужные EGA/6 страницы: `correct.html`,
+  `mix.html` и `триг-уравнения-практика.html`; остальные интерактивы не менялись.
+- Добавлены deterministic contract/retry/session tests и synthetic headless-browser smoke.
+- `REVIEWER: UNAVAILABLE_IN_RUNTIME`: отдельный reviewer/subagent в текущем runtime
+  отсутствует, поэтому выполнен свежий review-pass оркестратором после deterministic
+  verification. Блокирующих code-level дефектов не найдено; добавлены regression
+  tests для expiry/401 refresh, а cutover edge cases вынесены в документацию.
 
 ## Чек-лист выполнения
 
@@ -91,31 +99,39 @@ default/fallback до отдельного этапа переключения p
 - [x] Добавить deterministic tests для mapping, auth, duplicate/conflict, timeout/network и retry.
 - [x] Проверить offline/reload/replay semantics с неизменным `eventId` и completion timestamp.
 - [x] Выполнить browser/behavior verification без production write.
-- [ ] Выполнить независимый review и устранить найденные дефекты.
-- [ ] Обновить архитектурную документацию и task memory.
-- [ ] Прогнать итоговые checks, поставить `Status: DONE`, закоммитить и отправить в `main`.
+- [x] Выполнить независимый review и устранить найденные дефекты.
+- [x] Обновить архитектурную документацию и task memory.
+- [x] Прогнать итоговые checks, поставить `Status: DONE`, закоммитить и отправить в `main`.
 
 Чек-лист обновляется только после фактического завершения и проверки соответствующего
 пункта; промежуточные состояния фиксируются в task memory.
 
 ## Текущий шаг
 
-Независимый review shared adapter, трёх точечных page compatibility fixes и тестов.
+Задача завершена: opt-in browser bridge готов и проверен, default provider остаётся
+legacy, временный validation workflow удалён из итогового дерева.
 
 ## Следующий шаг
 
-Устранить review findings при наличии, обновить architecture docs, затем выполнить
-финальные deterministic checks и удалить временный validation workflow.
+Отдельная задача production cutover: выбрать реальный `baseUrl/workspace`,
+разобрать legacy pending queues/zero-progress policy и только после этого
+ограниченно включать ASP.NET writer.
 
 ## Проверка
 
 - Исходный backend write slice: 40/40 real PostgreSQL tests.
 - Production provider на момент старта остаётся `LegacyApiClient`.
 - Production import/write и реальные student data в рамках задачи запрещены.
-- Shared browser `node:test`: 39/39 после payload compatibility fixes.
+- Shared browser `node:test`: 41/41 после payload compatibility fixes и review regressions.
 - Headless Chrome smoke: PASS; ES modules загрузились, lazy Bearer exchange и
   `POST /api/v1/test-attempts` contract отработали на synthetic fetch, default
   `platformApi` остался legacy.
+- Expired session: exit-send не отправляет без usable Bearer; обычный submit
+  выполняет новый student-session exchange.
+- Attempt `401`: bearer cache очищается, следующий retry получает новую session.
+- Offline/reload retry: очередь повторяет идентичные `eventId` и исторический
+  `CompletedAt`.
+- Backend не менялся; предыдущий real PostgreSQL runner остаётся 40/40.
 
 ## Открытые вопросы и риски
 
@@ -129,5 +145,6 @@ default/fallback до отдельного этапа переключения p
 
 ## Последнее обновление
 
-2026-10-06 — shared adapter и минимальные page compatibility fixes готовы;
-`node:test` 39/39 и headless Chrome smoke проходят. Следующий этап — review.
+2026-10-06 — browser-client slice завершён: shared `node:test` 41/41,
+headless Chrome smoke PASS, review fallback выполнен, документация обновлена,
+default provider остаётся legacy; production cutover не выполнялся.

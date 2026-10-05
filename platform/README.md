@@ -110,6 +110,10 @@ created before these payload changes that may lack `studentCode`, and decide how
 to treat sessions ended with zero completed tasks because the new API requires
 `total >= 1`. Do not silently synthesize a scored attempt for zero progress.
 
+Browser verification for this opt-in bridge is 41/41 shared Node tests plus a
+synthetic headless Chrome smoke test. No production endpoint, student record, or
+production result write is used by those checks.
+
 ## Safe student-directory import
 
 The importer reads only the exact `Ученики` sheet from a local XLSX file. It does not call Google APIs. Keep the workbook and program map outside the repository; the Docker build context also excludes `*.xlsx` and `program-map*.json` inputs. The program map has this synthetic shape:

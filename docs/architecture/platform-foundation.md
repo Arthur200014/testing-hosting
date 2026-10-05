@@ -108,6 +108,10 @@ JSONP student validation, переключая только test-attempt writes.
 контракт требует `total >= 1`. Эти случаи нельзя маскировать под синтетическую
 успешную попытку.
 
+Проверка browser bridge: shared `node:test` — 41/41, synthetic headless Chrome
+smoke — PASS. В browser smoke подтверждены загрузка ES modules, lazy Bearer
+exchange, canonical test-attempt request и сохранение legacy provider как default.
+
 ## Срез записи попыток
 
 `POST /api/v1/test-attempts` требует Bearer JWT студента. JWT содержит `sub`,
