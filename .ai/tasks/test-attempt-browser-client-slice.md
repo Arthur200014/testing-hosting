@@ -36,15 +36,17 @@ default/fallback до отдельного этапа переключения p
 - Backend write slice завершён: `POST /api/v1/test-attempts`, PostgreSQL history,
   replay/conflict/concurrency/monthly-best и DB invariants проходят real PostgreSQL
   integration suite 40/40.
-- `shared/interactive/v1/aspnet-api-client.js` сейчас реализует только
-  `validateStudentCode()` и session normalization.
+- `shared/interactive/v1/aspnet-api-client.js` теперь содержит centralized legacy
+  mapper, lazy student-session exchange, in-memory session cache per student code,
+  authenticated `submitResult()` и Bearer `fetch(..., keepalive:true)` для exit-send.
 - `shared/interactive/v1/platform-api.js` по-прежнему создаёт
   `LegacyApiClient`; production traffic остаётся на Apps Script.
 - `createPlatformData()` уже делегирует `submitResult`, `sendResultOnExit` и
   result queues через provider/API boundary, поэтому предпочтителен shared adapter,
   а не изменения каждой страницы.
-- Точный legacy payload и retry semantics ещё нужно подтвердить по shared queues
-  и их тестам до выбора mapper contract.
+- Подтверждены 4 `submitTest` builder в `EGA/6`; shared queues сохраняют исходный
+  payload и повторяют тот же `eventId`, а mapper предпочитает исторический
+  `finishedAt` и не использует время фактической доставки как `CompletedAt`.
 - `JEV_ROUTE: FAILED`: TypeSafe/Jev runtime binding недоступен; используется
   последовательный deterministic fallback с независимым review.
 
@@ -80,15 +82,15 @@ default/fallback до отдельного этапа переключения p
 ## Чек-лист выполнения
 
 - [x] Подтвердить фактические legacy payload aliases и retry/outbox semantics в shared runtime.
-- [ ] Подтвердить существующие JS tests/test runner и минимальный набор файлов для изменения.
+- [x] Подтвердить существующие JS tests/test runner и минимальный набор файлов для изменения.
 - [x] Спроектировать единый compatibility mapper и session lifecycle без изменений отдельных страниц.
-- [ ] Добавить mapper legacy `submitTest` → `POST /api/v1/test-attempts`.
-- [ ] Добавить authenticated `submitResult` в `AspNetApiClient` с нормализованными ошибками.
-- [ ] Определить безопасное поведение `sendResultOnExit` с Bearer auth и keepalive без потери retry.
-- [ ] Подключить opt-in ASP.NET browser provider, оставив legacy default.
-- [ ] Добавить deterministic tests для mapping, auth, duplicate/conflict, timeout/network и retry.
-- [ ] Проверить offline/reload/replay semantics с неизменным `eventId` и completion timestamp.
-- [ ] Выполнить browser/behavior verification без production write.
+- [x] Добавить mapper legacy `submitTest` → `POST /api/v1/test-attempts`.
+- [x] Добавить authenticated `submitResult` в `AspNetApiClient` с нормализованными ошибками.
+- [x] Определить безопасное поведение `sendResultOnExit` с Bearer auth и keepalive без потери retry.
+- [x] Подключить opt-in ASP.NET browser provider, оставив legacy default.
+- [x] Добавить deterministic tests для mapping, auth, duplicate/conflict, timeout/network и retry.
+- [x] Проверить offline/reload/replay semantics с неизменным `eventId` и completion timestamp.
+- [x] Выполнить browser/behavior verification без production write.
 - [ ] Выполнить независимый review и устранить найденные дефекты.
 - [ ] Обновить архитектурную документацию и task memory.
 - [ ] Прогнать итоговые checks, поставить `Status: DONE`, закоммитить и отправить в `main`.
@@ -98,32 +100,34 @@ default/fallback до отдельного этапа переключения p
 
 ## Текущий шаг
 
-Реализация shared mapper/client и opt-in data provider.
+Независимый review shared adapter, трёх точечных page compatibility fixes и тестов.
 
 ## Следующий шаг
 
-Прогнать существующие `node:test` suites, затем точечно дополнить payload builders,
-которым не хватает данных для строгого ASP.NET contract.
+Устранить review findings при наличии, обновить architecture docs, затем выполнить
+финальные deterministic checks и удалить временный validation workflow.
 
 ## Проверка
 
 - Исходный backend write slice: 40/40 real PostgreSQL tests.
 - Production provider на момент старта остаётся `LegacyApiClient`.
 - Production import/write и реальные student data в рамках задачи запрещены.
+- Shared browser `node:test`: 39/39 после payload compatibility fixes.
+- Headless Chrome smoke: PASS; ES modules загрузились, lazy Bearer exchange и
+  `POST /api/v1/test-attempts` contract отработали на synthetic fetch, default
+  `platformApi` остался legacy.
 
 ## Открытые вопросы и риски
 
-- Нужно подтвердить, какие aliases реально присутствуют в shared/legacy payload:
-  `score`/`percent`, `correctCount`/`correct`,
-  `durationSec`/`durationSeconds` и timestamp variants.
-- `sendBeacon` не позволяет выставить Bearer Authorization header; нельзя
-  механически перенести legacy exit-send без решения по keepalive/outbox.
-- Нужно проверить, где и как browser session/JWT живёт во время повторной доставки,
-  особенно после reload/expiration.
-- Нельзя допустить, чтобы retry создавал новый `eventId` или заменял исторический
-  `CompletedAt` текущим временем доставки.
+- Default provider намеренно остаётся legacy; фактический production cutover и
+  настройка реального ASP.NET `baseUrl/workspace` — отдельная задача.
+- Bearer session хранится только в памяти. После reload outbox повторно обменивает
+  student code на новую короткоживущую session перед доставкой; токен в storage не
+  сохраняется.
+- Exit-send ASP.NET выполняется только при уже живой session; иначе payload остаётся
+  в outbox до обычного flush, что предотвращает unauthenticated beacon write.
 
 ## Последнее обновление
 
-2026-10-06 — research завершён; подготовлен shared mapper/session/provider слой,
-перед push выполнены локальные syntax checks и 5/5 prototype unit tests.
+2026-10-06 — shared adapter и минимальные page compatibility fixes готовы;
+`node:test` 39/39 и headless Chrome smoke проходят. Следующий этап — review.
