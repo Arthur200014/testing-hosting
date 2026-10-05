@@ -45,6 +45,10 @@ For a new shared realtime/data integration, reuse the public entry points in
   `docs/architecture/platform-foundation.md`, `.ai/tasks/platform-foundation.md`,
   `platform/`, and `compose.yaml`. The first student-session API and the optional
   browser adapter exist, but legacy Apps Script/Firebase remain active by default.
+- For the safe first migration slice of the `Ученики` sheet, start at
+  `docs/architecture/student-directory-import.md` and
+  `.ai/tasks/student-directory-import.md`. The local XLSX importer is not a
+  production API and does not migrate other sheets.
 
 ## Targeted search prompts
 

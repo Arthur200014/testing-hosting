@@ -1,6 +1,6 @@
 # Безопасный импорт справочника учеников в PostgreSQL
 
-Status: IN_PROGRESS
+Status: DONE
 
 ## Цель
 
@@ -86,19 +86,20 @@ Status: IN_PROGRESS
 - [x] Проверить дубли code/external ID, неизвестные программы и rollback.
 - [x] Проверить совпадение нормализации с student-session exchange.
 - [x] Собрать контейнеры и прогнать real PostgreSQL integration tests.
-- [ ] Выполнить browser smoke на одном интерактиве `EGA/6/` без внешних записей.
-- [ ] Выполнить независимый security/data-integrity review и исправления.
-- [ ] Обновить архитектурную документацию и cloud start instructions.
-- [ ] Проверить diff/secrets, commit и push завершённого этапа в `main`.
+- [x] Выполнить browser smoke на одном интерактиве `EGA/6/` без внешних записей.
+- [x] Выполнить независимый security/data-integrity review и исправления.
+- [x] Обновить архитектурную документацию и cloud start instructions.
+- [x] Проверить diff/secrets, commit и push завершённого этапа в `main`.
 
 ## Текущий шаг
 
-Implementation checkpoint завершён: CLI, parser, миграция, Docker/Compose и
-интеграционные тесты готовы и проверены на PostgreSQL 17.
+Этап завершён: importer, PostgreSQL-проверки, безопасный browser smoke,
+независимый review, исправление digest/content TOCTOU и документация готовы.
 
 ## Следующий шаг
 
-Browser smoke на `EGA/6/`, затем независимый review и финальная документация.
+Открыть отдельную задачу для следующего листа/серверного API по приоритету
+миграции; production import и переключение клиентов не выполнять автоматически.
 
 ## Проверка
 
@@ -111,6 +112,17 @@ Browser smoke на `EGA/6/`, затем независимый review и фин�
 - Проверены dry-run без записей, HMAC-only, повтор и конкурентный повтор,
   конфликты, rollback, сохранение отсутствующих в снимке записей и session
   exchange.
+- После исправления single-snapshot digest-инварианта повторно пройдены real
+  PostgreSQL 17 tests: 20/20; JavaScript regression tests: 30/30.
+- Browser smoke `EGA/6/найди ошибку-1.html`: desktop 1440×1000 и mobile
+  390×844, HTTP 200, runtime/стартовое лобби загружены, console/page/network
+  errors и внешние записи отсутствуют. Для Chromium использован изолированный
+  временный NSS trust store; проверка TLS не отключалась.
+- Независимый security/data-integrity review: APPROVED. Найденный риск между
+  отдельным hash/read устранён: digest и parser используют один bounded snapshot
+  (XLSX 32 MiB, program map 1 MiB), повторный review — APPROVED.
+- Cloud start instructions сохранены в configuration draft; для применения в
+  новых средах требуется review/save и публикация environment configuration.
 
 ## Открытые вопросы и риски
 
@@ -123,6 +135,6 @@ Browser smoke на `EGA/6/`, затем независимый review и фин�
 
 ## Последнее обновление
 
-2026-10-05 — implementation checkpoint готов: безопасный student-directory
-importer и 20/20 PostgreSQL integration tests. Browser smoke и независимый
-review оставлены следующим отдельным этапом.
+2026-10-05 — первый student-directory import slice полностью проверен и закрыт:
+20/20 PostgreSQL tests, 30/30 JavaScript tests, browser smoke и независимый
+review пройдены; найденный TOCTOU риск исправлен; документация обновлена.

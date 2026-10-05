@@ -6,21 +6,17 @@ namespace TestingHosting.Platform.StudentImport;
 
 public sealed class ProgramMapParser
 {
+    private const int MaximumProgramMapBytes = 1024 * 1024;
+
     public ParsedProgramMap Parse(string path)
     {
-        string digest;
-        byte[] bytes;
-        using (var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read))
-        {
-            digest = Convert.ToHexString(SHA256.HashData(stream));
-        }
-
-        bytes = File.ReadAllBytes(path);
+        var snapshot = ReadSnapshot(path, MaximumProgramMapBytes);
+        var digest = Convert.ToHexString(SHA256.HashData(snapshot));
         var diagnostics = new List<ImportDiagnostic>();
         ProgramMapDocument? document;
         try
         {
-            document = JsonSerializer.Deserialize<ProgramMapDocument>(bytes, new JsonSerializerOptions
+            document = JsonSerializer.Deserialize<ProgramMapDocument>(snapshot, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = false,
                 UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
@@ -69,6 +65,34 @@ public sealed class ProgramMapParser
         }
 
         return new ParsedProgramMap(digest, entries, diagnostics);
+    }
+
+    private static byte[] ReadSnapshot(string path, int maximumBytes)
+    {
+        using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        if (stream.Length > maximumBytes)
+        {
+            throw new InvalidDataException("Program map exceeds the maximum supported size.");
+        }
+
+        using var snapshot = new MemoryStream((int)stream.Length);
+        var buffer = new byte[81920];
+        while (true)
+        {
+            var remainingBytes = maximumBytes - (int)snapshot.Length;
+            var bytesRead = stream.Read(buffer, 0, Math.Min(buffer.Length, remainingBytes + 1));
+            if (bytesRead == 0)
+            {
+                return snapshot.ToArray();
+            }
+
+            if (bytesRead > remainingBytes)
+            {
+                throw new InvalidDataException("Program map exceeds the maximum supported size.");
+            }
+
+            snapshot.Write(buffer, 0, bytesRead);
+        }
     }
 
     private static string NormalizeProgramCode(string? value) =>

@@ -7,6 +7,8 @@ namespace TestingHosting.Platform.StudentImport;
 
 public sealed class StudentWorkbookParser(IStudentCodeHasher codeHasher)
 {
+    private const int MaximumWorkbookBytes = 32 * 1024 * 1024;
+
     public const string SheetName = "Ученики";
 
     public static readonly string[] RequiredHeaders =
@@ -17,18 +19,16 @@ public sealed class StudentWorkbookParser(IStudentCodeHasher codeHasher)
 
     public ParsedStudentWorkbook Parse(string path)
     {
-        string digest;
-        using (var digestStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read))
-        {
-            digest = Convert.ToHexString(SHA256.HashData(digestStream));
-        }
+        var snapshot = ReadSnapshot(path, MaximumWorkbookBytes, "Workbook exceeds the maximum supported size.");
+        var digest = Convert.ToHexString(SHA256.HashData(snapshot));
 
         var diagnostics = new List<ImportDiagnostic>();
         var rows = new List<StudentImportRow>();
 
         try
         {
-            using var workbook = new XLWorkbook(path);
+            using var snapshotStream = new MemoryStream(snapshot, writable: false);
+            using var workbook = new XLWorkbook(snapshotStream);
             if (!workbook.TryGetWorksheet(SheetName, out var worksheet))
             {
                 diagnostics.Add(new ImportDiagnostic(0, "sheet", "missing_required_sheet"));
@@ -101,6 +101,34 @@ public sealed class StudentWorkbookParser(IStudentCodeHasher codeHasher)
 
         AddDuplicateDiagnostics(rows, diagnostics);
         return new ParsedStudentWorkbook(digest, rows.Count + diagnostics.Select(x => x.RowNumber).Where(x => x > 0).Distinct().Count(x => rows.All(row => row.RowNumber != x)), rows, diagnostics);
+    }
+
+    private static byte[] ReadSnapshot(string path, int maximumBytes, string oversizedMessage)
+    {
+        using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        if (stream.Length > maximumBytes)
+        {
+            throw new InvalidDataException(oversizedMessage);
+        }
+
+        using var snapshot = new MemoryStream((int)stream.Length);
+        var buffer = new byte[81920];
+        while (true)
+        {
+            var remainingBytes = maximumBytes - (int)snapshot.Length;
+            var bytesRead = stream.Read(buffer, 0, Math.Min(buffer.Length, remainingBytes + 1));
+            if (bytesRead == 0)
+            {
+                return snapshot.ToArray();
+            }
+
+            if (bytesRead > remainingBytes)
+            {
+                throw new InvalidDataException(oversizedMessage);
+            }
+
+            snapshot.Write(buffer, 0, bytesRead);
+        }
     }
 
     public static string NormalizeExternalId(string? value) =>
