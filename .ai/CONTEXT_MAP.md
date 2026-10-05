@@ -9,16 +9,22 @@ Path: `EGA/`. Numbered subdirectories contain educational HTML interactives;
 `EGA/config/` also exists. Search a relevant number or page first. Do not scan
 the whole tree unless repository-wide analysis is required.
 
-For EGA/6 realtime or homework transport work, start at `EGA/6/shared/v1/`
-and `docs/architecture/ega6-shared-runtime.md`; all ten realtime pages use
-the shared layer, and `dz1.html`–`dz3.html` share auth/result transport.
-New or migrated realtime pages should enter through `interactive-runtime.js`;
+For shared realtime, identity, result transport, or homework transport work,
+start at `shared/interactive/v1/` and
+`docs/architecture/ega6-shared-runtime.md`. Files under `EGA/6/shared/v1/`
+and `EGA/6/realtime-lifecycle.js` are compatibility re-exports, not a second
+implementation. All ten EGA/6 realtime pages use this layer, and
+`dz1.html`–`dz3.html` share auth/result transport. New or migrated pages in
+EGA or OGA should enter through the top-level `interactive-runtime.js`;
 `найди ошибку-1.html` and `найди ошибку-2.html` are the provider-neutral pilot.
 
 ## OGE interactives
 
 Path: `OGA/`. Numbered subdirectories contain educational HTML interactives.
 Search a relevant number or page first.
+
+For a new shared realtime/data integration, reuse the public entry points in
+`shared/interactive/v1/` rather than copying modules into `OGA/`.
 
 ## Codex configuration
 

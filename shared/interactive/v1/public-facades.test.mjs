@@ -7,7 +7,9 @@ const dataUrl = source => `data:text/javascript;base64,${Buffer.from(source).toS
 async function moduleWithMocks(name, mocks) {
   let source = await readFile(new URL(`./${name}.js`, import.meta.url), 'utf8');
   for (const [specifier, mockSource] of Object.entries(mocks)) {
-    source = source.replaceAll(`'${specifier}'`, `'${dataUrl(mockSource)}'`);
+    source = source
+      .replaceAll(`'${specifier}'`, `'${dataUrl(mockSource)}'`)
+      .replaceAll(`"${specifier}"`, `"${dataUrl(mockSource)}"`);
   }
   return import(dataUrl(source));
 }
@@ -45,7 +47,7 @@ test('data facade injects an API, centralizes auth/identity, and selects legacy 
 
 test('realtime facade composes an injected provider and disposes tracked resources once', async () => {
   const emptyMocks = {
-    '../../realtime-lifecycle.js': `export const createRealtimeLifecycle = () => ({});`,
+    './realtime-lifecycle.js': `export const createRealtimeLifecycle = () => ({});`,
     './firebase-transport.js': `export const createFirebaseTransport = () => ({});`,
     './realtime-session-adapter.js': `export const createRealtimeSessionAdapter = () => ({});`,
     './drawing-transport.js': `export const createDrawingTransport = () => ({});`,
@@ -138,6 +140,40 @@ test('Firebase transport maps every relative operation and child subscription wi
   }
 });
 
+test('realtime lifecycle supports the shared emulator hook and preserves the EGA/6 fallback', async () => {
+  const calls = [];
+  globalThis.__realtimeLifecycleCalls = calls;
+  const { createRealtimeLifecycle } = await moduleWithMocks('realtime-lifecycle', {
+    'https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js': `
+      export const initializeApp = config => ({ config });`,
+    'https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js': `
+      const calls = globalThis.__realtimeLifecycleCalls;
+      export const getDatabase = app => ({ app });
+      export const ref = (database, path) => ({ database, path });
+      export const onValue = () => () => {};
+      export const onDisconnect = () => ({ update: async () => {}, cancel: async () => {} });
+      export const set = async () => {};
+      export const update = async () => {};
+      export const serverTimestamp = () => ({ '.sv': 'timestamp' });
+      export const connectDatabaseEmulator = (database, host, port) => calls.push([database, host, port]);`
+  });
+
+  try {
+    globalThis.__INTERACTIVE_RTDB_EMULATOR__ = { host: 'shared-host', port: 9100 };
+    globalThis.__EGA6_RTDB_EMULATOR__ = { host: 'legacy-host', port: 9200 };
+    createRealtimeLifecycle({ config: {}, namespace: 'n', appId: 'a', sessionId: 's' });
+    assert.deepEqual(calls.at(-1).slice(1), ['shared-host', 9100]);
+
+    delete globalThis.__INTERACTIVE_RTDB_EMULATOR__;
+    createRealtimeLifecycle({ config: {}, namespace: 'n', appId: 'a', sessionId: 's' });
+    assert.deepEqual(calls.at(-1).slice(1), ['legacy-host', 9200]);
+  } finally {
+    delete globalThis.__INTERACTIVE_RTDB_EMULATOR__;
+    delete globalThis.__EGA6_RTDB_EMULATOR__;
+    delete globalThis.__realtimeLifecycleCalls;
+  }
+});
+
 test('default Firebase provider composes lifecycle, transport, session, presence, and child operations', async () => {
   const calls = [], noop = () => {};
   const methods = Object.fromEntries(['get', 'set', 'update', 'remove', 'newKey', 'transaction', 'subscribe',
@@ -152,7 +188,7 @@ test('default Firebase provider composes lifecycle, transport, session, presence
   globalThis.__defaultRealtimeMocks = { calls, lifecycle, transport, session };
   try {
     const { createPlatformRealtime } = await moduleWithMocks('platform-realtime', {
-      '../../realtime-lifecycle.js': `export const createRealtimeLifecycle = options =>
+      './realtime-lifecycle.js': `export const createRealtimeLifecycle = options =>
         (globalThis.__defaultRealtimeMocks.calls.push(['lifecycle', options]), globalThis.__defaultRealtimeMocks.lifecycle);`,
       './firebase-transport.js': `export const createFirebaseTransport = lifecycle =>
         (globalThis.__defaultRealtimeMocks.calls.push(['transport', lifecycle]), globalThis.__defaultRealtimeMocks.transport);`,
@@ -183,7 +219,7 @@ test('default Firebase provider composes lifecycle, transport, session, presence
 
 test('realtime facade reports incomplete provider contracts clearly', async () => {
   const mocks = {
-    '../../realtime-lifecycle.js': `export const createRealtimeLifecycle = () => ({});`,
+    './realtime-lifecycle.js': `export const createRealtimeLifecycle = () => ({});`,
     './firebase-transport.js': `export const createFirebaseTransport = () => ({});`,
     './realtime-session-adapter.js': `export const createRealtimeSessionAdapter = () => ({});`,
     './drawing-transport.js': `export const createDrawingTransport = () => ({});`,
