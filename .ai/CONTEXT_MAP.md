@@ -36,6 +36,11 @@ For a new shared realtime/data integration, reuse the public entry points in
 
 - `.ai/tasks/`: short, task-specific continuation notes.
 - `docs/architecture/`: stable, verified architectural decisions.
+- For migration from Google Apps Script/Sheets to ASP.NET Core/PostgreSQL,
+  start at `docs/architecture/gas-postgres-migration-audit.md` and
+  `.ai/tasks/gas-postgres-audit.md`; these record the audited API actions,
+  sheet headers, auth risks, business rules, and safe migration order without
+  containing row values or credentials.
 
 ## Targeted search prompts
 
