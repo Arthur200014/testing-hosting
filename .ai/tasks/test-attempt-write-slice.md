@@ -1,0 +1,111 @@
+# Первый write-срез результатов тестов
+
+Status: IN_PROGRESS
+
+## Цель
+
+Заменить серверную часть legacy `submitTest` первым изолированным ASP.NET Core /
+PostgreSQL write-срезом: аутентифицированно сохранять полную историю попыток,
+безопасно обрабатывать повторную отправку по `eventId` и вычислять лучший
+результат ученика за календарный месяц. Существующие страницы и provider пока
+не переключать.
+
+## Область работы
+
+- Новый `POST /api/v1/test-attempts` под существующим student Bearer JWT.
+- Сущность попытки, ограничения PostgreSQL и EF migration.
+- Сервис атомарной записи и вычисляемого monthly-best.
+- Строгий request/response contract без student code/name/id в body.
+- Real PostgreSQL integration tests для auth, tenant scope, validation,
+  идемпотентности, конкуренции, полной истории и monthly-best.
+- Docker build/test wiring, архитектурная документация и cloud start instructions.
+
+## Вне области работы
+
+- Изменение HTML/CSS/JS, UI, Firebase или Google Apps Script.
+- Переключение `LegacyApiClient`/`AspNetApiClient` и production traffic.
+- Production import старых результатов из Google Sheets.
+- Teacher/admin API, ДЗ, пробники, занятия, абонементы и отчёты.
+- Отдельное хранение «лучшей строки» с уничтожением или обновлением истории.
+
+## Текущее состояние
+
+- `main` синхронизирован с `origin/main`; стартовый commit `8c4a280`.
+- Student session exchange уже выдаёт короткоживущий JWT с `sub`,
+  `workspace_id`, `membership_id`, `program_id` и `role=student`.
+- Справочник учеников и безопасный локальный import slice завершены.
+- Аудит подтвердил legacy `submitTest`, повторную отправку очередями, дедупликацию
+  по `eventId` и правило monthly-best: выше процент, при равенстве меньше время.
+
+## Принятые решения
+
+- Identity (`WorkspaceId`, `StudentId`, membership и program) берётся только из
+  проверенного JWT и актуального membership в БД. Body не принимает student
+  code, имя или ID и не может подменить tenant.
+- Request содержит только данные попытки: `eventId`, test/topic metadata,
+  task number, correct/total, percent, timestamps, duration и schema version.
+- Сервер повторно вычисляет ожидаемый целочисленный процент и отклоняет
+  несогласованные значения; PostgreSQL дублирует критические диапазоны check
+  constraints.
+- Уникальность `(WorkspaceId, EventId)` делает повтор безопасным. Полностью
+  совпавший повтор возвращает прежний receipt с `duplicate=true`; тот же
+  `eventId` с другим содержимым — `409 Conflict`.
+- Каждая новая попытка остаётся immutable. Monthly-best — запрос по
+  student membership + test + московскому календарному месяцу: процент по
+  убыванию, duration по возрастанию, затем стабильный timestamp/ID tie-break.
+- Завершение в будущем, окончание раньше начала, нулевые/отрицательные totals,
+  correct вне диапазона, отрицательное/чрезмерное время и слишком длинные IDs
+  отклоняются до записи.
+- Inactive workspace/student/membership/program после выдачи token запрещают
+  запись, даже если JWT ещё не истёк.
+- Frontend compatibility mapper будет отдельным этапом после готовности API.
+- Jev route: `HIGH`, последовательная работа; implementer и reviewer —
+  `gpt-5.6-sol high`; browser test не требуется без frontend-изменений.
+  `TERRA: UNAVAILABLE_IN_RUNTIME`.
+
+## Связанные файлы
+
+- `platform/src/Platform.Api/Program.cs`
+- `platform/src/Platform.Api/Persistence/`
+- `platform/src/Platform.Api/StudentSessions/`
+- `platform/tests/Platform.Api.IntegrationTests/`
+- `docs/architecture/gas-postgres-migration-audit.md`
+- `docs/architecture/platform-foundation.md`
+- `platform/README.md`
+
+## Выполнено
+
+- Выбран следующий срез по принятому migration order.
+- Проверены текущая JWT identity, persistence model и legacy payload/queue facts.
+- Выполнен обязательный Jev-routing через Polza/официальный TypeSafe SDK.
+
+## Текущий шаг
+
+Planning checkpoint перед реализацией схемы, сервиса и endpoint.
+
+## Следующий шаг
+
+Закоммитить planning checkpoint, затем передать реализацию одному bounded
+implementer без права менять frontend, Firebase или Google Apps Script.
+
+## Проверка
+
+- Рабочее дерево перед планированием чистое, `main...origin/main`.
+- Jev: `HIGH`, `SOL_5_6_HIGH` implementation/review, sequential,
+  `NO_BROWSER` для backend-only среза.
+- Source of truth: migration audit и текущий код на `main`; реальные данные и
+  credentials не читались и не сохранялись.
+
+## Открытые вопросы и риски
+
+- Точный compatibility mapping всех legacy aliases (`score`/`correctCount`,
+  `durationSec`/`durationSeconds`) остаётся будущему browser-client этапу.
+- Production import старой истории потребует отдельного private dry-run и
+  сверки агрегатов.
+- Offline delivery требует сохранять время завершения события, а не месяц
+  фактической доставки; сервер должен явно использовать `Europe/Moscow`.
+
+## Последнее обновление
+
+2026-10-05 — следующий write-срез `submitTest` спланирован; реализация ещё не
+началась.
