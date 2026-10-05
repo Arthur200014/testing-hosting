@@ -15,10 +15,105 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+
       - name: Check changed browser modules
         run: |
           node --check shared/interactive/v1/aspnet-api-client.js
           node --check shared/interactive/v1/platform-api.js
           node --check shared/interactive/v1/platform-data.js
+
       - name: Run shared browser node tests
         run: node --test shared/interactive/v1/*.test.mjs
+
+      - name: Run headless browser adapter smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > .temporary-browser-adapter-check.html <<'HTML'
+          <!doctype html>
+          <meta charset="utf-8">
+          <body data-result="PENDING">PENDING</body>
+          <script type="module">
+          import { createAspNetApiClient } from './shared/interactive/v1/aspnet-api-client.js';
+          import { platformApi } from './shared/interactive/v1/platform-api.js';
+
+          const body = document.body;
+          const response = (data, status = 200) => ({
+            ok: status >= 200 && status < 300,
+            status,
+            json: async () => data
+          });
+          const calls = [];
+          try {
+            if (!String(platformApi.url || '').startsWith('https://script.google.com/')) {
+              throw new Error('default provider changed');
+            }
+            const client = createAspNetApiClient({
+              baseUrl: 'https://api.example.test',
+              workspace: 'room-a',
+              now: () => Date.parse('2026-10-06T00:00:00Z'),
+              fetchImpl: async (url, options) => {
+                calls.push([url, options]);
+                if (url.endsWith('/student-sessions')) {
+                  return response({
+                    accessToken: 'browser-token',
+                    tokenType: 'Bearer',
+                    expiresAt: '2030-01-02T03:04:05Z',
+                    student: {
+                      id: 'student-browser',
+                      displayName: 'Synthetic Browser Student',
+                      programId: 'EGE_MATH',
+                      workspaceId: 'room-a'
+                    }
+                  });
+                }
+                const attempt = JSON.parse(options.body);
+                return response({
+                  attemptId: 'attempt-browser',
+                  eventId: attempt.eventId,
+                  duplicate: false,
+                  createdAt: '2026-10-06T00:00:00Z',
+                  monthlyBest: {
+                    attemptId: 'attempt-browser',
+                    percent: attempt.percent,
+                    durationSeconds: attempt.durationSeconds,
+                    completedAt: attempt.completedAt
+                  }
+                }, 201);
+              }
+            });
+            const receipt = await client.submitResult({
+              action: 'submitTest',
+              eventId: 'evt-browser-smoke',
+              studentCode: 'browser-code',
+              testId: 'browser-test',
+              topicName: 'Synthetic topic',
+              taskNumber: 6,
+              correctCount: 2,
+              totalCount: 3,
+              scorePercent: 67,
+              durationSeconds: 30,
+              finishedAt: '2026-10-05T23:59:30Z',
+              schemaVersion: 1
+            });
+            const attemptCall = calls.find(([url]) => url.endsWith('/test-attempts'));
+            if (!receipt.saved || receipt.scorePercent !== 66 ||
+                attemptCall?.[1]?.headers?.Authorization !== 'Bearer browser-token') {
+              throw new Error('adapter smoke mismatch');
+            }
+            body.dataset.result = 'PASS';
+            body.textContent = 'PASS';
+          } catch (error) {
+            body.dataset.result = 'FAIL';
+            body.textContent = 'FAIL: ' + String(error?.message || error);
+          }
+          </script>
+          HTML
+
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/browser-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true; rm -f .temporary-browser-adapter-check.html' EXIT
+          browser="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          test -n "$browser"
+          "$browser" --headless --no-sandbox --disable-gpu --virtual-time-budget=3000             --dump-dom http://127.0.0.1:4173/.temporary-browser-adapter-check.html > /tmp/browser-dom.txt
+          grep -q 'data-result="PASS"' /tmp/browser-dom.txt
