@@ -319,7 +319,6 @@ public sealed class TestAttemptService(PlatformDbContext dbContext, TimeProvider
         attempt.WorkspaceId == identity.WorkspaceId &&
         attempt.MembershipId == identity.MembershipId &&
         attempt.StudentId == identity.StudentId &&
-        attempt.ProgramId == identity.ProgramId &&
         attempt.EventId == canonical.EventId &&
         attempt.TestId == canonical.TestId &&
         attempt.Topic == canonical.Topic &&

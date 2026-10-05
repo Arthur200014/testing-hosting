@@ -156,7 +156,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                     "\"CompletedAt\" >= \"StartedAt\" AND \"DurationSeconds\" BETWEEN 0 AND 86400 AND \"CompletedAt\" - \"StartedAt\" <= interval '1 day' AND \"DurationSeconds\" = round(extract(epoch from (\"CompletedAt\" - \"StartedAt\")))::integer");
                 table.HasCheckConstraint(
                     "CK_TestAttempts_MoscowMonthKey",
-                    "\"MoscowMonthKey\" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'");
+                    "\"MoscowMonthKey\" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$' AND \"MoscowMonthKey\" = (lpad(extract(year from (\"CompletedAt\" AT TIME ZONE 'Europe/Moscow'))::integer::text, 4, '0') || '-' || lpad(extract(month from (\"CompletedAt\" AT TIME ZONE 'Europe/Moscow'))::integer::text, 2, '0'))");
             });
         });
     }

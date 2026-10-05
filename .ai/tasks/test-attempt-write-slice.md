@@ -32,16 +32,18 @@ PostgreSQL write-срезом: аутентифицированно сохран
 
 - `main` синхронизирован с `origin/main`; стартовый commit `8c4a280`.
 - Student session exchange уже выдаёт короткоживущий JWT с `sub`,
-  `workspace_id`, `membership_id`, `program_id` и `role=student`.
+  `workspace_id`, `membership_id` и `role=student`; программа определяется через
+  актуальное membership в БД и отдельным claim не передаётся.
 - Справочник учеников и безопасный локальный import slice завершены.
 - Аудит подтвердил legacy `submitTest`, повторную отправку очередями, дедупликацию
   по `eventId` и правило monthly-best: выше процент, при равенстве меньше время.
 
 ## Принятые решения
 
-- Identity (`WorkspaceId`, `StudentId`, membership и program) берётся только из
-  проверенного JWT и актуального membership в БД. Body не принимает student
-  code, имя или ID и не может подменить tenant.
+- Identity (`WorkspaceId`, `StudentId` и membership) берётся из проверенного JWT
+  и сверяется с актуальным membership в БД; program берётся только из этого
+  membership. Body не принимает student code, имя или ID и не может подменить
+  tenant.
 - Request содержит только данные попытки: `eventId`, test/topic metadata,
   task number, correct/total, percent, timestamps, duration и schema version.
 - Сервер повторно вычисляет ожидаемый целочисленный процент и отклоняет
@@ -88,6 +90,8 @@ PostgreSQL write-срезом: аутентифицированно сохран
 - [x] Добавить integration tests для duplicate/conflict, concurrency, history и monthly-best.
 - [x] Обновить архитектурную документацию и команды разработки.
 - [x] Прогнать полный PostgreSQL integration suite и smoke test API.
+- [ ] Исправить replay после смены программы у membership и добавить regression test.
+- [ ] Закрепить соответствие `MoscowMonthKey` и `CompletedAt` ограничением PostgreSQL.
 - [ ] Выполнить независимый review и устранить найденные дефекты.
 - [ ] Отметить задачу `DONE`, закоммитить и отправить итог в `main`.
 

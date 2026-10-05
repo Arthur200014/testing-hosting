@@ -8,6 +8,7 @@ using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql;
 using TestingHosting.Platform.IdentityAccess;
 using TestingHosting.Platform.Persistence;
 using TestingHosting.Platform.Students;
@@ -320,6 +321,53 @@ public sealed class TestAttemptTests(ApiFactory factory) : IClassFixture<ApiFact
     }
 
     [Fact]
+    public async Task ReplayPreservesHistoricalProgramAfterMembershipProgramReassignment()
+    {
+        await ResetDatabaseAsync();
+        var identity = await SeedIdentityAsync("program-reassignment", "PROGRAM-REASSIGNMENT");
+        using var client = factory.CreateClient();
+        var token = CreateToken(identity);
+        var originalPayload = ValidPayload("program-history-original");
+
+        var createdResponse = await SendAsync(client, token, originalPayload);
+        Assert.Equal(HttpStatusCode.Created, createdResponse.StatusCode);
+        var created = await ReadAttemptResponseAsync(createdResponse);
+        var currentProgramId = await ReassignMembershipProgramAsync(identity);
+
+        var replayResponse = await SendAsync(client, token, originalPayload);
+        var replay = await ReadAttemptResponseAsync(replayResponse);
+
+        Assert.Equal(HttpStatusCode.OK, replayResponse.StatusCode);
+        Assert.True(replay.Duplicate);
+        Assert.Equal(created.AttemptId, replay.AttemptId);
+        Assert.Equal(created.CreatedAt, replay.CreatedAt);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var stored = await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().TestAttempts
+                .AsNoTracking().SingleAsync();
+            Assert.Equal(identity.ProgramId, stored.ProgramId);
+        }
+
+        var newResponse = await SendAsync(client, token, ValidPayload("program-history-new"));
+        Assert.Equal(HttpStatusCode.Created, newResponse.StatusCode);
+        await using var verificationScope = factory.Services.CreateAsyncScope();
+        var attempts = await verificationScope.ServiceProvider.GetRequiredService<PlatformDbContext>().TestAttempts
+            .AsNoTracking().OrderBy(attempt => attempt.EventId).ToListAsync();
+        Assert.Collection(
+            attempts,
+            current =>
+            {
+                Assert.Equal("program-history-new", current.EventId);
+                Assert.Equal(currentProgramId, current.ProgramId);
+            },
+            historical =>
+            {
+                Assert.Equal("program-history-original", historical.EventId);
+                Assert.Equal(identity.ProgramId, historical.ProgramId);
+            });
+    }
+
+    [Fact]
     public async Task DistinctEventsPreserveCompleteImmutableHistory()
     {
         await ResetDatabaseAsync();
@@ -502,6 +550,49 @@ public sealed class TestAttemptTests(ApiFactory factory) : IClassFixture<ApiFact
         Assert.Equal("2026-03", monthKeys.Single(attempt => attempt.EventId == "moscow-march").MoscowMonthKey);
     }
 
+    [Fact]
+    public async Task DatabaseRejectsMoscowMonthKeyThatDisagreesWithCompletionInstant()
+    {
+        await ResetDatabaseAsync();
+        var identity = await SeedIdentityAsync("month-constraint", "MONTH-CONSTRAINT");
+        var completedAt = new DateTimeOffset(2026, 3, 31, 21, 0, 0, TimeSpan.Zero);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            db.TestAttempts.Add(new TestAttempt
+            {
+                Id = Guid.NewGuid(),
+                WorkspaceId = identity.WorkspaceId,
+                MembershipId = identity.MembershipId,
+                StudentId = identity.StudentId,
+                ProgramId = identity.ProgramId,
+                EventId = "invalid-month-key",
+                TestId = "synthetic-test",
+                Topic = "Synthetic topic",
+                TaskNumber = 1,
+                Correct = 1,
+                Total = 1,
+                Percent = 100,
+                StartedAt = completedAt.AddSeconds(-60),
+                CompletedAt = completedAt,
+                DurationSeconds = 60,
+                SchemaVersion = "1.0",
+                MoscowMonthKey = "2026-03",
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+
+            var exception = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+            var postgres = Assert.IsType<PostgresException>(exception.InnerException);
+            Assert.Equal(PostgresErrorCodes.CheckViolation, postgres.SqlState);
+            Assert.Equal("CK_TestAttempts_MoscowMonthKey", postgres.ConstraintName);
+        }
+
+        await using var verificationScope = factory.Services.CreateAsyncScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Equal(0, await verificationDb.TestAttempts.CountAsync());
+    }
+
     private async Task ResetDatabaseAsync()
     {
         await using var scope = factory.Services.CreateAsyncScope();
@@ -581,6 +672,26 @@ public sealed class TestAttemptTests(ApiFactory factory) : IClassFixture<ApiFact
                 .ExecuteUpdateAsync(setters => setters.SetProperty(value => value.IsActive, active)),
             _ => throw new ArgumentOutOfRangeException(nameof(entity), entity, null)
         };
+    }
+
+    private async Task<Guid> ReassignMembershipProgramAsync(SeededIdentity identity)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var programId = Guid.NewGuid();
+        db.Programs.Add(new LearningProgram
+        {
+            Id = programId,
+            WorkspaceId = identity.WorkspaceId,
+            Code = $"REASSIGNED_{Guid.NewGuid():N}",
+            DisplayName = "Synthetic reassigned program"
+        });
+        await db.SaveChangesAsync();
+        var updated = await db.WorkspaceStudentMemberships
+            .Where(membership => membership.Id == identity.MembershipId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(membership => membership.ProgramId, programId));
+        Assert.Equal(1, updated);
+        return programId;
     }
 
     private async Task<int> AttemptCountAsync()
