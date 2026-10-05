@@ -80,7 +80,7 @@ curl -i http://localhost:8080/api/v1/test-attempts \
   --data-binary @/tmp/test-attempt.json
 ```
 
-Without a valid local student session, verify the safe rejection with the same synthetic payload and no bearer token; the result should be `401`. The endpoint and integration tests are implemented, but the browser provider and production traffic remain on the legacy path; this is not a production cutover. The API suite has 25 passing tests, including 18 `TestAttemptTests`; the combined API and importer runner has 38 passing tests (2026-10-06).
+Without a valid local student session, verify the safe rejection with the same synthetic payload and no bearer token; the result should be `401`. The endpoint and integration tests are implemented, but the browser provider and production traffic remain on the legacy path; this is not a production cutover. The API suite has 27 passing tests, including 20 `TestAttemptTests`; the combined API and importer runner has 40 passing tests (2026-10-06).
 
 ## Safe student-directory import
 

@@ -1,6 +1,6 @@
 # Первый write-срез результатов тестов
 
-Status: IN_PROGRESS
+Status: DONE
 
 ## Цель
 
@@ -90,10 +90,10 @@ PostgreSQL write-срезом: аутентифицированно сохран
 - [x] Добавить integration tests для duplicate/conflict, concurrency, history и monthly-best.
 - [x] Обновить архитектурную документацию и команды разработки.
 - [x] Прогнать полный PostgreSQL integration suite и smoke test API.
-- [ ] Исправить replay после смены программы у membership и добавить regression test.
-- [ ] Закрепить соответствие `MoscowMonthKey` и `CompletedAt` ограничением PostgreSQL.
-- [ ] Выполнить независимый review и устранить найденные дефекты.
-- [ ] Отметить задачу `DONE`, закоммитить и отправить итог в `main`.
+- [x] Исправить replay после смены программы у membership и добавить regression test.
+- [x] Закрепить соответствие `MoscowMonthKey` и `CompletedAt` ограничением PostgreSQL.
+- [x] Выполнить независимый review и устранить найденные дефекты.
+- [x] Отметить задачу `DONE`, закоммитить и отправить итог в `main`.
 
 После каждого логически завершённого блока чек-лист обновляется в отдельном
 промежуточном коммите, чтобы работу можно было продолжить с последнего
@@ -101,12 +101,13 @@ PostgreSQL write-срезом: аутентифицированно сохран
 
 ## Текущий шаг
 
-Независимый review реализации, тестов и документации.
+Задача завершена: оба regression-теста и полный PostgreSQL runner проходят,
+review исправлений выполнен, найденный drift документации устранён.
 
 ## Следующий шаг
 
-Проверить auth/tenant/validation/idempotency/concurrency/history/monthly-best на
-изолированном PostgreSQL 17, затем обновить документацию и выполнить review.
+Нет для этого среза. Compatibility mapper/browser-client и production import
+остаются отдельными будущими задачами.
 
 ## Проверка
 
@@ -116,9 +117,13 @@ PostgreSQL write-срезом: аутентифицированно сохран
 - Source of truth: migration audit и текущий код на `main`; реальные данные и
   credentials не читались и не сохранялись.
 - API model/service/endpoint собраны в .NET 10 без warnings/errors.
-- EF migration `20261005215252_TestAttempts` применена к свежему PostgreSQL 17.
-- Полный real PostgreSQL test runner: 38/38 (`25 API + 13 importer`), включая
-  18 новых сценариев `TestAttemptTests`.
+- Migrations по `20261005221951_TestAttemptMonthInvariant` включительно применяются
+  к свежему PostgreSQL 17 в integration runner.
+- Два новых regression-теста: 2/2.
+- Полный real PostgreSQL test runner: 40/40 (`27 API + 13 importer`), включая
+  20 сценариев `TestAttemptTests`.
+- Независимый review `d21cdd6`: code-level дефектов не найдено; исправлен только
+  drift документации по test totals и DB-инварианту месяца.
 - Runtime smoke: `/health/live` = 200, `/health/ready` = 200, fake student
   exchange = 401, `POST /api/v1/test-attempts` без Bearer token = 401; активная
   migration — `20261005215252_TestAttempts`.
@@ -134,5 +139,5 @@ PostgreSQL write-срезом: аутентифицированно сохран
 
 ## Последнее обновление
 
-2026-10-06 — схема, endpoint, 18 новых integration tests, документация и smoke
-test готовы; полный runner проходит 38/38. Следующий блок — независимый review.
+2026-10-06 — regression 2/2 и полный PostgreSQL runner 40/40 проходят; review
+`d21cdd6` завершён, документация синхронизирована, задача закрыта.
