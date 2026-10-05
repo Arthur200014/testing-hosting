@@ -1,0 +1,101 @@
+name: testing-hosting-platform
+
+x-api-environment: &api-environment
+  Database__ConnectionString: Host=db;Port=5432;Database=${POSTGRES_DB:-platform};Username=${POSTGRES_USER:-platform};Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+  Jwt__Issuer: ${JWT_ISSUER:-testing-hosting-platform}
+  Jwt__Audience: ${JWT_AUDIENCE:-testing-hosting-students}
+  Jwt__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY in .env}
+  Jwt__LifetimeMinutes: ${JWT_LIFETIME_MINUTES:-10}
+  StudentCodes__Pepper: ${STUDENT_CODE_PEPPER:?set STUDENT_CODE_PEPPER in .env}
+  Cors__AllowedOrigins__0: ${CORS_ALLOWED_ORIGIN:-http://localhost:5500}
+  StudentSessions__RateLimitPermitLimit: ${STUDENT_SESSION_RATE_LIMIT:-5}
+  StudentSessions__RateLimitWindowSeconds: ${STUDENT_SESSION_RATE_WINDOW_SECONDS:-60}
+  ASPNETCORE_URLS: http://+:8080
+  DOTNET_EnableDiagnostics: "0"
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-platform}
+      POSTGRES_USER: ${POSTGRES_USER:-platform}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: ./platform
+      target: runtime
+    environment: *api-environment
+    command: ["--migrate"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: ./platform
+      target: runtime
+    environment: *api-environment
+    ports:
+      - "127.0.0.1:${API_PORT:-8080}:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:9.8
+    profiles: ["tools"]
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.invalid}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:?set PGADMIN_DEFAULT_PASSWORD in .env}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "True"
+    ports:
+      - "127.0.0.1:${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  test-db:
+    image: postgres:17-alpine
+    profiles: ["test"]
+    environment:
+      POSTGRES_DB: platform_tests
+      POSTGRES_USER: platform_tests
+      POSTGRES_PASSWORD: integration-test-password-123
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U platform_tests -d platform_tests"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  tests:
+    build:
+      context: ./platform
+      target: test-runner
+    profiles: ["test"]
+    environment:
+      TEST_DATABASE_CONNECTION_STRING: Host=test-db;Port=5432;Database=platform_tests;Username=platform_tests;Password=integration-test-password-123
+    depends_on:
+      test-db:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  pgadmin-data:

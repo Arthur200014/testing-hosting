@@ -41,6 +41,10 @@ For a new shared realtime/data integration, reuse the public entry points in
   `.ai/tasks/gas-postgres-audit.md`; these record the audited API actions,
   sheet headers, auth risks, business rules, and safe migration order without
   containing row values or credentials.
+- For the implemented ASP.NET Core/PostgreSQL foundation, start at
+  `docs/architecture/platform-foundation.md`, `.ai/tasks/platform-foundation.md`,
+  `platform/`, and `compose.yaml`. The first student-session API and the optional
+  browser adapter exist, but legacy Apps Script/Firebase remain active by default.
 
 ## Targeted search prompts
 

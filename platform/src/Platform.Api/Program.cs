@@ -1,0 +1,105 @@
+using System.Security.Claims;
+using System.Text.Json;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using TestingHosting.Platform.Configuration;
+using TestingHosting.Platform.Persistence;
+using TestingHosting.Platform.StudentSessions;
+using TestingHosting.Platform.Students;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSingleton(serviceProvider =>
+    StartupConfiguration.GetJwtOptions(serviceProvider.GetRequiredService<IConfiguration>()));
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<IStudentCodeHasher>(serviceProvider =>
+    new StudentCodeHasher(StartupConfiguration.GetPepper(serviceProvider.GetRequiredService<IConfiguration>())));
+builder.Services.AddScoped<StudentSessionService>();
+builder.Services.AddSingleton<StudentTokenIssuer>();
+builder.Services.AddDbContext<PlatformDbContext>(options =>
+    options.UseNpgsql(
+        StartupConfiguration.GetConnectionString(builder.Configuration),
+        postgres => postgres.MigrationsHistoryTable("__EFMigrationsHistory", "public")));
+builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        var jwtOptions = StartupConfiguration.GetJwtOptions(builder.Configuration);
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtOptions.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtOptions.Audience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Convert.FromBase64String(jwtOptions.SigningKey)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromSeconds(30),
+            RoleClaimType = "role",
+            NameClaimType = ClaimsIdentity.DefaultNameClaimType
+        };
+    });
+builder.Services.AddAuthorization();
+builder.Services.AddCors(options => options.AddPolicy("browser", policy =>
+    policy.WithOrigins(StartupConfiguration.GetAllowedOrigins(builder.Configuration))
+        .WithMethods("POST").WithHeaders("Content-Type", "Authorization")));
+builder.Services.AddRateLimiter(options =>
+{
+    var studentSessionOptions = StartupConfiguration.GetStudentSessionOptions(builder.Configuration);
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("student-sessions", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = studentSessionOptions.RateLimitPermitLimit,
+            Window = TimeSpan.FromSeconds(studentSessionOptions.RateLimitWindowSeconds),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        }));
+});
+
+var app = builder.Build();
+StartupConfiguration.Validate(app.Configuration);
+
+if (args.Contains("--migrate", StringComparer.Ordinal))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().Database.MigrateAsync();
+    return;
+}
+
+app.UseExceptionHandler(exceptionHandlerApp => exceptionHandlerApp.Run(async context =>
+{
+    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+    context.Response.ContentType = "application/problem+json";
+    await context.Response.WriteAsJsonAsync(new { title = "An unexpected error occurred.", status = 500 });
+}));
+app.UseCors("browser");
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapPost("/api/v1/student-sessions", async (
+    StudentSessionRequest request,
+    StudentSessionService sessions,
+    StudentTokenIssuer tokenIssuer,
+    CancellationToken cancellationToken) =>
+{
+    var identity = await sessions.ExchangeAsync(request.Workspace, request.Code, cancellationToken);
+    return identity is null
+        ? Results.Json(new { title = "Invalid student credentials.", status = 401 }, statusCode: 401,
+            contentType: "application/problem+json")
+        : Results.Ok(tokenIssuer.Issue(identity));
+}).RequireRateLimiting("student-sessions");
+
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = registration => registration.Tags.Contains("ready") });
+
+await app.RunAsync();
+
+public partial class Program;
