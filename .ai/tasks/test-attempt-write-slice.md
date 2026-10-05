@@ -82,8 +82,8 @@ PostgreSQL write-срезом: аутентифицированно сохран
 ## Чек-лист выполнения
 
 - [x] Зафиксировать границы write-среза и решения по identity/idempotency/monthly-best.
-- [ ] Добавить PostgreSQL-модель попытки, ограничения и EF migration.
-- [ ] Реализовать authenticated endpoint и атомарную идемпотентную запись.
+- [x] Добавить PostgreSQL-модель попытки, ограничения и EF migration.
+- [x] Реализовать authenticated endpoint и атомарную идемпотентную запись.
 - [ ] Добавить integration tests для auth, tenant scope и validation.
 - [ ] Добавить integration tests для duplicate/conflict, concurrency, history и monthly-best.
 - [ ] Обновить архитектурную документацию и команды разработки.
@@ -97,12 +97,12 @@ PostgreSQL write-срезом: аутентифицированно сохран
 
 ## Текущий шаг
 
-Planning checkpoint перед реализацией схемы, сервиса и endpoint.
+Добавление real PostgreSQL integration tests для нового endpoint.
 
 ## Следующий шаг
 
-Закоммитить planning checkpoint, затем передать реализацию одному bounded
-implementer без права менять frontend, Firebase или Google Apps Script.
+Проверить auth/tenant/validation/idempotency/concurrency/history/monthly-best на
+изолированном PostgreSQL 17, затем обновить документацию и выполнить review.
 
 ## Проверка
 
@@ -111,6 +111,8 @@ implementer без права менять frontend, Firebase или Google Apps
   `NO_BROWSER` для backend-only среза.
 - Source of truth: migration audit и текущий код на `main`; реальные данные и
   credentials не читались и не сохранялись.
+- API model/service/endpoint собраны в .NET 10 без warnings/errors.
+- EF migration `20261005215252_TestAttempts` применена к свежему PostgreSQL 17.
 
 ## Открытые вопросы и риски
 
@@ -123,5 +125,5 @@ implementer без права менять frontend, Firebase или Google Apps
 
 ## Последнее обновление
 
-2026-10-05 — следующий write-срез `submitTest` спланирован; реализация ещё не
-началась.
+2026-10-06 — схема, migration и endpoint реализованы; следующий блок — реальные
+PostgreSQL integration tests.

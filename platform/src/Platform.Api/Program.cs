@@ -9,6 +9,7 @@ using TestingHosting.Platform.Configuration;
 using TestingHosting.Platform.Persistence;
 using TestingHosting.Platform.StudentSessions;
 using TestingHosting.Platform.Students;
+using TestingHosting.Platform.TestAttempts;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +19,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IStudentCodeHasher>(serviceProvider =>
     new StudentCodeHasher(StartupConfiguration.GetPepper(serviceProvider.GetRequiredService<IConfiguration>())));
 builder.Services.AddScoped<StudentSessionService>();
+builder.Services.AddScoped<TestAttemptService>();
 builder.Services.AddSingleton<StudentTokenIssuer>();
 builder.Services.AddDbContext<PlatformDbContext>(options =>
     options.UseNpgsql(
@@ -44,7 +46,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             NameClaimType = ClaimsIdentity.DefaultNameClaimType
         };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options => options.AddPolicy("student", policy =>
+    policy.RequireAuthenticatedUser().RequireClaim("role", "student")));
 builder.Services.AddCors(options => options.AddPolicy("browser", policy =>
     policy.WithOrigins(StartupConfiguration.GetAllowedOrigins(builder.Configuration))
         .WithMethods("POST").WithHeaders("Content-Type", "Authorization")));
@@ -96,6 +99,29 @@ app.MapPost("/api/v1/student-sessions", async (
             contentType: "application/problem+json")
         : Results.Ok(tokenIssuer.Issue(identity));
 }).RequireRateLimiting("student-sessions");
+
+app.MapPost("/api/v1/test-attempts", async (
+    TestAttemptRequest request,
+    ClaimsPrincipal principal,
+    TestAttemptService attempts,
+    CancellationToken cancellationToken) =>
+{
+    var result = await attempts.SubmitAsync(principal, request, cancellationToken);
+    return result.Status switch
+    {
+        TestAttemptWriteStatus.Created => Results.Created(
+            $"/api/v1/test-attempts/{result.Response!.AttemptId}", result.Response),
+        TestAttemptWriteStatus.Duplicate => Results.Ok(result.Response),
+        TestAttemptWriteStatus.Conflict => Results.Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: "The event ID is already associated with a different test attempt."),
+        TestAttemptWriteStatus.InvalidRequest => Results.ValidationProblem(result.Errors!),
+        TestAttemptWriteStatus.InvalidIdentity => Results.Problem(
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "The student session is invalid."),
+        _ => throw new InvalidOperationException("Unknown test-attempt write result.")
+    };
+}).RequireAuthorization("student");
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = registration => registration.Tags.Contains("ready") });

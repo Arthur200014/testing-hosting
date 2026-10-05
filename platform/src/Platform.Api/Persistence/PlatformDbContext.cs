@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TestingHosting.Platform.IdentityAccess;
 using TestingHosting.Platform.Students;
+using TestingHosting.Platform.TestAttempts;
 
 namespace TestingHosting.Platform.Persistence;
 
@@ -13,6 +14,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<Student> Students => Set<Student>();
     public DbSet<WorkspaceStudentMembership> WorkspaceStudentMemberships => Set<WorkspaceStudentMembership>();
     public DbSet<StudentImportBatch> StudentImportBatches => Set<StudentImportBatch>();
+    public DbSet<TestAttempt> TestAttempts => Set<TestAttempt>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -62,6 +64,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         modelBuilder.Entity<WorkspaceStudentMembership>(entity =>
         {
             entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id, x.StudentId });
             entity.Property(x => x.CodeHash).HasColumnType("bytea").HasMaxLength(32);
             entity.Property(x => x.ImportSource).HasMaxLength(64);
             entity.Property(x => x.ImportExternalId).HasMaxLength(200);
@@ -101,6 +104,59 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 table.HasCheckConstraint("CK_StudentImportBatches_WorkbookDigest_Length", "length(\"WorkbookDigest\") = 64");
                 table.HasCheckConstraint("CK_StudentImportBatches_ProgramMapDigest_Length", "length(\"ProgramMapDigest\") = 64");
                 table.HasCheckConstraint("CK_StudentImportBatches_Counts", "\"RowCount\" >= 0 AND \"CreatedStudentCount\" >= 0 AND \"UnchangedStudentCount\" >= 0 AND \"CreatedStudentCount\" + \"UnchangedStudentCount\" = \"RowCount\"");
+            });
+        });
+
+        modelBuilder.Entity<TestAttempt>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.EventId).HasMaxLength(128);
+            entity.Property(x => x.TestId).HasMaxLength(128);
+            entity.Property(x => x.Topic).HasMaxLength(200);
+            entity.Property(x => x.SchemaVersion).HasMaxLength(64);
+            entity.Property(x => x.MoscowMonthKey).HasMaxLength(7).IsFixedLength();
+            entity.HasIndex(x => new { x.WorkspaceId, x.EventId }).IsUnique();
+            entity.HasIndex(x => new
+            {
+                x.WorkspaceId,
+                x.MembershipId,
+                x.TestId,
+                x.MoscowMonthKey,
+                x.Percent,
+                x.DurationSeconds,
+                x.CompletedAt,
+                x.Id
+            })
+                .HasDatabaseName("IX_TestAttempts_MonthlyBest")
+                .IsDescending(false, false, false, false, true, false, false, false);
+            entity.HasOne(x => x.Workspace)
+                .WithMany()
+                .HasForeignKey(x => x.WorkspaceId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Membership)
+                .WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.MembershipId, x.StudentId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.StudentId })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Program)
+                .WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.ProgramId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint(
+                    "CK_TestAttempts_RequiredStrings",
+                    "length(\"EventId\") > 0 AND length(\"TestId\") > 0 AND length(\"Topic\") > 0 AND length(\"SchemaVersion\") > 0");
+                table.HasCheckConstraint(
+                    "CK_TestAttempts_CountsAndPercent",
+                    "\"TaskNumber\" BETWEEN 1 AND 1000 AND \"Total\" BETWEEN 1 AND 10000 AND \"Correct\" BETWEEN 0 AND \"Total\" AND \"Percent\" = (\"Correct\" * 100 / \"Total\")");
+                table.HasCheckConstraint(
+                    "CK_TestAttempts_TimestampsAndDuration",
+                    "\"CompletedAt\" >= \"StartedAt\" AND \"DurationSeconds\" BETWEEN 0 AND 86400 AND \"CompletedAt\" - \"StartedAt\" <= interval '1 day' AND \"DurationSeconds\" = round(extract(epoch from (\"CompletedAt\" - \"StartedAt\")))::integer");
+                table.HasCheckConstraint(
+                    "CK_TestAttempts_MoscowMonthKey",
+                    "\"MoscowMonthKey\" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'");
             });
         });
     }
