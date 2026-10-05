@@ -80,7 +80,35 @@ curl -i http://localhost:8080/api/v1/test-attempts \
   --data-binary @/tmp/test-attempt.json
 ```
 
-Without a valid local student session, verify the safe rejection with the same synthetic payload and no bearer token; the result should be `401`. The endpoint and integration tests are implemented, but the browser provider and production traffic remain on the legacy path; this is not a production cutover. The API suite has 27 passing tests, including 20 `TestAttemptTests`; the combined API and importer runner has 40 passing tests (2026-10-06).
+Without a valid local student session, verify the safe rejection with the same synthetic payload and no bearer token; the result should be `401`. The endpoint and integration tests are implemented. An opt-in browser adapter now exists, but the exported default `platformApi` and production traffic still use the legacy Apps Script path; this is not a production cutover. The API suite has 27 passing tests, including 20 `TestAttemptTests`; the combined API and importer runner has 40 passing tests (2026-10-06).
+
+## Opt-in browser test-attempt adapter
+
+`shared/interactive/v1/aspnet-api-client.js` maps the existing `submitTest`
+payload aliases to the strict test-attempt contract. It strips student identity
+fields from the ASP.NET request body, recomputes the integer-floor percentage,
+preserves the historical completion instant, and repairs `startedAt` from
+`completedAt - durationSeconds` when a legacy page measures active time instead
+of wall-clock elapsed time.
+
+`createAspNetTestAttemptApi()` and `createAspNetTestAttemptDataProvider()`
+provide an explicit hybrid opt-in path: legacy URL, teacher verification and
+student JSONP validation remain unchanged, while only test-attempt writes use
+ASP.NET Core. The student code is exchanged lazily for a short-lived Bearer
+session and the token is cached only in memory, separately per student code.
+After reload the persistent outbox keeps the original payload and a later flush
+obtains a new session before retrying the same `eventId` and completion time.
+
+Exit delivery never uses `sendBeacon` for ASP.NET because it cannot attach the
+Bearer header. If a usable in-memory session exists, the adapter performs an
+authenticated `fetch(..., { keepalive: true })`; otherwise the payload remains
+queued for the next normal flush.
+
+No current production page selects the ASP.NET factory, so the default behavior
+is unchanged. Before a future cutover, explicitly handle legacy queue entries
+created before these payload changes that may lack `studentCode`, and decide how
+to treat sessions ended with zero completed tasks because the new API requires
+`total >= 1`. Do not silently synthesize a scored attempt for zero progress.
 
 ## Safe student-directory import
 

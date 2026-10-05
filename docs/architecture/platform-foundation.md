@@ -74,10 +74,39 @@ Compose запускает миграции отдельным one-shot серв
 
 ## Browser integration
 
-`shared/interactive/v1/aspnet-api-client.js` инкапсулирует обмен кода на session
-и нормализует контракт ответа. Он не пишет код или token в URL, логи и browser
-storage. Текущий legacy provider остаётся default, поэтому публичные URL и
-существующие интерактивы на этом этапе не переключены.
+`shared/interactive/v1/aspnet-api-client.js` теперь инкапсулирует не только
+обмен кода на session, но и browser write-path для test attempts. Единый mapper
+принимает фактические legacy aliases (`correctCount`/`score`,
+`totalCount`/`maxScore`, `durationSeconds`/`durationSec`,
+`topicName`/`topicId`), пересчитывает процент по серверному floor-правилу и
+не переносит student identity/program fields в ASP.NET request body.
+
+Исторический момент завершения берётся из `finishedAt` раньше любых delivery
+timestamps. Если legacy `startedAt` не соответствует активной длительности,
+mapper восстанавливает его как `completedAt - durationSeconds`; поэтому offline
+retry не сдвигает попытку в месяц фактической доставки.
+
+Bearer session получается лениво по коду конкретного ученика и хранится только
+в памяти, отдельно для каждого student code. Это позволяет teacher-side backup
+отправлять результаты двух учеников с разными токенами. После reload токен не
+восстанавливается из storage: outbox сохраняет исходный payload, а очередной
+обычный flush получает новую session и повторяет тот же `eventId`.
+
+Для exit-send ASP.NET не использует `sendBeacon`, так как у него нельзя задать
+`Authorization`. При уже живой session используется authenticated
+`fetch(..., { keepalive: true })`; без session запись остаётся в outbox.
+
+`createAspNetTestAttemptApi()` и `createAspNetTestAttemptDataProvider()`
+являются явным opt-in. Они оставляют legacy URL, teacher verification и текущую
+JSONP student validation, переключая только test-attempt writes. Экспортируемый
+`platformApi` по-прежнему legacy, поэтому публичные URL и production traffic
+не переключены.
+
+Перед отдельным production cutover нужно решить два compatibility edge case:
+старые queued payload до этого среза могут не содержать `studentCode`, а
+нулевой прогресс не может быть записан как test attempt, потому что серверный
+контракт требует `total >= 1`. Эти случаи нельзя маскировать под синтетическую
+успешную попытку.
 
 ## Срез записи попыток
 
