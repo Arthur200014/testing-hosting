@@ -53,6 +53,20 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  student-import:
+    build:
+      context: ./platform
+      target: importer-runtime
+    profiles: ["import"]
+    environment:
+      Database__ConnectionString: Host=db;Port=5432;Database=${POSTGRES_DB:-platform};Username=${POSTGRES_USER:-platform};Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      StudentCodes__Pepper: ${STUDENT_CODE_PEPPER:?set STUDENT_CODE_PEPPER in .env}
+      DOTNET_EnableDiagnostics: "0"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
   pgadmin:
     image: dpage/pgadmin4:9.8
     profiles: ["tools"]

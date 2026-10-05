@@ -78,14 +78,14 @@ Status: IN_PROGRESS
 - [x] Изучить аудит, текущую модель и формат источника.
 - [x] Получить обязательный Jev-routing.
 - [x] Закоммитить и отправить этот planning-checkpoint в `main`.
-- [ ] Зафиксировать CLI contract и синтетические XLSX fixtures.
-- [ ] Реализовать строгий XLSX parser и безопасный агрегированный report.
-- [ ] Реализовать default dry-run и доказать отсутствие записей.
-- [ ] Добавить import batch journal и миграцию.
-- [ ] Реализовать транзакционный идемпотентный `--apply`.
-- [ ] Проверить дубли code/external ID, неизвестные программы и rollback.
-- [ ] Проверить совпадение нормализации с student-session exchange.
-- [ ] Собрать контейнеры и прогнать real PostgreSQL integration tests.
+- [x] Зафиксировать CLI contract и синтетические XLSX fixtures.
+- [x] Реализовать строгий XLSX parser и безопасный агрегированный report.
+- [x] Реализовать default dry-run и доказать отсутствие записей.
+- [x] Добавить import batch journal и миграцию.
+- [x] Реализовать транзакционный идемпотентный `--apply`.
+- [x] Проверить дубли code/external ID, неизвестные программы и rollback.
+- [x] Проверить совпадение нормализации с student-session exchange.
+- [x] Собрать контейнеры и прогнать real PostgreSQL integration tests.
 - [ ] Выполнить browser smoke на одном интерактиве `EGA/6/` без внешних записей.
 - [ ] Выполнить независимый security/data-integrity review и исправления.
 - [ ] Обновить архитектурную документацию и cloud start instructions.
@@ -93,17 +93,24 @@ Status: IN_PROGRESS
 
 ## Текущий шаг
 
-Реализация CLI contract, parser и synthetic tests после planning-checkpoint.
+Implementation checkpoint завершён: CLI, parser, миграция, Docker/Compose и
+интеграционные тесты готовы и проверены на PostgreSQL 17.
 
 ## Следующий шаг
 
-Создать отдельный CLI-проект и начать с parser/report unit tests.
+Browser smoke на `EGA/6/`, затем независимый review и финальная документация.
 
 ## Проверка
 
 - Исходное состояние: `main...origin/main`, изменений нет.
 - Jev через Polza/официальный TypeSafe SDK: `HIGH`, обязательный review.
 - Read-only researcher подтвердил пригодность текущей membership/import model.
+- `docker compose config --quiet` и `git diff --check`: успешно.
+- Docker build: 0 warnings, 0 errors.
+- Real PostgreSQL 17: 20/20 тестов (API 7/7, importer 13/13).
+- Проверены dry-run без записей, HMAC-only, повтор и конкурентный повтор,
+  конфликты, rollback, сохранение отсутствующих в снимке записей и session
+  exchange.
 
 ## Открытые вопросы и риски
 
@@ -116,5 +123,6 @@ Status: IN_PROGRESS
 
 ## Последнее обновление
 
-2026-10-05 — план первого student-directory import slice сохранён отдельным
-planning checkpoint; реализация начинается следующим коммитом.
+2026-10-05 — implementation checkpoint готов: безопасный student-directory
+importer и 20/20 PostgreSQL integration tests. Browser smoke и независимый
+review оставлены следующим отдельным этапом.

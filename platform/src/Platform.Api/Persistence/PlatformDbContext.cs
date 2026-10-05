@@ -12,6 +12,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<LearningProgram> Programs => Set<LearningProgram>();
     public DbSet<Student> Students => Set<Student>();
     public DbSet<WorkspaceStudentMembership> WorkspaceStudentMemberships => Set<WorkspaceStudentMembership>();
+    public DbSet<StudentImportBatch> StudentImportBatches => Set<StudentImportBatch>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -83,6 +84,23 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 table.HasCheckConstraint(
                     "CK_WorkspaceStudentMemberships_ImportIdentity",
                     "(\"ImportSource\" IS NULL) = (\"ImportExternalId\" IS NULL)");
+            });
+        });
+
+        modelBuilder.Entity<StudentImportBatch>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Source).HasMaxLength(64);
+            entity.Property(x => x.WorkbookDigest).HasMaxLength(64).IsFixedLength();
+            entity.Property(x => x.ProgramMapDigest).HasMaxLength(64).IsFixedLength();
+            entity.Property(x => x.Status).HasMaxLength(32);
+            entity.HasIndex(x => new { x.WorkspaceId, x.Source, x.WorkbookDigest, x.ProgramMapDigest }).IsUnique();
+            entity.HasOne(x => x.Workspace).WithMany().HasForeignKey(x => x.WorkspaceId).OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_StudentImportBatches_WorkbookDigest_Length", "length(\"WorkbookDigest\") = 64");
+                table.HasCheckConstraint("CK_StudentImportBatches_ProgramMapDigest_Length", "length(\"ProgramMapDigest\") = 64");
+                table.HasCheckConstraint("CK_StudentImportBatches_Counts", "\"RowCount\" >= 0 AND \"CreatedStudentCount\" >= 0 AND \"UnchangedStudentCount\" >= 0 AND \"CreatedStudentCount\" + \"UnchangedStudentCount\" = \"RowCount\"");
             });
         });
     }
