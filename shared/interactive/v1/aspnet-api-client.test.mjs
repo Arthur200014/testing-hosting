@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createAspNetApiClient, AspNetApiError, mapLegacyTestAttempt } from './aspnet-api-client.js';
 import { browserDataProvider, createAspNetTestAttemptDataProvider } from './platform-data.js';
 import { createAspNetTestAttemptApi, platformApi } from './platform-api.js';
+import { createResultOutbox } from './result-outbox.js';
 
 const session = {
   accessToken: 'access-token-value', tokenType: 'Bearer', expiresAt: '2030-01-02T03:04:05Z',
@@ -214,4 +215,67 @@ test('opt-in ASP.NET test-attempt API keeps legacy auth URL and default provider
   });
   assert.notEqual(provider.api, platformApi);
   assert.equal(provider.api.url, legacy.url);
+});
+
+
+test('outbox retry after client recreation preserves eventId and completion instant', async () => {
+  const memory = new Map();
+  const originalStorage = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem: key => memory.get(key) ?? null,
+    setItem: (key, value) => memory.set(key, value)
+  };
+  const canonicalPosts = [];
+  let failAttempt = true;
+  const fetchImpl = async (url, options) => {
+    if (url.endsWith('/student-sessions')) return response({
+      accessToken: 'retry-token', tokenType: 'Bearer', expiresAt: '2030-01-02T03:04:05Z',
+      student: { id: 'student', displayName: 'Synthetic', programId: 'EGE_MATH', workspaceId: 'room-a' }
+    });
+    const body = JSON.parse(options.body);
+    canonicalPosts.push(body);
+    if (failAttempt) {
+      failAttempt = false;
+      throw new Error('synthetic network failure');
+    }
+    return response({
+      attemptId: 'attempt-retry', eventId: body.eventId, duplicate: false,
+      createdAt: '2026-10-06T00:00:00Z',
+      monthlyBest: { attemptId: 'attempt-retry', percent: body.percent,
+        durationSeconds: body.durationSeconds, completedAt: body.completedAt }
+    }, 201);
+  };
+  const payload = {
+    action: 'submitTest', eventId: 'evt-offline-retry', studentCode: 'student-code',
+    testId: 'test', topicName: 'Topic', taskNumber: 6, correctCount: 7, totalCount: 10,
+    durationSeconds: 45, startedAt: '2026-10-05T23:58:30Z',
+    finishedAt: '2026-10-05T23:59:15Z', completedAt: '2026-10-06T12:00:00Z', schemaVersion: 1
+  };
+  try {
+    const firstClient = createAspNetApiClient({
+      baseUrl: 'https://api.example.test', workspace: 'room-a', fetchImpl,
+      now: () => Date.parse('2026-10-06T00:00:00Z')
+    });
+    const firstOutbox = createResultOutbox({ key: 'pending:test', api: firstClient, isOnline: () => true });
+    firstOutbox.queue(payload, 'student-1');
+    await firstOutbox.flush();
+    assert.equal(firstOutbox.read().length, 1);
+
+    // Simulate reload: the queue survives but the in-memory bearer cache does not.
+    const secondClient = createAspNetApiClient({
+      baseUrl: 'https://api.example.test', workspace: 'room-a', fetchImpl,
+      now: () => Date.parse('2026-10-06T00:00:00Z')
+    });
+    const secondOutbox = createResultOutbox({ key: 'pending:test', api: secondClient, isOnline: () => true });
+    await secondOutbox.flush();
+
+    assert.equal(secondOutbox.read().length, 0);
+    assert.equal(canonicalPosts.length, 2);
+    assert.deepEqual(canonicalPosts[1], canonicalPosts[0]);
+    assert.equal(canonicalPosts[1].eventId, 'evt-offline-retry');
+    assert.equal(canonicalPosts[1].completedAt, '2026-10-05T23:59:15.000Z');
+  } finally {
+    if (originalStorage === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = originalStorage;
+  }
 });
