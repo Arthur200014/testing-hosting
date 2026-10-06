@@ -102,12 +102,19 @@ export function parseSubmissionResponse(data, responseOk = true) {
 export function submissionState(data) {
   const body = data && typeof data === 'object' && data.result && typeof data.result === 'object' ? data.result : (data || {});
   return {
-    submitted: Boolean(body.submitted || body.exists || body.hasSubmission || body.alreadySubmitted || body.found || body.isSubmitted || body.status === 'submitted' || body.canSubmit === false),
+    submitted: Boolean(body.submitted || body.exists || body.hasSubmission || body.alreadySubmitted || body.found || body.isSubmitted || body.status === 'submitted' || body.status === 'submitted_late' || body.canSubmit === false),
     error: Boolean(data?.success === false || data?.ok === false || body.success === false || body.ok === false || data?.error || body.error)
   };
 }
 
+function withCompletionTimestamp(payload, milliseconds) {
+  if (!payload || typeof payload !== 'object' || payload.completedAt || payload.finishedAt || payload.submittedAt) return payload;
+  return { ...payload, completedAt: new Date(milliseconds).toISOString() };
+}
+
 // Adapter for the legacy object queue in dz1 and array queues in dz2/dz3.
+// New entries preserve their completion instant so an offline retry cannot change
+// deadline semantics when the ASP.NET homework provider is enabled later.
 export function createHomeworkQueueAdapter({ read, write, shape, now = Date.now }) {
   function list() {
     const value = read();
@@ -116,16 +123,18 @@ export function createHomeworkQueueAdapter({ read, write, shape, now = Date.now 
     return Array.isArray(value) ? value.map(payload => ({ eventId: payload?.eventId, payload })) : [];
   }
   function enqueue(payload) {
+    const completedAtMs = now();
+    const timestampedPayload = withCompletionTimestamp(payload, completedAtMs);
     if (shape === 'object') {
       const value = read();
       const queue = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
-      queue[payload.eventId] = { payload, createdAt: now(), lastAttemptAt: 0 };
+      queue[payload.eventId] = { payload: timestampedPayload, createdAt: completedAtMs, lastAttemptAt: 0 };
       write(queue);
     } else {
       const current = read();
       const queue = Array.isArray(current) ? current : [];
       const index = queue.findIndex(item => item?.eventId === payload.eventId);
-      if (index >= 0) queue[index] = payload; else queue.push(payload);
+      if (index >= 0) queue[index] = timestampedPayload; else queue.push(timestampedPayload);
       write(queue);
     }
   }
@@ -163,8 +172,16 @@ export function createHomeworkOutbox({ queue, api, isOnline = () => true, acknow
     flushing = true;
     try {
       for (const { eventId, entry, payload: arrayPayload } of queue.list()) {
-        const payload = entry?.payload || arrayPayload;
+        let payload = entry?.payload || arrayPayload;
         if (!payload) { queue.remove(eventId); continue; }
+        // Legacy dz1 object envelopes already contain a reliable enqueue timestamp.
+        // Backfill it once. Old dz2/dz3 array entries without a timestamp are left
+        // untouched so a future ASP.NET cutover cannot silently invent history.
+        if (entry?.createdAt && !payload.completedAt && !payload.finishedAt && !payload.submittedAt) {
+          const enriched = withCompletionTimestamp(payload, entry.createdAt);
+          queue.replacePayload(eventId, () => enriched);
+          payload = enriched;
+        }
         queue.markAttempt(eventId);
         try {
           const answer = await api.submitResult(payload);
@@ -177,7 +194,13 @@ export function createHomeworkOutbox({ queue, api, isOnline = () => true, acknow
     } finally { flushing = false; }
   }
   function sendOnExit(mode = 'fetch') {
-    for (const { entry, payload } of queue.list()) api.sendResultOnExit(entry?.payload || payload, mode);
+    for (const { entry, payload } of queue.list()) {
+      let outgoing = entry?.payload || payload;
+      if (entry?.createdAt && outgoing && !outgoing.completedAt && !outgoing.finishedAt && !outgoing.submittedAt) {
+        outgoing = withCompletionTimestamp(outgoing, entry.createdAt);
+      }
+      api.sendResultOnExit(outgoing, mode);
+    }
   }
   return { flush, sendOnExit };
 }
