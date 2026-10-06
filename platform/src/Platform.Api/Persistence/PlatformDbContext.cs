@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TestingHosting.Platform.Homework;
 using TestingHosting.Platform.IdentityAccess;
 using TestingHosting.Platform.Students;
 using TestingHosting.Platform.TestAttempts;
@@ -15,6 +16,9 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<WorkspaceStudentMembership> WorkspaceStudentMemberships => Set<WorkspaceStudentMembership>();
     public DbSet<StudentImportBatch> StudentImportBatches => Set<StudentImportBatch>();
     public DbSet<TestAttempt> TestAttempts => Set<TestAttempt>();
+    public DbSet<HomeworkCatalogItem> HomeworkCatalogItems => Set<HomeworkCatalogItem>();
+    public DbSet<HomeworkAssignment> HomeworkAssignments => Set<HomeworkAssignment>();
+    public DbSet<HomeworkSubmission> HomeworkSubmissions => Set<HomeworkSubmission>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -104,6 +108,85 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 table.HasCheckConstraint("CK_StudentImportBatches_WorkbookDigest_Length", "length(\"WorkbookDigest\") = 64");
                 table.HasCheckConstraint("CK_StudentImportBatches_ProgramMapDigest_Length", "length(\"ProgramMapDigest\") = 64");
                 table.HasCheckConstraint("CK_StudentImportBatches_Counts", "\"RowCount\" >= 0 AND \"CreatedStudentCount\" >= 0 AND \"UnchangedStudentCount\" >= 0 AND \"CreatedStudentCount\" + \"UnchangedStudentCount\" = \"RowCount\"");
+            });
+        });
+
+        modelBuilder.Entity<HomeworkCatalogItem>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.HomeworkId).HasMaxLength(128);
+            entity.Property(x => x.Name).HasMaxLength(200);
+            entity.Property(x => x.Url).HasMaxLength(2048);
+            entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id });
+            entity.HasIndex(x => new { x.WorkspaceId, x.ProgramId, x.HomeworkId }).IsUnique();
+            entity.HasOne(x => x.Workspace).WithMany().HasForeignKey(x => x.WorkspaceId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Program).WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.ProgramId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_HomeworkCatalog_RequiredStrings", "length(\"HomeworkId\") > 0 AND length(\"Name\") > 0 AND length(\"Url\") > 0");
+                table.HasCheckConstraint("CK_HomeworkCatalog_TaskAndOrder", "\"TaskNumber\" BETWEEN 1 AND 1000 AND \"SortOrder\" >= 0");
+            });
+        });
+
+        modelBuilder.Entity<HomeworkAssignment>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.AssignmentRecordId).HasMaxLength(128);
+            entity.Property(x => x.HomeworkId).HasMaxLength(128);
+            entity.Property(x => x.Name).HasMaxLength(200);
+            entity.Property(x => x.Url).HasMaxLength(2048);
+            entity.Property(x => x.Status).HasMaxLength(32);
+            entity.Property(x => x.HomeworkEventId).HasMaxLength(128);
+            entity.Property(x => x.LegacyLessonId).HasMaxLength(128);
+            entity.Property(x => x.SchemaVersion).HasMaxLength(64);
+            entity.HasIndex(x => new { x.WorkspaceId, x.AssignmentRecordId }).IsUnique();
+            entity.HasIndex(x => new { x.WorkspaceId, x.MembershipId, x.ProgramId, x.HomeworkId, x.AssignedAt });
+            entity.HasOne(x => x.Workspace).WithMany().HasForeignKey(x => x.WorkspaceId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Membership).WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.MembershipId, x.StudentId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.StudentId })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Program).WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.ProgramId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.CatalogItem).WithMany()
+                .HasForeignKey(x => x.CatalogItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_HomeworkAssignments_RequiredStrings", "length(\"AssignmentRecordId\") > 0 AND length(\"HomeworkId\") > 0 AND length(\"Name\") > 0 AND length(\"Url\") > 0 AND length(\"Status\") > 0 AND length(\"SchemaVersion\") > 0");
+                table.HasCheckConstraint("CK_HomeworkAssignments_Deadline", "\"DeadlineAt\" > \"AssignedAt\"");
+                table.HasCheckConstraint("CK_HomeworkAssignments_TaskScore", "\"TaskNumber\" BETWEEN 1 AND 1000 AND (\"ScorePercent\" IS NULL OR \"ScorePercent\" BETWEEN 0 AND 100)");
+            });
+        });
+
+        modelBuilder.Entity<HomeworkSubmission>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.EventId).HasMaxLength(128);
+            entity.Property(x => x.SchemaVersion).HasMaxLength(64);
+            entity.HasIndex(x => new { x.WorkspaceId, x.EventId }).IsUnique();
+            entity.HasIndex(x => new { x.WorkspaceId, x.AssignmentId, x.CompletedAt });
+            entity.HasOne(x => x.Workspace).WithMany().HasForeignKey(x => x.WorkspaceId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Assignment).WithMany()
+                .HasForeignKey(x => x.AssignmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Membership).WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.MembershipId, x.StudentId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.StudentId })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Program).WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.ProgramId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_HomeworkSubmissions_RequiredStrings", "length(\"EventId\") > 0 AND length(\"SchemaVersion\") > 0");
+                table.HasCheckConstraint("CK_HomeworkSubmissions_ScoreDuration", "\"ScorePercent\" BETWEEN 0 AND 100 AND \"DurationSeconds\" BETWEEN 0 AND 86400");
             });
         });
 
