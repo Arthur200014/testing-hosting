@@ -34,38 +34,50 @@ test('submission parser preserves ambiguous HTTP 200 acknowledgments and error r
   assert.deepEqual(submissionState({ success: true }), { submitted: false, error: false });
   assert.deepEqual(submissionState({ result: { alreadySubmitted: true, error: 'duplicate' } }), { submitted: true, error: true });
   assert.deepEqual(submissionState({ ok: false }), { submitted: false, error: true });
+  assert.deepEqual(submissionState({ status: 'submitted_late' }), { submitted: true, error: false });
 });
 
-test('object adapter retains dz1 envelope, creation timestamps, attempts, and event dedupe', () => {
+test('object adapter retains dz1 envelope, completion timestamps, attempts, and event dedupe', () => {
   let stored = {};
   let time = 40;
   const queue = createHomeworkQueueAdapter({ read: () => stored, write: value => { stored = structuredClone(value); }, shape: 'object', now: () => time });
   const payload = { eventId: 'a', answer: 3 };
   queue.enqueue(payload);
-  assert.deepEqual(stored, { a: { payload, createdAt: 40, lastAttemptAt: 0 } });
+  assert.deepEqual(stored, { a: { payload: { ...payload, completedAt: new Date(40).toISOString() }, createdAt: 40, lastAttemptAt: 0 } });
   time = 50;
   queue.enqueue({ eventId: 'a', answer: 4 });
-  assert.deepEqual(stored.a, { payload: { eventId: 'a', answer: 4 }, createdAt: 50, lastAttemptAt: 0 });
+  assert.deepEqual(stored.a, { payload: { eventId: 'a', answer: 4, completedAt: new Date(50).toISOString() }, createdAt: 50, lastAttemptAt: 0 });
   queue.markAttempt('a');
   assert.equal(stored.a.lastAttemptAt, 50);
   queue.remove('a');
   assert.deepEqual(stored, {});
 });
 
-test('array adapter retains raw payload shape and duplicate replacement', () => {
+test('array adapter retains raw shape plus stable completion timestamp and duplicate replacement', () => {
   let stored = [];
-  const queue = createHomeworkQueueAdapter({ read: () => stored, write: value => { stored = structuredClone(value); }, shape: 'array' });
+  const queue = createHomeworkQueueAdapter({ read: () => stored, write: value => { stored = structuredClone(value); }, shape: 'array', now: () => 1000 });
   queue.enqueue({ eventId: 'a', studentId: 'provisional' });
   queue.enqueue({ eventId: 'a', studentId: 'verified' });
-  assert.deepEqual(stored, [{ eventId: 'a', studentId: 'verified' }]);
+  assert.deepEqual(stored, [{ eventId: 'a', studentId: 'verified', completedAt: new Date(1000).toISOString() }]);
   queue.replacePayload('a', payload => ({ ...payload, score: 100 }));
-  assert.deepEqual(stored, [{ eventId: 'a', studentId: 'verified', score: 100 }]);
+  assert.deepEqual(stored, [{ eventId: 'a', studentId: 'verified', completedAt: new Date(1000).toISOString(), score: 100 }]);
   queue.remove('a');
   assert.deepEqual(stored, []);
 });
 
+test('outbox backfills legacy dz1 createdAt before sending but keeps array history uninvented', async () => {
+  let stored = { legacy: { payload: { eventId: 'legacy' }, createdAt: 1234, lastAttemptAt: 0 } };
+  const sent = [];
+  const queue = createHomeworkQueueAdapter({ read: () => stored, write: value => { stored = structuredClone(value); }, shape: 'object', now: () => 2000 });
+  const api = { submitResult: async payload => { sent.push(payload); return { success: true }; }, sendResultOnExit() {} };
+  const outbox = createHomeworkOutbox({ queue, api, acknowledge: () => true });
+  await outbox.flush();
+  assert.equal(sent[0].completedAt, new Date(1234).toISOString());
+  assert.deepEqual(stored, {});
+});
+
 test('outbox removes successful and duplicate acknowledgments but keeps explicit failures', async () => {
-  let stored = [{ eventId: 'ok' }, { eventId: 'duplicate' }, { eventId: 'fail' }];
+  let stored = [{ eventId: 'ok', completedAt: '2026-01-01T00:00:00.000Z' }, { eventId: 'duplicate', completedAt: '2026-01-01T00:00:00.000Z' }, { eventId: 'fail', completedAt: '2026-01-01T00:00:00.000Z' }];
   const queue = createHomeworkQueueAdapter({ read: () => stored, write: value => { stored = structuredClone(value); }, shape: 'array' });
   const api = { submitResult: async payload => {
     if (payload.eventId === 'ok') return { success: true };
@@ -74,5 +86,5 @@ test('outbox removes successful and duplicate acknowledgments but keeps explicit
   }, sendResultOnExit() {} };
   const outbox = createHomeworkOutbox({ queue, api, acknowledge: answer => { const state = submissionState(answer); return !state.error || state.submitted; } });
   await outbox.flush({ keepFailed: true });
-  assert.deepEqual(stored, [{ eventId: 'fail' }]);
+  assert.deepEqual(stored, [{ eventId: 'fail', completedAt: '2026-01-01T00:00:00.000Z' }]);
 });
