@@ -1,0 +1,30 @@
+name: Homework import integration
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/homework-import-integration.yml'
+      - 'compose.yaml'
+      - 'platform/**'
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build integration test runner
+        run: docker compose --env-file .env.example --profile test build tests
+
+      - name: Run integration tests on PostgreSQL 17
+        run: docker compose --env-file .env.example --profile test run --rm tests
+
+      - name: Cleanup
+        if: always()
+        run: docker compose --env-file .env.example --profile test down -v
