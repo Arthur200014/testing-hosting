@@ -138,15 +138,19 @@ public sealed class HomeworkWorkbookParser
             ok &= eventId is null || Required(eventId, 128, n, "ДЗ_Назначения", "homeworkEventId", diagnostics);
             ok &= lessonId is null || Required(lessonId, 128, n, "ДЗ_Назначения", "lessonId", diagnostics);
             ok &= TryInt(row.Cell(columns["taskNumber"]), 1, 1000, out var task, n, "ДЗ_Назначения", "taskNumber", diagnostics);
-            ok &= TryDate(row.Cell(columns["assignedAt"]), out var assignedAt, n, "ДЗ_Назначения", "assignedAt", diagnostics);
-            ok &= TryDate(row.Cell(columns["deadlineAt"]), out var deadlineAt, n, "ДЗ_Назначения", "deadlineAt", diagnostics);
+            var assignedOk = TryDate(row.Cell(columns["assignedAt"]), out var assignedAt, n, "ДЗ_Назначения", "assignedAt", diagnostics);
+            var deadlineOk = TryDate(row.Cell(columns["deadlineAt"]), out var deadlineAt, n, "ДЗ_Назначения", "deadlineAt", diagnostics);
+            ok &= assignedOk && deadlineOk;
             var submittedOk = TryOptionalDate(row.Cell(columns["submittedAt"]), out var submittedAt, n, "ДЗ_Назначения", "submittedAt", diagnostics);
             var scoreOk = TryOptionalInt(row.Cell(columns["scorePercent"]), 0, 100, out var score, n, "ДЗ_Назначения", "scorePercent", diagnostics);
             ok &= submittedOk && scoreOk;
-            if (deadlineAt <= assignedAt) { diagnostics.Add(new(n, "ДЗ_Назначения", "deadlineAt", "invalid_deadline")); ok = false; }
-            var hours = (deadlineAt - assignedAt).TotalHours;
-            if (Math.Abs(hours - 24) > .01 && Math.Abs(hours - 48) > .01 && Math.Abs(hours - 72) > .01)
-            { diagnostics.Add(new(n, "ДЗ_Назначения", "deadlineAt", "unsupported_deadline_window")); ok = false; }
+            if (assignedOk && deadlineOk)
+            {
+                if (deadlineAt <= assignedAt) { diagnostics.Add(new(n, "ДЗ_Назначения", "deadlineAt", "invalid_deadline")); ok = false; }
+                var hours = (deadlineAt - assignedAt).TotalHours;
+                if (Math.Abs(hours - 24) > .01 && Math.Abs(hours - 48) > .01 && Math.Abs(hours - 72) > .01)
+                { diagnostics.Add(new(n, "ДЗ_Назначения", "deadlineAt", "unsupported_deadline_window")); ok = false; }
+            }
             if ((submittedAt is null) != (score is null))
             { diagnostics.Add(new(n, "ДЗ_Назначения", "submission", "incomplete_submission")); ok = false; }
             if (ok) rows.Add(new(n, assignmentId, studentId, homeworkId, task, name, url, assignedAt, deadlineAt,
