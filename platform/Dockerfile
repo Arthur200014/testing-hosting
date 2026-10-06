@@ -1,7 +1,14 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS restore
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS api-restore
 WORKDIR /source
 COPY Directory.Build.props ./
 COPY src/Platform.Api/Platform.Api.csproj src/Platform.Api/
+RUN --mount=type=secret,id=build_ca,required=false \
+    if [ -s /run/secrets/build_ca ]; then \
+      cp /run/secrets/build_ca /usr/local/share/ca-certificates/local-build-proxy.crt && update-ca-certificates; \
+    fi && \
+    dotnet restore src/Platform.Api/Platform.Api.csproj
+
+FROM api-restore AS restore
 COPY src/Platform.StudentImport/Platform.StudentImport.csproj src/Platform.StudentImport/
 COPY tests/Platform.Api.IntegrationTests/Platform.Api.IntegrationTests.csproj tests/Platform.Api.IntegrationTests/
 COPY tests/Platform.StudentImport.IntegrationTests/Platform.StudentImport.IntegrationTests.csproj tests/Platform.StudentImport.IntegrationTests/
@@ -12,8 +19,8 @@ RUN --mount=type=secret,id=build_ca,required=false \
     dotnet restore tests/Platform.Api.IntegrationTests/Platform.Api.IntegrationTests.csproj && \
     dotnet restore tests/Platform.StudentImport.IntegrationTests/Platform.StudentImport.IntegrationTests.csproj
 
-FROM restore AS build
-COPY src/ src/
+FROM api-restore AS build
+COPY src/Platform.Api/ src/Platform.Api/
 RUN dotnet publish src/Platform.Api/Platform.Api.csproj --no-restore -c Release -o /app/publish /p:UseAppHost=false
 
 FROM restore AS importer-build
