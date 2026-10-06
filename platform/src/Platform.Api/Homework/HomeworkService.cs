@@ -67,20 +67,14 @@ public sealed class HomeworkService(PlatformDbContext dbContext, TimeProvider ti
             return await BuildReplayAsync(existing, identity, canonical, cancellationToken);
 
         var assignment = await dbContext.HomeworkAssignments
-            .SingleOrDefaultAsync(
-                item => item.WorkspaceId == identity.WorkspaceId &&
-                        item.MembershipId == identity.MembershipId &&
-                        item.StudentId == identity.StudentId &&
-                        item.ProgramId == identity.ProgramId &&
-                        item.HomeworkId == canonical.HomeworkId &&
-                        item.AssignedAt == dbContext.HomeworkAssignments
-                            .Where(candidate => candidate.WorkspaceId == identity.WorkspaceId &&
-                                                candidate.MembershipId == identity.MembershipId &&
-                                                candidate.StudentId == identity.StudentId &&
-                                                candidate.ProgramId == identity.ProgramId &&
-                                                candidate.HomeworkId == canonical.HomeworkId)
-                            .Max(candidate => candidate.AssignedAt),
-                cancellationToken);
+            .Where(item => item.WorkspaceId == identity.WorkspaceId &&
+                           item.MembershipId == identity.MembershipId &&
+                           item.StudentId == identity.StudentId &&
+                           item.ProgramId == identity.ProgramId &&
+                           item.HomeworkId == canonical.HomeworkId)
+            .OrderByDescending(item => item.AssignedAt)
+            .ThenByDescending(item => item.Id)
+            .FirstOrDefaultAsync(cancellationToken);
         if (assignment is null) return new(HomeworkSubmissionWriteStatus.AssignmentNotFound);
 
         var late = canonical.CompletedAt > assignment.DeadlineAt;
