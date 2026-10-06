@@ -95,10 +95,15 @@ public sealed class HomeworkService(PlatformDbContext dbContext, TimeProvider ti
             CreatedAt = TruncateToMicroseconds(timeProvider.GetUtcNow())
         };
 
-        assignment.SubmittedAt = canonical.CompletedAt;
-        assignment.ScorePercent = canonical.ScorePercent;
-        assignment.HomeworkEventId = canonical.EventId;
-        assignment.Status = late ? "submitted_late" : "submitted";
+        // Offline results may arrive out of order. Keep every immutable submission,
+        // but do not let an older completion overwrite the latest assignment summary.
+        if (assignment.SubmittedAt is null || canonical.CompletedAt >= assignment.SubmittedAt)
+        {
+            assignment.SubmittedAt = canonical.CompletedAt;
+            assignment.ScorePercent = canonical.ScorePercent;
+            assignment.HomeworkEventId = canonical.EventId;
+            assignment.Status = late ? "submitted_late" : "submitted";
+        }
         dbContext.HomeworkSubmissions.Add(submission);
 
         try
