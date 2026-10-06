@@ -101,13 +101,15 @@ PostgreSQL write-срезом: аутентифицированно сохран
 
 ## Текущий шаг
 
-Задача завершена: оба regression-теста и полный PostgreSQL runner проходят,
-review исправлений выполнен, найденный drift документации устранён.
+Задача завершена и повторно проверена после синхронизации с browser-client
+срезом: schema/API не изменялись, полный PostgreSQL runner проходит.
 
 ## Следующий шаг
 
-Нет для этого среза. Compatibility mapper/browser-client и production import
-остаются отдельными будущими задачами.
+Compatibility mapper/browser-client завершён в отдельной задаче
+`.ai/tasks/test-attempt-browser-client-slice.md`. Следующий этап — подготовка
+контролируемого production cutover; импорт старой истории остаётся отдельной
+будущей задачей.
 
 ## Проверка
 
@@ -126,12 +128,16 @@ review исправлений выполнен, найденный drift док�
   drift документации по test totals и DB-инварианту месяца.
 - Runtime smoke: `/health/live` = 200, `/health/ready` = 200, fake student
   exchange = 401, `POST /api/v1/test-attempts` без Bearer token = 401; активная
-  migration — `20261005215252_TestAttempts`.
+  migration — `20261005221951_TestAttemptMonthInvariant`.
+- Повторная проверка после fast-forward до `44f184b`: чистая PostgreSQL 17,
+  build без warnings/errors и combined runner 40/40.
+- Изолированный реальный browser → API → PostgreSQL E2E: session exchange 200,
+  первая запись 201, точный replay 200; в БД осталась одна строка события.
 
 ## Открытые вопросы и риски
 
-- Точный compatibility mapping всех legacy aliases (`score`/`correctCount`,
-  `durationSec`/`durationSeconds`) остаётся будущему browser-client этапу.
+- Перед production cutover нужно принять явно описанные решения по старым
+  pending queues без `studentCode` и попыткам с нулевым прогрессом.
 - Production import старой истории потребует отдельного private dry-run и
   сверки агрегатов.
 - Offline delivery требует сохранять время завершения события, а не месяц
@@ -139,5 +145,5 @@ review исправлений выполнен, найденный drift док�
 
 ## Последнее обновление
 
-2026-10-06 — regression 2/2 и полный PostgreSQL runner 40/40 проходят; review
-`d21cdd6` завершён, документация синхронизирована, задача закрыта.
+2026-10-06 — локальный `main` синхронизирован с `origin/main` на `44f184b`;
+повторный PostgreSQL runner 40/40 и реальный browser/API/DB E2E проходят.

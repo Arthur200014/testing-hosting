@@ -126,6 +126,16 @@ legacy, временный validation workflow удалён из итогово�
 - Headless Chrome smoke: PASS; ES modules загрузились, lazy Bearer exchange и
   `POST /api/v1/test-attempts` contract отработали на synthetic fetch, default
   `platformApi` остался legacy.
+- После синхронизации до `44f184b` выполнен отдельный E2E без mocked fetch:
+  настоящий Chromium вызвал локальный ASP.NET API и изолированную PostgreSQL 17.
+  Session exchange вернул 200, первая попытка 201, точный replay 200 с тем же
+  attempt ID и `duplicate=true`; SQL подтвердил одну строку для одного event ID,
+  ожидаемые tenant IDs, 2/3 = 66%, 30 секунд и `MoscowMonthKey=2026-10`.
+- В реальном E2E не было page errors, failed requests, CORS-ошибок или запросов
+  к production Google/Firebase. Единственный 404 относился к `/favicon.ico`
+  временной страницы Python-сервера и не связан с приложением.
+- Повторный независимый `Luna medium` review после E2E: `APPROVED`, существенных
+  пробелов, scope drift или несинхронизированного состояния не найдено.
 - Expired session: exit-send не отправляет без usable Bearer; обычный submit
   выполняет новый student-session exchange.
 - Attempt `401`: bearer cache очищается, следующий retry получает новую session.
@@ -145,6 +155,6 @@ legacy, временный validation workflow удалён из итогово�
 
 ## Последнее обновление
 
-2026-10-06 — browser-client slice завершён: shared `node:test` 41/41,
-headless Chrome smoke PASS, review fallback выполнен, документация обновлена,
-default provider остаётся legacy; production cutover не выполнялся.
+2026-10-06 — после fast-forward до `44f184b` повторно пройдены `node:test`
+41/41, PostgreSQL runner 40/40 и реальный browser → API → DB E2E; default
+provider остаётся legacy, production cutover не выполнялся.
