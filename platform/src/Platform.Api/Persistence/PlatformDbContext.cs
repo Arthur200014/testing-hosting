@@ -85,12 +85,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 .OnDelete(DeleteBehavior.Restrict);
             entity.ToTable(table =>
             {
-                table.HasCheckConstraint(
-                    "CK_WorkspaceStudentMemberships_CodeHash_Length",
-                    "octet_length(\"CodeHash\") = 32");
-                table.HasCheckConstraint(
-                    "CK_WorkspaceStudentMemberships_ImportIdentity",
-                    "(\"ImportSource\" IS NULL) = (\"ImportExternalId\" IS NULL)");
+                table.HasCheckConstraint("CK_WorkspaceStudentMemberships_CodeHash_Length", "octet_length(\"CodeHash\") = 32");
+                table.HasCheckConstraint("CK_WorkspaceStudentMemberships_ImportIdentity", "(\"ImportSource\" IS NULL) = (\"ImportExternalId\" IS NULL)");
             });
         });
 
@@ -134,6 +130,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         modelBuilder.Entity<HomeworkAssignment>(entity =>
         {
             entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id });
             entity.Property(x => x.AssignmentRecordId).HasMaxLength(128);
             entity.Property(x => x.HomeworkId).HasMaxLength(128);
             entity.Property(x => x.Name).HasMaxLength(200);
@@ -154,7 +151,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.CatalogItem).WithMany()
-                .HasForeignKey(x => x.CatalogItemId)
+                .HasForeignKey(x => new { x.WorkspaceId, x.CatalogItemId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
                 .OnDelete(DeleteBehavior.Restrict);
             entity.ToTable(table =>
             {
@@ -173,7 +171,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(x => new { x.WorkspaceId, x.AssignmentId, x.CompletedAt });
             entity.HasOne(x => x.Workspace).WithMany().HasForeignKey(x => x.WorkspaceId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Assignment).WithMany()
-                .HasForeignKey(x => x.AssignmentId)
+                .HasForeignKey(x => new { x.WorkspaceId, x.AssignmentId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Membership).WithMany()
                 .HasForeignKey(x => new { x.WorkspaceId, x.MembershipId, x.StudentId })
@@ -199,47 +198,24 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(x => x.SchemaVersion).HasMaxLength(64);
             entity.Property(x => x.MoscowMonthKey).HasMaxLength(7).IsFixedLength();
             entity.HasIndex(x => new { x.WorkspaceId, x.EventId }).IsUnique();
-            entity.HasIndex(x => new
-            {
-                x.WorkspaceId,
-                x.MembershipId,
-                x.TestId,
-                x.MoscowMonthKey,
-                x.Percent,
-                x.DurationSeconds,
-                x.CompletedAt,
-                x.Id
-            })
+            entity.HasIndex(x => new { x.WorkspaceId, x.MembershipId, x.TestId, x.MoscowMonthKey, x.Percent, x.DurationSeconds, x.CompletedAt, x.Id })
                 .HasDatabaseName("IX_TestAttempts_MonthlyBest")
                 .IsDescending(false, false, false, false, true, false, false, false);
-            entity.HasOne(x => x.Workspace)
-                .WithMany()
-                .HasForeignKey(x => x.WorkspaceId)
-                .OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(x => x.Membership)
-                .WithMany()
+            entity.HasOne(x => x.Workspace).WithMany().HasForeignKey(x => x.WorkspaceId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Membership).WithMany()
                 .HasForeignKey(x => new { x.WorkspaceId, x.MembershipId, x.StudentId })
                 .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.StudentId })
                 .OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(x => x.Program)
-                .WithMany()
+            entity.HasOne(x => x.Program).WithMany()
                 .HasForeignKey(x => new { x.WorkspaceId, x.ProgramId })
                 .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
                 .OnDelete(DeleteBehavior.Restrict);
             entity.ToTable(table =>
             {
-                table.HasCheckConstraint(
-                    "CK_TestAttempts_RequiredStrings",
-                    "length(\"EventId\") > 0 AND length(\"TestId\") > 0 AND length(\"Topic\") > 0 AND length(\"SchemaVersion\") > 0");
-                table.HasCheckConstraint(
-                    "CK_TestAttempts_CountsAndPercent",
-                    "\"TaskNumber\" BETWEEN 1 AND 1000 AND \"Total\" BETWEEN 1 AND 10000 AND \"Correct\" BETWEEN 0 AND \"Total\" AND \"Percent\" = (\"Correct\" * 100 / \"Total\")");
-                table.HasCheckConstraint(
-                    "CK_TestAttempts_TimestampsAndDuration",
-                    "\"CompletedAt\" >= \"StartedAt\" AND \"DurationSeconds\" BETWEEN 0 AND 86400 AND \"CompletedAt\" - \"StartedAt\" <= interval '1 day' AND \"DurationSeconds\" = round(extract(epoch from (\"CompletedAt\" - \"StartedAt\")))::integer");
-                table.HasCheckConstraint(
-                    "CK_TestAttempts_MoscowMonthKey",
-                    "\"MoscowMonthKey\" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$' AND \"MoscowMonthKey\" = (lpad(extract(year from (\"CompletedAt\" AT TIME ZONE 'Europe/Moscow'))::integer::text, 4, '0') || '-' || lpad(extract(month from (\"CompletedAt\" AT TIME ZONE 'Europe/Moscow'))::integer::text, 2, '0'))");
+                table.HasCheckConstraint("CK_TestAttempts_RequiredStrings", "length(\"EventId\") > 0 AND length(\"TestId\") > 0 AND length(\"Topic\") > 0 AND length(\"SchemaVersion\") > 0");
+                table.HasCheckConstraint("CK_TestAttempts_CountsAndPercent", "\"TaskNumber\" BETWEEN 1 AND 1000 AND \"Total\" BETWEEN 1 AND 10000 AND \"Correct\" BETWEEN 0 AND \"Total\" AND \"Percent\" = (\"Correct\" * 100 / \"Total\")");
+                table.HasCheckConstraint("CK_TestAttempts_TimestampsAndDuration", "\"CompletedAt\" >= \"StartedAt\" AND \"DurationSeconds\" BETWEEN 0 AND 86400 AND \"CompletedAt\" - \"StartedAt\" <= interval '1 day' AND \"DurationSeconds\" = round(extract(epoch from (\"CompletedAt\" - \"StartedAt\")))::integer");
+                table.HasCheckConstraint("CK_TestAttempts_MoscowMonthKey", "\"MoscowMonthKey\" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$' AND \"MoscowMonthKey\" = (lpad(extract(year from (\"CompletedAt\" AT TIME ZONE 'Europe/Moscow'))::integer::text, 4, '0') || '-' || lpad(extract(month from (\"CompletedAt\" AT TIME ZONE 'Europe/Moscow'))::integer::text, 2, '0'))");
             });
         });
     }
