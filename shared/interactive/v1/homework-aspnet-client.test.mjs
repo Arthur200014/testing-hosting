@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createAspNetHomeworkClient, mapLegacyHomeworkSubmission } from './homework-aspnet-client.js';
+import { createHomeworkOutbox, createHomeworkQueueAdapter } from './homework-transport.js';
 
 const sessionBody = {
   accessToken: 'token-1',
@@ -98,4 +99,113 @@ test('conflicting replay surfaces a normalized conflict error', async () => {
     }),
     error => error?.code === 'CONFLICT' && error?.status === 409
   );
+});
+
+test('submission requires studentCode on that payload and does not use the current-code fallback', async () => {
+  const calls = [];
+  const client = createAspNetHomeworkClient({
+    baseUrl: 'https://api.tests.invalid', workspace: 'school',
+    getStudentCode: () => 'CURRENT-CODE',
+    now: () => Date.parse('2026-10-06T12:00:00Z'),
+    fetchImpl: async (...args) => {
+      calls.push(args);
+      return args[0].endsWith('/api/v1/student-sessions') ? Response.json(sessionBody) : Response.json([]);
+    }
+  });
+  const legacyQueuedPayload = {
+    action: 'submitHomework', assignmentId: 'HW-6-1', eventId: 'old-code-less-event',
+    scorePercent: 70, durationSeconds: 30, completedAt: '2026-10-06T11:59:00Z', schemaVersion: 1
+  };
+
+  await assert.rejects(() => client.submitResult(legacyQueuedPayload), error => error?.code === 'SESSION_REQUIRED');
+  assert.equal(client.sendResultOnExit(legacyQueuedPayload), false);
+  assert.equal(calls.length, 0);
+
+  let stored = [legacyQueuedPayload];
+  const queue = createHomeworkQueueAdapter({
+    read: () => stored, write: value => { stored = structuredClone(value); }, shape: 'array'
+  });
+  const outbox = createHomeworkOutbox({ queue, api: client, acknowledge: () => true });
+  await outbox.flush();
+  assert.deepEqual(stored, [legacyQueuedPayload]);
+  assert.equal(calls.length, 0);
+
+  await client.listAssignments();
+  assert.equal(calls.length, 2);
+  assert.equal(JSON.parse(calls[0][1].body).code, 'CURRENT-CODE');
+});
+
+test('401 clears only that student bearer and the next normal retry re-exchanges it', async () => {
+  const sessionCalls = [];
+  const codeSessionCounts = new Map();
+  let submissionCalls = 0;
+  const authorizations = [];
+  const assignmentAuthorizations = [];
+  const client = createAspNetHomeworkClient({
+    baseUrl: 'https://api.tests.invalid', workspace: 'school',
+    now: () => Date.parse('2026-10-06T12:00:00Z'),
+    fetchImpl: async (url, options = {}) => {
+      if (url.endsWith('/api/v1/student-sessions')) {
+        const code = JSON.parse(options.body).code;
+        const count = (codeSessionCounts.get(code) || 0) + 1;
+        codeSessionCounts.set(code, count);
+        sessionCalls.push(code);
+        return Response.json({ ...sessionBody, accessToken: `token-${code}-${count}` });
+      }
+      if (url.endsWith('/api/v1/homework-assignments')) {
+        assignmentAuthorizations.push(options.headers.Authorization);
+        return Response.json([]);
+      }
+      submissionCalls++;
+      authorizations.push(options.headers.Authorization);
+      if (submissionCalls === 1) return Response.json({}, { status: 401 });
+      const body = JSON.parse(options.body);
+      return Response.json({
+        submissionId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+        assignmentRecordId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        homeworkId: body.assignmentId, eventId: body.eventId, duplicate: false, late: false,
+        status: 'submitted', scorePercent: body.scorePercent, completedAt: body.completedAt,
+        createdAt: '2026-10-06T12:00:01Z'
+      }, { status: 201 });
+    }
+  });
+  const payload = {
+    action: 'submitHomework', studentCode: 'ABCD', assignmentId: 'HW-6-1', eventId: 'event-401',
+    scorePercent: 90, durationSeconds: 30, completedAt: '2026-10-06T12:00:00Z', schemaVersion: 2
+  };
+
+  await client.validateStudentCode('WXYZ');
+  await assert.rejects(() => client.submitResult(payload), error => error?.code === 'UNAUTHORIZED');
+  const saved = await client.submitResult(payload);
+  await client.listAssignments({ studentCode: 'WXYZ' });
+  assert.equal(saved.submitted, true);
+  assert.deepEqual(sessionCalls, ['WXYZ', 'ABCD', 'ABCD']);
+  assert.deepEqual(authorizations, ['Bearer token-ABCD-1', 'Bearer token-ABCD-2']);
+  assert.deepEqual(assignmentAuthorizations, ['Bearer token-WXYZ-1']);
+});
+
+test('exit uses authenticated keepalive only with a valid in-memory student session', async () => {
+  const calls = [];
+  const client = createAspNetHomeworkClient({
+    baseUrl: 'https://api.tests.invalid', workspace: 'school',
+    now: () => Date.parse('2026-10-06T12:00:00Z'),
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url, options });
+      if (url.endsWith('/api/v1/student-sessions')) return Response.json(sessionBody);
+      return Response.json({});
+    }
+  });
+  const payload = {
+    action: 'submitHomework', studentCode: 'ABCD', assignmentId: 'HW-6-1', eventId: 'event-exit',
+    scorePercent: 90, durationSeconds: 30, completedAt: '2026-10-06T12:00:00Z', schemaVersion: 2
+  };
+
+  assert.equal(client.sendResultOnExit(payload), false);
+  await client.validateStudentCode('ABCD');
+  assert.equal(client.sendResultOnExit(payload), true);
+  await Promise.resolve();
+  const exitCall = calls.at(-1);
+  assert.equal(exitCall.options.keepalive, true);
+  assert.equal(exitCall.options.headers.Authorization, 'Bearer token-1');
+  assert.equal(JSON.parse(exitCall.options.body).eventId, 'event-exit');
 });

@@ -19,6 +19,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<HomeworkCatalogItem> HomeworkCatalogItems => Set<HomeworkCatalogItem>();
     public DbSet<HomeworkAssignment> HomeworkAssignments => Set<HomeworkAssignment>();
     public DbSet<HomeworkSubmission> HomeworkSubmissions => Set<HomeworkSubmission>();
+    public DbSet<HomeworkImportBatch> HomeworkImportBatches => Set<HomeworkImportBatch>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -69,6 +70,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         {
             entity.HasKey(x => x.Id);
             entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id, x.StudentId });
+            entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id, x.StudentId, x.ProgramId })
+                .HasName("AK_StudentMemberships_HomeworkIdentity");
             entity.Property(x => x.CodeHash).HasColumnType("bytea").HasMaxLength(32);
             entity.Property(x => x.ImportSource).HasMaxLength(64);
             entity.Property(x => x.ImportExternalId).HasMaxLength(200);
@@ -114,6 +117,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(x => x.Name).HasMaxLength(200);
             entity.Property(x => x.Url).HasMaxLength(2048);
             entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id });
+            entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id, x.ProgramId, x.HomeworkId })
+                .HasName("AK_HomeworkCatalog_Identity");
             entity.HasIndex(x => new { x.WorkspaceId, x.ProgramId, x.HomeworkId }).IsUnique();
             entity.HasOne(x => x.Workspace).WithMany().HasForeignKey(x => x.WorkspaceId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Program).WithMany()
@@ -131,6 +136,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         {
             entity.HasKey(x => x.Id);
             entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id });
+            entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id, x.MembershipId, x.StudentId, x.ProgramId })
+                .HasName("AK_HomeworkAssignments_SubmissionIdentity");
             entity.Property(x => x.AssignmentRecordId).HasMaxLength(128);
             entity.Property(x => x.HomeworkId).HasMaxLength(128);
             entity.Property(x => x.Name).HasMaxLength(200);
@@ -143,16 +150,18 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(x => new { x.WorkspaceId, x.MembershipId, x.ProgramId, x.HomeworkId, x.AssignedAt });
             entity.HasOne(x => x.Workspace).WithMany().HasForeignKey(x => x.WorkspaceId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Membership).WithMany()
-                .HasForeignKey(x => new { x.WorkspaceId, x.MembershipId, x.StudentId })
-                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.StudentId })
+                .HasForeignKey(x => new { x.WorkspaceId, x.MembershipId, x.StudentId, x.ProgramId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.StudentId, x.ProgramId })
+                .HasConstraintName("FK_HomeworkAssignments_MembershipIdentity")
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Program).WithMany()
                 .HasForeignKey(x => new { x.WorkspaceId, x.ProgramId })
                 .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.CatalogItem).WithMany()
-                .HasForeignKey(x => new { x.WorkspaceId, x.CatalogItemId })
-                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .HasForeignKey(x => new { x.WorkspaceId, x.CatalogItemId, x.ProgramId, x.HomeworkId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.ProgramId, x.HomeworkId })
+                .HasConstraintName("FK_HomeworkAssignments_CatalogIdentity")
                 .OnDelete(DeleteBehavior.Restrict);
             entity.ToTable(table =>
             {
@@ -171,8 +180,9 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(x => new { x.WorkspaceId, x.AssignmentId, x.CompletedAt });
             entity.HasOne(x => x.Workspace).WithMany().HasForeignKey(x => x.WorkspaceId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Assignment).WithMany()
-                .HasForeignKey(x => new { x.WorkspaceId, x.AssignmentId })
-                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .HasForeignKey(x => new { x.WorkspaceId, x.AssignmentId, x.MembershipId, x.StudentId, x.ProgramId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.MembershipId, x.StudentId, x.ProgramId })
+                .HasConstraintName("FK_HomeworkSubmissions_AssignmentIdentity")
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Membership).WithMany()
                 .HasForeignKey(x => new { x.WorkspaceId, x.MembershipId, x.StudentId })
@@ -186,6 +196,27 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             {
                 table.HasCheckConstraint("CK_HomeworkSubmissions_RequiredStrings", "length(\"EventId\") > 0 AND length(\"SchemaVersion\") > 0");
                 table.HasCheckConstraint("CK_HomeworkSubmissions_ScoreDuration", "\"ScorePercent\" BETWEEN 0 AND 100 AND \"DurationSeconds\" BETWEEN 0 AND 86400");
+            });
+        });
+
+        modelBuilder.Entity<HomeworkImportBatch>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Source).HasMaxLength(64);
+            entity.Property(x => x.WorkbookDigest).HasMaxLength(64).IsFixedLength();
+            entity.Property(x => x.ProgramMapDigest).HasMaxLength(64).IsFixedLength();
+            entity.Property(x => x.Status).HasMaxLength(32);
+            entity.HasIndex(x => new { x.WorkspaceId, x.Source, x.WorkbookDigest, x.ProgramMapDigest })
+                .IsUnique()
+                .HasDatabaseName("IX_HomeworkImportBatches_Digests");
+            entity.HasOne(x => x.Workspace).WithMany().HasForeignKey(x => x.WorkspaceId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_HomeworkImportBatches_WorkbookDigest_Length", "length(\"WorkbookDigest\") = 64");
+                table.HasCheckConstraint("CK_HomeworkImportBatches_ProgramMapDigest_Length", "length(\"ProgramMapDigest\") = 64");
+                table.HasCheckConstraint("CK_HomeworkImportBatches_Status", "\"Status\" = 'applied'");
+                table.HasCheckConstraint("CK_HomeworkImportBatches_Counts", "\"CatalogRowCount\" >= 0 AND \"AssignmentRowCount\" >= 0 AND \"SubmissionRowCount\" >= 0 AND \"CatalogCreatedCount\" >= 0 AND \"CatalogUnchangedCount\" >= 0 AND \"CatalogCreatedCount\" + \"CatalogUnchangedCount\" = \"CatalogRowCount\" AND \"AssignmentCreatedCount\" >= 0 AND \"AssignmentUnchangedCount\" >= 0 AND \"AssignmentCreatedCount\" + \"AssignmentUnchangedCount\" = \"AssignmentRowCount\" AND \"SubmissionCreatedCount\" >= 0 AND \"SubmissionUnchangedCount\" >= 0 AND \"SubmissionCreatedCount\" + \"SubmissionUnchangedCount\" = \"SubmissionRowCount\"");
             });
         });
 

@@ -109,14 +109,15 @@ export function createAspNetHomeworkClient({
     };
   }
 
-  function codeForPayload(payload) {
+  function codeForPayload(payload, allowFallback = true) {
     const direct = normalizeCode(payload?.studentCode);
     if (direct) return direct;
+    if (!allowFallback) return '';
     try { return normalizeCode(getStudentCode?.(payload)); } catch { return ''; }
   }
 
-  async function sessionFor(payload) {
-    const code = codeForPayload(payload);
+  async function sessionFor(payload, allowFallback = true) {
+    const code = codeForPayload(payload, allowFallback);
     if (!code) throw new AspNetApiError('A verified student session is required.', { code: 'SESSION_REQUIRED' });
     const cached = sessions.get(code);
     if (sessionIsUsable(cached, now())) return { code, session: cached };
@@ -167,8 +168,10 @@ export function createAspNetHomeworkClient({
   }
 
   async function submitResult(payload) {
+    const code = codeForPayload(payload, false);
+    if (!code) throw new AspNetApiError('The homework result is missing studentCode.', { code: 'SESSION_REQUIRED' });
     const canonical = mapLegacyHomeworkSubmission(payload);
-    const data = await authorizedJson(SUBMISSIONS_PATH, { method: 'POST', payload, body: canonical });
+    const data = await authorizedJson(SUBMISSIONS_PATH, { method: 'POST', payload: { studentCode: code }, body: canonical });
     if (typeof data?.submissionId !== 'string' || !data.submissionId.trim() ||
         typeof data?.assignmentRecordId !== 'string' || !data.assignmentRecordId.trim() ||
         typeof data?.homeworkId !== 'string' || !data.homeworkId.trim() ||
@@ -183,7 +186,7 @@ export function createAspNetHomeworkClient({
   function sendResultOnExit(payload) {
     let canonical;
     try { canonical = mapLegacyHomeworkSubmission(payload); } catch { return false; }
-    const code = codeForPayload(payload);
+    const code = codeForPayload(payload, false);
     const session = sessions.get(code);
     if (!code || !sessionIsUsable(session, now())) return false;
     try {

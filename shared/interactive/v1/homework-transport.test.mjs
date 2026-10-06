@@ -1,9 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import {
-  createHomeworkIdentity, createHomeworkQueueAdapter, createHomeworkOutbox,
+  createHomeworkIdentity, createHomeworkQueueAdapter, createHomeworkOutbox, createHomeworkTransport,
   parseDz1Student, parseDz23Student, parseSubmissionResponse, submissionState
 } from './homework-transport.js';
+
+test('homework transport stays on GAS by default and requires an explicit ASP.NET config', () => {
+  const gas = createHomeworkTransport({ config: undefined, parseStudent: () => null });
+  assert.equal(typeof gas.validateStudentCode, 'function');
+  assert.equal('listAssignments' in gas, false);
+
+  const aspNet = createHomeworkTransport({
+    config: { provider: 'aspnet', baseUrl: 'https://api.tests.invalid', workspace: 'school' },
+    fetchImpl: async () => { throw new Error('network should not run while constructing the provider'); }
+  });
+  assert.equal(typeof aspNet.listAssignments, 'function');
+  assert.throws(() => createHomeworkTransport({ config: { provider: 'other' } }), /Unsupported homework provider/);
+});
 
 test('student parsers retain dz1 and dz2/3 response shape differences', () => {
   assert.deepEqual(parseDz1Student({ result: { student: { studentID: 17, fullName: 'Ada' } } }, 'AB'), {
@@ -46,7 +60,7 @@ test('object adapter retains dz1 envelope, completion timestamps, attempts, and 
   assert.deepEqual(stored, { a: { payload: { ...payload, completedAt: new Date(40).toISOString() }, createdAt: 40, lastAttemptAt: 0 } });
   time = 50;
   queue.enqueue({ eventId: 'a', answer: 4 });
-  assert.deepEqual(stored.a, { payload: { eventId: 'a', answer: 4, completedAt: new Date(50).toISOString() }, createdAt: 50, lastAttemptAt: 0 });
+  assert.deepEqual(stored.a, { payload: { eventId: 'a', answer: 4, completedAt: new Date(40).toISOString() }, createdAt: 40, lastAttemptAt: 0 });
   queue.markAttempt('a');
   assert.equal(stored.a.lastAttemptAt, 50);
   queue.remove('a');
@@ -55,8 +69,10 @@ test('object adapter retains dz1 envelope, completion timestamps, attempts, and 
 
 test('array adapter retains raw shape plus stable completion timestamp and duplicate replacement', () => {
   let stored = [];
-  const queue = createHomeworkQueueAdapter({ read: () => stored, write: value => { stored = structuredClone(value); }, shape: 'array', now: () => 1000 });
+  let time = 1000;
+  const queue = createHomeworkQueueAdapter({ read: () => stored, write: value => { stored = structuredClone(value); }, shape: 'array', now: () => time });
   queue.enqueue({ eventId: 'a', studentId: 'provisional' });
+  time = 2000;
   queue.enqueue({ eventId: 'a', studentId: 'verified' });
   assert.deepEqual(stored, [{ eventId: 'a', studentId: 'verified', completedAt: new Date(1000).toISOString() }]);
   queue.replacePayload('a', payload => ({ ...payload, score: 100 }));
@@ -87,4 +103,58 @@ test('outbox removes successful and duplicate acknowledgments but keeps explicit
   const outbox = createHomeworkOutbox({ queue, api, acknowledge: answer => { const state = submissionState(answer); return !state.error || state.submitted; } });
   await outbox.flush({ keepFailed: true });
   assert.deepEqual(stored, [{ eventId: 'fail', completedAt: '2026-01-01T00:00:00.000Z' }]);
+});
+
+test('reload retry preserves the originally queued event and completion instant', async () => {
+  let stored = [];
+  const firstQueue = createHomeworkQueueAdapter({
+    read: () => stored, write: value => { stored = structuredClone(value); }, shape: 'array', now: () => 1234
+  });
+  firstQueue.enqueue({ eventId: 'historical-event', studentCode: 'ABCD' });
+  const historical = structuredClone(stored[0]);
+  const failing = createHomeworkOutbox({
+    queue: firstQueue,
+    api: { submitResult: async () => { throw new Error('offline'); }, sendResultOnExit() {} },
+    acknowledge: () => true
+  });
+  await failing.flush();
+
+  const retried = [];
+  const reloadedQueue = createHomeworkQueueAdapter({
+    read: () => stored, write: value => { stored = structuredClone(value); }, shape: 'array', now: () => 9999
+  });
+  const reloaded = createHomeworkOutbox({
+    queue: reloadedQueue,
+    api: { submitResult: async payload => { retried.push(payload); return { success: true }; }, sendResultOnExit() {} },
+    acknowledge: () => true
+  });
+  await reloaded.flush();
+
+  assert.deepEqual(retried, [historical]);
+  assert.equal(retried[0].eventId, 'historical-event');
+  assert.equal(retried[0].completedAt, new Date(1234).toISOString());
+  assert.deepEqual(stored, []);
+});
+
+test('exit delivery visits queued results without acknowledging or removing them', () => {
+  let stored = [{ eventId: 'exit-event', studentCode: 'ABCD', completedAt: '2026-10-06T12:00:00.000Z' }];
+  const sent = [];
+  const queue = createHomeworkQueueAdapter({ read: () => stored, write: value => { stored = structuredClone(value); }, shape: 'array' });
+  const outbox = createHomeworkOutbox({
+    queue,
+    api: { submitResult() {}, sendResultOnExit: (payload, mode) => sent.push({ payload, mode }) },
+    acknowledge: () => true
+  });
+  outbox.sendOnExit('fetch');
+  assert.deepEqual(sent, [{ payload: stored[0], mode: 'fetch' }]);
+  assert.equal(stored.length, 1);
+});
+
+test('all EGA/6 homework pages use the provider factory and create code-bound submissions', async () => {
+  for (const page of ['dz1.html', 'dz2.html', 'dz3.html']) {
+    const source = await readFile(new URL(`../../../EGA/6/${page}`, import.meta.url), 'utf8');
+    assert.match(source, /createHomeworkTransport\(\{/);
+    assert.doesNotMatch(source, /createHomeworkApi\(\{/);
+    assert.match(source, /studentCode\s*:\s*student\.code/);
+  }
 });

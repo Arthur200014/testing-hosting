@@ -120,6 +120,84 @@ public sealed class HomeworkTests(ApiFactory factory) : IClassFixture<ApiFactory
     }
 
     [Fact]
+    public async Task ConcurrentDistinctSubmissionsPersistAndNewestCompletionOwnsSummary()
+    {
+        await ResetDatabaseAsync();
+        var identity = await SeedIdentityAsync("homework-concurrent", "HOMEWORK-CONCURRENT");
+        var assignment = await SeedAssignmentAsync(
+            identity,
+            "assignment-concurrent",
+            "hw-concurrent",
+            DateTimeOffset.UtcNow.AddHours(-4));
+        var olderCompletion = TruncateToMicroseconds(DateTimeOffset.UtcNow.AddHours(-2));
+        var newerCompletion = TruncateToMicroseconds(DateTimeOffset.UtcNow.AddHours(-1));
+        using var client = factory.CreateClient();
+        var token = CreateToken(identity);
+
+        var responses = await Task.WhenAll(
+            SendSubmissionAsync(client, token, ValidPayload("concurrent-older", "hw-concurrent") with
+            {
+                ScorePercent = 61,
+                CompletedAt = olderCompletion
+            }),
+            SendSubmissionAsync(client, token, ValidPayload("concurrent-newer", "hw-concurrent") with
+            {
+                ScorePercent = 91,
+                CompletedAt = newerCompletion
+            }));
+
+        Assert.All(responses, response => Assert.Equal(HttpStatusCode.Created, response.StatusCode));
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Equal(2, await db.HomeworkSubmissions.CountAsync(x => x.AssignmentId == assignment.Id));
+        var stored = await db.HomeworkAssignments.AsNoTracking().SingleAsync(x => x.Id == assignment.Id);
+        Assert.Equal(newerCompletion, stored.SubmittedAt);
+        Assert.Equal(91, stored.ScorePercent);
+        Assert.Equal("concurrent-newer", stored.HomeworkEventId);
+    }
+
+    [Fact]
+    public async Task CompositeForeignKeysRejectCrossIdentityRows()
+    {
+        await ResetDatabaseAsync();
+        var first = await SeedIdentityAsync("homework-fk", "HOMEWORK-FK-A");
+        var second = await SeedIdentityInWorkspaceAsync(first.WorkspaceId, "HOMEWORK-FK-B");
+        var firstAssignment = await SeedAssignmentAsync(first, "assignment-fk-a", "hw-fk-a", DateTimeOffset.UtcNow.AddHours(-3));
+        var secondAssignment = await SeedAssignmentAsync(second, "assignment-fk-b", "hw-fk-b", DateTimeOffset.UtcNow.AddHours(-3));
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var secondCatalogId = await db.HomeworkAssignments.Where(x => x.Id == secondAssignment.Id)
+            .Select(x => x.CatalogItemId).SingleAsync();
+
+        db.HomeworkAssignments.Add(NewAssignment(
+            first,
+            "assignment-program-mismatch",
+            "hw-program-mismatch",
+            programId: second.ProgramId));
+        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        db.ChangeTracker.Clear();
+
+        db.HomeworkAssignments.Add(NewAssignment(
+            first,
+            "assignment-catalog-mismatch",
+            "hw-fk-b",
+            catalogItemId: secondCatalogId));
+        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        db.ChangeTracker.Clear();
+
+        db.HomeworkSubmissions.Add(new HomeworkSubmission
+        {
+            Id = Guid.NewGuid(), WorkspaceId = first.WorkspaceId, AssignmentId = firstAssignment.Id,
+            MembershipId = second.MembershipId, StudentId = second.StudentId, ProgramId = second.ProgramId,
+            EventId = "cross-assignment-event", ScorePercent = 80, DurationSeconds = 60,
+            CompletedAt = DateTimeOffset.UtcNow.AddMinutes(-1), IsLate = false,
+            SchemaVersion = "2", CreatedAt = DateTimeOffset.UtcNow
+        });
+        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+    }
+
+    [Fact]
     public async Task EventIdCannotBeReplayedByAnotherStudent()
     {
         await ResetDatabaseAsync();
@@ -213,6 +291,52 @@ public sealed class HomeworkTests(ApiFactory factory) : IClassFixture<ApiFactory
         return new(workspace.Id, membership.Id, student.Id, program.Id);
     }
 
+    private async Task<SeededIdentity> SeedIdentityInWorkspaceAsync(Guid workspaceId, string code)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var hasher = scope.ServiceProvider.GetRequiredService<IStudentCodeHasher>();
+        var workspace = await db.Workspaces.SingleAsync(x => x.Id == workspaceId);
+        Assert.True(hasher.TryNormalizeWorkspace(workspace.Slug, out var normalizedWorkspace));
+        Assert.True(hasher.TryNormalizeCode(code, out var normalizedCode));
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var program = new LearningProgram
+        {
+            Id = Guid.NewGuid(), WorkspaceId = workspace.Id,
+            Code = $"PROGRAM_{suffix}", DisplayName = $"Synthetic program {suffix}"
+        };
+        var student = new Student { Id = Guid.NewGuid(), DisplayName = $"Synthetic student {suffix}" };
+        var membership = new WorkspaceStudentMembership
+        {
+            Id = Guid.NewGuid(), WorkspaceId = workspace.Id,
+            Student = student, StudentId = student.Id, Program = program, ProgramId = program.Id,
+            CodeHash = hasher.Hash(normalizedWorkspace, normalizedCode),
+            ImportSource = "homework-test-fixture", ImportExternalId = suffix
+        };
+        db.Add(membership);
+        await db.SaveChangesAsync();
+        return new(workspace.Id, membership.Id, student.Id, program.Id);
+    }
+
+    private static HomeworkAssignment NewAssignment(
+        SeededIdentity identity,
+        string assignmentRecordId,
+        string homeworkId,
+        Guid? programId = null,
+        Guid? catalogItemId = null)
+    {
+        var assignedAt = DateTimeOffset.UtcNow.AddHours(-2);
+        return new HomeworkAssignment
+        {
+            Id = Guid.NewGuid(), WorkspaceId = identity.WorkspaceId, MembershipId = identity.MembershipId,
+            StudentId = identity.StudentId, ProgramId = programId ?? identity.ProgramId,
+            CatalogItemId = catalogItemId, AssignmentRecordId = assignmentRecordId,
+            HomeworkId = homeworkId, TaskNumber = 6, Name = $"Synthetic {homeworkId}",
+            Url = $"https://tests.invalid/{homeworkId}", AssignedAt = assignedAt,
+            DeadlineAt = assignedAt.AddHours(24), Status = "assigned", SchemaVersion = "2"
+        };
+    }
+
     private async Task<SeededAssignment> SeedAssignmentAsync(
         SeededIdentity identity,
         string assignmentRecordId,
@@ -256,6 +380,9 @@ public sealed class HomeworkTests(ApiFactory factory) : IClassFixture<ApiFactory
         90,
         DateTimeOffset.UtcNow.AddMinutes(-1),
         "2");
+
+    private static DateTimeOffset TruncateToMicroseconds(DateTimeOffset value) =>
+        new(value.UtcTicks - value.UtcTicks % 10, TimeSpan.Zero);
 
     private static async Task<HttpResponseMessage> SendSubmissionAsync(
         HttpClient client,

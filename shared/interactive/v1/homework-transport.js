@@ -1,6 +1,11 @@
+import { createAspNetHomeworkClient } from './homework-aspnet-client.js';
+
+export { createAspNetHomeworkClient } from './homework-aspnet-client.js';
+
 // Shared transport for dz1–dz3. Page adapters keep their historical response
-// parsing and localStorage formats; this module only owns GAS I/O and queue mechanics.
+// parsing and localStorage formats; this module owns provider selection and queue mechanics.
 export const HOMEWORK_GAS_URL = 'https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+export const HOMEWORK_TRANSPORT_CONFIG_KEY = 'EGE_HOMEWORK_TRANSPORT_CONFIG';
 
 export function createHomeworkIdentity({ get, set, remove, dz1 = false }) {
   const normalizeCode = value => String(value || '').trim().toUpperCase();
@@ -90,6 +95,36 @@ export function createHomeworkApi({
   return { validateStudentCode, submitResult, sendResultOnExit };
 }
 
+// Production pages stay on GAS unless an embedding runtime deliberately supplies
+// { provider: 'aspnet', baseUrl, workspace } before the module is evaluated.
+export function createHomeworkTransport({
+  config = globalThis?.[HOMEWORK_TRANSPORT_CONFIG_KEY],
+  timeoutMs,
+  parseStudent,
+  parseSubmission,
+  fetchImpl,
+  getStudentCode,
+  now
+} = {}) {
+  const runtimeConfig = config == null ? {} : config;
+  if (typeof runtimeConfig !== 'object' || Array.isArray(runtimeConfig)) {
+    throw new TypeError('Homework transport config must be an object');
+  }
+  const provider = runtimeConfig.provider ?? 'gas';
+  if (provider === 'gas') {
+    return createHomeworkApi({ timeoutMs, parseStudent, parseSubmission });
+  }
+  if (provider !== 'aspnet') throw new TypeError(`Unsupported homework provider: ${provider}`);
+  return createAspNetHomeworkClient({
+    baseUrl: runtimeConfig.baseUrl,
+    workspace: runtimeConfig.workspace,
+    ...(timeoutMs === undefined ? {} : { timeoutMs }),
+    ...(fetchImpl === undefined ? {} : { fetchImpl }),
+    ...(getStudentCode === undefined ? {} : { getStudentCode }),
+    ...(now === undefined ? {} : { now })
+  });
+}
+
 export function parseSubmissionResponse(data, responseOk = true) {
   let parsed = data;
   if (typeof data === 'string') {
@@ -112,6 +147,13 @@ function withCompletionTimestamp(payload, milliseconds) {
   return { ...payload, completedAt: new Date(milliseconds).toISOString() };
 }
 
+function withStableCompletionTimestamp(payload, previousPayload, milliseconds) {
+  if (previousPayload?.completedAt) return { ...payload, completedAt: previousPayload.completedAt };
+  if (previousPayload?.finishedAt) return { ...payload, finishedAt: previousPayload.finishedAt };
+  if (previousPayload?.submittedAt) return { ...payload, submittedAt: previousPayload.submittedAt };
+  return withCompletionTimestamp(payload, milliseconds);
+}
+
 // Adapter for the legacy object queue in dz1 and array queues in dz2/dz3.
 // New entries preserve their completion instant so an offline retry cannot change
 // deadline semantics when the ASP.NET homework provider is enabled later.
@@ -123,17 +165,23 @@ export function createHomeworkQueueAdapter({ read, write, shape, now = Date.now 
     return Array.isArray(value) ? value.map(payload => ({ eventId: payload?.eventId, payload })) : [];
   }
   function enqueue(payload) {
-    const completedAtMs = now();
-    const timestampedPayload = withCompletionTimestamp(payload, completedAtMs);
     if (shape === 'object') {
       const value = read();
       const queue = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
-      queue[payload.eventId] = { payload: timestampedPayload, createdAt: completedAtMs, lastAttemptAt: 0 };
+      const previous = queue[payload.eventId];
+      const createdAt = Number.isFinite(previous?.createdAt) ? previous.createdAt : now();
+      const timestampedPayload = withStableCompletionTimestamp(payload, previous?.payload, createdAt);
+      queue[payload.eventId] = {
+        payload: timestampedPayload,
+        createdAt,
+        lastAttemptAt: Number.isFinite(previous?.lastAttemptAt) ? previous.lastAttemptAt : 0
+      };
       write(queue);
     } else {
       const current = read();
       const queue = Array.isArray(current) ? current : [];
       const index = queue.findIndex(item => item?.eventId === payload.eventId);
+      const timestampedPayload = withStableCompletionTimestamp(payload, index >= 0 ? queue[index] : null, now());
       if (index >= 0) queue[index] = timestampedPayload; else queue.push(timestampedPayload);
       write(queue);
     }

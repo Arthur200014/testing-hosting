@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using ClosedXML.Excel;
 
 namespace TestingHosting.Platform.HomeworkImport;
@@ -9,6 +10,7 @@ public sealed class HomeworkWorkbookParser
     private const int MaximumWorkbookBytes = 32 * 1024 * 1024;
     private static readonly string[] CatalogSheets = ["ДЗ_Каталог"];
     private static readonly string[] AssignmentSheets = ["ДЗ_Назначения"];
+    private static readonly TimeZoneInfo MoscowTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Moscow");
 
     public ParsedHomeworkWorkbook Parse(string path)
     {
@@ -203,9 +205,37 @@ public sealed class HomeworkWorkbookParser
 
     private static bool TryDate(IXLCell cell, out DateTimeOffset value, int row, string sheet, string field, ICollection<HomeworkImportDiagnostic> diagnostics)
     {
-        if (cell.TryGetValue<DateTime>(out var date)) { value = new DateTimeOffset(DateTime.SpecifyKind(date, DateTimeKind.Local)).ToUniversalTime(); return true; }
-        if (DateTimeOffset.TryParse(Text(cell), CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeUniversal, out value)) { value = value.ToUniversalTime(); return true; }
+        if (cell.DataType == XLDataType.DateTime && cell.TryGetValue<DateTime>(out var date))
+        {
+            value = MoscowToUtc(date);
+            return true;
+        }
+
+        var text = Text(cell);
+        if (HasExplicitOffset(text) && DateTimeOffset.TryParse(
+                text,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.RoundtripKind,
+                out value))
+        {
+            value = value.ToUniversalTime();
+            return true;
+        }
+        if (DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out date))
+        {
+            value = MoscowToUtc(date);
+            return true;
+        }
         diagnostics.Add(new(row, sheet, field, "invalid_datetime")); value = default; return false;
+    }
+
+    private static bool HasExplicitOffset(string value) =>
+        Regex.IsMatch(value, "(?:Z|[+-][0-9]{2}(?::?[0-9]{2})?)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    private static DateTimeOffset MoscowToUtc(DateTime value)
+    {
+        var unspecified = DateTime.SpecifyKind(value, DateTimeKind.Unspecified);
+        return new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(unspecified, MoscowTimeZone), TimeSpan.Zero);
     }
 
     private static bool TryOptionalDate(IXLCell cell, out DateTimeOffset? value, int row, string sheet, string field, ICollection<HomeworkImportDiagnostic> diagnostics)

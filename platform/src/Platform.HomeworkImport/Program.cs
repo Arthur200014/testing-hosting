@@ -6,31 +6,39 @@ using TestingHosting.Platform.HomeworkImport;
 using TestingHosting.Platform.Persistence;
 using TestingHosting.Platform.StudentImport;
 
-var arguments = CliArguments.Parse(args);
-if (arguments is null)
-{
-    Console.Error.WriteLine("Usage: Platform.HomeworkImport --xlsx PATH --program-map PATH --workspace SLUG [--apply]");
-    return 2;
-}
+namespace TestingHosting.Platform.HomeworkImport;
 
-try
+public static class HomeworkImportProgram
 {
-    var workbook = new HomeworkWorkbookParser().Parse(arguments.WorkbookPath);
-    var programMap = new ProgramMapParser().Parse(arguments.ProgramMapPath);
-    var configuration = new ConfigurationBuilder().AddEnvironmentVariables().Build();
-    var connectionString = StartupConfiguration.GetConnectionString(configuration);
-    var options = new DbContextOptionsBuilder<PlatformDbContext>()
-        .UseNpgsql(connectionString, postgres => postgres.MigrationsHistoryTable("__EFMigrationsHistory", "public"))
-        .Options;
-    var service = new HomeworkImportService(() => new PlatformDbContext(options));
-    var report = await service.ExecuteAsync(workbook, programMap, arguments.WorkspaceSlug, arguments.Apply);
-    Console.WriteLine(JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
-    return report.CanApply ? 0 : 1;
-}
-catch (Exception)
-{
-    Console.Error.WriteLine("Homework import failed without writing a diagnostic containing source values.");
-    return 1;
+    public static async Task<int> Main(string[] args)
+    {
+        var arguments = CliArguments.Parse(args);
+        if (arguments is null)
+        {
+            Console.Error.WriteLine("Usage: Platform.HomeworkImport --xlsx PATH --program-map PATH --workspace SLUG [--apply]");
+            return 2;
+        }
+
+        try
+        {
+            var workbook = new HomeworkWorkbookParser().Parse(arguments.WorkbookPath);
+            var programMap = new ProgramMapParser().Parse(arguments.ProgramMapPath);
+            var configuration = new ConfigurationBuilder().AddEnvironmentVariables().Build();
+            var connectionString = StartupConfiguration.GetConnectionString(configuration);
+            var options = new DbContextOptionsBuilder<PlatformDbContext>()
+                .UseNpgsql(connectionString, postgres => postgres.MigrationsHistoryTable("__EFMigrationsHistory", "public"))
+                .Options;
+            var service = new HomeworkImportService(() => new PlatformDbContext(options));
+            var report = await service.ExecuteAsync(workbook, programMap, arguments.WorkspaceSlug, arguments.Apply);
+            Console.WriteLine(JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
+            return report.CanApply ? 0 : 1;
+        }
+        catch (Exception)
+        {
+            Console.Error.WriteLine("Homework import failed without writing a diagnostic containing source values.");
+            return 1;
+        }
+    }
 }
 
 internal sealed record CliArguments(string WorkbookPath, string ProgramMapPath, string WorkspaceSlug, bool Apply)

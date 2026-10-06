@@ -10,6 +10,7 @@ RUN --mount=type=secret,id=build_ca,required=false \
 
 FROM api-restore AS restore
 COPY src/Platform.StudentImport/Platform.StudentImport.csproj src/Platform.StudentImport/
+COPY src/Platform.HomeworkImport/Platform.HomeworkImport.csproj src/Platform.HomeworkImport/
 COPY tests/Platform.Api.IntegrationTests/Platform.Api.IntegrationTests.csproj tests/Platform.Api.IntegrationTests/
 COPY tests/Platform.StudentImport.IntegrationTests/Platform.StudentImport.IntegrationTests.csproj tests/Platform.StudentImport.IntegrationTests/
 RUN --mount=type=secret,id=build_ca,required=false \
@@ -25,7 +26,8 @@ RUN dotnet publish src/Platform.Api/Platform.Api.csproj --no-restore -c Release 
 
 FROM restore AS importer-build
 COPY src/ src/
-RUN dotnet publish src/Platform.StudentImport/Platform.StudentImport.csproj --no-restore -c Release -o /app/importer /p:UseAppHost=false
+RUN dotnet publish src/Platform.StudentImport/Platform.StudentImport.csproj --no-restore -c Release -o /app/student-importer /p:UseAppHost=false && \
+    dotnet publish src/Platform.HomeworkImport/Platform.HomeworkImport.csproj --no-restore -c Release -o /app/homework-importer /p:UseAppHost=false
 
 FROM restore AS test-build
 COPY src/ src/
@@ -54,9 +56,18 @@ RUN apt-get update && \
     apt-get install --no-install-recommends -y libgssapi-krb5-2 && \
     rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY --chown=$APP_UID:$APP_UID --from=importer-build /app/importer ./
+COPY --chown=$APP_UID:$APP_UID --from=importer-build /app/student-importer ./
 USER $APP_UID
 ENTRYPOINT ["dotnet", "Platform.StudentImport.dll"]
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS homework-importer-runtime
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y libgssapi-krb5-2 && \
+    rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --chown=$APP_UID:$APP_UID --from=importer-build /app/homework-importer ./
+USER $APP_UID
+ENTRYPOINT ["dotnet", "Platform.HomeworkImport.dll"]
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 RUN apt-get update && \

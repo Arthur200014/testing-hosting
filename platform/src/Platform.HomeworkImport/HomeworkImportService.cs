@@ -8,6 +8,7 @@ namespace TestingHosting.Platform.HomeworkImport;
 
 public sealed class HomeworkImportService(Func<PlatformDbContext> dbContextFactory)
 {
+    public const string ImportSource = "google-sheets-homework-xlsx-v1";
     private const int MaximumApplyAttempts = 3;
 
     public async Task<HomeworkImportReport> ExecuteAsync(
@@ -34,7 +35,7 @@ public sealed class HomeworkImportService(Func<PlatformDbContext> dbContextFacto
                 await using var db = dbContextFactory();
                 await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
                 var plan = await BuildPlanAsync(db, workbook, programMap, workspaceSlug, cancellationToken);
-                if (plan.Diagnostics.Count != 0)
+                if (plan.Diagnostics.Count != 0 || plan.AppliedBatch is not null)
                 {
                     await transaction.RollbackAsync(cancellationToken);
                     return plan.ToReport("apply");
@@ -43,6 +44,7 @@ public sealed class HomeworkImportService(Func<PlatformDbContext> dbContextFacto
                 db.HomeworkCatalogItems.AddRange(plan.CatalogToCreate);
                 db.HomeworkAssignments.AddRange(plan.AssignmentsToCreate);
                 db.HomeworkSubmissions.AddRange(plan.SubmissionsToCreate);
+                db.HomeworkImportBatches.Add(plan.CreateBatch(programMap.Digest));
                 await db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
                 return plan.ToReport("apply");
@@ -73,6 +75,13 @@ public sealed class HomeworkImportService(Func<PlatformDbContext> dbContextFacto
             diagnostics.Add(new(0, "database", "workspace", workspace is null ? "not_found" : "inactive"));
             return ImportPlan.Empty(workbook, diagnostics);
         }
+
+        var appliedBatch = await db.HomeworkImportBatches.AsNoTracking().SingleOrDefaultAsync(
+            item => item.WorkspaceId == workspace.Id &&
+                    item.Source == ImportSource &&
+                    item.WorkbookDigest == workbook.Digest &&
+                    item.ProgramMapDigest == programMap.Digest,
+            cancellationToken);
 
         var programs = await db.Programs.AsNoTracking()
             .Where(x => x.WorkspaceId == workspace.Id)
@@ -214,8 +223,21 @@ public sealed class HomeworkImportService(Func<PlatformDbContext> dbContextFacto
             submissionsByEvent[eventId] = submission;
         }
 
-        return new ImportPlan(workbook, diagnostics, catalogToCreate, catalogUnchanged,
-            assignmentsToCreate, assignmentUnchanged, submissionsToCreate, submissionUnchanged);
+        if (appliedBatch is not null)
+        {
+            var expectedSubmissionCount = workbook.Assignments.Count(row =>
+                row.SubmittedAt is not null && row.ScorePercent is not null);
+            if (catalogToCreate.Count != 0 || catalogUnchanged != workbook.Catalog.Count ||
+                assignmentsToCreate.Count != 0 || assignmentUnchanged != workbook.Assignments.Count ||
+                submissionsToCreate.Count != 0 || submissionUnchanged != expectedSubmissionCount)
+            {
+                diagnostics.Add(new(0, "database", "importBatch", "existing_state_conflict"));
+            }
+        }
+
+        return new ImportPlan(workbook, workspace.Id, diagnostics, catalogToCreate, catalogUnchanged,
+            assignmentsToCreate, assignmentUnchanged, submissionsToCreate, submissionUnchanged,
+            appliedBatch is not null && diagnostics.Count == 0 ? appliedBatch : null);
     }
 
     private static bool CatalogEquivalent(HomeworkCatalogItem item, HomeworkCatalogImportRow row) =>
@@ -246,28 +268,58 @@ public sealed class HomeworkImportService(Func<PlatformDbContext> dbContextFacto
 
     private sealed record ImportPlan(
         ParsedHomeworkWorkbook Workbook,
+        Guid WorkspaceId,
         List<HomeworkImportDiagnostic> Diagnostics,
         List<HomeworkCatalogItem> CatalogToCreate,
         int CatalogUnchanged,
         List<HomeworkAssignment> AssignmentsToCreate,
         int AssignmentUnchanged,
         List<HomeworkSubmission> SubmissionsToCreate,
-        int SubmissionUnchanged)
+        int SubmissionUnchanged,
+        HomeworkImportBatch? AppliedBatch)
     {
         public static ImportPlan Empty(ParsedHomeworkWorkbook workbook, List<HomeworkImportDiagnostic> diagnostics) =>
-            new(workbook, diagnostics, [], 0, [], 0, [], 0);
+            new(workbook, Guid.Empty, diagnostics, [], 0, [], 0, [], 0, null);
 
-        public HomeworkImportReport ToReport(string mode) => new(
-            mode,
-            Diagnostics.Count == 0,
-            Workbook.Catalog.Count,
-            Workbook.Assignments.Count,
-            CatalogToCreate.Count,
-            CatalogUnchanged,
-            AssignmentsToCreate.Count,
-            AssignmentUnchanged,
-            SubmissionsToCreate.Count,
-            SubmissionUnchanged,
-            Diagnostics);
+        public HomeworkImportBatch CreateBatch(string programMapDigest)
+        {
+            var timestamp = DateTimeOffset.UtcNow;
+            return new HomeworkImportBatch
+            {
+                Id = Guid.NewGuid(),
+                WorkspaceId = WorkspaceId,
+                Source = ImportSource,
+                WorkbookDigest = Workbook.Digest,
+                ProgramMapDigest = programMapDigest,
+                Status = "applied",
+                CatalogRowCount = Workbook.Catalog.Count,
+                AssignmentRowCount = Workbook.Assignments.Count,
+                SubmissionRowCount = SubmissionsToCreate.Count + SubmissionUnchanged,
+                CatalogCreatedCount = CatalogToCreate.Count,
+                CatalogUnchangedCount = CatalogUnchanged,
+                AssignmentCreatedCount = AssignmentsToCreate.Count,
+                AssignmentUnchangedCount = AssignmentUnchanged,
+                SubmissionCreatedCount = SubmissionsToCreate.Count,
+                SubmissionUnchangedCount = SubmissionUnchanged,
+                CreatedAt = timestamp,
+                CompletedAt = timestamp
+            };
+        }
+
+        public HomeworkImportReport ToReport(string mode)
+        {
+            return new(
+                mode,
+                Diagnostics.Count == 0,
+                Workbook.Catalog.Count,
+                Workbook.Assignments.Count,
+                CatalogToCreate.Count,
+                CatalogUnchanged,
+                AssignmentsToCreate.Count,
+                AssignmentUnchanged,
+                SubmissionsToCreate.Count,
+                SubmissionUnchanged,
+                Diagnostics);
+        }
     }
 }

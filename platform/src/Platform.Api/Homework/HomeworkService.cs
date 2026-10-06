@@ -1,3 +1,4 @@
+using System.Data;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -58,15 +59,21 @@ public sealed class HomeworkService(PlatformDbContext dbContext, TimeProvider ti
             return new(HomeworkSubmissionWriteStatus.InvalidRequest, Errors: validation.Errors);
 
         var canonical = validation.Submission!;
-        var existing = await dbContext.HomeworkSubmissions
-            .AsNoTracking()
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(
+            IsolationLevel.ReadCommitted,
+            cancellationToken);
+        var existing = await dbContext.HomeworkSubmissions.AsNoTracking()
             .SingleOrDefaultAsync(
                 item => item.WorkspaceId == identity.WorkspaceId && item.EventId == canonical.EventId,
                 cancellationToken);
         if (existing is not null)
-            return await BuildReplayAsync(existing, identity, canonical, cancellationToken);
+        {
+            var replay = await BuildReplayAsync(existing, identity, canonical, cancellationToken);
+            await transaction.RollbackAsync(cancellationToken);
+            return replay;
+        }
 
-        var assignment = await dbContext.HomeworkAssignments
+        var assignment = await dbContext.HomeworkAssignments.AsNoTracking()
             .Where(item => item.WorkspaceId == identity.WorkspaceId &&
                            item.MembershipId == identity.MembershipId &&
                            item.StudentId == identity.StudentId &&
@@ -75,7 +82,11 @@ public sealed class HomeworkService(PlatformDbContext dbContext, TimeProvider ti
             .OrderByDescending(item => item.AssignedAt)
             .ThenByDescending(item => item.Id)
             .FirstOrDefaultAsync(cancellationToken);
-        if (assignment is null) return new(HomeworkSubmissionWriteStatus.AssignmentNotFound);
+        if (assignment is null)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return new(HomeworkSubmissionWriteStatus.AssignmentNotFound);
+        }
 
         var late = canonical.CompletedAt > assignment.DeadlineAt;
         var submission = new HomeworkSubmission
@@ -95,23 +106,31 @@ public sealed class HomeworkService(PlatformDbContext dbContext, TimeProvider ti
             CreatedAt = TruncateToMicroseconds(timeProvider.GetUtcNow())
         };
 
-        // Offline results may arrive out of order. Keep every immutable submission,
-        // but do not let an older completion overwrite the latest assignment summary.
-        if (assignment.SubmittedAt is null || canonical.CompletedAt >= assignment.SubmittedAt)
-        {
-            assignment.SubmittedAt = canonical.CompletedAt;
-            assignment.ScorePercent = canonical.ScorePercent;
-            assignment.HomeworkEventId = canonical.EventId;
-            assignment.Status = late ? "submitted_late" : "submitted";
-        }
         dbContext.HomeworkSubmissions.Add(submission);
 
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
+            await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE platform."HomeworkAssignments"
+                SET "SubmittedAt" = {canonical.CompletedAt},
+                    "ScorePercent" = {canonical.ScorePercent},
+                    "HomeworkEventId" = {canonical.EventId},
+                    "Status" = {(late ? "submitted_late" : "submitted")}
+                WHERE "Id" = {assignment.Id}
+                  AND "WorkspaceId" = {identity.WorkspaceId}
+                  AND (
+                      "SubmittedAt" IS NULL
+                      OR "SubmittedAt" < {canonical.CompletedAt}
+                      OR ("SubmittedAt" = {canonical.CompletedAt}
+                          AND COALESCE("HomeworkEventId", '') < {canonical.EventId})
+                  )
+                """, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
         }
         catch (DbUpdateException exception) when (IsEventIdUniqueViolation(exception))
         {
+            await transaction.RollbackAsync(cancellationToken);
             dbContext.ChangeTracker.Clear();
             var winner = await dbContext.HomeworkSubmissions.AsNoTracking()
                 .SingleOrDefaultAsync(
