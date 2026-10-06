@@ -10,6 +10,18 @@ public sealed class HomeworkWorkbookParser
     private const int MaximumWorkbookBytes = 32 * 1024 * 1024;
     private static readonly string[] CatalogSheets = ["ДЗ_Каталог"];
     private static readonly string[] AssignmentSheets = ["ДЗ_Назначения"];
+    private static readonly string[] MoscowDateFormats =
+    [
+        "d.M.yyyy",
+        "dd.MM.yyyy",
+        "d.M.yyyy H:mm",
+        "dd.MM.yyyy HH:mm",
+        "d.M.yyyy H:mm:ss",
+        "dd.MM.yyyy HH:mm:ss",
+        "yyyy-MM-dd",
+        "yyyy-MM-dd H:mm:ss",
+        "yyyy-MM-dd HH:mm:ss"
+    ];
     private static readonly TimeZoneInfo MoscowTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Moscow");
 
     public ParsedHomeworkWorkbook Parse(string path)
@@ -221,7 +233,13 @@ public sealed class HomeworkWorkbookParser
             value = value.ToUniversalTime();
             return true;
         }
-        if (DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out date))
+        if (DateTime.TryParseExact(
+                text,
+                MoscowDateFormats,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AllowWhiteSpaces,
+                out date) ||
+            DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out date))
         {
             value = MoscowToUtc(date);
             return true;

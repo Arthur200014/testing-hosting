@@ -1,6 +1,6 @@
 # Platform backend
 
-The platform is an ASP.NET Core 10 modular monolith backed by PostgreSQL 17. It contains Identity/Access workspace and teacher-membership boundaries plus Students, workspace-scoped student membership/import identity, student code exchange, and a separate local XLSX student-directory importer.
+The platform is an ASP.NET Core 10 modular monolith backed by PostgreSQL 17. It contains Identity/Access workspace and teacher-membership boundaries, Students, Test Attempts, and Homework. Local XLSX importers reconcile student-directory and homework snapshots without calling Google APIs.
 
 Student codes are normalized and used only as request-body input. PostgreSQL stores a workspace-scoped HMAC-SHA256 digest; the pepper and JWT key are independent base64 environment secrets. Invalid workspace, code, inactive workspace, membership, or student all return the same 401 response. Successful tokens expire within 15 minutes and carry `sub`, `workspace_id`, `membership_id`, and `role=student` claims.
 
@@ -80,7 +80,7 @@ curl -i http://localhost:8080/api/v1/test-attempts \
   --data-binary @/tmp/test-attempt.json
 ```
 
-Without a valid local student session, verify the safe rejection with the same synthetic payload and no bearer token; the result should be `401`. The endpoint and integration tests are implemented. An opt-in browser adapter now exists, but the exported default `platformApi` and production traffic still use the legacy Apps Script path; this is not a production cutover. The API suite has 27 passing tests, including 20 `TestAttemptTests`; the combined API and importer runner has 40 passing tests (2026-10-06).
+Without a valid local student session, verify the safe rejection with the same synthetic payload and no bearer token; the result should be `401`. The endpoint and integration tests are implemented. An opt-in browser adapter now exists, but the exported default `platformApi` and production traffic still use the legacy Apps Script path; this is not a production cutover.
 
 ## Opt-in browser test-attempt adapter
 
@@ -145,3 +145,23 @@ docker compose --profile import run --rm \
 ```
 
 Review the dry-run first. To write, repeat the same command with explicit `--apply` at the end. Apply validates the complete workbook before writes and commits workspace, programs, students, memberships, and the safe import journal in one transaction. Repeating the identical successful input is idempotent; existing divergence is a blocking conflict and missing snapshot rows are not deactivated.
+
+## Homework API and safe import
+
+`GET /api/v1/homework-assignments` and `POST /api/v1/homework-submissions` require the same short-lived student Bearer session. The server derives workspace, student, membership, and program from the token plus current database state; none of those identity fields are accepted from the submission body. A submission keeps the original `eventId` and completion timestamp, updates the latest matching assignment summary atomically, returns the original receipt for an exact replay, and returns `409` for a conflicting replay. Repeated assignments remain separate historical rows, and late results are retained with an explicit late status.
+
+`Platform.HomeworkImport` reads only `ДЗ_Каталог` and `ДЗ_Назначения` from a local XLSX. Its default mode opens a read-only PostgreSQL transaction, reports only aggregate counts and row/field/category diagnostics, and performs no writes. Program IDs must be mapped explicitly; students must already exist through the student-directory import. Use the `homework-import` Compose service exactly like `student-import`, and add `--apply` only after a clean dry-run:
+
+```sh
+IMPORT_INPUT_DIR=/absolute/path/to/private-import-inputs
+docker compose --profile import run --rm \
+  --volume "$IMPORT_INPUT_DIR:/imports:ro" \
+  homework-import \
+  --xlsx /imports/homework.xlsx \
+  --program-map /imports/program-map.json \
+  --workspace school-slug
+```
+
+The importer preserves assignment snapshots, repeated assignments, historical submissions, deadlines, status, score, event/lesson references, and schema version. Apply is serializable, journaled, repeatable, and all-or-nothing. Real Google Sheets exports with Moscow `dd.MM.yyyy` dates are supported; incomplete source rows remain blocking diagnostics instead of being guessed or partially written.
+
+Verification on 2026-10-06: API/PostgreSQL integration suite 43/43, student-import integration suite 13/13, shared browser tests 52/52, and headless Chrome smoke for `EGA/6/dz1.html`–`dz3.html` at desktop and mobile sizes passed. Production provider and production data were not switched or modified.

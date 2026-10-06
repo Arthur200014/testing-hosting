@@ -73,7 +73,7 @@ public sealed class HomeworkTests(ApiFactory factory) : IClassFixture<ApiFactory
         var identity = await SeedIdentityAsync("homework-repeat", "HOMEWORK-REPEAT");
         var older = await SeedAssignmentAsync(identity, "assignment-old", "hw-repeat", DateTimeOffset.UtcNow.AddDays(-3));
         var latest = await SeedAssignmentAsync(identity, "assignment-new", "hw-repeat", DateTimeOffset.UtcNow.AddHours(-3), deadlineHours: 1);
-        var completedAt = latest.AssignedAt.AddHours(2);
+        var completedAt = TruncateToMicroseconds(latest.AssignedAt.AddHours(2));
         using var client = factory.CreateClient();
 
         var response = await SendSubmissionAsync(client, CreateToken(identity),
@@ -202,7 +202,7 @@ public sealed class HomeworkTests(ApiFactory factory) : IClassFixture<ApiFactory
     {
         await ResetDatabaseAsync();
         var first = await SeedIdentityAsync("homework-owner-a", "HOMEWORK-OWNER-A");
-        var second = await SeedIdentityAsync("homework-owner-b", "HOMEWORK-OWNER-B");
+        var second = await SeedIdentityInWorkspaceAsync(first.WorkspaceId, "HOMEWORK-OWNER-B");
         await SeedAssignmentAsync(first, "assignment-owner-a", "hw-owner", DateTimeOffset.UtcNow.AddHours(-2));
         await SeedAssignmentAsync(second, "assignment-owner-b", "hw-owner", DateTimeOffset.UtcNow.AddHours(-2));
         using var client = factory.CreateClient();

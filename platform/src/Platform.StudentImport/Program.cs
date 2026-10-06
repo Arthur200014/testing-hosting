@@ -6,34 +6,42 @@ using TestingHosting.Platform.Persistence;
 using TestingHosting.Platform.StudentImport;
 using TestingHosting.Platform.Students;
 
-var arguments = CliArguments.Parse(args);
-if (arguments is null)
-{
-    Console.Error.WriteLine("Usage: Platform.StudentImport --xlsx PATH --program-map PATH --workspace SLUG [--apply]");
-    return 2;
-}
+namespace TestingHosting.Platform.StudentImport;
 
-try
+public static class StudentImportProgram
 {
-    var configuration = new ConfigurationBuilder().AddEnvironmentVariables().Build();
-    var connectionString = StartupConfiguration.GetConnectionString(configuration);
-    var hasher = new StudentCodeHasher(StartupConfiguration.GetPepper(configuration));
-    var options = new DbContextOptionsBuilder<PlatformDbContext>()
-        .UseNpgsql(connectionString, postgres => postgres.MigrationsHistoryTable("__EFMigrationsHistory", "public"))
-        .Options;
-    var runner = new StudentImportRunner(() => new PlatformDbContext(options), hasher);
-    var report = await runner.RunAsync(
-        arguments.WorkbookPath,
-        arguments.ProgramMapPath,
-        arguments.WorkspaceSlug,
-        arguments.Apply);
-    Console.WriteLine(JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
-    return report.CanApply ? 0 : 1;
-}
-catch (Exception)
-{
-    Console.Error.WriteLine("Import failed without writing a diagnostic containing source values.");
-    return 1;
+    public static async Task<int> Main(string[] args)
+    {
+        var arguments = CliArguments.Parse(args);
+        if (arguments is null)
+        {
+            Console.Error.WriteLine("Usage: Platform.StudentImport --xlsx PATH --program-map PATH --workspace SLUG [--apply]");
+            return 2;
+        }
+
+        try
+        {
+            var configuration = new ConfigurationBuilder().AddEnvironmentVariables().Build();
+            var connectionString = StartupConfiguration.GetConnectionString(configuration);
+            var hasher = new StudentCodeHasher(StartupConfiguration.GetPepper(configuration));
+            var options = new DbContextOptionsBuilder<PlatformDbContext>()
+                .UseNpgsql(connectionString, postgres => postgres.MigrationsHistoryTable("__EFMigrationsHistory", "public"))
+                .Options;
+            var runner = new StudentImportRunner(() => new PlatformDbContext(options), hasher);
+            var report = await runner.RunAsync(
+                arguments.WorkbookPath,
+                arguments.ProgramMapPath,
+                arguments.WorkspaceSlug,
+                arguments.Apply);
+            Console.WriteLine(JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
+            return report.CanApply ? 0 : 1;
+        }
+        catch (Exception)
+        {
+            Console.Error.WriteLine("Import failed without writing a diagnostic containing source values.");
+            return 1;
+        }
+    }
 }
 
 internal sealed record CliArguments(string WorkbookPath, string ProgramMapPath, string WorkspaceSlug, bool Apply)

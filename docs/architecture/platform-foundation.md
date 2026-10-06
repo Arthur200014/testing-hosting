@@ -8,13 +8,15 @@ production-данные и не меняет HTML/CSS/UI. Новый browser-к�
 отключённый по умолчанию provider. Запись попыток реализована и протестирована
 на уровне API; browser provider и production-трафик остаются на legacy-пути.
 
-В этом этапе реализованы три границы модульного монолита:
+В этом этапе реализованы четыре границы модульного монолита:
 
 - **Identity/Access**: workspace, учитель и членство учителя в workspace;
 - **Students**: ученик, принадлежащая workspace учебная программа и членство
   ученика в workspace/программе.
 - **Test attempts**: неизменяемая история попыток с проверкой актуального
   членства и идемпотентностью по событию.
+- **Homework**: каталог, исторические назначения, append-only сдачи и журнал
+  повторяемого импорта с теми же tenant/membership/program границами.
 
 PostgreSQL хранит внутренние UUID. Внешний стабильный код программы (например,
 `EGE_MATH`) отделён от UUID и принадлежит конкретному workspace. Составной
@@ -135,8 +137,32 @@ workspace, membership, test и месяцем; порядок — процент
 время завершения и UUID по возрастанию. Это не смешивает результаты разных
 учеников, тестов, workspace или календарных месяцев.
 
-Проверка среза: `TestAttemptTests` — 20/20, весь API suite — 27/27, combined API
-и importer runner — 40/40 (2026-10-06). Это подтверждает API и интеграцию с
-PostgreSQL; production-данные не переносились. Browser provider и production
-traffic по-прежнему используют legacy-путь. Переход production и импорт остаются
-отдельной будущей работой.
+## Срез домашних заданий
+
+`GET /api/v1/homework-assignments` возвращает только назначения текущего
+активного student membership и его программы. `POST /api/v1/homework-submissions`
+принимает только данные результата; workspace/student/membership/program
+повторно выводятся из Bearer identity и актуального состояния PostgreSQL.
+Повторные назначения хранятся отдельными строками, submission history остаётся
+append-only, а summary назначения обновляется атомарно только более новым
+результатом. Exact replay одного `(WorkspaceId, EventId)` идемпотентен,
+изменённый replay или попытка использовать событие другого ученика внутри
+workspace блокируются как конфликт.
+
+Отдельный `Platform.HomeworkImport` читает локальные `ДЗ_Каталог` и
+`ДЗ_Назначения`, требует явный program map и связывает назначения только с уже
+импортированными student external identities. Dry-run работает в read-only
+транзакции. Apply выполняется serializable-транзакцией, создаёт import journal и
+либо фиксирует весь согласованный snapshot, либо ничего. Реальные XLSX и данные
+учеников не хранятся в Git, а отчёт не содержит исходных значений.
+
+Общий browser homework transport находится в `shared/interactive/v1/` и
+подключён к трём страницам `EGA/6` через явный opt-in. Legacy Apps Script остаётся
+provider по умолчанию; production cutover не выполнялся.
+
+Проверка на 2026-10-06: API/PostgreSQL — 43/43, student-import — 13/13,
+shared browser tests — 52/52; headless Chrome smoke трёх homework-страниц на
+desktop/mobile — PASS. Безопасный dry-run реального Google Sheets XLSX распознал
+48 строк каталога и 66 валидных назначений; 17 неполных строк исходной таблицы
+остались блокирующими diagnostics, без записи в БД. Production-данные не
+переносились, provider по умолчанию не переключался.

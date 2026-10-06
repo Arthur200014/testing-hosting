@@ -167,7 +167,7 @@ public sealed class HomeworkImportTests(ApiFactory factory) : IClassFixture<ApiF
                 var catalog = workbook.AddWorksheet("ДЗ_Каталог");
                 WriteRow(catalog, 1, "homeworkId", "taskNumber", "name", "url", "active", "order", "createdAt", "programId");
                 WriteRow(catalog, 2, "hw-parser", 6, "Parser homework", "https://tests.invalid/parser", true, 1,
-                    new DateTime(2026, 10, 1, 12, 0, 0), "legacy-ege");
+                    "15.08.2026", "legacy-ege");
 
                 var assignments = workbook.AddWorksheet("ДЗ_Назначения");
                 WriteRow(assignments, 1, "assignmentRecordId", "studentId", "homeworkId", "taskNumber", "homeworkName",
@@ -188,7 +188,7 @@ public sealed class HomeworkImportTests(ApiFactory factory) : IClassFixture<ApiF
             var parsed = new HomeworkWorkbookParser().Parse(path);
 
             Assert.Equal(64, parsed.Digest.Length);
-            Assert.Equal(new DateTimeOffset(2026, 10, 1, 9, 0, 0, TimeSpan.Zero), parsed.Catalog[0].CreatedAt);
+            Assert.Equal(new DateTimeOffset(2026, 8, 14, 21, 0, 0, TimeSpan.Zero), parsed.Catalog[0].CreatedAt);
             Assert.Equal(new DateTimeOffset(2026, 10, 1, 9, 0, 0, TimeSpan.Zero), parsed.Assignments[0].AssignedAt);
             Assert.Equal(new DateTimeOffset(2026, 10, 1, 7, 30, 0, TimeSpan.Zero), parsed.Assignments[0].SubmittedAt);
             Assert.Contains(parsed.Diagnostics, x => x.Field == "assignmentRecordId" && x.Category == "duplicate_key");
