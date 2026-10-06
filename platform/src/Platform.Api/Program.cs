@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using TestingHosting.Platform.Configuration;
+using TestingHosting.Platform.Homework;
 using TestingHosting.Platform.Persistence;
 using TestingHosting.Platform.StudentSessions;
 using TestingHosting.Platform.Students;
@@ -20,6 +21,7 @@ builder.Services.AddSingleton<IStudentCodeHasher>(serviceProvider =>
     new StudentCodeHasher(StartupConfiguration.GetPepper(serviceProvider.GetRequiredService<IConfiguration>())));
 builder.Services.AddScoped<StudentSessionService>();
 builder.Services.AddScoped<TestAttemptService>();
+builder.Services.AddScoped<HomeworkService>();
 builder.Services.AddSingleton<StudentTokenIssuer>();
 builder.Services.AddDbContext<PlatformDbContext>(options =>
     options.UseNpgsql(
@@ -50,7 +52,7 @@ builder.Services.AddAuthorization(options => options.AddPolicy("student", policy
     policy.RequireAuthenticatedUser().RequireClaim("role", "student")));
 builder.Services.AddCors(options => options.AddPolicy("browser", policy =>
     policy.WithOrigins(StartupConfiguration.GetAllowedOrigins(builder.Configuration))
-        .WithMethods("POST").WithHeaders("Content-Type", "Authorization")));
+        .WithMethods("GET", "POST").WithHeaders("Content-Type", "Authorization")));
 builder.Services.AddRateLimiter(options =>
 {
     var studentSessionOptions = StartupConfiguration.GetStudentSessionOptions(builder.Configuration);
@@ -120,6 +122,43 @@ app.MapPost("/api/v1/test-attempts", async (
             statusCode: StatusCodes.Status401Unauthorized,
             title: "The student session is invalid."),
         _ => throw new InvalidOperationException("Unknown test-attempt write result.")
+    };
+}).RequireAuthorization("student");
+
+app.MapGet("/api/v1/homework-assignments", async (
+    ClaimsPrincipal principal,
+    HomeworkService homework,
+    CancellationToken cancellationToken) =>
+{
+    var assignments = await homework.ListAssignmentsAsync(principal, cancellationToken);
+    return assignments is null
+        ? Results.Problem(statusCode: StatusCodes.Status401Unauthorized, title: "The student session is invalid.")
+        : Results.Ok(assignments);
+}).RequireAuthorization("student");
+
+app.MapPost("/api/v1/homework-submissions", async (
+    HomeworkSubmissionRequest request,
+    ClaimsPrincipal principal,
+    HomeworkService homework,
+    CancellationToken cancellationToken) =>
+{
+    var result = await homework.SubmitAsync(principal, request, cancellationToken);
+    return result.Status switch
+    {
+        HomeworkSubmissionWriteStatus.Created => Results.Created(
+            $"/api/v1/homework-submissions/{result.Response!.SubmissionId}", result.Response),
+        HomeworkSubmissionWriteStatus.Duplicate => Results.Ok(result.Response),
+        HomeworkSubmissionWriteStatus.Conflict => Results.Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: "The event ID is already associated with a different homework submission."),
+        HomeworkSubmissionWriteStatus.AssignmentNotFound => Results.Problem(
+            statusCode: StatusCodes.Status404NotFound,
+            title: "No matching homework assignment was found for this student."),
+        HomeworkSubmissionWriteStatus.InvalidRequest => Results.ValidationProblem(result.Errors!),
+        HomeworkSubmissionWriteStatus.InvalidIdentity => Results.Problem(
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "The student session is invalid."),
+        _ => throw new InvalidOperationException("Unknown homework write result.")
     };
 }).RequireAuthorization("student");
 
