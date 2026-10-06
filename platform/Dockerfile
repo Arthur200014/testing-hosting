@@ -42,6 +42,15 @@ RUN mkdir /tests/api /tests/import && \
     rm /tmp/api-integration-tests.tgz /tmp/import-integration-tests.tgz
 CMD ["dotnet", "vstest", "/tests/api/Platform.Api.IntegrationTests.dll", "/tests/import/Platform.StudentImport.IntegrationTests.dll", "--logger:console;verbosity=normal"]
 
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS importer-runtime
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y libgssapi-krb5-2 && \
+    rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --chown=$APP_UID:$APP_UID --from=importer-build /app/importer ./
+USER $APP_UID
+ENTRYPOINT ["dotnet", "Platform.StudentImport.dll"]
+
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 RUN apt-get update && \
     apt-get install --no-install-recommends -y libgssapi-krb5-2 && \
@@ -51,12 +60,3 @@ COPY --chown=$APP_UID:$APP_UID --from=build /app/publish ./
 USER $APP_UID
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "Platform.Api.dll"]
-
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS importer-runtime
-RUN apt-get update && \
-    apt-get install --no-install-recommends -y libgssapi-krb5-2 && \
-    rm -rf /var/lib/apt/lists/*
-WORKDIR /app
-COPY --chown=$APP_UID:$APP_UID --from=importer-build /app/importer ./
-USER $APP_UID
-ENTRYPOINT ["dotnet", "Platform.StudentImport.dll"]
