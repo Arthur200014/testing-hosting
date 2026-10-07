@@ -1,8 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import './homework-gas-core.js';
+import {
+  createHomeworkApi,
+  confirmHomeworkGasResponse,
+  HOMEWORK_GAS_URL
+} from './homework-transport.js';
 
-const core = globalThis.HomeworkGasCore;
+const core = {
+  url: HOMEWORK_GAS_URL,
+  create: createHomeworkApi,
+  confirm: confirmHomeworkGasResponse,
+  ...createHomeworkApi()
+};
 const submission = { action: 'submitHomework', assignmentId: 'HW-EGE01-TEST', eventId: 'evt' };
 
 function gatewayFor(text, status = 200) {

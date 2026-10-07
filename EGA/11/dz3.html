@@ -203,10 +203,11 @@
   </main>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="../../shared/interactive/v1/homework-gas-core.js"></script>
-  <script>
+  <script type="module">
+    import { HOMEWORK_GAS_URL, createHomeworkTransport } from '../../shared/interactive/v1/homework-transport.js';
     "use strict";
-    const API_URL=HomeworkGasCore.url;
+    const homeworkApi=createHomeworkTransport();
+    const API_URL=HOMEWORK_GAS_URL;
     const PART_CONFIG={"assignmentId":"HW-EGE11-PART3-MONTHLY-SW-20260726A","items":[[9,"reciprocalLine"],[9,"reciprocalLine"],[9,"reciprocalLine"],[9,"reciprocalLine"],[10,"sqrtLine"],[10,"sqrtLine"],[10,"sqrtLine"],[10,"sqrtLine"],[11,"visualQuadLine"],[11,"visualQuadLine"],[11,"quadQuad"],[11,"quadQuad"]]};
     const HOMEWORK_META=Object.freeze({assignmentId:PART_CONFIG.assignmentId,taskNumber:11,topicId:"task-11",topicName:"Графики функций",schemaVersion:1});
     const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -499,7 +500,7 @@
     }
 
     async function postApi(payload){
-      return HomeworkGasCore.post(payload);
+      return homeworkApi.post(payload);
     }
     function responseBody(data){return data&&typeof data==="object"?(data.result&&typeof data.result==="object"?data.result:data):{}}
     function saysSubmitted(data){const d=responseBody(data);return Boolean(d.submitted||d.exists||d.hasSubmission||d.alreadySubmitted||d.hasSubmitted||d.submittedThisMonth||d.found||d.isSubmitted||d.status==="submitted"||d.canSubmit===false)}
@@ -512,7 +513,7 @@
       if(sendingQueue)return;const q=getQueue();if(!q.length)return;sendingQueue=true;
       try{const remain=[];for(const p of q){try{const d=await postApi(p);if(saysError(d)&&!saysSubmitted(d))remain.push(p)}catch(_){remain.push(p)}}setQueue(remain)}finally{sendingQueue=false}
     }
-    function flushQueueKeepalive(){for(const p of getQueue())HomeworkGasCore.sendKeepalive(p)}
+    function flushQueueKeepalive(){for(const p of getQueue())homeworkApi.sendKeepalive(p)}
 
     function readStudent(){const code=normalizeCode(safeGet("egeStudentCode"));if(!code)return null;return{id:safeGet("egeStudentId")||code,name:safeGet("egeStudentName")||"Ученик",code}}
     function storeStudent(s){safeStore("egeStudentCode",s.code);safeStore("egeStudentId",s.id||s.code);safeStore("egeStudentName",s.name||"Ученик")}
@@ -526,7 +527,7 @@
     function validateStudentCode(raw){
       const code=normalizeCode(raw);
       if(!code)return Promise.reject(new Error("empty"));
-      return HomeworkGasCore.validateStudentCode(code).then(data=>extractStudent(data,code));
+      return homeworkApi.validateStudentCode(code).then(data=>extractStudent(data,code));
     }
     async function validateInBackground(code){try{const found=await validateStudentCode(code);if(!state.student||state.student.code!==code)return;state.student={...state.student,...found};storeStudent(state.student);$("#studentName").textContent=state.student.name||"Ученик";upgradeQueuedStudentId(code,state.student.id);checkAvailability();sendQueuedResults()}catch(_){}}
     async function checkAvailability(){

@@ -7,6 +7,51 @@ export { createAspNetHomeworkClient } from './homework-aspnet-client.js';
 export const HOMEWORK_GAS_URL = 'https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
 export const HOMEWORK_TRANSPORT_CONFIG_KEY = 'EGE_HOMEWORK_TRANSPORT_CONFIG';
 
+function gasError(data, fallback) {
+  const bodies = gasBodies(data);
+  const message = bodies.map(body => body?.message || body?.error).find(Boolean);
+  return new Error(String(message || fallback));
+}
+
+function gasBodies(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return [];
+  const bodies = [data];
+  for (const candidate of [data.result, data.data, data.data?.result, data.result?.data]) {
+    if (candidate && typeof candidate === 'object' && !Array.isArray(candidate) && !bodies.includes(candidate)) {
+      bodies.push(candidate);
+    }
+  }
+  return bodies;
+}
+
+export function confirmHomeworkGasResponse(data, action, payload = {}) {
+  const bodies = gasBodies(data);
+  if (!bodies.length) {
+    throw new Error('Сервер не подтвердил сохранение домашней работы. Результат будет отправлен повторно.');
+  }
+  if (bodies.some(body => body.ok === false || body.success === false || body.error)) {
+    throw gasError(data, 'Сервер отклонил запрос. Результат будет отправлен повторно.');
+  }
+  if (action === 'submitHomework') {
+    const receipt = bodies.find(body => body.ok === true && body.saved === true);
+    if (!receipt || (receipt.assignmentId && receipt.assignmentId !== payload.assignmentId)) {
+      throw gasError(data, 'Сервер не подтвердил сохранение домашней работы. Результат будет отправлен повторно.');
+    }
+  } else if (action === 'checkHomeworkSubmission') {
+    const submitted = bodies.flatMap(body => [body.submitted, body.hasSubmitted, body.hasSubmission,
+      body.alreadySubmitted, body.exists, body.found, body.isSubmitted, body.submittedThisMonth])
+      .find(value => typeof value === 'boolean');
+    const canSubmit = bodies.map(body => body.canSubmit).find(value => typeof value === 'boolean');
+    const status = bodies.map(body => body.status).find(Boolean);
+    const resolved = typeof submitted === 'boolean' ? submitted
+      : typeof canSubmit === 'boolean' ? !canSubmit
+        : status === 'submitted' || status === 'submitted_late' ? true : undefined;
+    if (typeof resolved !== 'boolean') throw gasError(data, 'Не удалось проверить статус домашней работы.');
+    return { ...data, submitted: resolved };
+  }
+  return data;
+}
+
 export function createHomeworkIdentity({ get, set, remove, dz1 = false }) {
   const normalizeCode = value => String(value || '').trim().toUpperCase();
   return {
@@ -38,63 +83,123 @@ export function createHomeworkApi({
   timeoutMs = 20000,
   parseStudent,
   parseSubmission = parseSubmissionResponse,
-  fetchImpl = globalThis.fetch
-}) {
-  function validateStudentCode(rawCode) {
-    const code = String(rawCode || '').trim().toUpperCase();
-    if (!code) return Promise.reject(new Error('empty'));
+  fetchImpl = globalThis.fetch,
+  documentRef = globalThis.document,
+  root = globalThis,
+  navigatorRef = globalThis.navigator
+} = {}) {
+  function showSubmissionStatus(error) {
+    if (!documentRef?.body) return;
+    let banner = documentRef.getElementById('homework-gas-save-status');
+    if (!banner) {
+      banner = documentRef.createElement('div');
+      banner.id = 'homework-gas-save-status';
+      banner.setAttribute('role', 'alert');
+      banner.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:2147483647;padding:14px 18px;border-radius:12px;background:#7d1720;color:#fff;font:600 15px/1.4 system-ui,sans-serif;box-shadow:0 4px 16px #0005';
+      documentRef.body.appendChild(banner);
+    }
+    banner.textContent = 'Результат пока НЕ записан в таблицу. Страница попробует отправить его повторно. ' + error.message;
+  }
+
+  function clearSubmissionStatus() {
+    documentRef?.getElementById?.('homework-gas-save-status')?.remove();
+  }
+
+  function jsonp(params, timeout = timeoutMs) {
+    if (params?.action === 'submitHomework') {
+      return Promise.reject(new Error('Домашние работы сохраняются только через POST.'));
+    }
     return new Promise((resolve, reject) => {
-      const callback = `__egeStudent_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      const script = document.createElement('script');
+      if (!documentRef?.head) { reject(new Error('JSONP недоступен')); return; }
+      const callback = `__homeworkGas_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      const script = documentRef.createElement('script');
       let settled = false;
-      const cleanup = () => {
-        if (settled) return;
+      let timer;
+      const finish = (error, value) => {
+        if (settled) return false;
         settled = true;
-        clearTimeout(timeout);
-        try { delete window[callback]; } catch { window[callback] = undefined; }
+        clearTimeout(timer);
+        try { delete root[callback]; } catch { root[callback] = undefined; }
         script.remove();
+        error ? reject(error) : resolve(value);
+        return true;
       };
-      const timeout = setTimeout(() => { cleanup(); reject(new Error('timeout')); }, timeoutMs);
-      window[callback] = payload => {
+      timer = setTimeout(() => finish(new Error('Сервер не ответил')), timeout);
+      root[callback] = data => {
         try {
-          const student = parseStudent(payload, code);
-          if (!student) throw new Error('invalid');
-          cleanup(); resolve({ ...student, code });
-        } catch (error) { cleanup(); reject(error); }
+          if (params?.action === 'checkHomeworkSubmission') {
+            data = confirmHomeworkGasResponse(data, params.action, params);
+          } else if (params?.action === 'validateStudent') {
+            const bodies = gasBodies(data);
+            const student = bodies.map(body => body.student).find(value => value && typeof value === 'object') || bodies[1] || bodies[0];
+            const id = student?.studentId ?? student?.studentID ?? student?.id ?? data?.studentId ?? data?.studentID ?? data?.id;
+            if (bodies.some(body => body.ok === false || body.success === false || body.valid === false) || !String(id ?? '').trim()) {
+              throw gasError(data, 'Не удалось проверить код ученика.');
+            }
+          }
+          finish(null, data);
+        } catch (error) { finish(error); }
       };
-      script.onerror = () => { cleanup(); reject(new Error('network')); };
+      script.onerror = () => finish(new Error('Не удалось подключиться к серверу'));
       script.async = true;
-      script.src = `${url}?action=validateStudent&code=${encodeURIComponent(code)}&callback=${encodeURIComponent(callback)}`;
-      document.head.appendChild(script);
+      script.src = `${url}?${new URLSearchParams({ ...params, callback })}`;
+      documentRef.head.appendChild(script);
     });
   }
 
+  async function post(payload, { keepalive = false } = {}) {
+    try {
+      const response = await fetchImpl(url, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload), redirect: 'follow', keepalive
+      });
+      if (!response.ok) throw new Error(`Не удалось связаться с сервером (HTTP ${response.status}).`);
+      let data;
+      try { data = JSON.parse(await response.text()); }
+      catch { throw new Error('invalid-response: Сервер вернул непонятный ответ. Результат будет отправлен повторно.'); }
+      const confirmed = confirmHomeworkGasResponse(data, payload?.action, payload);
+      if (payload?.action === 'submitHomework') clearSubmissionStatus();
+      return confirmed;
+    } catch (error) {
+      if (payload?.action === 'submitHomework') showSubmissionStatus(error);
+      throw error;
+    }
+  }
+
+  async function validateStudentCode(rawCode) {
+    const code = String(rawCode || '').trim().toUpperCase();
+    if (!code) throw new Error('empty');
+    const data = await jsonp({ action: 'validateStudent', code });
+    if (typeof parseStudent !== 'function') return data;
+    const student = parseStudent(data, code);
+    if (!student) throw new Error('invalid');
+    return { ...student, code };
+  }
+
   async function submitResult(payload, options = {}) {
-    const response = await fetchImpl(url, {
-      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload), redirect: 'follow', keepalive: Boolean(options.keepalive)
-    });
-    const text = await response.text();
-    let data;
-    try { data = JSON.parse(text); } catch { throw new Error('invalid-response'); }
-    if (!response.ok) throw new Error('network');
-    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('invalid-response');
-    return parseSubmission(data);
+    return parseSubmission(await post(payload, options));
+  }
+
+  function sendKeepalive(payload) {
+    try {
+      fetchImpl(url, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload), redirect: 'follow', keepalive: true
+      }).catch(() => {});
+      return true;
+    } catch { return false; }
   }
 
   function sendResultOnExit(payload, mode = 'fetch') {
     const body = JSON.stringify(payload);
     if (mode === 'beacon') {
-      if (!navigator.sendBeacon) return false;
-      return navigator.sendBeacon(url, new Blob([body], { type: 'text/plain;charset=utf-8' }));
+      if (!navigatorRef?.sendBeacon) return false;
+      return navigatorRef.sendBeacon(url, new Blob([body], { type: 'text/plain;charset=utf-8' }));
     }
-    try {
-      fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body, keepalive: true, redirect: 'follow' }).catch(() => {});
-      return true;
-    } catch { return false; }
+    return sendKeepalive(payload);
   }
 
-  return { validateStudentCode, submitResult, sendResultOnExit };
+  return Object.freeze({ url, jsonp, post, sendKeepalive, validateStudentCode, submitResult, sendResultOnExit });
 }
 
 // Production pages stay on GAS unless an embedding runtime deliberately supplies
@@ -105,6 +210,9 @@ export function createHomeworkTransport({
   parseStudent,
   parseSubmission,
   fetchImpl,
+  documentRef,
+  root,
+  navigatorRef,
   getStudentCode,
   now
 } = {}) {
@@ -114,7 +222,7 @@ export function createHomeworkTransport({
   }
   const provider = runtimeConfig.provider ?? 'gas';
   if (provider === 'gas') {
-    return createHomeworkApi({ timeoutMs, parseStudent, parseSubmission, fetchImpl });
+    return createHomeworkApi({ timeoutMs, parseStudent, parseSubmission, fetchImpl, documentRef, root, navigatorRef });
   }
   if (provider !== 'aspnet') throw new TypeError(`Unsupported homework provider: ${provider}`);
   return createAspNetHomeworkClient({

@@ -28,14 +28,14 @@ test('all first-part EGE homework pages in scope use the shared GAS transport bo
     if (!(task >= 1 && task <= 11)) continue;
     checked += 1;
     const source = await readFile(file, 'utf8');
-    if (task >= 6 && task <= 10) {
-      assert.match(source, /createHomeworkTransport/, file);
-    } else {
+    assert.match(source, /createHomeworkTransport/, file);
+    assert.doesNotMatch(source, /homework-gas-core|HomeworkGasCore/, file);
+    if (task <= 5 || task === 11) {
       migrated += 1;
-      const tag = source.match(/<script src="([^"]*homework-gas-core\.js)"><\/script>/);
-      assert.ok(tag, file);
-      const target = resolve(file, '..', tag[1]);
-      assert.equal(target, join(project, 'shared/interactive/v1/homework-gas-core.js'), file);
+      const imported = source.match(/from\s+['"]([^'"]*homework-transport\.js)['"]/);
+      assert.ok(imported, file);
+      const target = resolve(file, '..', imported[1]);
+      assert.equal(target, join(project, 'shared/interactive/v1/homework-transport.js'), file);
       assert.doesNotMatch(source, /https:\/\/script\.google\.com\/macros\/s\//, file);
       assert.doesNotMatch(source, /fetch\(API_URL/, file);
     }

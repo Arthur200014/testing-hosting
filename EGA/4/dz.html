@@ -188,10 +188,11 @@
   </main>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="../../shared/interactive/v1/homework-gas-core.js"></script>
-  <script>
+  <script type="module">
+    import { HOMEWORK_GAS_URL, createHomeworkTransport } from '../../shared/interactive/v1/homework-transport.js';
     "use strict";
-    const API_URL = HomeworkGasCore.url;
+    const homeworkApi=createHomeworkTransport();
+    const API_URL = HOMEWORK_GAS_URL;
     const PART_CONFIG={"assignmentId":"HW-EGE04-PART1-MONTHLY-CARS-20260726A","items":[[1,"helicopter"],[1,"lotteryGroup"],[1,"countryPosition"],[1,"notPerson"],[1,"remainderCars"],[1,"scheduleDays"],[1,"sameGroup"],[1,"sameCountry"],[1,"coinAtLeast"],[2,"statisticalPump"],[2,"statisticalBags"],[2,"statisticalQuality"]]};
     const HOMEWORK_META=Object.freeze({assignmentId:PART_CONFIG.assignmentId,taskNumber:4,topicId:"task-04",topicName:"Определение вероятности",schemaVersion:1});
     const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -378,8 +379,8 @@
     const audio=new AudioEngine();
     function showScreen(id){$$(".screen").forEach(x=>x.classList.toggle("on",x.id===id));window.scrollTo({top:Math.max(0,$(".hero").offsetHeight-8),behavior:"smooth"})}
     function toast(msg,error=false){const b=$("#toast");b.textContent=msg;b.classList.toggle("error",error);b.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>b.classList.remove("on"),3500)}
-    function jsonp(params,timeout=12000){return HomeworkGasCore.jsonp(params,timeout)}
-    async function postApi(payload){return HomeworkGasCore.post(payload)}
+    function jsonp(params,timeout=12000){return homeworkApi.jsonp(params,timeout)}
+    async function postApi(payload){return homeworkApi.post(payload)}
     async function checkHomework(){const payload={action:"checkHomeworkSubmission",studentId:state.student.id,assignmentId:HOMEWORK_META.assignmentId};try{return await postApi(payload)}catch(first){try{const d=await jsonp(payload);if(d?.success===false||d?.ok===false)throw new Error(d?.message||d?.error||"Проверка отклонена");return d}catch(second){throw second?.message?second:first}}}
     function alreadySubmitted(d){const a=[d?.submitted,d?.alreadySubmitted,d?.hasSubmission,d?.hasSubmitted,d?.submittedThisMonth,d?.data?.submitted,d?.data?.alreadySubmitted,d?.data?.hasSubmitted,d?.data?.submittedThisMonth,d?.result?.submitted,d?.result?.alreadySubmitted,d?.result?.hasSubmitted,d?.result?.submittedThisMonth];return d?.canSubmit===false||d?.data?.canSubmit===false||a.some(v=>v===true||v===1||v==="true"||v==="yes")}
     function extractStudent(d,code){const s=d?.student||d?.data?.student||d?.data||d?.result||d||{},id=s.id||s.studentId||d?.studentId,name=s.name||s.studentName||d?.studentName||"Ученик",valid=d?.valid===true||d?.success===true||d?.ok===true||d?.status==="ok"||Boolean(id);if(!valid||!id)throw new Error(d?.message||d?.error||"Код ученика не найден");return{id:String(id),name:String(name),code:String(code)}}
