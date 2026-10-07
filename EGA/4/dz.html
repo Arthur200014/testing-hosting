@@ -158,7 +158,7 @@
         <p class="lead">Прототипы из исходного файла идут без перестановок. Проверка и разбор появятся только после успешной отправки.</p>
         <div class="briefing">
           <div class="brief-card"><b>В этой работе</b><ul id="prototypeSummary"></ul></div>
-          <div class="brief-card"><b>Правила миссии</b><ul><li>Ответ — целое число или десятичная дробь.</li><li>Запятую и точку можно использовать одинаково.</li><li>Отправить работу можно один раз в календарном месяце.</li></ul></div>
+          <div class="brief-card"><b>Правила миссии</b><ul><li>Ответ — целое число или десятичная дробь.</li><li>Запятую и точку можно использовать одинаково.</li><li>Официальный результат сохраняется один раз для текущего назначения.</li></ul></div>
         </div>
         <div class="start-row"><button class="btn gold" id="startButton" type="button">Начать работу</button></div>
       </div>
@@ -169,27 +169,27 @@
       <form id="homeworkForm">
         <div class="task-list" id="taskList"></div>
         <div class="submit-row"><button class="btn gold" id="submitButton" type="submit" disabled>Отправить работу</button></div>
-        <p class="submit-note" id="submitStatus">Заполните все поля. Проверка появится только после отправки.</p>
+        <p class="submit-note" id="submitStatus">Введите хотя бы один ответ. Пустые поля считаются ошибками.</p>
       </form>
     </section>
 
     <section class="screen" id="resultScreen">
       <div class="panel">
         <div class="score" id="scoreValue">0%</div>
-        <div class="stats"><div class="stat"><b id="correctValue">0 / 0</b>правильных</div><div class="stat"><b id="timeValue">0:00</b>время</div><div class="stat"><b>1 попытка</b>в этом месяце</div></div>
+        <div class="stats"><div class="stat"><b id="correctValue">0 / 0</b>правильных</div><div class="stat"><b id="timeValue">0:00</b>время</div><div class="stat"><b>1 результат</b>для назначения</div></div>
         <div class="actions"><button class="btn" id="solutionsButton" type="button">Разобрать решения</button></div>
         <div class="solutions" id="solutions"></div>
       </div>
     </section>
 
     <section class="screen" id="lockedScreen">
-      <div class="panel locked"><div class="lock">🔒</div><h2>Работа уже отправлена</h2><p>В текущем календарном месяце эту работу можно было отправить только один раз.</p><p class="lead">Просматривать новые варианты заданий можно всегда.</p><button class="btn secondary" id="reviewLocked" type="button">Просмотреть задания</button></div>
+      <div class="panel locked"><div class="lock">🔒</div><h2>Официальный результат уже сохранён</h2><p>Следующие проверки выполняются в тренировочном режиме и не изменяют таблицу.</p><p class="lead">Просматривать и решать задания можно всегда.</p><button class="btn secondary" id="reviewLocked" type="button">Тренироваться</button></div>
     </section>
   </main>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script type="module">
-    import { HOMEWORK_GAS_URL, createHomeworkTransport } from '../../shared/interactive/v1/homework-transport.js';
+    import { HOMEWORK_GAS_URL, decideHomeworkSubmission, createHomeworkTransport } from '../../shared/interactive/v1/homework-transport.js';
     "use strict";
     const homeworkApi=createHomeworkTransport();
     const API_URL = HOMEWORK_GAS_URL;
@@ -346,7 +346,7 @@
     function generate(source,type){const fn=GENERATORS[type];if(!fn)throw new Error("Неизвестный генератор "+type);return fn(source);
     }
     function buildQuestions(){return PART_CONFIG.items.map(item=>generate(item[0],item[1]));}
-    const state={student:null,questions:buildQuestions(),startedAt:0,durationSeconds:0,correct:0,scorePercent:0,submitted:false};
+    const state={student:null,questions:buildQuestions(),startedAt:0,durationSeconds:0,correct:0,scorePercent:0,submitted:false,officialSubmitted:false};
 
 
     function renderGraph(plot){
@@ -388,12 +388,12 @@
     function cachedStudent(){const id=localStorage.getItem("egeStudentId"),name=localStorage.getItem("egeStudentName"),code=localStorage.getItem("egeStudentCode");return id&&code?{id,name:name||"Ученик",code}:null}
     function monthKey(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")}
     function localLockKey(){return"egeHomeworkSubmitted:"+HOMEWORK_META.assignmentId+":"+monthKey()}
-    async function activateStudent(s){state.student=s;saveStudent(s);$("#studentName").textContent=s.name;$("#studentBar").hidden=false;showScreen("checkingScreen");$("#retryCheck").hidden=true;$("#checkingText").textContent="Проверяем отправку в текущем календарном месяце…";try{const r=await checkHomework();showScreen(alreadySubmitted(r)||localStorage.getItem(localLockKey())==="1"?"lockedScreen":"welcomeScreen")}catch(e){$("#checkingText").textContent="Не удалось проверить доступ: "+e.message;$("#retryCheck").hidden=false}}
+    async function activateStudent(s){state.student=s;saveStudent(s);$("#studentName").textContent=s.name;$("#studentBar").hidden=false;showScreen("checkingScreen");$("#retryCheck").hidden=true;$("#checkingText").textContent="Проверяем текущее назначение…";try{const r=await checkHomework();state.officialSubmitted=alreadySubmitted(r);if(state.officialSubmitted)localStorage.setItem(localLockKey(),"1");else localStorage.removeItem(localLockKey());showScreen(state.officialSubmitted?"lockedScreen":"welcomeScreen")}catch(e){if(localStorage.getItem(localLockKey())==="1"){state.officialSubmitted=true;showScreen("lockedScreen")}else{$("#checkingText").textContent="Не удалось проверить доступ: "+e.message;$("#retryCheck").hidden=false}}}
     async function validateCode(code){return extractStudent(await jsonp({action:"validateStudent",code}),code)}
     function renderSummary(){const first=state.questions[0].source,last=state.questions.at(-1).source,counts=new Map();state.questions.forEach(q=>counts.set(q.type,(counts.get(q.type)||0)+1));$("#prototypeSummary").innerHTML="<li><b>Прототипы № "+first+"–"+last+"</b> — "+state.questions.length+" задан"+(state.questions.length%10===1?"ие":"ий")+"</li>"+[...counts].map(([n,c])=>"<li>"+n+" — "+c+"</li>").join("")}
     function renderTasks(){$("#taskList").innerHTML=state.questions.map((q,i)=>'<article class="task" data-index="'+i+'"><div class="task-head"><span class="task-num">Задание '+(i+1)+'</span><span class="tag">Прототип исходника № '+q.source+' · '+q.type+'</span></div><div class="task-grid"><div><div class="task-text">'+q.text+'</div><div class="answer-row"><label for="answer-'+i+'">Ответ:</label><input class="answer" id="answer-'+i+'" inputmode="decimal" autocomplete="off" aria-label="Ответ на задание '+(i+1)+'"></div></div><div class="graph">'+renderGraph(q.plot)+'</div></div></article>').join("")}
     function normalize(v){const s=String(v).trim().replace(/\s+/g,"").replace(",",".");return s===""?NaN:Number(s)}
-    function updateProgress(){const a=$$(".answer"),filled=a.filter(x=>x.value.trim()!=="").length;a.forEach(x=>x.closest(".task").classList.toggle("answered",x.value.trim()!==""));$("#progressText").textContent=filled+" / "+a.length;$("#progressFill").style.width=(filled/a.length*100)+"%";$("#submitButton").disabled=filled!==a.length||state.submitted;$("#submitStatus").textContent=filled===a.length?"Все ответы заполнены. Проверка появится после отправки.":"Заполнено "+filled+" из "+a.length+"."}
+    function updateProgress(){const a=$$(".answer"),filled=a.filter(x=>x.value.trim()!=="").length;a.forEach(x=>x.closest(".task").classList.toggle("answered",x.value.trim()!==""));$("#progressText").textContent=filled+" / "+a.length;$("#progressFill").style.width=(filled/a.length*100)+"%";$("#submitButton").disabled=filled===0||state.submitted;$("#submitStatus").textContent=filled===0?"Введите хотя бы один ответ.":filled===a.length?"Все ответы заполнены. Можно отправлять.":"Заполнено "+filled+" из "+a.length+". Пустые ответы считаются неверными."}
     function uuid(){return crypto?.randomUUID?crypto.randomUUID():"hw-"+Date.now()+"-"+Math.random().toString(16).slice(2)}
     function payload(durationSeconds,scorePercent){return{action:"submitHomework",eventId:uuid(),studentId:state.student.id,assignmentId:HOMEWORK_META.assignmentId,taskNumber:HOMEWORK_META.taskNumber,topicId:HOMEWORK_META.topicId,topicName:HOMEWORK_META.topicName,scorePercent,durationSeconds,schemaVersion:1}}
     function grade(){const vals=$$(".answer").map(x=>normalize(x.value)),correct=vals.reduce((s,v,i)=>s+(Number.isFinite(v)&&Math.abs(v-state.questions[i].answer)<1e-7?1:0),0);return{correct,scorePercent:Math.round(correct/state.questions.length*100)}}
@@ -401,11 +401,11 @@
     function lockInputs(){$$(".answer").forEach(x=>x.disabled=true);$("#submitButton").disabled=true}
     $("#loginForm").addEventListener("submit",async e=>{e.preventDefault();audio.click();const code=$("#studentCode").value.trim();if(!code)return;$("#loginButton").disabled=true;$("#loginStatus").className="status";$("#loginStatus").textContent="Проверяем код…";try{const s=await validateCode(code);$("#loginStatus").className="status ok";$("#loginStatus").textContent="✓ Код подтверждён";await activateStudent(s)}catch(err){audio.bad();$("#loginStatus").className="status error";$("#loginStatus").textContent=err.message}finally{$("#loginButton").disabled=false}})
     $("#retryCheck").addEventListener("click",()=>activateStudent(state.student));
-    $("#reviewLocked").addEventListener("click",()=>{renderTasks();lockInputs();showScreen("workScreen");$("#submitStatus").textContent="Работа уже отправлена в этом месяце. Доступен режим просмотра."});
+    $("#reviewLocked").addEventListener("click",()=>{renderTasks();state.submitted=false;state.startedAt=Date.now();showScreen("workScreen");updateProgress();$("#submitStatus").textContent="Тренировочный режим: официальный результат не изменится."});
     $("#changeStudent").addEventListener("click",()=>{if($("#workScreen").classList.contains("on"))return;["egeStudentId","egeStudentName","egeStudentCode"].forEach(k=>localStorage.removeItem(k));const u=new URL(location.href);u.searchParams.delete("code");location.href=u.pathname+u.search});
     $("#startButton").addEventListener("click",()=>{audio.click();audio.start();renderTasks();state.startedAt=Date.now();$("#changeStudent").disabled=true;showScreen("workScreen");updateProgress()});
     $("#taskList").addEventListener("input",updateProgress);
-    $("#homeworkForm").addEventListener("submit",async e=>{e.preventDefault();if($("#submitButton").disabled||state.submitted)return;state.submitted=true;$("#submitButton").disabled=true;$("#submitStatus").textContent="Проверяем право на отправку…";try{const access=await checkHomework();if(alreadySubmitted(access)){showScreen("lockedScreen");return}state.durationSeconds=Math.max(1,Math.round((Date.now()-state.startedAt)/1000));const result=grade();state.correct=result.correct;state.scorePercent=result.scorePercent;$("#submitStatus").textContent="Сохраняем результат…";await postApi(payload(state.durationSeconds,state.scorePercent));localStorage.setItem(localLockKey(),"1");lockInputs();renderSolutions();$("#scoreValue").textContent=state.scorePercent+"%";$("#correctValue").textContent=state.correct+" / "+state.questions.length;$("#timeValue").textContent=fmtTime(state.durationSeconds);showScreen("resultScreen");state.correct===state.questions.length?audio.good():audio.bad()}catch(err){state.submitted=false;$("#submitButton").disabled=false;$("#submitStatus").textContent="Не удалось отправить: "+err.message+". Ответы сохранены на странице — попробуйте ещё раз.";toast("Результат не отправлен",true);audio.bad()}});
+    $("#homeworkForm").addEventListener("submit",async e=>{e.preventDefault();if(state.submitted)return;const answers=$$(".answer").map(x=>x.value),attempt=decideHomeworkSubmission(answers,{officialSubmitted:state.officialSubmitted});if(!attempt.canSubmit){updateProgress();return}state.submitted=true;$("#submitButton").disabled=true;try{if(attempt.shouldQueue){$("#submitStatus").textContent="Проверяем право на отправку…";const access=await checkHomework();if(alreadySubmitted(access))state.officialSubmitted=true}state.durationSeconds=Math.max(1,Math.round((Date.now()-state.startedAt)/1000));const result=grade();state.correct=result.correct;state.scorePercent=result.scorePercent;if(attempt.shouldQueue&&!state.officialSubmitted){$("#submitStatus").textContent="Сохраняем результат…";await postApi(payload(state.durationSeconds,state.scorePercent));localStorage.setItem(localLockKey(),"1");state.officialSubmitted=true}else $("#submitStatus").textContent="Тренировочный результат не изменил официальный результат.";lockInputs();renderSolutions();$("#scoreValue").textContent=state.scorePercent+"%";$("#correctValue").textContent=state.correct+" / "+state.questions.length;$("#timeValue").textContent=fmtTime(state.durationSeconds);showScreen("resultScreen");state.correct===state.questions.length?audio.good():audio.bad()}catch(err){state.submitted=false;updateProgress();$("#submitStatus").textContent="Не удалось отправить: "+err.message+". Ответы сохранены на странице — попробуйте ещё раз.";toast("Результат не отправлен",true);audio.bad()}});
     $("#solutionsButton").addEventListener("click",()=>{audio.click();const b=$("#solutions"),open=b.classList.toggle("on");$("#solutionsButton").textContent=open?"Скрыть разбор":"Разобрать решения";if(open)b.scrollIntoView({behavior:"smooth",block:"start"})});
     $("#soundButton").addEventListener("click",()=>{const on=audio.toggle();$("#soundButton").textContent=on?"🔊":"🔇";$("#soundButton").setAttribute("aria-pressed",String(on))});
     async function boot(){renderSummary();const urlCode=new URLSearchParams(location.search).get("code");if(urlCode){$("#studentCode").value=urlCode;$("#loginStatus").textContent="Проверяем код из ссылки…";try{await activateStudent(await validateCode(urlCode))}catch(e){$("#loginStatus").className="status error";$("#loginStatus").textContent=e.message}return}const c=cachedStudent();if(c)await activateStudent(c)}

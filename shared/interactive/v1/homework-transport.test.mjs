@@ -3,8 +3,27 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
   createHomeworkIdentity, createHomeworkQueueAdapter, createHomeworkOutbox, createHomeworkTransport,
+  decideHomeworkSubmission,
   parseDz1Student, parseDz23Student, parseSubmissionResponse, submissionState
 } from './homework-transport.js';
+
+test('homework submission policy allows partial work but rejects a fully blank attempt', () => {
+  assert.deepEqual(decideHomeworkSubmission(['', '  ', null]), {
+    answers: ['', '  ', null], totalCount: 3, filledCount: 0, emptyCount: 3,
+    canSubmit: false, mode: 'official', shouldQueue: false
+  });
+  assert.deepEqual(decideHomeworkSubmission(['42', '', '  ']), {
+    answers: ['42', '', '  '], totalCount: 3, filledCount: 1, emptyCount: 2,
+    canSubmit: true, mode: 'official', shouldQueue: true
+  });
+});
+
+test('a submitted assignment becomes training-only without blocking local grading', () => {
+  assert.deepEqual(decideHomeworkSubmission(['0', ''], { officialSubmitted: true }), {
+    answers: ['0', ''], totalCount: 2, filledCount: 1, emptyCount: 1,
+    canSubmit: true, mode: 'training', shouldQueue: false
+  });
+});
 
 test('homework transport stays on GAS by default and requires an explicit ASP.NET config', () => {
   const gas = createHomeworkTransport({ config: undefined, parseStudent: () => null });

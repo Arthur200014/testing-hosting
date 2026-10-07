@@ -350,7 +350,7 @@
       <div class="panel login-panel" style="text-align:center">
         <h2 class="pixel">Проверяем доступ</h2>
         <div class="spinner" aria-hidden="true"></div>
-        <p id="checkingText">Проверяем, не отправлялась ли эта работа в текущем месяце…</p>
+        <p id="checkingText">Проверяем официальный результат текущего назначения…</p>
         <button class="block-button secondary" id="retryCheck" type="button" hidden>Повторить проверку</button>
       </div>
     </section>
@@ -368,7 +368,7 @@
             <strong class="pixel">Правила мира</strong>
             <div>• 8 числовых ответов</div>
             <div>• запятая и точка допустимы</div>
-            <div>• одна отправка в месяц</div>
+            <div>• один официальный результат</div>
             <div>• разбор — после отправки</div>
           </div>
         </div>
@@ -405,8 +405,8 @@
       <div class="panel locked">
         <div class="lock-icon">🔒</div>
         <h2 class="pixel">Работа уже отправлена</h2>
-        <p>В текущем календарном месяце эту домашнюю работу можно было отправить только один раз.</p>
-        <p class="lead">Новая попытка откроется автоматически в следующем месяце.</p><button class="block-button secondary" id="reviewLocked" type="button">Просмотреть задания</button>
+        <p>Официальный результат текущего назначения уже сохранён.</p>
+        <p class="lead">Следующие проверки доступны как тренировка без отправки в таблицу.</p><button class="block-button secondary" id="reviewLocked" type="button">Тренироваться</button>
       </div>
     </section>
   </main>
@@ -414,7 +414,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script type="module">
-import { createHomeworkTransport, createHomeworkIdentity, createHomeworkQueueAdapter, createHomeworkOutbox, submissionState, parseDz23Student } from '../../shared/interactive/v1/homework-transport.js';
+import { decideHomeworkSubmission, createHomeworkTransport, createHomeworkIdentity, createHomeworkQueueAdapter, createHomeworkOutbox, submissionState, parseDz23Student } from '../../shared/interactive/v1/homework-transport.js';
 "use strict";
 const homeworkApi=createHomeworkTransport({timeoutMs:20000,parseStudent:parseDz23Student});
 const QUESTIONS=[{"id":"bridge","prototype":"Подстановка в формулу","answer":26.2,"text":"Линия провисающей цепи моста задана формулой <span class=\"latex-math\">\\(\\displaystyle y = 0,002x^2 - 0,4x + 39\\)</span>, где x и y измеряются в метрах. Найдите длину ванты, расположенной в 40 м от пилона.","recall":"Подставляем известное значение x в готовую формулу.","formula":"\\[\\displaystyle y = 0,002x^2 - 0,4x + 39\\]","tip":"Сначала отдельно вычисли квадрат и произведения.","steps":["\\[\\displaystyle y = 0,002\\cdot 40^2 - 0,4\\cdot 40 + 39\\]","\\[\\displaystyle y = 0,002\\cdot 1600 - 16 + 39\\]","\\[\\displaystyle y = 3,2 - 16 + 39\\]","\\[\\displaystyle y = 26,2\\]"]},{"id":"ohm-fuse","prototype":"Закон Ома и ограничение","answer":50,"text":"Сила тока определяется по закону Ома <span class=\"latex-math\">\\(\\displaystyle I = \\frac{U}{R}\\)</span>. Предохранитель плавится, если сила тока превышает 4 А. Какое наименьшее сопротивление может быть у прибора, подключённого к сети 200 В? Ответ дайте в омах.","recall":"Для безопасной работы сила тока не должна превышать 4 А.","formula":"\\[\\displaystyle I = \\frac{U}{R}\\]","tip":"Для наименьшего R берём граничное равенство.","steps":["\\[\\displaystyle \\frac{200}{R} \\le 4\\]","\\[\\displaystyle 200 \\le 4R\\]","\\[\\displaystyle R \\ge \\frac{200}{4}\\]","\\[\\displaystyle R \\ge 50\\]"]},{"id":"road-acceleration","prototype":"Корень и преобразование формулы","answer":1.25,"text":"Автомобиль разгоняется с постоянным ускорением 1440 км/ч². Скорость вычисляется по формуле <span class=\"latex-math\">\\(\\displaystyle v = \\sqrt{2la}\\)</span>, где l — путь в километрах. Сколько километров он проедет к моменту, когда скорость станет 60 км/ч?","recall":"Чтобы убрать квадратный корень, возводим обе части в квадрат.","formula":"\\[\\displaystyle l = \\frac{v^2}{2a}\\]","tip":"Единицы уже согласованы.","steps":["\\[\\displaystyle v^2 = 2la\\]","\\[\\displaystyle 60^2 = 2\\cdot l\\cdot 1440\\]","\\[\\displaystyle l = \\frac{60^2}{2\\cdot 1440}\\]","\\[\\displaystyle l = \\frac{3600}{2880}\\]","\\[\\displaystyle l = 1,25\\]"]},{"id":"horizon","prototype":"Формула горизонта","answer":500,"text":"Высота наблюдателя h выражена в метрах, а расстояние до горизонта l — в километрах: <span class=\"latex-math\">\\(\\displaystyle l = \\sqrt{\\frac{Rh}{500}}\\)</span>, где R = 6400 км. На какой высоте находится наблюдатель, если он видит горизонт на расстоянии 80 км?","recall":"Возводим обе части равенства в квадрат и выражаем h.","formula":"\\[\\displaystyle h = \\frac{500l^2}{R}\\]","tip":"После возведения в квадрат корень исчезает полностью.","steps":["\\[\\displaystyle 80^2 = \\frac{6400h}{500}\\]","\\[\\displaystyle h = \\frac{500\\cdot 80^2}{6400}\\]","\\[\\displaystyle h = \\frac{500\\cdot 6400}{6400}\\]","\\[\\displaystyle h = 500\\]"]},{"id":"adiabatic","prototype":"Степенная зависимость","answer":8,"text":"При адиабатическом сжатии выполняется <span class=\"latex-math\">\\(\\displaystyle p_1V_1^{1,4} = p_2V_2^{1,4}\\)</span>. Изначально объём газа равен 256 л, давление — 1 атм. До какого объёма нужно сжать газ, чтобы давление стало 128 атм?","recall":"Собираем отношение объёмов и затем снимаем степень 1,4 = \\(\\frac{7}{5}\\).","formula":"\\[\\displaystyle \\frac{V_1}{V_2} = (\\frac{p_2}{p_1})^{5/7}\\]","tip":"128 = 2⁷, поэтому степень \\(\\frac{5}{7}\\) считается точно.","steps":["\\[\\displaystyle (\\frac{256}{V_2})^{1,4} = 128\\]","\\[\\displaystyle \\frac{256}{V_2} = 128^{5/7}\\]","\\[\\displaystyle \\frac{256}{V_2} = 32\\]","\\[\\displaystyle V_2 = \\frac{256}{32}\\]","\\[\\displaystyle V_2 = 8\\]"]},{"id":"stefan","prototype":"Стандартный вид и четвёртая степень","answer":8000,"text":"Мощность излучения звезды определяется законом <span class=\"latex-math\">\\(\\displaystyle P=\\sigma ST^{4}\\)</span>, где σ = 5,7·10⁻⁸. Площадь поверхности звезды равна <span class=\"latex-math\">\\(\\displaystyle \\frac{1}{4096}\\cdot 10^{22}\\)</span> м², а мощность — 5,7·10²⁶ Вт. Найдите температуру звезды в кельвинах.","recall":"Из P = σST⁴ выражаем T⁴.","formula":"\\[\\displaystyle T^{4}=\\frac{P}{\\sigma S}\\]","tip":"4096 = 8⁴, а 10¹² = 1000⁴.","steps":["\\[\\displaystyle T^{4}=\\frac{5{,}7\\cdot10^{26}}{5{,}7\\cdot10^{-8}\\cdot\\frac{10^{22}}{4096}}\\]","\\[\\displaystyle T^{4}=4096\\cdot10^{12}\\]","\\[\\displaystyle T^{4}=8^{4}\\cdot1000^{4}\\]","\\[\\displaystyle T=8\\cdot1000\\]","\\[\\displaystyle T=8000\\]"]},{"id":"source-load","prototype":"Дробно-рациональная формула","answer":10,"text":"К источнику с ЭДС ε = 88 В и внутренним сопротивлением r = 1 Ом подключают нагрузку R. Напряжение на ней вычисляется по формуле <span class=\"latex-math\">\\(\\displaystyle U = \\frac{\\varepsilon R}{R+r}\\)</span>. При каком R напряжение равно 80 В?","recall":"Умножаем обе части на знаменатель.","formula":"\\[\\displaystyle U = \\frac{\\varepsilon R}{R+r}\\]","tip":"После раскрытия скобок получается линейное уравнение.","steps":["\\[\\displaystyle 80 = \\frac{88R}{R+1}\\]","\\[\\displaystyle 80(R+1) = 88R\\]","\\[\\displaystyle 80R + 80 = 88R\\]","\\[\\displaystyle 8R = 80\\]","\\[\\displaystyle R = 10\\]"]},{"id":"lens","prototype":"Формула тонкой линзы","answer":30,"text":"Фокусное расстояние собирающей линзы f = 25 см. Расстояние d₂ от линзы до экрана можно менять от 130 до 150 см. Изображение чёткое, если <span class=\"latex-math\">\\(\\displaystyle \\frac{1}{d_1} + \\frac{1}{d_2} = \\frac{1}{f}\\)</span>. Найдите наименьшее возможное d₁.","recall":"Наименьшее d₁ получается при наибольшем допустимом d₂.","formula":"\\[\\displaystyle d_1 = \\frac{fd_2}{d_2-f}\\]","tip":"Берём d₂ = 150 см.","steps":["\\[\\displaystyle \\frac{1}{d_1} + \\frac{1}{150} = \\frac{1}{25}\\]","\\[\\displaystyle \\frac{1}{d_1} = \\frac{1}{25} - \\frac{1}{150}\\]","\\[\\displaystyle \\frac{1}{d_1} = \\frac{5}{150}\\]","\\[\\displaystyle d_1 = \\frac{150}{5}\\]","\\[\\displaystyle d_1 = 30\\]"]}];
@@ -459,9 +459,9 @@ function updateProgress(){
   $$(".answer-input").forEach(x=>x.closest(".task").classList.toggle("answered",x.value.trim()!==""));
   $("#progressText").textContent=`${filled} / ${QUESTIONS.length}`;
   $("#progressFill").style.width=(filled/QUESTIONS.length*100)+"%";
-  $("#submitButton").disabled=submittedNow||submissionLocked;
+  $("#submitButton").disabled=filled===0||submittedNow;
   if(submittedNow)$("#submitStatus").textContent="Работа завершена. Решение каждого номера открывается под ним.";
-  else if(submissionLocked)$("#submitStatus").textContent="Повторная отправка в этом месяце закрыта. Решения можно просматривать.";
+  else if(submissionLocked)$("#submitStatus").textContent="Тренировочный режим: официальный результат не изменится.";
   else if(filled<QUESTIONS.length)$("#submitStatus").textContent=`Можно завершить сейчас. Пустых ответов: ${QUESTIONS.length-filled} — они будут засчитаны как неверные.`;
   else $("#submitStatus").textContent="Все ответы заполнены — можно завершать.";
 }
@@ -506,9 +506,7 @@ function restoreDraft(){
 }
 function restoreSubmitted(d){
   if(!d?.submittedResult)return false;
-  const r=d.submittedResult,answers=Array.isArray(r.answers)?r.answers:(d.answers||[]);
-  submittedNow=true;submissionLocked=true;state.submitted=true;state.correct=Number(r.correct)||0;state.scorePercent=Number(r.scorePercent)||0;state.durationSeconds=Number(r.durationSeconds)||1;
-  showInlineResult(state.correct,state.durationSeconds,answers);updateProgress();return true;
+  submittedNow=false;submissionLocked=true;state.submitted=false;updateProgress();return false;
 }
 function enableLockedReview(){
   const a=collectAnswers();
@@ -528,7 +526,7 @@ function keepalive(){homeworkOutbox.sendOnExit("fetch")}
 const validateStudentCode=homeworkApi.validateStudentCode;
 function upgradeQueuedStudentId(code,id){if(!code||!id||code===id)return;getQueue().forEach(p=>{if(p?.studentId===code)homeworkQueue.replacePayload(p.eventId,item=>({...item,studentId:String(id)}))})}
 async function validateBackground(code){try{const found=await validateStudentCode(code);if(!state.student||state.student.code!==code)return;state.student={...state.student,...found};storeStudent(state.student);$("#studentName").firstChild.textContent=state.student.name;upgradeQueuedStudentId(code,state.student.id);checkAvailability();sendQueue()}catch(_){}}
-async function checkAvailability(){if(!state.student)return;if(safeGet(lockKey()))submissionLocked=true;try{const d=await homeworkApi.submitResult({action:"checkHomeworkSubmission",studentId:state.student.id||state.student.code,assignmentId:HOMEWORK_META.assignmentId});if(submissionState(d).submitted)submissionLocked=true}catch(_){}if(submissionLocked&&!submittedNow)enableLockedReview();updateProgress()}
+async function checkAvailability(){if(!state.student)return;if(safeGet(lockKey()))submissionLocked=true;try{const d=await homeworkApi.submitResult({action:"checkHomeworkSubmission",studentId:state.student.id||state.student.code,assignmentId:HOMEWORK_META.assignmentId});const serverSubmitted=submissionState(d).submitted,hasPending=getQueue().length>0;submissionLocked=serverSubmitted||(hasPending&&submissionLocked);if(!serverSubmitted&&!hasPending)safeRemove(lockKey())}catch(_){}updateProgress()}
 
 class AudioEngine{
   constructor(){this.enabled=safeGet("egeSoundOff")!=="1";this.ctx=null;this.timer=null;this.step=0}
@@ -549,12 +547,12 @@ $("#changeStudent").addEventListener("click",()=>{saveDraft();clearStudent();loc
 $("#taskList").addEventListener("input",()=>{saveDraft();updateProgress()});
 $("#taskList").addEventListener("click",e=>{const b=e.target.closest(".solution-toggle");if(!b)return;const i=Number(b.dataset.solutionIndex),box=$("#task-solution-"+i);if(!box.innerHTML)box.innerHTML=solutionHtml(QUESTIONS[i],collectAnswers()[i]);const open=box.classList.toggle("open");b.textContent=open?"Скрыть решение":"Показать решение";if(open&&window.MathJax?.typesetPromise)MathJax.typesetPromise([box]).catch(()=>{});audio.click()});
 $("#homeworkForm").addEventListener("submit",e=>{
-  e.preventDefault();if(submittedNow||submissionLocked)return;
-  const answers=collectAnswers(),g=grade(answers),duration=Math.max(1,Math.floor((Date.now()-state.startedAt)/1000)),eventId=`${HOMEWORK_META.assignmentId}-${state.student.code}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+  e.preventDefault();if(submittedNow)return;
+  const answers=collectAnswers(),attempt=decideHomeworkSubmission(answers,{officialSubmitted:submissionLocked});if(!attempt.canSubmit){updateProgress();return}const g=grade(answers),duration=Math.max(1,Math.floor((Date.now()-state.startedAt)/1000)),eventId=`${HOMEWORK_META.assignmentId}-${state.student.code}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
   const payload={action:"submitHomework",eventId,studentId:state.student.id||state.student.code,studentCode:state.student.code,assignmentId:HOMEWORK_META.assignmentId,taskNumber:HOMEWORK_META.taskNumber,topicId:HOMEWORK_META.topicId,topicName:HOMEWORK_META.topicName,scorePercent:g.scorePercent,durationSeconds:duration,schemaVersion:1};
-  enqueue(payload);safeStore(lockKey(),JSON.stringify({eventId,scorePercent:g.scorePercent,durationSeconds:duration}));
+  if(attempt.shouldQueue){enqueue(payload);safeStore(lockKey(),JSON.stringify({eventId,scorePercent:g.scorePercent,durationSeconds:duration}))}
   const submittedResult={eventId,correct:g.correct,scorePercent:g.scorePercent,durationSeconds:duration,answers,submittedAt:Date.now()};saveDraft({submittedResult});
-  submittedNow=true;submissionLocked=true;state.submitted=true;showInlineResult(g.correct,duration,answers);updateProgress();g.correct===QUESTIONS.length?audio.good():audio.bad();audio.stopMusic();$("#inlineResult").scrollIntoView({behavior:"smooth",block:"start"});sendQueue();
+  submittedNow=true;submissionLocked=true;state.submitted=true;showInlineResult(g.correct,duration,answers);updateProgress();g.correct===QUESTIONS.length?audio.good():audio.bad();audio.stopMusic();$("#inlineResult").scrollIntoView({behavior:"smooth",block:"start"});if(attempt.shouldQueue)sendQueue();
 });
 $("#soundButton").addEventListener("click",()=>{const on=audio.toggle();$("#soundButton").textContent=on?"🔊":"🔇";$("#soundButton").setAttribute("aria-pressed",String(on))});
 function setScreenshot(on){document.body.classList.toggle("screenshot-mode",on);if(on)window.scrollTo(0,0)}

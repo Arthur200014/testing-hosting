@@ -30,16 +30,17 @@ test('all first-part EGE homework pages in scope use the shared GAS transport bo
     const source = await readFile(file, 'utf8');
     assert.match(source, /createHomeworkTransport/, file);
     assert.doesNotMatch(source, /homework-gas-core|HomeworkGasCore/, file);
-    if (task <= 5 || task === 11) {
-      migrated += 1;
-      const imported = source.match(/from\s+['"]([^'"]*homework-transport\.js)['"]/);
-      assert.ok(imported, file);
-      const target = resolve(file, '..', imported[1]);
-      assert.equal(target, join(project, 'shared/interactive/v1/homework-transport.js'), file);
-      assert.doesNotMatch(source, /https:\/\/script\.google\.com\/macros\/s\//, file);
-      assert.doesNotMatch(source, /fetch\(API_URL/, file);
-    }
+    migrated += 1;
+    const imported = source.match(/from\s+['"]([^'"]*homework-transport\.js)['"]/);
+    assert.ok(imported, file);
+    const target = resolve(file, '..', imported[1]);
+    assert.equal(target, join(project, 'shared/interactive/v1/homework-transport.js'), file);
+    assert.match(source, /decideHomeworkSubmission/, file);
+    assert.match(source, /attempt\.shouldQueue/, file);
+    assert.doesNotMatch(source, /Заполните все поля/i, file);
+    assert.doesNotMatch(source, /https:\/\/script\.google\.com\/macros\/s\//, file);
+    assert.doesNotMatch(source, /fetch\(API_URL/, file);
   }
   assert.equal(checked, 31, 'Update the first-part homework inventory when pages change');
-  assert.equal(migrated, 17, 'Update the remaining-homework inventory when pages change');
+  assert.equal(migrated, 31, 'Update the first-part policy inventory when pages change');
 });

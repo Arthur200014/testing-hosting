@@ -379,7 +379,7 @@
             <strong class="pixel">Правила мира</strong>
             <div>• 15 числовых ответов</div>
             <div>• запятая и точка допустимы</div>
-            <div>• одна отправка в месяц</div>
+            <div>• один официальный результат</div>
             <div>• разбор — после отправки</div>
           </div>
         </div>
@@ -405,7 +405,7 @@
 
   <script type="module">
     "use strict";
-    import { createHomeworkTransport, createHomeworkIdentity, createHomeworkQueueAdapter, createHomeworkOutbox, submissionState, parseDz1Student } from "../../shared/interactive/v1/homework-transport.js";
+    import { decideHomeworkSubmission, createHomeworkTransport, createHomeworkIdentity, createHomeworkQueueAdapter, createHomeworkOutbox, submissionState, parseDz1Student } from "../../shared/interactive/v1/homework-transport.js";
     const homeworkApi=createHomeworkTransport({timeoutMs:20000,parseStudent:parseDz1Student});
     const PART_CONFIG = {"assignmentId":"HW-EGE07-PART1-MONTHLY","generators":["p01","p02","p03","p04","p06","p07","p08","p10","p11","p12","p14","p15","p16","l01","l02"]};
     const HOMEWORK_META = Object.freeze({
@@ -804,10 +804,10 @@
       inputs.forEach(input=>input.closest(".task").classList.toggle("answered",input.value.trim()!==""));
       $("#progressText").textContent=filled+" / "+inputs.length;
       $("#progressFill").style.width=(inputs.length?filled/inputs.length*100:0)+"%";
-      $("#submitButton").disabled=filled!==inputs.length||submittedNow||submissionLocked;
+      $("#submitButton").disabled=filled===0||submittedNow;
       if(submittedNow)$("#submitStatus").textContent="Работа завершена. Решение каждого номера открывается прямо под заданием.";
-      else if(submissionLocked)$("#submitStatus").textContent="Эта работа уже завершена в текущем месяце.";
-      else $("#submitStatus").textContent=filled===inputs.length?"Все ответы заполнены — можно отправлять.":"Ответы сохраняются автоматически: "+filled+" из "+inputs.length+".";
+      else if(submissionLocked)$("#submitStatus").textContent="Тренировочный режим: официальный результат не изменится.";
+      else $("#submitStatus").textContent=filled===0?"Введите хотя бы один ответ.":filled===inputs.length?"Все ответы заполнены — можно отправлять.":"Заполнено "+filled+" из "+inputs.length+". Пустые ответы считаются неверными.";
     }
     function getDraft(code=state.student?.code){const k=draftKey(code);return k?readJson(k,null):null}
     function saveDraft(extra={}){
@@ -873,7 +873,8 @@
       if(localLocked())submissionLocked=true;
       try{
         const data=await postApi({action:"checkHomeworkSubmission",studentId:state.student.id||state.student.code,assignmentId:HOMEWORK_META.assignmentId});
-        if(submissionState(data).submitted||saysSubmitted(data))submissionLocked=true;
+        const serverSubmitted=submissionState(data).submitted||saysSubmitted(data),hasPending=getQueue().length>0;
+        submissionLocked=serverSubmitted||(hasPending&&submissionLocked);if(!serverSubmitted&&!hasPending)safeRemove(monthLockKey());
       }catch(_){}
       updateProgress();
     }
@@ -897,24 +898,21 @@
         if(box&&!box.innerHTML)box.innerHTML=solutionHtml(state.questions[index],answers[index]);
       });
     }
-    function showInlineResult(correct,durationSeconds,answers){
+    function showInlineResult(correct,durationSeconds,answers,isTraining=false){
       const percent=Math.round(correct/state.questions.length*100),box=$("#inlineResult");
       box.innerHTML=`<h2 class="pixel">🏆 Результат</h2>
         <div class="result-score pixel">${percent}%</div>
         <div class="result-stats">
           <div class="stat"><b>${correct} / ${state.questions.length}</b>правильных</div>
           <div class="stat"><b>${minutes(durationSeconds)}</b>время</div>
-          <div class="stat"><b>✓</b>результат зафиксирован</div>
+          <div class="stat"><b>✓</b>${isTraining?"тренировка":"результат зафиксирован"}</div>
         </div>
         <p class="lead">Решение каждого номера открывается кнопкой прямо под соответствующим заданием.</p>`;
       box.hidden=false;decorateSubmitted(answers);
     }
     function restoreSubmittedResult(draft){
       if(!draft?.submittedResult)return false;
-      const r=draft.submittedResult,answers=Array.isArray(r.answers)?r.answers:(draft.answers||[]);
-      submittedNow=true;submissionLocked=true;state.submitted=true;
-      state.durationSeconds=Number(r.durationSeconds)||1;state.correct=Number(r.correct)||0;state.scorePercent=Number(r.scorePercent)||0;
-      showInlineResult(state.correct,state.durationSeconds,answers);updateProgress();return true;
+      submissionLocked=true;submittedNow=false;state.submitted=false;updateProgress();return false;
     }
     function beginSession(student){
       state.student={id:student.id||student.code,name:student.name||"Ученик",code:normalizeCode(student.code)};
@@ -951,9 +949,8 @@
     });
     $("#homeworkForm").addEventListener("submit",event=>{
       event.preventDefault();if(submittedNow)return;
-      const answers=$$(".answer-input").map(input=>input.value.trim());
-      if(answers.some(value=>!value)){updateProgress();return}
-      if(submissionLocked){updateProgress();return}
+      const answers=$$(".answer-input").map(input=>input.value.trim()),attempt=decideHomeworkSubmission(answers,{officialSubmitted:submissionLocked});
+      if(!attempt.canSubmit){updateProgress();return}
       const correct=answers.reduce((sum,answer,index)=>{
         const value=normalizeAnswer(answer);
         return sum+(Number.isFinite(value)&&Math.abs(value-state.questions[index].answer)<1e-7?1:0);
@@ -967,16 +964,15 @@
         topicId:HOMEWORK_META.topicId,topicName:HOMEWORK_META.topicName,
         scorePercent,durationSeconds,schemaVersion:1
       };
-      enqueueResult(payload);
-      safeStore(monthLockKey(),JSON.stringify({eventId,sentAt:new Date().toISOString(),scorePercent,durationSeconds}));
+      if(attempt.shouldQueue){enqueueResult(payload);safeStore(monthLockKey(),JSON.stringify({eventId,sentAt:new Date().toISOString(),scorePercent,durationSeconds}))}
       const submittedResult={eventId,correct,scorePercent,durationSeconds,answers,submittedAt:Date.now()};
       saveDraft({submittedResult});
       submittedNow=true;submissionLocked=true;state.submitted=true;
       state.correct=correct;state.scorePercent=scorePercent;state.durationSeconds=durationSeconds;
-      showInlineResult(correct,durationSeconds,answers);updateProgress();
+      showInlineResult(correct,durationSeconds,answers,!attempt.shouldQueue);updateProgress();
       correct===state.questions.length?audio.good():audio.bad();
       $("#inlineResult").scrollIntoView({behavior:"smooth",block:"start"});
-      sendQueuedResults();
+      if(attempt.shouldQueue)sendQueuedResults();
     });
     $("#soundButton").addEventListener("click",()=>{
       const enabled=audio.toggle();$("#soundButton").textContent=enabled?"🔊":"🔇";

@@ -193,7 +193,7 @@
   </div>
 
   <script type="module">
-    import { HOMEWORK_GAS_URL, createHomeworkTransport } from '../../shared/interactive/v1/homework-transport.js';
+    import { HOMEWORK_GAS_URL, decideHomeworkSubmission, createHomeworkTransport } from '../../shared/interactive/v1/homework-transport.js';
     "use strict";
     const homeworkApi=createHomeworkTransport();
     const API_URL = HOMEWORK_GAS_URL;
@@ -479,10 +479,10 @@
     const handleSubmit=async function(){
       if(graded)return;
       const inputs=Array.from(document.querySelectorAll(".answer-input"));
-      const empty=inputs.find(function(input){return input.value.trim()==="";});
-      if(empty){empty.focus();setNotice("Заполните все семь ответов перед проверкой.","warn");playEffect("error");return;}
+      const attempt=decideHomeworkSubmission(inputs.map(function(input){return input.value;}),{officialSubmitted:monthlySubmitted||!officialAvailable});
+      if(!attempt.canSubmit){inputs[0]?.focus();setNotice("Введите хотя бы один ответ перед проверкой.","warn");playEffect("error");return;}
       const duration=Math.max(1,Math.floor((Date.now()-startAt)/1000));
-      if(officialAvailable&&!monthlySubmitted){
+      if(attempt.shouldQueue&&officialAvailable){
         submitButton.disabled=true;submitButton.textContent="Отправляем…";setNotice("Передаём итоговый результат на сервер…","warn");
         const scorePreview=inputs.reduce(function(sum,input,index){return sum+(equalAnswer(parseNumber(input.value),TASKS[index].answer)?1:0);},0);
         const payload={
@@ -499,12 +499,12 @@
         };
         try{
           const response=await postJson(payload);if(response&&response.ok===false)throw new Error(response.error||"Сервер не принял результат.");
-          monthlySubmitted=true;localStorage.setItem(localSubmissionKey(),"1");setNotice("Результат успешно отправлен. Повторная отправка в этом месяце закрыта.","ok");
+          monthlySubmitted=true;localStorage.setItem(localSubmissionKey(),"1");setNotice("Официальный результат сохранён. Следующие попытки будут тренировочными.","ok");
         }catch(error){
           submitButton.disabled=false;submitButton.textContent="Повторить отправку";setNotice(error.message+" Ответы пока не раскрыты.","error");playEffect("error");return;
         }
       }else{
-        setNotice("Тренировочная проверка: повторная отправка на сервер не выполнялась.","warn");
+        setNotice("Тренировочная проверка: официальный результат не изменён.","warn");
       }
       const score=grade();showResult(score,duration);
     };
@@ -541,7 +541,7 @@
     };
 
     const prepareStudent=async function(current){
-      student=current;byId("loginLayer").hidden=true;byId("loadingLayer").hidden=false;byId("loadingText").textContent="Проверяем отправку за текущий месяц…";
+      student=current;byId("loginLayer").hidden=true;byId("loadingLayer").hidden=false;byId("loadingText").textContent="Проверяем официальный результат текущего назначения…";
       let status=null;
       try{
         status=await jsonp({action:"checkHomeworkSubmission",studentId:student.id,assignmentId:HOMEWORK_META.assignmentId});
@@ -554,13 +554,13 @@
       byId("studentChip").textContent=student.name+" · "+student.code;
       byId("loadingLayer").hidden=true;byId("appShell").hidden=false;
       if(monthlySubmitted){
-        setNotice("Эта домашняя работа уже отправлена в текущем месяце. Доступен просмотр и тренировочная проверка.","warn");
+        setNotice("Официальный результат текущего назначения уже сохранён. Доступна тренировочная проверка.","warn");
         byId("submitTitle").textContent="Тренировочная проверка";byId("submitHint").textContent="Результат повторно на сервер не отправится.";submitButton.textContent="Проверить для тренировки";
       }else if(status&&status.networkError){
         setNotice("Не удалось проверить сервер: "+status.networkError+" Официальная отправка заблокирована, доступна тренировка.","error");
         byId("submitTitle").textContent="Тренировочная проверка";byId("submitHint").textContent="Для официальной отправки обновите страницу при наличии интернета.";submitButton.textContent="Проверить для тренировки";
       }else{
-        setNotice("Отправка в этом месяце доступна. После отправки появятся результат и решения.","ok");
+        setNotice("Официальная отправка доступна. После неё появятся результат и решения.","ok");
       }
       startTimer();
     };

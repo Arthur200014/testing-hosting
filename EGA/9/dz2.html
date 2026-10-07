@@ -350,7 +350,7 @@
       <div class="panel login-panel" style="text-align:center">
         <h2 class="pixel">Проверяем доступ</h2>
         <div class="spinner" aria-hidden="true"></div>
-        <p id="checkingText">Проверяем, не отправлялась ли эта работа в текущем месяце…</p>
+        <p id="checkingText">Проверяем официальный результат текущего назначения…</p>
         <button class="block-button secondary" id="retryCheck" type="button" hidden>Повторить проверку</button>
       </div>
     </section>
@@ -368,7 +368,7 @@
             <strong class="pixel">Правила мира</strong>
             <div>• 8 числовых ответов</div>
             <div>• запятая и точка допустимы</div>
-            <div>• одна отправка в месяц</div>
+            <div>• один официальный результат</div>
             <div>• разбор — после отправки</div>
           </div>
         </div>
@@ -405,8 +405,8 @@
       <div class="panel locked">
         <div class="lock-icon">🔒</div>
         <h2 class="pixel">Работа уже отправлена</h2>
-        <p>В текущем календарном месяце эту домашнюю работу можно было отправить только один раз.</p>
-        <p class="lead">Новая попытка откроется автоматически в следующем месяце.</p><button class="block-button secondary" id="reviewLocked" type="button">Просмотреть задания</button>
+        <p>Официальный результат текущего назначения уже сохранён.</p>
+        <p class="lead">Следующие проверки доступны как тренировка без отправки в таблицу.</p><button class="block-button secondary" id="reviewLocked" type="button">Тренироваться</button>
       </div>
     </section>
   </main>
@@ -414,7 +414,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script type="module">
-import { createHomeworkTransport, createHomeworkIdentity, createHomeworkQueueAdapter, createHomeworkOutbox, submissionState, parseDz23Student } from '../../shared/interactive/v1/homework-transport.js';
+import { decideHomeworkSubmission, createHomeworkTransport, createHomeworkIdentity, createHomeworkQueueAdapter, createHomeworkOutbox, submissionState, parseDz23Student } from '../../shared/interactive/v1/homework-transport.js';
 "use strict";
 const homeworkApi=createHomeworkTransport({timeoutMs:20000,parseStudent:parseDz23Student});
 const QUESTIONS=[{"id":"parallel-resistance","prototype":"Параллельное сопротивление","answer":100,"text":"К прибору сопротивлением R₁ = 25 Ом параллельно подключают прибор R₂. Общее сопротивление <span class=\"latex-math\">\\(\\displaystyle R_{\\text{общ}} = \\frac{R_1R_2}{R_1+R_2}\\)</span> должно быть не меньше 20 Ом. Найдите наименьшее R₂.","recall":"Подставляем R₁=25 и решаем дробное неравенство.","formula":"\\[\\displaystyle R_{\\text{общ}} = \\frac{R_1R_2}{R_1+R_2}\\]","tip":"При R₂>0 знаменатель положителен.","steps":["\\[\\displaystyle \\frac{25R_2}{25+R_2} \\ge 20\\]","\\[\\displaystyle 25R_2 \\ge 20(25+R_2)\\]","\\[\\displaystyle 25R_2 \\ge 500 + 20R_2\\]","\\[\\displaystyle 5R_2 \\ge 500\\]","\\[\\displaystyle R_2 \\ge 100\\]"]},{"id":"shop-rating","prototype":"Составная формула рейтинга","answer":0.87,"text":"Рейтинг магазина вычисляется по формулам <span class=\"latex-math\">\\(\\displaystyle R = r_{\\text{пок}} - \\frac{r_{\\text{пок}}-r_{\\text{экс}}}{(K+1)^{m}}\\)</span>, <span class=\"latex-math\">\\(\\displaystyle m = \\frac{0,02K}{r_{\\text{пок}}+0,1}\\)</span>. Для магазина K = 49, r<sub>пок</sub> = 0,88, r<sub>экс</sub> = 0,38. Найдите рейтинг.","recall":"Сначала вычисляем показатель m, потом подставляем его в формулу R.","formula":"\\[\\displaystyle m = \\frac{0,02K}{r_{\\text{пок}}+0,1}\\]","tip":"В этой задаче m получается равным 1.","steps":["\\[\\displaystyle m = \\frac{0,02\\cdot 49}{0,88+0,1}\\]","\\[\\displaystyle m = \\frac{0,98}{0,98}\\]","\\[\\displaystyle m = 1\\]","\\[\\displaystyle R = 0,88 - \\frac{0,88-0,38}{50^{1}}\\]","\\[\\displaystyle R = 0,88 - \\frac{0,50}{50}\\]","\\[\\displaystyle R = 0,87\\]"]},{"id":"motorcycle","prototype":"Квадратичная модель движения","answer":120,"text":"Мотоциклист выезжает из города со скоростью 51 км/ч и разгоняется с ускорением 10 км/ч². Расстояние задаётся формулой <span class=\"latex-math\">\\(\\displaystyle S = v_0t + \\frac{at^2}{2}\\)</span>. Сколько минут прошло, если он удалился на 122 км?","recall":"Подставляем данные и получаем квадратное уравнение.","formula":"\\[\\displaystyle S = v_0t + \\frac{at^2}{2}\\]","tip":"Берём только положительный корень времени.","steps":["\\[\\displaystyle 122 = 51t + \\frac{10t^2}{2}\\]","\\[\\displaystyle 122 = 51t + 5t^2\\]","\\[\\displaystyle 5t^2 + 51t - 122 = 0\\]","\\[\\displaystyle t = 2 \\text{ч}\\]","\\[\\displaystyle t = 2\\cdot 60 = 120 \\text{мин}\\]"]},{"id":"revenue","prototype":"Квадратичное неравенство","answer":11,"text":"Спрос задаётся формулой <span class=\"latex-math\">\\(\\displaystyle q = 75 - 5p\\)</span>, а выручка <span class=\"latex-math\">\\(\\displaystyle r(p)=pq\\)</span>. Найдите наибольшую цену p, при которой выручка не меньше 220 тыс. рублей.","recall":"Подставляем q в r=pq и решаем квадратное неравенство.","formula":"\\[\\displaystyle p(75-5p) \\ge 220\\]","tip":"Нужна правая граница допустимого промежутка.","steps":["\\[\\displaystyle p(75-5p) \\ge 220\\]","\\[\\displaystyle 75p - 5p^2 \\ge 220\\]","\\[\\displaystyle -5p^2 + 75p - 220 \\ge 0\\]","\\[\\displaystyle p_1 = 4, p_2 = 11\\]","\\[\\displaystyle 4 \\le p \\le 11\\]","\\[\\displaystyle p_{max} = 11\\]"]},{"id":"ball-height","prototype":"Квадратичное неравенство по времени","answer":1.6,"text":"Высота мяча меняется по закону <span class=\"latex-math\">\\(\\displaystyle h(t) = 1 + 10t - 5t^2\\)</span>. Сколько секунд мяч будет находиться на высоте не менее 2,8 м?","recall":"Сначала находим моменты, когда h=2,8.","formula":"\\[\\displaystyle 1 + 10t - 5t^2 \\ge 2,8\\]","tip":"Продолжительность равна разности правой и левой границ.","steps":["\\[\\displaystyle 1 + 10t - 5t^2 = 2,8\\]","\\[\\displaystyle 5t^2 - 10t + 1,8 = 0\\]","\\[\\displaystyle t_1 = 0,2, t_2 = 1,8\\]","\\[\\displaystyle 0,2 \\le t \\le 1,8\\]","\\[\\displaystyle Δt = 1,8 - 0,2\\]","\\[\\displaystyle Δt = 1,6\\]"]},{"id":"radioactive","prototype":"Показательная модель","answer":4,"text":"Масса изотопа меняется по закону <span class=\"latex-math\">\\(\\displaystyle m(t)=m_0\\cdot 2^{-\\frac{t}{T}}\\)</span>. Начальная масса 48 мг, период полураспада 2 мин. Через сколько минут масса станет 12 мг?","recall":"Делим текущую массу на начальную и сравниваем степени двойки.","formula":"\\[\\displaystyle \\frac{m}{m_0} = 2^{-\\frac{t}{T}}\\]","tip":"\\(\\frac{12}{48}\\) = \\(\\frac{1}{4}\\) = 2⁻².","steps":["\\[\\displaystyle \\frac{12}{48} = 2^{-\\frac{t}{2}}\\]","\\[\\displaystyle \\frac{1}{4} = 2^{-\\frac{t}{2}}\\]","\\[\\displaystyle 2^{-2} = 2^{-\\frac{t}{2}}\\]","\\[\\displaystyle \\frac{t}{2} = 2\\]","\\[\\displaystyle t = 4\\]"]},{"id":"diving-bell","prototype":"Логарифмическая формула","answer":5.6,"text":"Работа при сжатии воздуха задаётся формулой <span class=\"latex-math\">\\(\\displaystyle A = \\alpha \\nu T\\cdot \\log_2(\\frac{p_2}{p_1})\\)</span>. Дано: α = 12, ν = 4 моль, T = 300 К, p₁ = 1,4 атм, A = 28800 Дж. Найдите p₂.","recall":"Сначала выражаем значение логарифма.","formula":"\\[\\displaystyle \\log_2(\\frac{p_2}{p_1}) = \\frac{A}{\\alpha \\nu T}\\]","tip":"После нахождения логарифма переходим к степени двойки.","steps":["\\[\\displaystyle \\log_2(\\frac{p_2}{1,4}) = \\frac{28800}{12\\cdot 4\\cdot 300}\\]","\\[\\displaystyle \\log_2(\\frac{p_2}{1,4}) = \\frac{28800}{14400}\\]","\\[\\displaystyle \\log_2(\\frac{p_2}{1,4}) = 2\\]","\\[\\displaystyle \\frac{p_2}{1,4} = 2^2\\]","\\[\\displaystyle \\frac{p_2}{1,4} = 4\\]","\\[\\displaystyle p_2 = 5,6\\]"]},{"id":"capacitor","prototype":"Логарифм и ограничение","answer":6,"text":"Напряжение после выключения телевизора меняется по формуле <span class=\"latex-math\">\\(\\displaystyle t = \\alpha RC\\cdot \\log_2(\\frac{U_0}{U})\\)</span>. Известно: α = 2, R = 2·10⁶ Ом, C = 2·10⁻⁶ Ф, U₀ = 24 кВ. Найдите наибольшее возможное U, если прошло 16 с.","recall":"Сначала вычисляем коэффициент αRC.","formula":"\\[\\displaystyle \\log_2(\\frac{U_0}{U}) = \\frac{t}{\\alpha RC}\\]","tip":"После логарифма получается простая пропорция.","steps":["\\[\\displaystyle \\alpha RC = 2\\cdot 2\\cdot 10^{6}\\cdot 2\\cdot 10^{-6}\\]","\\[\\displaystyle \\alpha RC = 8\\]","\\[\\displaystyle \\log_2(\\frac{24}{U}) = \\frac{16}{8}\\]","\\[\\displaystyle \\log_2(\\frac{24}{U}) = 2\\]","\\[\\displaystyle \\frac{24}{U} = 4\\]","\\[\\displaystyle U = 6\\]"]}];
@@ -459,9 +459,9 @@ function updateProgress(){
   $$(".answer-input").forEach(x=>x.closest(".task").classList.toggle("answered",x.value.trim()!==""));
   $("#progressText").textContent=`${filled} / ${QUESTIONS.length}`;
   $("#progressFill").style.width=(filled/QUESTIONS.length*100)+"%";
-  $("#submitButton").disabled=submittedNow||submissionLocked;
+  $("#submitButton").disabled=filled===0||submittedNow;
   if(submittedNow)$("#submitStatus").textContent="Работа завершена. Решение каждого номера открывается под ним.";
-  else if(submissionLocked)$("#submitStatus").textContent="Повторная отправка в этом месяце закрыта. Решения можно просматривать.";
+  else if(submissionLocked)$("#submitStatus").textContent="Тренировочный режим: официальный результат не изменится.";
   else if(filled<QUESTIONS.length)$("#submitStatus").textContent=`Можно завершить сейчас. Пустых ответов: ${QUESTIONS.length-filled} — они будут засчитаны как неверные.`;
   else $("#submitStatus").textContent="Все ответы заполнены — можно завершать.";
 }
@@ -506,9 +506,7 @@ function restoreDraft(){
 }
 function restoreSubmitted(d){
   if(!d?.submittedResult)return false;
-  const r=d.submittedResult,answers=Array.isArray(r.answers)?r.answers:(d.answers||[]);
-  submittedNow=true;submissionLocked=true;state.submitted=true;state.correct=Number(r.correct)||0;state.scorePercent=Number(r.scorePercent)||0;state.durationSeconds=Number(r.durationSeconds)||1;
-  showInlineResult(state.correct,state.durationSeconds,answers);updateProgress();return true;
+  submittedNow=false;submissionLocked=true;state.submitted=false;updateProgress();return false;
 }
 function enableLockedReview(){
   const a=collectAnswers();
@@ -528,7 +526,7 @@ function keepalive(){homeworkOutbox.sendOnExit("fetch")}
 const validateStudentCode=homeworkApi.validateStudentCode;
 function upgradeQueuedStudentId(code,id){if(!code||!id||code===id)return;getQueue().forEach(p=>{if(p?.studentId===code)homeworkQueue.replacePayload(p.eventId,item=>({...item,studentId:String(id)}))})}
 async function validateBackground(code){try{const found=await validateStudentCode(code);if(!state.student||state.student.code!==code)return;state.student={...state.student,...found};storeStudent(state.student);$("#studentName").firstChild.textContent=state.student.name;upgradeQueuedStudentId(code,state.student.id);checkAvailability();sendQueue()}catch(_){}}
-async function checkAvailability(){if(!state.student)return;if(safeGet(lockKey()))submissionLocked=true;try{const d=await homeworkApi.submitResult({action:"checkHomeworkSubmission",studentId:state.student.id||state.student.code,assignmentId:HOMEWORK_META.assignmentId});if(submissionState(d).submitted)submissionLocked=true}catch(_){}if(submissionLocked&&!submittedNow)enableLockedReview();updateProgress()}
+async function checkAvailability(){if(!state.student)return;if(safeGet(lockKey()))submissionLocked=true;try{const d=await homeworkApi.submitResult({action:"checkHomeworkSubmission",studentId:state.student.id||state.student.code,assignmentId:HOMEWORK_META.assignmentId});const serverSubmitted=submissionState(d).submitted,hasPending=getQueue().length>0;submissionLocked=serverSubmitted||(hasPending&&submissionLocked);if(!serverSubmitted&&!hasPending)safeRemove(lockKey())}catch(_){}updateProgress()}
 
 class AudioEngine{
   constructor(){this.enabled=safeGet("egeSoundOff")!=="1";this.ctx=null;this.timer=null;this.step=0}
@@ -549,12 +547,12 @@ $("#changeStudent").addEventListener("click",()=>{saveDraft();clearStudent();loc
 $("#taskList").addEventListener("input",()=>{saveDraft();updateProgress()});
 $("#taskList").addEventListener("click",e=>{const b=e.target.closest(".solution-toggle");if(!b)return;const i=Number(b.dataset.solutionIndex),box=$("#task-solution-"+i);if(!box.innerHTML)box.innerHTML=solutionHtml(QUESTIONS[i],collectAnswers()[i]);const open=box.classList.toggle("open");b.textContent=open?"Скрыть решение":"Показать решение";if(open&&window.MathJax?.typesetPromise)MathJax.typesetPromise([box]).catch(()=>{});audio.click()});
 $("#homeworkForm").addEventListener("submit",e=>{
-  e.preventDefault();if(submittedNow||submissionLocked)return;
-  const answers=collectAnswers(),g=grade(answers),duration=Math.max(1,Math.floor((Date.now()-state.startedAt)/1000)),eventId=`${HOMEWORK_META.assignmentId}-${state.student.code}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+  e.preventDefault();if(submittedNow)return;
+  const answers=collectAnswers(),attempt=decideHomeworkSubmission(answers,{officialSubmitted:submissionLocked});if(!attempt.canSubmit){updateProgress();return}const g=grade(answers),duration=Math.max(1,Math.floor((Date.now()-state.startedAt)/1000)),eventId=`${HOMEWORK_META.assignmentId}-${state.student.code}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
   const payload={action:"submitHomework",eventId,studentId:state.student.id||state.student.code,studentCode:state.student.code,assignmentId:HOMEWORK_META.assignmentId,taskNumber:HOMEWORK_META.taskNumber,topicId:HOMEWORK_META.topicId,topicName:HOMEWORK_META.topicName,scorePercent:g.scorePercent,durationSeconds:duration,schemaVersion:1};
-  enqueue(payload);safeStore(lockKey(),JSON.stringify({eventId,scorePercent:g.scorePercent,durationSeconds:duration}));
+  if(attempt.shouldQueue){enqueue(payload);safeStore(lockKey(),JSON.stringify({eventId,scorePercent:g.scorePercent,durationSeconds:duration}))}
   const submittedResult={eventId,correct:g.correct,scorePercent:g.scorePercent,durationSeconds:duration,answers,submittedAt:Date.now()};saveDraft({submittedResult});
-  submittedNow=true;submissionLocked=true;state.submitted=true;showInlineResult(g.correct,duration,answers);updateProgress();g.correct===QUESTIONS.length?audio.good():audio.bad();audio.stopMusic();$("#inlineResult").scrollIntoView({behavior:"smooth",block:"start"});sendQueue();
+  submittedNow=true;submissionLocked=true;state.submitted=true;showInlineResult(g.correct,duration,answers);updateProgress();g.correct===QUESTIONS.length?audio.good():audio.bad();audio.stopMusic();$("#inlineResult").scrollIntoView({behavior:"smooth",block:"start"});if(attempt.shouldQueue)sendQueue();
 });
 $("#soundButton").addEventListener("click",()=>{const on=audio.toggle();$("#soundButton").textContent=on?"🔊":"🔇";$("#soundButton").setAttribute("aria-pressed",String(on))});
 function setScreenshot(on){document.body.classList.toggle("screenshot-mode",on);if(on)window.scrollTo(0,0)}

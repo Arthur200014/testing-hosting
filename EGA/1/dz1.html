@@ -254,7 +254,7 @@
           <span class="eyebrow">ЕГЭ №1 · Планиметрия · <b id="partLabel"></b></span>
           <h1>Домашняя работа<br><span>Мадагаскар</span></h1>
           <p id="focusText"></p>
-          <div class="hero-badges"><span>🌴 12 новых задач</span><span>🎯 одна отправка в месяц</span><span>🎵 оригинальная музыка</span><span>🧭 решения после отправки</span></div>
+          <div class="hero-badges"><span>🌴 12 новых задач</span><span>🎯 один официальный результат</span><span>🎵 оригинальная музыка</span><span>🧭 решения после отправки</span></div>
         </div>
         <div class="crew">
 <svg viewBox="0 0 540 210" aria-hidden="true">
@@ -310,7 +310,7 @@
     <footer>Математическая экспедиция по Мадагаскару · ЕГЭ №1 · <span id="footerPart">Домашняя работа 1 из 4</span></footer>
   </div>
   <script type="module">
-  import { HOMEWORK_GAS_URL, createHomeworkTransport } from '../../shared/interactive/v1/homework-transport.js';
+  import { HOMEWORK_GAS_URL, decideHomeworkSubmission, createHomeworkTransport } from '../../shared/interactive/v1/homework-transport.js';
   "use strict";
   const homeworkApi=createHomeworkTransport();
   const API_URL = HOMEWORK_GAS_URL;
@@ -482,7 +482,7 @@ const byId=id=>document.getElementById(id);
   };
   const updateProgress=(save=false)=>{
     const inputs=[...document.querySelectorAll(".answer-input")],count=inputs.filter(i=>i.value.trim()).length,p=count/TASKS.length*100;
-    byId("progressFill").style.width=p+"%";byId("runner").style.left="calc("+p+"% - "+(p?18:0)+"px)";byId("progressCount").textContent=count+" / "+TASKS.length;
+    byId("progressFill").style.width=p+"%";byId("runner").style.left="calc("+p+"% - "+(p?18:0)+"px)";byId("progressCount").textContent=count+" / "+TASKS.length;submitButton.disabled=count===0||graded;
     if(save)saveDraft();
   };
   const buildSolution=task=>{
@@ -525,9 +525,14 @@ const byId=id=>document.getElementById(id);
     if(sound)playEffect(percent>=70?"success":"finish");if(scroll)byId("resultPanel").scrollIntoView({behavior:"smooth",block:"center"});
   };
   const setReviewMode=()=>{
-    reviewMode=true;monthlySubmitted=true;document.querySelectorAll(".answer-input").forEach(i=>i.readOnly=true);revealSolutionButtons();submitButton.disabled=true;
-    byId("submitTitle").textContent="Режим просмотра и разбора";byId("submitHint").textContent="Эта работа уже была отправлена в этом месяце.";submitButton.textContent="Уже отправлено";
-    setNotice("Эта работа уже была отправлена в этом месяце. Доступен режим просмотра и разбора.","warn");
+    reviewMode=true;monthlySubmitted=true;graded=false;document.querySelectorAll(".answer-input").forEach(i=>{i.readOnly=false;i.classList.remove("correct","wrong");i.closest(".task-card")?.classList.remove("correct","wrong")});byId("resultPanel").hidden=true;submitButton.textContent="Проверить тренировку";
+    byId("submitTitle").textContent="Тренировочный режим";byId("submitHint").textContent="Официальный результат уже сохранён. Новая проверка не изменит таблицу.";updateProgress(false);
+    setNotice("Официальный результат уже сохранён. Новые попытки проверяются только на этом устройстве.","warn");
+  };
+  const setOfficialMode=()=>{
+    reviewMode=false;monthlySubmitted=false;graded=false;localStorage.removeItem(localSubmissionKey());const d=getDraft();if(d?.submittedResult){delete d.submittedResult;localStorage.setItem(draftKey(),JSON.stringify(d))}
+    document.querySelectorAll(".answer-input").forEach(i=>{i.readOnly=false;i.classList.remove("correct","wrong");i.closest(".task-card")?.classList.remove("correct","wrong")});byId("resultPanel").hidden=true;submitButton.textContent="Отправить работу";
+    byId("submitTitle").textContent="Отправить домашнюю работу";byId("submitHint").textContent="Можно завершить в любой момент. Пустые ответы считаются неверными.";updateProgress(false);setNotice("Официальная отправка доступна для текущего назначения.","ok");
   };
   const restoreDraft=()=>{
     const d=getDraft();if(d&&Array.isArray(d.answers)){document.querySelectorAll(".answer-input").forEach((input,i)=>{input.value=d.answers[i]??"";});}
@@ -556,7 +561,7 @@ const byId=id=>document.getElementById(id);
       const status=await jsonp({action:"checkHomeworkSubmission",studentId:verifiedStudentId||student.id||student.code,assignmentId:HOMEWORK_META.assignmentId});
       if(status&&status.ok===false)throw new Error("server");monthlyCheckDone=true;
       if(Boolean(status&&status.submitted)){localStorage.setItem(localSubmissionKey(),"1");dropQueuedForStudent(student.code);setReviewMode();}
-      else if(!monthlySubmitted)processQueue();
+      else if(!loadQueue().some(item=>item?.studentCode===student.code)){setOfficialMode();processQueue();}
     }catch(_){monthlyCheckDone=false;}
   };
   const validateStudentInBackground=async code=>{
@@ -569,12 +574,13 @@ const byId=id=>document.getElementById(id);
   const backgroundSync=()=>{if(!student)return;if(!verifiedStudentId)validateStudentInBackground(student.code);checkMonthlyInBackground();processQueue();};
 
   const handleSubmit=()=>{
-    if(graded||reviewMode)return;
+    if(graded)return;
+    const answers=currentAnswers(),attempt=decideHomeworkSubmission(answers,{officialSubmitted:monthlySubmitted});if(!attempt.canSubmit){setNotice("Введите хотя бы один ответ перед проверкой.","error");updateProgress(false);return}
     const duration=Math.max(1,Math.floor((Date.now()-startAt)/1000)),score=grade(),scorePercent=Math.round(score/TASKS.length*100);
-    const eventId=makeEventId(),answers=currentAnswers(),submittedResult={eventId,correct:score,scorePercent,durationSeconds:duration,answers,submittedAt:new Date().toISOString()};
+    const eventId=makeEventId(),submittedResult={eventId,correct:score,scorePercent,durationSeconds:duration,answers,submittedAt:new Date().toISOString()};
     saveDraft({answers,submittedResult,updatedAt:Date.now()});showResult(score,duration);
-    if(!monthlySubmitted){const payload=buildSubmissionPayload(student,scorePercent,duration,eventId);enqueuePayload(payload,student.code);processQueue();}
-    else setNotice("Эта работа уже была отправлена в этом месяце. Доступен режим просмотра и разбора.","warn");
+    if(attempt.shouldQueue){const payload=buildSubmissionPayload(student,scorePercent,duration,eventId);enqueuePayload(payload,student.code);processQueue();}
+    else setNotice("Тренировочный результат проверен локально и не изменил официальный результат.","warn");
   };
 
 let audioEnabled=true,audioContext=null,musicTimer=null,musicStarted=false;
@@ -610,7 +616,7 @@ let audioEnabled=true,audioContext=null,musicTimer=null,musicStarted=false;
     verifiedStudentId=current.id&&String(current.id)!==student.code?String(current.id):"";
     byId("loginLayer").hidden=true;byId("appShell").hidden=false;byId("studentChip").textContent=student.name+" · "+student.code;
     restoreDraft();monthlySubmitted=localStorage.getItem(localSubmissionKey())==="1";
-    if(monthlySubmitted&&!graded)setReviewMode();else if(!graded)setNotice("Можно завершить в любой момент. Пустые ответы считаются неверными.","ok");
+    if(monthlySubmitted)setReviewMode();else if(!graded){setNotice("Введите хотя бы один ответ. Пустые ответы считаются неверными.","ok");updateProgress(false)}
     validateStudentInBackground(student.code);checkMonthlyInBackground();processQueue();
   };
   const login=event=>{

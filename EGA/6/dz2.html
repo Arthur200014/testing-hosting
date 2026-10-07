@@ -167,7 +167,7 @@
     <form id="homeworkForm" novalidate>
       <div id="tasksRoot"></div>
       <div class="submit-zone">
-        <p>После отправки появятся результат и возможность разобрать решения. Работу можно отправлять повторно без ограничений по месяцу.</p>
+        <p>После отправки появятся результат и возможность разобрать решения. Официальный результат сохраняется один раз для текущего назначения. После этого доступна тренировка без изменения таблицы.</p>
         <button class="submit-btn" id="submitBtn" type="submit">Отправить работу</button>
       </div>
     </form>
@@ -177,7 +177,7 @@
   <footer class="footer"><div class="container"><p>ЕГЭ №6 · Простейшие уравнения · оригинальная музыка создана средствами Web Audio API</p></div></footer>
 
   <script type="module">
-  import { createHomeworkTransport, createHomeworkIdentity, createHomeworkQueueAdapter, createHomeworkOutbox, submissionState, parseDz23Student } from './shared/v1/homework-transport.js';
+  import { decideHomeworkSubmission, createHomeworkTransport, createHomeworkIdentity, createHomeworkQueueAdapter, createHomeworkOutbox, submissionState, parseDz23Student } from '../../shared/interactive/v1/homework-transport.js';
   "use strict";
   const homeworkApi=createHomeworkTransport({timeoutMs:20000,parseStudent:parseDz23Student});
   const HOMEWORK_META={"taskNumber":6,"topicId":"task-06","topicName":"Простейшие уравнения","assignmentId":"HW-EGE06-PART2-MONTHLY-GF20260725","partLabel":"Домашняя работа 2 из 3","title":"Дело II: Тайна степеней","subtitle":"Показательные уравнения от одинаковых оснований до переменной в обеих степенях. Затем начинается глава логарифмов."};
@@ -471,6 +471,7 @@
     $("#progressText").textContent=`Заполнено ${filled} из ${inputs.length}`;
     $("#progressPercent").textContent=`${p}%`;
     $("#progressFill").style.width=`${p}%`;
+    const attempt=decideHomeworkSubmission(inputs.map(x=>x.value),{officialSubmitted:submissionLocked});submitBtn.disabled=!attempt.canSubmit||submittedNow;
   }
 
   function showNotice(text,type=""){
@@ -485,7 +486,7 @@
   function draftKey(code=student?.code){return code?`homeworkDraft:${HOMEWORK_META.assignmentId}:${code}`:""}
   function queueKey(){return`pendingHomeworkResults:${HOMEWORK_META.assignmentId}`}
   function monthLockKey(code=student?.code){return code?`egeHomeworkSubmission:${HOMEWORK_META.assignmentId}:${code}:${currentMonth()}`:""}
-  function localLocked(){return false}
+  function localLocked(){const key=monthLockKey();return key?Boolean(safeGet(key)):false}
 
   function readJson(key,fallback){try{const raw=safeGet(key);return raw?JSON.parse(raw):fallback}catch(_){return fallback}}
   function getDraft(code=student?.code){const key=draftKey(code);return key?readJson(key,null):null}
@@ -524,9 +525,9 @@
 
   async function checkAvailability(){
     if(!student)return;
-    submissionLocked=false;
-    submitBtn.disabled=false;
-    attemptLabel.textContent="Ответы сохраняются автоматически · повторная отправка разрешена";
+    if(localLocked())submissionLocked=true;
+    try{const data=await homeworkApi.submitResult({action:"checkHomeworkSubmission",studentId:student.id||student.code,assignmentId:HOMEWORK_META.assignmentId});const serverSubmitted=submissionState(data).submitted,hasPending=getQueue().length>0;submissionLocked=serverSubmitted||(hasPending&&submissionLocked);if(!serverSubmitted&&!hasPending)safeRemove(monthLockKey())}catch(_){}
+    attemptLabel.textContent=submissionLocked?"Тренировочный режим · официальный результат уже сохранён":"Ответы сохраняются автоматически · введите хотя бы один ответ";updateProgress();
   }
 
   function startTimer(){
@@ -585,11 +586,8 @@
   }
 
   function restoreSubmittedResult(draft){
-    // Старые отметки о сдаче больше не блокируют новую попытку.
-    submissionLocked=false;
-    submittedNow=false;
-    submitBtn.disabled=false;
-    return false;
+    if(draft?.submittedResult||draft?.lastSubmittedResult)submissionLocked=true;
+    submittedNow=false;updateProgress();return false;
   }
 
   function beginSession(s){
@@ -626,21 +624,20 @@
 
   form.addEventListener("submit",e=>{
     e.preventDefault();
-    const inputs=[...document.querySelectorAll(".answer-input")],answers=inputs.map(x=>x.value.trim());
-    if(answers.some(x=>!x)){showNotice("Заполните все поля перед отправкой. Правильность ответов пока не проверялась.","error");return}
+    const inputs=[...document.querySelectorAll(".answer-input")],answers=inputs.map(x=>x.value.trim()),attempt=decideHomeworkSubmission(answers,{officialSubmitted:submissionLocked});
+    if(!attempt.canSubmit){showNotice("Введите хотя бы один ответ перед проверкой.","error");updateProgress();return}
     hideNotice();
     const correct=answers.reduce((n,a,i)=>n+(isCorrect(a,tasks[i].answer)?1:0),0);
     const scorePercent=Math.round(correct/tasks.length*100),durationSeconds=Math.max(1,Math.floor((Date.now()-startedAt)/1000));
     const eventId=`${HOMEWORK_META.assignmentId}-${student.code}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
     const payload={action:"submitHomework",eventId,studentId:student.id||student.code,studentCode:student.code,assignmentId:HOMEWORK_META.assignmentId,taskNumber:HOMEWORK_META.taskNumber,topicId:HOMEWORK_META.topicId,topicName:HOMEWORK_META.topicName,scorePercent,durationSeconds,schemaVersion:1};
-    enqueueResult(payload);
+    if(attempt.shouldQueue){enqueueResult(payload);safeStore(monthLockKey(),JSON.stringify({eventId,sentAt:new Date().toISOString(),scorePercent,durationSeconds}));submissionLocked=true}
     const submittedResult={eventId,correct,scorePercent,durationSeconds,answers,submittedAt:Date.now()};
-    saveDraft({submittedResult:null,lastSubmittedResult:submittedResult});
-    submittedNow=false;submissionLocked=false;submitBtn.disabled=false;clearInterval(timerId);attemptLabel.textContent="Можно отправлять повторно без ограничений";submitBtn.textContent="Отправить ещё раз";
+    saveDraft({submittedResult,lastSubmittedResult:submittedResult});
+    submittedNow=true;clearInterval(timerId);attemptLabel.textContent=attempt.shouldQueue?"Официальный результат отправляется":"Тренировочный результат не изменил таблицу";submitBtn.textContent="Попытка завершена";updateProgress();
     showResult(correct,durationSeconds,answers);Sound.result(correct/tasks.length);
     resultSection.scrollIntoView({behavior:"smooth",block:"start"});
-    sendQueuedResults();
-    startedAt=Date.now();startTimer();
+    if(attempt.shouldQueue)sendQueuedResults();
   });
 
   function setScreenshotMode(on){

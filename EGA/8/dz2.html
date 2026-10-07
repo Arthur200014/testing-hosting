@@ -179,7 +179,7 @@
 
   <script type="module">
   "use strict";
-  import { createHomeworkTransport, createHomeworkIdentity, createHomeworkQueueAdapter, createHomeworkOutbox, submissionState, parseDz23Student } from "../../shared/interactive/v1/homework-transport.js";
+  import { decideHomeworkSubmission, createHomeworkTransport, createHomeworkIdentity, createHomeworkQueueAdapter, createHomeworkOutbox, submissionState, parseDz23Student } from "../../shared/interactive/v1/homework-transport.js";
   const homeworkApi=createHomeworkTransport({timeoutMs:18000,parseStudent:parseDz23Student});
   const HOMEWORK_META={"taskNumber":8,"topicId":"task-08","topicName":"Производная и первообразная","assignmentId":"HW-EGE08-PART2-MONTHLY-PVZ20260726","partLabel":"Домашняя работа 2 из 2","title":"Оборона газона II","subtitle":"Станции 4–6 по порядку: касательная к параболе → физический смысл производной → первообразная. По 5 заданий на каждую станцию."};
   const TASK_SPECS=["tangentQuadraticC","tangentQuadraticC","tangentQuadraticC","tangentQuadraticC","tangentQuadraticC","physicalSpeed","physicalTime","physicalSpeed","physicalTime","physicalSpeed","antiPositive","antiNegative","antiIntegerRoots","deltaF","areaByF"];
@@ -507,11 +507,11 @@
   function readAnswers(){return tasks.map((t,i)=>t.answers.map((_,part)=>document.querySelector(`#answer-${i}-${part}`)?.value.trim()||""))}
   function writeAnswers(answers){if(!Array.isArray(answers))return;tasks.forEach((t,i)=>t.answers.forEach((_,part)=>{const el=document.querySelector(`#answer-${i}-${part}`);if(el)el.value=answers?.[i]?.[part]??""}))}
   function updateProgress(){
-    const answers=readAnswers(),complete=answers.filter(parts=>parts.every(Boolean)).length,p=Math.round(complete/tasks.length*100);
+    const answers=readAnswers(),policy=decideHomeworkSubmission(answers.flat(),{officialSubmitted:submissionLocked}),complete=answers.filter(parts=>parts.every(Boolean)).length,p=Math.round(complete/tasks.length*100);
     $("#progressText").textContent=`Заполнено ${complete} из ${tasks.length}`;$("#progressPercent").textContent=`${p}%`;$("#progressFill").style.width=`${p}%`;
-    submitBtn.disabled=submittedNow||submissionLocked;
+    submitBtn.disabled=!policy.canSubmit||submittedNow;
     if(submittedNow)attemptLabel.textContent="Работа завершена · решения доступны под заданиями";
-    else if(submissionLocked)attemptLabel.textContent="Работа уже завершена в этом месяце";
+    else if(submissionLocked)attemptLabel.textContent="Тренировочный режим · официальный результат не изменится";
     else attemptLabel.textContent="Ответы сохраняются автоматически";
   }
   function showNotice(text,type=""){notice.className=`notice container${type?` ${type}`:""}`;notice.innerHTML=text;notice.classList.remove("hidden")}
@@ -543,7 +543,7 @@
   const homeworkIdentity=createHomeworkIdentity({get:safeGet,set:safeStore,remove:safeRemove});
   const validateStudentCode=homeworkApi.validateStudentCode;
   async function validateInBackground(code){try{const found=await validateStudentCode(code);if(!student||student.code!==code)return;student={...student,...found};storeStudent(student);studentLabel.textContent=student.name||"Ученик";upgradeQueuedStudentId(code,student.id);checkAvailability();sendQueuedResults()}catch(_){}}
-  async function checkAvailability(){if(!student)return;if(localLocked())submissionLocked=true;try{const data=await postApi({action:"checkHomeworkSubmission",studentId:student.id||student.code,assignmentId:HOMEWORK_META.assignmentId});if(submissionState(data).submitted||saysSubmitted(data))submissionLocked=true}catch(_){}updateProgress()}
+  async function checkAvailability(){if(!student)return;if(localLocked())submissionLocked=true;try{const data=await postApi({action:"checkHomeworkSubmission",studentId:student.id||student.code,assignmentId:HOMEWORK_META.assignmentId});const serverSubmitted=submissionState(data).submitted||saysSubmitted(data),hasPending=getQueue().length>0;submissionLocked=serverSubmitted||(hasPending&&submissionLocked);if(!serverSubmitted&&!hasPending)safeRemove(monthLockKey())}catch(_){}updateProgress()}
 
   function startTimer(){clearInterval(timerId);const tick=()=>$("#timer").textContent=formatDuration(Math.floor((Date.now()-startedAt)/1000));tick();timerId=setInterval(tick,1000)}
   function solutionHtml(t,userAnswers){
@@ -556,7 +556,7 @@
   function showResult(correct,duration,answers){
     const percent=Math.round(correct/tasks.length*100);resultSection.innerHTML=`<div class="result-grid"><div class="score-ring" style="--score:${percent}"><strong>${percent}%</strong></div><div><span class="stamp">Работа завершена</span><h2>Результат</h2><div class="result-stats"><span>Правильно: ${correct} из ${tasks.length}</span><span>Время: ${formatDuration(duration)}</span><span>${HOMEWORK_META.partLabel}</span></div><p class="result-note">Решение каждого номера открывается прямо под заданием.</p></div></div>`;resultSection.classList.remove("hidden");decorateSubmitted(answers)
   }
-  function restoreSubmittedResult(draft){if(!draft?.submittedResult)return false;const r=draft.submittedResult,answers=Array.isArray(r.answers)?r.answers:(draft.answers||[]);submittedNow=true;submissionLocked=true;showResult(Number(r.correct)||0,Number(r.durationSeconds)||1,answers);updateProgress();return true}
+  function restoreSubmittedResult(draft){if(!draft?.submittedResult)return false;submittedNow=false;submissionLocked=true;updateProgress();return false}
   function beginSession(s){
     student={id:s.id||s.code,name:s.name||"Ученик",code:normalizeCode(s.code)};storeStudent(student);studentLabel.textContent=student.name||"Ученик";loginOverlay.classList.add("hidden");
     startedAt=Date.now();const draft=restoreDraft();if(!draft)saveDraft();restoreSubmittedResult(draft);startTimer();checkAvailability();sendQueuedResults();validateInBackground(student.code);
@@ -569,12 +569,12 @@
   tasksRoot.addEventListener("click",e=>{const b=e.target.closest?.("[data-solution-index]");if(!b)return;const i=Number(b.dataset.solutionIndex),box=$("#task-solution-"+i);if(!box)return;const open=!box.classList.contains("open");box.classList.toggle("open",open);b.textContent=open?"Скрыть решение":"Показать решение"});
 
   form.addEventListener("submit",e=>{
-    e.preventDefault();if(submittedNow)return;const answers=readAnswers();if(submissionLocked){updateProgress();return}hideNotice();
+    e.preventDefault();if(submittedNow)return;const answers=readAnswers(),attempt=decideHomeworkSubmission(answers,{officialSubmitted:submissionLocked});if(!attempt.canSubmit){showNotice("Введите хотя бы один ответ перед проверкой.","error");updateProgress();return}hideNotice();
     const correct=answers.reduce((n,a,i)=>n+(isTaskCorrect(a,tasks[i])?1:0),0),scorePercent=Math.round(correct/tasks.length*100),durationSeconds=Math.max(1,Math.floor((Date.now()-startedAt)/1000));
     const eventId=`${HOMEWORK_META.assignmentId}-${student.code}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
     const payload={action:"submitHomework",eventId,studentId:student.id||student.code,studentCode:student.code,assignmentId:HOMEWORK_META.assignmentId,taskNumber:HOMEWORK_META.taskNumber,topicId:HOMEWORK_META.topicId,topicName:HOMEWORK_META.topicName,scorePercent,durationSeconds,schemaVersion:1};
-    enqueueResult(payload);safeStore(monthLockKey(),JSON.stringify({eventId,sentAt:new Date().toISOString(),scorePercent,durationSeconds}));saveDraft({submittedResult:{eventId,correct,scorePercent,durationSeconds,answers,submittedAt:Date.now()}});
-    submittedNow=true;submissionLocked=true;clearInterval(timerId);showResult(correct,durationSeconds,answers);updateProgress();Sound.result(correct/tasks.length);resultSection.scrollIntoView({behavior:"smooth",block:"start"});sendQueuedResults();
+    if(attempt.shouldQueue){enqueueResult(payload);safeStore(monthLockKey(),JSON.stringify({eventId,sentAt:new Date().toISOString(),scorePercent,durationSeconds}))}saveDraft({submittedResult:{eventId,correct,scorePercent,durationSeconds,answers,submittedAt:Date.now()}});
+    submittedNow=true;submissionLocked=true;clearInterval(timerId);showResult(correct,durationSeconds,answers);updateProgress();Sound.result(correct/tasks.length);resultSection.scrollIntoView({behavior:"smooth",block:"start"});if(attempt.shouldQueue)sendQueuedResults();
   });
 
   const Sound=(()=>{let ctx=null,on=false,loop=null,note=0;const melody=[196,246.94,220,293.66,261.63,196,174.61,220,164.81,196,246.94,185];function ensure(){if(!ctx)ctx=new(window.AudioContext||window.webkitAudioContext)();return ctx}function tone(freq,dur=.13,gain=.025,type="triangle",delay=0){if(!on)return;const c=ensure(),o=c.createOscillator(),g=c.createGain(),t=c.currentTime+delay;o.type=type;o.frequency.setValueAtTime(freq,t);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(gain,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g).connect(c.destination);o.start(t);o.stop(t+dur+.03)}function music(){tone(melody[note++%melody.length],.32,.015,"sine");if(note%4===0)tone(98,.45,.009,"triangle")}function start(){on=true;ensure().resume();music();loop=setInterval(music,720);$("#soundBtn").textContent="♫ Звук: вкл"}function stop(){on=false;clearInterval(loop);loop=null;$("#soundBtn").textContent="♫ Звук: выкл"}function result(r){if(!on)return;const seq=r>.75?[392,493.88,587.33]:[220,196,164.81];seq.forEach((f,i)=>tone(f,.2,.04,"triangle",i*.18))}function pea(){tone(760,.08,.018,"square",0);tone(1040,.07,.012,"triangle",.05)}return{toggle(){on?stop():start()},result,pea}})();

@@ -7,6 +7,25 @@ export { createAspNetHomeworkClient } from './homework-aspnet-client.js';
 export const HOMEWORK_GAS_URL = 'https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
 export const HOMEWORK_TRANSPORT_CONFIG_KEY = 'EGE_HOMEWORK_TRANSPORT_CONFIG';
 
+// One policy for every homework page: at least one answer is required, blanks
+// count as wrong, and a confirmed assignment can only be checked locally.
+export function decideHomeworkSubmission(answers, { officialSubmitted = false } = {}) {
+  const values = Array.from(answers || []);
+  const filledCount = values.reduce((count, value) =>
+    count + (String(value ?? '').trim() ? 1 : 0), 0);
+  const totalCount = values.length;
+  const canSubmit = totalCount > 0 && filledCount > 0;
+  return {
+    answers: values,
+    totalCount,
+    filledCount,
+    emptyCount: Math.max(0, totalCount - filledCount),
+    canSubmit,
+    mode: officialSubmitted ? 'training' : 'official',
+    shouldQueue: canSubmit && !officialSubmitted
+  };
+}
+
 function gasError(data, fallback) {
   const bodies = gasBodies(data);
   const message = bodies.map(body => body?.message || body?.error).find(Boolean);
