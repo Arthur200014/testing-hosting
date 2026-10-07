@@ -203,9 +203,10 @@
   </main>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+  <script src="../../shared/interactive/v1/homework-gas-core.js"></script>
   <script>
     "use strict";
-    const API_URL="https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
+    const API_URL=HomeworkGasCore.url;
     const PART_CONFIG={"assignmentId":"HW-EGE11-PART2-MONTHLY-SW-20260726A","items":[[5,"logarithm"],[5,"logarithm"],[5,"logarithm"],[6,"quadratic"],[6,"quadratic"],[6,"quadratic"],[7,"linesIntersection"],[7,"linesIntersection"],[7,"linesIntersection"],[8,"quadLine"],[8,"quadLine"],[8,"quadLine"]]};
     const HOMEWORK_META=Object.freeze({assignmentId:PART_CONFIG.assignmentId,taskNumber:11,topicId:"task-11",topicName:"Графики функций",schemaVersion:1});
     const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -498,9 +499,7 @@
     }
 
     async function postApi(payload){
-      const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload),redirect:"follow"});
-      const text=await r.text();let data;try{data=JSON.parse(text)}catch(_){data={success:r.ok,raw:text}};
-      if(!r.ok)throw new Error("network");return data;
+      return HomeworkGasCore.post(payload);
     }
     function responseBody(data){return data&&typeof data==="object"?(data.result&&typeof data.result==="object"?data.result:data):{}}
     function saysSubmitted(data){const d=responseBody(data);return Boolean(d.submitted||d.exists||d.hasSubmission||d.alreadySubmitted||d.hasSubmitted||d.submittedThisMonth||d.found||d.isSubmitted||d.status==="submitted"||d.canSubmit===false)}
@@ -513,7 +512,7 @@
       if(sendingQueue)return;const q=getQueue();if(!q.length)return;sendingQueue=true;
       try{const remain=[];for(const p of q){try{const d=await postApi(p);if(saysError(d)&&!saysSubmitted(d))remain.push(p)}catch(_){remain.push(p)}}setQueue(remain)}finally{sendingQueue=false}
     }
-    function flushQueueKeepalive(){for(const p of getQueue()){try{fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(p),keepalive:true,redirect:"follow"}).catch(()=>{})}catch(_){}}}
+    function flushQueueKeepalive(){for(const p of getQueue())HomeworkGasCore.sendKeepalive(p)}
 
     function readStudent(){const code=normalizeCode(safeGet("egeStudentCode"));if(!code)return null;return{id:safeGet("egeStudentId")||code,name:safeGet("egeStudentName")||"Ученик",code}}
     function storeStudent(s){safeStore("egeStudentCode",s.code);safeStore("egeStudentId",s.id||s.code);safeStore("egeStudentName",s.name||"Ученик")}
@@ -525,15 +524,9 @@
       if(!id||!name)throw new Error("invalid");return{id:String(id),name:String(name),code};
     }
     function validateStudentCode(raw){
-      const code=normalizeCode(raw);return new Promise((resolve,reject)=>{
-        if(!code){reject(new Error("empty"));return}
-        const cb="egeCb_"+Date.now()+"_"+Math.random().toString(36).slice(2),script=document.createElement("script");
-        const timer=setTimeout(()=>finish(new Error("timeout")),20000);
-        function finish(err,data){clearTimeout(timer);try{delete window[cb]}catch(_){}script.remove();err?reject(err):resolve(data)}
-        window[cb]=data=>{try{finish(null,extractStudent(data,code))}catch(e){finish(e)}};
-        script.onerror=()=>finish(new Error("network"));
-        script.src=API_URL+"?"+new URLSearchParams({action:"validateStudent",code,callback:cb});document.head.appendChild(script);
-      });
+      const code=normalizeCode(raw);
+      if(!code)return Promise.reject(new Error("empty"));
+      return HomeworkGasCore.validateStudentCode(code).then(data=>extractStudent(data,code));
     }
     async function validateInBackground(code){try{const found=await validateStudentCode(code);if(!state.student||state.student.code!==code)return;state.student={...state.student,...found};storeStudent(state.student);$("#studentName").textContent=state.student.name||"Ученик";upgradeQueuedStudentId(code,state.student.id);checkAvailability();sendQueuedResults()}catch(_){}}
     async function checkAvailability(){

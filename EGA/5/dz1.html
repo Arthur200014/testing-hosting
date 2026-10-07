@@ -192,9 +192,10 @@
     </main>
   </div>
 
+  <script src="../../shared/interactive/v1/homework-gas-core.js"></script>
   <script>
     "use strict";
-    const API_URL = "https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
+    const API_URL = HomeworkGasCore.url;
     const HOMEWORK_META = {"taskNumber":5,"topicId":"task-05","topicName":"Теоремы о вероятностях событий","documentTitle":"ЕГЭ №5 — Домашняя работа 1","heroTitle":"Операция «Вероятность»","partLabel":"Домашняя работа 1 из 2","shortLabel":"ДЗ 1 из 2","assignmentId":"HW-EGE05-PART1-MONTHLY-MINION20260726","generatorKeys":["incompatible","complement","exactNested","integerInterval","overlap","neither","conditionalDie"]};
     const pick = function(list){ return list[Math.floor(Math.random()*list.length)]; };
     const int = function(min,max){ return Math.floor(Math.random()*(max-min+1))+min; };
@@ -382,25 +383,8 @@
     };
     const monthKey = function(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");};
     const localSubmissionKey = function(){return "homeworkSubmitted:"+HOMEWORK_META.assignmentId+":"+monthKey();};
-    const jsonp = function(params){
-      return new Promise(function(resolve,reject){
-        const callback="__egeCb"+Date.now()+Math.random().toString(36).slice(2);
-        const script=document.createElement("script");
-        const timer=setTimeout(function(){cleanup();reject(new Error("Сервер не ответил вовремя."));},15000);
-        const cleanup=function(){clearTimeout(timer);delete globalThis[callback];script.remove();};
-        globalThis[callback]=function(data){cleanup();resolve(data||{});};
-        const query=new URLSearchParams(Object.assign({},params,{callback:callback,_:Date.now()}));
-        script.src=API_URL+"?"+query.toString();script.onerror=function(){cleanup();reject(new Error("Не удалось связаться с сервером."));};
-        document.head.appendChild(script);
-      });
-    };
-    const postJson = async function(payload){
-      const response=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload),redirect:"follow"});
-      if(!response.ok)throw new Error("Сервер отклонил отправку.");
-      const text=await response.text();
-      if(!text)return {ok:true};
-      try{return JSON.parse(text);}catch(_error){return {ok:true};}
-    };
+    const jsonp = function(params,timeout=15000){return HomeworkGasCore.jsonp(params,timeout);};
+    const postJson = async function(payload){return HomeworkGasCore.post(payload);};
     const parseStudent = function(data,code){
       if(!data||data.ok===false||data.success===false||data.valid===false)return null;
       const source=data.student||data;

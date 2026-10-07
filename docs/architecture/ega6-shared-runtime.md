@@ -26,6 +26,15 @@ presence и игровых событий передаются им как на�
 draft/localStorage ключи, provisional login, retry и pagehide-семантика
 остаются постраничными.
 
+Оставшиеся 17 домашних работ `EGA/1`–`EGA/5` и `EGA/11` подключают обычным
+`<script>` общий шлюз `homework-gas-core.js`. Он хранит GAS URL, выполняет
+JSONP-проверку ученика, POST-отправку, проверку ответа и keepalive-запрос при
+выходе. Только ответ `{ok:true,saved:true}` позволяет убрать отправку из
+локальной очереди; при ошибке шлюз показывает предупреждение. В итоге все 31
+страница первой части `EGA/1`–`EGA/11` используют один из двух совместимых
+общих входов. `EGA/12` и вторая часть оставлены без изменений по решению
+владельца.
+
 Публичная поверхность для новых и постепенно мигрируемых интерактивов состоит
 из трёх файлов в `shared/interactive/v1/`:
 
@@ -62,9 +71,9 @@ draft/localStorage ключи, provisional login, retry и pagehide-семант
   формирование payload остаётся у конкретной игры.
 - `drawing-transport.js`, `shared-board.js` и `teacher-cursor.js` принимают
   настраиваемые пути, anchors и codecs, сохраняя разные realtime-контракты.
-- `homework-transport.js` содержит общий GAS URL, auth/API и адаптеры двух
-  legacy-форматов очереди домашних работ: object для `dz1` и array для
-  `dz2`/`dz3`.
+- `homework-gas-core.js` — общий GAS URL, JSONP/auth-транспорт и строгий ответ
+  `submitHomework` для классических страниц; `homework-transport.js` сохраняет
+  ESM-транспорт и адаптеры legacy-очередей для уже переведённых EGA/6–EGA/10.
 
 ## Важные инварианты
 
@@ -97,7 +106,12 @@ transport с GAS/Google Sheets по умолчанию. Общий suite про�
 11 страниц — desktop/mobile smoke (22/22) с локально подменёнными GAS-ответами,
 без production-запросов и `pageerror`.
 
+2026-10-07: оставшиеся 17 страниц EGA №1–5 и №11 подключены к общему
+классическому GAS-шлюзу. Все 31 страницы первой части прошли browser smoke на
+1280×900 и 390×844, общий suite — 63/63. Реальных ученических записей в
+таблицу не делали.
+
 ## Связанная задача
 
 `.ai/tasks/shared-ega6-rollout.md`, `.ai/tasks/ega6-public-runtime-facade.md`,
-`.ai/tasks/shared-interactive-package.md`.
+`.ai/tasks/shared-interactive-package.md`, `.ai/tasks/ege-homework-gas-rollout.md`.
