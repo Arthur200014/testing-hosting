@@ -37,7 +37,8 @@ export function createHomeworkApi({
   url = HOMEWORK_GAS_URL,
   timeoutMs = 20000,
   parseStudent,
-  parseSubmission = parseSubmissionResponse
+  parseSubmission = parseSubmissionResponse,
+  fetchImpl = globalThis.fetch
 }) {
   function validateStudentCode(rawCode) {
     const code = String(rawCode || '').trim().toUpperCase();
@@ -69,14 +70,15 @@ export function createHomeworkApi({
   }
 
   async function submitResult(payload, options = {}) {
-    const response = await fetch(url, {
+    const response = await fetchImpl(url, {
       method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload), redirect: 'follow', keepalive: Boolean(options.keepalive)
     });
     const text = await response.text();
     let data;
-    try { data = JSON.parse(text); } catch { data = { success: response.ok, message: text }; }
+    try { data = JSON.parse(text); } catch { throw new Error('invalid-response'); }
     if (!response.ok) throw new Error('network');
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('invalid-response');
     return parseSubmission(data);
   }
 
@@ -112,7 +114,7 @@ export function createHomeworkTransport({
   }
   const provider = runtimeConfig.provider ?? 'gas';
   if (provider === 'gas') {
-    return createHomeworkApi({ timeoutMs, parseStudent, parseSubmission });
+    return createHomeworkApi({ timeoutMs, parseStudent, parseSubmission, fetchImpl });
   }
   if (provider !== 'aspnet') throw new TypeError(`Unsupported homework provider: ${provider}`);
   return createAspNetHomeworkClient({

@@ -60,6 +60,18 @@ test('submission parser preserves ambiguous HTTP 200 acknowledgments and error r
   assert.deepEqual(submissionState({ data: { result: { exists: true } } }), { submitted: true, error: false });
 });
 
+test('GAS transport rejects an HTML HTTP 200 so the outbox can retry it', async () => {
+  const api = createHomeworkTransport({
+    config: undefined,
+    parseStudent: () => null,
+    fetchImpl: async () => ({ ok: true, text: async () => '<!doctype html><title>Page Not Found</title>' })
+  });
+  await assert.rejects(
+    api.submitResult({ action: 'submitHomework', eventId: 'event-123' }),
+    /invalid-response/
+  );
+});
+
 test('object adapter retains dz1 envelope, completion timestamps, attempts, and event dedupe', () => {
   let stored = {};
   let time = 40;
