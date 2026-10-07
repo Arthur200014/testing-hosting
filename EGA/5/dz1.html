@@ -193,10 +193,9 @@
   </div>
 
   <script type="module">
-    import { HOMEWORK_GAS_URL, decideHomeworkSubmission, createHomeworkTransport } from '../../shared/interactive/v1/homework-transport.js';
+    import { decideHomeworkSubmission, createHomeworkTransport, createHomeworkQueueAdapter, createHomeworkOutbox, submissionState } from '../../shared/interactive/v1/homework-transport.js';
     "use strict";
     const homeworkApi=createHomeworkTransport();
-    const API_URL = HOMEWORK_GAS_URL;
     const HOMEWORK_META = {"taskNumber":5,"topicId":"task-05","topicName":"Теоремы о вероятностях событий","documentTitle":"ЕГЭ №5 — Домашняя работа 1","heroTitle":"Операция «Вероятность»","partLabel":"Домашняя работа 1 из 2","shortLabel":"ДЗ 1 из 2","assignmentId":"HW-EGE05-PART1-MONTHLY-MINION20260726","generatorKeys":["incompatible","complement","exactNested","integerInterval","overlap","neither","conditionalDie"]};
     const pick = function(list){ return list[Math.floor(Math.random()*list.length)]; };
     const int = function(min,max){ return Math.floor(Math.random()*(max-min+1))+min; };
@@ -384,8 +383,12 @@
     };
     const monthKey = function(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");};
     const localSubmissionKey = function(){return "homeworkSubmitted:"+HOMEWORK_META.assignmentId+":"+monthKey();};
+    const queueKey = function(){return "pendingHomeworkResults:"+HOMEWORK_META.assignmentId;};
+    const readQueue = function(){try{const value=JSON.parse(localStorage.getItem(queueKey())||"[]");return Array.isArray(value)?value:[];}catch(_){return [];}};
+    const writeQueue = function(value){if(value.length)localStorage.setItem(queueKey(),JSON.stringify(value));else localStorage.removeItem(queueKey());};
+    const homeworkQueue=createHomeworkQueueAdapter({read:readQueue,write:writeQueue,shape:"array"});
+    const homeworkOutbox=createHomeworkOutbox({queue:homeworkQueue,api:homeworkApi,acknowledge:function(data){const status=submissionState(data);return !status.error||status.submitted;}});
     const jsonp = function(params,timeout=15000){return homeworkApi.jsonp(params,timeout);};
-    const postJson = async function(payload){return homeworkApi.post(payload);};
     const parseStudent = function(data,code){
       if(!data||data.ok===false||data.success===false||data.valid===false)return null;
       const source=data.student||data;
@@ -405,7 +408,8 @@
       localStorage.removeItem("egeStudentId");localStorage.removeItem("egeStudentName");localStorage.removeItem("egeStudentCode");
     };
 
-    let student=null,startAt=0,timerId=null,monthlySubmitted=false,officialAvailable=false,graded=false,solutionsBuilt=false;
+    let student=null,startAt=0,timerId=null,monthlySubmitted=false,officialAvailable=false,graded=false,solutionsBuilt=false,sendingQueue=false;
+    const flushQueue=async function(){if(sendingQueue)return;sendingQueue=true;try{await homeworkOutbox.flush({keepFailed:true,onSaved:function(){localStorage.setItem(localSubmissionKey(),"1");monthlySubmitted=true;}});}finally{sendingQueue=false;}};
     const byId=function(id){return document.getElementById(id);};
     const taskGrid=byId("taskGrid"),notice=byId("submissionNotice"),submitButton=byId("submitButton");
     const setNotice=function(text,type){notice.textContent=text;notice.className="notice "+type;};
@@ -488,7 +492,7 @@
         const payload={
           action:"submitHomework",
           eventId:makeEventId(),
-          studentId:student.id,
+          studentId:student.id,studentCode:student.code,
           assignmentId:HOMEWORK_META.assignmentId,
           taskNumber:HOMEWORK_META.taskNumber,
           topicId:HOMEWORK_META.topicId,
@@ -497,12 +501,8 @@
           durationSeconds:duration,
           schemaVersion:1
         };
-        try{
-          const response=await postJson(payload);if(response&&response.ok===false)throw new Error(response.error||"Сервер не принял результат.");
-          monthlySubmitted=true;localStorage.setItem(localSubmissionKey(),"1");setNotice("Официальный результат сохранён. Следующие попытки будут тренировочными.","ok");
-        }catch(error){
-          submitButton.disabled=false;submitButton.textContent="Повторить отправку";setNotice(error.message+" Ответы пока не раскрыты.","error");playEffect("error");return;
-        }
+        homeworkQueue.enqueue(payload);monthlySubmitted=true;localStorage.setItem(localSubmissionKey(),"1");await flushQueue();
+        setNotice(readQueue().length?"Результат сохранён на устройстве и будет отправлен повторно.":"Официальный результат сохранён. Следующие попытки будут тренировочными.",readQueue().length?"warn":"ok");
       }else{
         setNotice("Тренировочная проверка: официальный результат не изменён.","warn");
       }
@@ -546,9 +546,11 @@
       try{
         status=await jsonp({action:"checkHomeworkSubmission",studentId:student.id,assignmentId:HOMEWORK_META.assignmentId});
         if(status&&status.ok===false)throw new Error(status.error||"Не удалось проверить отправку.");
-        monthlySubmitted=Boolean(status&&status.submitted);officialAvailable=!monthlySubmitted;
+        const serverSubmitted=Boolean(status&&status.submitted),hasPending=readQueue().length>0;
+        monthlySubmitted=serverSubmitted||hasPending;officialAvailable=!monthlySubmitted;
+        if(serverSubmitted||hasPending)localStorage.setItem(localSubmissionKey(),"1");else localStorage.removeItem(localSubmissionKey());
       }catch(error){
-        monthlySubmitted=localStorage.getItem(localSubmissionKey())==="1";officialAvailable=false;
+        monthlySubmitted=localStorage.getItem(localSubmissionKey())==="1"||readQueue().length>0;officialAvailable=false;
         status={networkError:error.message};
       }
       byId("studentChip").textContent=student.name+" · "+student.code;
@@ -563,6 +565,7 @@
         setNotice("Официальная отправка доступна. После неё появятся результат и решения.","ok");
       }
       startTimer();
+      flushQueue();
     };
     const login=async function(event){
       event.preventDefault();ensureAudio();
@@ -581,6 +584,7 @@
       renderTasks();byId("loginForm").addEventListener("submit",login);submitButton.addEventListener("click",handleSubmit);
       byId("solutionsButton").addEventListener("click",function(){renderSolutions();const panel=byId("solutionsPanel");panel.hidden=!panel.hidden;this.textContent=panel.hidden?"Разобрать решения":"Скрыть разбор";if(!panel.hidden)panel.scrollIntoView({behavior:"smooth",block:"start"});});
       byId("soundButton").addEventListener("click",toggleSound);byId("logoutButton").addEventListener("click",function(){clearStudent();location.reload();});
+      window.addEventListener("online",flushQueue);window.addEventListener("pagehide",function(){homeworkOutbox.sendOnExit("fetch");});setInterval(flushQueue,60000);
       document.addEventListener("pointerdown",ensureAudio,{once:true});
       const cached=loadStudent();if(cached)prepareStudent(cached);
     };

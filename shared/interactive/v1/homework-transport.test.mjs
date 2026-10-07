@@ -227,3 +227,20 @@ test('EGA/7–10 homework pages use the canonical transport, identity, queue, an
     assert.doesNotMatch(source, /fetch\s*\([^)]*API_URL|fetch\s*\(\s*["'][^"']*\/result(?:\?|["'])/i, `${label}: no direct API result fetch`);
   }
 });
+
+test('EGA/4 and EGA/5 homework pages persist official attempts in the shared outbox before sending', async () => {
+  const pages = [
+    ['4', 'dz.html'],
+    ['5', 'dz1.html'],
+    ['5', 'dz2.html']
+  ];
+  for (const [task, page] of pages) {
+    const label = `EGA/${task}/${page}`;
+    const source = await readFile(new URL(`../../../EGA/${task}/${page}`, import.meta.url), 'utf8');
+    assert.match(source, /createHomeworkQueueAdapter\s*\(\s*\{[^}]*shape\s*:\s*["']array["']/s, `${label}: array queue adapter`);
+    assert.match(source, /createHomeworkOutbox\s*\(\s*\{[^}]*api\s*:\s*homeworkApi/s, `${label}: shared outbox`);
+    assert.match(source, /homeworkQueue\.enqueue\s*\(\s*payload\s*\)/, `${label}: official payload is persisted before delivery`);
+    assert.match(source, /pendingHomeworkResults:/, `${label}: durable per-assignment queue`);
+    assert.match(source, /(?:await\s+)?flushQueue\s*\(\s*\)/, `${label}: persisted queue is flushed through the shared outbox`);
+  }
+});
