@@ -27,6 +27,12 @@ test('student parsers retain dz1 and dz2/3 response shape differences', () => {
   assert.deepEqual(parseDz23Student({ result: { student: { id: 18, name: 'Lin' } } }, 'CD'), {
     id: '18', name: 'Lin', code: 'CD'
   });
+  assert.deepEqual(parseDz23Student({ data: { student: { id: 19, name: 'Mira' } } }, 'EF'), {
+    id: '19', name: 'Mira', code: 'EF'
+  });
+  assert.deepEqual(parseDz23Student({ data: { requestId: 'meta' }, result: { student: { id: 20, name: 'Ilya' } } }, 'GH'), {
+    id: '20', name: 'Ilya', code: 'GH'
+  });
   assert.equal(parseDz23Student({ student: { id: 18 } }, 'CD'), null);
 });
 
@@ -49,6 +55,9 @@ test('submission parser preserves ambiguous HTTP 200 acknowledgments and error r
   assert.deepEqual(submissionState({ result: { alreadySubmitted: true, error: 'duplicate' } }), { submitted: true, error: true });
   assert.deepEqual(submissionState({ ok: false }), { submitted: false, error: true });
   assert.deepEqual(submissionState({ status: 'submitted_late' }), { submitted: true, error: false });
+  assert.deepEqual(submissionState({ data: { hasSubmitted: true } }), { submitted: true, error: false });
+  assert.deepEqual(submissionState({ result: { submittedThisMonth: true } }), { submitted: true, error: false });
+  assert.deepEqual(submissionState({ data: { result: { exists: true } } }), { submitted: true, error: false });
 });
 
 test('object adapter retains dz1 envelope, completion timestamps, attempts, and event dedupe', () => {
@@ -156,5 +165,34 @@ test('all EGA/6 homework pages use the provider factory and create code-bound su
     assert.match(source, /createHomeworkTransport\(\{/);
     assert.doesNotMatch(source, /createHomeworkApi\(\{/);
     assert.match(source, /studentCode\s*:\s*student\.code/);
+  }
+});
+
+test('EGA/7–10 homework pages use the canonical transport, identity, queue, and submit boundaries', async () => {
+  const pages = [
+    ...['dz1.html', 'dz2.html', 'dz3.html'].map(page => ['7', page]),
+    ...['dz1.html', 'dz2.html'].map(page => ['8', page]),
+    ...['dz1.html', 'dz2.html', 'dz3.html'].map(page => ['9', page]),
+    ...['dz1.html', 'dz2.html', 'dz3.html'].map(page => ['10', page])
+  ];
+
+  assert.equal(pages.length, 11);
+  for (const [grade, page] of pages) {
+    const label = `EGA/${grade}/${page}`;
+    const source = await readFile(new URL(`../../../EGA/${grade}/${page}`, import.meta.url), 'utf8');
+    assert.match(source, /<script\s+type=["']module["']>/, `${label}: module script`);
+    assert.match(source, /from\s+["']\.\.\/\.\.\/shared\/interactive\/v1\/homework-transport\.js["']/, `${label}: canonical import`);
+    assert.match(source, /createHomeworkTransport\s*\(\s*\{/, `${label}: provider transport`);
+    assert.match(source, /createHomeworkIdentity\s*\(\s*\{/, `${label}: shared identity adapter`);
+    assert.match(source, /createHomeworkQueueAdapter\s*\(\s*\{[^}]*shape\s*:\s*["']array["']/s, `${label}: array queue adapter`);
+    assert.match(source, /createHomeworkOutbox\s*\(\s*\{/, `${label}: shared outbox`);
+    assert.match(source, /createHomeworkOutbox\s*\(\s*\{[^}]*api\s*:\s*homeworkApi/s, `${label}: outbox uses shared transport`);
+    assert.match(source, /studentCode\s*:\s*(?:state\.)?student\.code/, `${label}: code-bound submit payload`);
+    assert.match(source, /(?:enqueue(?:Result)?|homeworkQueue\.enqueue)\s*\(\s*payload\s*\)/, `${label}: submit payload enters shared queue`);
+    assert.match(source, /(?:homeworkApi|postApi)\s*\.?(?:submitResult|\s*\()\s*\(?\s*\{\s*action\s*:\s*["']checkHomeworkSubmission["']/, `${label}: check uses shared submit boundary`);
+    assert.match(source, /action\s*:\s*["']submitHomework["']/, `${label}: submission action exists`);
+    assert.doesNotMatch(source, /https:\/\/script\.google\.com\/macros\/s\//i, `${label}: no embedded GAS URL`);
+    assert.doesNotMatch(source, /(?:window\.)?JSONP\b|callback\s*[:=]\s*["']|script\.src\s*=|<script[^>]+src=["'][^"']*script\.google\.com/i, `${label}: no page-owned JSONP`);
+    assert.doesNotMatch(source, /fetch\s*\([^)]*API_URL|fetch\s*\(\s*["'][^"']*\/result(?:\?|["'])/i, `${label}: no direct API result fetch`);
   }
 });

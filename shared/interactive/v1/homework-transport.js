@@ -135,10 +135,14 @@ export function parseSubmissionResponse(data, responseOk = true) {
 }
 
 export function submissionState(data) {
-  const body = data && typeof data === 'object' && data.result && typeof data.result === 'object' ? data.result : (data || {});
+  const root = data && typeof data === 'object' ? data : {};
+  const bodies = [root];
+  for (const candidate of [root.data, root.result, root.data?.result, root.result?.data]) {
+    if (candidate && typeof candidate === 'object' && !bodies.includes(candidate)) bodies.push(candidate);
+  }
   return {
-    submitted: Boolean(body.submitted || body.exists || body.hasSubmission || body.alreadySubmitted || body.found || body.isSubmitted || body.status === 'submitted' || body.status === 'submitted_late' || body.canSubmit === false),
-    error: Boolean(data?.success === false || data?.ok === false || body.success === false || body.ok === false || data?.error || body.error)
+    submitted: Boolean(bodies.some(candidate => candidate.submitted || candidate.exists || candidate.hasSubmission || candidate.alreadySubmitted || candidate.hasSubmitted || candidate.submittedThisMonth || candidate.found || candidate.isSubmitted || candidate.status === 'submitted' || candidate.status === 'submitted_late' || candidate.canSubmit === false)),
+    error: Boolean(bodies.some(candidate => candidate.success === false || candidate.ok === false || candidate.error))
   };
 }
 
@@ -265,7 +269,7 @@ export function parseDz1Student(data, code) {
 
 export function parseDz23Student(payload, code) {
   const root = payload && typeof payload === 'object' ? payload : {};
-  const data = root.student || root.result?.student || root.result || root;
+  const data = root.student || root.result?.student || root.data?.student || root.data || root.result || root;
   if (root.success === false || root.valid === false || root.ok === false || data.success === false || data.valid === false || data.ok === false) return null;
   const id = data.studentId || data.id;
   const name = data.studentName || data.name;

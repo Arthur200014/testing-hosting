@@ -403,10 +403,10 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script>
+  <script type="module">
     "use strict";
-
-    const API_URL = "https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
+    import { createHomeworkTransport, createHomeworkIdentity, createHomeworkQueueAdapter, createHomeworkOutbox, submissionState, parseDz1Student } from "../../shared/interactive/v1/homework-transport.js";
+    const homeworkApi=createHomeworkTransport({timeoutMs:20000,parseStudent:parseDz1Student});
     const PART_CONFIG = {"assignmentId":"HW-EGE07-PART2-MONTHLY","generators":["l03","l04","l05","l06","l07","l08","l09","l10","l11","t01","t02","t03","t04","t05","t06"]};
     const HOMEWORK_META = Object.freeze({
       assignmentId: PART_CONFIG.assignmentId,
@@ -823,16 +823,7 @@
       updateProgress();return draft;
     }
 
-    async function postApi(payload){
-      const response=await fetch(API_URL,{
-        method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
-        body:JSON.stringify(payload),redirect:"follow"
-      });
-      const text=await response.text();let data;
-      try{data=JSON.parse(text)}catch(_){data={success:response.ok,raw:text}}
-      if(!response.ok)throw new Error("network");
-      return data;
-    }
+    const postApi=(payload,options={})=>homeworkApi.submitResult(payload,options);
     function responseBody(data){return data&&typeof data==="object"?(data.result&&typeof data.result==="object"?data.result:data):{}}
     function saysSubmitted(data){
       const d=responseBody(data),message=String(data?.message||data?.error||d?.message||d?.error||"").toLowerCase();
@@ -848,74 +839,25 @@
     }
     function getQueue(){const q=readJson(queueKey(),[]);return Array.isArray(q)?q:[]}
     function setQueue(q){q.length?safeStore(queueKey(),JSON.stringify(q)):safeRemove(queueKey())}
-    function enqueueResult(payload){
-      const q=getQueue(),i=q.findIndex(x=>x&&x.eventId===payload.eventId);
-      i>=0?q[i]=payload:q.push(payload);setQueue(q);
-    }
-    function upgradeQueuedStudentId(code,id){
-      if(!code||!id||code===id)return;
-      const q=getQueue();let changed=false;
-      q.forEach(p=>{if(p&&p.studentId===code){p.studentId=id;changed=true}});
-      if(changed)setQueue(q);
-    }
-    async function sendQueuedResults(){
-      if(sendingQueue)return;
-      const q=getQueue();if(!q.length)return;
-      sendingQueue=true;
-      try{
-        const remain=[];
-        for(const payload of q){
-          try{
-            const data=await postApi(payload);
-            if(saysError(data)&&!saysSubmitted(data))remain.push(payload);
-          }catch(_){remain.push(payload)}
-        }
-        setQueue(remain);
-      }finally{sendingQueue=false}
-    }
-    function flushQueueKeepalive(){
-      for(const payload of getQueue()){
-        try{
-          fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload),keepalive:true,redirect:"follow"}).catch(()=>{});
-        }catch(_){}
-      }
-    }
+    const homeworkQueue=createHomeworkQueueAdapter({read:getQueue,write:setQueue,shape:"array"});
+    const homeworkOutbox=createHomeworkOutbox({queue:homeworkQueue,api:homeworkApi,acknowledge:data=>{const state=submissionState(data),body=responseBody(data),message=String(data?.message||data?.error||body?.message||body?.error||"").toLowerCase();return !state.error||state.submitted||Boolean(body.hasSubmitted||body.submittedThisMonth||/already|отправлен|уже.*сдан|повторн/.test(message))}});
+    function enqueueResult(payload){homeworkQueue.enqueue(payload)}
+    function upgradeQueuedStudentId(code,id){if(!code||!id||code===id)return;for(const {eventId,payload} of homeworkQueue.list())if(payload?.studentId===code)homeworkQueue.replacePayload(eventId,item=>({...item,studentId:id}))}
+    async function sendQueuedResults(){if(sendingQueue)return;sendingQueue=true;try{await homeworkOutbox.flush({keepFailed:true})}finally{sendingQueue=false}}
+    function flushQueueKeepalive(){homeworkOutbox.sendOnExit("fetch")}
 
     function readStudent(){
       const code=normalizeCode(safeGet("egeStudentCode"));if(!code)return null;
-      return{id:safeGet("egeStudentId")||code,name:safeGet("egeStudentName")||"Ученик",code};
+      return homeworkIdentity.read();
     }
     function storeStudent(student){
-      safeStore("egeStudentCode",student.code);
-      safeStore("egeStudentId",student.id||student.code);
-      safeStore("egeStudentName",student.name||"Ученик");
+      homeworkIdentity.store(student);
     }
     function clearStudent(){
-      safeRemove("egeStudentId");safeRemove("egeStudentName");safeRemove("egeStudentCode");
+      homeworkIdentity.clear();
     }
-    function extractStudent(data,code){
-      const root=data&&typeof data==="object"?data:{},source=root.student||root.data?.student||root.data||root.result?.student||root.result||root;
-      if(root.success===false||root.valid===false||root.ok===false||source.success===false||source.valid===false||source.ok===false)throw new Error("invalid");
-      const id=source.id||source.studentId||root.studentId,name=source.name||source.studentName||root.studentName;
-      if(!id||!name)throw new Error("invalid");
-      return{id:String(id),name:String(name),code};
-    }
-    function validateStudentCode(raw){
-      const code=normalizeCode(raw);
-      return new Promise((resolve,reject)=>{
-        if(!code){reject(new Error("empty"));return}
-        const callback="egeCb_"+Date.now()+"_"+Math.random().toString(36).slice(2),script=document.createElement("script");
-        const timer=setTimeout(()=>finish(new Error("timeout")),20000);
-        function finish(error,data){
-          clearTimeout(timer);try{delete window[callback]}catch(_){}
-          script.remove();error?reject(error):resolve(data);
-        }
-        window[callback]=data=>{try{finish(null,extractStudent(data,code))}catch(error){finish(error)}};
-        script.onerror=()=>finish(new Error("network"));
-        script.src=API_URL+"?"+new URLSearchParams({action:"validateStudent",code,callback}).toString();
-        document.head.appendChild(script);
-      });
-    }
+    const homeworkIdentity=createHomeworkIdentity({get:safeGet,set:safeStore,remove:safeRemove,dz1:true});
+    const validateStudentCode=homeworkApi.validateStudentCode;
     async function validateInBackground(code){
       try{
         const found=await validateStudentCode(code);
@@ -931,7 +873,7 @@
       if(localLocked())submissionLocked=true;
       try{
         const data=await postApi({action:"checkHomeworkSubmission",studentId:state.student.id||state.student.code,assignmentId:HOMEWORK_META.assignmentId});
-        if(saysSubmitted(data))submissionLocked=true;
+        if(submissionState(data).submitted||saysSubmitted(data))submissionLocked=true;
       }catch(_){}
       updateProgress();
     }
@@ -1020,7 +962,7 @@
       const durationSeconds=Math.max(1,Math.floor((Date.now()-state.startedAt)/1000));
       const eventId=`${HOMEWORK_META.assignmentId}-${state.student.code}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
       const payload={
-        action:"submitHomework",eventId,studentId:state.student.id||state.student.code,
+        action:"submitHomework",eventId,studentId:state.student.id||state.student.code,studentCode:state.student.code,
         assignmentId:HOMEWORK_META.assignmentId,taskNumber:HOMEWORK_META.taskNumber,
         topicId:HOMEWORK_META.topicId,topicName:HOMEWORK_META.topicName,
         scorePercent,durationSeconds,schemaVersion:1
