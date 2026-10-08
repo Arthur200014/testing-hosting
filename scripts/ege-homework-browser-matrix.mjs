@@ -245,7 +245,7 @@ async function queueScenario(path) {
 }
 
 async function teacherManageSmoke() {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, ignoreHTTPSErrors: true });
   await context.route('https://script.google.com/**', async route => {
     const url = new URL(route.request().url());
     const callback = url.searchParams.get('callback');
