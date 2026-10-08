@@ -147,7 +147,10 @@ async function waitFor(predicate, timeout = 10_000) {
   throw new Error('condition timed out');
 }
 
-const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+const context = await browser.newContext({
+  viewport: { width: 1280, height: 900 },
+  ignoreHTTPSErrors: Boolean(remoteBase)
+});
 await configureRoutes(context);
 const page = await context.newPage();
 const errors = [];
@@ -219,7 +222,10 @@ try {
   assert.doesNotMatch(await frame.locator('#resultPopupLead').textContent(), /сохран|отправ|сервер|устройств|таблиц/i);
   assert.deepEqual(errors, []);
 
-  const mobileContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const mobileContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    ignoreHTTPSErrors: Boolean(remoteBase)
+  });
   await configureRoutes(mobileContext);
   const mobilePage = await mobileContext.newPage();
   const mobileErrors = [];
