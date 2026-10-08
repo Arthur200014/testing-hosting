@@ -44,3 +44,13 @@ test('all first-part EGE homework pages in scope use the shared GAS transport bo
   assert.equal(checked, 31, 'Update the first-part homework inventory when pages change');
   assert.equal(migrated, 31, 'Update the first-part policy inventory when pages change');
 });
+
+test('teacher form uses shared homework diagnostics and checks pending duplicates before writing', async () => {
+  const source = await readFile(join(project, 'EGA/config/manage.html'), 'utf8');
+  assert.match(source, /<script\s+type=["']module["']>/);
+  assert.match(source, /analyzeHomeworkAssignments/);
+  assert.match(source, /findPendingHomeworkConflicts/);
+  assert.match(source, /await\s+loadTeacherData\(true,\s*true\)[\s\S]*pendingHomeworkConflicts\(selectedHomeworkId\)/);
+  assert.match(source, /assignmentPostStarted[\s\S]*await\s+loadTeacherData\(true,\s*true\)[\s\S]*Не нажимайте «Сохранить» повторно/);
+  assert.doesNotMatch(source, /https:\/\/script\.google\.com\/macros\/s\//);
+});

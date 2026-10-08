@@ -1,0 +1,47 @@
+name: EGE homework browser matrix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'EGA/[1-9]/**'
+      - 'EGA/10/**'
+      - 'EGA/11/**'
+      - 'shared/interactive/v1/homework-transport.js'
+      - 'shared/interactive/v1/homework-transport.test.mjs'
+      - 'shared/interactive/v1/homework-gas-pages.test.mjs'
+      - 'scripts/ege-homework-browser-matrix.mjs'
+      - '.github/workflows/ege-homework-browser.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run shared module tests
+        run: node --test shared/interactive/v1/*.test.mjs
+      - name: Install Playwright
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start local site
+        run: |
+          python3 -m http.server 8766 --bind 127.0.0.1 > /tmp/ege-http.log 2>&1 &
+          for attempt in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:8766/EGA/1/dz1.html > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/ege-http.log
+          exit 1
+      - name: Check all 31 homework forms in Chromium
+        run: node scripts/ege-homework-browser-matrix.mjs --base=http://127.0.0.1:8766 --concurrency=2

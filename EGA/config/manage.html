@@ -1070,6 +1070,7 @@
           <div class="history-grid">
             <div class="profile-card"><h3>Последние тесты</h3><div id="testHistory" class="history-list"></div></div>
             <div class="profile-card"><h3>Домашние работы</h3><div id="homeworkHistory" class="history-list"></div></div>
+            <div class="profile-card"><h3>Диагностика ДЗ</h3><div id="homeworkDiagnostics" class="history-list"></div></div>
             <div class="profile-card"><h3>Пробники</h3><div id="mockHistory" class="history-list"></div></div>
             <div class="profile-card"><h3>Занятия и посещение</h3><div id="lessonHistory" class="history-list"></div></div>
           </div>
@@ -1251,8 +1252,14 @@
     </div>
   </main>
 
-  <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';
+  <script type="module">
+    import {
+      HOMEWORK_GAS_URL,
+      analyzeHomeworkAssignments,
+      findPendingHomeworkConflicts
+    } from '../../shared/interactive/v1/homework-transport.js';
+
+    const API_URL = HOMEWORK_GAS_URL;
     const TEACHER_BROWSER_CACHE_KEY = 'teacher-form-data-v14-subscriptions-ege-oge-combined';
     const VERSION_CHECK_INTERVAL_MS = 60 * 1000;
     // Встроенный предпросмотр ChatGPT работает в iframe и перед каждым внешним
@@ -1512,6 +1519,21 @@
 
     function selectedProgramLabel() {
       return selectedProgramId() === 'OGE_MATH' ? 'ОГЭ' : 'ЕГЭ';
+    }
+
+    function pendingHomeworkConflicts(homeworkId) {
+      return findPendingHomeworkConflicts({
+        statistics: state.statistics,
+        studentIds: state.selected,
+        homeworkId
+      });
+    }
+
+    function pendingHomeworkConflictText(conflicts) {
+      const names = conflicts.map(conflict =>
+        state.students.find(student => student.studentId === conflict.studentId)?.studentName || conflict.studentId
+      );
+      return `Это ДЗ уже ожидает сдачи у: ${names.join(', ')}. Повторное назначение заблокировано, чтобы не создать дубли.`;
     }
 
     function renderTaskChips() {
@@ -2101,6 +2123,7 @@
       renderGrowthPoints(data.topics || [], data);
       renderTopicStats(data.topics || [], data);
       renderHistories(data);
+      renderHomeworkDiagnostics(data.homework || []);
     }
 
     function ensureCalendarMonth() {
@@ -2311,6 +2334,28 @@
         date: item => item.lessonAt,
         item: item => `<div class="history-item"><div><strong>${escapeHtml(item.taskNumbers ? 'Задания: ' + item.taskNumbers : item.topicComment || 'Занятие')}</strong><small>${statsDate(item.lessonAt, true)} · ${escapeHtml(item.attendanceStatus || '')}</small></div><span class="history-value">${item.durationMinutes || 0} мин</span></div>`
       }, 'Занятий за период нет.');
+    }
+
+    function renderHomeworkDiagnostics(items) {
+      const groups = analyzeHomeworkAssignments(items)
+        .filter(group => group.repeated || group.pendingCount || group.submittedWithoutEventCount)
+        .sort((left, right) => Number(right.duplicate) - Number(left.duplicate) || right.pendingCount - left.pendingCount);
+      const note = '<div class="inline-empty">Локальную очередь на устройстве ученика здесь увидеть нельзя: она появится после доставки в таблицу.</div>';
+      $('homeworkDiagnostics').innerHTML = groups.length
+        ? groups.map(group => {
+          const flags = [
+            group.pendingCount ? `ожидается: ${group.pendingCount}` : '',
+            group.submittedCount ? `сдано: ${group.submittedCount}` : '',
+            group.repeated ? `строк этого ДЗ: ${group.rowCount}` : '',
+            group.duplicate ? `одновременно ожидаются: ${group.pendingCount}` : '',
+            group.submittedWithoutEventCount ? `без eventId: ${group.submittedWithoutEventCount}` : ''
+          ].filter(Boolean).join(' · ');
+          const receipt = group.eventIds.length
+            ? `event: ${group.eventIds.map(value => value.slice(0, 8)).join(', ')}`
+            : 'подтверждённого eventId нет';
+          return `<div class="history-item"><div><strong>${group.taskNumber ? '№' + escapeHtml(group.taskNumber) + ' · ' : ''}${escapeHtml(group.homeworkName)}</strong><small>${escapeHtml(flags)}<br>${escapeHtml(receipt)}</small></div><span class="history-value">${group.duplicate ? 'ДУБЛЬ' : group.pendingCount ? 'ЖДЁМ' : 'ПРОВЕРИТЬ'}</span></div>`;
+        }).join('') + note
+        : '<div class="inline-empty">Подозрительных строк в таблице не найдено.</div>' + note;
     }
 
     function cacheTimeText(timestamp) {
@@ -2835,22 +2880,47 @@
       if (!programId) return setStatus('lessonStatus', 'В одном занятии нельзя смешивать учеников ЕГЭ и ОГЭ.', true);
       const assignHomework = $('assignHomeworkWithLesson').checked;
       if (assignHomework && !$('homeworkId').value) return setStatus('lessonStatus', 'Выберите домашнюю работу или отключите назначение ДЗ.', true);
+      const selectedHomeworkId = assignHomework ? $('homeworkId').value : '';
+      const selectedHomeworkTask = $('homeworkTask').value;
       const button = $('saveLesson');
       button.disabled = true;
       $('lessonSuccess').classList.remove('show');
       $('lessonHomeworkMessageWrap').classList.add('hidden');
       setStatus('lessonStatus', assignHomework ? 'Сохраняем занятие и назначаем ДЗ…' : 'Сохраняем занятие…');
+      let assignmentPostStarted = false;
       try {
+        if (assignHomework) {
+          setStatus('lessonStatus', 'Проверяем свежие назначения перед записью…');
+          await loadTeacherData(true, true);
+          $('homeworkTask').value = selectedHomeworkTask;
+          renderHomeworkOptions();
+          $('homeworkId').value = selectedHomeworkId;
+          const conflicts = pendingHomeworkConflicts(selectedHomeworkId);
+          if (conflicts.length) throw new Error(pendingHomeworkConflictText(conflicts));
+        }
         const taskNumbers = [...document.querySelectorAll('#taskChips input:checked')].map(input => Number(input.value));
         const studentStatuses = [...state.selected].map(studentId => ({studentId, status: state.attendance[studentId] || 'Присутствовал'}));
-        const data = await post({action: 'saveLessonAndHomework', programId, durationMinutes: Number($('duration').value), taskNumbers, topicComment: $('topicComment').value.trim(), studentStatuses, assignHomework, homeworkId: assignHomework ? $('homeworkId').value : '', deadlineHours: assignHomework ? Number(document.querySelector('[name="deadline"]:checked').value) : 24});
+        assignmentPostStarted = assignHomework;
+        const data = await post({action: 'saveLessonAndHomework', programId, durationMinutes: Number($('duration').value), taskNumbers, topicComment: $('topicComment').value.trim(), studentStatuses, assignHomework, homeworkId: selectedHomeworkId, deadlineHours: assignHomework ? Number(document.querySelector('[name="deadline"]:checked').value) : 24});
         if (!data || !data.ok) throw new Error((data && data.error) || 'Не удалось сохранить занятие.');
         state.lessonId = data.lessonId;
         state.message = data.homeworkMessage || '';
         $('lessonSuccessText').textContent = data.homeworkAssigned ? `Занятие сохранено. Записей: ${data.lessonCount}. ДЗ назначено: ${data.homeworkCount}.` : `Занятие сохранено. Записей: ${data.lessonCount}. ДЗ не назначалось.`;
         if (data.homeworkAssigned && data.homeworkMessage) { $('assignmentMessage').textContent = data.homeworkMessage; $('lessonHomeworkMessageWrap').classList.remove('hidden'); }
         $('lessonSuccess').classList.add('show'); setStatus('lessonStatus', ''); refreshTeacherDataSoon();
-      } catch (error) { setStatus('lessonStatus', error.message || 'Не удалось сохранить занятие.', true); }
+      } catch (error) {
+        if (assignmentPostStarted) {
+          try {
+            await loadTeacherData(true, true);
+            const conflicts = pendingHomeworkConflicts(selectedHomeworkId);
+            if (conflicts.length) {
+              setStatus('lessonStatus', 'Сервер уже показывает назначение после сбоя ответа. Не нажимайте «Сохранить» повторно. Проверьте диагностику ученика.', true);
+              return;
+            }
+          } catch (_) {}
+        }
+        setStatus('lessonStatus', error.message || 'Не удалось сохранить занятие.', true);
+      }
       finally { button.disabled = false; updateLessonSubmitLabel(); }
     });
 

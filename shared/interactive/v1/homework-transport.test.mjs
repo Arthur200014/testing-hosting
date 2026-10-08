@@ -2,8 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
+  analyzeHomeworkAssignments,
   createHomeworkIdentity, createHomeworkQueueAdapter, createHomeworkOutbox, createHomeworkTransport,
   decideHomeworkSubmission,
+  findPendingHomeworkConflicts, homeworkAssignmentIsSubmitted,
   parseDz1Student, parseDz23Student, parseSubmissionResponse, submissionState
 } from './homework-transport.js';
 
@@ -23,6 +25,39 @@ test('a submitted assignment becomes training-only without blocking local gradin
     answers: ['0', ''], totalCount: 2, filledCount: 1, emptyCount: 1,
     canSubmit: true, mode: 'training', shouldQueue: false
   });
+});
+
+test('teacher diagnostics expose pending rows, duplicate assignments, and missing receipts', () => {
+  const groups = analyzeHomeworkAssignments([
+    { assignmentRecordId: 'a1', homeworkId: 'HW-1', homeworkName: 'ДЗ 1', status: 'ОЖИДАЕТСЯ' },
+    { assignmentRecordId: 'a2', homeworkId: 'HW-1', homeworkName: 'ДЗ 1', submittedAt: '2026-10-08', scorePercent: 70 },
+    { assignmentRecordId: 'a3', homeworkId: 'HW-2', homeworkName: 'ДЗ 2', status: 'СДАНО', homeworkEventId: 'evt-2' },
+    { assignmentRecordId: 'a4', homeworkId: 'HW-3', status: 'ОЖИДАЕТСЯ' },
+    { assignmentRecordId: 'a5', homeworkId: 'HW-3', status: 'ОЖИДАЕТСЯ' }
+  ]);
+  assert.equal(groups.length, 3);
+  assert.deepEqual(groups[0], {
+    homeworkId: 'HW-1', homeworkName: 'ДЗ 1', taskNumber: '',
+    rows: groups[0].rows, rowCount: 2, submittedCount: 1, pendingCount: 1,
+    repeated: true, duplicate: false, submittedWithoutEventCount: 1, eventIds: []
+  });
+  assert.equal(groups[1].repeated, false);
+  assert.deepEqual(groups[1].eventIds, ['evt-2']);
+  assert.equal(groups[2].duplicate, true);
+  assert.equal(homeworkAssignmentIsSubmitted({ status: 'ОЖИДАЕТСЯ', scorePercent: null }), false);
+});
+
+test('assignment guard blocks only an existing pending row for the selected homework', () => {
+  const statistics = { students: {
+    s1: { homework: [
+      { assignmentRecordId: 'a1', homeworkId: 'HW-1', status: 'ОЖИДАЕТСЯ' },
+      { assignmentRecordId: 'a2', homeworkId: 'HW-2', status: 'СДАНО', scorePercent: 80 }
+    ] },
+    s2: { homework: [{ assignmentRecordId: 'a3', homeworkId: 'HW-1', status: 'СДАНО', submittedAt: '2026-10-08' }] }
+  } };
+  assert.deepEqual(findPendingHomeworkConflicts({ statistics, studentIds: ['s1', 's2'], homeworkId: 'HW-1' })
+    .map(item => item.studentId), ['s1']);
+  assert.deepEqual(findPendingHomeworkConflicts({ statistics, studentIds: ['s1', 's2'], homeworkId: 'HW-2' }), []);
 });
 
 test('homework transport stays on GAS by default and requires an explicit ASP.NET config', () => {

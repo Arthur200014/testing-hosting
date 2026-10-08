@@ -26,6 +26,64 @@ export function decideHomeworkSubmission(answers, { officialSubmitted = false } 
   };
 }
 
+export function homeworkAssignmentIsSubmitted(item) {
+  return Boolean(item?.submittedAt)
+    || (Number.isFinite(Number(item?.scorePercent)) && item?.scorePercent !== null && item?.scorePercent !== '')
+    || /сдан|выполн|провер/i.test(String(item?.status || ''));
+}
+
+function homeworkEventId(item) {
+  return String(item?.homeworkEventId || item?.submissionEventId || item?.eventId || '').trim();
+}
+
+// Teacher-facing diagnostics for rows returned from the ДЗ_Назначения sheet.
+// A browser cannot see an event that is still queued on another device, so the
+// diagnostic intentionally describes only data that has reached the server.
+export function analyzeHomeworkAssignments(items) {
+  const rows = Array.isArray(items) ? items.filter(Boolean) : [];
+  const groups = new Map();
+  for (const item of rows) {
+    const homeworkId = String(item.homeworkId || '').trim();
+    if (!homeworkId) continue;
+    if (!groups.has(homeworkId)) groups.set(homeworkId, []);
+    groups.get(homeworkId).push(item);
+  }
+  return [...groups].map(([homeworkId, groupRows]) => {
+    const submittedRows = groupRows.filter(homeworkAssignmentIsSubmitted);
+    const pendingRows = groupRows.filter(item => !homeworkAssignmentIsSubmitted(item));
+    const submittedWithoutEvent = submittedRows.filter(item => !homeworkEventId(item));
+    return {
+      homeworkId,
+      homeworkName: String(groupRows.find(item => item.homeworkName)?.homeworkName || homeworkId),
+      taskNumber: String(groupRows.find(item => item.taskNumber)?.taskNumber || ''),
+      rows: groupRows,
+      rowCount: groupRows.length,
+      submittedCount: submittedRows.length,
+      pendingCount: pendingRows.length,
+      repeated: groupRows.length > 1,
+      duplicate: pendingRows.length > 1,
+      submittedWithoutEventCount: submittedWithoutEvent.length,
+      eventIds: submittedRows.map(homeworkEventId).filter(Boolean)
+    };
+  });
+}
+
+export function findPendingHomeworkConflicts({ statistics, studentIds, homeworkId }) {
+  const wantedHomeworkId = String(homeworkId || '').trim();
+  if (!wantedHomeworkId) return [];
+  const students = statistics?.students || {};
+  return Array.from(studentIds || []).flatMap(studentId => {
+    const homework = Array.isArray(students?.[studentId]?.homework)
+      ? students[studentId].homework
+      : [];
+    const rows = homework.filter(item =>
+      item?.legacy !== true
+      && String(item?.homeworkId || '').trim() === wantedHomeworkId
+      && !homeworkAssignmentIsSubmitted(item));
+    return rows.length ? [{ studentId: String(studentId), homeworkId: wantedHomeworkId, rows }] : [];
+  });
+}
+
 function gasError(data, fallback) {
   const bodies = gasBodies(data);
   const message = bodies.map(body => body?.message || body?.error).find(Boolean);
