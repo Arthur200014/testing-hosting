@@ -160,6 +160,16 @@ test('completed result remains restorable after confirmation', async () => {
   assert.equal(reopened.phase, MOCK_ATTEMPT_PHASES.CONFIRMED);
 });
 
+test('ordinary autosave cannot downgrade a confirmed attempt', async () => {
+  const storage = memoryStorage();
+  const persistence = createMockExamPersistence({ storage, now: () => 900 });
+  persistence.queueSubmission({ snapshot: base, payload: { eventId: 'event-1' } });
+  await persistence.flush({ submit: async () => ({ ok: true, eventId: 'event-1' }) });
+  const confirmed = persistence.loadCurrent(base);
+  persistence.saveAttempt({ ...confirmed, answers: { 1: '12', 2: '' } });
+  assert.equal(persistence.loadCurrent(base).phase, MOCK_ATTEMPT_PHASES.CONFIRMED);
+});
+
 test('receipt validation has no student-facing transport messages', () => {
   assert.throws(() => confirmMockSubmissionResponse({ ok: true }, { eventId: 'event-1' }));
   const source = confirmMockSubmissionResponse.toString();
