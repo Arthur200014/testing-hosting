@@ -92,7 +92,7 @@ async function childFrame(page, program) {
     if (frame) {
       const ready = await frame.evaluate(selected => selected === 'EGE_MATH'
         ? Boolean(globalThis.__EGE_MOCK_PERSISTENCE__?.ready)
-        : Boolean(globalThis.__OGE2027_MOCK_DIAGNOSTICS__), program).catch(() => false);
+        : Boolean(globalThis.__OGE_MOCK_PERSISTENCE__?.ready), program).catch(() => false);
       if (ready) return frame;
     }
     await sleep(100);
@@ -179,6 +179,24 @@ async function openStudentAttempt(page, student) {
   return frame;
 }
 
+async function assertFreshDeviceBlocked(page, student) {
+  const programSlug = student.programId === 'OGE_MATH' ? 'oge' : 'ege';
+  await page.goto(`${publishedUrl}?program=${programSlug}&freshCheck=${Date.now()}`, {
+    waitUntil: 'domcontentloaded',
+    timeout: 60_000
+  });
+  const frame = await childFrame(page, student.programId);
+  await frame.locator('#studentCode').fill(student.code);
+  await frame.locator('#loginBtn').click();
+  const persistenceKey = student.programId === 'OGE_MATH'
+    ? '__OGE_MOCK_PERSISTENCE__'
+    : '__EGE_MOCK_PERSISTENCE__';
+  await frame.waitForFunction(key => globalThis[key]?.isLocked(), persistenceKey, { timeout: 30_000 });
+  const examId = student.programId === 'OGE_MATH' ? 'examMain' : 'exam';
+  assert.equal(await frame.locator(`#${examId}`).evaluate(element => element.classList.contains('hidden')), true);
+  assert.match(await frame.locator('#loginError').textContent(), /уже сдан/i);
+}
+
 async function prepareAnswers(frame, student, studentIndex, activeResponses) {
   if (student.programId === 'EGE_MATH') {
     const expectedScore = 3 + ((studentIndex * 5) % 11);
@@ -251,6 +269,13 @@ async function submitAttempt(frame, student) {
   });
 }
 
+async function confirmedEventId(frame, student) {
+  return frame.evaluate(program => {
+    if (program === 'EGE_MATH') return globalThis.__EGE2027_MOCK_DIAGNOSTICS__.getState().eventId;
+    return globalThis.__OGE2027_MOCK_DIAGNOSTICS__.getState().app.eventId;
+  }, student.programId);
+}
+
 async function pollRows(eventIds, timeout = 120_000) {
   const wanted = new Set(eventIds);
   const deadline = Date.now() + timeout;
@@ -276,14 +301,25 @@ try {
   assert.ok(egeActive.variant);
   assert.ok(ogeActive.variant);
   const activeResponses = { EGE_MATH: egeActive, OGE_MATH: ogeActive };
-  const students = studentRows.map(row => ({
+  const allStudents = studentRows.map(row => ({
     studentId: clean(row.studentId),
     studentName: clean(row.studentName || 'Ученик'),
     code: clean(row.inviteCode || row.studentId),
     programId: clean(row.programId || 'EGE_MATH'),
     active: truthy(row.active)
   })).filter(student => student.studentId && student.code && student.active);
+  const forceOgeForEgeStudents = process.env.MOCK_FORCE_OGE_FOR_EGE_STUDENTS === '1';
+  const students = forceOgeForEgeStudents
+    ? allStudents.filter(student => student.programId === 'EGE_MATH').map(student => ({
+      ...student,
+      sourceProgramId: student.programId,
+      programId: 'OGE_MATH'
+    }))
+    : allStudents;
   assert.ok(students.length > 0, 'no active students with a code were found');
+  if (forceOgeForEgeStudents) {
+    assert.equal(students.length, 19, 'forced OGE verification must use exactly the expected 19 EGE test students');
+  }
   const unsupportedPrograms = [...new Set(students
     .map(student => student.programId)
     .filter(programId => !activeResponses[programId]))];
@@ -307,6 +343,8 @@ try {
 
   for (let index = 0; index < attempts.length; index += 1) {
     await submitAttempt(attempts[index].frame, attempts[index].student);
+    attempts[index].eventId = clean(await confirmedEventId(attempts[index].frame, attempts[index].student));
+    assert.match(attempts[index].eventId, /^mock_[a-f0-9]{32}$/);
     console.log(`[submit] ${index + 1}/${attempts.length} confirmed`);
   }
 
@@ -327,6 +365,21 @@ try {
   });
   assert.equal(new Set(found.map(row => clean(row.studentId))).size, students.length);
 
+  const postCountAfterSubmission = posts.length;
+  let freshDeviceBlocks = 0;
+  for (let index = 0; index < students.length; index += 1) {
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      ignoreHTTPSErrors: true
+    });
+    contexts.push(context);
+    await configureRoutes(context, students[index], activeResponses, posts);
+    await assertFreshDeviceBlocked(await context.newPage(), students[index]);
+    freshDeviceBlocks += 1;
+    console.log(`[fresh-device] ${index + 1}/${students.length} blocked`);
+  }
+  assert.equal(posts.length, postCountAfterSubmission, 'fresh-device checks must not submit another result');
+
   console.log(JSON.stringify({
     passed: true,
     students: students.length,
@@ -343,7 +396,9 @@ try {
     uniqueEvents: eventIds.length,
     rowsBefore: mockRowsBefore.length,
     rowsCreated: found.length,
-    oneRowPerStudent: true
+    oneRowPerStudent: true,
+    freshDeviceBlocks,
+    extraPostsFromFreshDevices: posts.length - postCountAfterSubmission
   }, null, 2));
 } finally {
   await Promise.all(contexts.map(context => context.close().catch(() => null)));

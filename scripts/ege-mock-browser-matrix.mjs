@@ -48,14 +48,35 @@ const student = {
   studentName: 'Браузерный тест',
   code: 'MOCKTEST'
 };
-const control = { mode: 'html', posts: [], reads: [] };
+const offlineStudent = {
+  studentId: 'EGE-MOCK-OFFLINE',
+  studentName: 'Офлайн-тест ЕГЭ',
+  code: 'OFFLINEEGE'
+};
+const control = { mode: 'html', posts: [], reads: [], offlineValidationAvailable: false };
 
-async function configureRoutes(context) {
+async function configureRoutes(context, { lookupSubmitted = false } = {}) {
   await context.route('https://cdn.jsdelivr.net/**', route => route.fulfill({
     status: 200,
     contentType: 'application/javascript',
     body: 'globalThis.MathJax={typesetPromise:()=>Promise.resolve(),typeset:()=>{}};'
   }));
+  await context.route('https://docs.google.com/spreadsheets/**/gviz/tq**', async route => {
+    const url = new URL(route.request().url());
+    const callback = url.searchParams.get('tqx')?.split('responseHandler:')[1];
+    const rows = lookupSubmitted ? [{ c: [
+      { v: 'existing-event' },
+      { v: student.studentId },
+      { v: 'EGE2027-MOCK-EGE-V-MUOMEHKN-Y6Z8' },
+      { v: 'EGE_MATH' }
+    ] }] : [];
+    const data = { status: 'ok', table: { cols: [], rows } };
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/javascript',
+      body: callback ? `${callback}(${JSON.stringify(data)});` : JSON.stringify(data)
+    });
+  });
   await context.route('https://script.google.com/**', async route => {
     const request = route.request();
     const url = new URL(request.url());
@@ -82,7 +103,10 @@ async function configureRoutes(context) {
     if (payload.action === 'getActiveMockVariantV2') {
       data = { ok: true, activeId: '', variant: null };
     } else if (payload.action === 'validateStudent') {
-      data = { ok: true, valid: true, student, result: { student }, data: { student } };
+      const selected = payload.code === offlineStudent.code ? offlineStudent : student;
+      data = selected === offlineStudent && !control.offlineValidationAvailable
+        ? { ok: false, valid: false }
+        : { ok: true, valid: true, student: selected, result: { student: selected }, data: { student: selected } };
     }
     const callback = url.searchParams.get('callback');
     await route.fulfill({
@@ -187,7 +211,9 @@ try {
   await waitFor(() => control.posts.length === 1);
   let queued = await attemptState(frame);
   assert.equal(queued.outbox.length, 1);
-  assert.equal(queued.outbox[0].eventId, beforeReload.eventId);
+  const stableEventId = queued.outbox[0].eventId;
+  assert.match(stableEventId, /^mock_[a-f0-9]{32}$/);
+  assert.equal(queued.eventId, stableEventId);
   assert.equal(queued.saved.phase, 'queued');
   assert.equal(queued.saved.result.primary, 0);
   await assertTransportStateHidden(frame);
@@ -200,12 +226,15 @@ try {
   assert.equal(queued.length, 1, 'mismatched eventId must remain queued');
 
   control.mode = 'success';
-  await frame.evaluate(() => globalThis.dispatchEvent(new Event('online')));
+  await frame.evaluate(async () => {
+    await globalThis.__EGE_MOCK_PERSISTENCE__.flush();
+    await globalThis.__EGE_MOCK_PERSISTENCE__.flush();
+  });
   await waitFor(async () => (await frame.evaluate(() => globalThis.__EGE_MOCK_PERSISTENCE__.persistence.readOutbox().length)) === 0);
   const confirmed = await frame.evaluate(() => globalThis.__EGE_MOCK_PERSISTENCE__.persistence
     .loadCurrent({ programId: 'EGE_MATH', studentCode: 'MOCKTEST' }));
   assert.equal(confirmed.phase, 'confirmed');
-  assert.equal(confirmed.eventId, beforeReload.eventId);
+  assert.equal(confirmed.eventId, stableEventId);
   assert.deepEqual(confirmed.answers, beforeReload.answers);
 
   const postsAfterConfirmation = control.posts.length;
@@ -214,7 +243,7 @@ try {
   await frame.locator('#resultOverlay:not(.hidden)').waitFor();
   const reopened = await attemptState(frame);
   assert.equal(reopened.finished, true);
-  assert.equal(reopened.eventId, beforeReload.eventId);
+  assert.equal(reopened.eventId, stableEventId);
   assert.deepEqual(reopened.answers, beforeReload.answers);
   assert.equal(reopened.saved.phase, 'confirmed');
   assert.equal(control.posts.length, postsAfterConfirmation, 'confirmed result must not be posted again');
@@ -248,6 +277,67 @@ try {
     await mobileContext.close();
   }
 
+  const freshContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    ignoreHTTPSErrors: Boolean(remoteBase)
+  });
+  await configureRoutes(freshContext, { lookupSubmitted: true });
+  const freshPage = await freshContext.newPage();
+  try {
+    await freshPage.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    const freshFrame = await openAttempt(freshPage);
+    await waitFor(() => freshFrame.evaluate(() => globalThis.__EGE_MOCK_PERSISTENCE__.isLocked()));
+    assert.equal(await freshFrame.locator('#exam').evaluate(element => element.classList.contains('hidden')), true);
+    assert.match(await freshFrame.locator('#loginError').textContent(), /уже сдан/i);
+    assert.equal(control.posts.length, postsAfterConfirmation, 'fresh-device lookup must not create a new POST');
+    await assertTransportStateHidden(freshFrame);
+  } finally {
+    await freshContext.close();
+  }
+
+  const offlineContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    ignoreHTTPSErrors: Boolean(remoteBase)
+  });
+  await configureRoutes(offlineContext);
+  const offlinePage = await offlineContext.newPage();
+  const offlineErrors = [];
+  offlinePage.on('pageerror', error => offlineErrors.push(error.message));
+  try {
+    await offlinePage.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    let offlineFrame = await childFrame(offlinePage);
+    await offlineFrame.locator('#studentCode').fill(offlineStudent.code);
+    await offlineFrame.locator('#loginBtn').click();
+    await offlineFrame.locator('#exam:not(.hidden)').waitFor({ timeout: 15_000 });
+    await offlineFrame.locator('#answer-1').fill('5');
+    await offlineFrame.locator('#submitBtn').click();
+    await offlineFrame.locator('#confirmOverlay:not(.hidden)').waitFor();
+    await offlineFrame.locator('#confirmSubmit').click();
+    await offlineFrame.locator('#resultOverlay:not(.hidden)').waitFor();
+    await waitFor(() => offlineFrame.evaluate(() => (
+      globalThis.__EGE_MOCK_PERSISTENCE__.persistence.readOutbox().length === 1
+    )));
+    const postsBeforeRecovery = control.posts.length;
+    await offlinePage.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 });
+    offlineFrame = await childFrame(offlinePage);
+    assert.equal(await offlineFrame.evaluate(() => (
+      globalThis.__EGE_MOCK_PERSISTENCE__.persistence.readOutbox().length
+    )), 1);
+    control.mode = 'success';
+    control.offlineValidationAvailable = true;
+    await offlineFrame.evaluate(() => globalThis.dispatchEvent(new Event('online')));
+    await waitFor(() => offlineFrame.evaluate(() => (
+      globalThis.__EGE_MOCK_PERSISTENCE__.persistence.readOutbox().length === 0
+    )));
+    assert.equal(control.posts.length, postsBeforeRecovery + 1);
+    const recoveredPost = control.posts.at(-1);
+    assert.equal(recoveredPost.studentId, offlineStudent.studentId);
+    assert.match(recoveredPost.eventId, /^mock_[a-f0-9]{32}$/);
+    assert.deepEqual(offlineErrors, []);
+  } finally {
+    await offlineContext.close();
+  }
+
   console.log(JSON.stringify({
     passed: true,
     scenarios: {
@@ -257,9 +347,11 @@ try {
       matchingReceiptConfirms: true,
       completedAttemptReopensExactly: true,
       transportMessagesHidden: true,
-      mobileReloadRestoresAttempt: true
+      mobileReloadRestoresAttempt: true,
+      freshDeviceIsBlockedByServerLookup: true,
+      validationOutageSurvivesFinishReloadAndRecovery: true
     },
-    stableEventId: beforeReload.eventId,
+    stableEventId,
     submitCalls: control.posts.length,
     productionWrites: 0
   }, null, 2));
