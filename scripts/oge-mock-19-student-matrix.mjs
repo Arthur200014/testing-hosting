@@ -75,13 +75,19 @@ const browser = await chromium.launch({
 });
 
 const studentRows = await readSheet('Ученики');
+const mockRows = await readSheet('Пробники');
+const previouslyTestedEgeStudentIds = new Set(mockRows
+  .filter(row => clean(row.programId) === 'EGE_MATH')
+  .map(row => clean(row.studentId))
+  .filter(Boolean));
 const students = studentRows.map(row => ({
   studentId: clean(row.studentId),
   studentName: clean(row.studentName || 'Ученик'),
   code: clean(row.inviteCode || row.studentId),
   programId: clean(row.programId || 'EGE_MATH'),
   active: truthy(row.active)
-})).filter(student => student.active && student.studentId && student.code && student.programId === 'EGE_MATH');
+})).filter(student => student.active && student.studentId && student.code
+  && student.programId === 'EGE_MATH' && previouslyTestedEgeStudentIds.has(student.studentId));
 assert.equal(students.length, 19, 'the same 19 active EGE test students must be present');
 
 const accepted = new Map();

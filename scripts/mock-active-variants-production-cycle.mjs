@@ -316,8 +316,14 @@ try {
     active: truthy(row.active)
   })).filter(student => student.studentId && student.code && student.active);
   const forceOgeForEgeStudents = process.env.MOCK_FORCE_OGE_FOR_EGE_STUDENTS === '1';
+  const previouslyTestedEgeStudentIds = new Set(mockRowsBefore
+    .filter(row => clean(row.programId) === 'EGE_MATH')
+    .map(row => clean(row.studentId))
+    .filter(Boolean));
   const students = forceOgeForEgeStudents
-    ? allStudents.filter(student => student.programId === 'EGE_MATH').map(student => ({
+    ? allStudents.filter(student => (
+      student.programId === 'EGE_MATH' && previouslyTestedEgeStudentIds.has(student.studentId)
+    )).map(student => ({
       ...student,
       sourceProgramId: student.programId,
       programId: 'OGE_MATH'
