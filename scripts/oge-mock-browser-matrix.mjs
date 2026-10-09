@@ -190,7 +190,10 @@ async function waitFor(predicate, timeout = 20_000) {
 
 const contexts = [];
 try {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    ignoreHTTPSErrors: Boolean(remoteBase)
+  });
   contexts.push(context);
   await configureRoutes(context);
   const page = await context.newPage();
@@ -208,7 +211,10 @@ try {
   assert.ok(beforeReload.deadlineAt > Date.now());
   await assertTransportStateHidden(frame);
 
-  const alternateContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const alternateContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    ignoreHTTPSErrors: Boolean(remoteBase)
+  });
   contexts.push(alternateContext);
   await configureRoutes(alternateContext);
   const alternatePage = await alternateContext.newPage();
@@ -256,7 +262,10 @@ try {
   assert.equal(confirmed.result.primary, 1);
   await assertTransportStateHidden(frame);
 
-  const freshContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const freshContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    ignoreHTTPSErrors: Boolean(remoteBase)
+  });
   contexts.push(freshContext);
   await configureRoutes(freshContext);
   const freshPage = await freshContext.newPage();
@@ -268,7 +277,10 @@ try {
   assert.equal(control.posts.length, 3, 'fresh-device lookup must not create a new POST');
   await assertTransportStateHidden(freshFrame);
 
-  const offlineContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const offlineContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    ignoreHTTPSErrors: Boolean(remoteBase)
+  });
   contexts.push(offlineContext);
   await configureRoutes(offlineContext);
   const offlinePage = await offlineContext.newPage();
@@ -305,7 +317,10 @@ try {
   assert.match(recoveredPost.eventId, /^mock_[a-f0-9]{32}$/);
   assert.deepEqual(offlineErrors, []);
 
-  const failedModuleContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const failedModuleContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    ignoreHTTPSErrors: Boolean(remoteBase)
+  });
   contexts.push(failedModuleContext);
   await configureRoutes(failedModuleContext);
   await failedModuleContext.route('**/shared/interactive/v1/mock-exam-persistence.js', route => route.fulfill({
