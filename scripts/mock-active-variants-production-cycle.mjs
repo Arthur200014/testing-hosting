@@ -42,18 +42,25 @@ const browser = await chromium.launch({
 });
 
 async function readDownloadedText(url) {
-  const context = await browser.newContext({ ignoreHTTPSErrors: true, acceptDownloads: true });
-  try {
-    const page = await context.newPage();
-    const downloadPromise = page.waitForEvent('download');
-    await page.goto(url, { timeout: 45_000 }).catch(error => {
-      if (!/Download is starting/.test(error.message)) throw error;
-    });
-    const download = await downloadPromise;
-    return readFileSync(await download.path(), 'utf8');
-  } finally {
-    await context.close();
+  let lastError;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const context = await browser.newContext({ ignoreHTTPSErrors: true, acceptDownloads: true });
+    try {
+      const page = await context.newPage();
+      const downloadPromise = page.waitForEvent('download', { timeout: 45_000 });
+      await page.goto(url, { timeout: 45_000 }).catch(error => {
+        if (!/Download is starting/.test(error.message)) throw error;
+      });
+      const download = await downloadPromise;
+      return readFileSync(await download.path(), 'utf8');
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) await sleep(1_000 * attempt);
+    } finally {
+      await context.close().catch(() => null);
+    }
   }
+  throw lastError;
 }
 
 async function readSheet(sheetName) {
@@ -290,9 +297,9 @@ async function pollRows(eventIds, timeout = 120_000) {
 
 const contexts = [];
 try {
-  const [studentRows, mockRowsBefore, egeActive, ogeActive] = await Promise.all([
-    readSheet('Ученики'),
-    readSheet('Пробники'),
+  const studentRows = await readSheet('Ученики');
+  const mockRowsBefore = await readSheet('Пробники');
+  const [egeActive, ogeActive] = await Promise.all([
     getLiveJson('getActiveMockVariantV2', { programId: 'EGE_MATH' }),
     getLiveJson('getActiveMockVariantV2', { programId: 'OGE_MATH' })
   ]);
