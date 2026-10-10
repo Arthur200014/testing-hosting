@@ -58,6 +58,11 @@ const mobileStudent = {
   studentName: 'Мобильный тест ЕГЭ',
   code: 'MOBILEEGE'
 };
+const diagramStudent = {
+  studentId: 'EGE-MOCK-DIAGRAM',
+  studentName: 'Проверка рисунка ЕГЭ',
+  code: 'DIAGRAMEGE'
+};
 const control = {
   mode: 'html',
   posts: [],
@@ -66,7 +71,8 @@ const control = {
   serverEventId: '',
   serverResult: null,
   offlineValidationAvailable: false,
-  lookupDelayMs: 0
+  lookupDelayMs: 0,
+  activeVariant: null
 };
 
 async function configureRoutes(context, { lookupSubmitted = false, selectedStudent = student } = {}) {
@@ -126,7 +132,9 @@ async function configureRoutes(context, { lookupSubmitted = false, selectedStude
     }
     let data = { ok: true };
     if (payload.action === 'getActiveMockVariantV2') {
-      data = { ok: true, activeId: '', variant: null };
+      data = control.activeVariant
+        ? { ok: true, activeId: control.activeVariant.id, variant: control.activeVariant }
+        : { ok: true, activeId: '', variant: null };
     } else if (payload.action === 'validateStudent') {
       const selected = payload.code === offlineStudent.code ? offlineStudent : selectedStudent;
       data = selected === offlineStudent && !control.offlineValidationAvailable
@@ -299,6 +307,47 @@ try {
   assert.doesNotMatch(await frame.locator('#resultPopupLead').textContent(), /сохран|отправ|сервер|устройств|таблиц/i);
   assert.deepEqual(errors, []);
 
+  const serverVariantWithMissingGraph = await frame.evaluate(() => {
+    const state = globalThis.__EGE2027_MOCK_DIAGNOSTICS__.getState();
+    const questions = JSON.parse(JSON.stringify(state.questions));
+    questions[11].prototypeId = 'EGE-12-004';
+    questions[11].prototypeLabel = 'Прототип 4';
+    questions[11].diagram = '';
+    questions[11].diagramRef = '';
+    return {
+      id: 'EGE-BROWSER-DIAGRAM',
+      name: 'Проверка графика №12',
+      programId: 'EGE_MATH',
+      durationSeconds: 14_100,
+      createdAt: Date.now(),
+      questions,
+      secondPart: JSON.parse(JSON.stringify(state.secondPart || []))
+    };
+  });
+  assert.equal(serverVariantWithMissingGraph.questions[11].prototypeId, 'EGE-12-004');
+  control.activeVariant = serverVariantWithMissingGraph;
+  const diagramContext = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    ignoreHTTPSErrors: Boolean(remoteBase)
+  });
+  await configureRoutes(diagramContext, { selectedStudent: diagramStudent });
+  const diagramPage = await diagramContext.newPage();
+  const diagramErrors = [];
+  diagramPage.on('pageerror', error => diagramErrors.push(error.message));
+  try {
+    await diagramPage.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    const diagramFrame = await openAttempt(diagramPage, diagramStudent.code);
+    const task12Image = diagramFrame.locator('#task-12 .diagram img');
+    await task12Image.waitFor({ state: 'visible', timeout: 15_000 });
+    assert.match(await task12Image.getAttribute('src'), /^data:image\//);
+    assert.ok(await task12Image.evaluate(image => image.complete && image.naturalWidth > 0),
+      'task 12 graph must be decoded and rendered for the student');
+    assert.deepEqual(diagramErrors, []);
+  } finally {
+    control.activeVariant = null;
+    await diagramContext.close();
+  }
+
   const mobileContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
     ignoreHTTPSErrors: Boolean(remoteBase)
@@ -400,6 +449,7 @@ try {
       finalizedScoreIsRestoredFromSheet: true,
       completedAttemptReopensExactly: true,
       confirmedResultSurvivesBackgroundLookupAndReviewOpens: true,
+      bankGraphTask12RehydratesFromPrototypeId: true,
       transportMessagesHidden: true,
       mobileReloadRestoresAttempt: true,
       freshDeviceIsBlockedByServerLookup: true,

@@ -47,6 +47,17 @@ test('EGE has no background music source or playback path', () => {
   assert.match(ege, /storeLocal\(\);AudioFX\.stopMusic\(\);verifyInBackground/);
 });
 
+test('EGE preserves and restores bank diagrams for saved variants', () => {
+  assert.match(ege, /diagramRef:q\.diagramRef\|\|''/,
+    'question serialization must preserve the compact diagram reference');
+  assert.match(ege, /function localDiagramV13\(ref\)/);
+  assert.match(ege, /key\.match\(\/\^EGE-\(\\d\{2\}\)-\(\\d\{3\}\)\$\//,
+    'all deterministic bank prototype IDs must be resolvable');
+  assert.match(ege, /buildBankPreviewQuestion\(Number\(m\[1\]\)-1,Number\(m\[2\]\)-1\)\.diagram/);
+  assert.match(ege, /if\(!q\.diagram\)q\.diagram=localDiagramV13\(q\.diagramRef\|\|q\.prototypeId\)/,
+    'older saved variants without diagramRef must fall back to prototypeId');
+});
+
 test('all eight OGE practical sets have detailed solutions for tasks 1–5', () => {
   const encoded = oge.match(/const PRACTICE_SOLUTIONS=(\{.*\});\nfunction practiceSolution/);
   assert.ok(encoded, 'OGE practical solution map must exist');
