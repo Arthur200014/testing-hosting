@@ -148,7 +148,8 @@ async function openAttempt(page, loginCode = student.code) {
   const frame = await childFrame(page);
   await frame.locator('#studentCode').fill(loginCode);
   await frame.locator('#loginBtn').click();
-  await frame.locator('#examMain:not(.hidden)').waitFor({ timeout: 20_000 });
+  await frame.locator('#examMain:not(.hidden), #resultOverlay:not(.hidden), #mockSubmittedOverlay:not(.hidden)')
+    .first().waitFor({ timeout: 20_000 });
   await frame.waitForFunction(expected => (
     globalThis.__OGE2027_MOCK_DIAGNOSTICS__.getState().app.student?.studentId === expected
   ), student.studentId, { timeout: 15_000 });

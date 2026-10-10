@@ -153,7 +153,8 @@ async function openAttempt(page, loginCode = student.code) {
   const frame = await childFrame(page);
   await frame.locator('#studentCode').fill(loginCode);
   await frame.locator('#loginBtn').click();
-  await frame.locator('#exam:not(.hidden), #resultOverlay:not(.hidden)').first().waitFor({ timeout: 15_000 });
+  await frame.locator('#exam:not(.hidden), #resultOverlay:not(.hidden), #mockSubmittedOverlay:not(.hidden)')
+    .first().waitFor({ timeout: 15_000 });
   return frame;
 }
 
