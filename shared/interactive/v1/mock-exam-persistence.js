@@ -8,6 +8,36 @@ const isObject = value => Boolean(value) && typeof value === 'object' && !Array.
 const clean = value => String(value ?? '').trim();
 const encode = value => encodeURIComponent(clean(value));
 
+function hideAlreadySubmittedNotice(root) {
+  root.document?.getElementById('mockSubmittedOverlay')?.classList?.add('hidden');
+}
+
+function showAlreadySubmittedNotice(root) {
+  const document = root.document;
+  if (!document?.createElement) return null;
+  let overlay = document.getElementById('mockSubmittedOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'mockSubmittedOverlay';
+    overlay.className = 'overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'mockSubmittedTitle');
+    const modal = document.createElement('section');
+    modal.className = 'modal';
+    const title = document.createElement('h2');
+    title.id = 'mockSubmittedTitle';
+    title.textContent = 'Пробник уже сдан';
+    const copy = document.createElement('p');
+    copy.textContent = 'Повторная отправка недоступна. Чтобы войти под другим кодом, нажмите «Сменить ученика» сверху.';
+    modal.append(title, copy);
+    overlay.append(modal);
+    document.body?.append(overlay);
+  }
+  overlay.classList.remove('hidden');
+  return overlay;
+}
+
 function responseBodies(data) {
   if (!isObject(data)) return [];
   const bodies = [data];
@@ -467,16 +497,28 @@ export function installEgeMockPersistenceBridge({
   const lockAlreadySubmitted = () => {
     lockedByPriorSubmission = true;
     const current = state();
+    const saved = current?.code && current?.variantId
+      ? persistence.loadAttempt(identity(current.code, current.variantId))
+      : null;
+    const keepCompletedResult = Boolean(current?.finished && saved?.submittedAt && saved?.result);
     if (current) {
       current.finished = true;
       root.clearInterval?.(current.timerId);
     }
+    // A confirmed attempt may already have been restored from local storage.
+    // The server lookup still locks repeat submission, but must not replace the
+    // visible result/review with a second login screen.
+    if (keepCompletedResult) {
+      hideAlreadySubmittedNotice(root);
+      root.document?.getElementById('loginOverlay')?.classList?.add('hidden');
+      if (typeof root.showResult === 'function') root.showResult(saved.result);
+      return;
+    }
     for (const id of ['exam', 'topbar', 'result', 'resultOverlay', 'confirmOverlay']) {
       root.document?.getElementById(id)?.classList?.add('hidden');
     }
-    root.document?.getElementById('loginOverlay')?.classList?.remove('hidden');
-    const message = root.document?.getElementById('loginError');
-    if (message) message.textContent = 'Этот пробник уже сдан.';
+    root.document?.getElementById('loginOverlay')?.classList?.add('hidden');
+    showAlreadySubmittedNotice(root);
   };
 
   const phaseFor = item => item?.phase || (item?.submittedAt
@@ -961,16 +1003,25 @@ export function installOgeMockPersistenceBridge({
   const lockAlreadySubmitted = () => {
     lockedByPriorSubmission = true;
     const current = state();
+    const saved = persistence.loadAttempt(identity(fields()));
+    const keepCompletedResult = Boolean(current.app?.finished && saved?.submittedAt && saved?.result);
     if (current.app && isObject(current.app)) {
       current.app.finished = true;
       root.clearInterval?.(current.app.timerId);
     }
+    // Keep a restored local result and its review available. The lookup hit
+    // still marks the slot as locked, so no second official POST can be made.
+    if (keepCompletedResult) {
+      hideAlreadySubmittedNotice(root);
+      root.document?.getElementById('loginOverlay')?.classList?.add('hidden');
+      if (typeof root.showCompletedResult === 'function') root.showCompletedResult(saved.result);
+      return;
+    }
     for (const id of ['examMain', 'resultOverlay', 'confirmOverlay', 'reviewOverlay']) {
       root.document?.getElementById(id)?.classList?.add('hidden');
     }
-    root.document?.getElementById('loginOverlay')?.classList?.remove('hidden');
-    const message = root.document?.getElementById('loginError');
-    if (message) message.textContent = 'Этот пробник уже сдан.';
+    root.document?.getElementById('loginOverlay')?.classList?.add('hidden');
+    showAlreadySubmittedNotice(root);
   };
   if (typeof original.validateStudent === 'function') {
     root.validateStudent = async function validateStudentWithPriorLock(...args) {

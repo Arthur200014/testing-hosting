@@ -57,7 +57,8 @@ const control = {
   posts: [],
   submitted: false,
   serverEventId: '',
-  offlineValidationAvailable: false
+  offlineValidationAvailable: false,
+  lookupDelayMs: 0
 };
 
 function lookupResponse(url) {
@@ -80,6 +81,7 @@ async function configureRoutes(context) {
   }));
   await context.route('https://docs.google.com/spreadsheets/**/gviz/tq**', async route => {
     const { callback, data } = lookupResponse(new URL(route.request().url()));
+    if (control.lookupDelayMs) await new Promise(resolve => setTimeout(resolve, control.lookupDelayMs));
     await route.fulfill({
       status: 200,
       contentType: 'application/javascript',
@@ -262,6 +264,34 @@ try {
   assert.equal(confirmed.result.primary, 1);
   await assertTransportStateHidden(frame);
 
+  const postsAfterConfirmation = control.posts.length;
+  control.lookupDelayMs = 500;
+  await page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 });
+  frame = await openAttempt(page);
+  await frame.locator('#resultOverlay:not(.hidden)').waitFor();
+  await frame.locator('#resultOverlay').evaluate(node => node.classList.add('hidden'));
+  await waitFor(() => frame.evaluate(() => globalThis.__OGE_MOCK_PERSISTENCE__.isLocked()));
+  control.lookupDelayMs = 0;
+  assert.equal(await frame.locator('#loginOverlay').evaluate(node => node.classList.contains('hidden')), true,
+    'background prior-submission lookup must not replace a restored result with login');
+  assert.equal(await frame.locator('#resultOverlay').evaluate(node => node.classList.contains('hidden')), false);
+  assert.equal(control.posts.length, postsAfterConfirmation, 'opening a confirmed result must not create another POST');
+  await frame.locator('#reviewOpen').click();
+  await frame.locator('#reviewOverlay:not(.hidden)').waitFor();
+  assert.equal(await frame.locator('#reviewList .review-card').count(), 19);
+  await frame.locator('[data-sol="1"]').click();
+  assert.doesNotMatch(await frame.locator('#solution-1').innerText(), /пока не добавлено/i);
+  const practicalSolutions = await frame.evaluate(() => eval(
+    '[1,2,3,4,5].map(task=>bankQuestion(BANK_BY_TASK[task].find(item=>item.prototype===1)).explain)'
+  ));
+  assert.equal(practicalSolutions.length, 5);
+  practicalSolutions.forEach((solution, index) => {
+    assert.match(solution, /Шаг 1/);
+    assert.match(solution, /Шаг 2/);
+    assert.match(solution, /Ответ:/, `task ${index + 1}`);
+  });
+  await assertTransportStateHidden(frame);
+
   const freshContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
     ignoreHTTPSErrors: Boolean(remoteBase)
@@ -273,7 +303,9 @@ try {
   const freshFrame = await openAttempt(freshPage);
   await waitFor(() => freshFrame.evaluate(() => globalThis.__OGE_MOCK_PERSISTENCE__.isLocked()));
   assert.equal(await freshFrame.locator('#examMain').evaluate(element => element.classList.contains('hidden')), true);
-  assert.match(await freshFrame.locator('#loginError').textContent(), /уже сдан/i);
+  assert.equal(await freshFrame.locator('#loginOverlay').evaluate(element => element.classList.contains('hidden')), true);
+  await freshFrame.locator('#mockSubmittedOverlay:not(.hidden)').waitFor();
+  assert.match(await freshFrame.locator('#mockSubmittedOverlay').textContent(), /пробник уже сдан/i);
   assert.equal(control.posts.length, 3, 'fresh-device lookup must not create a new POST');
   await assertTransportStateHidden(freshFrame);
 
@@ -348,6 +380,8 @@ try {
       mismatchedReceiptStaysQueued: true,
       matchingReceiptConfirms: true,
       resultSnapshotPersists: true,
+      confirmedResultSurvivesBackgroundLookupAndReviewOpens: true,
+      practicalTasksOneToFiveHaveDetailedSolutions: true,
       freshDeviceIsBlockedByServerLookup: true,
       validationOutageSurvivesFinishReloadAndRecovery: true,
       missingPersistenceModuleFailsClosed: true,

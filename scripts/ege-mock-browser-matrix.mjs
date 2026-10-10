@@ -53,9 +53,22 @@ const offlineStudent = {
   studentName: 'Офлайн-тест ЕГЭ',
   code: 'OFFLINEEGE'
 };
-const control = { mode: 'html', posts: [], reads: [], offlineValidationAvailable: false };
+const mobileStudent = {
+  studentId: 'EGE-MOCK-MOBILE',
+  studentName: 'Мобильный тест ЕГЭ',
+  code: 'MOBILEEGE'
+};
+const control = {
+  mode: 'html',
+  posts: [],
+  reads: [],
+  submitted: false,
+  serverEventId: '',
+  offlineValidationAvailable: false,
+  lookupDelayMs: 0
+};
 
-async function configureRoutes(context, { lookupSubmitted = false } = {}) {
+async function configureRoutes(context, { lookupSubmitted = false, selectedStudent = student } = {}) {
   await context.route('https://cdn.jsdelivr.net/**', route => route.fulfill({
     status: 200,
     contentType: 'application/javascript',
@@ -64,13 +77,15 @@ async function configureRoutes(context, { lookupSubmitted = false } = {}) {
   await context.route('https://docs.google.com/spreadsheets/**/gviz/tq**', async route => {
     const url = new URL(route.request().url());
     const callback = url.searchParams.get('tqx')?.split('responseHandler:')[1];
-    const rows = lookupSubmitted ? [{ c: [
-      { v: 'existing-event' },
+    const query = url.searchParams.get('tq') || '';
+    const rows = (lookupSubmitted || control.submitted) && query.includes(student.studentId) ? [{ c: [
+      { v: control.serverEventId || 'existing-event' },
       { v: student.studentId },
       { v: 'EGE2027-MOCK-EGE-V-MUOMEHKN-Y6Z8' },
       { v: 'EGE_MATH' }
     ] }] : [];
     const data = { status: 'ok', table: { cols: [], rows } };
+    if (control.lookupDelayMs) await new Promise(resolve => setTimeout(resolve, control.lookupDelayMs));
     await route.fulfill({
       status: 200,
       contentType: 'application/javascript',
@@ -92,6 +107,10 @@ async function configureRoutes(context, { lookupSubmitted = false } = {}) {
         return;
       }
       const eventId = control.mode === 'mismatch' ? 'wrong-event' : payload.eventId;
+      if (control.mode === 'success') {
+        control.submitted = true;
+        control.serverEventId = payload.eventId;
+      }
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -103,7 +122,7 @@ async function configureRoutes(context, { lookupSubmitted = false } = {}) {
     if (payload.action === 'getActiveMockVariantV2') {
       data = { ok: true, activeId: '', variant: null };
     } else if (payload.action === 'validateStudent') {
-      const selected = payload.code === offlineStudent.code ? offlineStudent : student;
+      const selected = payload.code === offlineStudent.code ? offlineStudent : selectedStudent;
       data = selected === offlineStudent && !control.offlineValidationAvailable
         ? { ok: false, valid: false }
         : { ok: true, valid: true, student: selected, result: { student: selected }, data: { student: selected } };
@@ -130,9 +149,9 @@ async function childFrame(page) {
   throw new Error('EGE iframe persistence bridge did not become ready');
 }
 
-async function openAttempt(page) {
+async function openAttempt(page, loginCode = student.code) {
   const frame = await childFrame(page);
-  await frame.locator('#studentCode').fill(student.code);
+  await frame.locator('#studentCode').fill(loginCode);
   await frame.locator('#loginBtn').click();
   await frame.locator('#exam:not(.hidden), #resultOverlay:not(.hidden)').first().waitFor({ timeout: 15_000 });
   return frame;
@@ -238,15 +257,26 @@ try {
   assert.deepEqual(confirmed.answers, beforeReload.answers);
 
   const postsAfterConfirmation = control.posts.length;
+  control.lookupDelayMs = 500;
   await page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 });
   frame = await openAttempt(page);
   await frame.locator('#resultOverlay:not(.hidden)').waitFor();
+  await frame.locator('#resultOverlay').evaluate(node => node.classList.add('hidden'));
+  await waitFor(() => frame.evaluate(() => globalThis.__EGE_MOCK_PERSISTENCE__.isLocked()));
+  control.lookupDelayMs = 0;
   const reopened = await attemptState(frame);
   assert.equal(reopened.finished, true);
   assert.equal(reopened.eventId, stableEventId);
   assert.deepEqual(reopened.answers, beforeReload.answers);
   assert.equal(reopened.saved.phase, 'confirmed');
   assert.equal(control.posts.length, postsAfterConfirmation, 'confirmed result must not be posted again');
+  assert.equal(await frame.locator('#loginOverlay').evaluate(node => node.classList.contains('hidden')), true,
+    'background prior-submission lookup must not replace a restored result with login');
+  assert.equal(await frame.locator('#resultOverlay').evaluate(node => node.classList.contains('hidden')), false);
+  await frame.locator('#resultReviewBtn').click();
+  await frame.locator('#solutionReviewOverlay:not(.hidden)').waitFor();
+  await frame.locator('[data-v15-solution="0"]').click();
+  assert.match(await frame.locator('#reviewSolutionV15-0').innerText(), /Пошаговое решение|Ответ:/);
   await assertTransportStateHidden(frame);
   assert.doesNotMatch(await frame.locator('#resultPopupLead').textContent(), /сохран|отправ|сервер|устройств|таблиц/i);
   assert.deepEqual(errors, []);
@@ -255,18 +285,18 @@ try {
     viewport: { width: 390, height: 844 },
     ignoreHTTPSErrors: Boolean(remoteBase)
   });
-  await configureRoutes(mobileContext);
+  await configureRoutes(mobileContext, { selectedStudent: mobileStudent });
   const mobilePage = await mobileContext.newPage();
   const mobileErrors = [];
   mobilePage.on('pageerror', error => mobileErrors.push(error.message));
   try {
     await mobilePage.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-    let mobileFrame = await openAttempt(mobilePage);
+    let mobileFrame = await openAttempt(mobilePage, mobileStudent.code);
     await mobileFrame.locator('#answer-1').fill('7');
     await mobileFrame.locator('#answer-1').dispatchEvent('input');
     const mobileBefore = await attemptState(mobileFrame);
     await mobilePage.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 });
-    mobileFrame = await openAttempt(mobilePage);
+    mobileFrame = await openAttempt(mobilePage, mobileStudent.code);
     const mobileAfter = await attemptState(mobileFrame);
     assert.equal(await mobileFrame.locator('#answer-1').inputValue(), '7');
     assert.equal(mobileAfter.eventId, mobileBefore.eventId);
@@ -288,7 +318,9 @@ try {
     const freshFrame = await openAttempt(freshPage);
     await waitFor(() => freshFrame.evaluate(() => globalThis.__EGE_MOCK_PERSISTENCE__.isLocked()));
     assert.equal(await freshFrame.locator('#exam').evaluate(element => element.classList.contains('hidden')), true);
-    assert.match(await freshFrame.locator('#loginError').textContent(), /уже сдан/i);
+    assert.equal(await freshFrame.locator('#loginOverlay').evaluate(element => element.classList.contains('hidden')), true);
+    await freshFrame.locator('#mockSubmittedOverlay:not(.hidden)').waitFor();
+    assert.match(await freshFrame.locator('#mockSubmittedOverlay').textContent(), /пробник уже сдан/i);
     assert.equal(control.posts.length, postsAfterConfirmation, 'fresh-device lookup must not create a new POST');
     await assertTransportStateHidden(freshFrame);
   } finally {
@@ -346,6 +378,7 @@ try {
       mismatchedReceiptStaysQueued: true,
       matchingReceiptConfirms: true,
       completedAttemptReopensExactly: true,
+      confirmedResultSurvivesBackgroundLookupAndReviewOpens: true,
       transportMessagesHidden: true,
       mobileReloadRestoresAttempt: true,
       freshDeviceIsBlockedByServerLookup: true,

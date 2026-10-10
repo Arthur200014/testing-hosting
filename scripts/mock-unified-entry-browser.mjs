@@ -176,6 +176,12 @@ async function runResumeScenario(type, viewport) {
       assert.equal(shot.hasTask19, true);
       await frame.locator('#shotClose').click();
     } else {
+      const music = await frame.evaluate(() => eval(`({
+        hasTrack: Boolean(document.getElementById('bgMusic')),
+        timer: AudioFX.musicTimer,
+        hasBus: Boolean(AudioFX.musicBus)
+      })`));
+      assert.deepEqual(music, { hasTrack: false, timer: null, hasBus: false });
       await frame.locator('#shotOpen').click();
       await frame.locator('#shotOverlay:not(.hidden)').waitFor();
       assert.equal(await frame.locator('.shot-stage').evaluate(node => getComputedStyle(node).overflowY), 'auto');
@@ -199,6 +205,36 @@ async function runResumeScenario(type, viewport) {
     assert.deepEqual(after, before, 'reload must preserve the same attempt and timer');
     assert.equal(await page.locator('#home').evaluate(node => node.classList.contains('hidden')), true);
     assert.equal(await frame.locator('#loginOverlay').evaluate(node => node.classList.contains('hidden')), true);
+
+    await frame.evaluate(examType => {
+      const api = examType === 'ege'
+        ? globalThis.__EGE_MOCK_PERSISTENCE__
+        : globalThis.__OGE_MOCK_PERSISTENCE__;
+      const current = api.snapshot();
+      api.persistence.saveAttempt({
+        ...current,
+        submittedAt: Date.now(),
+        phase: 'confirmed',
+        result: examType === 'ege'
+          ? { primary: 1, durationSeconds: 60, autoSubmitted: false }
+          : { primary: 1, blank: 18, durationSeconds: 60, scorePercent: 5, autoSubmitted: false }
+      });
+    }, type);
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 });
+    frame = await childFrame(page, type);
+    await frame.locator('#resultOverlay:not(.hidden)').waitFor({ timeout: 20_000 });
+    await page.waitForFunction(() => document.getElementById('loading')?.classList.contains('hidden'), null, {
+      timeout: 20_000
+    });
+    assert.equal(await frame.locator('#loginOverlay').evaluate(node => node.classList.contains('hidden')), true,
+      'saved result must open directly without showing the inner login again');
+    if (type === 'ege') {
+      await frame.locator('#resultReviewBtn').click();
+      await frame.locator('#solutionReviewOverlay:not(.hidden)').waitFor();
+    } else {
+      await frame.locator('#reviewOpen').click();
+      await frame.locator('#reviewOverlay:not(.hidden)').waitFor();
+    }
     assert.deepEqual(errors, []);
   } finally {
     await context.close();

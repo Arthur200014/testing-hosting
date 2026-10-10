@@ -17,6 +17,8 @@ test('student shell has one exam entry and routes a verified code by program', (
   assert.match(shell, /validateStudentRoute\(rememberedStudent\.code\)/);
   assert.match(shell, /openExam\(rememberedType,false,rememberedStudent\.code\)/);
   assert.match(shell, /code\.value=pendingStudentCode;login\.click\(\)/);
+  assert.match(shell, /overlay\?\.classList\.contains\('hidden'\)/,
+    'outer loading screen must stay until the inner login has completed');
 });
 
 test('OGE matches the shared visual language without exposing administrative duration', () => {
@@ -36,4 +38,34 @@ test('screenshot sheets allow scrolling instead of clipping long conditions', ()
   assert.match(oge, /\.shot-page\{[^}]*overflow:auto/);
   assert.match(oge, /\.shot-body\{height:778px;overflow:auto/);
   assert.match(oge, /\.shot-task\{[^}]*overflow:visible/);
+});
+
+test('EGE has no background music source or playback path', () => {
+  assert.doesNotMatch(ege, /id="bgMusic"/);
+  assert.doesNotMatch(ege, /startSynthMusic|\.play\(\)/);
+  assert.doesNotMatch(ege, /storeLocal\(\);AudioFX\.startMusic\(\)/);
+  assert.match(ege, /storeLocal\(\);AudioFX\.stopMusic\(\);verifyInBackground/);
+});
+
+test('all eight OGE practical sets have detailed solutions for tasks 1–5', () => {
+  const encoded = oge.match(/const PRACTICE_SOLUTIONS=(\{.*\});\nfunction practiceSolution/);
+  assert.ok(encoded, 'OGE practical solution map must exist');
+  const solutions = JSON.parse(encoded[1]);
+  assert.equal(Object.keys(solutions).length, 40);
+  for (let group = 1; group <= 8; group += 1) {
+    for (let task = 1; task <= 5; task += 1) {
+      const solution = solutions[`${group}-${task}`];
+      assert.ok(solution, `solution ${group}-${task} must exist`);
+      assert.match(solution, /Шаг 1/);
+      assert.match(solution, /Шаг 2/);
+      assert.match(solution, /Ответ:/);
+    }
+  }
+  assert.match(oge, /explain:accepted\.length\?practiceSolution\(item,accepted\)/);
+});
+
+test('OGE restores a completed result instead of returning to its login screen', () => {
+  assert.match(oge, /function showCompletedResult\(value=null\)/);
+  assert.match(oge, /if\(local\?\.submittedAt\).*showCompletedResult\(local\.result\)/);
+  assert.match(oge, /result:app\.result\|\|null/);
 });
