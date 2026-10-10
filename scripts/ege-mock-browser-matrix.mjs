@@ -70,6 +70,7 @@ const control = {
   submitted: false,
   serverEventId: '',
   serverResult: null,
+  serverAnswers: null,
   offlineValidationAvailable: false,
   lookupDelayMs: 0,
   activeVariant: null
@@ -94,7 +95,9 @@ async function configureRoutes(context, { lookupSubmitted = false, selectedStude
       { v: control.serverResult?.primaryScore ?? '' },
       { v: '' },
       { v: control.serverResult?.maxPrimaryScore ?? '' },
-      { v: control.serverResult?.scorePercent ?? '' }
+      { v: control.serverResult?.scorePercent ?? '' },
+      { v: new Date().toISOString() },
+      { v: control.serverAnswers ? JSON.stringify(control.serverAnswers) : '' }
     ] }] : [];
     const data = { status: 'ok', table: { cols: [], rows } };
     if (control.lookupDelayMs) await new Promise(resolve => setTimeout(resolve, control.lookupDelayMs));
@@ -382,16 +385,25 @@ try {
   const freshPage = await freshContext.newPage();
   try {
     await freshPage.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    control.serverAnswers = beforeReload.answers;
     const freshFrame = await openAttempt(freshPage);
     await waitFor(() => freshFrame.evaluate(() => globalThis.__EGE_MOCK_PERSISTENCE__.isLocked()));
     assert.equal(await freshFrame.locator('#exam').evaluate(element => element.classList.contains('hidden')), true);
     assert.equal(await freshFrame.locator('#loginOverlay').evaluate(element => element.classList.contains('hidden')), true);
-    await freshFrame.locator('#mockSubmittedOverlay:not(.hidden)').waitFor();
-    assert.match(await freshFrame.locator('#mockSubmittedOverlay').textContent(), /пробник уже сдан/i);
-    assert.match(await freshFrame.locator('#mockSubmittedOverlay').textContent(), /20 из 33 первичных · 86 тестовых/i);
+    await freshFrame.locator('#resultOverlay:not(.hidden)').waitFor();
+    assert.equal(await freshFrame.locator('#popupPrimary').textContent(), '20 из 33');
+    assert.equal(await freshFrame.locator('#popupConvertedScore').textContent(), '86 из 100');
+    await freshFrame.locator('#resultReviewBtn').click();
+    await freshFrame.locator('#solutionReviewOverlay:not(.hidden)').waitFor();
+    assert.equal(await freshFrame.locator('#answer-1').inputValue(), beforeReload.answers[0]);
+    assert.equal(await freshFrame.locator('#answer-1').isEditable(), false);
+    assert.equal(await freshFrame.locator('[id^="answer-"]').evaluateAll(inputs =>
+      inputs.length > 0 && inputs.every(input => input.readOnly)), true);
+    assert.equal(await freshFrame.locator('#exam').evaluate(element => element.classList.contains('hidden')), true);
     assert.equal(control.posts.length, postsAfterConfirmation, 'fresh-device lookup must not create a new POST');
     await assertTransportStateHidden(freshFrame);
   } finally {
+    control.serverAnswers = null;
     await freshContext.close();
   }
 
@@ -452,7 +464,7 @@ try {
       bankGraphTask12RehydratesFromPrototypeId: true,
       transportMessagesHidden: true,
       mobileReloadRestoresAttempt: true,
-      freshDeviceIsBlockedByServerLookup: true,
+      freshDeviceRestoresReadOnlyReviewFromServer: true,
       validationOutageSurvivesFinishReloadAndRecovery: true
     },
     stableEventId,

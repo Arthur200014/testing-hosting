@@ -59,6 +59,21 @@ function numberOrNull(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+function lookupAnswers(value) {
+  if (Array.isArray(value) || isObject(value)) return structuredClone(value);
+  const text = clean(value);
+  if (!text) return null;
+  try {
+    const parsed = JSON.parse(text);
+    return Array.isArray(parsed) || isObject(parsed) ? parsed : null;
+  } catch { return null; }
+}
+
+function hasLookupAnswers(value) {
+  return (Array.isArray(value) && value.length > 0)
+    || (isObject(value) && Object.keys(value).length > 0);
+}
+
 function serverResult(programId, lookupResult = {}, localResult = {}) {
   const primary = numberOrNull(lookupResult.primaryScore);
   if (primary === null) return localResult;
@@ -188,35 +203,65 @@ export function createMockSubmissionLookup({
   if (!clean(url)) throw new TypeError('lookup url is required');
   if (!document?.createElement || !document?.head?.appendChild) throw new TypeError('document with head is required');
   let sequence = 0;
-  return ({ studentId, programId, mockId } = {}) => new Promise((resolve, reject) => {
+  return async ({ studentId, programId, mockId } = {}) => {
     const student = clean(studentId);
     const program = clean(programId);
     const mock = clean(mockId);
-    if (!student || !program || !mock) return reject(new TypeError('studentId, programId, and mockId are required'));
-    const callback = `__mockLookup_${Date.now()}_${++sequence}`;
-    const script = document.createElement('script');
-    let settled = false;
-    const cleanup = () => {
-      root.clearTimeout?.(timer);
-      try { delete root[callback]; } catch { root[callback] = undefined; }
-      script.onerror = null;
-      script.remove?.();
-      if (script.parentNode?.removeChild) script.parentNode.removeChild(script);
-    };
-    const finish = (error, value) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      error ? reject(error) : resolve(value);
-    };
-    const timer = root.setTimeout(() => finish(new Error('mock submission lookup timed out')), timeoutMs);
-    root[callback] = data => {
-      if (!isObject(data) || data.status !== 'ok' || !isObject(data.table)) {
-        return finish(new Error('mock submission lookup failed'));
-      }
-      const row = Array.isArray(data.table.rows) ? data.table.rows[0] : null;
-      const values = Array.isArray(row?.c) ? row.c.map(cell => cell?.v ?? '') : [];
-      finish(null, row ? {
+    if (!student || !program || !mock) throw new TypeError('studentId, programId, and mockId are required');
+    const quote = value => clean(value).replaceAll("'", "''");
+    const where = `where B='${quote(student)}' and C='${quote(mock)}' and K='${quote(program)}' order by I desc limit 1`;
+    const request = tq => new Promise((resolve, reject) => {
+      const callback = `__mockLookup_${Date.now()}_${++sequence}`;
+      const script = document.createElement('script');
+      let settled = false;
+      const cleanup = () => {
+        root.clearTimeout?.(timer);
+        try { delete root[callback]; } catch { root[callback] = undefined; }
+        script.onerror = null;
+        script.remove?.();
+        if (script.parentNode?.removeChild) script.parentNode.removeChild(script);
+      };
+      const finish = (error, value) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        error ? reject(error) : resolve(value);
+      };
+      const timer = root.setTimeout(() => finish(new Error('mock submission lookup timed out')), timeoutMs);
+      root[callback] = data => {
+        if (!isObject(data) || data.status !== 'ok' || !isObject(data.table)) {
+          const error = new Error('mock submission lookup failed');
+          const errors = Array.isArray(data?.errors) ? data.errors : [];
+          if (errors.some(item => clean(item?.reason) === 'invalid_query')
+              || JSON.stringify(data || {}).includes('NO_COLUMN: O')) {
+            error.code = 'MOCK_EXTENDED_LOOKUP_UNAVAILABLE';
+          }
+          return finish(error);
+        }
+        finish(null, Array.isArray(data.table.rows) ? data.table.rows[0] || null : null);
+      };
+      script.onerror = () => finish(new Error('mock submission lookup failed'));
+      const query = new URLSearchParams({
+        sheet: sheetName,
+        headers: '1',
+        tq,
+        tqx: `out:json;responseHandler:${callback}`,
+        _: `${Date.now()}-${sequence}`
+      });
+      script.src = `${url}${url.includes('?') ? '&' : '?'}${query.toString()}`;
+      document.head.appendChild(script);
+    });
+    let row;
+    let includesAnswers = true;
+    try {
+      row = await request(`select A,B,C,K,F,G,L,M,N,I,O ${where}`);
+    } catch (error) {
+      if (error?.code !== 'MOCK_EXTENDED_LOOKUP_UNAVAILABLE') throw error;
+      includesAnswers = false;
+      row = await request(`select A,B,C,K,F,G,L,M,N ${where}`);
+    }
+    const values = Array.isArray(row?.c) ? row.c.map(cell => cell?.v ?? '') : [];
+    return row ? {
         submitted: true,
         eventId: clean(values[0]),
         studentId: clean(values[1]) || student,
@@ -226,22 +271,11 @@ export function createMockSubmissionLookup({
         primaryScore: numberOrNull(values[5]),
         gradeMark: numberOrNull(values[6]),
         maxPrimaryScore: numberOrNull(values[7]),
-        scorePercent: numberOrNull(values[8])
-      } : { submitted: false, studentId: student, mockId: mock, programId: program });
-    };
-    script.onerror = () => finish(new Error('mock submission lookup failed'));
-    const quote = value => clean(value).replaceAll("'", "''");
-    const tq = `select A,B,C,K,F,G,L,M,N where B='${quote(student)}' and C='${quote(mock)}' and K='${quote(program)}' order by I desc limit 1`;
-    const query = new URLSearchParams({
-      sheet: sheetName,
-      headers: '1',
-      tq,
-      tqx: `out:json;responseHandler:${callback}`,
-      _: `${Date.now()}-${sequence}`
-    });
-    script.src = `${url}${url.includes('?') ? '&' : '?'}${query.toString()}`;
-    document.head.appendChild(script);
-  });
+        scorePercent: numberOrNull(values[8]),
+        submittedAt: includesAnswers ? clean(values[9]) : '',
+        answers: includesAnswers ? lookupAnswers(values[10]) : null
+      } : { submitted: false, studentId: student, mockId: mock, programId: program };
+  };
 }
 
 // A HTTP 200 or { ok: true } alone is not a receipt. The server must explicitly
@@ -603,6 +637,38 @@ export function installEgeMockPersistenceBridge({
       hideAlreadySubmittedNotice(root);
       root.document?.getElementById('loginOverlay')?.classList?.add('hidden');
       if (typeof root.showResult === 'function') root.showResult(saved.result);
+      return;
+    }
+    if (current && hasLookupAnswers(lookupResult.answers)) {
+      const answers = Array.isArray(lookupResult.answers)
+        ? [...lookupResult.answers]
+        : Object.values(lookupResult.answers);
+      answers.forEach((value, index) => {
+        const input = root.document?.getElementById(`answer-${index + 1}`);
+        if (!input) return;
+        input.value = clean(value);
+        input.dispatchEvent?.(new root.Event('input', { bubbles: true }));
+      });
+      root.document?.querySelectorAll?.('[id^="answer-"]')?.forEach(input => {
+        input.readOnly = true;
+        input.setAttribute?.('aria-readonly', 'true');
+      });
+      const result = serverResult(programId, lookupResult, saved?.result || {});
+      const submittedAt = Date.parse(lookupResult.submittedAt) || Date.now();
+      current.answers = answers;
+      current.submittedAt = submittedAt;
+      current.finished = true;
+      try {
+        saved = persistence.saveAttempt(snapshot({
+          answers,
+          result,
+          submittedAt,
+          phase: MOCK_ATTEMPT_PHASES.CONFIRMED
+        }));
+      } catch {}
+      hideAlreadySubmittedNotice(root);
+      root.document?.getElementById('loginOverlay')?.classList?.add('hidden');
+      if (typeof root.showResult === 'function') root.showResult(saved?.result || result);
       return;
     }
     for (const id of ['exam', 'topbar', 'result', 'resultOverlay', 'confirmOverlay']) {
@@ -1126,6 +1192,38 @@ export function installOgeMockPersistenceBridge({
       hideAlreadySubmittedNotice(root);
       root.document?.getElementById('loginOverlay')?.classList?.add('hidden');
       if (typeof root.showCompletedResult === 'function') root.showCompletedResult(saved.result);
+      return;
+    }
+    if (hasLookupAnswers(lookupResult.answers)) {
+      const answerEntries = Array.isArray(lookupResult.answers)
+        ? lookupResult.answers.map((value, index) => [index + 1, value])
+        : Object.entries(lookupResult.answers);
+      for (const [task, value] of answerEntries) {
+        const input = root.document?.getElementById(`ans-${task}`);
+        if (!input) continue;
+        input.value = clean(value);
+        input.dispatchEvent?.(new root.Event('input', { bubbles: true }));
+      }
+      root.document?.querySelectorAll?.('[id^="ans-"]')?.forEach(input => {
+        input.readOnly = true;
+        input.setAttribute?.('aria-readonly', 'true');
+      });
+      const result = serverResult(programId, lookupResult, saved?.result || {});
+      const submittedAt = Date.parse(lookupResult.submittedAt) || Date.now();
+      if (current.app && isObject(current.app)) {
+        current.app.submittedAt = submittedAt;
+        current.app.result = result;
+      }
+      try {
+        saved = persistence.saveAttempt({
+          ...snapshot({ answers: lookupResult.answers, result, submittedAt }),
+          phase: MOCK_ATTEMPT_PHASES.CONFIRMED
+        });
+      } catch {}
+      hideAlreadySubmittedNotice(root);
+      root.document?.getElementById('loginOverlay')?.classList?.add('hidden');
+      root.document?.getElementById('examMain')?.classList?.add('hidden');
+      if (typeof root.showCompletedResult === 'function') root.showCompletedResult(saved?.result || result);
       return;
     }
     for (const id of ['examMain', 'resultOverlay', 'confirmOverlay', 'reviewOverlay']) {

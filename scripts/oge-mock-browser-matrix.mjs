@@ -58,6 +58,7 @@ const control = {
   submitted: false,
   serverEventId: '',
   serverResult: null,
+  serverAnswers: null,
   offlineValidationAvailable: false,
   lookupDelayMs: 0
 };
@@ -74,7 +75,9 @@ function lookupResponse(url) {
     { v: control.serverResult?.primaryScore ?? '' },
     { v: control.serverResult?.gradeMark ?? '' },
     { v: control.serverResult?.maxPrimaryScore ?? '' },
-    { v: control.serverResult?.scorePercent ?? '' }
+    { v: control.serverResult?.scorePercent ?? '' },
+    { v: new Date().toISOString() },
+    { v: control.serverAnswers ? JSON.stringify(control.serverAnswers) : '' }
   ] }] : [];
   return { callback, data: { status: 'ok', table: { cols: [], rows } } };
 }
@@ -318,16 +321,25 @@ try {
   contexts.push(freshContext);
   await configureRoutes(freshContext);
   const freshPage = await freshContext.newPage();
+  control.serverAnswers = beforeReload.answers;
   await freshPage.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
   const freshFrame = await openAttempt(freshPage);
   await waitFor(() => freshFrame.evaluate(() => globalThis.__OGE_MOCK_PERSISTENCE__.isLocked()));
   assert.equal(await freshFrame.locator('#examMain').evaluate(element => element.classList.contains('hidden')), true);
   assert.equal(await freshFrame.locator('#loginOverlay').evaluate(element => element.classList.contains('hidden')), true);
-  await freshFrame.locator('#mockSubmittedOverlay:not(.hidden)').waitFor();
-  assert.match(await freshFrame.locator('#mockSubmittedOverlay').textContent(), /пробник уже сдан/i);
-  assert.match(await freshFrame.locator('#mockSubmittedOverlay').textContent(), /22 из 31 первичных · оценка 5/i);
+  await freshFrame.locator('#resultOverlay:not(.hidden)').waitFor();
+  assert.equal(await freshFrame.locator('#resultPrimary').textContent(), '22 / 31');
+  assert.equal(await freshFrame.locator('#resultGradeMark').textContent(), '5');
+  await freshFrame.locator('#reviewOpen').click();
+  await freshFrame.locator('#reviewOverlay:not(.hidden)').waitFor();
+  assert.equal(await freshFrame.locator('#ans-1').inputValue(), beforeReload.answers[1]);
+  assert.equal(await freshFrame.locator('#ans-1').isEditable(), false);
+  assert.equal(await freshFrame.locator('[id^="ans-"]').evaluateAll(inputs =>
+    inputs.length > 0 && inputs.every(input => input.readOnly)), true);
+  assert.equal(await freshFrame.locator('#examMain').evaluate(element => element.classList.contains('hidden')), true);
   assert.equal(control.posts.length, 3, 'fresh-device lookup must not create a new POST');
   await assertTransportStateHidden(freshFrame);
+  control.serverAnswers = null;
 
   const offlineContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -404,7 +416,7 @@ try {
       resultSnapshotPersists: true,
       confirmedResultSurvivesBackgroundLookupAndReviewOpens: true,
       practicalTasksOneToFiveHaveDetailedSolutions: true,
-      freshDeviceIsBlockedByServerLookup: true,
+      freshDeviceRestoresReadOnlyReviewFromServer: true,
       validationOutageSurvivesFinishReloadAndRecovery: true,
       missingPersistenceModuleFailsClosed: true,
       transportMessagesHidden: true

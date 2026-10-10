@@ -243,14 +243,15 @@ test('JSONP lookup targets Пробники and cleans the callback and script o
   const script = root.scripts[0];
   const query = new URL(script.src).searchParams;
   assert.equal(query.get('sheet'), 'Пробники');
-  assert.match(query.get('tq'), /^select A,B,C,K,F,G,L,M,N /);
+  assert.match(query.get('tq'), /^select A,B,C,K,F,G,L,M,N,I,O /);
   assert.match(query.get('tq'), /B='S 1'.*C='M\/1'.*K='OGE_MATH'.*order by I desc/);
   const callback = query.get('tqx').split('responseHandler:')[1];
   root[callback]({
     status: 'ok',
     table: { rows: [{ c: [
       { v: 'event-1' }, { v: 'S 1' }, { v: 'M/1' }, { v: 'OGE_MATH' },
-      { v: '' }, { v: 22 }, { v: 5 }, { v: 31 }, { v: 71 }
+      { v: '' }, { v: 22 }, { v: 5 }, { v: 31 }, { v: 71 },
+      { v: '2026-10-10T12:00:00.000Z' }, { v: '{"1":"7","2":""}' }
     ] }] }
   });
   assert.deepEqual(await pending, {
@@ -263,10 +264,54 @@ test('JSONP lookup targets Пробники and cleans the callback and script o
     primaryScore: 22,
     gradeMark: 5,
     maxPrimaryScore: 31,
-    scorePercent: 71
+    scorePercent: 71,
+    submittedAt: '2026-10-10T12:00:00.000Z',
+    answers: { 1: '7', 2: '' }
   });
   assert.equal(script.removed, true);
   assert.equal(root[callback], undefined);
+});
+
+test('JSONP lookup keeps legacy submission blocking before answersJson column exists', async () => {
+  const root = fakeJsonpRoot();
+  const lookup = createMockSubmissionLookup({ url: 'https://example.test/api', root, timeoutMs: 100 });
+  const pending = lookup({ studentId: 'S1', programId: 'EGE_MATH', mockId: 'M1' });
+  const firstScript = root.scripts[0];
+  const firstQuery = new URL(firstScript.src).searchParams;
+  const firstCallback = firstQuery.get('tqx').split('responseHandler:')[1];
+  root[firstCallback]({
+    status: 'error',
+    errors: [{ reason: 'invalid_query', detailed_message: 'Invalid query: NO_COLUMN: O' }]
+  });
+  await new Promise(resolve => setTimeout(resolve, 0));
+  const fallbackScript = root.scripts[1];
+  assert.ok(fallbackScript, 'legacy lookup should be requested');
+  const fallbackQuery = new URL(fallbackScript.src).searchParams;
+  assert.match(fallbackQuery.get('tq'), /^select A,B,C,K,F,G,L,M,N /);
+  const fallbackCallback = fallbackQuery.get('tqx').split('responseHandler:')[1];
+  root[fallbackCallback]({
+    status: 'ok',
+    table: { rows: [{ c: [
+      { v: 'event-legacy' }, { v: 'S1' }, { v: 'M1' }, { v: 'EGE_MATH' },
+      { v: 78 }, { v: 18 }, { v: '' }, { v: 33 }, { v: 55 }
+    ] }] }
+  });
+  assert.deepEqual(await pending, {
+    submitted: true,
+    eventId: 'event-legacy',
+    studentId: 'S1',
+    mockId: 'M1',
+    programId: 'EGE_MATH',
+    testScore: 78,
+    primaryScore: 18,
+    gradeMark: null,
+    maxPrimaryScore: 33,
+    scorePercent: 55,
+    submittedAt: '',
+    answers: null
+  });
+  assert.equal(firstScript.removed, true);
+  assert.equal(fallbackScript.removed, true);
 });
 
 test('JSONP lookup times out and cleans the callback and script', async () => {
