@@ -243,18 +243,27 @@ test('JSONP lookup targets Пробники and cleans the callback and script o
   const script = root.scripts[0];
   const query = new URL(script.src).searchParams;
   assert.equal(query.get('sheet'), 'Пробники');
-  assert.match(query.get('tq'), /B='S 1'.*C='M\/1'.*K='OGE_MATH'/);
+  assert.match(query.get('tq'), /^select A,B,C,K,F,G,L,M,N /);
+  assert.match(query.get('tq'), /B='S 1'.*C='M\/1'.*K='OGE_MATH'.*order by I desc/);
   const callback = query.get('tqx').split('responseHandler:')[1];
   root[callback]({
     status: 'ok',
-    table: { rows: [{ c: [{ v: 'event-1' }, { v: 'S 1' }, { v: 'M/1' }, { v: 'OGE_MATH' }] }] }
+    table: { rows: [{ c: [
+      { v: 'event-1' }, { v: 'S 1' }, { v: 'M/1' }, { v: 'OGE_MATH' },
+      { v: '' }, { v: 22 }, { v: 5 }, { v: 31 }, { v: 71 }
+    ] }] }
   });
   assert.deepEqual(await pending, {
     submitted: true,
     eventId: 'event-1',
     studentId: 'S 1',
     mockId: 'M/1',
-    programId: 'OGE_MATH'
+    programId: 'OGE_MATH',
+    testScore: null,
+    primaryScore: 22,
+    gradeMark: 5,
+    maxPrimaryScore: 31,
+    scorePercent: 71
   });
   assert.equal(script.removed, true);
   assert.equal(root[callback], undefined);
@@ -336,6 +345,29 @@ test('OGE bridge queues offline submission and retries on online with stable rec
   assert.equal(root.posts.length, 1);
   assert.equal(bridge.persistence.readOutbox().length, 0);
   assert.equal(root.posts[0].eventId, stableMockSubmissionEventId(payload));
+  bridge.dispose();
+});
+
+test('OGE bridge adds the converted grade to the durable spreadsheet payload', async () => {
+  const { root } = fakeOgeRoot();
+  const bridge = installOgeMockPersistenceBridge({ root, lookup: root.__lookup, programId: 'OGE_MATH' });
+  await root.validateStudent('S-1');
+  await root.apiPost({
+    action: 'submitAssignedMock',
+    studentId: 'S-1',
+    programId: 'OGE_MATH',
+    mockId: 'MOCK-7',
+    variantId: 'VAR-7',
+    primaryScore: 15,
+    maxPrimaryScore: 19,
+    scorePercent: 79,
+    durationSeconds: 60
+  });
+  assert.equal(root.posts.length, 1);
+  assert.equal(root.posts[0].gradeMark, 4);
+  const saved = bridge.persistence.loadCurrent({ programId: 'OGE_MATH', studentCode: 'S-1' });
+  assert.equal(saved.result.gradeMark, 4);
+  assert.equal(saved.result.finalized, false);
   bridge.dispose();
 });
 

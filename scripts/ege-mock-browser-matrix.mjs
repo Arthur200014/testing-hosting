@@ -64,6 +64,7 @@ const control = {
   reads: [],
   submitted: false,
   serverEventId: '',
+  serverResult: null,
   offlineValidationAvailable: false,
   lookupDelayMs: 0
 };
@@ -82,7 +83,12 @@ async function configureRoutes(context, { lookupSubmitted = false, selectedStude
       { v: control.serverEventId || 'existing-event' },
       { v: student.studentId },
       { v: 'EGE2027-MOCK-EGE-V-MUOMEHKN-Y6Z8' },
-      { v: 'EGE_MATH' }
+      { v: 'EGE_MATH' },
+      { v: control.serverResult?.testScore ?? '' },
+      { v: control.serverResult?.primaryScore ?? '' },
+      { v: '' },
+      { v: control.serverResult?.maxPrimaryScore ?? '' },
+      { v: control.serverResult?.scorePercent ?? '' }
     ] }] : [];
     const data = { status: 'ok', table: { cols: [], rows } };
     if (control.lookupDelayMs) await new Promise(resolve => setTimeout(resolve, control.lookupDelayMs));
@@ -236,6 +242,10 @@ try {
   assert.equal(queued.eventId, stableEventId);
   assert.equal(queued.saved.phase, 'queued');
   assert.equal(queued.saved.result.primary, 0);
+  assert.equal(queued.saved.result.testScore, 0);
+  assert.equal(control.posts[0].testScore, 0, 'EGE converted score must be sent to the sheet');
+  assert.equal(await frame.locator('#popupConvertedScore').textContent(), '0 из 100');
+  assert.match(await frame.locator('[data-converted-score-label]').textContent(), /предварительный/);
   await assertTransportStateHidden(frame);
 
   control.mode = 'mismatch';
@@ -258,6 +268,7 @@ try {
   assert.deepEqual(confirmed.answers, beforeReload.answers);
 
   const postsAfterConfirmation = control.posts.length;
+  control.serverResult = { primaryScore: 20, maxPrimaryScore: 33, scorePercent: 61, testScore: 86 };
   control.lookupDelayMs = 500;
   await page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 });
   frame = await openAttempt(page);
@@ -270,10 +281,16 @@ try {
   assert.equal(reopened.eventId, stableEventId);
   assert.deepEqual(reopened.answers, beforeReload.answers);
   assert.equal(reopened.saved.phase, 'confirmed');
+  assert.equal(reopened.saved.result.primary, 20);
+  assert.equal(reopened.saved.result.testScore, 86);
+  assert.equal(reopened.saved.result.finalized, true);
   assert.equal(control.posts.length, postsAfterConfirmation, 'confirmed result must not be posted again');
   assert.equal(await frame.locator('#loginOverlay').evaluate(node => node.classList.contains('hidden')), true,
     'background prior-submission lookup must not replace a restored result with login');
   assert.equal(await frame.locator('#resultOverlay').evaluate(node => node.classList.contains('hidden')), false);
+  assert.equal(await frame.locator('#popupPrimary').textContent(), '20 из 33');
+  assert.equal(await frame.locator('#popupConvertedScore').textContent(), '86 из 100');
+  assert.match(await frame.locator('[data-converted-score-label]').textContent(), /тестовый балл/);
   await frame.locator('#resultReviewBtn').click();
   await frame.locator('#solutionReviewOverlay:not(.hidden)').waitFor();
   await frame.locator('[data-v15-solution="0"]').click();
@@ -322,6 +339,7 @@ try {
     assert.equal(await freshFrame.locator('#loginOverlay').evaluate(element => element.classList.contains('hidden')), true);
     await freshFrame.locator('#mockSubmittedOverlay:not(.hidden)').waitFor();
     assert.match(await freshFrame.locator('#mockSubmittedOverlay').textContent(), /пробник уже сдан/i);
+    assert.match(await freshFrame.locator('#mockSubmittedOverlay').textContent(), /20 из 33 первичных · 86 тестовых/i);
     assert.equal(control.posts.length, postsAfterConfirmation, 'fresh-device lookup must not create a new POST');
     await assertTransportStateHidden(freshFrame);
   } finally {
@@ -378,6 +396,8 @@ try {
       htmlResponseStaysQueued: true,
       mismatchedReceiptStaysQueued: true,
       matchingReceiptConfirms: true,
+      provisionalScoreIsDisplayedAndSaved: true,
+      finalizedScoreIsRestoredFromSheet: true,
       completedAttemptReopensExactly: true,
       confirmedResultSurvivesBackgroundLookupAndReviewOpens: true,
       transportMessagesHidden: true,

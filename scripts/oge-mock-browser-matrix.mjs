@@ -57,6 +57,7 @@ const control = {
   posts: [],
   submitted: false,
   serverEventId: '',
+  serverResult: null,
   offlineValidationAvailable: false,
   lookupDelayMs: 0
 };
@@ -68,7 +69,12 @@ function lookupResponse(url) {
     { v: control.serverEventId },
     { v: student.studentId },
     { v: 'OGE2027-MOCK-OGE-READY-DEMO-2027' },
-    { v: 'OGE_MATH' }
+    { v: 'OGE_MATH' },
+    { v: '' },
+    { v: control.serverResult?.primaryScore ?? '' },
+    { v: control.serverResult?.gradeMark ?? '' },
+    { v: control.serverResult?.maxPrimaryScore ?? '' },
+    { v: control.serverResult?.scorePercent ?? '' }
   ] }] : [];
   return { callback, data: { status: 'ok', table: { cols: [], rows } } };
 }
@@ -246,6 +252,10 @@ try {
   assert.equal(queued.outbox[0].eventId, beforeReload.eventId);
   assert.equal(queued.saved.phase, 'queued', JSON.stringify(queued));
   assert.equal(queued.saved.result.primary, 1);
+  assert.equal(queued.saved.result.gradeMark, 2);
+  assert.equal(control.posts[0].gradeMark, 2, 'OGE grade must be sent to the sheet');
+  assert.equal(await frame.locator('#resultGradeMark').textContent(), '2');
+  assert.match(await frame.locator('[data-converted-score-label]').textContent(), /предварительная/);
   await assertTransportStateHidden(frame);
 
   control.mode = 'mismatch';
@@ -266,6 +276,7 @@ try {
   await assertTransportStateHidden(frame);
 
   const postsAfterConfirmation = control.posts.length;
+  control.serverResult = { primaryScore: 22, maxPrimaryScore: 31, scorePercent: 71, gradeMark: 5 };
   control.lookupDelayMs = 500;
   await page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 });
   frame = await openAttempt(page);
@@ -276,6 +287,13 @@ try {
   assert.equal(await frame.locator('#loginOverlay').evaluate(node => node.classList.contains('hidden')), true,
     'background prior-submission lookup must not replace a restored result with login');
   assert.equal(await frame.locator('#resultOverlay').evaluate(node => node.classList.contains('hidden')), false);
+  assert.equal(await frame.locator('#resultPrimary').textContent(), '22 / 31');
+  assert.equal(await frame.locator('#resultGradeMark').textContent(), '5');
+  assert.match(await frame.locator('[data-converted-score-label]').textContent(), /итоговая оценка/);
+  const reopened = await attemptState(frame);
+  assert.equal(reopened.saved.result.primary, 22);
+  assert.equal(reopened.saved.result.gradeMark, 5);
+  assert.equal(reopened.saved.result.finalized, true);
   assert.equal(control.posts.length, postsAfterConfirmation, 'opening a confirmed result must not create another POST');
   await frame.locator('#reviewOpen').click();
   await frame.locator('#reviewOverlay:not(.hidden)').waitFor();
@@ -307,6 +325,7 @@ try {
   assert.equal(await freshFrame.locator('#loginOverlay').evaluate(element => element.classList.contains('hidden')), true);
   await freshFrame.locator('#mockSubmittedOverlay:not(.hidden)').waitFor();
   assert.match(await freshFrame.locator('#mockSubmittedOverlay').textContent(), /пробник уже сдан/i);
+  assert.match(await freshFrame.locator('#mockSubmittedOverlay').textContent(), /22 из 31 первичных · оценка 5/i);
   assert.equal(control.posts.length, 3, 'fresh-device lookup must not create a new POST');
   await assertTransportStateHidden(freshFrame);
 
@@ -380,6 +399,8 @@ try {
       htmlResponseStaysQueued: true,
       mismatchedReceiptStaysQueued: true,
       matchingReceiptConfirms: true,
+      provisionalGradeIsDisplayedAndSaved: true,
+      finalizedGradeIsRestoredFromSheet: true,
       resultSnapshotPersists: true,
       confirmedResultSurvivesBackgroundLookupAndReviewOpens: true,
       practicalTasksOneToFiveHaveDetailedSolutions: true,

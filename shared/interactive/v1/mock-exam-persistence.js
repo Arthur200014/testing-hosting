@@ -1,3 +1,9 @@
+import {
+  convertedMockPayload,
+  convertedMockResult,
+  mockScoreSummary
+} from './mock-score-conversion.js';
+
 export const MOCK_ATTEMPT_PHASES = Object.freeze({
   IN_PROGRESS: 'in_progress',
   QUEUED: 'queued',
@@ -12,7 +18,7 @@ function hideAlreadySubmittedNotice(root) {
   root.document?.getElementById('mockSubmittedOverlay')?.classList?.add('hidden');
 }
 
-function showAlreadySubmittedNotice(root) {
+function showAlreadySubmittedNotice(root, programId = '', score = {}) {
   const document = root.document;
   if (!document?.createElement) return null;
   let overlay = document.getElementById('mockSubmittedOverlay');
@@ -30,12 +36,91 @@ function showAlreadySubmittedNotice(root) {
     title.textContent = 'Пробник уже сдан';
     const copy = document.createElement('p');
     copy.textContent = 'Повторная отправка недоступна. Чтобы войти под другим кодом, нажмите «Сменить ученика» сверху.';
+    const summary = document.createElement('p');
+    summary.dataset.mockScoreSummary = 'true';
+    summary.style.fontWeight = '900';
     modal.append(title, copy);
+    modal.append(summary);
     overlay.append(modal);
     document.body?.append(overlay);
   }
+  const summary = overlay.querySelector?.('[data-mock-score-summary]');
+  if (summary) {
+    summary.textContent = mockScoreSummary(programId, score);
+    summary.hidden = !summary.textContent;
+  }
   overlay.classList.remove('hidden');
   return overlay;
+}
+
+function numberOrNull(value) {
+  if (value === null || value === undefined || clean(value) === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function serverResult(programId, lookupResult = {}, localResult = {}) {
+  const primary = numberOrNull(lookupResult.primaryScore);
+  if (primary === null) return localResult;
+  return convertedMockResult(programId, {
+    ...localResult,
+    primary,
+    maxPrimary: numberOrNull(lookupResult.maxPrimaryScore) || localResult.maxPrimary,
+    scorePercent: numberOrNull(lookupResult.scorePercent) ?? localResult.scorePercent,
+    testScore: numberOrNull(lookupResult.testScore) ?? localResult.testScore,
+    gradeMark: numberOrNull(lookupResult.gradeMark) ?? localResult.gradeMark
+  });
+}
+
+function updateSavedServerResult(persistence, saved, lookupResult, programId) {
+  if (!saved) return null;
+  const result = serverResult(programId, lookupResult, saved.result || {});
+  if (result === saved.result) return saved;
+  return persistence.saveAttempt({ ...saved, result });
+}
+
+function ensureResultMetric(document, containerSelector, metricClass, id) {
+  const container = document?.querySelector?.(containerSelector);
+  if (!container) return null;
+  container.style.gridTemplateColumns = 'repeat(auto-fit,minmax(130px,1fr))';
+  let metric = document.getElementById(id);
+  if (!metric) {
+    const wrapper = document.createElement('div');
+    wrapper.className = metricClass;
+    metric = document.createElement('b');
+    metric.id = id;
+    const label = document.createElement('span');
+    label.dataset.convertedScoreLabel = 'true';
+    wrapper.append(metric, label);
+    container.append(wrapper);
+  }
+  return metric;
+}
+
+function renderConvertedStudentResult(root, programId, value = {}) {
+  const result = convertedMockResult(programId, value);
+  if (programId === 'EGE_MATH') {
+    const primary = root.document?.getElementById('popupPrimary');
+    if (primary) primary.textContent = `${result.primary} из ${result.maxPrimary}`;
+    const metric = ensureResultMetric(root.document, '.popup-metrics', 'popup-metric', 'popupConvertedScore');
+    if (metric) {
+      metric.textContent = `${result.testScore} из 100`;
+      metric.parentElement.querySelector('[data-converted-score-label]').textContent = result.finalized
+        ? 'тестовый балл'
+        : 'предварительный балл';
+    }
+  } else if (programId === 'OGE_MATH') {
+    const primary = root.document?.getElementById('resultPrimary');
+    if (primary) primary.textContent = `${result.primary} / ${result.maxPrimary}`;
+    const metric = ensureResultMetric(root.document, '.metrics', 'metric', 'resultGradeMark');
+    if (metric) {
+      metric.textContent = String(result.gradeMark);
+      metric.parentElement.querySelector('[data-converted-score-label]').textContent = result.finalized
+        ? 'итоговая оценка'
+        : 'предварительная оценка';
+    }
+  }
+  return result;
 }
 
 function responseBodies(data) {
@@ -130,18 +215,23 @@ export function createMockSubmissionLookup({
         return finish(new Error('mock submission lookup failed'));
       }
       const row = Array.isArray(data.table.rows) ? data.table.rows[0] : null;
-      const values = Array.isArray(row?.c) ? row.c.map(cell => clean(cell?.v)) : [];
+      const values = Array.isArray(row?.c) ? row.c.map(cell => cell?.v ?? '') : [];
       finish(null, row ? {
         submitted: true,
-        eventId: values[0],
-        studentId: values[1] || student,
-        mockId: values[2] || mock,
-        programId: values[3] || program
+        eventId: clean(values[0]),
+        studentId: clean(values[1]) || student,
+        mockId: clean(values[2]) || mock,
+        programId: clean(values[3]) || program,
+        testScore: numberOrNull(values[4]),
+        primaryScore: numberOrNull(values[5]),
+        gradeMark: numberOrNull(values[6]),
+        maxPrimaryScore: numberOrNull(values[7]),
+        scorePercent: numberOrNull(values[8])
       } : { submitted: false, studentId: student, mockId: mock, programId: program });
     };
     script.onerror = () => finish(new Error('mock submission lookup failed'));
     const quote = value => clean(value).replaceAll("'", "''");
-    const tq = `select A,B,C,K where B='${quote(student)}' and C='${quote(mock)}' and K='${quote(program)}' limit 1`;
+    const tq = `select A,B,C,K,F,G,L,M,N where B='${quote(student)}' and C='${quote(mock)}' and K='${quote(program)}' order by I desc limit 1`;
     const query = new URLSearchParams({
       sheet: sheetName,
       headers: '1',
@@ -494,12 +584,13 @@ export function installEgeMockPersistenceBridge({
     return priorLookup({ studentId: ids.studentId, programId, mockId: ids.mockId });
   };
   let lockedByPriorSubmission = false;
-  const lockAlreadySubmitted = () => {
+  const lockAlreadySubmitted = (lookupResult = {}) => {
     lockedByPriorSubmission = true;
     const current = state();
-    const saved = current?.code && current?.variantId
+    let saved = current?.code && current?.variantId
       ? persistence.loadAttempt(identity(current.code, current.variantId))
       : null;
+    saved = updateSavedServerResult(persistence, saved, lookupResult, programId) || saved;
     const keepCompletedResult = Boolean(current?.finished && saved?.submittedAt && saved?.result);
     if (current) {
       current.finished = true;
@@ -518,7 +609,7 @@ export function installEgeMockPersistenceBridge({
       root.document?.getElementById(id)?.classList?.add('hidden');
     }
     root.document?.getElementById('loginOverlay')?.classList?.add('hidden');
-    showAlreadySubmittedNotice(root);
+    showAlreadySubmittedNotice(root, programId, lookupResult);
   };
 
   const phaseFor = item => item?.phase || (item?.submittedAt
@@ -577,6 +668,7 @@ export function installEgeMockPersistenceBridge({
   if (typeof original.showResult === 'function') {
     root.showResult = function showResultWithoutTransportCopy(info) {
       const result = original.showResult(info);
+      renderConvertedStudentResult(root, programId, info);
       const lead = root.document?.getElementById('resultPopupLead');
       if (lead) {
         lead.textContent = `${info?.autoSubmitted ? 'Время истекло. ' : ''}Задания 1–13 проверены автоматически. Учитель проверит задания 14–20 и внесёт итоговый балл.`;
@@ -660,16 +752,25 @@ export function installEgeMockPersistenceBridge({
     const eventId = stableMockSubmissionEventId(ids);
     if (current) current.eventId = eventId;
     try { persistence.rekeyAttempt(identity(current?.code || ids.studentCode, current?.variantId || ids.variantId), eventId); } catch {}
-    const durablePayload = {
+    const durablePayload = convertedMockPayload(programId, {
       ...payload,
       ...ids,
       programId,
       eventId,
       ...(awaitingCanonicalIdentity ? { studentId: '', awaitingCanonicalIdentity: true } : {})
-    };
-    const result = current?.code && current?.variantId
+    });
+    const savedResult = current?.code && current?.variantId
       ? persistence.loadAttempt(identity(current.code, current.variantId))?.result
       : undefined;
+    const result = convertedMockResult(programId, {
+      ...savedResult,
+      primary: durablePayload.primaryScore,
+      maxPrimary: durablePayload.maxPrimaryScore,
+      scorePercent: durablePayload.scorePercent,
+      testScore: durablePayload.testScore,
+      durationSeconds: durablePayload.durationSeconds,
+      autoSubmitted: Boolean(durablePayload.autoSubmitted)
+    });
     persistence.queueSubmission({
       snapshot: snapshot({
         submittedAt: Number(current?.submittedAt) || Date.now(),
@@ -694,7 +795,7 @@ export function installEgeMockPersistenceBridge({
           programId,
           mockId: ids.mockId
         });
-        if (lookupHasSubmission(found)) lockAlreadySubmitted();
+        if (lookupHasSubmission(found)) lockAlreadySubmitted(found);
       } catch {}
       return state()?.student;
     };
@@ -753,7 +854,8 @@ export function installOgeMockPersistenceBridge({
     apiPost: root.apiPost,
     startAttempt: root.startAttempt,
     finish: root.finish,
-    validateStudent: root.validateStudent
+    validateStudent: root.validateStudent,
+    showCompletedResult: root.showCompletedResult
   };
   if (typeof original.loadLocal !== 'function' || typeof original.saveLocal !== 'function'
       || typeof original.apiPost !== 'function') throw new Error('OGE mock persistence hooks are unavailable');
@@ -879,6 +981,13 @@ export function installOgeMockPersistenceBridge({
     try { saveSnapshot(isObject(value) ? value : {}); } catch {}
     return result;
   };
+  if (typeof original.showCompletedResult === 'function') {
+    root.showCompletedResult = function showCompletedResultWithConvertedScore(value) {
+      const result = original.showCompletedResult(value);
+      renderConvertedStudentResult(root, programId, value || result);
+      return result;
+    };
+  }
   // The embedded OGE page attaches its own input handlers before this module
   // loads. Persist once more at document-bubble time so the shared store is
   // updated even in browsers that keep the earlier script binding.
@@ -940,23 +1049,24 @@ export function installOgeMockPersistenceBridge({
     if (current.app && isObject(current.app)) current.app.eventId = eventId;
     else if (current) current.eventId = eventId;
     try { persistence.rekeyAttempt(identity(ids), eventId); } catch {}
-    const payload = {
+    const payload = convertedMockPayload(programId, {
       ...source,
       ...ids,
       action: source.action,
       eventId,
       ...(awaitingCanonicalIdentity ? { studentId: '', awaitingCanonicalIdentity: true } : {})
-    };
+    });
     const attempt = snapshot({
       ...payload,
       submittedAt: source.submittedAt || Date.now(),
-      result: {
+      result: convertedMockResult(programId, {
         primary: Number(source.primaryScore) || 0,
         maxPrimary: Number(source.maxPrimaryScore) || 0,
         scorePercent: Number(source.scorePercent) || 0,
+        gradeMark: payload.gradeMark,
         durationSeconds: Number(source.durationSeconds) || 0,
         autoSubmitted: Boolean(source.autoSubmitted)
-      },
+      }),
       phase: MOCK_ATTEMPT_PHASES.QUEUED
     });
     persistence.queueSubmission({ snapshot: attempt, payload });
@@ -1000,10 +1110,11 @@ export function installOgeMockPersistenceBridge({
   }
 
   let lockedByPriorSubmission = false;
-  const lockAlreadySubmitted = () => {
+  const lockAlreadySubmitted = (lookupResult = {}) => {
     lockedByPriorSubmission = true;
     const current = state();
-    const saved = persistence.loadAttempt(identity(fields()));
+    let saved = persistence.loadAttempt(identity(fields()));
+    saved = updateSavedServerResult(persistence, saved, lookupResult, programId) || saved;
     const keepCompletedResult = Boolean(current.app?.finished && saved?.submittedAt && saved?.result);
     if (current.app && isObject(current.app)) {
       current.app.finished = true;
@@ -1021,7 +1132,7 @@ export function installOgeMockPersistenceBridge({
       root.document?.getElementById(id)?.classList?.add('hidden');
     }
     root.document?.getElementById('loginOverlay')?.classList?.add('hidden');
-    showAlreadySubmittedNotice(root);
+    showAlreadySubmittedNotice(root, programId, lookupResult);
   };
   if (typeof original.validateStudent === 'function') {
     root.validateStudent = async function validateStudentWithPriorLock(...args) {
@@ -1030,7 +1141,7 @@ export function installOgeMockPersistenceBridge({
       catch { return null; }
       try {
         const found = await priorLookup(payload);
-        if (lookupHasSubmission(found)) lockAlreadySubmitted();
+        if (lookupHasSubmission(found)) lockAlreadySubmitted(found);
       } catch {}
       return state().app?.student || state().student;
     };
