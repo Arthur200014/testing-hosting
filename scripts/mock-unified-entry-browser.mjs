@@ -125,6 +125,31 @@ async function runResumeScenario(type, viewport) {
     assert.equal(await page.locator('#home').evaluate(node => node.classList.contains('hidden')), true);
     assert.equal(await frame.locator('#loginOverlay').evaluate(node => node.classList.contains('hidden')), true);
 
+    await page.evaluate(({ key, staleStudent }) => localStorage.setItem(key, JSON.stringify(staleStudent)), {
+      key: 'mockExam:student:v1',
+      staleStudent: {
+        code: 'STALE-OTHER-STUDENT',
+        studentId: 'STALE-OTHER-STUDENT',
+        studentName: 'Другой ученик',
+        programId: student.programId,
+        verifiedAt: Date.now()
+      }
+    });
+    const newTab = await context.newPage();
+    try {
+      await newTab.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      assert.equal(await newTab.locator('#home').evaluate(node => node.classList.contains('hidden')), false,
+        'a new tab must not inherit another student login');
+      assert.equal(await newTab.locator('#viewer').evaluate(node => node.classList.contains('hidden')), true,
+        'a new tab must wait for an explicit student code');
+      assert.equal(await newTab.evaluate(() => localStorage.getItem('mockExam:student:v1')), null,
+        'the obsolete cross-tab student session must be removed');
+      assert.equal(await newTab.evaluate(() => sessionStorage.getItem('mockExam:student:v1')), null,
+        'a new tab must have no student session');
+    } finally {
+      await newTab.close();
+    }
+
     const answer = type === 'ege' ? frame.locator('#answer-1') : frame.locator('.answer-input').first();
     await answer.fill(type === 'ege' ? '17' : '195');
     await answer.dispatchEvent('input');
@@ -264,7 +289,7 @@ try {
   await runResumeScenario('oge', { width: 390, height: 844 });
   await runUnsupportedProgramScenario();
   assert.equal(productionPosts.length, 0, 'resume/visual checks must not submit real results');
-  console.log(`PASS unified mock entry/reload/visual/screenshot: ${remoteBase || 'local'}; production writes: 0`);
+  console.log(`PASS unified mock entry/reload/new-tab-isolation/visual/screenshot: ${remoteBase || 'local'}; production writes: 0`);
 } finally {
   await browser.close();
   if (server) await new Promise(resolve => server.close(resolve));

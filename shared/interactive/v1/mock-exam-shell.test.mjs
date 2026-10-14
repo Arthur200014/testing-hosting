@@ -16,6 +16,13 @@ test('student shell has one exam entry and routes a verified code by program', (
   assert.match(shell, /programId==='EGE_MATH'\?'ege':programId==='OGE_MATH'\?'oge'/);
   assert.match(shell, /validateStudentRoute\(rememberedStudent\.code\)/);
   assert.match(shell, /openExam\(rememberedType,false,rememberedStudent\.code\)/);
+  assert.match(shell, /JSON\.parse\(sessionStorage\.getItem\(STUDENT_SESSION_KEY\)/,
+    'reload resume must use a tab-scoped student session');
+  assert.match(shell, /sessionStorage\.setItem\(STUDENT_SESSION_KEY/);
+  assert.doesNotMatch(shell, /JSON\.parse\(localStorage\.getItem\(STUDENT_SESSION_KEY\)/,
+    'a new tab must not inherit another student login');
+  assert.match(shell, /localStorage\.removeItem\(STUDENT_SESSION_KEY\)/,
+    'obsolete cross-tab student sessions must be removed');
   assert.match(shell, /code\.value=pendingStudentCode;login\.click\(\)/);
   assert.match(shell, /overlay\?\.classList\.contains\('hidden'\)/,
     'outer loading screen must stay until the inner login has completed');
