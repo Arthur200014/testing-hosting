@@ -2268,7 +2268,7 @@
   <!-- Настройка realtime: передавать только курсор учителя; курсоры учеников не отправлять. Рисование, стирание, общие поля и интерактивы синхронизировать для всех. -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
-    import { getDatabase, ref, get, set, update, remove, push, onValue, onChildAdded, onDisconnect, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js";
+    import { getDatabase, ref, get, set, update, remove, push, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js";
     (() => {
       "use strict";
 
@@ -2290,6 +2290,9 @@
       const stateRef = () => ref(database, lessonRoot() + "/state");
       const messagesRef = (sessionId = activeSessionId) => ref(database, lessonRoot() + "/messages/" + sessionId);
       const padsRef = () => ref(database, lessonRoot() + "/pads");
+      // Каждый штрих синхронизируется независимой записью — как в исправно работающем гайде №6.
+      const inkRef = () => ref(database, lessonRoot() + "/ink/" + activeSessionId);
+      const inkStrokeRef = id => ref(database, lessonRoot() + "/ink/" + activeSessionId + "/" + id);
       const interactionsRef = () => ref(database, lessonRoot() + "/interactions");
       const API_URL = "https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
       const TEACHER_CODE_HASH = "b0a83a3919eba1d2a99034f2d94e5a47590f1710595c04bd64b5c8f21456a7c6";
@@ -2314,6 +2317,10 @@ const TEACHER_CODE="A7K4P9";
       let drawing = null, eraseHover = null, suppressUi = false, joiningSilently = false, skipAutoJoin = false, teacherAuthorized = false, toolbarDrag = null;
       let remoteStateUnsub = null, interactionsUnsub = null, padsReady = false, interactionsReady = false, lastWorldSceneSignature = "", practiceSeedPublished = false;
       const padUnsubs = [];
+      const inkUnsubs = [], inkPendingWrites = new Map(), inkFlushTimers = new Map();
+      let inkCache = Object.create(null), inkListenerRun = "", inkGeneration = 0;
+      let erasingPointerId = null;
+      const inkDeleted = new Set();
 
       function cleanName(value){return String(value || "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 32);}
       function cleanColor(value){return /^#[0-9a-f]{6}$/i.test(String(value || "")) ? String(value) : "#39e0c4";}
@@ -2454,43 +2461,66 @@ const TEACHER_CODE="A7K4P9";
       }
 
       function boardPointerDown(event){
-        if(!canInteract()) return;
-        const anchorId = event.currentTarget.dataset.anchorId;
-        if(tool === "eraser"){
-          event.preventDefault();eraseStrokeSweep(event);return;
+        if(!canInteract() || (event.button!==undefined && event.button!==0)) return;
+        if(tool!=="pen" && tool!=="eraser")return;
+        event.preventDefault();
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        if(tool==="eraser"){
+          erasingPointerId=event.pointerId;eraseHover=null;eraseStrokeSweep(event);return;
         }
-        if(tool !== "pen") return;
-        event.preventDefault();event.currentTarget.setPointerCapture?.(event.pointerId);
-        const point = anchorPoint(event), id = "stroke-" + randomId(14);
-        const stroke = {id, anchorId, authorId:me.id, authorName:me.name, color:penColor, width:penWidth, points:[[point.x, point.y]], done:false, rev:Date.now(), epoch:Number(localState?.boardEpoch || 0)};
-        localState.strokes[id] = stroke;renderStroke(stroke);drawing = {id, pointerId:event.pointerId, sent:1, lastSend:0};
-        if(mode === "teacher") hostStrokeStart(me, stroke);else send({type:"stroke_start",userId:me.id,stroke:clone(stroke)}).catch(() => persistSharedStroke(stroke).catch(()=>setStatus("connecting", "Рисунок сохранится после восстановления связи…")));
+        if(drawing) return;
+        const point=anchorPoint(event),id="stroke-"+randomId(14),anchorId=event.currentTarget.dataset.anchorId;
+        const stroke={id,anchorId,authorId:me.id,authorName:me.name,color:penColor,width:penWidth,points:[[point.x,point.y]],done:false,rev:Date.now(),epoch:Number(localState.boardEpoch||0)};
+        inkCache[id]=stroke;updateInkBinding();drawing={id,pointerId:event.pointerId};renderStroke(stroke);
+        queueInkWrite(stroke,true);
       }
       function boardPointerMove(event){
-        const anchorId=event.currentTarget.dataset.anchorId,rect=event.currentTarget.getBoundingClientRect();sendCursor(anchorId,clamp((event.clientX-rect.left)/Math.max(1,rect.width),0,1),clamp((event.clientY-rect.top)/Math.max(1,rect.height),0,1));
-        if(tool === "eraser"){event.preventDefault();eraseStrokeSweep(event);return;}
-        if(!drawing || event.pointerId !== drawing.pointerId) return;event.preventDefault();
-         const stroke=localState?.strokes?.[drawing.id];if(!stroke)return;
-         const samples=event.getCoalescedEvents?.();const points=samples?.length?samples:[event];
-         for(const sample of points){
-           const point=anchorPoint(sample,event.currentTarget),last=stroke.points[stroke.points.length-1];
-           if(Math.hypot(point.x-last[0],point.y-last[1])<.95)continue;
-           stroke.points.push([point.x,point.y]);
-         }
-         stroke.rev=Date.now();queueStrokeRender(stroke);
-         const now=performance.now();if(now-drawing.lastSend>48){drawing.lastSend=now;flushDrawing(false);}
+        const anchorId=event.currentTarget.dataset.anchorId,rect=event.currentTarget.getBoundingClientRect();
+        if(tool==="pointer")sendCursor(anchorId,clamp((event.clientX-rect.left)/Math.max(1,rect.width),0,1),clamp((event.clientY-rect.top)/Math.max(1,rect.height),0,1));
+        if(tool==="eraser"){
+          if(erasingPointerId!==event.pointerId)return;
+          event.preventDefault();eraseStrokeSweep(event);return;
+        }
+        if(!drawing||event.pointerId!==drawing.pointerId||tool!=="pen")return;
+        event.preventDefault();
+        const stroke=inkCache[drawing.id];if(!stroke)return;
+        const coalesced=event.getCoalescedEvents?.(),samples=coalesced?.length?coalesced:[event];
+        for(const sample of samples){const point=anchorPoint(sample,event.currentTarget),last=stroke.points.at(-1);
+          if(Math.hypot(point.x-last[0],point.y-last[1])>=.65)stroke.points.push([point.x,point.y]);}
+        stroke.rev=Date.now();queueStrokeRender(stroke);queueInkWrite(stroke);
       }
       function boardPointerUp(event){
-        if(!drawing || event.pointerId !== drawing.pointerId) return;
-        if(event.type==="pointerup"){
-          const stroke=localState?.strokes?.[drawing.id];if(stroke){const point=anchorPoint(event,event.currentTarget),last=stroke.points[stroke.points.length-1];if(Math.hypot(point.x-last[0],point.y-last[1])>.4)stroke.points.push([point.x,point.y]);}
+        if(erasingPointerId===event.pointerId){
+          if(event.type==="pointerup")eraseStrokeSweep(event);
+          erasingPointerId=null;eraseHover=null;
+          try{event.currentTarget.releasePointerCapture(event.pointerId);}catch(_){}
+          return;
         }
-        flushDrawing(true);drawing = null;
+        if(!drawing||event.pointerId!==drawing.pointerId)return;
+        const stroke=inkCache[drawing.id];
+        if(stroke && event.type==="pointerup"){
+          const point=anchorPoint(event,event.currentTarget),last=stroke.points.at(-1);
+          if(Math.hypot(point.x-last[0],point.y-last[1])>.5)stroke.points.push([point.x,point.y]);
+        }
+        drawing=null;
+        try{event.currentTarget.releasePointerCapture(event.pointerId);}catch(_){}
+        if(stroke){stroke.done=true;stroke.rev=Date.now();renderStroke(stroke);queueInkWrite(stroke,true);}
       }
-      function eraseAt(clientX, clientY){
-        const hits = new Set(), offsets = [[0,0],[-7,0],[7,0],[0,-7],[0,7],[-5,-5],[5,-5],[-5,5],[5,5]];
-        offsets.forEach(([dx, dy]) => document.elementsFromPoint(clientX + dx, clientY + dy).forEach((node) => {if(node.matches?.("path[data-stroke-id]")) hits.add(node.dataset.strokeId);}));
-        hits.forEach(deleteStrokeRequest);
+      function eraseAt(clientX,clientY){
+        const layer=layerFor('guide-document');if(!layer)return;
+        const rect=layer.getBoundingClientRect(),sx=rect.width/1000,sy=rect.height/Math.max(1,Number(layer.dataset.boardHeight)||1000);
+        const radius=13;
+        const px=clientX-rect.left,py=clientY-rect.top;
+        const segdist=(a,b)=>{const ax=a[0]*sx,ay=a[1]*sy,bx=b[0]*sx,by=b[1]*sy;
+          const dx=bx-ax,dy=by-ay,t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/Math.max(.001,dx*dx+dy*dy)));
+          return Math.hypot(px-(ax+t*dx),py-(ay+t*dy));};
+        const hits=[];
+        for(const [id,stroke] of Object.entries(inkCache)){
+          if(Number(stroke.epoch||0)!==Number(localState?.boardEpoch||0))continue;
+          const pts=stroke.points||[];
+          if(pts.some((p,i)=>segdist(pts[Math.max(0,i-1)],p)<radius+Number(stroke.width||4)/2))hits.push(id);
+        }
+        hits.forEach(id=>deleteInkStroke(id).catch(()=>{}));
       }
       function eraseSegment(fromX, fromY, toX, toY){
         const distance = Math.hypot(toX - fromX, toY - fromY), steps = Math.max(1, Math.ceil(distance / 7));
@@ -2508,10 +2538,7 @@ const TEACHER_CODE="A7K4P9";
         if(mode === "teacher") hostStrokeAppend(me, stroke.id, points, done, Number(stroke.epoch || 0));
         else send({type:"stroke_append",userId:me.id,strokeId:stroke.id,points:clone(points),done:Boolean(done),epoch:Number(stroke.epoch||0)}).catch(() => {if(done)persistSharedStroke(stroke).catch(()=>setStatus("connecting", "Рисунок сохранится после восстановления связи…"));});
       }
-      function deleteStrokeRequest(id){
-        if(!localState?.strokes?.[id]) return;delete localState.strokes[id];removeStroke(id);
-        if(mode === "teacher") hostDeleteStroke(me, id, Number(localState?.boardEpoch || 0));else send({type:"stroke_delete",userId:me.id,strokeId:id,epoch:Number(localState?.boardEpoch||0)}).catch(() => deleteSharedStroke(id).catch(()=>setStatus("connecting", "Стирание синхронизируется после восстановления связи…")));
-      }
+      function deleteStrokeRequest(id){deleteInkStroke(id).catch(()=>{});}
 
       async function bumpRemoteVersion(){await runTransaction(ref(database, lessonRoot() + "/state/version"), (value) => Number(value || 0) + 1);}
       async function persistSharedStroke(stroke){await set(ref(database, lessonRoot() + "/state/strokes/" + stroke.id), clone(stroke));await bumpRemoteVersion();}
@@ -2522,7 +2549,11 @@ const TEACHER_CODE="A7K4P9";
           if(action.kind === "details") state.ui.details[action.id] = Boolean(action.open);
           if(action.kind === "section" && /^p[1-5]$/.test(String(action.sectionId || ""))){state.ui.section = String(action.sectionId);state.boardEpoch += 1;state.strokes = {};}
           state.version += 1;return state;
-        });
+        },{applyLocally:false});
+        if(action.kind === "section"){
+          // Эпоха переключена транзакционно; предыдущие рисунки сразу становятся недействительными.
+          await clearInkForTransition();
+        }
       }
 
       function hostStrokeStart(user, stroke){
@@ -2556,6 +2587,78 @@ const TEACHER_CODE="A7K4P9";
         }
         if(message.action === "delete"){delete localState.strokes[message.strokeId];removeStroke(message.strokeId);}
         localState.version = Math.max(Number(localState.version || 0), Number(message.version || 0));
+      }
+
+      function updateInkBinding(){
+        if(localState) localState.strokes = inkCache;
+        if(hostState) hostState.strokes = inkCache;
+      }
+      function clearLocalInk(){
+        inkGeneration++;
+        for(const timer of inkFlushTimers.values()) clearTimeout(timer);
+        inkFlushTimers.clear();inkPendingWrites.clear();
+        inkCache = Object.create(null);inkDeleted.clear();drawing = null;erasingPointerId = null;eraseHover = null;
+        updateInkBinding();renderAllStrokes();
+      }
+      function applyRemoteInk(snapshot){
+        if(!isCurrentRun(inkListenerRun)) return;
+        const stroke=snapshot.val(),id=snapshot.key;
+        if(!stroke || !id || inkDeleted.has(id) || Number(stroke.epoch||0)!==Number(localState?.boardEpoch||0)) return;
+        // Свой свежий штрих нельзя заменять предыдущим сетевым обновлением.
+        if(drawing?.id===id || inkPendingWrites.has(id)) return;
+        inkCache[id]=stroke;updateInkBinding();queueStrokeRender(stroke);
+      }
+      function attachInkListeners(){
+        if(!isCurrentRun()) return;
+        inkUnsubs.splice(0).forEach(unsubscribe=>unsubscribe());
+        inkListenerRun=activeSessionId;
+        const path=inkRef();
+        inkUnsubs.push(onChildAdded(path,applyRemoteInk),onChildChanged(path,applyRemoteInk),
+          onChildRemoved(path,snapshot=>{
+            if(!isCurrentRun(inkListenerRun))return;
+            const id=snapshot.key;if(!id)return;
+            delete inkCache[id];inkPendingWrites.delete(id);inkDeleted.delete(id);
+            updateInkBinding();removeStroke(id);
+          }));
+      }
+      function queueInkWrite(stroke,force=false){
+        if(!stroke?.id || !isCurrentRun() || Number(stroke.epoch||0)!==Number(localState.boardEpoch||0))return;
+        const id=stroke.id,run=activeSessionId,generation=inkGeneration;
+        let writer=inkPendingWrites.get(id);
+        if(!writer){writer={latest:null,busy:false,run,generation};inkPendingWrites.set(id,writer);}
+        writer.latest=clone(stroke);
+        const flush=async()=>{
+          if(writer.busy || !writer.latest || writer.run!==activeSessionId || writer.generation!==inkGeneration)return;
+          writer.busy=true;
+          try{
+            while(writer.latest && !writer.deleted && writer.run===activeSessionId && writer.generation===inkGeneration){
+              const latest=writer.latest;writer.latest=null;
+              try{writer.inflight=set(inkStrokeRef(id),latest);await writer.inflight;writer.inflight=null;}
+              catch(_){writer.inflight=null;if(!writer.deleted)writer.latest=writer.latest||latest;setStatus('connecting','Рисунок синхронизируется после восстановления связи…');break;}
+            }
+          }finally{
+            writer.busy=false;
+            if(writer.latest && writer.run===activeSessionId && writer.generation===inkGeneration){
+              if(!inkFlushTimers.has(id))inkFlushTimers.set(id,setTimeout(()=>{inkFlushTimers.delete(id);flush();},700));
+            }else if(inkPendingWrites.get(id)===writer){inkPendingWrites.delete(id);}
+          }
+        };
+        if(force){clearTimeout(inkFlushTimers.get(id));inkFlushTimers.delete(id);flush();}
+        else if(!inkFlushTimers.has(id))inkFlushTimers.set(id,setTimeout(()=>{inkFlushTimers.delete(id);flush();},35));
+      }
+      async function deleteInkStroke(id){
+        const st=inkCache[id];if(!st)return;
+        inkDeleted.add(id);
+        const timer=inkFlushTimers.get(id);if(timer)clearTimeout(timer);inkFlushTimers.delete(id);
+        const writer=inkPendingWrites.get(id);
+        if(writer){writer.deleted=true;writer.latest=null;inkPendingWrites.delete(id);}
+        delete inkCache[id];removeStroke(id);
+        try{if(writer?.inflight)await writer.inflight.catch(()=>{});await remove(inkStrokeRef(id));inkDeleted.delete(id);}
+        catch(_){setStatus('connecting','Стирание синхронизируется после восстановления связи…');}
+      }
+      async function clearInkForTransition(){
+        clearLocalInk();
+        try{await remove(inkRef());}catch(_){setStatus('connecting','Очистка рисунков ожидает сеть…');}
       }
 
       function renderPlayers(){
@@ -2616,15 +2719,31 @@ const TEACHER_CODE="A7K4P9";
         suppressUi = true;if(replaceAll) document.querySelectorAll("details[id]").forEach((node) => {node.open = false;});Object.entries(details || {}).forEach(([id, open]) => {const node = document.getElementById(id);if(node?.tagName === "DETAILS") node.open = Boolean(open);});setTimeout(() => {suppressUi = false;}, 0);
       }
       function replayVisual(replayId){const button = document.querySelector('[data-shared-replay="' + replayId + '"]');const card = button?.closest(".visual-card"), oldSvg = card?.querySelector("svg");if(oldSvg) oldSvg.replaceWith(oldSvg.cloneNode(true));}
-      async function hostClearBoard(showToast = false){
-        if(!localState) return;drawing = null;localState.strokes = {};localState.boardEpoch = Number(localState.boardEpoch || 0) + 1;renderAllStrokes();
-        await runTransaction(stateRef(), (current) => {const state = normalizeState(current);state.boardEpoch += 1;state.strokes = {};state.version += 1;return state;});
-        if(showToast) toast("Все записи удалены у всех участников");
+      async function hostClearBoard(showToast=false){
+        if(!localState || !isCurrentRun())return;
+        const run=activeSessionId;
+        const result=await runTransaction(stateRef(),current=>{
+          if(!current || current.sessionId!==run)return;
+          const next=normalizeState(current);next.boardEpoch++;next.strokes={};next.version++;return next;
+        },{applyLocally:false});
+        if(!result.committed)return;
+        const fresh=normalizeState(result.snapshot.val());
+        if(activeSessionId!==run)return;
+        localState.boardEpoch=fresh.boardEpoch;if(hostState)hostState.boardEpoch=fresh.boardEpoch;
+        await clearInkForTransition();
+        if(showToast)toast('Все записи удалены у всех участников');
       }
       async function clearBoardFromAnyParticipant(reason="switch"){
-        drawing=null;eraseHover=null;if(mode==="teacher"&&me&&joined){await hostClearBoard(false);return;}if(localState){localState.strokes={};localState.boardEpoch=Number(localState.boardEpoch||0)+1;renderAllStrokes();}else document.querySelectorAll(".cb-board-layer path[data-stroke-id]").forEach(node=>node.remove());
-        if(!me||!joined||!isCurrentRun())return;
-        try{const result=await runTransaction(stateRef(),current=>{const state=normalizeState(current);state.boardEpoch+=1;state.strokes={};state.version+=1;return state;},{applyLocally:false});if(result.committed)localState=normalizeState(result.snapshot.val());renderAllStrokes();}catch(_){setStatus("connecting","Очистка доски синхронизируется после восстановления связи…");}
+        if(!localState || !isCurrentRun())return;
+        if(mode==="teacher"){await hostClearBoard(false);return;}
+        const run=activeSessionId;
+        const result=await runTransaction(stateRef(),current=>{
+          if(!current || current.sessionId!==run)return;
+          const next=normalizeState(current);next.boardEpoch++;next.strokes={};next.version++;return next;
+        },{applyLocally:false});
+        if(!result.committed||activeSessionId!==run)return;
+        localState.boardEpoch=Number(result.snapshot.val().boardEpoch||0);
+        await clearInkForTransition();
       }
       window.vectorGuideRequestBoardClear=(reason)=>{clearBoardFromAnyParticipant(reason).catch(()=>{});};
       function undoOwnStroke(){
@@ -2697,14 +2816,15 @@ const TEACHER_CODE="A7K4P9";
           if(!snapshot.exists() || !me) return;
           const incoming = normalizeState(snapshot.val());
           if(!checkRunSnapshot(incoming))return;
+          if(Number(incoming.boardEpoch||0)!==Number(localState?.boardEpoch||0))clearLocalInk();
           const firstSnapshot = !joined;
-          const activeStroke=drawing&&localState?.strokes?.[drawing.id]?clone(localState.strokes[drawing.id]):null;
+          incoming.strokes=inkCache;
           if(mode === "teacher"){
             /* Firebase-снимок не имеет права оборвать текущий локальный штрих учителя. */
-            if(activeStroke&&Number(activeStroke.epoch||0)===Number(incoming.boardEpoch||0))incoming.strokes[activeStroke.id]=activeStroke;
+            // Данные /state не содержат актуальные штрихи; слушатель /ink — единственный источник.
             hostState = incoming;hostState.players[me.id] = {...me,online:true,lastSeen:Date.now()};localState = hostState;
           }else{
-            localState = incoming;if(activeStroke&&Number(activeStroke.epoch||0)===Number(localState.boardEpoch||0))localState.strokes[activeStroke.id]=activeStroke;joined = true;lastHostSeen = Date.now();
+            localState = incoming;joined = true;lastHostSeen = Date.now();
           }
           if(firstSnapshot) prepareConnected();
           applyDetails(localState.ui?.details || {}, true);renderAllStrokes();renderPlayers();setStatus("online");
@@ -2788,12 +2908,12 @@ const TEACHER_CODE="A7K4P9";
         }
         setStatus("connecting", detail || "Подключаемся…");
       }
-      async function disconnect(){clearTimeout(saveTimer);cancelAnimationFrame(boardRenderFrame);boardRenderFrame=0;pendingStrokeIds.clear();clearInterval(heartbeatTimer);clearInterval(watchdogTimer);clearTimeout(joinTimer);heartbeatTimer = watchdogTimer = joinTimer = 0;remoteStateUnsub?.();remoteStateUnsub = null;interactionsUnsub?.();interactionsUnsub = null;padUnsubs.splice(0).forEach((unsubscribe) => unsubscribe());padsReady = false;interactionsReady = false;practiceSeedPublished = false;if(channel){try{channel.close();}catch(_){}}channel = null;joined = false;drawing = null;eraseHover = null;pointerNodes.forEach((node) => node.remove());pointerNodes.clear();}
+      async function disconnect(){clearTimeout(saveTimer);cancelAnimationFrame(boardRenderFrame);boardRenderFrame=0;pendingStrokeIds.clear();clearInterval(heartbeatTimer);clearInterval(watchdogTimer);clearTimeout(joinTimer);heartbeatTimer = watchdogTimer = joinTimer = 0;remoteStateUnsub?.();remoteStateUnsub = null;inkUnsubs.splice(0).forEach(unsub=>unsub());inkListenerRun="";clearLocalInk();interactionsUnsub?.();interactionsUnsub = null;padUnsubs.splice(0).forEach((unsubscribe) => unsubscribe());padsReady = false;interactionsReady = false;practiceSeedPublished = false;if(channel){try{channel.close();}catch(_){}}channel = null;joined = false;drawing = null;eraseHover = null;pointerNodes.forEach((node) => node.remove());pointerNodes.clear();}
       function canInteract(){return isCurrentRun();}
 
       function prepareConnected(){
         const firstConnection = !document.body.classList.contains("cb-connected");
-        setupAnchors();setupSharedPads();setupSharedInteractions();joiningSilently = false;closeGate();$("cbStart").classList.add("cb-hidden");document.body.classList.add("cb-connected");$("cbToolbar").classList.remove("cb-hidden");$("cbExit").classList.remove("cb-hidden");restoreToolbarPosition();$("cbClearAll").classList.toggle("cb-hidden", mode !== "teacher");$("cbGatherStudents").classList.toggle("cb-hidden",mode!=="teacher");if(firstConnection) selectTool("pointer");renderPlayers();renderAllStrokes();
+        setupAnchors();setupSharedPads();setupSharedInteractions();attachInkListeners();joiningSilently = false;closeGate();$("cbStart").classList.add("cb-hidden");document.body.classList.add("cb-connected");$("cbToolbar").classList.remove("cb-hidden");$("cbExit").classList.remove("cb-hidden");restoreToolbarPosition();$("cbClearAll").classList.toggle("cb-hidden", mode !== "teacher");$("cbGatherStudents").classList.toggle("cb-hidden",mode!=="teacher");if(firstConnection) selectTool("pointer");renderPlayers();renderAllStrokes();
       }
       async function startTeacher(saved=null,clean=false,expectedSessionId=""){
         if(!teacherAuthorized){setGate("cbTeacherView");message("cbTeacherMessage","Сначала введите код учителя.","error");return false;}
@@ -2805,7 +2925,8 @@ const TEACHER_CODE="A7K4P9";
             hostState=newState();activeSessionId=hostState.sessionId;
             // Сначала сменяем идентификатор игры: старые вкладки сразу утратят доступ.
             await set(stateRef(),clone(hostState));
-            await Promise.all([remove(padsRef()),remove(interactionsRef())]);
+            await Promise.all([remove(padsRef()),remove(interactionsRef()),remove(ref(database,lessonRoot()+"/ink"))]);
+            clearLocalInk();
             document.querySelectorAll("[data-pad-id]").forEach(pad=>{pad.innerText="";});
             localStorage.removeItem(STUDENT_SAVE_KEY);
           }else{
@@ -2891,13 +3012,18 @@ async function startBackgroundValidation(code,memberId,runId=++verificationRun){
             // Нельзя записывать старую игру поверх новой из другой вкладки.
             await runTransaction(stateRef(),actual=>{
               if(!actual||normalizeState(actual).sessionId!==runId||!isCurrentRun(runId))return;
-              return copy;
+              const safe=normalizeState(actual);
+              // Записи пера находятся отдельно в /ink; не перезаписываем данные учеников старым снимком.
+              safe.players={...safe.players,...copy.players};
+              safe.ui={...safe.ui,...copy.ui};
+              safe.version=Math.max(Number(safe.version||0),Number(copy.version||0));
+              return safe;
             },{applyLocally:false});
           }catch(_){if(isCurrentRun(runId))setStatus("connecting","Сохраним изменения после восстановления связи…");}
         };
         if(immediate)save();else saveTimer=setTimeout(save,240);
       }
-      function sendSnapshot(target = "*"){return send({type:"snapshot", target, state:clone(hostState), at:Date.now()});}
+      function sendSnapshot(target = "*"){const snapshot=clone(hostState);snapshot.strokes={};return send({type:"snapshot",target,state:snapshot,at:Date.now()});}
       function broadcastSnapshot(){return sendSnapshot("*");}
       function requestFreshSnapshot(reason = "version-gap"){
         if(mode !== "student" || !joined || !channel?.isOpen || !me) return;
@@ -2922,9 +3048,7 @@ async function startBackgroundValidation(code,memberId,runId=++verificationRun){
         }
         if(message.type === "leave"){const player = hostState.players[message.userId];if(player){player.online = false;bump();renderPlayers();broadcastSnapshot().catch(() => {});scheduleSave();}return;}
         const player = hostState.players[message.userId || message.user?.id];if(player){player.online = true;player.lastSeen = Date.now();}
-        if(message.type === "stroke_start" && player) hostStrokeStart(player, message.stroke);
-        if(message.type === "stroke_append" && player) hostStrokeAppend(player, message.strokeId, message.points, message.done, message.epoch);
-        if(message.type === "stroke_delete" && player) hostDeleteStroke(player, message.strokeId, message.epoch);
+        // Перо/ластик идут напрямую в Firebase /ink; событийные дельты больше не используются.
         if(message.type === "ui_action" && player) hostUiAction(message.action, player.id, true);
         if(message.type === "state_request" && player) sendSnapshot(player.id).catch(() => {});
       }
@@ -2937,18 +3061,13 @@ async function startBackgroundValidation(code,memberId,runId=++verificationRun){
           lastHostSeen = Date.now();const incoming = message.state || newState();incoming.boardEpoch = Number(incoming.boardEpoch || 0);incoming.ui ||= {details:{},section:"p1"};incoming.ui.details ||= {};incoming.ui.section ||= "p1";const firstSnapshot = !joined;
           const previousVersion = Number(localState?.version || 0), incomingVersion = Number(incoming.version || 0);
           if(!firstSnapshot && incomingVersion <= previousVersion){setStatus("online");return;}
-          joined = true;clearTimeout(joinTimer);const activeStroke=drawing&&localState?.strokes?.[drawing.id]?clone(localState.strokes[drawing.id]):null;localState = incoming;if(activeStroke&&Number(activeStroke.epoch||0)===Number(localState.boardEpoch||0))localState.strokes[activeStroke.id]=activeStroke;if(firstSnapshot) prepareConnected();applyDetails(localState.ui?.details || {}, true);renderAllStrokes();renderPlayers();setStatus("online");$("cbJoin").disabled = false;return;
+          joined = true;clearTimeout(joinTimer);incoming.strokes=inkCache;localState = incoming;if(firstSnapshot) prepareConnected();applyDetails(localState.ui?.details || {}, true);renderAllStrokes();renderPlayers();setStatus("online");$("cbJoin").disabled = false;return;
         }
-        if(message.type === "board_clear"){
-          lastHostSeen = Date.now();const incomingEpoch = Number(message.epoch || 0), currentEpoch = Number(localState?.boardEpoch || 0);
-          if(incomingEpoch < currentEpoch) return;localState.boardEpoch = incomingEpoch;localState.strokes = {};localState.version = Math.max(Number(localState.version || 0),Number(message.version || 0));drawing = null;renderAllStrokes();return;
-        }
+        if(message.type === "board_clear")return; // epoch приходит из Firebase/state, не из запоздалых сообщений
         if(message.type === "host_heartbeat"){
           lastHostSeen = Date.now();setStatus("online");if(Number(message.version || 0) > Number(localState?.version || 0)) requestFreshSnapshot("heartbeat-version-gap");return;
         }
-        if(message.type === "stroke_state"){
-          lastHostSeen = Date.now();const before = Number(localState?.version || 0);applyStrokeState(message);if(Number(message.version || 0) > before + 1) requestFreshSnapshot("stroke-version-gap");return;
-        }
+        if(message.type === "stroke_state")return; // legacy, рисунки синхронизируются в /ink
         if(message.type === "ui_state"){
           lastHostSeen = Date.now();const incomingVersion = Number(message.version || 0), currentVersion = Number(localState?.version || 0);if(incomingVersion && incomingVersion < currentVersion) return;
           if(message.action?.kind === "details"){localState.ui.details[message.action.id] = Boolean(message.action.open);applyDetails({[message.action.id]:message.action.open});}
@@ -3003,7 +3122,7 @@ async function startBackgroundValidation(code,memberId,runId=++verificationRun){
       });
       document.addEventListener("pointermove", (event) => {if(!canInteract() || tool !== "pointer") return;const anchor = event.target.closest?.("[data-board-anchor]");if(!anchor) return;const rect = anchor.getBoundingClientRect();sendCursor(anchor.dataset.boardAnchor, clamp((event.clientX - rect.left) / rect.width, 0, 1), clamp((event.clientY - rect.top) / rect.height, 0, 1));}, {passive:true});
       window.addEventListener("resize", () => {const toolbar = $("cbToolbar");if(toolbar?.style.left){const rect = toolbar.getBoundingClientRect();applyToolbarPosition({left:rect.left,top:rect.top}, true);}});
-      window.addEventListener("online", () => {if(channel && !channel.isOpen){setStatus("connecting", "Интернет появился · восстанавливаем связь…");channel.reconnect?.();}});
+      window.addEventListener("online", () => {for(const stroke of Object.values(inkCache))if(stroke.authorId===me?.id)queueInkWrite(stroke,true);if(channel && !channel.isOpen){setStatus("connecting", "Интернет появился · восстанавливаем связь…");channel.reconnect?.();}});
       window.addEventListener("offline", () => {setStatus("connecting", "Нет интернета · изменения отправятся после восстановления…");});
       document.addEventListener("visibilitychange", () => {if(!document.hidden && channel && !channel.isOpen) channel.reconnect?.();});
       window.addEventListener("pagehide",()=>{if(mode&&me&&joined)rememberActiveTab();});
