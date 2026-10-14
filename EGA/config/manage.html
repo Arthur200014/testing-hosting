@@ -1198,9 +1198,9 @@
             </div>
             <div class="form-grid">
               <label class="field">Дата занятия
+                <input id="lessonDate" type="date" required aria-label="Дата занятия">
                 <input id="lessonAt" type="hidden">
-                <div id="lessonDateDisplay" class="badge">Сегодня</div>
-                <span class="hint">Дата фиксируется автоматически по текущему дню (Москва).</span>
+                <span class="hint">По умолчанию — текущий день. Нажмите на поле, чтобы выбрать другую дату в календаре.</span>
               </label>
               <label class="field">Длительность
                 <select id="duration">
@@ -1429,7 +1429,7 @@
       );
 
       if (name === 'lesson') {
-        updateLessonCurrentDate();
+        updateLessonSelectedDate();
         renderTaskChips();
         renderCatalog();
       }
@@ -2675,12 +2675,12 @@
       $('saveLesson').textContent = $('assignHomeworkWithLesson').checked ? 'Сохранить занятие и назначить ДЗ' : 'Сохранить занятие';
     }
 
-    function updateLessonCurrentDate() {
-      const value = moscowInputNow();
-      $('lessonAt').value = value;
-      const [datePart] = value.split('T');
-      const [year, month, day] = datePart.split('-');
-      $('lessonDateDisplay').textContent = `${day}.${month}.${year} · сегодня`;
+    function updateLessonSelectedDate(forceToday = false) {
+      const now = moscowInputNow();
+      const [today, time] = now.split('T');
+      if (forceToday || !$('lessonDate').value) $('lessonDate').value = today;
+      const selectedDate = $('lessonDate').value;
+      $('lessonAt').value = selectedDate ? `${selectedDate}T${time}` : '';
     }
 
     document.querySelectorAll('[data-stats-period]').forEach(button => {
@@ -2878,6 +2878,8 @@
       if (!state.selected.size) return setStatus('lessonStatus', 'Выберите учеников.', true);
       const programId = selectedProgramId();
       if (!programId) return setStatus('lessonStatus', 'В одном занятии нельзя смешивать учеников ЕГЭ и ОГЭ.', true);
+      updateLessonSelectedDate();
+      if (!$('lessonDate').value || !$('lessonAt').value) return setStatus('lessonStatus', 'Выберите дату занятия.', true);
       const assignHomework = $('assignHomeworkWithLesson').checked;
       if (assignHomework && !$('homeworkId').value) return setStatus('lessonStatus', 'Выберите домашнюю работу или отключите назначение ДЗ.', true);
       const selectedHomeworkId = assignHomework ? $('homeworkId').value : '';
@@ -2901,7 +2903,7 @@
         const taskNumbers = [...document.querySelectorAll('#taskChips input:checked')].map(input => Number(input.value));
         const studentStatuses = [...state.selected].map(studentId => ({studentId, status: state.attendance[studentId] || 'Присутствовал'}));
         assignmentPostStarted = assignHomework;
-        const data = await post({action: 'saveLessonAndHomework', programId, durationMinutes: Number($('duration').value), taskNumbers, topicComment: $('topicComment').value.trim(), studentStatuses, assignHomework, homeworkId: selectedHomeworkId, deadlineHours: assignHomework ? Number(document.querySelector('[name="deadline"]:checked').value) : 24});
+        const data = await post({action: 'saveLessonAndHomework', programId, lessonAt: $('lessonAt').value, lessonDate: $('lessonDate').value, durationMinutes: Number($('duration').value), taskNumbers, topicComment: $('topicComment').value.trim(), studentStatuses, assignHomework, homeworkId: selectedHomeworkId, deadlineHours: assignHomework ? Number(document.querySelector('[name="deadline"]:checked').value) : 24});
         if (!data || !data.ok) throw new Error((data && data.error) || 'Не удалось сохранить занятие.');
         state.lessonId = data.lessonId;
         state.message = data.homeworkMessage || '';
@@ -2936,7 +2938,8 @@
 
     renderStudentProgramFields();
     renderTaskChips();
-    updateLessonCurrentDate();
+    updateLessonSelectedDate(true);
+    $('lessonDate').addEventListener('change', () => updateLessonSelectedDate());
     updateLessonSubmitLabel();
     updateClock();
     setInterval(updateClock, 30000);
