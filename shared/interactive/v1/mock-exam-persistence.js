@@ -625,20 +625,13 @@ export function installEgeMockPersistenceBridge({
       ? persistence.loadAttempt(identity(current.code, current.variantId))
       : null;
     saved = updateSavedServerResult(persistence, saved, lookupResult, programId) || saved;
-    const keepCompletedResult = Boolean(current?.finished && saved?.submittedAt && saved?.result);
     if (current) {
       current.finished = true;
       root.clearInterval?.(current.timerId);
     }
-    // A confirmed attempt may already have been restored from local storage.
-    // The server lookup still locks repeat submission, but must not replace the
-    // visible result/review with a second login screen.
-    if (keepCompletedResult) {
-      hideAlreadySubmittedNotice(root);
-      root.document?.getElementById('loginOverlay')?.classList?.add('hidden');
-      if (typeof root.showResult === 'function') root.showResult(saved.result);
-      return;
-    }
+    // Server answers are newer than a previously confirmed local snapshot.
+    // This matters for devices that stored the score before answersJson was
+    // deployed: keeping that stale snapshot would render every task as wrong.
     if (current && hasLookupAnswers(lookupResult.answers)) {
       const answers = Array.isArray(lookupResult.answers)
         ? [...lookupResult.answers]
@@ -669,6 +662,16 @@ export function installEgeMockPersistenceBridge({
       hideAlreadySubmittedNotice(root);
       root.document?.getElementById('loginOverlay')?.classList?.add('hidden');
       if (typeof root.showResult === 'function') root.showResult(saved?.result || result);
+      return;
+    }
+    const keepCompletedResult = Boolean(current?.finished && saved?.submittedAt && saved?.result);
+    // A confirmed attempt may already have been restored from local storage.
+    // When the server has no detailed answers, keep that local review instead
+    // of replacing the visible result with a second login screen.
+    if (keepCompletedResult) {
+      hideAlreadySubmittedNotice(root);
+      root.document?.getElementById('loginOverlay')?.classList?.add('hidden');
+      if (typeof root.showResult === 'function') root.showResult(saved.result);
       return;
     }
     for (const id of ['exam', 'topbar', 'result', 'resultOverlay', 'confirmOverlay']) {
@@ -1181,19 +1184,11 @@ export function installOgeMockPersistenceBridge({
     const current = state();
     let saved = persistence.loadAttempt(identity(fields()));
     saved = updateSavedServerResult(persistence, saved, lookupResult, programId) || saved;
-    const keepCompletedResult = Boolean(current.app?.finished && saved?.submittedAt && saved?.result);
     if (current.app && isObject(current.app)) {
       current.app.finished = true;
       root.clearInterval?.(current.app.timerId);
     }
-    // Keep a restored local result and its review available. The lookup hit
-    // still marks the slot as locked, so no second official POST can be made.
-    if (keepCompletedResult) {
-      hideAlreadySubmittedNotice(root);
-      root.document?.getElementById('loginOverlay')?.classList?.add('hidden');
-      if (typeof root.showCompletedResult === 'function') root.showCompletedResult(saved.result);
-      return;
-    }
+    // Prefer detailed server answers over an older confirmed local snapshot.
     if (hasLookupAnswers(lookupResult.answers)) {
       const answerEntries = Array.isArray(lookupResult.answers)
         ? lookupResult.answers.map((value, index) => [index + 1, value])
@@ -1224,6 +1219,15 @@ export function installOgeMockPersistenceBridge({
       root.document?.getElementById('loginOverlay')?.classList?.add('hidden');
       root.document?.getElementById('examMain')?.classList?.add('hidden');
       if (typeof root.showCompletedResult === 'function') root.showCompletedResult(saved?.result || result);
+      return;
+    }
+    const keepCompletedResult = Boolean(current.app?.finished && saved?.submittedAt && saved?.result);
+    // Keep a restored local result and its review available when the server
+    // row predates answersJson and therefore has no detailed answers.
+    if (keepCompletedResult) {
+      hideAlreadySubmittedNotice(root);
+      root.document?.getElementById('loginOverlay')?.classList?.add('hidden');
+      if (typeof root.showCompletedResult === 'function') root.showCompletedResult(saved.result);
       return;
     }
     for (const id of ['examMain', 'resultOverlay', 'confirmOverlay', 'reviewOverlay']) {

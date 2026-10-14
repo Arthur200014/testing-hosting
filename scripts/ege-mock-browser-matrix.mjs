@@ -407,6 +407,61 @@ try {
     await freshContext.close();
   }
 
+  const staleLocalAnswers = await frame.evaluate(() => (
+    globalThis.__EGE2027_MOCK_DIAGNOSTICS__.getState().questions.map((question, index) => (
+      index < 8 ? String(question.numeric).replace('.', ',') : '999'
+    ))
+  ));
+  control.serverAnswers = staleLocalAnswers;
+  control.serverResult = { primaryScore: 8, maxPrimaryScore: 13, scorePercent: 62, testScore: 46 };
+  const staleLocalContext = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    ignoreHTTPSErrors: Boolean(remoteBase)
+  });
+  await configureRoutes(staleLocalContext, { lookupSubmitted: true });
+  const staleLocalPage = await staleLocalContext.newPage();
+  try {
+    await staleLocalPage.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    let staleLocalFrame = await openAttempt(staleLocalPage);
+    await staleLocalFrame.locator('#resultOverlay:not(.hidden)').waitFor();
+    await staleLocalFrame.evaluate(() => {
+      const api = globalThis.__EGE_MOCK_PERSISTENCE__;
+      const current = globalThis.__EGE2027_MOCK_DIAGNOSTICS__.getState();
+      const saved = api.persistence.loadCurrent({ programId: 'EGE_MATH', studentCode: current.code });
+      api.persistence.saveAttempt({
+        ...saved,
+        answers: Array.from({ length: 13 }, () => ''),
+        phase: 'confirmed'
+      });
+    });
+    await staleLocalPage.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 });
+    staleLocalFrame = await openAttempt(staleLocalPage);
+    await staleLocalFrame.waitForFunction(() => globalThis.__EGE_MOCK_PERSISTENCE__.isLocked());
+    await staleLocalFrame.locator('#resultOverlay:not(.hidden)').waitFor();
+    assert.deepEqual((await attemptState(staleLocalFrame)).answers, staleLocalAnswers,
+      'server answers must replace a stale confirmed local snapshot');
+    assert.equal(await staleLocalFrame.locator('.result-orb.right').count(), 8);
+    assert.equal(await staleLocalFrame.locator('.result-orb.wrong').count(), 5);
+    await staleLocalFrame.locator('#resultReviewBtn').click();
+    await staleLocalFrame.locator('#solutionReviewOverlay:not(.hidden)').waitFor();
+    const review = await staleLocalFrame.locator('.solution-exam-card').evaluateAll(cards => cards.map(card => ({
+      status: card.querySelector('.review-status-badge')?.textContent.trim() || '',
+      answers: [...card.querySelectorAll('.review-answer-chip')].map(node => node.textContent.trim())
+    })));
+    assert.equal(review.length, 13);
+    review.forEach((card, index) => {
+      assert.equal(card.answers[0], `Ваш ответ: ${staleLocalAnswers[index]}`);
+      assert.match(card.status, index < 8 ? /Верно/ : /Неверно/);
+    });
+    assert.equal(await staleLocalFrame.locator('[id^="answer-"]').evaluateAll((inputs, expected) =>
+      inputs.every((input, index) => input.value === expected[index] && input.readOnly), staleLocalAnswers), true);
+    assert.equal(control.posts.length, postsAfterConfirmation,
+      'repairing a stale local review must not create another POST');
+  } finally {
+    control.serverAnswers = null;
+    await staleLocalContext.close();
+  }
+
   const offlineContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
     ignoreHTTPSErrors: Boolean(remoteBase)
@@ -465,6 +520,7 @@ try {
       transportMessagesHidden: true,
       mobileReloadRestoresAttempt: true,
       freshDeviceRestoresReadOnlyReviewFromServer: true,
+      serverAnswersRepairStaleConfirmedLocalReview: true,
       validationOutageSurvivesFinishReloadAndRecovery: true
     },
     stableEventId,
