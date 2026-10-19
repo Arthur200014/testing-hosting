@@ -246,14 +246,48 @@ async function queueScenario(path) {
 
 async function teacherManageSmoke() {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, ignoreHTTPSErrors: true });
+  const posts = [];
   await context.route('https://script.google.com/**', async route => {
+    if (route.request().method() === 'POST') {
+      const payload = JSON.parse(route.request().postData() || '{}');
+      posts.push(payload);
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+        ok: true,
+        saved: true,
+        lessonId: 'LESSON-BROWSER-CI',
+        lessonCount: 1,
+        lessonAt: '2026-10-19T18:30:00.000+03:00',
+        homeworkAssigned: true,
+        homeworkCount: 1,
+        homeworkId: 'HW-EGE07-BROWSER-CI',
+        homeworkDeadlineAt: '2026-10-20T18:30:00.000+03:00',
+        homeworkMessage: 'Browser CI'
+      }) });
+      return;
+    }
     const url = new URL(route.request().url());
     const callback = url.searchParams.get('callback');
     const action = url.searchParams.get('action');
     const data = action === 'getTeacherDataVersion'
       ? { ok: true, version: 'browser-ci' }
       : { ok: true, version: 'browser-ci', dataVersion: 'browser-ci', fromServerCache: false,
-        students: [], groups: [], catalog: [], statistics: { currentMonth: '2026-10', students: {} } };
+        students: [{
+          studentId: 'STU-LESSON-BROWSER',
+          studentName: 'Ученик браузерного теста',
+          programId: 'EGE_MATH',
+          grade: '11',
+          groupId: ''
+        }],
+        groups: [],
+        catalog: [{
+          homeworkId: 'HW-EGE07-BROWSER-CI',
+          taskNumber: 7,
+          homeworkName: 'ДЗ браузерного теста',
+          homeworkUrl: 'https://example.test/homework',
+          programId: 'EGE_MATH',
+          sortOrder: 1
+        }],
+        statistics: { currentMonth: '2026-10', students: {} } };
     await route.fulfill({ status: 200, contentType: 'application/javascript',
       body: callback ? `${callback}(${JSON.stringify(data)});` : JSON.stringify(data) });
   });
@@ -264,8 +298,41 @@ async function teacherManageSmoke() {
   try {
     await page.goto(`${base}/EGA/config/manage.html?ci=${Date.now()}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForSelector('#homeworkDiagnostics', { state: 'attached', timeout: 5000 });
-    await delay(250);
-    return { pass: errors.length === 0, errors };
+    await page.locator('[data-view="lesson"]').click();
+    await page.locator('#studentList .student input[type="checkbox"]').waitFor();
+    await page.locator('#studentList .student input[type="checkbox"]').check();
+    await page.locator('#lessonDate').fill('2026-10-19');
+    await page.locator('#taskChips input[value="7"]').check({ force: true });
+    await page.locator('#assignHomeworkWithLesson').check({ force: true });
+    await page.locator('#homeworkTask').selectOption('7');
+    await page.locator('#homeworkId').selectOption('HW-EGE07-BROWSER-CI');
+    await page.locator('input[name="deadline"][value="24"]').check({ force: true });
+    await page.locator('#saveLesson').click();
+    await page.locator('#lessonSuccess.show').waitFor({ timeout: 10000 });
+    const payload = posts.find(item => item.action === 'saveLessonAndHomework');
+    const payloadComplete = Boolean(
+      payload
+      && payload.programId === 'EGE_MATH'
+      && payload.lessonDate === '2026-10-19'
+      && /^2026-10-19T\d{2}:\d{2}$/.test(payload.lessonAt)
+      && payload.durationMinutes === 90
+      && Array.isArray(payload.taskNumbers)
+      && payload.taskNumbers.length === 1
+      && payload.taskNumbers[0] === 7
+      && Array.isArray(payload.studentStatuses)
+      && payload.studentStatuses.length === 1
+      && payload.studentStatuses[0].studentId === 'STU-LESSON-BROWSER'
+      && payload.studentStatuses[0].status === 'Присутствовал'
+      && payload.assignHomework === true
+      && payload.homeworkId === 'HW-EGE07-BROWSER-CI'
+      && payload.deadlineHours === 24
+    );
+    return {
+      pass: errors.length === 0 && posts.length === 1 && payloadComplete,
+      payloadComplete,
+      postCount: posts.length,
+      errors
+    };
   } finally { await context.close(); }
 }
 
