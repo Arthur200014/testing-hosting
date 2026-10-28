@@ -47,8 +47,8 @@
 <div class="top-mini"><button class="mini" id="soundBtn" type="button">🔇</button><button class="mini" id="logoutBtn" type="button">Сменить ученика</button></div>
 <main class="app">
 <section class="login glass" id="loginScreen"><div class="logo">🍩</div><small>ЕГЭ №16 · ДОМАШНЯЯ РАБОТА</small><h1>ДЗ 1 · Вклады и равные платежи</h1><p>Фиксированный вариант: у всех учеников одинаковые задачи, числа и порядок.</p><form class="login-form" id="loginForm"><input class="code" id="codeInput" autocomplete="off" placeholder="Личный код"><button class="primary" id="loginBtn" type="submit">Войти</button></form><div class="error" id="loginError"></div></section>
-<section class="start glass hidden" id="startScreen"><div class="logo">🍩</div><small>ЕГЭ №16 · ЧАСТЬ 1</small><h1>ДЗ 1 · Вклады и равные платежи</h1><p>Привет, <b id="startName"></b>. 2 задачи на вклады + 2 задачи на кредиты с равными платежами. Все 4 условия фиксированы и одинаковы для всех учеников.</p><div class="chips"><span class="chip">Вклады · капитализация и пополнения</span><span class="chip">Равные платежи · 2–3 года</span></div><div class="rules"><div class="rule">① В каждой задаче введи только итоговый числовой ответ.</div><div class="rule">② До общей отправки правильность и решения не показываются.</div><div class="rule">③ После отправки можно открыть полный разбор с таблицами.</div></div><button class="primary" id="beginBtn" type="button">Начать работу</button></section>
-<section class="hidden" id="workScreen"><header class="hero"><small>ЕГЭ №16 · ДОМАШНЯЯ РАБОТА 1</small><h1>ДЗ 1 · Вклады и равные платежи</h1><p>2 задачи на вклады + 2 задачи на кредиты с равными платежами. Вводи только итоговые ответы. Разбор откроется после отправки.</p></header><div class="toolbar"><span class="student-pill" id="studentPill"></span><span class="progress-info">Заполнено: <b id="filled">0</b>/4</span><div class="progress-track"><div class="progress-bar" id="progressBar"></div></div><button class="sound" id="shotBtn" type="button">📸 Режим скриншота</button></div><div class="tasks" id="tasks"></div><div class="submit-zone glass"><button class="primary" id="submitBtn" type="button" disabled>Отправить ответы</button><div class="notice" id="submitNotice">Кнопка станет активной после заполнения всех четырёх ответов.</div></div><section class="result glass hidden" id="result"></section></section>
+<section class="start glass hidden" id="startScreen"><div class="logo">🍩</div><small>ЕГЭ №16 · ЧАСТЬ 1</small><h1>ДЗ 1 · Вклады</h1><p>Привет, <b id="startName"></b>. 8 задач на вклады: капитализация, пополнения, снятие, проценты и сравнение ставок. Все 8 задач зафиксированы и одинаковы для всех учеников.</p><div class="chips"><span class="chip">Капитализация</span><span class="chip">Начальный вклад</span><span class="chip">Снятие средств</span><span class="chip">Сравнение ставок</span></div><div class="rules"><div class="rule">① В каждой задаче введи только итоговый числовой ответ.</div><div class="rule">② До общей отправки правильность и решения не показываются.</div><div class="rule">③ После отправки можно открыть полный разбор с таблицами.</div></div><button class="primary" id="beginBtn" type="button">Начать работу</button></section>
+<section class="hidden" id="workScreen"><header class="hero"><small>ЕГЭ №16 · ДОМАШНЯЯ РАБОТА 1</small><h1>ДЗ 1 · Вклады</h1><p>8 задач на вклады: капитализация, пополнения, снятие, проценты и сравнение ставок. Вводи только числовые ответы. Разбор откроется после завершения.</p></header><div class="toolbar"><span class="student-pill" id="studentPill"></span><span class="progress-info">Заполнено: <b id="filled">0</b>/8</span><div class="progress-track"><div class="progress-bar" id="progressBar"></div></div><button class="sound" id="shotBtn" type="button">📸 Режим скриншота</button></div><div class="tasks" id="tasks"></div><div class="submit-zone glass"><button class="primary" id="submitBtn" type="button">Отправить ответы</button><div class="notice" id="submitNotice">Можно завершить в любой момент. Пустые ответы считаются неверными.</div></div><section class="result glass hidden" id="result"></section></section>
 </main><script>
 "use strict";
 const API_URL="https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec";
@@ -104,7 +104,7 @@ function clearStudent(){
 }
 
 function getDraft(code=student?.code){
-  const k=draftKey(code); return k?readJson(k,null):null;
+  const k=draftKey(code),d=k?readJson(k,null):null;return d&&Array.isArray(d.answers)&&d.answers.length===TOTAL&&d.assignmentId===HOMEWORK_META.assignmentId?d:null;
 }
 function saveDraft(extra={}){
   if(!student?.code)return;
@@ -282,20 +282,21 @@ async function validateInBackground(code){
 async function checkAvailability(){
   if(!student)return;
   if(localLocked()){
-    submissionLocked=true;updateProgress();
+    submissionLocked=true;updateProgress();enableReviewOnly();
   }
   try{
     const data=await postApi({action:"checkHomeworkSubmission",studentId:student.id||student.code,assignmentId:HOMEWORK_META.assignmentId});
     if(saysSubmitted(data)){
-      submissionLocked=true;updateProgress();
+      submissionLocked=true;updateProgress();enableReviewOnly();
       if(!submittedNow){
         $("#submitNotice").className="notice";
-        $("#submitNotice").textContent="Эта работа уже завершена в текущем месяце.";
+        $("#submitNotice").textContent="Эта работа уже отправлена в этом месяце. Можно посмотреть условия и решения.";
       }
     }
   }catch(_){}
 }
 
+function enableReviewOnly(){if(!submissionLocked||submittedNow)return;document.querySelectorAll('.task').forEach(el=>el.classList.add('submitted','review-only'));document.querySelectorAll('.answer-input').forEach(el=>el.disabled=true);$('#submitNotice').textContent='Эта работа уже отправлена в этом месяце. Доступен просмотр заданий и решений.';}
 function showStart(){
   $("#loginScreen").classList.add("hidden");
   $("#workScreen").classList.add("hidden");
@@ -334,7 +335,7 @@ function submitWork(){
   const answers=$$(".answer-input").map(x=>x.value.trim());
   if(submissionLocked){
     $("#submitNotice").className="notice";
-    $("#submitNotice").textContent="Эта работа уже завершена в текущем месяце.";
+    $("#submitNotice").textContent="Эта работа уже отправлена в этом месяце. Можно посмотреть условия и решения.";
     return;
   }
   const correctCount=answers.reduce((n,a,i)=>n+(correct(a,TASKS[i].answer)?1:0),0);
