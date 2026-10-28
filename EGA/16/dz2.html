@@ -123,9 +123,19 @@ function restoreDraft(){
 }
 
 
+function mathCell(value){
+ const raw=String(value??'').trim();
+ if(raw.includes('\\(')||raw.includes('\\['))return mathify(raw);
+ if(!raw||/[а-яё]/i.test(raw)||raw==='—'||raw==='…')return mathify(raw);
+ if(!/[A-Za-z()+*/·−²³]/.test(raw))return mathify(raw);
+ let t=raw.replace(/−/g,'-').replace(/·/g,'\\cdot ').replace(/²/g,'^{2}').replace(/³/g,'^{3}');
+ t=t.replace(/(\d),(\d)/g,'$1{,}$2');
+ t=t.replace(/([0-9]*[A-Za-z]|\([^)]*\))\/([A-Za-z]|\d+)/g,(_,a,b)=>'\\frac{'+a+'}{'+b+'}');
+ return '\\('+esc(t)+'\\)';
+}
 function tableHtml(t){
  const headers=(t.tableHeads||[]).map(h=>'<th>'+mathify(h)+'</th>').join('');
- const rows=(t.table||[]).map(row=>'<tr>'+row.map(c=>'<td>'+mathify(c)+'</td>').join('')+'</tr>').join('');
+ const rows=(t.table||[]).map(row=>'<tr>'+row.map(c=>'<td>'+mathCell(c)+'</td>').join('')+'</tr>').join('');
  return '<div class="tbl-wrap"><table class="tbl"><thead><tr>'+headers+'</tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 function typesetMath(container){
@@ -136,7 +146,7 @@ function typesetMath(container){
  }else window.addEventListener('load',()=>{if(window.MathJax?.typesetPromise)window.MathJax.typesetPromise([container]).catch(()=>{})},{once:true});
 }
 function solutionHtml(t,i,user){
- const shown=(t.mathSteps||[]).map(x=>'<div class="eq-line">\\['+esc(x)+'\\]</div>').join('');
+ const calc=(t.mathSteps||[]);const shown=(calc[0]===t.equation?calc.slice(1):calc).map(x=>'<div class="eq-line">\\['+esc(x)+'\\]</div>').join('');
  return '<section class="solution">'+
  '<h3>Задание '+(i+1)+'</h3>'+
  '<h4>Заполненная таблица</h4>'+tableHtml(t)+
