@@ -2016,12 +2016,17 @@ document.querySelectorAll('[data-pad-id]').forEach(el=>{
   el.addEventListener('blur',()=>{el.dataset.localEditing='0'});
 });
 
-// Shared ink v5: one document SVG, child-level Firebase messages, no full-board state replacement.
+// Shared ink v11: optimistic local rendering, coalesced Firebase writes, no replay/flicker.
 let boardTool='cursor',boardColor=localStorage.getItem(`${APP_ID}:color`)||'#a13c1f',boardWidth=Math.max(2,Math.min(14,Number(localStorage.getItem(`${APP_ID}:width`))||5));
-let strokeCache={},activeStroke=null,activePath=null,currentPointer=null,pushTimer=0,writeChain=Promise.resolve(),lastPush=0,boardEpoch=0,eraseLast=null,eraseBusy=new Set(),sizeRaf=0,drawRaf=0;
+let strokeCache={},activeStroke=null,activePath=null,currentPointer=null,pushTimer=0,lastPush=0,boardEpoch=0,eraseLast=null,eraseBusy=new Set(),sizeRaf=0,drawRaf=0;
 const boardSvg=$('#globalBoard');
+const localStrokeIds=new Set(),strokeEls=new Map(),strokeWrites=new Map();
 $('#boardColor').value=boardColor;$('#boardWidth').value=boardWidth;$('#boardWidthOut').textContent=boardWidth;
-function setTool(t){boardTool=t;$$('[data-board-tool]').forEach(b=>{b.classList.toggle('active',b.dataset.boardTool===t);b.setAttribute('aria-pressed',String(b.dataset.boardTool===t))});boardSvg.classList.toggle('draw-active',t==='pen');boardSvg.classList.toggle('erase-active',t==='eraser')}
+function setTool(t){
+  if(currentPointer!==null && t!==boardTool)return; // Don't change input semantics during a gesture.
+  boardTool=t;$$('[data-board-tool]').forEach(b=>{b.classList.toggle('active',b.dataset.boardTool===t);b.setAttribute('aria-pressed',String(b.dataset.boardTool===t))});
+  boardSvg.classList.toggle('draw-active',t==='pen');boardSvg.classList.toggle('erase-active',t==='eraser');
+}
 $$('[data-board-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.boardTool));
 $('#boardColor').addEventListener('input',e=>{boardColor=e.target.value;localStorage.setItem(`${APP_ID}:color`,boardColor)});
 $('#boardWidth').addEventListener('input',e=>{boardWidth=Number(e.target.value);$('#boardWidthOut').textContent=boardWidth;localStorage.setItem(`${APP_ID}:width`,boardWidth)});
@@ -2029,34 +2034,123 @@ function syncBoardSize(){const w=Math.max(window.innerWidth,document.documentEle
 function requestBoardResize(){if(sizeRaf)return;sizeRaf=requestAnimationFrame(()=>{sizeRaf=0;syncBoardSize();renderBoard()})}
 window.addEventListener('resize',requestBoardResize);
 window.addEventListener('guide:resizeboard',requestBoardResize);
-if(typeof ResizeObserver==='function'){const ro=new ResizeObserver(()=>requestBoardResize());const main=document.querySelector('main')||document.querySelector('.wrap');if(main)ro.observe(main)}
+if(typeof ResizeObserver==='function'){const ro=new ResizeObserver(requestBoardResize);const main=document.querySelector('main')||document.querySelector('.wrap');if(main)ro.observe(main)}
 document.body.style.position='relative';syncBoardSize();
 function anchorForEvent(e){const stack=document.elementsFromPoint(e.clientX,e.clientY);for(const node of stack){if(node===boardSvg||node.closest?.('#boardToolbar'))continue;const anchor=node.closest?.('[data-board-anchor]');if(anchor?.id)return anchor.id}return 'document'}
-function metrics(anchorId){const el=anchorId&&anchorId!=='document'?document.getElementById(anchorId):null;if(el){const r=el.getBoundingClientRect();return {x:r.left+scrollX,y:r.top+scrollY,w:Math.max(1,r.width),h:Math.max(1,r.height)}}return{x:0,y:0,w:Math.max(1,boardSvg.clientWidth),h:Math.max(1,boardSvg.clientHeight)}}
+function metrics(anchorId){const el=anchorId&&anchorId!=='document'?document.getElementById(anchorId):null;if(el){const r=el.getBoundingClientRect();return{x:r.left+scrollX,y:r.top+scrollY,w:Math.max(1,r.width),h:Math.max(1,r.height)}}return{x:0,y:0,w:1,h:1}} // Absolute document coords: no drift after layout changes.
 function eventPoint(e,id){const m=metrics(id);return[(e.clientX+scrollX-m.x)/m.w,(e.clientY+scrollY-m.y)/m.h]}
 function screenPoints(stroke){const m=metrics(stroke.anchorId);return(stroke.points||[]).map(p=>[m.x+(+p[0])*m.w,m.y+(+p[1])*m.h])}
 function smoothPath(points){if(!points.length)return'';if(points.length===1)return`M${points[0][0].toFixed(1)} ${points[0][1].toFixed(1)} l 0.01 0`;let d=`M${points[0][0].toFixed(1)} ${points[0][1].toFixed(1)}`;for(let i=0;i<points.length-1;i++){const p0=points[i-1]||points[i],p1=points[i],p2=points[i+1],p3=points[i+2]||p2,c1x=p1[0]+(p2[0]-p0[0])/6,c1y=p1[1]+(p2[1]-p0[1])/6,c2x=p2[0]-(p3[0]-p1[0])/6,c2y=p2[1]-(p3[1]-p1[1])/6;d+=` C${c1x.toFixed(1)} ${c1y.toFixed(1)} ${c2x.toFixed(1)} ${c2y.toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`}return d}
-function findStroke(id){for(const n of boardSvg.querySelectorAll('.board-stroke:not(.active-local)'))if(n.dataset.strokeId===id)return n;return null}
-function makeStroke(stroke,local=false){const el=document.createElementNS('http://www.w3.org/2000/svg','path');el.setAttribute('class','board-stroke'+(local?' active-local':''));el.dataset.strokeId=stroke.id;el.setAttribute('stroke',stroke.color||boardColor);el.setAttribute('stroke-width',stroke.width||boardWidth);el.setAttribute('d',smoothPath(screenPoints(stroke)));boardSvg.appendChild(el);return el}
+function findStroke(id){const el=strokeEls.get(id);if(el?.isConnected)return el;strokeEls.delete(id);return null}
+function makeStroke(stroke,local=false){const el=document.createElementNS('http://www.w3.org/2000/svg','path');el.setAttribute('class','board-stroke'+(local?' active-local':''));el.dataset.strokeId=stroke.id;el.setAttribute('stroke',stroke.color||boardColor);el.setAttribute('stroke-width',stroke.width||boardWidth);el.setAttribute('d',smoothPath(screenPoints(stroke)));boardSvg.appendChild(el);strokeEls.set(stroke.id,el);return el}
 function upsertRemoteStroke(id,stroke){if(!stroke||Number(stroke.epoch)!==Number(localState?.boardEpoch??boardEpoch))return;if(activeStroke?.id===id)return;let el=findStroke(id);if(!el)el=makeStroke({...stroke,id});else{el.setAttribute('d',smoothPath(screenPoints(stroke)));el.setAttribute('stroke',stroke.color||boardColor);el.setAttribute('stroke-width',stroke.width||boardWidth)}}
-function removeStrokeEl(id){findStroke(id)?.remove()}
-function renderBoard(){const epoch=Number(localState?.boardEpoch??boardEpoch);if(activeStroke&&activeStroke.epoch!==epoch){activeStroke=null;activePath?.remove();activePath=null;currentPointer=null}boardSvg.querySelectorAll('.board-stroke:not(.active-local)').forEach(el=>el.remove());for(const[id,s]of Object.entries(strokeCache))if(s&&Number(s.epoch)===epoch)upsertRemoteStroke(id,s);if(activeStroke&&activePath)activePath.setAttribute('d',smoothPath(screenPoints(activeStroke)))}
-function subscribeStrokes(){strokeCache={};renderBoard();const unsub=[onChildAdded(strokesRef(),snap=>{const id=snap.key,s=snap.val();if(!id||!s)return;strokeCache[id]=s;upsertRemoteStroke(id,s)}),onChildChanged(strokesRef(),snap=>{const id=snap.key,s=snap.val();if(!id||!s)return;strokeCache[id]=s;upsertRemoteStroke(id,s)}),onChildRemoved(strokesRef(),snap=>{delete strokeCache[snap.key];removeStrokeEl(snap.key)})];return()=>unsub.forEach(f=>f?.())}
+function removeStrokeEl(id){const el=findStroke(id);el?.remove();strokeEls.delete(id)}
+function renderBoard(){
+ const epoch=Number(localState?.boardEpoch??boardEpoch);
+ if(activeStroke&&activeStroke.epoch!==epoch){activeStroke=null;activePath?.remove();activePath=null;currentPointer=null;clearTimeout(pushTimer);pushTimer=0}
+ // Keep existing SVG paths stable; resize means update geometry, not delete/recreate every stroke.
+ for(const [id,el] of strokeEls){const s=strokeCache[id]||(activeStroke?.id===id?activeStroke:null);if(!s||Number(s.epoch)!==epoch){el.remove();strokeEls.delete(id);continue}el.setAttribute('d',smoothPath(screenPoints(s)))}
+ for(const [id,s] of Object.entries(strokeCache))if(s&&Number(s.epoch)===epoch&&!findStroke(id))upsertRemoteStroke(id,s);
+}
+function remoteStroke(id,s){
+ if(!id||!s)return;
+ if(localStrokeIds.has(id))return; // Firebase echo must never rewind a stroke drawn in this tab.
+ const previous=strokeCache[id];
+ if(previous && (Number(s.seq||0)<Number(previous.seq||0) || (previous.done && !s.done)))return;
+ strokeCache[id]=s;upsertRemoteStroke(id,s);
+}
+function subscribeStrokes(){
+ // Don't blank the drawing while Firebase replays initial children on reconnect.
+ const unsub=[onChildAdded(strokesRef(),snap=>remoteStroke(snap.key,snap.val())),onChildChanged(strokesRef(),snap=>remoteStroke(snap.key,snap.val())),onChildRemoved(strokesRef(),snap=>{const id=snap.key;delete strokeCache[id];localStrokeIds.delete(id);removeStrokeEl(id)})];
+ return()=>unsub.forEach(f=>f?.());
+}
 function queueActiveRender(){if(drawRaf)return;drawRaf=requestAnimationFrame(()=>{drawRaf=0;if(activeStroke){if(!activePath?.isConnected)activePath=makeStroke(activeStroke,true);else activePath.setAttribute('d',smoothPath(screenPoints(activeStroke)))}})}
-function sendStrokeSnapshot(s){if(!joined)return Promise.resolve();writeChain=writeChain.catch(()=>{}).then(()=>set(ref(database,`${root()}/strokes/${s.id}`),s));return writeChain.catch(()=>{})}
-function scheduleStroke(force=false){if(!activeStroke||!joined)return;const now=performance.now(),wait=Math.max(0,38-(now-lastPush));if(!force&&wait>0){if(!pushTimer)pushTimer=setTimeout(()=>{pushTimer=0;scheduleStroke(true)},wait);return}lastPush=now;sendStrokeSnapshot(clone(activeStroke))}
-function addCoalescedPoints(e){if(!activeStroke)return;const m=metrics(activeStroke.anchorId);for(const ev of e.getCoalescedEvents?.()||[e]){const p=eventPoint(ev,activeStroke.anchorId),old=activeStroke.points.at(-1);if(!old||Math.hypot((p[0]-old[0])*m.w,(p[1]-old[1])*m.h)>=.6)activeStroke.points.push(p)}}
+// At most one Firebase set per stroke in flight. Intermediate snapshots are replaced by the newest.
+// Final complete path is sent immediately after the in-flight write, with no backlog to replay.
+function pumpStrokeWrite(job,id){
+ if(job.inFlight||job.blocked)return job.promise;
+ job.inFlight=true;
+ job.promise=(async()=>{
+   while(job.latest&&!job.deleted){
+     const snapshot=job.latest;job.latest=null;
+     try{await set(ref(database,`${job.root}/strokes/${id}`),snapshot)}
+     catch(err){job.latest=job.latest||snapshot;job.blocked=true;console.warn('Не удалось синхронизировать штрих',err);setStatus('offline','рисунок сохранён на экране · ждём соединения');break}
+   }
+   if(job.deleted)await remove(ref(database,`${job.root}/strokes/${id}`)).catch(()=>{});
+ })().finally(()=>{
+   job.inFlight=false;
+   if(job.latest&&!job.blocked&&!job.deleted)pumpStrokeWrite(job,id);
+   else if(!job.latest&&!job.blocked)strokeWrites.delete(id);
+ });
+ return job.promise;
+}
+function sendStrokeSnapshot(s){
+ if(!joined)return Promise.resolve();
+ let job=strokeWrites.get(s.id);
+ if(!job){job={root:root(),latest:null,inFlight:false,blocked:false,deleted:false,promise:Promise.resolve()};strokeWrites.set(s.id,job)}
+ if(job.deleted)return job.promise;
+ job.latest=clone(s);
+ if(!job.inFlight&&!job.blocked)pumpStrokeWrite(job,s.id);
+ return job.promise;
+}
+window.addEventListener('online',()=>{for(const [id,job] of strokeWrites)if(job.blocked){job.blocked=false;pumpStrokeWrite(job,id)}});
+function scheduleStroke(force=false){if(!activeStroke||!joined)return;const now=performance.now(),wait=Math.max(0,95-(now-lastPush));if(!force&&wait>0){if(!pushTimer)pushTimer=setTimeout(()=>{pushTimer=0;scheduleStroke(true)},wait);return}lastPush=now;sendStrokeSnapshot(activeStroke)}
+function addCoalescedPoints(e){if(!activeStroke)return;const m=metrics(activeStroke.anchorId);for(const ev of e.getCoalescedEvents?.()||[e]){const p=eventPoint(ev,activeStroke.anchorId),old=activeStroke.points.at(-1);if(!old||Math.hypot((p[0]-old[0])*m.w,(p[1]-old[1])*m.h)>=.85)activeStroke.points.push(p)}}
 function distSeg(px,py,ax,ay,bx,by){const vx=bx-ax,vy=by-ay,wx=px-ax,wy=py-ay,c1=vx*wx+vy*wy;if(c1<=0)return Math.hypot(px-ax,py-ay);const c2=vx*vx+vy*vy;if(c2<=c1)return Math.hypot(px-bx,py-by);const t=c1/c2;return Math.hypot(px-(ax+t*vx),py-(ay+t*vy))}
-function erasePoint(px,py){if(!joined)return;const epoch=Number(localState?.boardEpoch??boardEpoch),rad=Math.max(14,boardWidth*2.4);for(const[id,s]of Object.entries(strokeCache)){if(!s||s.epoch!==epoch||eraseBusy.has(id))continue;const pts=screenPoints(s);let hit=false;for(let i=0;i<pts.length;i++){const p=pts[i],last=pts[Math.max(0,i-1)];if(i===0?Math.hypot(px-p[0],py-p[1])<=rad+(s.width||4)/2:distSeg(px,py,last[0],last[1],p[0],p[1])<=rad+(s.width||4)/2){hit=true;break}}if(hit){eraseBusy.add(id);delete strokeCache[id];removeStrokeEl(id);remove(ref(database,`${root()}/strokes/${id}`)).catch(()=>{strokeCache[id]=s;upsertRemoteStroke(id,s)}).finally(()=>eraseBusy.delete(id))}}}
+async function removeSharedStroke(id){
+ const job=strokeWrites.get(id);
+ if(job){job.deleted=true;job.latest=null;if(job.inFlight)await job.promise.catch(()=>{});strokeWrites.delete(id)}
+ await remove(ref(database,`${job?.root||root()}/strokes/${id}`));
+}
+function erasePoint(px,py){if(!joined)return;const epoch=Number(localState?.boardEpoch??boardEpoch),rad=Math.max(14,boardWidth*2.4);for(const[id,s]of Object.entries(strokeCache)){if(!s||s.epoch!==epoch||eraseBusy.has(id))continue;const pts=screenPoints(s);let hit=false;for(let i=0;i<pts.length;i++){const p=pts[i],last=pts[Math.max(0,i-1)];if(i===0?Math.hypot(px-p[0],py-p[1])<=rad+(s.width||4)/2:distSeg(px,py,last[0],last[1],p[0],p[1])<=rad+(s.width||4)/2){hit=true;break}}if(hit){eraseBusy.add(id);delete strokeCache[id];localStrokeIds.delete(id);removeStrokeEl(id);removeSharedStroke(id).catch(()=>{strokeCache[id]=s;upsertRemoteStroke(id,s)}).finally(()=>eraseBusy.delete(id))}}}
 function eraseAlong(e){const cur=[e.clientX+scrollX,e.clientY+scrollY];if(!eraseLast){eraseLast=cur;erasePoint(...cur);return}const count=Math.max(1,Math.ceil(Math.hypot(cur[0]-eraseLast[0],cur[1]-eraseLast[1])/8));for(let i=1;i<=count;i++){const t=i/count;erasePoint(eraseLast[0]+(cur[0]-eraseLast[0])*t,eraseLast[1]+(cur[1]-eraseLast[1])*t)}eraseLast=cur}
-boardSvg.addEventListener('pointerdown',e=>{if(!joined||boardTool==='cursor'||currentPointer!==null)return;currentPointer=e.pointerId;e.preventDefault();boardSvg.setPointerCapture(e.pointerId);if(boardTool==='eraser'){eraseLast=null;eraseAlong(e);return}const id=anchorForEvent(e);activeStroke={id:'stroke-'+uuid(),anchorId:id,authorId:me.id,color:boardColor,width:boardWidth,points:[eventPoint(e,id)],epoch:Number(localState?.boardEpoch||0),rev:Date.now(),done:false};queueActiveRender();scheduleStroke(true)});
-boardSvg.addEventListener('pointermove',e=>{if(currentPointer!==e.pointerId)return;e.preventDefault();if(boardTool==='eraser'){eraseAlong(e);return}if(!activeStroke)return;addCoalescedPoints(e);activeStroke.rev=Date.now();queueActiveRender();scheduleStroke()});
-async function finishStroke(e){if(currentPointer!==e.pointerId)return;try{boardSvg.releasePointerCapture(e.pointerId)}catch{}currentPointer=null;if(boardTool==='eraser'){eraseLast=null;return}if(!activeStroke)return;addCoalescedPoints(e);clearTimeout(pushTimer);pushTimer=0;const finished=clone(activeStroke);finished.done=true;finished.rev=Date.now();strokeCache[finished.id]=finished;activeStroke=null;activePath?.remove();activePath=null;upsertRemoteStroke(finished.id,finished);await sendStrokeSnapshot(finished)}
+boardSvg.addEventListener('pointerdown',e=>{
+ if(!joined||boardTool==='cursor'||currentPointer!==null)return;
+ if(e.pointerType==='mouse'&&e.button!==0)return;
+ currentPointer=e.pointerId;e.preventDefault();boardSvg.setPointerCapture(e.pointerId);
+ if(boardTool==='eraser'){eraseLast=null;eraseAlong(e);return}
+ const id=anchorForEvent(e);
+ activeStroke={id:'stroke-'+uuid(),anchorId:id,authorId:me.id,authorClientId:browserClientId,color:boardColor,width:boardWidth,points:[eventPoint(e,id)],epoch:Number(localState?.boardEpoch??boardEpoch),rev:Date.now(),seq:1,done:false};
+ localStrokeIds.add(activeStroke.id);
+ activePath=makeStroke(activeStroke,true); // Draw immediately without waiting for a frame or network.
+ scheduleStroke(true);
+});
+boardSvg.addEventListener('pointermove',e=>{
+ if(currentPointer!==e.pointerId)return;e.preventDefault();
+ if(boardTool==='eraser'){if(e.buttons===0&&e.pointerType==='mouse')return;eraseAlong(e);return}
+ if(!activeStroke)return;addCoalescedPoints(e);activeStroke.rev=Date.now();activeStroke.seq++;queueActiveRender();scheduleStroke();
+});
+function finishStroke(e){
+ if(currentPointer!==e.pointerId)return;
+ try{boardSvg.releasePointerCapture(e.pointerId)}catch{}currentPointer=null;
+ if(boardTool==='eraser'){eraseLast=null;return}
+ if(!activeStroke)return;
+ if(e.type!=='pointercancel')addCoalescedPoints(e);
+ clearTimeout(pushTimer);pushTimer=0;
+ if(drawRaf){cancelAnimationFrame(drawRaf);drawRaf=0}
+ const finished=clone(activeStroke);finished.done=true;finished.seq++;finished.rev=Date.now();
+ strokeCache[finished.id]=finished;
+ if(activePath?.isConnected){activePath.classList.remove('active-local');activePath.setAttribute('d',smoothPath(screenPoints(finished)))}
+ else upsertRemoteStroke(finished.id,finished);
+ activeStroke=null;activePath=null;
+ sendStrokeSnapshot(finished); // Preserve local path while sending; never redraw from old Firebase echoes.
+}
 boardSvg.addEventListener('pointerup',finishStroke);boardSvg.addEventListener('pointercancel',finishStroke);
-async function undoOwnStroke(){if(!joined||!me)return;const epoch=Number(localState?.boardEpoch??boardEpoch);const own=Object.values(strokeCache).filter(x=>x&&Number(x.epoch)===epoch&&x.authorId===me.id).sort((a,b)=>Number(b.rev||0)-Number(a.rev||0));if(!own.length)return;const last=own[0];delete strokeCache[last.id];removeStrokeEl(last.id);await remove(ref(database,`${root()}/strokes/${last.id}`)).catch(()=>{})}
+function undoOwnStroke(){
+ if(!joined||!me)return;
+ const epoch=Number(localState?.boardEpoch??boardEpoch),own=Object.values(strokeCache).filter(s=>s&&Number(s.epoch)===epoch&&s.authorClientId===browserClientId).sort((a,b)=>Number(b.rev||0)-Number(a.rev||0));
+ if(!own.length)return;const last=own[0];delete strokeCache[last.id];localStrokeIds.delete(last.id);removeStrokeEl(last.id);removeSharedStroke(last.id).catch(()=>{});
+}
 $('#boardUndo').onclick=undoOwnStroke;
 window.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.key.toLowerCase()!=='z')return;const node=document.activeElement;if(node?.matches('input,textarea,[contenteditable]'))return;e.preventDefault();undoOwnStroke()});
-async function clearSharedBoard(){if(!joined)return;activeStroke=null;activePath?.remove();activePath=null;clearTimeout(pushTimer);pushTimer=0;currentPointer=null;await runTransaction(stateRef(),state=>{const s=normalizeState(state||localState);if(!s)return;s.boardEpoch++;s.version++;return s},{applyLocally:false});await remove(strokesRef());strokeCache={};renderBoard()}
+async function clearSharedBoard(){
+ if(!joined||role!=='teacher')return;
+ activeStroke=null;activePath?.remove();activePath=null;clearTimeout(pushTimer);pushTimer=0;currentPointer=null;
+ // Pending writes may complete late: mark them deleted before clearing the remote collection.
+ for(const job of strokeWrites.values()){job.deleted=true;job.latest=null}
+ await runTransaction(stateRef(),state=>{const s=normalizeState(state||localState);if(!s)return;s.boardEpoch++;s.version++;return s},{applyLocally:false});
+ strokeCache={};localStrokeIds.clear();renderBoard();await remove(strokesRef());
+}
 window.addEventListener('guide:clearboard',()=>clearSharedBoard());
 $('#boardClear').onclick=()=>{if(role==='teacher'&&joined&&confirm('Очистить все рисунки у всех учеников?'))clearSharedBoard()};
 setTool('cursor');
