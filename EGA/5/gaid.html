@@ -285,21 +285,22 @@ function draw(k){
  }
  updateControls(k);updateTheory(k);window.dispatchEvent(new Event('guide:resizeboard'));
 }
-function choose(k,kind,except,exclude){
- let pool=kindItems(k,kind).filter(t=>t.n!==Number(except)&&t.n!==Number(exclude));
- if(!pool.length)pool=groupItems(k).filter(t=>t.n!==Number(except)&&t.n!==Number(exclude));
+function choose(k,kind,except,no){
+ let pool=kindItems(k,kind).filter(t=>t.n!==except);
+ if(no&&pool.some(t=>t.n===no))return no;
+ if(!pool.length)pool=groupItems(k).filter(t=>t.n!==except); // only one original for a rare subtype
  if(!pool.length)return except;
  return pool[Math.floor(Math.random()*pool.length)].n;
 }
 function nextSequential(k,kind,current,exclude){
  const pool=kindItems(k,kind);
- if(pool.length<2)return current;
+ if(pool.length<2)return choose(k,kind,current,exclude);
  const i=pool.findIndex(t=>t.n===Number(current));
  for(let step=1;step<=pool.length;step++){
   const n=pool[(i+step+pool.length)%pool.length].n;
   if(n!==Number(exclude)&&n!==Number(current))return n;
  }
- return current;
+ return choose(k,kind,current,exclude);
 }
 function changed(k){state[k].rev=Math.max(Date.now(),(Number(state[k].rev)||0)+1);draw(k);window.dispatchEvent(new CustomEvent("guide:interaction",{detail:{id:"prob5-p"+k,value:JSON.parse(JSON.stringify(state[k]))}}))}
 function publishAll(){for(let k=1;k<=6;k++)changed(k)}
@@ -322,18 +323,12 @@ for(let k=1;k<=6;k++){
   state[k].tasks[0]=n;if(state[k].tasks[1]===n)state[k].tasks[1]=choose(k,state[k].kind,n);changed(k)
  });
  root.querySelector('.bank-next').addEventListener('click',()=>{
-  const pool=kindItems(k,state[k].kind),current=state[k].tasks;
-  if(pool.length===1){window.GuideApp?.toast?.('В файле всего одна задача этого прототипа. Выбери другой вид.');return}
-  if(pool.length===2&&current.every(n=>pool.some(t=>t.n===n))){state[k].tasks=[current[1],current[0]];changed(k);return}
-  const a=nextSequential(k,state[k].kind,current[0],current[1]),b=nextSequential(k,state[k].kind,a);
-  state[k].tasks=[a,b];changed(k)
+  state[k].tasks=[nextSequential(k,state[k].kind,state[k].tasks[0],state[k].tasks[1]),0];
+  state[k].tasks[1]=nextSequential(k,state[k].kind,state[k].tasks[0]);changed(k)
  });
  root.querySelectorAll('.prob5-new').forEach(btn=>btn.addEventListener('click',e=>{
   e.preventDefault();e.stopPropagation();const i=Number(btn.closest('.prob5-card').dataset.index);
-  const pool=kindItems(k,state[k].kind),current=state[k].tasks;
-  if(pool.length===1&&current[i]===pool[0].n){window.GuideApp?.toast?.('Других задач этого вида в файле нет.');return}
-  if(pool.length===2&&current.every(n=>pool.some(t=>t.n===n))){state[k].tasks=[current[1],current[0]];changed(k);return}
-  state[k].tasks[i]=nextSequential(k,state[k].kind,current[i],current[1-i]);
+  state[k].tasks[i]=nextSequential(k,state[k].kind,state[k].tasks[i],state[k].tasks[1-i]);
   changed(k)
  }));
  root.addEventListener('click',e=>{
