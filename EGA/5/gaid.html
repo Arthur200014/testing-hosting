@@ -384,6 +384,89 @@ function graph(t){
  return '<div class="theory-illustration bank-visual">'+art+
   '<div class="theory-diagram-caption">'+svgtxt(types[1])+'</div></div>';
 }
+
+/* All exercise variants have computed answers and explicit numerical solutions. */
+const V={};
+const vr=(lo,hi)=>lo+Math.floor(Math.random()*(hi-lo+1));
+const vp=a=>a[Math.floor(Math.random()*a.length)];
+const vf=n=>String(Number(Number(n).toFixed(4))).replace(".",",");
+const vpc=n=>vf(n/100);
+const vd=(description,equation)=>[description,equation];
+const vPairs=predicate=>{const arr=[];for(let x=1;x<=6;x++)for(let y=1;y<=6;y++)if(predicate(x,y))arr.push([x,y]);return arr};
+const vGroups=Object.fromEntries(Object.keys(META).map(k=>[k,BANK.find(t=>t.t===k)?.g]));
+function vm(type,q,result,calculations,params){
+ if(!Number.isFinite(result)||result<0)throw Error('Incorrect variant result '+type);
+ return {t:type,g:vGroups[type],q,a:vf(result),exact:result,steps:[...calculations,vd('Получаем ответ',vf(result))],params,signature:JSON.stringify(params)};
+}
+V.interval=()=>{
+ const a=vr(8,34),b=vr(11,40),answer=1-(a+b)/100;
+ return vm('interval','Вероятность срока службы батареи меньше 3 лет — '+vpc(a)+', больше 7 лет — '+vpc(b)+'. Найдите вероятность срока службы от 3 до 7 лет.',answer,[
+ vd('Разделяем все сроки на три части','P(<3) + P(3–7) + P(>7) = 1'),
+ vd('Вычитаем два ненужных промежутка','1 − '+vpc(a)+' − '+vpc(b)+' = '+vf(answer))
+ ],[a,b]);
+};
+for(const type of ['union-none','union-atleast','union-one','union-find-intersection'])V[type]=()=>{
+ const a=vr(23,44),b=vr(22,43),c=vr(6,Math.min(a,b)-7),union=a+b-c;
+ const tasks={
+ 'union-none':['Оба устройства останутся исправны.',(100-union)/100,'1 − ('+vpc(a)+' + '+vpc(b)+' − '+vpc(c)+')'],
+ 'union-atleast':['Сбой произойдёт хотя бы в одном устройстве.',union/100,vpc(a)+' + '+vpc(b)+' − '+vpc(c)],
+ 'union-one':['Сбой произойдёт ровно в одном устройстве.',(a+b-2*c)/100,vpc(a)+' + '+vpc(b)+' − 2 · '+vpc(c)],
+ 'union-find-intersection':['Сбой произойдёт сразу в обоих устройствах.',c/100,vpc(a)+' + '+vpc(b)+' − '+vpc(union)]
+ };
+ const z=tasks[type],info=type==='union-find-intersection'?'Вероятность сбоя хотя бы одного — '+vpc(union):'Вероятность сбоя обоих — '+vpc(c);
+ return vm(type,'Вероятности сбоев устройств A и B равны '+vpc(a)+' и '+vpc(b)+'. '+info+'. Найдите вероятность того, что '+z[0].toLowerCase(),z[1],[
+ vd('Обозначаем два события','P(A) = '+vpc(a)+'; P(B) = '+vpc(b)+'; '+info),
+ vd('Учитываем пересечение событий',z[2]+' = '+vf(z[1]))
+ ],[a,b,c]);
+};
+V['dice-exclusion']=()=>{
+ const forbidden=vr(1,6),sum=vp([6,7,8,9,10]),allowed=vPairs((a,b)=>a!==forbidden&&b!==forbidden),hits=allowed.filter(([a,b])=>a+b===sum),answer=hits.length/allowed.length;
+ return vm('dice-exclusion','Кубик бросают дважды. Известно, что грань '+forbidden+' ни разу не выпала. Найдите вероятность суммы '+sum+'. Округлите до 4 знаков.',answer,[
+ vd('Убираем запрещённую грань в каждом броске','5 · 5 = 25 упорядоченных пар'),
+ vd('Считаем пары с суммой '+sum,'Благоприятных пар: '+hits.length),
+ vd('Делим подходящие пары на все допустимые',hits.length+'/25 = '+vf(answer))
+ ],[forbidden,sum]);
+};
+V['dice-parity']=()=>{
+ const parity=vr(0,1),faces=parity?[1,3,5]:[2,4,6],pairs=vPairs((a,b)=>faces.includes(a)&&faces.includes(b)),sum=vp([...new Set(pairs.map(([a,b])=>a+b))]),hits=pairs.filter(([a,b])=>a+b===sum),answer=hits.length/pairs.length;
+ return vm('dice-parity','Два броска кубика дали только '+(parity?'нечётные':'чётные')+' числа. Найдите вероятность, что сумма равна '+sum+'. Округлите до 4 знаков.',answer,[
+ vd('Оставляем только разрешённые грани',faces.join(', ')+' → 3 · 3 = 9 пар'),
+ vd('Перебираем пары, в которых сумма '+sum,'Подходящих пар: '+hits.length),
+ vd('Находим условную вероятность',hits.length+'/9 = '+vf(answer))
+ ],[parity,sum]);
+};
+V['dice-order']=()=>{
+ const first=vr(2,4),threshold=vp([7,8,9]),allowed=vPairs((a,b)=>a>first),hits=allowed.filter(([a,b])=>a+b>=threshold),answer=hits.length/allowed.length;
+ return vm('dice-order','Два броска кубика. Первый результат больше '+first+'. Найдите вероятность, что сумма не меньше '+threshold+'. Округлите до 4 знаков.',answer,[
+ vd('Для первого броска остаются значения больше '+first,(6-first)+' · 6 = '+allowed.length+' пар'),
+ vd('Считаем среди них пары с суммой от '+threshold,'Подходящих пар: '+hits.length),
+ vd('Делим числа пар',hits.length+'/'+allowed.length+' = '+vf(answer))
+ ],[first,threshold]);
+};
+V['dice-compare']=()=>{
+ const d=vr(0,3),allowed=vPairs((a,b)=>a!==b),hits=allowed.filter(([a,b])=>a-b>d),answer=hits.length/30;
+ return vm('dice-compare','Кубик бросают два раза. Результаты различны. Какова вероятность, что первый результат больше второго более чем на '+d+'? Округлите до 4 знаков.',answer,[
+ vd('Исключаем одинаковые результаты','6 · 6 − 6 = 30 допустимых пар'),
+ vd('Оставляем пары с разностью больше '+d,'Благоприятных пар: '+hits.length),
+ vd('Делим на допустимые пары',hits.length+'/30 = '+vf(answer))
+ ],[d]);
+};
+V['dice-atleast']=()=>{
+ const face=vr(1,6),limit=vp([6,7,8,9]),allowed=vPairs((a,b)=>a===face||b===face),hits=allowed.filter(([a,b])=>a+b>=limit),answer=hits.length/allowed.length;
+ return vm('dice-atleast','Кубик бросают два раза. Хотя бы раз выпала грань '+face+'. Найдите вероятность суммы не меньше '+limit+'. Округлите до 4 знаков.',answer,[
+ vd('Считаем пары, где встречается грань '+face,'6 + 6 − 1 = 11 пар'),
+ vd('Выбираем пары с суммой от '+limit,'Подходящих пар: '+hits.length),
+ vd('Вычисляем долю',hits.length+'/11 = '+vf(answer))
+ ],[face,limit]);
+};
+V['dice-retry']=()=>{
+ const sum=vp([6,7,8,9]),attempts=vr(2,4),hits=vPairs((a,b)=>a+b===sum).length,p=hits/36,answer=1-(1-p)**attempts;
+ return vm('dice-retry','За одну попытку дважды бросают кубик; успех — сумма '+sum+'. За '+attempts+' независимые попытки найдите вероятность хотя бы одного успеха. Округлите до 4 знаков.',answer,[
+ vd('Считаем вероятность успеха одной попытки',hits+'/36 ≈ '+vf(p)),
+ vd('Шанс неудачи за одну попытку','1 − '+hits+'/36 ≈ '+vf(1-p)),
+ vd('Все неудачи вычитаем из единицы','1 − (1 − '+hits+'/36)^'+attempts+' = '+vf(answer))
+ ],[sum,attempts]);
+};
 function steps(t){
  const m=META[t.t],q=t.q,answer=num(t.a);
  const lines=[m[1],m[2]];
