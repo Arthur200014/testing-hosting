@@ -152,6 +152,17 @@ body{background:radial-gradient(circle at 81% 6%,#165c85 0,#0b3557 29%,transpare
 .bank-adjacent{margin-top:12px;padding:12px;border-top:1px dashed #c0d6df}
 .bank-adjacent>b{color:#215d7a;font-size:13px}
 .bank-adjacent p{font-size:13px}
+
+/* Original detailed animated illustrations instead of generic three-box diagrams. */
+.bank-theory .theory-illustration,.prob5-detail .theory-illustration{margin:10px 0;padding:10px 12px 9px;border:1px solid #e5ddb8;border-radius:13px;background:#fffdf5;overflow:hidden}
+.bank-theory .theory-illustration svg,.prob5-detail .theory-illustration svg{display:block;width:100%;height:auto;max-height:225px;margin:auto}
+.bank-theory .theory-diagram-caption,.prob5-detail .theory-diagram-caption{font-size:12px;color:#577383;margin-top:8px;line-height:1.45}
+.bank-soft-highlight{animation:theory-glow 3s ease-in-out infinite;opacity:.65}
+.bank-dimmed{opacity:.25}
+.bank-visual svg .theory-small{font-size:14px}
+.bank-visual .theory-symbol{font-size:28px}
+.bank-visual .theory-pop-1,.bank-visual .theory-pop-2{transform-box:fill-box;transform-origin:center}
+@media(prefers-reduced-motion:reduce){.bank-visual *{animation:none!important}}
 </style><script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},options:{skipHtmlTags:['script','noscript','style','textarea','pre','code']}};</script><script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script></head><body><svg id="globalBoard" class="global-ink-board" xmlns="http://www.w3.org/2000/svg" aria-label="Общая доска"></svg>
 <button class="join-fab" id="joinFab" type="button">👥 Совместный урок</button>
 <div class="session-panel" id="sessionPanel"><button id="sessionMiniToggle" type="button" aria-label="Участники">👥</button><i class="session-dot" id="sessionDot"></i><b id="sessionWho">—</b><small id="sessionStatus">синхронизация…</small><span id="sessionMembers">участники</span><small id="sessionCount">0 учеников</small><button id="changeStudentBtn" class="hidden" type="button">Сменить ученика</button><button id="newSessionBtn" class="hidden" type="button">Новое занятие</button></div>
@@ -187,11 +198,166 @@ const groupItems=k=>BANK.filter(t=>t.g===k);
 const kindItems=(k,kind)=>BANK.filter(t=>t.g===k&&t.t===kind);
 const availableKinds=k=>[...new Set(groupItems(k).map(x=>x.t))];
 function pretty(n){return Number(Number(n).toFixed(6)).toString().replace(".",",")}
+
+/* Restored richly illustrated, animated theory from the pre-bank version.
+ * Individual prototypes choose their own visual and captions. */
+const CLASSIC_DIAGRAMS=["<svg viewBox=\"0 0 660 210\" role=\"img\" aria-label=\"Два пересекающихся круга А и В внутри множества всех исходов\">\n<rect x=\"12\" y=\"9\" width=\"636\" height=\"190\" rx=\"18\" fill=\"#fffdf0\" stroke=\"#9cbecf\" stroke-width=\"2\"/>\n<text x=\"30\" y=\"34\" class=\"theory-small\">Все исходы</text>\n<circle class=\"theory-pop-1\" cx=\"278\" cy=\"106\" r=\"75\" fill=\"#8ed9ed\" fill-opacity=\".72\" stroke=\"#2682a9\" stroke-width=\"3\"/>\n<circle class=\"theory-pop-2\" cx=\"374\" cy=\"106\" r=\"75\" fill=\"#ffd877\" fill-opacity=\".69\" stroke=\"#c9962d\" stroke-width=\"3\"/>\n<path class=\"theory-focus\" d=\"M326 49 A75 75 0 0 1 326 163 A75 75 0 0 1 326 49 Z\" fill=\"#50ad89\" fill-opacity=\".55\"/>\n<text x=\"245\" y=\"110\" class=\"theory-symbol\">A</text><text x=\"411\" y=\"110\" class=\"theory-symbol\">B</text>\n<text x=\"326\" y=\"110\" text-anchor=\"middle\" class=\"theory-symbol theory-mid\">и</text>\n<text x=\"30\" y=\"177\" class=\"theory-small\">«или» — оба круга</text><text x=\"490\" y=\"177\" class=\"theory-small\">«не A» — вне A</text>\n</svg>","<svg viewBox=\"0 0 660 206\" role=\"img\" aria-label=\"Шесть исходов кубика, запрещённый исход зачёркнут\">\n<rect x=\"12\" y=\"8\" width=\"636\" height=\"188\" rx=\"18\" fill=\"#fffdf0\" stroke=\"#9cbecf\" stroke-width=\"2\"/>\n<text x=\"28\" y=\"36\" class=\"theory-small\">Дано условие: «6 не выпало»</text>\n<g transform=\"translate(42,68)\"><rect width=\"78\" height=\"76\" rx=\"13\" fill=\"#e1f3fb\" stroke=\"#83bbd6\" stroke-width=\"2\"/><text x=\"39\" y=\"51\" text-anchor=\"middle\" class=\"theory-symbol\">1</text></g><g transform=\"translate(140,68)\"><rect width=\"78\" height=\"76\" rx=\"13\" fill=\"#e1f3fb\" stroke=\"#83bbd6\" stroke-width=\"2\"/><text x=\"39\" y=\"51\" text-anchor=\"middle\" class=\"theory-symbol\">2</text></g><g transform=\"translate(238,68)\"><rect width=\"78\" height=\"76\" rx=\"13\" fill=\"#e1f3fb\" stroke=\"#83bbd6\" stroke-width=\"2\"/><text x=\"39\" y=\"51\" text-anchor=\"middle\" class=\"theory-symbol\">3</text></g><g transform=\"translate(336,68)\"><rect width=\"78\" height=\"76\" rx=\"13\" fill=\"#e1f3fb\" stroke=\"#83bbd6\" stroke-width=\"2\"/><text x=\"39\" y=\"51\" text-anchor=\"middle\" class=\"theory-symbol\">4</text></g><g transform=\"translate(434,68)\"><rect width=\"78\" height=\"76\" rx=\"13\" fill=\"#e1f3fb\" stroke=\"#83bbd6\" stroke-width=\"2\"/><text x=\"39\" y=\"51\" text-anchor=\"middle\" class=\"theory-symbol\">5</text></g><g transform=\"translate(532,68)\"><rect width=\"78\" height=\"76\" rx=\"13\" fill=\"#fae1de\" stroke=\"#d27870\" stroke-width=\"2\"/><text x=\"39\" y=\"51\" text-anchor=\"middle\" class=\"theory-symbol\">6</text><path class=\"theory-cross\" d=\"M 14 15 L 65 62 M 65 15 L 14 62\" stroke=\"#ba4c4f\" stroke-width=\"5\" stroke-linecap=\"round\"/></g>\n<text x=\"31\" y=\"178\" class=\"theory-small\">Считаем только среди оставшихся пяти вариантов</text></svg>","<svg viewBox=\"0 0 660 206\" role=\"img\" aria-label=\"Дерево двух независимых испытаний с успехами и неудачами\">\n<rect x=\"12\" y=\"8\" width=\"636\" height=\"188\" rx=\"18\" fill=\"#fffdf0\" stroke=\"#9cbecf\" stroke-width=\"2\"/>\n<g fill=\"none\" stroke-width=\"5\" stroke-linecap=\"round\">\n<path d=\"M 88 102 L 242 48 L 403 39\" stroke=\"#46a47c\" class=\"theory-branch\"/>\n<path d=\"M 88 102 L 242 153 L 403 161\" stroke=\"#d39c57\" class=\"theory-branch\"/>\n<path d=\"M 254 48 L 415 99\" stroke=\"#81b9d4\" class=\"theory-branch\"/>\n</g>\n<circle cx=\"85\" cy=\"102\" r=\"14\" fill=\"#2e7395\"/><circle cx=\"245\" cy=\"48\" r=\"11\" fill=\"#49a77b\"/><circle cx=\"245\" cy=\"153\" r=\"11\" fill=\"#d6a261\"/>\n<text x=\"28\" y=\"144\" class=\"theory-small\">Начало</text>\n<text x=\"274\" y=\"41\" class=\"theory-small\">Успех</text><text x=\"274\" y=\"168\" class=\"theory-small\">Неудача</text>\n<rect x=\"424\" y=\"26\" width=\"195\" height=\"36\" rx=\"10\" fill=\"#d9f5e5\" stroke=\"#91d8ad\"/><text x=\"521\" y=\"50\" text-anchor=\"middle\" class=\"theory-small\">Ещё один успех</text>\n<rect x=\"424\" y=\"146\" width=\"195\" height=\"36\" rx=\"10\" fill=\"#ffeed2\" stroke=\"#e4c499\"/><text x=\"521\" y=\"170\" text-anchor=\"middle\" class=\"theory-small\">Ещё одна неудача</text>\n<text x=\"400\" y=\"112\" class=\"theory-small\">→ шаги независимы</text>\n</svg>","<svg viewBox=\"0 0 660 205\" role=\"img\" aria-label=\"Два шара последовательно извлекают из коробки без возвращения\">\n<rect x=\"12\" y=\"8\" width=\"636\" height=\"187\" rx=\"18\" fill=\"#fffdf0\" stroke=\"#9cbecf\" stroke-width=\"2\"/>\n<rect x=\"62\" y=\"75\" width=\"170\" height=\"93\" rx=\"16\" fill=\"#dff0f7\" stroke=\"#79b0ce\" stroke-width=\"2\"/>\n<circle cx=\"89\" cy=\"98\" r=\"15\" fill=\"#eb7970\" stroke=\"#fff\" stroke-width=\"2\"/><circle cx=\"127\" cy=\"98\" r=\"15\" fill=\"#529ddd\" stroke=\"#fff\" stroke-width=\"2\"/><circle cx=\"165\" cy=\"98\" r=\"15\" fill=\"#eb7970\" stroke=\"#fff\" stroke-width=\"2\"/><circle cx=\"203\" cy=\"98\" r=\"15\" fill=\"#529ddd\" stroke=\"#fff\" stroke-width=\"2\"/><circle cx=\"89\" cy=\"136\" r=\"15\" fill=\"#eb7970\" stroke=\"#fff\" stroke-width=\"2\"/><circle cx=\"127\" cy=\"136\" r=\"15\" fill=\"#529ddd\" stroke=\"#fff\" stroke-width=\"2\"/><circle cx=\"165\" cy=\"136\" r=\"15\" fill=\"#eb7970\" stroke=\"#fff\" stroke-width=\"2\"/><circle cx=\"203\" cy=\"136\" r=\"15\" fill=\"#529ddd\" stroke=\"#fff\" stroke-width=\"2\"/>\n<path d=\"M 252 116 L 337 116\" stroke=\"#568eaa\" stroke-width=\"4\" stroke-linecap=\"round\"/><path d=\"M 328 105 L 344 116 L 328 127\" stroke=\"#568eaa\" stroke-width=\"4\" fill=\"none\"/>\n<circle class=\"theory-ball-move\" cx=\"390\" cy=\"84\" r=\"25\" fill=\"#eb7970\" stroke=\"#c6504d\" stroke-width=\"2\"/>\n<circle class=\"theory-ball-move-2\" cx=\"496\" cy=\"84\" r=\"25\" fill=\"#529ddd\" stroke=\"#2b78b0\" stroke-width=\"2\"/>\n<text x=\"390\" y=\"133\" text-anchor=\"middle\" class=\"theory-small\">1-й шар</text><text x=\"496\" y=\"133\" text-anchor=\"middle\" class=\"theory-small\">2-й шар</text>\n<text x=\"72\" y=\"188\" class=\"theory-small\">После первого выбора шар не возвращается → остаётся на 1 меньше</text>\n</svg>","<svg viewBox=\"0 0 660 205\" role=\"img\" aria-label=\"Девять сочетаний результатов двух игр, успешные варианты подсвечиваются\">\n<rect x=\"12\" y=\"8\" width=\"636\" height=\"187\" rx=\"18\" fill=\"#fffdf0\" stroke=\"#9cbecf\" stroke-width=\"2\"/>\n<text x=\"22\" y=\"29\" class=\"theory-small\">Все пары двух игр</text>\n<g><rect class=\"theory-grid-highlight\" x=\"102\" y=\"39\" width=\"127\" height=\"41\" rx=\"9\" fill=\"#e2f5e8\" stroke=\"#83c69f\" stroke-width=\"1.5\"/><text x=\"166\" y=\"65\" text-anchor=\"middle\" class=\"theory-small\">П — П</text></g><g><rect class=\"theory-grid-highlight\" x=\"253\" y=\"39\" width=\"127\" height=\"41\" rx=\"9\" fill=\"#e2f5e8\" stroke=\"#83c69f\" stroke-width=\"1.5\"/><text x=\"317\" y=\"65\" text-anchor=\"middle\" class=\"theory-small\">П — Н</text></g><g><rect class=\"\" x=\"404\" y=\"39\" width=\"127\" height=\"41\" rx=\"9\" fill=\"#e5f1f8\" stroke=\"#a3c7dc\" stroke-width=\"1.5\"/><text x=\"468\" y=\"65\" text-anchor=\"middle\" class=\"theory-small\">П — Пр</text></g><g><rect class=\"theory-grid-highlight\" x=\"102\" y=\"88\" width=\"127\" height=\"41\" rx=\"9\" fill=\"#e2f5e8\" stroke=\"#83c69f\" stroke-width=\"1.5\"/><text x=\"166\" y=\"114\" text-anchor=\"middle\" class=\"theory-small\">Н — П</text></g><g><rect class=\"\" x=\"253\" y=\"88\" width=\"127\" height=\"41\" rx=\"9\" fill=\"#e5f1f8\" stroke=\"#a3c7dc\" stroke-width=\"1.5\"/><text x=\"317\" y=\"114\" text-anchor=\"middle\" class=\"theory-small\">Н — Н</text></g><g><rect class=\"\" x=\"404\" y=\"88\" width=\"127\" height=\"41\" rx=\"9\" fill=\"#e5f1f8\" stroke=\"#a3c7dc\" stroke-width=\"1.5\"/><text x=\"468\" y=\"114\" text-anchor=\"middle\" class=\"theory-small\">Н — Пр</text></g><g><rect class=\"\" x=\"102\" y=\"137\" width=\"127\" height=\"41\" rx=\"9\" fill=\"#e5f1f8\" stroke=\"#a3c7dc\" stroke-width=\"1.5\"/><text x=\"166\" y=\"163\" text-anchor=\"middle\" class=\"theory-small\">Пр — П</text></g><g><rect class=\"\" x=\"253\" y=\"137\" width=\"127\" height=\"41\" rx=\"9\" fill=\"#e5f1f8\" stroke=\"#a3c7dc\" stroke-width=\"1.5\"/><text x=\"317\" y=\"163\" text-anchor=\"middle\" class=\"theory-small\">Пр — Н</text></g><g><rect class=\"\" x=\"404\" y=\"137\" width=\"127\" height=\"41\" rx=\"9\" fill=\"#e5f1f8\" stroke=\"#a3c7dc\" stroke-width=\"1.5\"/><text x=\"468\" y=\"163\" text-anchor=\"middle\" class=\"theory-small\">Пр — Пр</text></g>\n<text x=\"22\" y=\"186\" class=\"theory-small\">Подсвечены исходы с 4 или более очками</text></svg>","<svg viewBox=\"0 0 660 210\" role=\"img\" aria-label=\"Два пути к положительному результату: настоящий брак или ложный сигнал\">\n<rect x=\"12\" y=\"8\" width=\"636\" height=\"192\" rx=\"18\" fill=\"#fffdf0\" stroke=\"#9cbecf\" stroke-width=\"2\"/>\n<g fill=\"none\" stroke-width=\"4\" stroke-linecap=\"round\"><path class=\"theory-branch\" d=\"M110 105 L282 51 L459 75\" stroke=\"#bb8b52\"/><path class=\"theory-branch\" d=\"M110 105 L282 161 L459 137\" stroke=\"#549dc7\"/></g>\n<rect x=\"35\" y=\"84\" width=\"101\" height=\"42\" rx=\"11\" fill=\"#e7f1f7\" stroke=\"#9cc6d8\"/>\n<text x=\"85\" y=\"110\" text-anchor=\"middle\" class=\"theory-small\">Изделие</text>\n<rect x=\"222\" y=\"31\" width=\"122\" height=\"42\" rx=\"11\" fill=\"#fff1cf\" stroke=\"#d8b97d\"/>\n<text x=\"283\" y=\"57\" text-anchor=\"middle\" class=\"theory-small\">Брак</text>\n<rect x=\"222\" y=\"143\" width=\"122\" height=\"42\" rx=\"11\" fill=\"#e0f2fd\" stroke=\"#9ac7df\"/>\n<text x=\"283\" y=\"169\" text-anchor=\"middle\" class=\"theory-small\">Исправно</text>\n<rect class=\"theory-focus\" x=\"436\" y=\"54\" width=\"174\" height=\"42\" rx=\"11\" fill=\"#dff5e6\" stroke=\"#a6daba\"/>\n<text x=\"523\" y=\"80\" text-anchor=\"middle\" class=\"theory-small\">Брак обнаружен</text>\n<rect class=\"theory-focus\" x=\"436\" y=\"116\" width=\"174\" height=\"42\" rx=\"11\" fill=\"#dff5e6\" stroke=\"#a6daba\"/>\n<text x=\"523\" y=\"142\" text-anchor=\"middle\" class=\"theory-small\">Ложный сигнал</text></svg>"];
+const svgtxt=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+const svgHead=(name,h=206)=>'<svg viewBox="0 0 660 '+h+'" role="img" aria-label="'+svgtxt(name)+'"><rect x="12" y="8" width="636" height="'+(h-18)+'" rx="18" fill="#fffdf0" stroke="#9cbecf" stroke-width="2"/>';
+const svgEnd='</svg>';
+const label=(x,y,text,css='theory-small',anchor='start')=>'<text x="'+x+'" y="'+y+'" text-anchor="'+anchor+'" class="'+css+'">'+svgtxt(text)+'</text>';
+const rect=(x,y,w,h,fill='#e3f2f9',stroke='#8fc3d9')=>'<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="10" fill="'+fill+'" stroke="'+stroke+'" stroke-width="2"/>';
+const path=(d,stroke='#5395b6',className='theory-branch')=>'<path d="'+d+'" stroke="'+stroke+'" stroke-width="4" stroke-linecap="round" fill="none" class="'+className+'"/>';
+function venn(t){
+ const type=t.t,notes={
+  "union-none":['Вне обоих кругов','Ни A, ни B'],
+  "union-atleast":['Внутри хотя бы одного круга','A или B'],
+  "union-one":['Только боковые части','Без пересечения'],
+  "union-find-intersection":['Общая часть двух кругов','A и B']
+ };
+ const info=notes[type]||['Два пересекающихся события','A и B'];
+ // Two overlapping circles and an animated shared intersection, as in the old guide.
+ let art=CLASSIC_DIAGRAMS[0];
+ art=art.replace('«или» — оба круга',info[0]).replace('«не A» — вне A',info[1]);
+ if(type==='union-none')art=art.replace('class="theory-focus" d="M326 49','class="theory-focus bank-dimmed" d="M326 49');
+ if(type==='union-one')art=art.replace('class="theory-symbol theory-mid">и','class="theory-symbol theory-mid">не брать');
+ return art;
+}
+function intervalArt(){
+ return svgHead('Промежуток вероятностей на числовой прямой',205)+
+  label(36,36,'Вероятность внутри интервала')+
+  path('M75 120 L590 120','#6c94a5','')+
+  path('M585 113 L598 120 L585 127','#6c94a5','')+
+  rect(215,94,233,52,'#bdebd5','#67b99b').replace('<rect ','<rect class="theory-focus" ')+
+  path('M215 84 L215 147','#c39141','')+path('M448 84 L448 147','#c39141','')+
+  label(215,76,'a', 'theory-symbol','middle')+label(448,76,'b','theory-symbol','middle')+
+  label(331,123,'a < X < b','theory-small','middle')+
+  label(78,179,'Вычитаем левую накопленную часть из правой')+svgEnd;
+}
+function diceArt(t){
+ const kind=t.t,question=t.q.toLowerCase();
+ const m=question.match(/не выпал[оа] (?:ни разу )?(?:число )?(\d)/);
+ const ban=m?Number(m[1]):null;
+ let out=svgHead('Шесть граней кубика и условие выбора',206)+label(30,36,'Кубик: исключаем запрещённые исходы, оставляем подходящие');
+ for(let n=1;n<=6;n++){
+  const x=36+(n-1)*101,excluded=ban===n||(!ban&&kind==='dice-parity'&&n%2===0),good=kind==='dice-atleast'&&n===5;
+  out+='<g transform="translate('+x+',67)">'+rect(0,0,83,78,excluded?'#f8e2e0':good?'#d6f5dc':'#e1f3fb',excluded?'#cc7e7c':'#83bbd6')+
+   label(41,50,String(n),'theory-symbol','middle')+(excluded?path('M15 14 L68 65 M68 14 L15 65','#bd5156','theory-cross'):'')+'</g>';
+ }
+ const note=kind==='dice-retry'?'Повторяем испытание только в нужных случаях':
+ kind==='dice-atleast'?'Хотя бы один нужный результат — объединение случаев':
+ kind==='dice-compare'?'Для двух кубиков порядок важен: (a, b) и (b, a)':
+ kind==='dice-parity'?'Сначала выдели подходящую чётность':
+ kind==='dice-order'?'Сначала уточни условие первого броска':
+ kind==='dice-exclusion'?'Условие меняет множество возможных исходов':'Отбери только разрешённые пары';
+ out+=label(31,183,note)+svgEnd;return out;
+}
+function balls(t){
+ let art=CLASSIC_DIAGRAMS[3];
+ const guide=t.t==='draw-same'?'После первого выбора шаров нужного цвета становится меньше':
+ t.t==='draw-different'?'Учти оба порядка: красный—синий и синий—красный':
+ t.t==='draw-after-removal'?'Сначала один предмет убрали, затем выбираем из оставшихся':
+ 'После каждого выбора предметов становится на один меньше';
+ art=art.replace('После первого выбора шар не возвращается → остаётся на 1 меньше',guide);
+ if(t.t==='draw-same')art=art.replace('cx="496" cy="84" r="25" fill="#529ddd"','cx="496" cy="84" r="25" fill="#eb7970"');
+ return art;
+}
+function partitionArt(t){
+ const tournament=t.t==='draw-tournament',title=tournament?'Турнир: выбывание по раундам':'Разбиение участников на группы';
+ let out=svgHead(title,207)+label(30,35,title);
+ if(tournament){
+  out+=path('M95 72 L211 72 L211 109 L315 109','#5b9dbd')+
+       path('M95 150 L211 150 L211 109','#d6a35d')+
+       path('M315 109 L429 109 L429 78 L544 78','#64b49a')+
+       path('M429 109 L429 151 L544 151','#b3a0ca');
+  for(const [x,y,text,clr] of [[48,52,'Игрок 1','#d9f1fa'],[48,132,'Игрок 2','#ffefcc'],[316,91,'Раунд','#def3e5'],[541,58,'Победа','#def3e5']]){
+   out+=rect(x-6,y,Math.min(text.length*12+14,120),36,clr)+label(x,y+24,text);
+  }
+  out+=label(30,188,'Смотрим, кто может встретиться и на каком этапе');
+ }else{
+  for(let p=0;p<2;p++){
+   out+=rect(60+p*315,57,249,108,p===0?'#dff3f9':'#fff0cf');
+   out+=label(78+p*315,83,'Группа '+(p+1));
+   for(let j=0;j<4;j++){
+    const x=104+p*315+j*52, y=123;
+    out+='<circle cx="'+x+'" cy="'+y+'" r="17" fill="'+(j<2&&p===0?'#76c0e0':'#d8ab79')+'" stroke="white" stroke-width="2" class="'+(p===0&&j<2?'theory-pop-1':'')+'"/>';
+   }
+  }
+  out+=label(30,188,'Фиксируй первого участника и считай оставшиеся места');
+ }
+ return out+svgEnd;
+}
+function independence(t){
+ const kind=t.t;
+ if(kind==='ind-count'){
+  let result=svgHead('Ровно k успехов при независимых испытаниях',206)+label(30,39,'Ровно k успехов: важны все возможные порядки');
+  for(let i=0;i<8;i++){
+   const x=52+i*72,hit=(i%3)!==0;
+   result+=rect(x,68,52,61,hit?'#d9f5e5':'#ffead9')+
+    label(x+26,105,hit?'✓':'×','theory-symbol','middle');
+  }
+  result+=label(30,174,'Перестановки успехов тоже дают подходящие исходы');
+  return result+svgEnd;
+ }
+ if(kind==='ind-min'){
+  let result=svgHead('Вероятность хотя бы одного успеха при увеличении попыток',206)+label(30,38,'Чем больше попыток, тем вероятнее хотя бы один успех');
+  for(let i=0;i<7;i++){
+   const x=58+i*82,h=23+i*15;
+   result+=rect(x,154-h,53,h,i>4?'#d2eedc':'#d5eafa',i>4?'#5aac82':'#7bb5d0').replace('<rect ','<rect class="theory-pop-1" ')+label(x+26,177,String(i+1),'theory-small','middle');
+  }
+  result+=label(30,196,'Ищем самый маленький номер, где достигнут порог');
+  return result+svgEnd;
+ }
+ let art=CLASSIC_DIAGRAMS[2];
+ const notes={
+  'ind-order':['Успех','Промах','Порядок задан заранее'],
+  'ind-atleast':['Успех','Неудача','Ни одного → противоположное'],
+  'ind-all':['Успех 1','Успех 2','Все должны сработать'],
+  'ind-product':['Событие A','Событие B','Умножаем при независимости'],
+  'ind-retry':['Успех','Промах','После промаха — ещё попытка']
+ };
+ const n=notes[kind]||notes['ind-product'];
+ return art.replace('>Успех</text>','>'+n[0]+'</text>')
+ .replace('>Неудача</text>','>'+n[1]+'</text>')
+ .replace('→ шаги независимы',n[2]);
+}
+function outcomeArt(t){
+ const type=t.t;
+ if(type==='multi-football'){
+  let art=CLASSIC_DIAGRAMS[4];
+  // Outcomes are not premarked: the threshold depends on the individual exercise.
+  art=art.replaceAll('class="theory-grid-highlight"','class="theory-grid-highlight bank-soft-highlight"');
+  art=art.replace('Подсвечены исходы с 4 или более очками','Проверь пары результатов и сложи подходящие');
+  return art;
+ }
+ if(type==='multi-chess'){
+  let out=svgHead('Шахматные партии белыми и чёрными фигурами',205)+label(30,39,'Две партии: цвет фигур меняется');
+  for(let i=0;i<8;i++)for(let j=0;j<4;j++){
+   const x=155+i*43,y=51+j*30;
+   out+='<rect x="'+x+'" y="'+y+'" width="43" height="30" fill="'+((i+j)%2===0?'#ecdfc1':'#799da8')+'" stroke="#7c98a0"/>';
+  }
+  out+=label(30,116,'Партия 1')+label(515,116,'Партия 2')+
+       label(30,191,'Учитывай вероятность победы за каждый цвет отдельно')+svgEnd;
+  return out;
+ }
+ let art=CLASSIC_DIAGRAMS[5];
+ if(type==='multi-weather')art=art.replace('Изделие','День 1').replace('Брак обнаружен','Дождь').replace('Ложный сигнал','Солнце').replace('Исправно','Ясно').replace('Брак','Дождь');
+ else if(type==='multi-admission')art=art.replace('Изделие','Экзамены').replace('Брак','Профиль А').replace('Исправно','Профиль Б').replace('Брак обнаружен','Поступил').replace('Ложный сигнал','Поступил');
+ return art;
+}
+function fullProb(t){
+ let art=CLASSIC_DIAGRAMS[5];
+ if(t.t==='full-mixture')art=art.replace('Изделие','Источник').replace('Брак','Группа А').replace('Исправно','Группа Б').replace('Брак обнаружен','Нужный исход').replace('Ложный сигнал','Нужный исход');
+ if(t.t==='full-quality')art=art.replace('Изделие','Проверка').replace('Брак','Есть дефект').replace('Исправно','Без дефекта').replace('Брак обнаружен','Дефект 2').replace('Ложный сигнал','Нет дефекта 2');
+ return art;
+}
 function graph(t){
- const parts=META[t.t],labels=parts.slice(3),colors=["#a4d3e8","#f7e3ac","#c4e9cf"];
- const box=(s,i,x)=>'<g class="bank-node"><rect x="'+x+'" y="50" width="174" height="68" rx="12" fill="'+colors[i]+'" stroke="#6c9bb0" stroke-width="2" class="'+(i===2?"reveal":"")+'"/><text x="'+(x+87)+'" y="88" text-anchor="middle" class="major">'+textSafe(s)+'</text></g>';
- const arrows=[192,398].map(x=>'<g class="draw-line"><path d="M'+x+' 84 L'+(x+48)+' 84" stroke="#6597b0" stroke-width="4" fill="none"/><path d="M'+(x+38)+' 75 L'+(x+48)+' 84 L'+(x+38)+' 93" stroke="#6597b0" stroke-width="4" fill="none"/></g>').join('');
- return '<div class="bank-figure"><svg viewBox="0 0 660 164" role="img" aria-label="Схема: '+textSafe(parts[0])+'">'+box(labels[0],0,10)+box(labels[1],1,243)+box(labels[2],2,476)+arrows+'</svg></div>';
+ const types=META[t.t];if(!types)return '';
+ let art=t.t==='interval'?intervalArt():t.g===1?venn(t):
+  t.g===2?diceArt(t):t.g===3?(t.t==='draw-tournament'||t.t==='draw-partition'?partitionArt(t):balls(t)):
+  t.g===4?independence(t):t.g===5?outcomeArt(t):fullProb(t);
+ return '<div class="theory-illustration bank-visual">'+art+
+  '<div class="theory-diagram-caption">'+svgtxt(types[1])+'</div></div>';
 }
 function steps(t){
  const m=META[t.t],q=t.q,answer=num(t.a);
