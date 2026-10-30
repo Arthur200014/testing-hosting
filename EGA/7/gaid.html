@@ -967,6 +967,17 @@ html.noanim .page,html.noanim .bub{animation:none!important}
 #theory-trig .ct-nontable-foot{font:700 12px/1.25 system-ui;color:#42633d}
 @media(max-width:900px){#theory-trig .ct-reference-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:630px){#theory-trig .ct-nontable-content{grid-template-columns:1fr}#theory-trig .ct-reference-pill strong{font-size:14px}#theory-trig .ct-nontable-equation{justify-content:flex-start;font-size:17px}}
+
+/* Legible formula rendering while MathJax is loading or unavailable. */
+.pair-question .pair-readable-math,.pair-step-math .pair-readable-math{font-family:Georgia,"Times New Roman",serif;color:var(--ink);line-height:1.6;overflow-wrap:anywhere}
+.pair-question .pair-readable-math{font-size:clamp(20px,2.3vw,32px)}
+.pair-step-math .pair-readable-math{font-size:clamp(17px,1.8vw,24px)}
+.pair-readable-math sup,.pair-readable-math sub{font-size:.65em;line-height:0}
+.pair-readable-frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;line-height:1.18;margin:0 .12em}
+.pair-readable-frac>span{padding:.05em .17em}
+.pair-readable-frac>span:first-child{border-bottom:1.5px solid currentColor}
+.pair-readable-root{border-top:1.5px solid currentColor;padding:0 .13em}
+.pair-task .pair-question{overflow-wrap:anywhere}
 </style></head>
 <body><svg aria-label="Общее поле рисования" class="global-ink-board" id="globalBoard" xmlns="http://www.w3.org/2000/svg"></svg>
 <div aria-hidden="true" id="bubbles"></div>
@@ -1895,11 +1906,86 @@ const numberSignature=tex=>((String(tex||'').match(/-?\d+(?:\{,\}\d+|,\d+|\.\d+)
 function distinctFromMate(id,item){const mate=active[mateSlot(id)];if(!mate)return true;return item?.tex!==mate?.tex&&numberSignature(item?.tex)!==numberSignature(mate?.tex);}
 function freshForSlot(id,topic){let next,tries=0;do{next=generators[topic]();tries++;}while(tries<48&&(next.tex===active[id]?.tex||!distinctFromMate(id,next)));return next;}
 
-let mathQueue=Promise.resolve();
+
+/* The original guide rendered problems before deferred MathJax had loaded.
+ * Keep readable equations immediately, and typeset them after startup. */
+const waitingMath=new Map();
+let mathQueue=Promise.resolve(),mathWorking=false,backupMathRequested=false,mathWatch=null;
+function readableMath(node,tex){
+ const safe=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ let output=safe(tex);
+ // Common expressions remain correctly readable if both MathJax CDNs are blocked.
+ for(let i=0;i<3;i++)output=output.replace(/\\(?:dfrac|tfrac|frac)\{([^{}]+)\}\{([^{}]+)\}/g,
+  (_,top,bottom)=>'<span class="pair-readable-frac"><span>'+top+'</span><span>'+bottom+'</span></span>');
+ output=output.replace(/\\sqrt\{([^{}]+)\}/g,'√<span class="pair-readable-root">$1</span>')
+  .replace(/\\(?:displaystyle|textstyle|scriptstyle|left|right|bigl|bigr|Bigl|Bigr|big|Big)/g,'')
+  .replace(/\\(?:cdot|times)/g,' × ').replace(/\\div/g,' ÷ ').replace(/\\circ/g,'°')
+  .replace(/\\(?:geq|ge)/g,' ≥ ').replace(/\\(?:leq|le)/g,' ≤ ').replace(/\\neq/g,' ≠ ')
+  .replace(/\\pi/g,'π').replace(/\\alpha/g,'α').replace(/\\beta/g,'β')
+  .replace(/\\(?:sin|cos|tg|ctg|tan|cot|log|ln|arcsin|arccos|arctan)/g,m=>m.slice(1))
+  .replace(/\\(?:text|mathrm|operatorname)\{([^{}]*)\}/g,'$1')
+  .replace(/\\(?:quad|qquad)/g,' ').replace(/\\,/g,' ').replace(/\\;/g,' ')
+  .replace(/_\{([^{}]+)\}/g,'<sub>$1</sub>').replace(/_([0-9A-Za-z])/g,'<sub>$1</sub>')
+  .replace(/\^\{([^{}]+)\}/g,'<sup>$1</sup>').replace(/\^([0-9A-Za-z°])/g,'<sup>$1</sup>')
+  .replace(/[{}]/g,'').replace(/\\([a-zA-Z]+)/g,'$1').replace(/\\([()[\]])/g,'');
+ node.innerHTML='<span class="pair-readable-math">'+output+'</span>';
+}
+function hasMathJax(){return typeof window.MathJax?.typesetPromise==='function'}
+function flushMath(){
+ if(mathWorking||!hasMathJax()||!waitingMath.size)return;
+ mathWorking=true;
+ mathQueue=mathQueue.then(async()=>{
+  const mj=window.MathJax;
+  if(mj.startup?.promise)await mj.startup.promise;
+  const tasks=[];
+  for(const [node,item] of waitingMath){
+   if(!node.isConnected){waitingMath.delete(node);continue;}
+   if(node.__mathItem!==item){waitingMath.delete(node);continue;}
+   try{mj.typesetClear?.([node])}catch(_){}
+   node.textContent=item.block?'\\['+item.tex+'\\]':'\\(\\displaystyle '+item.tex+'\\)';
+   tasks.push([node,item]);waitingMath.delete(node);
+  }
+  if(!tasks.length)return;
+  try{
+   await mj.typesetPromise(tasks.map(([node])=>node));
+   for(const [node,item] of tasks){
+    if(node.__mathItem===item&&!node.querySelector('mjx-container,svg[data-mml-node],.MathJax'))readableMath(node,item.tex);
+   }
+  }catch(error){
+   console.warn('MathJax typesetting:',error);
+   for(const [node,item] of tasks)if(node.__mathItem===item)readableMath(node,item.tex);
+  }
+ }).catch(error=>console.warn('MathJax startup:',error)).finally(()=>{
+   mathWorking=false;if(waitingMath.size&&hasMathJax())flushMath();
+ });
+}
+function alternateMathJax(){
+ if(backupMathRequested||hasMathJax())return;
+ backupMathRequested=true;
+ const script=document.createElement('script');
+ script.async=true;script.src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js';
+ script.addEventListener('load',flushMath,{once:true});
+ script.addEventListener('error',()=>console.warn('MathJax unavailable; readable math is shown.'),{once:true});
+ document.head.appendChild(script);
+}
+function watchMath(){
+ if(mathWatch!==null)return;
+ const started=Date.now();
+ mathWatch=setInterval(()=>{
+   if(hasMathJax())flushMath();
+   if(!waitingMath.size){clearInterval(mathWatch);mathWatch=null;return;}
+   if(!hasMathJax()&&document.readyState==='complete'&&Date.now()-started>3500)alternateMathJax();
+   if(Date.now()-started>60000){clearInterval(mathWatch);mathWatch=null;}
+ },300);
+}
+document.querySelector('script[src*="mathjax"]')?.addEventListener('error',alternateMathJax,{once:true});
+window.addEventListener('load',()=>{if(hasMathJax())flushMath();else if(waitingMath.size)alternateMathJax();});
 function renderMath(node,tex,block=false){
- if(window.MathJax?.typesetClear)window.MathJax.typesetClear([node]);
- node.textContent=block?String.raw`\[${tex}\]`:String.raw`\(\displaystyle ${tex}\)`;
- if(window.MathJax?.typesetPromise){const mj=window.MathJax;mathQueue=mathQueue.then(()=>mj.typesetPromise([node])).catch(error=>console.warn('MathJax:',error));}
+ if(!node)return;
+ const item={tex:String(tex??''),block};
+ node.__mathItem=item;waitingMath.set(node,item);
+ readableMath(node,item.tex);
+ flushMath();watchMath();
 }
 function closeSolution(el){const panel=el.querySelector('.pair-solution');if(!panel)return;panel.hidden=true;panel.replaceChildren();const btn=el.querySelector('.pair-solve');if(btn){btn.textContent='? Решение';btn.setAttribute('aria-expanded','false');}}
 function createStep(row,step,i){
