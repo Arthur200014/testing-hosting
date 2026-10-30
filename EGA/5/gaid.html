@@ -188,6 +188,15 @@ body{background:radial-gradient(circle at 81% 6%,#165c85 0,#0b3557 29%,transpare
 .bank-reason-list strong{display:block;font-size:13px;color:#173f58;margin-bottom:4px}
 .prob5-equation{padding:8px 10px;background:#fff5d0;font-size:14px;line-height:1.5}
 @media(max-width:750px){.chapter{padding:13px 10px}.bank-switch{width:100%;flex-wrap:wrap}.bank-current{flex:1}.bank-next{margin-left:0}.prob5-question{font-size:13px!important;min-height:0}}
+
+/* Worked calculations in short, readable steps. */
+.prob5-detail .bank-reason-list{margin:8px 0 11px;padding-left:25px}
+.prob5-detail .bank-reason-list li{margin:9px 0 13px;color:#224e67;font-size:13px}
+.prob5-detail .bank-reason-list li strong{display:block;color:#143c55;font-size:13px;margin:0 0 5px}
+.prob5-detail .prob5-equation{font-size:14px;line-height:1.5;background:#fff4cf;border-radius:7px;padding:8px 10px;color:#153e56;white-space:normal;overflow-wrap:anywhere}
+.prob5-detail .prob5-result{font-size:14px;margin-top:10px}
+.prob5-question{font-size:clamp(13px,1.4vw,15px)!important}
+.bank-theory .theory-diagram-caption{display:none}
 </style><script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},options:{skipHtmlTags:['script','noscript','style','textarea','pre','code']}};</script><script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script></head><body><svg id="globalBoard" class="global-ink-board" xmlns="http://www.w3.org/2000/svg" aria-label="Общая доска"></svg>
 <button class="join-fab" id="joinFab" type="button">👥 Совместный урок</button>
 <div class="session-panel" id="sessionPanel"><button id="sessionMiniToggle" type="button" aria-label="Участники">👥</button><i class="session-dot" id="sessionDot"></i><b id="sessionWho">—</b><small id="sessionStatus">синхронизация…</small><span id="sessionMembers">участники</span><small id="sessionCount">0 учеников</small><button id="changeStudentBtn" class="hidden" type="button">Сменить ученика</button><button id="newSessionBtn" class="hidden" type="button">Новое занятие</button></div>
@@ -621,153 +630,152 @@ V['full-quality']=()=>{
   vd('Оба условия должны быть выполнены',vf(good1)+' · '+vf(good2)+' = '+vf(ans))
  ],[defect1,defect2]);
 };
-function steps(t){
- const m=META[t.t],q=t.q,answer=num(t.a);
- const lines=[m[1],m[2]];
- const found=[...q.matchAll(/0\s*,\s*\d+/g)].map(x=>Number(x[0].replace(/\s/g,"").replace(",",".")));
- let arithmetic="";
- if(t.t==="interval"&&found.length>=2){
-  const p=found[0],r=found[1],v=[p+r-1,Math.abs(p-r)].find(v=>Math.abs(v-answer)<0.00011);
-  if(v!==undefined)arithmetic=pretty(p)+(Math.abs(v-(p+r-1))<1e-7?" + ":" − ")+pretty(r)+(Math.abs(v-(p+r-1))<1e-7?" − 1":"")+" = "+t.a;
- }
- if(t.t==="full-screen"&&found.length>=3){
-  const [p,d,f]=found,v=p*d+(1-p)*f;
-  if(Math.abs(v-answer)<0.00011)arithmetic=pretty(p)+" × "+pretty(d)+" + "+pretty(1-p)+" × "+pretty(f)+" = "+t.a;
- }
- if(t.g===2){
-  const dice=diceCount(t);
-  if(dice&&Math.abs(dice.ratio-answer)<=0.0052)arithmetic="Подходящих пар: "+dice.match+" из "+dice.all+". Доля ≈ "+t.a;
- }
- const content=['Определи прототип: '+m[0]+'.',...lines,arithmetic||'Выполни вычисление по данным условия, исключая неподходящие исходы.'];
- return graph(t)+'<ol class="bank-reason-list">'+content.map(x=>'<li>'+textSafe(x)+'</li>').join('')+'</ol><div class="prob5-result">Ответ из файла: '+textSafe(t.a)+'</div>';
-}
-function diceCount(t){
- if(t.g!==2||t.n===37)return null;
- const s=t.q.toLowerCase(),all=[];
- for(let a=1;a<=6;a++)for(let b=1;b<=6;b++)all.push([a,b]);
- let allowed=all;
- const forb=/не выпало (?:ни разу )?(?:число )?(\d)|(?:число |)(\d) не выпало/.exec(s);
- if(forb){const ban=Number(forb[1]||forb[2]);allowed=allowed.filter(([a,b])=>a!==ban&&b!==ban)}
- if(/шестёрка не выпала|шестёрка не выпало|шесть очков не выпало/.test(s))allowed=allowed.filter(([a,b])=>a!==6&&b!==6);
- if(/не выпала единица/.test(s))allowed=allowed.filter(([a,b])=>a!==1&&b!==1);
- if(/оба раза выпало нечётное|произведение выпавших чисел нечётно/.test(s))allowed=allowed.filter(([a,b])=>a%2&&b%2);
- if(/оба раза выпало чётное/.test(s))allowed=allowed.filter(([a,b])=>a%2===0&&b%2===0);
- if(/произведение выпавших чисел чётное/.test(s))allowed=allowed.filter(([a,b])=>a*b%2===0);
- if(/оба раза выпало число меньше (\d)/.test(s)){const limit=Number(RegExp.$1);allowed=allowed.filter(([a,b])=>a<limit&&b<limit)}
- if(/при каждом броске выпало число больше (\d)/.test(s)){const lower=Number(RegExp.$1);allowed=allowed.filter(([a,b])=>a>lower&&b>lower)}
- if(/выпавшие числа различны/.test(s))allowed=allowed.filter(([a,b])=>a!==b);
- if(/первый результат больше второго/.test(s))allowed=allowed.filter(([a,b])=>a>b);
- if(/при первом броске выпало чётное/.test(s))allowed=allowed.filter(([a,b])=>a%2===0);
- if(/хотя бы один раз выпало число (\d)/.test(s)){const value=Number(RegExp.$1);allowed=allowed.filter(([a,b])=>a===value||b===value)}
- const nums={четырем:4,четырёх:4,восьми:8,семи:7,девяти:9,пяти:5,десяти:10};
- let sum=(/сумма (?:выпавших )?очков равна\s*(\d+)/.exec(s)||[])[1];
- if(!sum){for(const [word,n] of Object.entries(nums))if(s.includes("сумма")&&s.includes("равна "+word))sum=n}
- let product=(/произведени[ея] (?:выпавших )?(?:чисел )?равно\s*(\d+)/.exec(s)||[])[1];
- const target=allowed.filter(([a,b])=>sum?a+b===Number(sum):product?a*b===Number(product):/одинаков/.test(s)?a===b:/оба раза выпало число (\d)/.test(s)?a===Number(RegExp.$1)&&b===Number(RegExp.$1):false);
- if(!target.length&&!/равно|равна|одинаков/.test(s))return null;
- return {all:allowed.length,match:target.length,ratio:target.length/allowed.length};
-}
-function updateTheory(k){
- const root=document.querySelector('#p'+k),v=state[k],t=byId.get(v.tasks[0]),meta=META[v.kind];
- if(!root||!t||!meta)return;
- const panel=root.querySelector('.bank-theory'),tip=root.querySelector('.bank-tip');
- if(panel)panel.innerHTML='<div class="bank-detail-title">'+textSafe(meta[0])+'</div>'+graph(t)+'<p>'+textSafe(meta[1])+'</p>';
- if(tip)tip.textContent=meta[2];
- const second=byId.get(v.tasks[1]);
- if(v.mode==="two"&&second&&second.t!==v.kind){
-  const m2=META[second.t];
-  if(panel)panel.innerHTML+='<div class="bank-adjacent"><b>Для задачи Б · '+textSafe(m2[0])+'</b><p>'+textSafe(m2[1])+'</p>'+graph(second)+'</div>';
-  if(tip)tip.textContent=meta[2]+' · Для Б: '+m2[2];
- }
 
+/* Calculated steps, not generic advice: every variant has its own substitutions. */
+function steps(t){
+ if(!t||!Array.isArray(t.steps))return '';
+ return graph(t)+'<ol class="bank-reason-list">'+t.steps.map(([title,equation])=>
+  '<li><strong>'+textSafe(title)+'</strong><div class="prob5-equation">'+textSafe(equation)+'</div></li>').join('')+
+  '</ol><div class="prob5-result">Ответ: '+textSafe(t.a)+'</div>';
 }
-function updateControls(k){
- const root=document.querySelector('#p'+k),v=state[k];
- if(!root||!v)return;
- const index=availableKinds(k).indexOf(v.kind)+1;
- const name=root.querySelector('.bank-current');
- if(name)name.textContent=index+'/'+availableKinds(k).length+' · '+META[v.kind][0];
+function availableVariantKinds(k){return availableKinds(k).filter(t=>typeof V[t]==='function')}
+function newVariant(kind,previous,other){
+ for(let i=0;i<80;i++){
+  const t=V[kind]();
+  if(t.signature!==previous?.signature&&t.signature!==other?.signature)return t;
+ }
+ return V[kind]();
 }
 function draw(k){
- const root=document.querySelector('#p'+k),v=state[k];if(!root||!v)return;
- const practice=root.querySelector('.prob5-practice');practice.dataset.mode=v.mode;
- practice.querySelectorAll('[data-mode]').forEach(b=>{b.classList.toggle('active',b.dataset.mode===v.mode);b.setAttribute('aria-pressed',String(b.dataset.mode===v.mode))});
+ const root=document.querySelector('#p'+k),v=state[k];
+ if(!root||!v)return;
+ const practice=root.querySelector('.prob5-practice');
+ practice.dataset.mode=v.mode;
+ practice.querySelectorAll('[data-mode]').forEach(btn=>{
+  const active=btn.dataset.mode===v.mode;
+  btn.classList.toggle('active',active);
+  btn.setAttribute('aria-pressed',String(active));
+ });
+ const kinds=availableVariantKinds(k),index=kinds.indexOf(v.kind)+1;
+ const current=root.querySelector('.bank-current');
+ if(current)current.textContent=index+'/'+kinds.length+' · '+META[v.kind][0];
  for(const card of root.querySelectorAll('.prob5-card')){
-  const i=Number(card.dataset.index),t=byId.get(v.tasks[i]);if(!t)continue;
-  const key=t.n+':'+t.id;if(card.dataset.taskKey===key)continue;card.dataset.taskKey=key;
-  const kind=card.querySelector('.prob5-kind');if(kind)kind.textContent='Задача '+(i===0?'А':'Б');
-  card.querySelector('.prob5-question').textContent=t.q;
+  const i=Number(card.dataset.index),task=v.tasks[i];
+  if(!task)continue;
+  const stamp=task.t+':'+task.signature;
+  if(card.dataset.taskKey===stamp)continue;
+  card.dataset.taskKey=stamp;
+  const kindLabel=card.querySelector('.prob5-kind');
+  if(kindLabel)kindLabel.textContent='';
+  card.querySelector('.prob5-question').textContent=task.q;
   card.querySelector('input').value='';
-  const feedback=card.querySelector('.prob5-feedback');feedback.textContent='';feedback.className='prob5-feedback';
-  const answer=card.querySelector('.prob5-revealed-answer');answer.classList.add('hidden');answer.textContent='';
-  const show=card.querySelector('.prob5-show-answer');show.setAttribute('aria-expanded','false');
-  const solve=card.querySelector('.prob5-solve');solve.setAttribute('aria-expanded','false');solve.textContent='Решение';
-  const detail=card.querySelector('.prob5-detail');detail.classList.add('hidden');detail.innerHTML='<b>Разбор задачи №'+t.n+'</b>'+steps(t);
+  const feedback=card.querySelector('.prob5-feedback');
+  feedback.textContent='';feedback.className='prob5-feedback';
+  const answer=card.querySelector('.prob5-revealed-answer');
+  answer.textContent='';answer.classList.add('hidden');
+  card.querySelector('.prob5-show-answer').setAttribute('aria-expanded','false');
+  const solution=card.querySelector('.prob5-solve');
+  solution.textContent='Решение';solution.setAttribute('aria-expanded','false');
+  const detail=card.querySelector('.prob5-detail');
+  detail.classList.add('hidden');detail.innerHTML=steps(task);
  }
- updateControls(k);updateTheory(k);window.dispatchEvent(new Event('guide:resizeboard'));
+ const panel=root.querySelector('.bank-theory');
+ if(panel)panel.innerHTML=graph(v.tasks[0]);
+ const tip=root.querySelector('.bank-tip');
+ if(tip)tip.textContent=META[v.kind][2];
+ window.dispatchEvent(new Event('guide:resizeboard'));
 }
-function choose(k,kind,except,no){
- let pool=kindItems(k,kind).filter(t=>t.n!==except);
- if(no&&pool.some(t=>t.n===no))return no;
- if(!pool.length)pool=groupItems(k).filter(t=>t.n!==except); // only one original for a rare subtype
- if(!pool.length)return except;
- return pool[Math.floor(Math.random()*pool.length)].n;
+function send(k){
+ const v=state[k];
+ v.rev=Math.max(Date.now(),(Number(v.rev)||0)+1);
+ draw(k);
+ window.dispatchEvent(new CustomEvent('guide:interaction',{
+  detail:{id:'prob5-p'+k,value:JSON.parse(JSON.stringify(v))}
+ }));
 }
-function nextSequential(k,kind,current,exclude){
- const pool=kindItems(k,kind);
- if(pool.length<2)return choose(k,kind,current,exclude);
- const i=pool.findIndex(t=>t.n===Number(current));
- for(let step=1;step<=pool.length;step++){
-  const n=pool[(i+step+pool.length)%pool.length].n;
-  if(n!==Number(exclude)&&n!==Number(current))return n;
- }
- return choose(k,kind,current,exclude);
-}
-function changed(k){state[k].rev=Math.max(Date.now(),(Number(state[k].rev)||0)+1);draw(k);window.dispatchEvent(new CustomEvent("guide:interaction",{detail:{id:"prob5-p"+k,value:JSON.parse(JSON.stringify(state[k]))}}))}
-function publishAll(){for(let k=1;k<=6;k++)changed(k)}
-function receive(id,value){if(!/^prob5-p[1-6]$/.test(id))return false;const k=Number(id.slice(-1));
- if(!value||!META[value.kind]||!byId.has(Number(value.tasks?.[0]))||!byId.has(Number(value.tasks?.[1])))return true;
+function publishAll(){for(let k=1;k<=6;k++)send(k)}
+function receive(id,value){
+ if(!/^prob5-p[1-6]$/.test(id))return false;
+ const k=Number(id.slice(-1));
+ if(!value||!availableVariantKinds(k).includes(value.kind)||
+  !Array.isArray(value.tasks)||value.tasks.length!==2||
+  value.tasks.some(t=>!t||t.t!==value.kind||!Number.isFinite(Number(t.exact))||!Array.isArray(t.steps)))return true;
  if((Number(value.rev)||0)<=(Number(state[k]?.rev)||0))return true;
  state[k]=value;draw(k);return true;
 }
-for(let k=1;k<=6;k++){
- const root=document.querySelector('#p'+k);if(!root)continue;
- const kind=availableKinds(k)[0],a=kindItems(k,kind)[0].n;
- state[k]={kind,mode:"two",tasks:[a,choose(k,kind,a)],rev:0};draw(k);
- function switchType(direction){
-  const all=availableKinds(k),current=all.indexOf(state[k].kind),kind=all[(current+direction+all.length)%all.length];
-  const a=kindItems(k,kind)[0].n;state[k].kind=kind;
-  state[k].tasks=[a,choose(k,kind,a)];changed(k);
+function resetAll(){
+ for(let k=1;k<=6;k++){
+  const kind=availableVariantKinds(k)[0],first=V[kind]();
+  state[k]={kind,mode:'two',tasks:[first,newVariant(kind,first)],rev:Number(state[k]?.rev)||0};
+  send(k);
  }
- root.querySelector('.bank-prev').addEventListener('click',()=>switchType(-1));
- root.querySelector('.bank-next').addEventListener('click',()=>switchType(1));
- root.querySelectorAll('.prob5-new').forEach(btn=>btn.addEventListener('click',e=>{
-  e.preventDefault();e.stopPropagation();const i=Number(btn.closest('.prob5-card').dataset.index);
-  state[k].tasks[i]=nextSequential(k,state[k].kind,state[k].tasks[i],state[k].tasks[1-i]);
-  changed(k)
+}
+for(let k=1;k<=6;k++){
+ const root=document.querySelector('#p'+k);
+ if(!root)continue;
+ const kind=availableVariantKinds(k)[0],first=V[kind]();
+ state[k]={kind,mode:'two',tasks:[first,newVariant(kind,first)],rev:0};
+ draw(k);
+ function switchPrototype(direction){
+  const kinds=availableVariantKinds(k),index=kinds.indexOf(state[k].kind),kind=kinds[(index+direction+kinds.length)%kinds.length];
+  const first=V[kind]();
+  state[k].kind=kind;
+  state[k].tasks=[first,newVariant(kind,first)];
+  send(k);
+ }
+ root.querySelector('.bank-prev').addEventListener('click',()=>switchPrototype(-1));
+ root.querySelector('.bank-next').addEventListener('click',()=>switchPrototype(1));
+ root.querySelectorAll('.prob5-new').forEach(button=>button.addEventListener('click',event=>{
+  event.preventDefault();event.stopPropagation();
+  const i=Number(button.closest('.prob5-card').dataset.index),items=state[k].tasks;
+  items[i]=newVariant(state[k].kind,items[i],items[1-i]);
+  send(k);
  }));
- root.addEventListener('click',e=>{
-  const mode=e.target.closest('.prob5-modes button[data-mode]');if(mode){
-   const val=mode.dataset.mode;if(val==="one"||val==="two"){state[k].mode=val;changed(k)}return
+ root.addEventListener('click',event=>{
+  const mode=event.target.closest('.prob5-modes button[data-mode]');
+  if(mode){
+   const val=mode.dataset.mode;
+   if(val==='one'||val==='two'){state[k].mode=val;send(k)}
+   return;
   }
-  const card=e.target.closest('.prob5-card');if(!card)return;
-  const i=Number(card.dataset.index),t=byId.get(state[k].tasks[i]);if(!t)return;
-  const check=e.target.closest('.prob5-check');if(check){
-   const raw=card.querySelector('input').value.trim().replace(/\\s+/g,"").replace(",",".");
-   const ok=raw!==""&&Number.isFinite(+raw)&&Math.abs(+raw-num(t.a))<0.000011;
-   const feedback=card.querySelector('.prob5-feedback');feedback.textContent=ok?"✓ Верно":"✕ Проверь ответ";feedback.className='prob5-feedback '+(ok?'good':'bad');return
+  const card=event.target.closest('.prob5-card');
+  if(!card)return;
+  const i=Number(card.dataset.index),task=state[k].tasks[i];
+  if(!task)return;
+  if(event.target.closest('.prob5-check')){
+   const raw=card.querySelector('input').value.trim().replace(/\s+/g,'').replace(/[−–]/g,'-').replace(',','.');
+   const given=raw!==''?Number(raw):NaN,expected=Number(task.a.replace(',','.'));
+   const valid=Number.isFinite(given),correct=valid&&Math.abs(given-expected)<0.000051;
+   const message=card.querySelector('.prob5-feedback');
+   message.textContent=correct?'✓ Верно':valid?'✕ Проверь ответ':'Введите число';
+   message.className='prob5-feedback '+(correct?'good':'bad');
+   return;
   }
-  const answer=e.target.closest('.prob5-show-answer');if(answer){
-   const text=card.querySelector('.prob5-revealed-answer'),open=text.classList.contains('hidden');text.classList.toggle('hidden',!open);text.textContent=open?'Ответ: '+t.a:'';answer.setAttribute('aria-expanded',String(open));return
+  const answer=event.target.closest('.prob5-show-answer');
+  if(answer){
+   const text=card.querySelector('.prob5-revealed-answer'),open=text.classList.contains('hidden');
+   text.classList.toggle('hidden',!open);
+   text.textContent=open?'Ответ: '+task.a:'';
+   answer.setAttribute('aria-expanded',String(open));
+   return;
   }
-  const solve=e.target.closest('.prob5-solve');if(solve){
-   const detail=card.querySelector('.prob5-detail'),open=detail.classList.contains('hidden');detail.classList.toggle('hidden',!open);solve.textContent=open?'Скрыть решение':'Решение';solve.setAttribute('aria-expanded',String(open));return
+  const solve=event.target.closest('.prob5-solve');
+  if(solve){
+   const detail=card.querySelector('.prob5-detail'),open=detail.classList.contains('hidden');
+   detail.classList.toggle('hidden',!open);
+   solve.textContent=open?'Скрыть решение':'Решение';
+   solve.setAttribute('aria-expanded',String(open));
+   return;
   }
  });
- root.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches('input')){e.preventDefault();e.target.closest('.prob5-card').querySelector('.prob5-check').click()}});
+ root.addEventListener('keydown',event=>{
+  if(event.key==='Enter'&&event.target.matches('input')){
+   event.preventDefault();
+   event.target.closest('.prob5-card').querySelector('.prob5-check').click();
+  }
+ });
 }
-function resetAll(){for(let k=1;k<=6;k++){const kind=availableKinds(k)[0],a=choose(k,kind,null);state[k]={kind,mode:"two",tasks:[a,choose(k,kind,a)],rev:Number(state[k]?.rev)||0};changed(k)}}
-window.Probability5={state,receive,resetAll,publishAll,BANK,META,choose,nextSequential,steps};
+window.Probability5={state,receive,publishAll,resetAll,BANK,META,V,generateVariant:kind=>V[kind](),newVariant,steps};
 })();
 </script><script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
