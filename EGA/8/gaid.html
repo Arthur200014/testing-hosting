@@ -3404,7 +3404,7 @@ if(codeFromUrl&&!student){
         const who=current.ownerName||'ученик';
         const role=window.PVZSharedAPI?.getRole?.()||'';
         if(!ro&&role==='student')b.textContent=`Ваш ход · ${who} · задание ${q}/${total}`;
-        else b.textContent=`Сейчас отвечает ${who} · задание ${q}/${total}. Учитель и второй ученик наблюдают.`;
+        else b.textContent=`Сейчас отвечает ${who} · задание ${q}/${total}. Остальные участники наблюдают.`;
         host.prepend(b);
       }
     }
@@ -3420,7 +3420,7 @@ if(codeFromUrl&&!student){
   ['click','pointerdown','input','change','keydown'].forEach(type=>document.addEventListener(type,blockReadonlyControlEvent,true));
 
   function normalizeControlPlayers(list){
-    return (Array.isArray(list)?list:[]).filter(x=>x&&x.clientId).slice(0,2).map(x=>({
+    return (Array.isArray(list)?list:[]).filter(x=>x&&x.clientId).map(x=>({
       clientId:String(x.clientId||''),participantId:String(x.participantId||x.userId||''),
       name:String(x.name||'Ученик'),slot:+x.slot||0
     }));
@@ -3471,14 +3471,15 @@ if(codeFromUrl&&!student){
   startGame=function(id,k){
     const key=String(k||''),isB=key==='B';
     if(isB&&!applying&&window.__PVZ_SHARED_ACTIVE){
-      const list=normalizeControlPlayers(window.PVZSharedAPI?.getOnlineStudents?.()||[]);
-      if(!list.length){
-        if((window.PVZSharedAPI?.getRole?.()||'')==='teacher'){
-          window.PVZSharedAPI?.showNoStudent?.();
-          return;
-        }
+      const api=window.PVZSharedAPI;
+      if(api?.getRole?.()!=='teacher'){
+        api?.showTeacherStartsGame?.();
+        return;
       }
-      launchSharedGame(id,key,list.length?list:null);
+      api?.chooseControlPlayers?.().then(players=>{
+        if(!players?.length||api?.getRole?.()!=='teacher'||!window.__PVZ_SHARED_ACTIVE)return;
+        launchSharedGame(id,key,normalizeControlPlayers(players));
+      });
       return;
     }
     launchSharedGame(id,key,null);
@@ -3811,15 +3812,15 @@ async function joinStudent(raw,cached){
     const tr=await fbTimeout(F.runTransaction(participantsRef(),cur=>{
       const x=clone(cur||serverParticipants||{});let existing=x[key];
       if(existing){assignedName=existing.name||assignedName||'Ученик';return x}
-      if(Object.keys(x).length>=8)return;
-      const used=new Set(Object.values(x).map(p=>+p.slot||0));let slot=1;while(used.has(slot)&&slot<=8)slot++;
+      
+      const used=new Set(Object.values(x).map(p=>+p.slot||0));let slot=1;while(used.has(slot))slot++;
       assignedName=assignedName||('Ученик '+slot);
       x[key]={id:key,slot,studentCode:code,name:assignedName,verified:!!cached?.verified,verifiedStudentId:cached?.id||'',joinedAt:Date.now()};return x
     }),15000,'Firebase не подтвердил место ученика.');
     if(serial!==joinSerial)return;
     if(!tr.committed){
       const again=await fbTimeout(F.get(participantsRef()),12000,'Не удалось проверить место ученика.'),x=again.val()||{};
-      if(!x[key]){msg(Object.keys(x).length>=8?'На уроке уже 8 учеников.':'Не удалось занять место. Нажмите подключиться ещё раз.',true);return}
+      if(!x[key]){msg('Не удалось занять место. Нажмите подключиться ещё раз.',true);return}
       assignedName=x[key].name||assignedName||'Ученик';
     }
     role='student';participantId=key;participantName=assignedName;connectAs('student',key,assignedName,serverState);closeModal();
@@ -3928,22 +3929,30 @@ function onlineStudents(){
   return [...byUser.entries()].map(([key,m])=>{
     const p=participants?.[key]||{};
     return {clientId:String(m.id||''),participantId:key,name:String(p.name||m.name||'Ученик'),slot:+p.slot||99};
-  }).filter(x=>x.clientId).sort((a,b)=>a.slot-b.slot||a.name.localeCompare(b.name,'ru')).slice(0,2);
+  }).filter(x=>x.clientId).sort((a,b)=>a.slot-b.slot||a.name.localeCompare(b.name,'ru'));
 }
-function chooseOnlineStudent(){
-  return new Promise(resolve=>{
-    const list=onlineStudents();
-    if(!list.length){
-      modalView('Некому проходить контроль','<p>Сначала подключите ученика к совместному уроку. Учитель в контрольных заданиях отвечает только в режиме наблюдения.</p>');
-      addAction('Закрыть',()=>{closeModal();resolve(null)},true);
-      return;
-    }
-    if(list.length===1){resolve(list[0]);return}
-    modalView('Кто проходит контроль?','<p>Выберите ученика. Только выбранный ученик сможет нажимать ответы; у учителя и остальных будет режим наблюдения.</p>');
-    list.forEach(s=>addAction(s.name,()=>{closeModal();resolve(s)}));
-    addAction('Отмена',()=>{closeModal();resolve(null)},true);
+function chooseControlPlayers(){
+ return new Promise(resolve=>{
+  if(role!=='teacher'||!connected){resolve(null);return}
+  const list=onlineStudents();
+  if(!list.length){
+   modalView('Некому проходить контроль','<p>Сначала подключите хотя бы одного ученика к совместному уроку.</p>');
+   addAction('Закрыть',()=>{closeModal();resolve(null)},true);return;
+  }
+  modalView('Выбор участников контроля','<p>Отметьте учеников, которые будут отвечать по очереди. Можно выбрать любое количество.</p>'+
+   '<div id="lessonControlPicker" style="display:grid;gap:9px;max-height:48vh;overflow:auto;margin:12px 0">'+list.map((p,i)=>
+    '<label style="display:flex;gap:9px;align-items:center;padding:10px;background:#fff7d8;border:1px solid #b99a52;border-radius:9px"><input type="checkbox" data-index="'+i+'" style="width:20px;height:20px"><b>'+esc(p.name)+'</b></label>'
+   ).join('')+'</div>');
+  addAction('Начать контроль',()=>{
+   const box=E('lessonControlPicker');
+   const chosen=[...box.querySelectorAll('input:checked')].map(el=>list[Number(el.dataset.index)]).filter(Boolean);
+   if(!chosen.length){msg('Отметьте хотя бы одного ученика.',true);return}
+   closeModal();resolve(chosen);
   });
+  addAction('Отмена',()=>{closeModal();resolve(null)},true);
+ });
 }
+async function chooseOnlineStudent(){const list=await chooseControlPlayers();return list?.[0]||null}
 function updateTeacherFinishButton(){
   const b=E('lessonFinishGame');if(b){
     const nav=window.PVZBridge?.getNav?.()||{};
@@ -3954,7 +3963,7 @@ function updateTeacherFinishButton(){
 let actionCounter=0;
 window.PVZSharedAPI={
  getClientId:()=>clientId,getParticipantId:()=>participantId,getParticipantName:()=>participantName,getRole:()=>role,
- getOnlineStudents:()=>onlineStudents(),chooseOnlineStudent,showNoStudent:()=>{modalView('Некому проходить отработку','<p>Сначала подключите хотя бы одного ученика к совместному уроку. Учитель отвечать в отработке прототипов не может.</p>');addAction('Закрыть',closeModal,true)},
+ getOnlineStudents:()=>onlineStudents(),chooseOnlineStudent,chooseControlPlayers,showTeacherStartsGame:()=>{modalView('Контроль запускает учитель','<p>Учитель выбирает, кто будет отвечать в контроле.</p>');addAction('Закрыть',closeModal,true)},showNoStudent:()=>{modalView('Некому проходить отработку','<p>Сначала подключите хотя бы одного ученика к совместному уроку. Учитель отвечать в отработке прототипов не может.</p>');addAction('Закрыть',closeModal,true)},
  async recordAction(a,fast=false){if(!connected||!F||window.PVZBridge?.isApplying?.())return;const now=Date.now(),id=String(now).padStart(13,'0')+'_'+String(++actionCounter).padStart(6,'0')+'_'+clientId.replace(/[^A-Za-z0-9_-]/g,'').slice(-18),payload={...a,id,authorClient:clientId,author:participantId,authorName:participantName,at:now};seenActions.add(id);try{await F.set(F.ref(db,rootPath()+'/state/actions/'+id),payload)}catch{}},
  async syncNav(n){if(!connected||!F)return;currentRun=n?.runId||'';try{await F.set(navRef(),clone(n))}catch{}},
  async startSharedGame(n){if(!connected||!F)return;currentRun=n?.runId||'';try{await F.set(navRef(),clone(n))}catch{}},
