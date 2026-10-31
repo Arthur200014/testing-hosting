@@ -533,6 +533,21 @@ figure.art figcaption{font-size:12.5px;font-weight:500;text-align:center;padding
   .signed-area-readout{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
   .signed-area-readout .phys-chip{min-width:0}
   @media(max-width:650px){.signed-area-readout{grid-template-columns:1fr}.relation-table{min-width:500px}}
+
+/* Допуск учеников учителем и список заявок */
+.lesson-person{flex-wrap:wrap}
+.lesson-person-info{flex:1;min-width:125px;display:flex;flex-direction:column;gap:3px}
+.lesson-person-info small{margin-left:0}
+.lesson-person-actions{display:flex;gap:6px;flex-wrap:wrap}
+.lesson-person-actions button{padding:7px 9px;font-size:11px;border-radius:8px;box-shadow:none}
+.lesson-person-actions .approve{background:#d4eed8;color:#27663a;border:1px solid #70b37f}
+.lesson-person-actions .deny{background:#ffe3d8;color:#924332;border:1px solid #dba69a}
+.lesson-person-status.approved{color:#267243}.lesson-person-status.pending{color:#98711b}.lesson-person-status.denied{color:#ac423b}
+.lesson-approval-overlay{position:fixed;inset:0;z-index:310;display:grid;place-items:center;background:#0b1c14ed;padding:16px}
+.lesson-approval-overlay.hidden{display:none!important}
+.lesson-approval-card{padding:26px;max-width:440px;background:#fff7de;border:3px solid #b99a52;border-radius:18px;text-align:center;color:#372b1b;box-shadow:0 14px 55px #0008}
+.lesson-approval-card h3{margin:0 0 12px;font-size:22px}.lesson-approval-card p{line-height:1.55}
+.lesson-approval-card button{padding:10px 14px;border-radius:9px;border:1px solid #9f8749;background:#ead5a4;color:#372b1b;font-weight:750}
 </style>
 <script>
 window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']],processEscapes:true},chtml:{scale:1.03,mtextInheritFont:true},options:{skipHtmlTags:['script','noscript','style','textarea','pre','code']}};
@@ -3815,7 +3830,7 @@ async function joinStudent(raw,cached){
       
       const used=new Set(Object.values(x).map(p=>+p.slot||0));let slot=1;while(used.has(slot))slot++;
       assignedName=assignedName||('Ученик '+slot);
-      x[key]={id:key,slot,studentCode:code,name:assignedName,verified:!!cached?.verified,verifiedStudentId:cached?.id||'',joinedAt:Date.now()};return x
+      x[key]={id:key,slot,studentCode:code,name:assignedName,verified:!!cached?.verified,verifiedStudentId:cached?.id||'',joinedAt:Date.now(),approved:false,decision:'pending'};return x
     }),15000,'Firebase не подтвердил место ученика.');
     if(serial!==joinSerial)return;
     if(!tr.committed){
@@ -3823,13 +3838,41 @@ async function joinStudent(raw,cached){
       if(!x[key]){msg('Не удалось занять место. Нажмите подключиться ещё раз.',true);return}
       assignedName=x[key].name||assignedName||'Ученик';
     }
-    role='student';participantId=key;participantName=assignedName;connectAs('student',key,assignedName,serverState);closeModal();
-    if(cached?.verified&&cached?.id&&cached?.name){F.update(F.ref(db,rootPath()+'/state/participants/'+key),{name:cached.name,verified:true,verifiedStudentId:cached.id}).catch(()=>{});participantName=cached.name;paintWho('✓ подтверждён');return}
+    role='student';participantId=key;participantName=assignedName;connectAs('student',key,assignedName,serverState);closeModal();applyStudentApproval();
+    if(cached?.verified&&cached?.id&&cached?.name){F.update(F.ref(db,rootPath()+'/state/participants/'+key),{name:cached.name,verified:true,verifiedStudentId:cached.id}).catch(()=>{});participantName=cached.name;applyStudentApproval();return}
     setTimeout(()=>validateLoop(code,key),0);
   }catch(e){if(serial!==joinSerial)return;msg('Не удалось подключиться к уроку: '+(e.message||e),true)}
 }
-async function validateLoop(code,key){const run=++validationRun;let attempt=0;while(run===validationRun&&connected&&role==='student'){attempt++;paintWho('проверяем имя · попытка '+attempt);try{const v=await validate(code);if(run!==validationRun)return;participantName=v.name;localStorage.setItem('egeStudentId',v.id);localStorage.setItem('egeStudentName',v.name);localStorage.setItem('egeStudentCode',code);localStorage.setItem(studentKey,JSON.stringify({code,id:v.id,name:v.name,verified:true}));await F.update(F.ref(db,rootPath()+'/state/participants/'+key),{name:v.name,verified:true,verifiedStudentId:v.id});if(memberRef)F.update(memberRef,{name:v.name,studentId:v.id}).catch(()=>{});paintWho('✓ подтверждён');return}catch(e){if(run!==validationRun)return;if(e.terminal){paintWho('код не найден · урок продолжается');return}paintWho('сервер не ответил · повторяем');await new Promise(r=>setTimeout(r,1500))}}}
+async function validateLoop(code,key){const run=++validationRun;let attempt=0;while(run===validationRun&&connected&&role==='student'){attempt++;paintWho('проверяем имя · попытка '+attempt);try{const v=await validate(code);if(run!==validationRun)return;participantName=v.name;localStorage.setItem('egeStudentId',v.id);localStorage.setItem('egeStudentName',v.name);localStorage.setItem('egeStudentCode',code);localStorage.setItem(studentKey,JSON.stringify({code,id:v.id,name:v.name,verified:true}));await F.update(F.ref(db,rootPath()+'/state/participants/'+key),{name:v.name,verified:true,verifiedStudentId:v.id});if(memberRef)F.update(memberRef,{name:v.name,studentId:v.id}).catch(()=>{});applyStudentApproval();return}catch(e){if(run!==validationRun)return;if(e.terminal){paintWho('код не найден · урок продолжается');return}paintWho('сервер не ответил · повторяем');await new Promise(r=>setTimeout(r,1500))}}}
 function paintWho(status=''){E('lessonWho').textContent=(participantName||'Участник')+(status?' · '+status:'')}
+
+let studentApproved=false;
+const approvalOverlay=document.createElement('div');
+approvalOverlay.id='lessonApprovalOverlay';approvalOverlay.className='lesson-approval-overlay hidden';
+approvalOverlay.innerHTML='<div class="lesson-approval-card"><h3 id="approvalTitle">Ожидание допуска</h3><p id="approvalText">Учитель рассматривает заявку на участие.</p><button id="approvalExit" type="button">Выйти</button></div>';
+document.body.appendChild(approvalOverlay);
+E('approvalExit').onclick=()=>disconnect(true).then(roleHome);
+function permitted(){return role!=='student'||studentApproved}
+function applyStudentApproval(){
+ const p=participants?.[participantId],waiting=connected&&role==='student'&&p?.approved!==true;
+ studentApproved=connected&&role==='student'&&p?.approved===true;
+ approvalOverlay.classList.toggle('hidden',!waiting);
+ if(role==='student'){
+  window.__PVZ_SHARED_ACTIVE=studentApproved;
+  if(waiting){
+   E('approvalTitle').textContent=p?.decision==='denied'?'Учитель отклонил заявку':'Ожидание допуска';
+   E('approvalText').textContent=p?.decision==='denied'?'Вы пока не допущены. Учитель может изменить решение.':'Вы подключены, но пока не участвуете в уроке. Учитель видит вашу заявку.';
+  }
+  paintWho(studentApproved?'✓ допущен':'ожидает допуска');
+ }else if(connected)window.__PVZ_SHARED_ACTIVE=true;
+}
+async function setStudentAccess(key,allow){
+ if(!connected||role!=='teacher'||!F||!participants?.[key])return;
+ try{await F.update(F.ref(db,rootPath()+'/state/participants/'+key),{
+  approved:!!allow,decision:allow?'approved':'denied',decidedAt:Date.now()
+ })}catch(e){msg('Не удалось изменить допуск: '+(e?.message||e),true)}
+}
+
 
 /* ===== Учитель: разовая синхронизация уровня прокрутки =====
    Обычный скролл остаётся локальным. Только нажатие кнопки отправляет команду ученикам.
@@ -3900,12 +3943,12 @@ async function teacherPullScroll(){
   const payload=makeScrollPullPayload();
   try{await F.set(scrollPullRef(),payload)}catch(e){console.warn('scroll pull failed',e)}
 }
-async function connectAs(r,id,name,initial){connected=true;window.__PVZ_SHARED_ACTIVE=true;role=r;participantId=id;participantName=name;clearSubs();applySharedState(initial||freshState());memberRef=F.ref(db,rootPath()+'/members/'+clientId);F.set(memberRef,{id:clientId,userId:id,studentId:'',name,role:r,online:true,lastSeen:F.serverTimestamp()}).catch(()=>{});try{F.onDisconnect(memberRef).update({online:false,lastSeen:F.serverTimestamp()}).catch(()=>{})}catch{}
+async function connectAs(r,id,name,initial){connected=true;role=r;participantId=id;participantName=name;participants=clone(initial?.participants||{});studentApproved=false;window.__PVZ_SHARED_ACTIVE=r==='teacher';applyStudentApproval();clearSubs();applySharedState(initial||freshState());memberRef=F.ref(db,rootPath()+'/members/'+clientId);F.set(memberRef,{id:clientId,userId:id,studentId:'',name,role:r,online:true,lastSeen:F.serverTimestamp()}).catch(()=>{});try{F.onDisconnect(memberRef).update({online:false,lastSeen:F.serverTimestamp()}).catch(()=>{})}catch{}
   unsubs.push(F.onValue(navRef(),s=>{if(s.exists())window.PVZBridge?.applyNav(s.val())}));
   unsubs.push(F.onValue(progressRef(),s=>{if(s.exists())window.PVZBridge?.applyProgress(s.val())}));
   unsubs.push(F.onValue(F.ref(db,rootPath()+'/state/theme'),s=>{if(s.exists())window.PVZBridge?.applyTheme(s.val())}));
   unsubs.push(F.onValue(F.ref(db,rootPath()+'/state/notes'),s=>{if(s.exists())window.PVZBridge?.applyNotes(s.val())}));
-  unsubs.push(F.onValue(participantsRef(),s=>{participants=s.val()||{};renderPresence()}));
+  unsubs.push(F.onValue(participantsRef(),s=>{participants=s.val()||{};applyStudentApproval();renderPresence()}));
   unsubs.push(F.onValue(membersRef(),s=>{members=s.val()||{};renderPresence()}));
   seenActions.clear();unsubs.push(F.onChildAdded(actionsRef(),snap=>{const a=snap.val();if(!a||seenActions.has(snap.key))return;seenActions.add(snap.key);if(a.authorClient===clientId)return;window.PVZBridge?.queueReplay?.(a,snap.key)}));
   unsubs.push(F.onValue(padsRef(),s=>applyPads(s.val()||{})));unsubs.push(F.onValue(cursorRef(),s=>renderTeacherCursor(s.val())));
@@ -3915,10 +3958,47 @@ async function connectAs(r,id,name,initial){connected=true;window.__PVZ_SHARED_A
 function applySharedState(st){window.PVZBridge?.applyProgress(st?.progress||{});window.PVZBridge?.applyTheme(st?.theme||'day');window.PVZBridge?.applyNotes(st?.notes||'');window.PVZBridge?.applyNav(st?.nav||{screen:'home',stationId:0,gameId:0,key:'',runId:'',resultHTML:'',ownerClient:'',ownerName:'',ownerSavesResult:false,startedAt:0,early:false});currentRun=st?.nav?.runId||''}
 function applyActionWhenReady(a){window.PVZBridge?.queueReplay?.(a,a?.id||'')}
 function clearSubs(){while(unsubs.length){try{unsubs.pop()()}catch{}}}
-function renderPresence(){const online=Object.values(members).filter(m=>m?.online),unique=new Map();for(const m of online)unique.set(m.userId||m.id,m);E('lessonOnline').textContent=unique.size+' онлайн';if(!E('lessonModal').classList.contains('hidden')&&E('participantsList'))fillParticipants()}
-function fillParticipants(){const box=E('participantsList');if(!box)return;const byUser=new Map();for(const m of Object.values(members||{})){if(!m)continue;const k=m.userId||m.id,old=byUser.get(k);if(!old||m.online)byUser.set(k,m)}box.innerHTML=[...byUser.values()].map(m=>`<div class="lesson-person ${m.online?'':'offline'}"><span class="dot"></span><b>${esc(m.name||'Участник')}</b><small>${m.role==='teacher'?'учитель':m.online?'онлайн':'не в сети'}</small></div>`).join('')||'<p>Пока никого.</p>'}
-function participantsView(){modalView('Участники','<div class="lesson-participants" id="participantsList"></div>');fillParticipants();addAction('Закрыть',closeModal,true)}
-async function disconnect(removeParticipant=false){validationRun++;joinSerial++;stopWaitingSession();clearSubs();window.PVZBridge?.resetActionQueue?.();window.__PVZ_SHARED_ACTIVE=false;if(memberRef)try{await F.update(memberRef,{online:false,lastSeen:F.serverTimestamp()})}catch{}if(removeParticipant&&role==='student'&&participantId)try{await F.remove(F.ref(db,rootPath()+'/state/participants/'+participantId))}catch{}connected=false;role='';participantId='';participantName='';memberRef=null;E('lessonMini').classList.add('hidden');E('lessonFab').classList.remove('hidden');E('boardToolbar').classList.remove('connected');hideCursors();updateBoardPermissions()}
+function renderPresence(){const online=Object.values(members).filter(m=>m?.online),unique=new Map();for(const m of online)unique.set(m.userId||m.id,m);const requests=Object.values(participants||{}).filter(p=>p&&p.approved!==true&&p.decision!=='denied').length;E('lessonOnline').textContent=unique.size+' онлайн'+(role==='teacher'&&requests?' · '+requests+' заявок':'');if(!E('lessonModal').classList.contains('hidden')&&E('participantsList'))fillParticipants()}
+function fillParticipants(){
+ const box=E('participantsList');if(!box)return;
+ const all=new Map();
+ for(const [key,p] of Object.entries(participants||{})){
+  if(p)all.set(key,{key,p,online:false,name:p.name||'Ученик',teacher:false});
+ }
+ for(const m of Object.values(members||{})){
+  if(!m)continue;
+  const key=String(m.userId||m.id||''),existing=all.get(key);
+  if(existing){existing.online=existing.online||!!m.online;existing.name=existing.p?.name||m.name||existing.name}
+  else if(m.role==='teacher')all.set(key,{key,p:null,online:!!m.online,name:m.name||'Учитель',teacher:true});
+ }
+ const list=[...all.values()].sort((a,b)=>{
+  if(a.teacher)return -1;if(b.teacher)return 1;
+  const rank=x=>x.p?.approved?1:x.p?.decision==='denied'?2:0;
+  return rank(a)-rank(b)||(+a.p?.slot||0)-(+b.p?.slot||0);
+ });
+ box.innerHTML=list.map(x=>{
+  const p=x.p,approved=p?.approved===true,denied=p?.decision==='denied';
+  const state=approved?'approved':denied?'denied':'pending',status=approved?'Допущен':denied?'Отклонён':'Ожидает';
+  const buttons=role==='teacher'&&p?
+   '<div class="lesson-person-actions">'+(approved?
+    '<button class="deny" data-access="deny" data-person="'+esc(x.key)+'">Отозвать допуск</button>':
+    '<button class="approve" data-access="approve" data-person="'+esc(x.key)+'">Допустить</button>'+
+    (denied?'':'<button class="deny" data-access="deny" data-person="'+esc(x.key)+'">Отклонить</button>'))+'</div>':'';
+  return '<div class="lesson-person '+(x.online?'':'offline')+'"><span class="dot"></span>'+
+   '<div class="lesson-person-info"><b>'+esc(x.name)+'</b><small>'+(x.online?'онлайн':'не в сети')+
+   (p?' · <span class="lesson-person-status '+state+'">'+status+'</span>':' · учитель')+'</small></div>'+buttons+'</div>';
+ }).join('')||'<p>Пока никого.</p>';
+}
+function participantsView(){
+ modalView('Участники','<p>Ученики могут подключаться без ограничения. Учитель разрешает или отзывает доступ к занятию.</p><div class="lesson-participants" id="participantsList"></div>');
+ const box=E('participantsList');
+ if(role==='teacher')box.onclick=e=>{
+  const btn=e.target.closest('button[data-access][data-person]');if(!btn)return;
+  setStudentAccess(btn.dataset.person,btn.dataset.access==='approve');
+ };
+ fillParticipants();addAction('Закрыть',closeModal,true);
+}
+async function disconnect(removeParticipant=false){validationRun++;joinSerial++;stopWaitingSession();clearSubs();window.PVZBridge?.resetActionQueue?.();window.__PVZ_SHARED_ACTIVE=false;if(memberRef)try{await F.update(memberRef,{online:false,lastSeen:F.serverTimestamp()})}catch{}if(removeParticipant&&role==='student'&&participantId)try{await F.remove(F.ref(db,rootPath()+'/state/participants/'+participantId))}catch{}connected=false;role='';participantId='';participantName='';memberRef=null;studentApproved=false;approvalOverlay.classList.add('hidden');E('lessonMini').classList.add('hidden');E('lessonFab').classList.remove('hidden');E('boardToolbar').classList.remove('connected');hideCursors();updateBoardPermissions()}
 function onlineStudents(){
   const byUser=new Map();
   for(const m of Object.values(members||{})){
@@ -3929,7 +4009,7 @@ function onlineStudents(){
   return [...byUser.entries()].map(([key,m])=>{
     const p=participants?.[key]||{};
     return {clientId:String(m.id||''),participantId:key,name:String(p.name||m.name||'Ученик'),slot:+p.slot||99};
-  }).filter(x=>x.clientId).sort((a,b)=>a.slot-b.slot||a.name.localeCompare(b.name,'ru'));
+  }).filter(x=>x.clientId&&participants?.[x.participantId]?.approved===true).sort((a,b)=>a.slot-b.slot||a.name.localeCompare(b.name,'ru'));
 }
 function chooseControlPlayers(){
  return new Promise(resolve=>{
@@ -3964,12 +4044,12 @@ let actionCounter=0;
 window.PVZSharedAPI={
  getClientId:()=>clientId,getParticipantId:()=>participantId,getParticipantName:()=>participantName,getRole:()=>role,
  getOnlineStudents:()=>onlineStudents(),chooseOnlineStudent,chooseControlPlayers,showTeacherStartsGame:()=>{modalView('Контроль запускает учитель','<p>Учитель выбирает, кто будет отвечать в контроле.</p>');addAction('Закрыть',closeModal,true)},showNoStudent:()=>{modalView('Некому проходить отработку','<p>Сначала подключите хотя бы одного ученика к совместному уроку. Учитель отвечать в отработке прототипов не может.</p>');addAction('Закрыть',closeModal,true)},
- async recordAction(a,fast=false){if(!connected||!F||window.PVZBridge?.isApplying?.())return;const now=Date.now(),id=String(now).padStart(13,'0')+'_'+String(++actionCounter).padStart(6,'0')+'_'+clientId.replace(/[^A-Za-z0-9_-]/g,'').slice(-18),payload={...a,id,authorClient:clientId,author:participantId,authorName:participantName,at:now};seenActions.add(id);try{await F.set(F.ref(db,rootPath()+'/state/actions/'+id),payload)}catch{}},
- async syncNav(n){if(!connected||!F)return;currentRun=n?.runId||'';try{await F.set(navRef(),clone(n))}catch{}},
- async startSharedGame(n){if(!connected||!F)return;currentRun=n?.runId||'';try{await F.set(navRef(),clone(n))}catch{}},
- async syncProgress(p){if(connected&&F)F.set(progressRef(),clone(p)).catch(()=>{})},
- async syncTheme(t){if(connected&&F)F.set(F.ref(db,rootPath()+'/state/theme'),t).catch(()=>{})},
- syncNotes:(()=>{let t=0;return v=>{clearTimeout(t);t=setTimeout(()=>{if(connected&&F)F.set(F.ref(db,rootPath()+'/state/notes'),String(v||'')).catch(()=>{})},180)}})()
+ async recordAction(a,fast=false){if(!connected||!F||!permitted()||window.PVZBridge?.isApplying?.())return;const now=Date.now(),id=String(now).padStart(13,'0')+'_'+String(++actionCounter).padStart(6,'0')+'_'+clientId.replace(/[^A-Za-z0-9_-]/g,'').slice(-18),payload={...a,id,authorClient:clientId,author:participantId,authorName:participantName,at:now};seenActions.add(id);try{await F.set(F.ref(db,rootPath()+'/state/actions/'+id),payload)}catch{}},
+ async syncNav(n){if(!connected||!F||!permitted())return;currentRun=n?.runId||'';try{await F.set(navRef(),clone(n))}catch{}},
+ async startSharedGame(n){if(!connected||!F||!permitted())return;currentRun=n?.runId||'';try{await F.set(navRef(),clone(n))}catch{}},
+ async syncProgress(p){if(connected&&F&&permitted())F.set(progressRef(),clone(p)).catch(()=>{})},
+ async syncTheme(t){if(connected&&F&&permitted())F.set(F.ref(db,rootPath()+'/state/theme'),t).catch(()=>{})},
+ syncNotes:(()=>{let t=0;return v=>{clearTimeout(t);t=setTimeout(()=>{if(connected&&F&&permitted())F.set(F.ref(db,rootPath()+'/state/notes'),String(v||'')).catch(()=>{})},180)}})()
 };
 E('lessonFab').onclick=roleHome;E('lessonPeople').onclick=participantsView;E('lessonScrollHere').onclick=teacherPullScroll;
 E('lessonFinishGame').onclick=async()=>{
@@ -4159,7 +4239,7 @@ function scheduleLocalStrokeRender(){
   drawRAF=requestAnimationFrame(()=>{drawRAF=0;if(drawing)renderStroke(drawing)});
 }
 function queueStrokeWrite(s){
-  if(!connected||!F||!s)return;
+  if(!connected||!F||!s||!permitted())return;
   pendingStrokeWrites.set(s.id,clone(s));
   if(activeStrokeWrites.has(s.id))return;
   activeStrokeWrites.add(s.id);
@@ -4176,7 +4256,7 @@ function queueStrokeWrite(s){
   })();
 }
 function boardDown(e){
-  if(tool==='off')return;
+  if(tool==='off'||(connected&&!permitted()))return;
   const svg=e.currentTarget,root=svg.__boardRoot;if(!root)return;
   activePointerId=e.pointerId;svg.setPointerCapture?.(e.pointerId);e.preventDefault();
   if(tool==='eraser'){lastClientPoint={x:e.clientX,y:e.clientY};eraseClientSegment(root,lastClientPoint,lastClientPoint);return}
