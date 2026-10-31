@@ -3868,9 +3868,28 @@ function applyStudentApproval(){
 }
 async function setStudentAccess(key,allow){
  if(!connected||role!=='teacher'||!F||!participants?.[key])return;
- try{await F.update(F.ref(db,rootPath()+'/state/participants/'+key),{
-  approved:!!allow,decision:allow?'approved':'denied',decidedAt:Date.now()
- })}catch(e){msg('Не удалось изменить допуск: '+(e?.message||e),true)}
+ try{
+  await F.update(F.ref(db,rootPath()+'/state/participants/'+key),{
+   approved:!!allow,decision:allow?'approved':'denied',decidedAt:Date.now()
+  });
+  if(!allow){
+   await F.runTransaction(navRef(),nav=>{
+    if(!nav||nav.screen!=='station'||nav.key!=='B'||!Array.isArray(nav.controlPlayers))return;
+    const before=nav.controlPlayers;
+    const remaining=before.filter(p=>String(p?.participantId||'')!==String(key));
+    if(remaining.length===before.length||remaining.length===0)return;
+    const stillOwner=remaining.findIndex(p=>p.clientId===nav.ownerClient);
+    const turn=stillOwner>=0?stillOwner:Math.min(Math.max(0,+nav.turnIndex||0),remaining.length-1);
+    const owner=remaining[turn];
+    return {...nav,controlPlayers:remaining,turnIndex:turn,ownerClient:owner.clientId,ownerName:owner.name,
+      turnStartedAt:stillOwner<0?Date.now():nav.turnStartedAt};
+   },{applyLocally:false});
+   const nav=window.PVZBridge?.getNav?.();
+   if(nav?.key==='B'&&nav?.screen==='station'&&nav?.controlPlayers?.length===1&&nav.controlPlayers[0]?.participantId===key){
+    msg('Ученик отстранён. В текущем контроле не осталось участников — нажмите «Завершить игру».');
+   }
+  }
+ }catch(e){msg('Не удалось изменить допуск: '+(e?.message||e),true)}
 }
 
 
