@@ -205,6 +205,23 @@ svg .p5-selected{outline:none!important;filter:drop-shadow(0 0 4px #e9ae24) brig
 .screenshot-mode #screenExit:hover,.screenshot-mode #screenExit:focus-visible{opacity:1}
 @media(max-width:600px){.screenshot-mode .task-grid{grid-template-columns:1fr!important}.homework-solution{padding:6px}}
 @media print{.topbar,.hero,.status-wrap,.intro,.submit-zone,.result,.answer-row,.homework-solution,.solution-toggle,#screenExit{display:none!important}.task-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+
+/* V3 identity: clear, always visible, independent of screen width */
+.student-identity{width:min(1180px,calc(100% - 24px));margin:10px auto 12px;display:flex;align-items:center;gap:12px;padding:12px 16px;background:#fffefa;border:2px solid #dfb73e;border-radius:14px;box-shadow:0 5px 14px #0b32511c;color:#16344d}
+.student-identity-icon{display:grid;place-items:center;background:#fff0ae;width:44px;height:44px;border-radius:50%;font-size:23px;flex:none}
+.student-identity-main{min-width:0;display:flex;flex-direction:column;gap:2px;flex:1}
+.student-identity-label{font-size:11px;color:#4c6474;font-weight:800}
+.student-identity-name{font-size:clamp(17px,2.3vw,22px);color:#0e3b58;line-height:1.2;overflow-wrap:anywhere}
+.student-identity-code{font-size:12px;color:#38617b;font-weight:750;overflow-wrap:anywhere}
+.student-identity-status{font-size:11px;font-weight:750;color:#9a6418}
+.student-identity[data-verified="true"]{border-color:#71bb8f}
+.student-identity[data-verified="true"] .student-identity-status{color:#187646}
+.student-identity[data-error="true"]{border-color:#e6a06c}
+.student-identity[data-error="true"] .student-identity-status{color:#a33a2a}
+.student-identity-change{padding:9px 12px;border-radius:9px;border:1px solid #90b4c9;background:#eff8fb;color:#0d536f;font-size:12px;font-weight:850;white-space:nowrap}
+.screenshot-mode .student-identity{display:none!important}
+@media(max-width:780px){.topbar .student-chip{display:none!important}}
+@media(max-width:580px){.student-identity{gap:9px;padding:10px}.student-identity-icon{width:36px;height:36px;font-size:19px}.student-identity-change{align-self:flex-start;white-space:normal;max-width:100px;font-size:11px;padding:7px}.student-identity-name{font-size:17px}}
 </style>
 <script>
 window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},
@@ -231,6 +248,16 @@ window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},
       <button class="icon-btn" id="soundButton" type="button" aria-pressed="true">🔊 Звук</button>
       <button class="icon-btn" id="logoutButton" type="button">Сменить ученика</button>
     </div>
+    <section class="student-identity" id="studentIdentity" aria-label="Проверка ученика">
+      <div class="student-identity-icon" aria-hidden="true">👤</div>
+      <div class="student-identity-main">
+        <span class="student-identity-label">Кто выполняет домашнюю работу</span>
+        <strong class="student-identity-name" id="studentIdentityName">Уточняем имя ученика…</strong>
+        <span class="student-identity-code" id="studentIdentityCode">Код: —</span>
+        <span class="student-identity-status" id="studentIdentityStatus" role="status" aria-live="polite">Имя появится после проверки кода</span>
+      </div>
+      <button type="button" class="student-identity-change" id="studentIdentityChange">Это не я · Сменить</button>
+    </section>
 
     <header class="hero">
       <div class="hero-inner">
@@ -641,10 +668,16 @@ async function validateAndCheck(){
   if(info){
    st.id=info.id;st.name=info.name;st.verified=true;st.invalid=false;
    storage.set("egeStudentId",info.id);storage.set("egeStudentName",info.name);storage.set("egeStudentCode",entered);
-   byId("studentChip").textContent=info.name+" · "+entered;
+   updateStudentIdentity("verified");
    updateQueueIdentity(info.id,entered);
-  }else{st.invalid=true}
- }catch{ /* Offline work is still usable. */ }
+  }else{
+   st.invalid=true;
+   updateStudentIdentity("invalid");
+  }
+ }catch{
+  /* Access to the tasks is never blocked, but an unverified identity is explicit. */
+  if(st.code===entered&&!st.verified)updateStudentIdentity("unavailable");
+ }
  if(st.code!==entered)return;
  if(st.invalid)return;
  await checkSubmission(entered);
@@ -891,6 +924,21 @@ function startTimer(){
  const tick=()=>{if(st.active&&!st.result)byId("timer").textContent=timeText(Math.max(0,Math.floor((Date.now()-st.startedAt)/1000)))};
  tick();timerId=setInterval(tick,1000);
 }
+function updateStudentIdentity(status="checking"){
+ const name=st.name&&st.name!=="Ученик"?st.name:"";
+ const verified=status==="verified"&&!!name;
+ const box=byId("studentIdentity");
+ box.dataset.verified=String(verified);
+ box.dataset.error=String(status==="invalid");
+ byId("studentIdentityName").textContent=name||"Имя пока не подтверждено";
+ byId("studentIdentityCode").textContent="Код ученика: "+st.code;
+ byId("studentChip").textContent=(name||"Код ученика")+ " · "+st.code;
+ byId("studentIdentityStatus").textContent=
+  verified?"✓ Проверьте, ваше ли это имя":
+  status==="invalid"?"Код не найден. Проверьте его и нажмите «Сменить».":
+  status==="unavailable"?"Не удалось подтвердить имя. Проверьте код перед сдачей.":
+  "Уточняем имя по коду…";
+}
 function showApp(code){
  const oldCode=normalizeCode(storage.get("egeStudentCode"));
  st.code=normalizeCode(code);st.id=oldCode===st.code?storage.get("egeStudentId")||st.code:st.code;
@@ -900,7 +948,7 @@ function showApp(code){
  storage.set("egeStudentCode",st.code);
  st.active=true;loadDraft();
  byId("loginLayer").hidden=true;byId("appShell").hidden=false;
- byId("studentChip").textContent=st.name+" · "+st.code;
+ updateStudentIdentity(st.verified&&st.name&&st.name!=="Ученик"?"verified":"checking");
  byId("partTop").textContent=meta.shortLabel;
  byId("partLabel").textContent=meta.partLabel;
  byId("heroTitle").textContent=meta.heroTitle;
@@ -937,6 +985,7 @@ function init(){
  });
  byId("submitButton").addEventListener("click",finish);
  byId("logoutButton").addEventListener("click",changeStudent);
+ byId("studentIdentityChange").addEventListener("click",changeStudent);
  byId("soundButton").addEventListener("click",function(){soundOn=!soundOn;this.textContent=soundOn?"🔊 Звук":"🔇 Без звука";this.setAttribute("aria-pressed",String(soundOn));if(soundOn)sound("tap")});
  byId("screenshotButton").addEventListener("click",()=>toggleScreenshot());
  byId("screenExit").addEventListener("click",()=>toggleScreenshot(false));
