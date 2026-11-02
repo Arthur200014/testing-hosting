@@ -567,7 +567,11 @@ function parseNumber(s){
  return /^[-+]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(clean)?Number(clean):NaN;
 }
 function fmt(n){return String(Number(Number(n).toFixed(6))).replace(".",",")}
-function typeset(node){try{window.MathJax?.typesetPromise?.([node])?.catch?.(()=>{});}catch{}}
+function typeset(node){
+ const run=()=>{try{window.MathJax?.typesetPromise?.([node])?.catch?.(()=>{});}catch{}};
+ if(typeof window.MathJax?.typesetPromise==="function")run();
+ else window.addEventListener("load",run,{once:true});
+}
 function readJson(key,fallback){try{return JSON.parse(storage.get(key)||"null")??fallback}catch{return fallback}}
 function draft(){return {assignmentId:meta.assignmentId,studentCode:st.code,answers:st.answers.slice(),startedAt:st.startedAt,updatedAt:Date.now(),submittedResult:st.result}}
 function saveDraft(){if(st.code)storage.set(draftKey(st.code),JSON.stringify(draft()))}
@@ -922,7 +926,7 @@ function toggleScreenshot(enabled){
  document.body.classList.toggle("screenshot-mode",activate);
  byId("screenExit").hidden=!activate;
  byId("screenshotButton").setAttribute("aria-pressed",String(activate));
- window.scrollTo({top:0,behavior:"instant"});
+ window.scrollTo({top:0,behavior:"auto"});
 }
 function init(){
  document.title=meta.documentTitle;
