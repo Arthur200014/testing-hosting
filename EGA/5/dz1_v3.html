@@ -573,9 +573,14 @@ function draft(){return {assignmentId:meta.assignmentId,studentCode:st.code,answ
 function saveDraft(){if(st.code)storage.set(draftKey(st.code),JSON.stringify(draft()))}
 function loadDraft(){
  const d=readJson(draftKey(st.code),null);
- st.answers=TASKS.map((_,i)=>typeof d?.answers?.[i]==="string"?d.answers[i]:"");
- st.startedAt=Number(d?.startedAt)>0?Number(d.startedAt):Date.now();
- st.result=d?.submittedResult&&d?.submittedResult.assignmentId===meta.assignmentId?d.submittedResult:null;
+ const completed=d?.submittedResult?.assignmentId===meta.assignmentId?d.submittedResult:null;
+ const completedMonth=completed?.submittedAt?new Date(Number(completed.submittedAt)).toISOString().slice(0,7):null;
+ const nowMonth=monthKey();
+ // Last month's local result remains historical; the new month starts a fresh attempt.
+ const newMonth=!!completed&&completedMonth!==nowMonth;
+ st.answers=TASKS.map((_,i)=>newMonth?"":typeof d?.answers?.[i]==="string"?d.answers[i]:"");
+ st.startedAt=!newMonth&&Number(d?.startedAt)>0?Number(d.startedAt):Date.now();
+ st.result=newMonth?null:completed;
  saveDraft();
 }
 function readQueue(){const raw=readJson(queueKey,[]);return Array.isArray(raw)?raw:[]}
