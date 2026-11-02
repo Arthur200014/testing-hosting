@@ -2328,12 +2328,14 @@ function makeQuiz(proto,count){
     function draw(){
       const t=tasks[i];
       $('#qp').textContent=`Вопрос ${i+1} / ${count}`;
+      $('#qCard').dataset.questionIndex=String(i);
       $('#qCard').innerHTML=`<p class="qtext">${t.text}</p>${t.svg?`<div class="stage">${t.svg}</div>`:''}
         <div class="opts" id="qOpts">${t.opts.map(v=>`<button class="opt" data-v="${v}">${fmtNum(v)}</button>`).join('')}</div>
         <div id="qEx"></div>`;
       $('#qProg').style.width=(i/count*100)+'%';
       $('#qStat').textContent=`Верно: ${ok} · ошибок: ${bad} · осталось: ${count-i}`;
       $('#qOpts').querySelectorAll('.opt').forEach(b=>b.onclick=()=>hit(b));
+      window.__PVZ_CONTROL_SYNC_VIEW__?.();
     }
     function hit(b){
       if(done)return;
@@ -3407,7 +3409,9 @@ if(codeFromUrl&&!student){
 
   function applyControlReadonly(){
     const isB=current.screen==='station'&&current.key==='B'&&+current.gameId>0;
-    const ro=isB&&current.ownerClient&&current.ownerClient!==localClient();
+    const card=document.getElementById('qCard');
+    const viewLag=!!(isB&&card?.dataset.questionIndex!==undefined&&Number(card.dataset.questionIndex)!==(+current.questionIndex||0));
+    const ro=!!(isB&&((current.ownerClient&&current.ownerClient!==localClient())||viewLag));
     document.body.classList.toggle('pvz-control-readonly',!!ro);
     const host=document.getElementById('stationBody');
     if(host){
@@ -3418,15 +3422,17 @@ if(codeFromUrl&&!student){
         const total=+current.controlTotal||20;
         const who=current.ownerName||'ученик';
         const role=window.PVZSharedAPI?.getRole?.()||'';
-        if(!ro&&role==='student')b.textContent=`Ваш ход · ${who} · задание ${q}/${total}`;
+        if(viewLag&&current.ownerClient===localClient())b.textContent=`Синхронизируем задание ${q}/${total}…`;
+        else if(!ro&&role==='student')b.textContent=`Ваш ход · ${who} · задание ${q}/${total}`;
         else b.textContent=`Сейчас отвечает ${who} · задание ${q}/${total}. Остальные участники наблюдают.`;
         host.prepend(b);
       }
     }
   }
+  window.__PVZ_CONTROL_SYNC_VIEW__=()=>{if(current.key==='B'&&current.screen==='station')applyControlReadonly()};
   function blockReadonlyControlEvent(e){
     if(applying||!e.isTrusted)return;
-    const ro=current.screen==='station'&&current.key==='B'&&current.ownerClient&&current.ownerClient!==localClient();
+    const ro=document.body.classList.contains('pvz-control-readonly');
     if(!ro)return;
     const t=e.target?.closest?.('#stationBody button,#stationBody input,#stationBody select,#stationBody textarea,#stationBody .dcard');
     if(!t)return;
@@ -3478,7 +3484,7 @@ if(codeFromUrl&&!student){
     current={screen:'station',stationId:+id||0,gameId:+id||0,key,runId:run,resultHTML:'',
       ownerClient,ownerName,ownerSavesResult:isB,startedAt,early:false,
       controlPlayers:players,controlStats,controlEventIds,controlTotal:isB?20:0,
-      turnIndex:0,turnStartedAt:startedAt,questionIndex:0,lastRecordedIndex:-1};
+      turnIndex:0,turnStartedAt:startedAt,questionIndex:0,lastRecordedIndex:-1,controlRevision:0};
     applyControlReadonly();
     if(!applying)emit('pvz-game-start',{nav:clone(current),progress:copyProgress()});
   }
@@ -3502,9 +3508,9 @@ if(codeFromUrl&&!student){
 
   function controlPlayerKey(pl){return String(pl?.participantId||pl?.clientId||'')}
   window.__PVZ_CONTROL_ANSWERED__=info=>{
-    if(!current||current.key!=='B'||current.screen!=='station'||current.ownerClient!==localClient())return;
-    const idx=+info?.index||0;
-    if(+current.lastRecordedIndex===idx)return;
+    if(applying||!current||current.key!=='B'||current.screen!=='station'||current.ownerClient!==localClient())return;
+    const idx=Number(info?.index);
+    if(!Number.isInteger(idx)||idx!==(Number(current.questionIndex)||0)||+current.lastRecordedIndex===idx)return;
     const players=normalizeControlPlayers(current.controlPlayers),pl=players[+current.turnIndex||0]||players[0];
     if(!pl||pl.clientId!==localClient())return;
     const key=controlPlayerKey(pl),stats=clone(current.controlStats||{}),st=stats[key]||{name:pl.name,correct:0,wrong:0,completed:0,activeMs:0};
@@ -3512,17 +3518,19 @@ if(codeFromUrl&&!student){
     if(info?.good)st.correct=(+st.correct||0)+1;else st.wrong=(+st.wrong||0)+1;
     st.activeMs=(+st.activeMs||0)+Math.max(0,Date.now()-(+current.turnStartedAt||Date.now()));
     stats[key]=st;
-    current={...current,controlStats:stats,lastRecordedIndex:idx,questionIndex:idx};
+    current={...current,controlStats:stats,lastRecordedIndex:idx,questionIndex:idx,controlRevision:(+current.controlRevision||0)+1};
     window.PVZSharedAPI?.syncNav?.(clone(current));
     applyControlReadonly();
   };
   window.__PVZ_CONTROL_NEXT_TURN__=info=>{
-    if(!current||current.key!=='B'||current.screen!=='station'||current.ownerClient!==localClient())return;
+    if(applying||!current||current.key!=='B'||current.screen!=='station'||current.ownerClient!==localClient())return;
+    const nextIndex=Number(info?.nextIndex),questionIndex=Number(current.questionIndex)||0;
+    if(!Number.isInteger(nextIndex)||nextIndex!==questionIndex+1||+current.lastRecordedIndex!==questionIndex)return;
     const players=normalizeControlPlayers(current.controlPlayers);if(!players.length)return;
     const nextTurn=players.length>1?((+current.turnIndex||0)+1)%players.length:0;
     const owner=players[nextTurn];
     current={...current,turnIndex:nextTurn,ownerClient:owner.clientId,ownerName:owner.name,
-      turnStartedAt:Date.now(),questionIndex:+info?.nextIndex||0};
+      turnStartedAt:Date.now(),questionIndex:nextIndex,controlRevision:(+current.controlRevision||0)+1};
     applyControlReadonly();
     window.PVZSharedAPI?.syncNav?.(clone(current));
   };
@@ -3597,7 +3605,7 @@ if(codeFromUrl&&!student){
     nested++;try{original.go('result')}finally{nested--}
     document.getElementById('btnAgain').onclick=()=>startGame(id,key);
     current={...current,screen:'result',stationId:+id||0,gameId:+id||0,key,early:!!meta?.early,
-      finishedAt:Date.now(),resultHTML:document.getElementById('resultBody')?.innerHTML||'',controlStats:stats};
+      finishedAt:Date.now(),resultHTML:document.getElementById('resultBody')?.innerHTML||'',controlStats:stats,controlRevision:(+current.controlRevision||0)+1};
     document.body.classList.remove('pvz-control-readonly');
     if(!applying)emit('pvz-progress',{progress:copyProgress(),nav:clone(current)});
     submitLocalControlResult(current);
@@ -3634,7 +3642,9 @@ if(codeFromUrl&&!student){
     remoteOwnerClient='';remoteOwnerName='';
   }
 
-  function applyNav(n){if(!n)return;applying=true;window.__PVZ_KEEP_LOCAL_SCROLL=true;try{
+  function applyNav(n){if(!n)return;
+    if(n.key==='B'&&current.key==='B'&&n.runId&&n.runId===current.runId&&(+n.controlRevision||0)<(+current.controlRevision||0))return;
+    applying=true;window.__PVZ_KEEP_LOCAL_SCROLL=true;try{
     const target=clone(n);
     if(target.screen==='home'){
       renderLawn();nested++;try{original.go('home')}finally{nested--};current=baseNav('home');
@@ -3720,7 +3730,7 @@ if(codeFromUrl&&!student){
       if(current.stationId){openStation(current.stationId);return true}
       return true;
     }
-    if(!a?.selector)return false;const t=document.querySelector(a.selector);if(!t)return false;
+    if(!a?.selector)return false;const t=document.querySelector(a.selector);if(!t||(a.type==='click'&&t.disabled))return false;
     applying=true;window.__PVZ_KEEP_LOCAL_SCROLL=true;replayAuthorClient=String(a.authorClient||'');
     try{
       if(a.type==='click')t.click();
@@ -3738,13 +3748,24 @@ if(codeFromUrl&&!student){
 
   // Надёжная очередь: действие не теряется, если Firebase-action пришёл на доли секунды раньше nav/DOM.
   const actionQueue=[];let actionBusy=false;
-  function contextStatus(c,nav){
+  function contextStatus(c,nav,a){
     c=c||{};nav=nav||{};
+    if(c.key==='B'&&a?.type!=='force-finish'&&a?.authorClient&&c.ownerClient&&a.authorClient!==c.ownerClient)return'stale';
     if(c.runId&&nav.runId&&c.runId!==nav.runId)return'stale';
     if(c.runId&&!nav.runId)return'stale';
     if(!c.runId&&nav.runId)return'stale';
     if(c.screen&&c.screen!==nav.screen)return'wait';
     if(c.stationId&&+c.stationId!==+nav.stationId)return'wait';
+    if(c.key==='B'&&c.runId&&c.runId===nav.runId&&a?.type!=='force-finish'){
+      const card=document.getElementById('qCard');
+      if(card?.dataset.questionIndex!==undefined){
+        const shown=Number(card.dataset.questionIndex),expected=Number(c.questionIndex);
+        if(Number.isInteger(expected)&&Number.isInteger(shown)){
+          if(shown>expected)return'stale';
+          if(shown<expected)return'wait';
+        }
+      }
+    }
     return'ready';
   }
   function queueReplay(a,key){
@@ -3755,13 +3776,15 @@ if(codeFromUrl&&!student){
     if(actionBusy)return;actionBusy=true;
     try{
       while(actionQueue.length){
-        const item=actionQueue.shift(),deadline=Date.now()+3500;let done=false;
-        while(Date.now()<deadline&&!done){
-          const nav=clone(current),st=contextStatus(item.a.context,nav);
-          if(st==='stale'){done=true;break}
-          if(st==='ready'&&replay(item.a)){done=true;break}
-          await new Promise(r=>setTimeout(r,70));
+        let advanced=false;
+        // «Далее» не блокирует пришедшее позже действие ответа.
+        for(let i=0;i<actionQueue.length;i++){
+          const item=actionQueue[i],st=contextStatus(item.a.context,current,item.a);
+          if(st==='stale'||Date.now()-item.enqueuedAt>15000||(st==='ready'&&replay(item.a))){
+            actionQueue.splice(i,1);advanced=true;break;
+          }
         }
+        if(!advanced)await new Promise(r=>setTimeout(r,70));
       }
     }finally{actionBusy=false}
   }
@@ -3882,7 +3905,7 @@ async function setStudentAccess(key,allow){
     const turn=stillOwner>=0?stillOwner:Math.min(Math.max(0,+nav.turnIndex||0),remaining.length-1);
     const owner=remaining[turn];
     return {...nav,controlPlayers:remaining,turnIndex:turn,ownerClient:owner.clientId,ownerName:owner.name,
-      turnStartedAt:stillOwner<0?Date.now():nav.turnStartedAt};
+      turnStartedAt:stillOwner<0?Date.now():nav.turnStartedAt,controlRevision:(+nav.controlRevision||0)+1};
    },{applyLocally:false});
    const nav=window.PVZBridge?.getNav?.();
    if(nav?.key==='B'&&nav?.screen==='station'&&nav?.controlPlayers?.length===1&&nav.controlPlayers[0]?.participantId===key){
@@ -4064,7 +4087,18 @@ window.PVZSharedAPI={
  getClientId:()=>clientId,getParticipantId:()=>participantId,getParticipantName:()=>participantName,getRole:()=>role,
  getOnlineStudents:()=>onlineStudents(),chooseOnlineStudent,chooseControlPlayers,showTeacherStartsGame:()=>{modalView('Контроль запускает учитель','<p>Учитель выбирает, кто будет отвечать в контроле.</p>');addAction('Закрыть',closeModal,true)},showNoStudent:()=>{modalView('Некому проходить отработку','<p>Сначала подключите хотя бы одного ученика к совместному уроку. Учитель отвечать в отработке прототипов не может.</p>');addAction('Закрыть',closeModal,true)},
  async recordAction(a,fast=false){if(!connected||!F||!permitted()||window.PVZBridge?.isApplying?.())return;const now=Date.now(),id=String(now).padStart(13,'0')+'_'+String(++actionCounter).padStart(6,'0')+'_'+clientId.replace(/[^A-Za-z0-9_-]/g,'').slice(-18),payload={...a,id,authorClient:clientId,author:participantId,authorName:participantName,at:now};seenActions.add(id);try{await F.set(F.ref(db,rootPath()+'/state/actions/'+id),payload)}catch{}},
- async syncNav(n){if(!connected||!F||!permitted())return;currentRun=n?.runId||'';try{await F.set(navRef(),clone(n))}catch{}},
+ async syncNav(n){if(!connected||!F||!permitted())return;currentRun=n?.runId||'';
+   try{
+    const next=clone(n);
+    if(next?.key==='B'&&next.runId&&(next.screen==='station'||next.screen==='result')){
+      await F.runTransaction(navRef(),prev=>{
+        if(!prev||prev.key!=='B'||String(prev.runId||'')!==String(next.runId))return;
+        if((+prev.controlRevision||0)>=(+next.controlRevision||0))return;
+        return next;
+      },{applyLocally:false});
+    }else await F.set(navRef(),next);
+   }catch(e){console.warn('Не удалось синхронизировать ход',e)}
+  },
  async startSharedGame(n){if(!connected||!F||!permitted())return;currentRun=n?.runId||'';try{await F.set(navRef(),clone(n))}catch{}},
  async syncProgress(p){if(connected&&F&&permitted())F.set(progressRef(),clone(p)).catch(()=>{})},
  async syncTheme(t){if(connected&&F&&permitted())F.set(F.ref(db,rootPath()+'/state/theme'),t).catch(()=>{})},
