@@ -987,6 +987,7 @@ function cvDrawExtra(){
  const F=(f,ok=()=>true,color=green,dash=false)=>shapes.push({type:'graph',f,ok,color,dash});
  const V=(x,ok=()=>true,color=green,dash=false)=>shapes.push({type:'vertical',x,ok,color,dash});
  const C=(x,y,r,ok=()=>true,color=green)=>shapes.push({type:'circle',x,y,r,ok,color});
+ const P=(f,tmin,tmax,ok=()=>true,color=green)=>shapes.push({type:'param',f,tmin,tmax,ok,color});
  const H=()=>F(()=>a,()=>true,red);
  const ab=Math.abs;
  switch(id){
@@ -1033,6 +1034,71 @@ function cvDrawExtra(){
    V(.75,(x,y)=>y<5*x&&y>-6*x);
    F(x=>-x/2,(x,y)=>x>=.75&&x<=1&&y<5*x&&y>-6*x);
    H();break;
+
+  case 61:
+   C(1,3,Math.sqrt(10),(x,y)=>ab(y)<6-1e-7&&ab(a*x)<6-1e-7);
+   F(x=>a*x,(x,y)=>ab(y)<6-1e-7,red);
+   F(x=>-a*x,(x,y)=>ab(y)<6-1e-7,red);break;
+  case 62:
+   C(4,2,Math.sqrt(20),(x,y)=>ab(y)<=4+1e-7&&ab(a*x)<=4+1e-7);
+   F(x=>a*x,(x,y)=>ab(y)<=4+1e-7,red);
+   F(x=>-a*x,(x,y)=>ab(y)<=4+1e-7,red);break;
+  case 63:
+   C(2,3,Math.sqrt(13),(x,y)=>a>x*x+1e-9);
+   F(x=>x,(x,y)=>a>x*x+1e-9,red);
+   F(x=>-x,(x,y)=>a>x*x+1e-9,red);break;
+  case 59:
+   F(x=>2*x,x=>x>=-1&&x<=1);
+   F(x=>-2*x,x=>x>=-1&&x<=1);
+   V(a,(x,y)=>x>=-1&&x<=1,red);
+   F(x=>a,x=>x>=-1&&x<=1,red);break;
+  case 60:
+   F(x=>x*x,(x,y)=>x>=0&&x<=2&&a*y>=-1e-9&&a*y<=2+1e-9);
+   if(ab(a)<1e-9){V(0,(x,y)=>y>=0&&y<=4,red);V(2,(x,y)=>y>=0&&y<=4,red);}
+   else{
+    F(x=>x/a,(x,y)=>x>=0&&x<=2&&a*y>=-1e-9&&a*y<=2+1e-9,red);
+    F(x=>(2-x)/a,(x,y)=>x>=0&&x<=2&&a*y>=-1e-9&&a*y<=2+1e-9,red);
+   }break;
+  case 76:
+   F(x=>3*x-3,(x,y)=>x>=0&&ab(y-(x*x-x))>1e-7);
+   F(x=>-5*x-3,(x,y)=>x<0&&ab(y-(x*x-x))>1e-7);
+   H();break;
+  case 54:
+   F(x=>3*x,(x,y)=>ab(y-(x+4))>1e-7&&ab(y+x+4)>1e-7);
+   F(x=>-3*x,(x,y)=>ab(y-(x+4))>1e-7&&ab(y+x+4)>1e-7);
+   H();break;
+  case 51:
+   F(x=>(x*x-3*x)/2,(x,y)=>ab(x-y*y)>1e-7);
+   H();break;
+  case 52:
+   for(let j=0;j<2;j++)P(y=>{const xs=cvRoots(1,-y*(y+1),y*y*y);return [xs[j]??NaN,y]},ymin,ymax,(x,y)=>x>-1+1e-9&&x<2-1e-9);
+   H();break;
+  case 50:
+   F(x=>4*x-x*x,(x,y)=>ab(y-x)>1e-7&&ab(y-5*x)>1e-7);
+   H();break;
+  case 42:
+   F(x=>x);F(x=>-x);
+   F(x=>(a-2)*x*x-2*a*x+a-2,()=>true,red);break;
+  case 41:
+   F(x=>x);F(x=>-x);
+   C(2*a+2,a,1,()=>true,red);break;
+  case 43:
+   V(1);F(x=>x);
+   for(let j=0;j<2;j++)P(y=>{const xs=cvRoots(a,5-2*a,a*(y*y+2*y)+1);return [xs[j]??NaN,y]},ymin,ymax,()=>true,red);
+   break;
+  case 4:
+   C(0,1,Math.sqrt(2));
+   F(x=>2*x*x,(x,y)=>x*x+(y-1)*(y-1)<=2+1e-7);
+   if(ab(a)<1e-9)V(1,(x,y)=>x*x+(y-1)*(y-1)<=2+1e-7,red);
+   else F(x=>(2*x-a-2)/a,(x,y)=>x*x+(y-1)*(y-1)<=2+1e-7,red);break;
+  case 3:
+   P(y=>[2*y*y,y],ymin,ymax,(x,y)=>x*x+y*y<5-1e-7);
+   if(ab(a)<1e-9)V(1,(x,y)=>x*x+y*y<5-1e-7,red);
+   else F(x=>(2*x-a-2)/a,(x,y)=>x*x+y*y<5-1e-7,red);break;
+  case 11:
+   V(0);C(0,1,1,(x,y)=>x>1e-9);C(0,0,2,(x,y)=>x<-1e-9);
+   F(x=>x-a,()=>true,red);break;
+
  }
  ctx.clearRect(0,0,W,H);ctx.fillStyle='#fffdf8';ctx.fillRect(0,0,W,H);
  ctx.font='12px system-ui';ctx.lineWidth=1;
@@ -1044,7 +1110,7 @@ function cvDrawExtra(){
  if(xmin<=0&&xmax>=0){ctx.moveTo(X(0),m);ctx.lineTo(X(0),H-m);}
  if(ymin<=0&&ymax>=0){ctx.moveTo(m,Y(0));ctx.lineTo(W-m,Y(0));}
  ctx.stroke();ctx.fillStyle='#4a554d';ctx.font='bold 16px system-ui';
- ctx.fillText('x',W-m+10,H-m+5);ctx.fillText([66,77,78].includes(id)?'a':'y',m+7,m-15);
+ ctx.fillText('x',W-m+10,H-m+5);ctx.fillText(c.axis==='xa'||[66,77,78].includes(id)?'a':'y',m+7,m-15);
  ctx.save();ctx.beginPath();ctx.rect(m,m,W-2*m,H-2*m);ctx.clip();
  for(const o of shapes){
   ctx.beginPath();ctx.strokeStyle=o.color;ctx.lineWidth=o.dash?2:3.5;ctx.lineCap='round';ctx.lineJoin='round';ctx.setLineDash(o.dash?[7,6]:[]);
@@ -1053,6 +1119,7 @@ function cvDrawExtra(){
    let x,y;
    if(o.type==='circle'){const t=2*Math.PI*k/steps;x=o.x+o.r*Math.cos(t);y=o.y+o.r*Math.sin(t);}
    else if(o.type==='vertical'){x=o.x;y=ymin+(ymax-ymin)*k/steps;}
+   else if(o.type==='param'){const t=o.tmin+(o.tmax-o.tmin)*k/steps;[x,y]=o.f(t);}
    else{x=xmin+(xmax-xmin)*k/steps;y=o.f(x);}
    const valid=Number.isFinite(x)&&Number.isFinite(y)&&x>=xmin-1e-7&&x<=xmax+1e-7&&y>=ymin-1e-7&&y<=ymax+1e-7&&o.ok(x,y);
    if(!valid){started=false;last=null;continue;}
@@ -1064,6 +1131,17 @@ function cvDrawExtra(){
  ctx.setLineDash([]);
  if(id===75){ctx.beginPath();ctx.moveTo(m,Y(4));ctx.lineTo(W-m,Y(4));ctx.strokeStyle=boundary;ctx.setLineDash([8,7]);ctx.lineWidth=1.5;ctx.stroke();ctx.setLineDash([]);}
  if(id===86){ctx.beginPath();ctx.moveTo(X(0),m);ctx.lineTo(X(0),H-m);ctx.strokeStyle=boundary;ctx.setLineDash([7,6]);ctx.lineWidth=1.4;ctx.stroke();ctx.setLineDash([]);}
+
+ const holes={76:[[1,0],[3,6],[-1,2],[-3,12]],54:[[2,6],[-1,-3],[-1,3],[2,-6]],51:[[0,0],[4,2],[1,-1]],50:[[0,0],[3,3],[-1,-5]]}[id]||[];
+ for(const [hx,hy] of holes){
+  if(hx<xmin||hx>xmax||hy<ymin||hy>ymax)continue;
+  ctx.beginPath();ctx.arc(X(hx),Y(hy),6,0,2*Math.PI);ctx.fillStyle='#fffdf8';ctx.fill();
+  ctx.lineWidth=2.5;ctx.strokeStyle='#bb5039';ctx.stroke();
+ }
+ if(id===52){ctx.setLineDash([8,6]);ctx.strokeStyle=boundary;ctx.lineWidth=1.5;
+  for(const x of [-1,2]){ctx.beginPath();ctx.moveTo(X(x),m);ctx.lineTo(X(x),H-m);ctx.stroke();}
+  ctx.setLineDash([]);
+ }
  ctx.restore();
  const count=$('#cvCount');if(count)count.textContent='Пересечения: исследуй на графике (точный подсчёт для этого номера ещё не включён).';
  const value=$('#cvValue');if(value)value.textContent='a = '+cvNum(a);
