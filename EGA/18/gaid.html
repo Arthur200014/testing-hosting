@@ -999,6 +999,138 @@ function criticalMarkup(){const c=cvScene(),w=state.workshop;return `<section cl
  <div class="foot-actions"><button type="button" class="secondary" id="cvBackToGraphs">← Построение графиков</button><button type="button" class="accent" id="cvFurther">К практике →</button></div></section>`}
 function renderCriticalLesson(){stopPlay();stopSpeed();$('#lessonHost').innerHTML=criticalMarkup();bindCriticalLesson();updateMenu();updateProgress();updateStatus();if(state.connected)subscribeInk();formula()}
 
+
+function cvExactPoints(id,a){
+ const pts=[],eps=1e-7,ab=Math.abs;
+ const add=(x,y,ok=true)=>{
+  if(!ok||!Number.isFinite(x)||!Number.isFinite(y))return;
+  if(!pts.some(p=>Math.hypot(p[0]-x,p[1]-y)<1e-6))pts.push([x,y]);
+ };
+ const q=(A,B,C,fn,ok=()=>true)=>{
+  for(const x of cvRoots(A,B,C)){const y=fn(x);add(x,y,ok(x,y));}
+ };
+ switch(id){
+  case 85:
+   for(const z of [1,-1])for(const t of [1,-1]){
+    q(z,t-2*z,-t*a-1,x=>z*(2*x-x*x),(x,y)=>x>=-eps&&x<=2+eps&&t*(x-a)>=-eps&&ab(y-(ab(x-a)-1))<1e-6);
+   }break;
+  case 86:
+   for(const z of [1,-1])q(2,a-3-4*a*z,6*a*z,x=>z*(3/x-2),(x,y)=>x>eps&&x<=1.5+eps);
+   break;
+  case 93:
+   for(const t of [1,-1])q(2,-2*a-4*t,a*a+4*t*a,x=>Math.sqrt(Math.max(0,4-x*x)),
+    (x,y)=>x>=-2-eps&&x<=2+eps&&t*(x-a)>=-eps&&t*(x-a)<=2+eps&&ab(y-(2-ab(x-a)))<1e-6);
+   break;
+  case 82:{
+   const pieces=[(2-a)/3,4-a,a+2];
+   const valid=[x=>x<=-1+eps,x=>x>=-1-eps&&x<=3+eps,x=>x>=3-eps];
+   pieces.forEach((x,i)=>add(x,x+a,valid[i](x)&&2*x+a<=10+eps));
+   const x=(10-a)/2;add(x,x+a);break;
+  }
+  case 66:{
+   let x=3-2*a;add(x,a,x<=-1+eps);
+   x=3/(1-2*a);
+   add(x,a,(x>=-1-eps&&x<-eps)||(x>eps&&x<=1+eps));
+   x=-2*a-1;add(x,a,x>=1-eps);
+   break;
+  }
+  case 79:
+   add((-6-a)/2,(-6+a)/2);
+   q(2,6+2*a,a*a,x=>x+a,(x,y)=>x+y+6>=-eps);
+   break;
+  case 81:
+   add(-8-a,-16-a);
+   q(2,a-1,8,x=>1-8/x,(x,y)=>ab(x)>eps&&y>=x-8-eps);
+   break;
+  case 69:
+   add(3,3*a);
+   if(ab(a)>eps)add(3/a,3,3/a>=3-eps);
+   if(a>eps){const x=Math.sqrt(3/a);add(x,a*x,x>=3-eps);}
+   break;
+  case 75:
+   if(ab(a)>eps)add(2/a,2);
+   if(a>eps)for(const z of [-1,1]){const x=z*2/Math.sqrt(a),y=a*x;add(x,y,y<4-eps);}
+   break;
+  case 78:{
+   const ok=x=>x>=1.4-eps&&x<=3+eps&&x*x-6*x+10-a*a>eps;
+   add(1.4,a,ok(1.4));
+   add(3+a,a,ok(3+a));
+   add(3-a,a,ok(3-a));break;
+  }
+  case 77:{
+   const ok=x=>x>=.75-eps&&x<=1+eps&&5*x-a>eps&&6*x+a>eps;
+   add(.75,a,ok(.75));add(-2*a,a,ok(-2*a));break;
+  }
+  case 61:
+   for(const m of [a,-a]){
+    add(0,0);
+    const x=(2+6*m)/(1+m*m),y=m*x;add(x,y,ab(y)<6-eps&&ab(a*x)<6-eps);
+   }break;
+  case 62:
+   for(const m of [a,-a]){
+    add(0,0);
+    const x=(8+4*m)/(1+m*m),y=m*x;add(x,y,ab(y)<=4+eps&&ab(a*x)<=4+eps);
+   }break;
+  case 63:
+   add(0,0,a>eps);add(-1,1,a>1+eps);add(5,5,a>25+eps);
+   break;
+  case 59:
+   for(const z of [1,-1]){
+    add(a,2*z*a,ab(a)<=1+eps);
+    const x=a/(2*z);add(x,a,ab(x)<=1+eps);
+   }break;
+  case 60:{
+   const ok=x=>x>=-eps&&x<=2+eps&&a*x*x>=-eps&&a*x*x<=2+eps;
+   add(0,0,ok(0));if(ab(a)>eps)add(1/a,1/(a*a),ok(1/a));
+   q(a,1,-2,x=>x*x,(x,y)=>ok(x));
+   break;
+  }
+  case 76:{
+   const valid=x=>ab(a-(x*x-x))>eps;
+   add((a+3)/3,a,(a+3)/3>=-eps&&valid((a+3)/3));
+   add(-(a+3)/5,a,-(a+3)/5< -eps&&valid(-(a+3)/5));
+   break;
+  }
+  case 54:
+   for(const x of [a/3,-a/3])add(x,a,ab(a-(x+4))>eps&&ab(a+x+4)>eps);
+   break;
+  case 51:
+   q(1,-3,-2*a,x=>a,(x,y)=>ab(x-a*a)>eps);
+   break;
+  case 52:
+   q(1,-a*(a+1),a*a*a,x=>a,(x,y)=>x>-1+eps&&x<2-eps);
+   break;
+  case 50:
+   q(1,-4,a,x=>a,(x,y)=>ab(a-x)>eps&&ab(a-5*x)>eps);
+   break;
+  case 42:
+   for(const z of [1,-1])q(a-2,-2*a-z,a-2,x=>z*x);
+   break;
+  case 41:
+   for(const z of [1,-1])q(2,-2*(2*a+2+z*a),(2*a+2)*(2*a+2)+a*a-1,x=>z*x);
+   break;
+  case 43:
+   for(const y of cvRoots(a,2*a,6-a))add(1,y);
+   q(2*a,5,1,x=>x);
+   break;
+  case 4:
+   q(2*a,-2,a+2,x=>2*x*x,(x,y)=>x*x+(y-1)*(y-1)<=2+eps);
+   for(const y of cvRoots(a*a+4,2*a*(a+2)-8,a*a+4*a)){
+    const x=(a*y+a+2)/2;add(x,y);
+   }break;
+  case 3:
+   for(const y of cvRoots(4,-a,-a-2)){
+    const x=2*y*y;add(x,y,x*x+y*y<5-eps);
+   }break;
+  case 11:
+   add(0,-a);
+   q(2,-2*(a+1),(a+1)*(a+1)-1,x=>x-a,x=>x>eps);
+   q(2,-2*a,a*a-4,x=>x-a,x=>x< -eps);
+   break;
+ }
+ return pts;
+}
+
 function cvDrawExtra(){
  const c=cvScene(),canvas=$('#cvCanvas');if(!canvas)return;
  const a=Number(state.workshop['cvVal'+c.key]??c.init),id=Number(c.key),
@@ -1164,8 +1296,14 @@ function cvDrawExtra(){
   for(const x of [-1,2]){ctx.beginPath();ctx.moveTo(X(x),m);ctx.lineTo(X(x),H-m);ctx.stroke();}
   ctx.setLineDash([]);
  }
+ const intersections=cvExactPoints(id,a);
+ for(const [ix,iy] of intersections){
+  if(ix<xmin||ix>xmax||iy<ymin||iy>ymax)continue;
+  ctx.beginPath();ctx.arc(X(ix),Y(iy),6.8,0,Math.PI*2);ctx.fillStyle='#edb13b';ctx.fill();
+  ctx.strokeStyle='#9e482f';ctx.lineWidth=2.2;ctx.stroke();
+ }
  ctx.restore();
- const count=$('#cvCount');if(count)count.textContent='Пересечения: исследуй на графике (точный подсчёт для этого номера ещё не включён).';
+ const count=$('#cvCount');if(count)count.textContent='Допустимых различных решений: '+intersections.length;
  const value=$('#cvValue');if(value)value.textContent='a = '+cvNum(a);
  const numeric=$('#cvNumeric');if(numeric&&document.activeElement!==numeric)numeric.value=a;
  const live=$('#cvLiveEq');if(live)live.textContent='a = '+cvNum(a);
