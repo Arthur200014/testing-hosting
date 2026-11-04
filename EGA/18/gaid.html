@@ -1012,7 +1012,8 @@ function cvMotionHint(c,a){
   if((id===4||id===3)&&a===0)return 'При a = 0 исходная прямая становится вертикальной: x = 1.';
   if(id===43&&a===0)return 'При a = 0 остаётся вертикальная прямая x = −1/5.';
   if([66,77,78,76,54,51,52,50].includes(id))return 'Красная горизонталь меняет уровень a в плоскости xOa.';
-  if(id===63)return 'При изменении a меняется допустимая часть окружности: x² < a.';
+  if(id===63)return 'При изменении a меняется допустимая часть окружности: x² < a; пунктир показывает её границы.';
+  if(id===3)return 'Пунктирная окружность x² + y² = 5 — открытая граница, точки на ней исключены.';
   return 'Красные графики меняются согласно уравнениям выбранной задачи.';
  }
  if(c.key==='84')return 'Меняется высота прямой; зелёные параболы не двигаются.';
@@ -1250,21 +1251,23 @@ function cvDrawExtra(){
  const green='#278168',red='#bc4c3d',boundary='#ad9470',shapes=[];
  const F=(f,ok=()=>true,color=green,dash=false)=>shapes.push({type:'graph',f,ok,color,dash});
  const V=(x,ok=()=>true,color=green,dash=false)=>shapes.push({type:'vertical',x,ok,color,dash});
- const C=(x,y,r,ok=()=>true,color=green)=>shapes.push({type:'circle',x,y,r,ok,color});
+ const C=(x,y,r,ok=()=>true,color=green,dash=false)=>shapes.push({type:'circle',x,y,r,ok,color,dash});
  const P=(f,tmin,tmax,ok=()=>true,color=green)=>shapes.push({type:'param',f,tmin,tmax,ok,color});
  const horizontalLevel=()=>F(()=>a,()=>true,red);
  const ab=Math.abs;
  switch(id){
   case 85:
    F(x=>2*x-x*x,x=>x>=0&&x<=2);F(x=>x*x-2*x,x=>x>=0&&x<=2);
-   F(x=>ab(x-a)-1,()=>true,red);break;
+   F(x=>ab(x-a)-1,x=>x>=0&&x<=2,red);
+   V(0,()=>true,boundary,true);V(2,()=>true,boundary,true);break;
   case 86:
    F(x=>3/x-2,x=>x>0&&x<=1.5);
    F(x=>2-3/x,x=>x>0&&x<=1.5);
-   P(y=>[(3-a-2*a*y)/2,y],ymin,ymax,()=>true,red);break;
+   P(y=>[(3-a-2*a*y)/2,y],ymin,ymax,(x,y)=>x>0&&x<=1.5+1e-10,red);
+   V(1.5,()=>true,boundary,true);break;
   case 93:
    F(x=>Math.sqrt(4-x*x),x=>ab(x)<=2);
-   F(x=>2-ab(x-a),x=>ab(x-a)<=2,red);break;
+   F(x=>2-ab(x-a),x=>ab(x)<=2&&ab(x-a)<=2,red);break;
   case 82:
    F(x=>ab(x+1)+ab(x-3),(x,y)=>x+y<=10+1e-7);
    F(x=>10-x);
@@ -1310,7 +1313,8 @@ function cvDrawExtra(){
   case 63:
    C(2,3,Math.sqrt(13),(x,y)=>a>x*x+1e-9);
    F(x=>x,(x,y)=>a>x*x+1e-9,red);
-   F(x=>-x,(x,y)=>a>x*x+1e-9,red);break;
+   F(x=>-x,(x,y)=>a>x*x+1e-9,red);
+   if(a>0){V(-Math.sqrt(a),()=>true,boundary,true);V(Math.sqrt(a),()=>true,boundary,true);}break;
   case 59:
    F(x=>2*x,x=>x>=-1&&x<=1);
    F(x=>-2*x,x=>x>=-1&&x<=1);
@@ -1355,6 +1359,7 @@ function cvDrawExtra(){
    F(x=>2*x*x,(x,y)=>x*x+(y-1)*(y-1)<=2+1e-7);
    P(y=>[(a*y+a+2)/2,y],ymin,ymax,(x,y)=>x*x+(y-1)*(y-1)<=2+1e-7,red);break;
   case 3:
+   C(0,0,Math.sqrt(5),()=>true,boundary,true);
    P(y=>[2*y*y,y],ymin,ymax,(x,y)=>x*x+y*y<5-1e-7);
    P(y=>[(a*y+a+2)/2,y],ymin,ymax,(x,y)=>x*x+y*y<5-1e-7,red);break;
   case 11:
@@ -1455,7 +1460,7 @@ function cvDraw(){
  if(c.key==='84'){
   curve(x=>x*x-2*x,'#267959',x=>x<=0||x>=2);
   curve(x=>-x*x+2*x,'#267959',x=>x<=0||x>=2);
-  curve(x=>4*x+a,'#bc503f');
+  curve(x=>4*x+a,'#bc503f',x=>x<=0||x>=2);
   verticalBoundary(0);verticalBoundary(2);
   c.points.forEach(p=>spot(p[1],p[2],p[0]));
  }else if(c.key==='5'){
