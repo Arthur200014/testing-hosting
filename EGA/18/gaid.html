@@ -976,10 +976,57 @@ cvTask(54).presets=[[-6,'Выколото −6'],[-3,'Выколото −3'],[0
 cvTask(50).presets=[[-5,'Выколото −5'],[0,'Выколото 0'],[3,'Выколото 3']];
 cvTask(51).presets=[[-1,'Выколото −1'],[0,'Выколото 0'],[2,'Выколото 2']];
 
-function cvLiveEquation(c,a){if(c.extra)return 'a = '+cvNum(a);if(c.key==='84')return 'y = 4x '+(a<0?'− ':'+ ')+cvNum(Math.abs(a));if(c.key==='5')return 'y = '+cvNum(2*a)+'(x + 1)';const q=1+a,r=1-a;return '(x '+(q<0?'+ ':'− ')+cvNum(Math.abs(q))+')² + (y '+(r<0?'+ ':'− ')+cvNum(Math.abs(r))+')² = 2';}
-function cvMotionHint(c,a){if(c.extra)return c.axis==='xa'||[66,77,78].includes(Number(c.key))?'Перемещай горизонтальную линию в плоскости xOa.':'Красные графики меняются по формуле при движении a.';if(c.key==='84')return 'Меняется высота прямой; зелёные параболы не двигаются.';if(c.key==='5')return 'Меняется наклон прямой. При x=1 обе линии имеют выколотые точки.';if(Math.abs(a)<1e-9)return 'Центры совпали: обе окружности наложились друг на друга.';if(Math.abs(Math.abs(a)-2)<1e-6)return 'Касание: расстояние между центрами равно 2√2.';return 'Расстояние между центрами d = '+cvNum(Math.SQRT2*Math.abs(a))+'; радиусы обеих окружностей √2.';}
+function cvLiveEquation(c,a){
+ const n=cvNum,v=n(a);
+ if(c.extra){
+  switch(Number(c.key)){
+   case 85:return 'y = |x − ('+v+')| − 1';
+   case 86:return a===0?'x = 3/2 (при a = 0)':'2x + 2·('+v+')y + ('+v+') − 3 = 0';
+   case 93:return 'y = 2 − |x − ('+v+')|';
+   case 82:case 79:return 'y = x + ('+v+')';
+   case 81:return 'y = 2x + ('+v+')';
+   case 69:case 75:return 'y = ('+v+')x';
+   case 66:case 78:case 77:case 76:case 54:case 51:case 52:case 50:
+    return 'Уровень a = '+v+' в плоскости xOa';
+   case 61:case 62:return 'y = ±('+v+')x';
+   case 63:return 'Окружность ограничена областью x² < '+v;
+   case 59:return 'x = '+v+' ИЛИ y = '+v;
+   case 60:return 'x = ('+v+')y ИЛИ x + ('+v+')y = 2';
+   case 42:return 'y = ('+n(a-2)+')x² − ('+n(2*a)+')x + ('+n(a-2)+')';
+   case 41:return '(x − ('+n(2*a+2)+'))² + (y − ('+v+'))² = 1';
+   case 43:return a===0?'x = −1/5 (при a = 0)':'('+v+')(x² + y² − 2x + 2y) + 5x + 1 = 0';
+   case 4:case 3:return a===0?'x = 1 (при a = 0)':'('+v+')y = 2x − ('+v+') − 2';
+   case 11:return 'y = x − ('+v+')';
+   default:return 'a = '+v;
+  }
+ }
+ if(c.key==='84')return 'y = 4x '+(a<0?'− ':'+ ')+n(Math.abs(a));
+ if(c.key==='5')return 'y = '+n(2*a)+'(x + 1)';
+ const q=1+a,r=1-a;
+ return '(x '+(q<0?'+ ':'− ')+n(Math.abs(q))+')² + (y '+(r<0?'+ ':'− ')+n(Math.abs(r))+')² = 2';
+}
+function cvMotionHint(c,a){
+ if(c.extra){
+  const id=Number(c.key);
+  if(id===86&&a===0)return 'При a = 0 подвижная прямая становится вертикальной: x = 3/2.';
+  if((id===4||id===3)&&a===0)return 'При a = 0 исходная прямая становится вертикальной: x = 1.';
+  if(id===43&&a===0)return 'При a = 0 остаётся вертикальная прямая x = −1/5.';
+  if([66,77,78,76,54,51,52,50].includes(id))return 'Красная горизонталь меняет уровень a в плоскости xOa.';
+  if(id===63)return 'При изменении a меняется допустимая часть окружности: x² < a.';
+  return 'Красные графики меняются согласно уравнениям выбранной задачи.';
+ }
+ if(c.key==='84')return 'Меняется высота прямой; зелёные параболы не двигаются.';
+ if(c.key==='5')return 'Меняется наклон прямой. При x=1 обе линии имеют выколотые точки.';
+ if(a===0)return 'Центры совпали: обе окружности наложились друг на друга.';
+ if(Math.abs(Math.abs(a)-2)<1e-6)return 'Касание: расстояние между центрами равно 2√2.';
+ return 'Расстояние между центрами d = '+cvNum(Math.SQRT2*Math.abs(a))+'; радиусы обеих окружностей √2.';
+}
 function cvScene(){return CV_CASES.find(x=>x.key===String(state.workshop.cvCase||'84'))||CV_CASES[0]}
-function cvNum(x){return Math.abs(x)<.0000005?'0':(Number(x.toFixed(3))).toString().replace('.',',')}
+function cvNum(x){
+ if(x===0)return '0';
+ const v=Math.abs(x)<.0005||Math.abs(x)>=1e6?Number(x.toPrecision(6)):Number(x.toFixed(3));
+ return String(v).replace('.',',');
+}
 function cvRoots(A,B,C){
  // Не превращаем почти линейное уравнение в линейное: второй корень может быть очень далеко.
  if(![A,B,C].every(Number.isFinite))return [];
@@ -1369,7 +1416,7 @@ function cvDrawExtra(){
  const value=$('#cvValue');if(value)value.textContent='a = '+cvNum(a);
  const numeric=$('#cvNumeric');if(numeric&&document.activeElement!==numeric)numeric.value=a;
  cvCurrentMark(c,a);
-  const live=$('#cvLiveEq');if(live)live.textContent='a = '+cvNum(a);
+  const live=$('#cvLiveEq');if(live)live.textContent=cvLiveEquation(c,a);
  const hint=$('#cvStateHint');if(hint)hint.textContent=cvMotionHint(c,a);
 }
 
