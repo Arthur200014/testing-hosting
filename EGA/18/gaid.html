@@ -980,7 +980,20 @@ function cvLiveEquation(c,a){if(c.extra)return 'a = '+cvNum(a);if(c.key==='84')r
 function cvMotionHint(c,a){if(c.extra)return c.axis==='xa'||[66,77,78].includes(Number(c.key))?'Перемещай горизонтальную линию в плоскости xOa.':'Красные графики меняются по формуле при движении a.';if(c.key==='84')return 'Меняется высота прямой; зелёные параболы не двигаются.';if(c.key==='5')return 'Меняется наклон прямой. При x=1 обе линии имеют выколотые точки.';if(Math.abs(a)<1e-9)return 'Центры совпали: обе окружности наложились друг на друга.';if(Math.abs(Math.abs(a)-2)<1e-6)return 'Касание: расстояние между центрами равно 2√2.';return 'Расстояние между центрами d = '+cvNum(Math.SQRT2*Math.abs(a))+'; радиусы обеих окружностей √2.';}
 function cvScene(){return CV_CASES.find(x=>x.key===String(state.workshop.cvCase||'84'))||CV_CASES[0]}
 function cvNum(x){return Math.abs(x)<.0000005?'0':(Number(x.toFixed(3))).toString().replace('.',',')}
-function cvRoots(A,B,C){if(Math.abs(A)<1e-12)return Math.abs(B)<1e-12?[]:[-C/B];let d=B*B-4*A*C;if(d< -1e-8)return [];if(d<1e-8)return [-B/(2*A)];let s=Math.sqrt(d);return [(-B-s)/(2*A),(-B+s)/(2*A)]}
+function cvRoots(A,B,C){
+ // Не превращаем почти линейное уравнение в линейное: второй корень может быть очень далеко.
+ if(![A,B,C].every(Number.isFinite))return [];
+ if(A===0)return B===0?[]:[-C/B];
+ const discriminant=B*B-4*A*C;
+ const tolerance=16*Number.EPSILON*Math.max(1,Math.abs(B*B),Math.abs(4*A*C));
+ if(discriminant< -tolerance)return [];
+ if(Math.abs(discriminant)<=tolerance)return [-B/(2*A)];
+ const sqrtD=Math.sqrt(Math.max(0,discriminant));
+ // Устойчивая формула: близкий к нулю корень не теряется из-за вычитания.
+ const q=-(B+(B>=0?sqrtD:-sqrtD))/2;
+ const roots=q===0?[-B/(2*A)]:[q/A,C/q];
+ return roots.sort((x,y)=>x-y);
+}
 function cvCoords(mode,a){let p=[];
  if(mode==='84'){
   for(const x of cvRoots(1,-6,-a))if(x<=0+1e-7||x>=2-1e-7)p.push([x,4*x+a]);
@@ -1064,7 +1077,7 @@ function cvExactPoints(id,a){
     q(z,t-2*z,-t*a-1,x=>z*(2*x-x*x),(x,y)=>x>=-eps&&x<=2+eps&&t*(x-a)>=-eps&&ab(y-(ab(x-a)-1))<1e-6);
    }break;
   case 86:
-   for(const z of [1,-1])q(2,a-3-4*a*z,6*a*z,x=>z*(3/x-2),(x,y)=>x>eps&&x<=1.5+eps);
+   for(const z of [1,-1])q(2,a-3-4*a*z,6*a*z,x=>z*(3/x-2),(x,y)=>x>0&&x<=1.5+eps);
    break;
   case 93:
    for(const t of [1,-1])q(2,-2*a-4*t,a*a+4*t*a,x=>Math.sqrt(Math.max(0,4-x*x)),
@@ -1121,7 +1134,7 @@ function cvExactPoints(id,a){
     const x=(8+4*m)/(1+m*m),y=m*x;add(x,y,ab(y)<=4+eps&&ab(a*x)<=4+eps);
    }break;
   case 63:
-   add(0,0,a>eps);add(-1,1,a>1+eps);add(5,5,a>25+eps);
+   add(0,0,a>0);add(-1,1,a>1);add(5,5,a>25);
    break;
   case 59:
    for(const z of [1,-1]){
