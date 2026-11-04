@@ -1010,11 +1010,11 @@ function cvTaskSelector(c){
   return q?'<option value="'+q.key+'" '+(c.key===q.key?'selected':'')+'>'+q.name+'</option>':'';
  }).join('')+'</optgroup>').join('')+'</select><small>30 реальных заданий · 5 типов · графики перестраиваются при изменении a</small>';
 }
-function criticalMarkup(){const c=cvScene(),w=state.workshop;return `<section class="lesson-shell critical-stage" id="lessonRoot"><div class="lesson-header"><div><div class="kicker">СЛЕДУЮЩИЙ НАВЫК</div><h2>Поиск контрольных значений</h2><p>Где меняется количество корней?</p></div></div>
+function criticalMarkup(){const c=cvScene(),w=state.workshop,metric=cvIsMetricGraph(c);return `<section class="lesson-shell critical-stage" id="lessonRoot"><div class="lesson-header"><div><div class="kicker">СЛЕДУЮЩИЙ НАВЫК</div><h2>Поиск контрольных значений</h2><p>Где меняется количество корней?</p></div></div>
  <div class="critical-lead">Найди все <b>особые точки</b> на графике и назови их буквами. Через координаты точек получи значения <b>a</b>.</div>
  <div class="critical-alg"><div><b>1</b><strong>Отметь A, B, C…</strong><small>Узлы, касания, концы, выколотые точки</small></div><div><b>2</b><strong>Запиши координаты</strong><small>Из уравнений двух графиков</small></div><div><b>3</b><strong>Найди a</strong><small>Подстановка, D=0, f′=k, d=R</small></div><div><b>4</b><strong>Проверь границы</strong><small>Все значения a по возрастанию</small></div></div>
  <div class="critical-switch" id="cvTabs">${cvTaskSelector(c)}</div>
- <div class="critical-layout"><div class="critical-graph"><span class="graph-hint">Графики задания №${c.taskId} · плоскость ${c.axis==='xa'||['66','77','78'].includes(c.key)?'xOa':'xOy'}</span><canvas id="cvCanvas" width="${c.key==='circle'?800:1000}" height="${c.key==='circle'?800:580}" style="${c.key==='circle'?'max-width:630px;margin:auto;aspect-ratio:1':''}" aria-label="Графики задания №${c.taskId} при изменении параметра a"></canvas>
+ <div class="critical-layout"><div class="critical-graph"><span class="graph-hint">Графики задания №${c.taskId} · плоскость ${c.axis==='xa'||['66','77','78'].includes(c.key)?'xOa':'xOy'}</span><canvas id="cvCanvas" width="${metric?800:1000}" height="${metric?800:580}" style="${metric?'max-width:690px;margin:auto;aspect-ratio:1':''}" aria-label="Графики задания №${c.taskId} при изменении параметра a"></canvas>
  <div class="critical-legend">${c.extra?'<span>Допустимые ветви</span><span>Подвижный график / уровень a</span><span>Проверь ограничения справа</span>':'<span>Неподвижные графики</span><span>График с параметром a</span><span>Общие точки</span><span>Граница ОДЗ</span>'}</div><div class="critical-parameter-box"><div class="critical-slider-head"><label for="cvRange">Параметр a</label><output id="cvValue">${cvNum(w["cvVal"+c.key]??c.init)}</output></div><input id="cvRange" type="range" min="${c.min}" max="${c.max}" step="any" value="${w["cvVal"+c.key]??c.init}" aria-label="Изменить параметр a"><div class="critical-tick-track" aria-label="Отметки важных значений параметра">${c.presets.map(([v,label])=>`<button type="button" class="critical-tick" data-cv-preset="${v}" style="left:${Math.max(0,Math.min(100,(v-c.min)/(c.max-c.min)*100))}%" title="a = ${label}" aria-label="Перейти к ${label}"></button>`).join("")}</div><div class="critical-exact-mark" id="cvExactMark" aria-live="polite"></div><div class="critical-parameter-tools"><button type="button" id="cvMinus" aria-label="Уменьшить параметр">−</button><input type="text" inputmode="decimal" id="cvNumeric" value="${w["cvVal"+c.key]??c.init}" aria-label="Точное значение параметра a"><button type="button" id="cvPlus" aria-label="Увеличить параметр">+</button><button type="button" id="cvReset">Сброс a</button></div><div class="critical-zoom-tools"><button type="button" id="cvZoomIn">＋ Приблизить</button><button type="button" id="cvZoomOut">− Отдалить</button><button type="button" id="cvResetView">По центру</button><small>Перетаскивай график курсором</small></div><div class="critical-presets">${c.presets.map(([v,name])=>`<button type="button" data-cv-preset="${v}" title="Установить a=${v}">${name}</button>`).join("")}</div><div class="critical-count" id="cvCount" aria-live="polite"></div><div class="critical-status" id="cvStateHint"></div></div></div>
  <aside class="critical-controls"><div class="critical-task-id">${c.src}</div><div class="critical-source"><h3>Исходное условие</h3><div class="critical-original">\\[${c.original}\\]</div><p>${c.requirement}</p></div><h3>Преобразованная система с ограничениями</h3>
  <div class="critical-transformed">${c.transformed}</div>
@@ -1035,11 +1035,18 @@ function renderCriticalLesson(){stopPlay();stopSpeed();$('#lessonHost').innerHTM
 
 
 
+function cvIsMetricGraph(c){return c.key==='circle'||['93','79','61','62','63','41','43','4','11'].includes(c.key)}
 function cvViewport(c){
  const w=state.workshop,z=Math.max(.4,Math.min(6,Number(w['cvZoom'+c.key]||1))),
  px=Number(w['cvPanX'+c.key]||0),py=Number(w['cvPanY'+c.key]||0),
  cx=(c.xmin+c.xmax)/2+px,cy=(c.ymin+c.ymax)/2+py,
- dx=(c.xmax-c.xmin)/(2*z),dy=(c.ymax-c.ymin)/(2*z);
+ baseDx=(c.xmax-c.xmin)/(2*z),baseDy=(c.ymax-c.ymin)/(2*z);
+ let dx=baseDx,dy=baseDy;
+ if(cvIsMetricGraph(c)){
+  const canvas=$('#cvCanvas'),m=c.key==='circle'?52:50;
+  const aspect=canvas?(canvas.width-2*m)/(canvas.height-2*m):1;
+  if(dx/dy<aspect)dx=dy*aspect;else dy=dx/aspect;
+ }
  return {xmin:cx-dx,xmax:cx+dx,ymin:cy-dy,ymax:cy+dy,z};
 }
 function cvExactPoints(id,a){
