@@ -207,7 +207,7 @@
 
 <div id="game">
   <div id="hud" class="mc-panel">
-    <div class="hud-item"><span id="task-no">ЗАДАЧА 1/10</span></div><div class="hud-item turn-chip"><span id="turn-name">—</span></div>
+    <div class="hud-item"><span id="task-no">ЗАДАЧА 1/15</span></div><div class="hud-item turn-chip"><span id="turn-name">—</span></div>
     <div class="hud-item"><div class="gem"></div><span id="diamonds">0</span></div>
     <div class="hud-item"><div id="combo-box">КОМБО ×<span id="combo">0</span></div></div>
   </div>
@@ -256,7 +256,7 @@
 
 <div class="screen show" id="screen-auth"><h1>ТАБЛИЦА КРАФТА</h1><h2>ИТОГОВЫЙ ТРЕНАЖЁР №10</h2><p>Загрузка совместного урока…</p></div>
 
-<div class="screen" id="screen-start"><h1>ТАБЛИЦА КРАФТА</h1><h2>10 задач на ученика · прототипы №10 без сложного движения</h2><p>Подготовка занятия…</p></div>
+<div class="screen" id="screen-start"><h1>ТАБЛИЦА КРАФТА</h1><h2>15 задач на ученика · все 15 прототипов</h2><p>Подготовка занятия…</p></div>
 
 <div class="screen" id="screen-end"><h1>ТРЕНИРОВКА ЗАВЕРШЕНА</h1><p>Подготовка результатов…</p></div>
 
@@ -278,7 +278,7 @@ const API_URL="https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLy
 const APP_ID='ege-task10-craft-table-fipi-no-complex-v4';
 const FIXED_SESSION_ID='currentSession';
 const SCHEMA_VERSION=6;
-const TASKS_PER_STUDENT=10;
+const TASKS_PER_STUDENT=15;
 const TEACHER_CODE='A7K4P9';
 const TEST_META={testId:'EGE-10-TABLITSA-KRAFTA-MINECRAFT',testName:'Таблица крафта — полное повторение задания №10',topicId:'task-10',topicName:'Текстовые задачи: таблица и уравнение',taskNumber:10,schemaVersion:1};
 const PENDING_RESULTS_KEY=`${APP_ID}:pendingTestResults`,STUDENT_SAVE_KEY=`${APP_ID}:student`,CLIENT_ID_KEY=`${APP_ID}:client`,TOOLBAR_POSITION_KEY=`${APP_ID}:toolbar`;
@@ -308,30 +308,192 @@ function showToast(text,type=''){const t=$('globalToast');if(!t)return;t.textCon
 function showOnly(id){['screen-auth','screen-start','screen-end'].forEach(x=>$(x)?.classList.toggle('show',x===id));$('game').style.display=id==='game'?'flex':'none'}
 function setConnectedUI(on){$('sessionPanel')?.classList.toggle('show',!!on);$('boardToolbar')?.classList.toggle('show',!!on);syncBoardToolbarRole()}
 
-/* ===== ГЕНЕРАТОРЫ: прототипы №10 без отдельного семейства «сложное движение» ===== */
-function taskDef(family,proto,topic,text,legend,cols,rows,cells,extra1,eq,extra2,hintT,hintE){return{family,proto,topic,text,legend,cols,rows,cells,extra1,eq,extra2,hintT,hintE}}
-const GEN={
- pctPart(){const whole=pick([600,800,1200,1500,2000,2400]),p=pick([10,15,20,25,30]),part=whole*p/100;return taskDef('percent','Проценты от величины','ПРОЦЕНТЫ · ЧАСТЬ',`Величина равна ${whole}. Найдите ${p}% от неё.`,'x — искомая часть', ['Целое','Доля','Часть'],['Величина'],[[String(whole),`${p}/100`,'x']],[`${100-p}/100`,String(p),'100'],[[String(whole),'·',`${p}/100`,'=','x']],[`${100-p}/100`,String(part)],'Процент преврати в долю делением на 100.','Часть = целое · долю.')},
- pctReverse(){const p=pick([10,20,25,30]),old=pick([1000,1200,1600,2000,2400]),now=old*(100-p)/100;if(!Number.isInteger(now))return GEN.pctReverse();return taskDef('percent','Исходная величина после снижения','ПРОЦЕНТЫ · ЦЕЛОЕ',`После снижения цены на ${p}% товар стал стоить ${now} рублей. Какой была цена до снижения?`,'x — старая цена, рублей',['Целое','Доля','Часть'],['Новая цена'],[['x',`${100-p}/100`,String(now)]],[`${p}/100`,`${100+p}/100`,String(100-p)],[[ 'x','·',`${100-p}/100`,'=',String(now)],[String(now),'/',`${100-p}/100`,'=','x']],[`${p}/100`,String(old)],`Новая цена — это ${100-p}% от старой.`,'Часть = целое · долю; целое неизвестно.')},
- pctChange(){const old=pick([800,1000,1200,1500]),p=pick([10,20,25]),up=Math.round(old*(100+p)/100);return taskDef('percent','Увеличение величины','ПРОЦЕНТЫ · ИЗМЕНЕНИЕ',`Товар стоил ${old} рублей и подорожал на ${p}%. Найдите новую цену.`,'x — новая цена, рублей',['Старая цена','Коэффициент','Новая цена'],['Цена'],[[String(old),`${100+p}/100`,'x']],[`${p}/100`,`${100-p}/100`,String(up-old)],[[String(old),'·',`${100+p}/100`,'=','x']],[`${p}/100`,String(up)],`После роста остаётся ${100+p}% исходной цены.`,'Новое = старое · коэффициент изменения.')},
- mixWater(){const m=pick([8,10,12,15,20]),pct=pick([20,30,40]),w=pick([3,5,8,10]),total=m+w,dec=String(pct/100).replace('.',',');return taskDef('mixture','Добавление воды','СМЕСИ · ДОБАВЛЕНИЕ ВОДЫ',`К ${m} кг ${pct}%-го раствора добавили ${w} кг воды. Найдите долю вещества в новом растворе.`,'x — доля вещества в новом растворе',['Масса, кг','Доля вещества','Масса вещества'],['Раствор','Вода','Новый раствор'],[[String(m),dec,`${dec}·${m}`],[String(w),'0','0'],[String(total),'x',`${total}·x`]],[String(pct),String(total-m),'1'],[[`${dec}·${m}`,'=',`${total}·x`]],[dec,String(total)],'У воды доля вещества равна 0; общая масса увеличилась.','Масса вещества до и после добавления воды одинакова.')},
- mixTwo(){const variants=[[10,20,15,40],[12,25,8,50],[20,15,10,45],[15,20,5,50]],v=pick(variants),[m1,p1,m2,p2]=v,total=m1+m2,d1=String(p1/100).replace('.',','),d2=String(p2/100).replace('.',',');return taskDef('mixture','Смешивание двух концентраций','СПЛАВЫ И СМЕСИ',`Смешали ${m1} кг ${p1}%-го раствора и ${m2} кг ${p2}%-го раствора. Найдите долю вещества в смеси.`,'x — доля вещества в новой смеси',['Масса, кг','Доля вещества','Масса вещества'],['Первая смесь','Вторая смесь','Новая смесь'],[[String(m1),d1,`${d1}·${m1}`],[String(m2),d2,`${d2}·${m2}`],[String(total),'x',`${total}·x`]],[String(p1),String(p2),'0'],[[`${d1}·${m1}`,'+',`${d2}·${m2}`,'=',`${total}·x`]],[d1,d2,String(total)],'Для каждой исходной смеси найди массу нужного вещества.','Сумма вещества в исходных смесях равна его массе в новой.')},
- straightMeet(){const v1=pick([40,50,60]),v2=pick([60,70,80]),t=pick([2,3,4]),S=(v1+v2)*t;return taskDef('straight','Движение навстречу','ДВИЖЕНИЕ НАВСТРЕЧУ',`Из двух городов, расстояние между которыми ${S} км, одновременно навстречу выехали автомобили со скоростями ${v1} и ${v2} км/ч. Через сколько часов они встретятся?`,'x — время до встречи, ч',['S, км','V, км/ч','t, ч'],['Первый','Второй'],[[`${v1}·x`,String(v1),'x'],[`${v2}·x`,String(v2),'x']],[`${v1}/x`,`${v2}/x`,String(S)],[[`${v1}·x`,'+',`${v2}·x`,'=',String(S)]],[String(v1+v2),String(t)],'До встречи время движения одинаково; путь каждого равен v·x.','Сумма пройденных путей равна расстоянию между городами.')},
- straightAverage(){const a=pick([[120,60,180,90],[150,50,240,80],[180,60,120,40]]),[s1,v1,s2,v2]=a,t1=s1/v1,t2=s2/v2,S=s1+s2,T=t1+t2;return taskDef('straight','Средняя скорость','СРЕДНЯЯ СКОРОСТЬ',`Автомобиль проехал ${s1} км со скоростью ${v1} км/ч, затем ${s2} км со скоростью ${v2} км/ч. Найдите среднюю скорость на всём пути.`,'x — средняя скорость, км/ч',['S, км','V, км/ч','t, ч'],['Первый участок','Второй участок','Весь путь'],[[String(s1),String(v1),String(t1)],[String(s2),String(v2),String(t2)],[String(S),'x',String(T)]],[String((v1+v2)/2),String(t1+t2+1),String(S/2)],[[ 'x','·',String(T),'=',String(S)],[ 'x','=',String(S),'/',String(T)]],[String(S/T),String(T)],'Сначала найди время каждого участка, затем сложи путь и время.','Средняя скорость = весь путь / всё время.')},
- trainPlatform(){const v=pick([54,72,90,108]),vm=v/3.6,L=pick([200,300,400]),P=pick([200,300,500]),t=(L+P)/vm;if(!Number.isInteger(t))return GEN.trainPlatform();return taskDef('train','Поезд и платформа','ПРОТЯЖЁННЫЕ ТЕЛА · ПЛАТФОРМА',`Поезд проходит платформу длиной ${P} м за ${t} с со скоростью ${v} км/ч. Найдите длину поезда.`,'x — длина поезда, м',['Путь, м','V, м/с','t, с'],['Полное прохождение'],[[`x+${P}`,String(vm),String(t)]],[String(v),String(P),String(L+P)],[[String(vm),'·',String(t),'=',`x+${P}`]],[String(L),String(L+P)],`Скорость переведи в м/с: ${v}:3,6=${vm}.`,'За время прохождения поезд преодолевает свою длину плюс длину платформы.')},
- trainMeet(){const v1=pick([54,72,90]),v2=pick([54,72]),m1=v1/3.6,m2=v2/3.6,L1=pick([200,300,400]),x=pick([250,350,450]),t=(L1+x)/(m1+m2);if(!Number.isInteger(t))return GEN.trainMeet();return taskDef('train','Два поезда навстречу','ПРОТЯЖЁННЫЕ ТЕЛА · ДВА ПОЕЗДА',`Два поезда движутся навстречу со скоростями ${v1} и ${v2} км/ч и полностью проходят друг мимо друга за ${t} с. Длина первого ${L1} м. Найдите длину второго.`,'x — длина второго поезда, м',['Сумма длин, м','Vотн, м/с','t, с'],['Встречное движение'],[[`${L1}+x`,String(m1+m2),String(t)]],[String(m1),String(m2),String(L1)],[[String(m1+m2),'·',String(t),'=',`${L1}+x`]],[String(x),String(L1+x)],'При встречном движении скорости в м/с складываются.','За время полного прохождения относительный путь равен сумме длин поездов.')},
- waterOne(){const own=pick([12,16,20,24]),c=pick([2,3,4]),t=pick([2,3,4]),S=(own+c)*t;return taskDef('water','По течению','ДВИЖЕНИЕ ПО ВОДЕ · ПО ТЕЧЕНИЮ',`Лодка прошла ${S} км по течению за ${t} ч. Собственная скорость лодки ${own} км/ч. Найдите скорость течения.`,'x — скорость течения, км/ч',['S, км','V, км/ч','t, ч'],['По течению'],[[String(S),`${own}+x`,String(t)]],[`${own}−x`,String(own),String(c)],[[`${own}+x`,'·',String(t),'=',String(S)]],[String(c),String(own+c)],'По течению скорости лодки и течения складываются.','Используй S=V·t для движения по течению.')},
- waterRound(){const a=pick([[16,4,120],[10,2,96],[15,3,90],[20,5,150]]),[own,c,S]=a,T=S/(own+c)+S/(own-c);if(!Number.isInteger(T))return GEN.waterRound();return taskDef('water','Туда и обратно по реке','ДВИЖЕНИЕ ПО ВОДЕ · ТУДА И ОБРАТНО',`Лодка прошла ${S} км по течению и вернулась обратно. Скорость течения ${c} км/ч, всё движение заняло ${T} ч. Найдите собственную скорость лодки.`,'x — собственная скорость лодки, км/ч',['S, км','V, км/ч','t, ч'],['По течению','Против течения'],[[String(S),`x+${c}`,`${S}/(x+${c})`],[String(S),`x−${c}`,`${S}/(x−${c})`]],[`${c}−x`,String(T),String(S*2)],[[`${S}/(x+${c})`,'+',`${S}/(x−${c})`,'=',String(T)]],[String(own),String(c)],'Время = S/V; по течению скорость x+c, против — x−c.','Сумма времён туда и обратно равна общему времени.')},
- productivityDiff(){const a=pick([[270,15,3],[480,20,4],[672,24,4],[216,12,6]]),[A,p,d]=a,delta=A/p-A/(p+d);if(!Number.isInteger(delta)||delta<=0)return GEN.productivityDiff();return taskDef('productivity','Разница во времени','ПРОИЗВОДИТЕЛЬНОСТЬ · РАЗНИЦА ВРЕМЕНИ',`Заказ на ${A} деталей медленный рабочий выполняет на ${delta} ч дольше. Быстрый делает на ${d} детали в час больше. Найдите производительность медленного.`,'x — производительность медленного, дет/ч',['Работа A','Производительность P','Время t'],['Медленный','Быстрый'],[[String(A),'x',`${A}/x`],[String(A),`x+${d}`,`${A}/(x+${d})`]],[String(d),String(delta),String(A/(p+d))],[[`${A}/x`,'−',`${A}/(x+${d})`,'=',String(delta)]],[String(p),String(p+d)],'Время выполнения одинакового заказа равно A/P.','Время медленного минус время быстрого равно указанной разнице.')},
- productivityTogether(){const p1=pick([12,15,18]),d=pick([3,4,5]),p2=p1-d,t=pick([4,5,6]),A=(p1+p2)*t;return taskDef('productivity','Суммарная производительность','ПРОИЗВОДИТЕЛЬНОСТЬ ТРУДА',`Мастер делает ${p1} деталей в час, ученик — на ${d} деталей в час меньше. Вместе они изготовили ${A} деталей. Сколько часов они работали?`,'x — время совместной работы, ч',['Работа A','Производительность P','Время t'],['Мастер','Ученик'],[[`${p1}·x`,String(p1),'x'],[`${p2}·x`,String(p2),'x']],[`${d}·x`,String(p1+d),String(A)],[[`${p1}·x`,'+',`${p2}·x`,'=',String(A)]],[String(t),String(p1+p2)],`Производительность ученика: ${p1}−${d}=${p2}.`,'Сумма выполненных деталей равна всему заказу.')},
- jointPipes(){const a=pick([[12,6,4],[8,8,4],[15,10,6],[20,5,4],[18,9,6],[30,15,10]]),[t1,t2,ans]=a;return taskDef('joint','Два исполнителя вместе','СОВМЕСТНАЯ РАБОТА',`Первая труба наполняет бассейн за ${t1} ч, вторая — за ${t2} ч. За сколько часов они наполнят бассейн вместе?`,'x — время совместной работы, ч; вся работа = 1',['Работа A','Производительность P','Время t'],['Первая труба','Вторая труба','Вместе'],[['1',`1/${t1}`,String(t1)],['1',`1/${t2}`,String(t2)],['1','1/x','x']],[`${t1}/1`,`${t2}/1`,String(t1+t2)],[[`1/${t1}`,'+',`1/${t2}`,'=','1/x']],[String(ans),String(t1)],'Производительность равна 1/t.','При совместной полезной работе производительности складываются.')},
- jointFindSecond(){const a=pick([[12,4,6],[18,6,9],[24,8,12],[30,10,15]]),[t1,together,t2]=a;return taskDef('joint','Найти время второго исполнителя','СОВМЕСТНАЯ РАБОТА · НЕИЗВЕСТНЫЙ ИСПОЛНИТЕЛЬ',`Двое рабочих вместе выполняют заказ за ${together} ч. Первый один выполнил бы его за ${t1} ч. За сколько часов выполнит заказ второй?`,'x — время второго рабочего, ч; вся работа = 1',['Работа A','Производительность P','Время t'],['Первый','Второй','Вместе'],[['1',`1/${t1}`,String(t1)],['1','1/x','x'],['1',`1/${together}`,String(together)]],[`${together}/1`,`${t1}/1`,String(together+t1)],[[`1/${t1}`,'+','1/x','=',`1/${together}`]],[String(t2),String(together)],'Переведи времена в производительности 1/t.','Производительности первого и второго в сумме дают общую.')}
-};
-const FAMILY_GENERATORS={percent:['pctPart','pctReverse','pctChange'],mixture:['mixWater','mixTwo'],straight:['straightMeet','straightAverage'],train:['trainPlatform','trainMeet'],water:['waterOne','waterRound'],productivity:['productivityDiff','productivityTogether'],joint:['jointPipes','jointFindSecond']};
-function prepareTask(raw,id){const t=clone(raw);t.id=id;t.bank=shuffle(t.cells.flat().concat(t.extra1)).map((v,i)=>({id:'b'+i,val:String(v),used:false}));const comp=[];t.eq.forEach(v=>v.forEach(tok=>{if(!SIGNS.includes(tok)&&!comp.includes(tok))comp.push(tok)}));t.bank2=shuffle(comp.concat(t.extra2).map(String)).concat(SIGNS);t.fills={};t.eqLine=[];t.step=1;t.selectedBankId='';t.hintUsed=false;t.firstTryEligible=true;t.tableHadError=false;t.eqHadError=false;t.resolved=false;t.skipped=false;t.feedback=null;return t}
-function makeTaskPack(variant=0){const chosen=[];for(const [family,names] of Object.entries(FAMILY_GENERATORS)){const name=pick(names);chosen.push({family,name})}const used=new Set(chosen.map(x=>x.name));const need=Math.max(0,TASKS_PER_STUDENT-chosen.length);const extras=shuffle(Object.entries(FAMILY_GENERATORS).flatMap(([family,names])=>names.filter(n=>!used.has(n)).map(name=>({family,name})))).slice(0,need);const defs=shuffle(chosen.concat(extras)).slice(0,TASKS_PER_STUDENT);return defs.map((d,i)=>prepareTask(GEN[d.name](),`v${variant}-${i}-${d.name}-${uuid().slice(0,5)}`))}
-function makeDeck(order){const packs={};order.forEach((pk,i)=>packs[pk]=makeTaskPack(i));if(order.length===1)return packs[order[0]].map((task,i)=>({ownerKey:order[0],ownerTask:i+1,task}));const deck=[];for(let i=0;i<TASKS_PER_STUDENT;i++)for(const pk of order)deck.push({ownerKey:pk,ownerTask:i+1,task:packs[pk][i]});return deck}
 
+/* 15 обязательных прототипов из задачника Ширяевой: по одному каждого типа
+   каждому ученику, независимо от числа участников. Варианты и порядок
+   определяются при старте новой игры; прежние занятия сохраняются. */
+function taskDef(family,proto,topic,text,legend,cols,rows,cells,extra1,eq,extra2,hintT,hintE){
+ return {family,proto,topic,text,legend,cols,rows,cells,extra1,eq,extra2,hintT,hintE};
+}
+function makeSourceTask(family,proto,source,text,legend,cols,rows,cells,equation,hint){
+ const task=taskDef(family,proto+' · Ширяева №'+source,proto.toUpperCase(),text,legend,
+ cols,rows,cells,[],[equation],[],hint,
+ 'Запиши равенство по построенной таблице: сумма вещества, разность времён или общая производительность.');
+ task.sourceNumber=source;return task;
+}
+const M=['Масса, кг','Доля вещества','Масса вещества'],V=['Расстояние, км','Скорость, км/ч','Время, ч'],W=['Работа','Производительность','Время'];
+const TYPES=[
+ {id:'alloyDifference',gen(v){
+  return !v?
+  makeSourceTask('mixture','Разница масс сплавов',3,'Из двух сплавов с 5% и 14% меди получили третий с 11%. Масса второго сплава на 3 кг больше первой. Найдите массу третьего сплава.',
+   'x — масса первого сплава',M,['Сплав 1','Сплав 2','Сплав 3'],
+   [['x','5/100','x·5/100'],['x+3','14/100','(x+3)·14/100'],['2·x+3','11/100','(2·x+3)·11/100']],
+   ['x','·','5/100','+','(x+3)','·','14/100','=','(2·x+3)','·','11/100'],'При смешивании сохраняется масса меди.'):
+  makeSourceTask('mixture','Разница масс сплавов',4,'Первый сплав с 35% меди на 60 кг тяжелее второго, в котором 5% меди. После смешивания получили 30%-й сплав. Найдите массу полученного сплава.',
+   'x — масса второго сплава',M,['Сплав 1','Сплав 2','Сплав 3'],
+   [['x+60','35/100','(x+60)·35/100'],['x','5/100','x·5/100'],['2·x+60','30/100','(2·x+60)·30/100']],
+   ['(x+60)','·','35/100','+','x','·','5/100','=','(2·x+60)','·','30/100'],'Общая масса меди равна сумме масс меди в исходных сплавах.');
+ }},
+ {id:'alloyKnownTotal',gen(v){
+  const [s,p,q,r,no]=v?[100,10,40,28,'5 (вариация)']:[150,5,30,25,5];
+  return makeSourceTask('mixture','Сплав с известной итоговой массой',no,
+   'Смешали '+p+'%-й и '+q+'%-й сплавы. Получили '+s+' кг сплава, в котором '+r+'% вещества. На сколько килограммов различались исходные массы?',
+   'x — масса первого сплава',M,['Сплав 1','Сплав 2','Итог'],
+   [['x',p+'/100','x·'+p+'/100'],[s+'−x',q+'/100','('+s+'−x)·'+q+'/100'],[String(s),r+'/100',s+'·'+r+'/100']],
+   ['x','·',p+'/100','+','('+s+'−x)','·',q+'/100','=',String(s),'·',r+'/100'],
+   'Масса второго сплава = общая масса минус x.');
+ }},
+ {id:'drying',gen(v){
+  const [m,w1,w2,no]=v?[36,80,10,'6 (вариация)']:[44,90,5,6];
+  return makeSourceTask('percent','Сушка с изменением влажности',no,
+   'Виноград содержит '+w1+'% воды, а изюм — '+w2+'% воды. Сколько килограммов винограда требуется для получения '+m+' кг изюма?',
+   'x — начальная масса винограда',M,['Виноград','Изюм'],
+   [['x',(100-w1)+'/100','x·'+(100-w1)+'/100'],[String(m),(100-w2)+'/100',m+'·'+(100-w2)+'/100']],
+   ['x','·',(100-w1)+'/100','=',String(m),'·',(100-w2)+'/100'],
+   'Сохраняется масса сухого вещества, но не воды.');
+ }},
+ {id:'twoVessels',gen(v){
+  const [m,n,r,e,no]=v?[80,60,49,55,10]:[85,70,48,51,9],sum=m+n,c=2*e;
+  return makeSourceTask('mixture','Растворы: два способа смешивания',no,
+   'Есть '+m+' кг и '+n+' кг растворов кислоты. Всё вместе даёт концентрацию '+r+'%. Если смешать равные массы, получится '+e+'%. '+(v?'Сколько килограммов кислоты было в первом сосуде?':'Какова процентная концентрация первого сосуда?'),
+   'x — процент кислоты в первом сосуде, во втором '+c+'−x',M,['Сосуд 1','Сосуд 2','Вся смесь'],
+   [[String(m),'x/100',m+'·x/100'],[String(n),'('+c+'−x)/100',n+'·('+c+'−x)/100'],[String(sum),r+'/100',sum+'·'+r+'/100']],
+   [String(m),'·','x/100','+',String(n),'·','('+c+'−x)/100','=',String(sum),'·',r+'/100'],
+   'Среднее арифметическое концентраций при равных массах равно '+e+'%.');
+ }},
+ {id:'stockRiseFall',gen(v){
+  const loss=v?16:25,end=100-loss;
+  return makeSourceTask('percent','Подорожание, затем подешевление',v?'12 (вариация)':12,
+   'В понедельник акции подорожали на x%, а во вторник подешевели на столько же процентов. В итоге они стали на '+loss+'% дешевле, чем в начале понедельника. Найдите x.',
+   'Начальную стоимость примите за 100',['Цена до','Коэффициент','Цена после'],['Понедельник','Вторник'],
+   [['100','(100+x)/100','100+x'],['100+x','(100−x)/100',String(end)]],
+   ['(100+x)','·','(100−x)','/','100','=',String(end)],
+   'Одинаковый процент применяется к разной базе в разные дни.');
+ }},
+ {id:'averageSpeed',gen(v){
+  return !v?
+  makeSourceTask('straight','Средняя скорость по нескольким участкам',13,
+   'Первый час машина ехала 60 км/ч, следующие три часа — 45 км/ч, а затем три часа — 40 км/ч. Найдите среднюю скорость на всём пути.',
+   'x — средняя скорость',V,['1-й участок','2-й участок','3-й участок','Весь путь'],
+   [['60','60','1'],['135','45','3'],['120','40','3'],['315','x','7']],
+   ['x','·','7','=','315'],'Средняя скорость — суммарный путь / суммарное время.'):
+  makeSourceTask('straight','Средняя скорость по нескольким участкам',14,
+   'Первые 160 км машина ехала со скоростью 80 км/ч, затем 150 км — со скоростью 100 км/ч, а ещё 130 км — со скоростью 120 км/ч. Найдите среднюю скорость.',
+   'x — средняя скорость',V,['1-й участок','2-й участок','3-й участок','Весь путь'],
+   [['160','80','160/80'],['150','100','150/100'],['130','120','130/120'],['440','x','160/80+150/100+130/120']],
+   ['x','·','(','160/80','+','150/100','+','130/120',')','=','440'],
+   'Сначала вычислите время каждого участка, а затем общее время.');
+ }},
+ {id:'returnWithStop',gen(v){
+  const [s,d,h,no]=v?[180,8,8,19]:[224,2,2,18];
+  return makeSourceTask('straight','Обратная поездка с остановкой',no,
+   'Велосипедист проехал '+s+' км из A в B. Обратно он ехал со скоростью на '+d+' км/ч больше и останавливался на '+h+' ч. Обратная дорога заняла столько же времени, сколько и прямая. Найдите скорость '+(v?'обратного':'прямого')+' пути.',
+   'x — скорость прямого пути',V,['Прямой','Обратный'],
+   [[String(s),'x',s+'/x'],[String(s),'x+'+d,s+'/(x+'+d+')+'+h]],
+   [s+'/x','=',s+'/(x+'+d+')','+',String(h)],
+   'Время остановки входит во время обратной поездки.');
+ }},
+ {id:'cyclistsGap',gen(v){
+  const [s,d,h,no]=v?[80,2,2,21]:[112,9,4,20];
+  return makeSourceTask('straight','Разные скорости и разница времени',no,
+   'Два велосипедиста ехали '+s+' км. Первый ехал на '+d+' км/ч быстрее второго и приехал на '+h+' ч раньше. Найдите скорость '+(v?'второго':'первого')+' велосипедиста.',
+   'x — скорость второго велосипедиста',V,['Первый','Второй'],
+   [[String(s),'x+'+d,s+'/(x+'+d+')'],[String(s),'x',s+'/x']],
+   [s+'/x','−',s+'/(x+'+d+')','=',String(h)],
+   'Время медленного минус время быстрого равно '+h+' ч.');
+ }},
+ {id:'pursuitTurn',gen(v){
+  const [s,m,no]=v?[504,70,'23 (вариация)']:[540,75,23];
+  return makeSourceTask('straight','Догон с разворотом и возвращением',no,
+   'Автомобиль выехал из A в B (расстояние '+s+' км). Через 1 ч следом со скоростью '+m+' км/ч выехал мотоциклист, догнал автомобиль в C и повернул обратно. В A он вернулся одновременно с прибытием автомобиля в B. Найдите AC.',
+   'x — расстояние AC',V,['Авто до C','Мотоцикл до C','Мотоцикл обратно','Авто до B'],
+   [['x','x/(1+x/'+m+')','1+x/'+m],['x',String(m),'x/'+m],['x',String(m),'x/'+m],
+    [String(s),'x/(1+x/'+m+')',s+'·(1/x+1/'+m+')']],
+   [String(s),'·','(','1/x','+','1/'+m,')','=','1','+','2','·','x/'+m],
+   'Автомобиль до встречи двигался на 1 час дольше мотоциклиста.');
+ }},
+ {id:'twoTrains',gen(v){
+  const [s1,s2,l,t,no]=v?[72,54,650,30,'25 (вариация)']:[90,70,800,27,25];
+  return makeSourceTask('train','Поезда навстречу: полное прохождение',no,
+   'Два поезда идут навстречу со скоростями '+s1+' и '+s2+' км/ч. Длина пассажирского поезда '+l+' м. Полное прохождение заняло '+t+' секунд. Найдите длину второго поезда.',
+   'x — длина второго поезда в метрах',['Сумма длин, м','Скорость сближения, м/с','Время, с'],['Прохождение'],
+   [['x+'+l,'('+s1+'+'+s2+')·1000/3600',String(t)]],
+   ['x','+',String(l),'=','(',String(s1),'+',String(s2),')','·','1000/3600','·',String(t)],
+   'Сложите скорости и переведите их в метры в секунду.');
+ }},
+ {id:'secondShip',gen(v){
+  const s=v?323:168;
+  return makeSourceTask('water','Теплоход выехал позже и догнал',v?27:26,
+   'Первый теплоход отправился из A в B на расстояние '+s+' км. Через 2 ч за ним вышел второй, со скоростью на 2 км/ч больше. Они прибыли одновременно. Найдите скорость '+(v?'второго':'первого')+' теплохода.',
+   v?'x — скорость второго':'x — скорость первого',V,['Первый','Второй'],
+   v?[[String(s),'x−2',s+'/(x−2)'],[String(s),'x',s+'/x']]:
+     [[String(s),'x',s+'/x'],[String(s),'x+2',s+'/(x+2)']],
+   v?[s+'/(x−2)','−',s+'/x','=','2']:[s+'/x','−',s+'/(x+2)','=','2'],
+   'Первый двигался на два часа дольше.');
+ }},
+ {id:'riverTrip',gen(v){
+  const [s,h,T,no]=v?[609,1,51,31]:[132,23,34,30],down=v?'25+x':'x+5',up=v?'25−x':'x−5';
+  return makeSourceTask('water','По реке туда-обратно со стоянкой',no,
+   'Теплоход прошёл по течению '+s+' км, простоял '+h+' часов и вернулся. Весь рейс занял '+T+' часов. '+(v?'Собственная скорость равна 25 км/ч. Найдите скорость течения.':'Скорость течения равна 5 км/ч. Найдите собственную скорость.'),
+   v?'x — скорость течения':'x — собственная скорость',V,['По течению','Против течения','Стоянка'],
+   [[String(s),down,s+'/('+down+')'],[String(s),up,s+'/('+up+')'],['0','0',String(h)]],
+   [s+'/('+down+')','+',s+'/('+up+')','+',String(h),'=',String(T)],
+   'Сумма времени туда, обратно и стоянки равна общему времени.');
+ }},
+ {id:'riverTimeDifference',gen(v){
+  const s=v?96:252,up=v?'x−2':'16−x',down=v?'x+2':'16+x';
+  return makeSourceTask('water','Разница времени по течению и против',v?33:32,
+   'Лодка прошла против течения '+s+' км и вернулась обратно. Обратный путь занял на 4 ч меньше. '+(v?'Скорость течения 2 км/ч. Найдите собственную скорость.':'Собственная скорость 16 км/ч. Найдите скорость течения.'),
+   v?'x — собственная скорость':'x — скорость течения',V,['Против','По течению'],
+   [[String(s),up,s+'/('+up+')'],[String(s),down,s+'/('+down+')']],
+   [s+'/('+up+')','−',s+'/('+down+')','=','4'],
+   'По течению лодка движется быстрее, значит тратит меньше времени.');
+ }},
+ {id:'workOutput',gen(v){
+  const [s,d,h,no]=v?[323,2,2,41]:[270,3,3,40];
+  return makeSourceTask('productivity','Рабочие: время и производительность',no,
+   'Первый рабочий изготавливает на '+d+' детали в час больше второго и выполняет заказ из '+s+' деталей на '+h+' ч быстрее. Найдите производительность '+(v?'первого':'второго')+' рабочего.',
+   'x — производительность второго',['Работа, детали','Производительность, дет/ч','Время, ч'],['Первый','Второй'],
+   [[String(s),'x+'+d,s+'/(x+'+d+')'],[String(s),'x',s+'/x']],
+   [s+'/x','−',s+'/(x+'+d+')','=',String(h)],
+   'Вычтите время первого рабочего из времени второго.');
+ }},
+ {id:'jointPipes',gen(v){
+  return v?
+  makeSourceTask('joint','Совместная работа двух исполнителей',49,
+   'Юля и Уля вместе пропалывают грядку за 24 минуты, а одна Уля — за 120 минут. За сколько минут прополет грядку одна Юля?',
+   'x — время Юли',W,['Юля','Уля','Вместе'],
+   [['1','1/x','x'],['1','1/120','120'],['1','1/24','24']],
+   ['1/x','+','1/120','=','1/24'],'Сложите производительности обоих исполнителей.'):
+  makeSourceTask('joint','Совместная работа двух труб',46,
+   'Первая труба наполняет резервуар на 24 минуты дольше второй. Вместе они наполняют его за 35 минут. За сколько минут вторая труба наполнит резервуар одна?',
+   'x — время второй трубы',W,['Первая','Вторая','Вместе'],
+   [['1','1/(x+24)','x+24'],['1','1/x','x'],['1','1/35','35']],
+   ['1/(x+24)','+','1/x','=','1/35'],
+   'Вся работа равна 1, производительность трубы равна 1/время.');
+ }}
+];
+function prepareTask(raw,id){
+ const t=clone(raw);t.id=id;
+ t.bank=shuffle(t.cells.flat().concat(t.extra1)).map((v,i)=>({id:'b'+i,val:String(v),used:false}));
+ const comp=[];t.eq.forEach(v=>v.forEach(tok=>{if(!SIGNS.includes(tok)&&!comp.includes(tok))comp.push(tok)}));
+ t.bank2=shuffle(comp.concat(t.extra2).map(String)).concat(SIGNS);
+ t.fills={};t.eqLine=[];t.step=1;t.selectedBankId='';t.hintUsed=false;
+ t.firstTryEligible=true;t.tableHadError=false;t.eqHadError=false;
+ t.resolved=false;t.skipped=false;t.feedback=null;return t;
+}
+function makeTaskPack(studentIndex=0,offsets={}){
+ return shuffle(TYPES).map((p,i)=>prepareTask(p.gen(((offsets[p.id]||0)+studentIndex)%2),
+ 'v'+studentIndex+'-'+i+'-'+p.id+'-'+uuid().slice(0,5)));
+}
+function makeDeck(order){
+ const offsets=Object.fromEntries(TYPES.map(p=>[p.id,rnd(0,1)]));
+ const packs={};order.forEach((pk,i)=>packs[pk]=makeTaskPack(i,offsets));
+ if(order.length===1)return packs[order[0]].map((task,i)=>({ownerKey:order[0],ownerTask:i+1,task}));
+ const deck=[];for(let i=0;i<TASKS_PER_STUDENT;i++)for(const pk of order)
+  deck.push({ownerKey:pk,ownerTask:i+1,task:packs[pk][i]});
+ return deck;
+}
 /* =========================================================
    2. ГИБКАЯ ПРОВЕРКА УРАВНЕНИЯ
    ========================================================= */
@@ -573,18 +735,18 @@ function normalizeTask(t){if(!t||typeof t!=='object')return null;t.fills=t.fills
 function normalizeState(input){const s=input&&typeof input==='object'?clone(input):newGameState(1);s.version=Number(s.version)||1;s.schemaVersion=Number(s.schemaVersion)||SCHEMA_VERSION;s.boardEpoch=Number(s.boardEpoch)||0;s.strokes=s.strokes||{};const g=s.game||(s.game={});g.status=g.status||'lobby';g.studentLimit=Number(g.studentLimit)===2?2:1;g.players=g.players||{};g.playerOrder=Array.isArray(g.playerOrder)?g.playerOrder:[];g.turnKey=g.turnKey||'';g.deck=Array.isArray(g.deck)?g.deck:[];g.deck=g.deck.map(x=>({ownerKey:x.ownerKey||'',ownerTask:Number(x.ownerTask)||1,task:normalizeTask(x.task)}));g.index=Math.max(0,Math.min(Math.max(0,g.deck.length-1),Number(g.index)||0));g.stats=g.stats||{};for(const pk of Object.keys(g.stats))g.stats[pk]=normalizeStats(g.stats[pk]);g.eventIds=g.eventIds||{};g.submissions=g.submissions||{};g.sessionId=g.sessionId||uuid();g.startedAt=Number(g.startedAt)||0;g.finishedAt=Number(g.finishedAt)||0;g.endedEarly=!!g.endedEarly;return s}
 function currentEntry(s=serverState){return s?.game?.deck?.[s.game.index]||null}
 function currentTask(s=serverState){return currentEntry(s)?.task||null}
-function assignedTotal(){return TASKS_PER_STUDENT}
+function assignedTotal(s=serverState,pk=participantPlayerKey){return s?.game?.deck?.filter(e=>e.ownerKey===pk).length||TASKS_PER_STUDENT}
 
-function renderPublic(){showOnly('screen-auth');setConnectedUI(false);const el=$('screen-auth');el.innerHTML=`<h1>ТАБЛИЦА КРАФТА</h1><h2>ИТОГОВЫЙ ТРЕНАЖЁР №10 · 10 ЗАДАЧ НА УЧЕНИКА</h2><p>Каждый набор обязательно охватывает все 8 семейств задания №10. Числа и порядок создаются заново при новом занятии.</p><button class="btn go" id="lessonJoinBtn">СОВМЕСТНЫЙ УРОК ▶</button>`;$('lessonJoinBtn').onclick=openRoleModal}
+function renderPublic(){showOnly('screen-auth');setConnectedUI(false);const el=$('screen-auth');el.innerHTML=`<h1>ТАБЛИЦА КРАФТА</h1><h2>ИТОГОВЫЙ ТРЕНАЖЁР №10 · 15 ЗАДАЧ НА УЧЕНИКА</h2><p>Каждый набор обязательно включает все 15 прототипов по задачнику Ширяевой. Порядок перемешивается отдельно для каждого ученика.</p><button class="btn go" id="lessonJoinBtn">СОВМЕСТНЫЙ УРОК ▶</button>`;$('lessonJoinBtn').onclick=openRoleModal}
 function renderWaitingTeacher(){showOnly('screen-start');$('screen-start').innerHTML=`<h1>ЖДЁМ УЧИТЕЛЯ</h1><div class="waiting-box">Личный код сохранён. Как только учитель создаст занятие, место закрепится автоматически.</div>`;setConnectedUI(true);updateSessionPanel()}
-function renderLobby(s){const g=s.game,players=Object.entries(g.players).sort((a,b)=>(a[1].slot||9)-(b[1].slot||9)),onlineIds=new Set(Object.values(membersSnapshot).filter(m=>m&&m.online&&m.role==='student'&&m.studentId).map(m=>String(m.studentId))),ready=players.length>=g.studentLimit&&players.slice(0,g.studentLimit).every(([,p])=>onlineIds.has(String(p.studentId)));const seats=Array.from({length:g.studentLimit},(_,i)=>{const row=players.find(([,p])=>p.slot===i+1),isOn=row&&onlineIds.has(String(row[1].studentId));return`<div class="seat ${row?'filled':''}"><span class="seat-no">${i+1}</span><span>${row?esc(row[1].name)+(isOn?' · онлайн':' · не в сети'):'Свободное место'}</span></div>`}).join('');showOnly('screen-start');$('screen-start').innerHTML=`<h1>МАСТЕРСКАЯ ГОТОВА</h1><h2>${g.studentLimit===2?'2 УЧЕНИКА · ПО 10 ЗАДАЧ':'1 УЧЕНИК · 10 ЗАДАЧ'}</h2><p>В каждой десятке: проценты, смеси/сплавы, прямое и сложное движение, поезда, вода, производительность и совместная работа + 2 дополнительных подтипа.</p><div class="seat-list">${seats}</div>${role==='teacher'?`<div class="native-actions"><button class="btn go" id="hostStartBtn" ${ready?'':'disabled'}>${ready?'НАЧАТЬ ИГРУ':'ЖДЁМ УЧЕНИКОВ'}</button><button class="btn" id="hostNewBtn">НОВОЕ ЗАНЯТИЕ</button></div>`:'<div class="waiting-box">Место закреплено. Учитель запустит тренировку.</div>'}`;if($('hostStartBtn'))$('hostStartBtn').onclick=hostStartGame;if($('hostNewBtn'))$('hostNewBtn').onclick=openNewSessionChooser;setConnectedUI(true);updateSessionPanel()}
-function renderWaitingTurn(s){const g=s.game,me=normalizeStats(g.stats[participantPlayerKey]),who=g.players[g.turnKey]?.name||'другой ученик',entry=currentEntry(s);showOnly('screen-start');$('screen-start').innerHTML=`<h1>СЕЙЧАС ХОД<br>${esc(who).toUpperCase()}</h1><div class="waiting-box">Чужая задача скрыта. Твой прогресс: <b>${me.completed}/10</b> задач. После завершения задачи №${entry?.ownerTask||1} ход автоматически вернётся к тебе.</div>`;setConnectedUI(true);updateSessionPanel()}
-function renderFinal(s){const g=s.game,order=g.playerOrder.length?g.playerOrder:Object.keys(g.players).sort((a,b)=>(g.players[a]?.slot||9)-(g.players[b]?.slot||9));showOnly('screen-end');const cards=order.map(pk=>{const p=g.players[pk],st=normalizeStats(g.stats[pk]),max=g.endedEarly?st.completed:TASKS_PER_STUDENT,percent=max?Math.round(st.firstTryCorrect/max*100):0,sub=g.submissions[pk];return`<div class="result-card"><span>${esc(p?.name||'Ученик')}</span><strong>${percent}%</strong><small>${st.firstTryCorrect} из ${max} зачтено · решено ${st.solved} · незачтённых ${st.wrong} · подсказок ${st.hints}</small><em>${sub?.status==='saved'?'✓ результат сохранён':sub?.status==='sending'?'сохраняем…':sub?.status==='queued'?'ожидает связи':'готов к отправке'}</em></div>`}).join('');$('screen-end').innerHTML=`<h1>${g.endedEarly?'ЗАНЯТИЕ ЗАВЕРШЕНО УЧИТЕЛЕМ':'ТРЕНИРОВКА ЗАВЕРШЕНА'}</h1><div class="result-cards">${cards}</div><p>Результат каждого ученика учитывается отдельно. ${g.endedEarly?'Незавершённая текущая задача в знаменатель не вошла.':''}</p>${role==='teacher'?'<button class="btn go" id="newAfterFinish">НОВОЕ ЗАНЯТИЕ</button>':'<button class="btn" id="switchAfterFinish">СМЕНИТЬ УЧЕНИКА</button>'}`;if($('newAfterFinish'))$('newAfterFinish').onclick=openNewSessionChooser;if($('switchAfterFinish'))$('switchAfterFinish').onclick=switchStudent;setConnectedUI(true);updateSessionPanel();if(role==='teacher')order.forEach(ensureSubmission);if(role==='student'&&participantPlayerKey)ensureSubmission(participantPlayerKey)}
+function renderLobby(s){const g=s.game,players=Object.entries(g.players).sort((a,b)=>(a[1].slot||9)-(b[1].slot||9)),onlineIds=new Set(Object.values(membersSnapshot).filter(m=>m&&m.online&&m.role==='student'&&m.studentId).map(m=>String(m.studentId))),ready=players.length>=g.studentLimit&&players.slice(0,g.studentLimit).every(([,p])=>onlineIds.has(String(p.studentId)));const seats=Array.from({length:g.studentLimit},(_,i)=>{const row=players.find(([,p])=>p.slot===i+1),isOn=row&&onlineIds.has(String(row[1].studentId));return`<div class="seat ${row?'filled':''}"><span class="seat-no">${i+1}</span><span>${row?esc(row[1].name)+(isOn?' · онлайн':' · не в сети'):'Свободное место'}</span></div>`}).join('');showOnly('screen-start');$('screen-start').innerHTML=`<h1>МАСТЕРСКАЯ ГОТОВА</h1><h2>${g.studentLimit===2?'2 УЧЕНИКА · ПО 15 ЗАДАЧ':'1 УЧЕНИК · 15 ЗАДАЧ'}</h2><p>В каждой пятнадцатке все 15 основных прототипов: проценты, сплавы, движение, поезда, река и работа.</p><div class="seat-list">${seats}</div>${role==='teacher'?`<div class="native-actions"><button class="btn go" id="hostStartBtn" ${ready?'':'disabled'}>${ready?'НАЧАТЬ ИГРУ':'ЖДЁМ УЧЕНИКОВ'}</button><button class="btn" id="hostNewBtn">НОВОЕ ЗАНЯТИЕ</button></div>`:'<div class="waiting-box">Место закреплено. Учитель запустит тренировку.</div>'}`;if($('hostStartBtn'))$('hostStartBtn').onclick=hostStartGame;if($('hostNewBtn'))$('hostNewBtn').onclick=openNewSessionChooser;setConnectedUI(true);updateSessionPanel()}
+function renderWaitingTurn(s){const g=s.game,me=normalizeStats(g.stats[participantPlayerKey]),who=g.players[g.turnKey]?.name||'другой ученик',entry=currentEntry(s);showOnly('screen-start');$('screen-start').innerHTML=`<h1>СЕЙЧАС ХОД<br>${esc(who).toUpperCase()}</h1><div class="waiting-box">Чужая задача скрыта. Твой прогресс: <b>${me.completed}/${assignedTotal(s,participantPlayerKey)}</b> задач. После завершения задачи №${entry?.ownerTask||1} ход автоматически вернётся к тебе.</div>`;setConnectedUI(true);updateSessionPanel()}
+function renderFinal(s){const g=s.game,order=g.playerOrder.length?g.playerOrder:Object.keys(g.players).sort((a,b)=>(g.players[a]?.slot||9)-(g.players[b]?.slot||9));showOnly('screen-end');const cards=order.map(pk=>{const p=g.players[pk],st=normalizeStats(g.stats[pk]),max=g.endedEarly?st.completed:assignedTotal(s,pk),percent=max?Math.round(st.firstTryCorrect/max*100):0,sub=g.submissions[pk];return`<div class="result-card"><span>${esc(p?.name||'Ученик')}</span><strong>${percent}%</strong><small>${st.firstTryCorrect} из ${max} зачтено · решено ${st.solved} · незачтённых ${st.wrong} · подсказок ${st.hints}</small><em>${sub?.status==='saved'?'✓ результат сохранён':sub?.status==='sending'?'сохраняем…':sub?.status==='queued'?'ожидает связи':'готов к отправке'}</em></div>`}).join('');$('screen-end').innerHTML=`<h1>${g.endedEarly?'ЗАНЯТИЕ ЗАВЕРШЕНО УЧИТЕЛЕМ':'ТРЕНИРОВКА ЗАВЕРШЕНА'}</h1><div class="result-cards">${cards}</div><p>Результат каждого ученика учитывается отдельно. ${g.endedEarly?'Незавершённая текущая задача в знаменатель не вошла.':''}</p>${role==='teacher'?'<button class="btn go" id="newAfterFinish">НОВОЕ ЗАНЯТИЕ</button>':'<button class="btn" id="switchAfterFinish">СМЕНИТЬ УЧЕНИКА</button>'}`;if($('newAfterFinish'))$('newAfterFinish').onclick=openNewSessionChooser;if($('switchAfterFinish'))$('switchAfterFinish').onclick=switchStudent;setConnectedUI(true);updateSessionPanel();if(role==='teacher')order.forEach(ensureSubmission);if(role==='student'&&participantPlayerKey)ensureSubmission(participantPlayerKey)}
 function renderError(msg){showOnly('screen-start');$('screen-start').innerHTML=`<h1>ОШИБКА</h1><div class="waiting-box">${esc(msg)}</div>`;setConnectedUI(!!role)}
 
 function kindOf(t){t=String(t);if(SIGNS.includes(t))return'op';if(t==='('||t===')')return'paren';if(/x/.test(t))return'var';if(t.includes('/'))return'frac';return'num'}
 function taskCanAnswer(entry){return role==='student'&&participantPlayerKey===entry?.ownerKey&&serverState?.game?.turnKey===participantPlayerKey&&!entry.task.resolved}
-function renderGame(s){const g=s.game,entry=currentEntry(s);if(!entry?.task){renderError('Не удалось восстановить текущую задачу.');return}showOnly('game');setConnectedUI(true);const t=entry.task,pk=entry.ownerKey,st=normalizeStats(g.stats[pk]),canAnswer=taskCanAnswer(entry),canAdvance=role==='student'&&participantPlayerKey===pk&&t.resolved;$('turn-name').textContent=(g.players[pk]?.name||'Ученик').toUpperCase();$('task-no').textContent=`ЗАДАЧА ${entry.ownerTask}/10`;$('diamonds').textContent=st.diamonds;const cb=$('combo-box');cb.innerHTML='КОМБО ×<span id="combo">'+st.combo+'</span>';cb.classList.toggle('hot',st.combo>=3);$('progress').style.width=(st.completed/TASKS_PER_STUDENT*100)+'%';$('task-topic').textContent=t.topic+' · '+t.proto;$('task-text').textContent=t.text;$('legend').textContent=t.legend?'▸ '+t.legend:'';$('hint-text').style.display=t.hintUsed?'block':'none';$('hint-text').textContent=t.hintUsed?'💡 '+(t.step===1?t.hintT:t.hintE):'';$('step1').className='step '+(t.step===1?'active':'done');$('step2').className='step '+(t.step===2?'active':'');$('eq-wrap').style.display=t.step===2?'block':'none';$('bank-title').textContent=t.step===1?'ЯЩИК — перетащи блоки в ячейки таблицы':'ЯЩИК УРАВНЕНИЯ — собери равенство из блоков';$('btn-check').textContent=t.step===1?'ПРОВЕРИТЬ ТАБЛИЦУ':'ПРОВЕРИТЬ УРАВНЕНИЕ';$('btn-check').disabled=!canAnswer;$('btn-clear').disabled=!canAnswer;$('btn-hint').disabled=!canAnswer||t.hintUsed;$('btn-skip').disabled=!canAnswer;$('btn-next').hidden=!t.resolved;$('btn-next').disabled=!canAdvance;$('btn-next').textContent=(g.index===g.deck.length-1?'ЗАВЕРШИТЬ ИГРУ ▶':'СЛЕДУЮЩАЯ ЗАДАЧА ▶');renderTable(t,canAnswer);renderBank(t,canAnswer);renderEq(t,canAnswer);const row=$('game-system-row');row.innerHTML=role==='teacher'?'<button class="btn sys-finish" id="teacherFinishInline">⏹ ЗАВЕРШИТЬ ЗАНЯТИЕ</button>':'';if($('teacherFinishInline'))$('teacherFinishInline').onclick=teacherFinishLesson;updateSessionPanel();attachBoardLayer();consumeFeedback(t.feedback)}
+function renderGame(s){const g=s.game,entry=currentEntry(s);if(!entry?.task){renderError('Не удалось восстановить текущую задачу.');return}showOnly('game');setConnectedUI(true);const t=entry.task,pk=entry.ownerKey,st=normalizeStats(g.stats[pk]),canAnswer=taskCanAnswer(entry),canAdvance=role==='student'&&participantPlayerKey===pk&&t.resolved;$('turn-name').textContent=(g.players[pk]?.name||'Ученик').toUpperCase();$('task-no').textContent=`ЗАДАЧА ${entry.ownerTask}/${assignedTotal(s,pk)}`;$('diamonds').textContent=st.diamonds;const cb=$('combo-box');cb.innerHTML='КОМБО ×<span id="combo">'+st.combo+'</span>';cb.classList.toggle('hot',st.combo>=3);$('progress').style.width=(st.completed/assignedTotal(s,pk)*100)+'%';$('task-topic').textContent=t.topic+' · '+t.proto;$('task-text').textContent=t.text;$('legend').textContent=t.legend?'▸ '+t.legend:'';$('hint-text').style.display=t.hintUsed?'block':'none';$('hint-text').textContent=t.hintUsed?'💡 '+(t.step===1?t.hintT:t.hintE):'';$('step1').className='step '+(t.step===1?'active':'done');$('step2').className='step '+(t.step===2?'active':'');$('eq-wrap').style.display=t.step===2?'block':'none';$('bank-title').textContent=t.step===1?'ЯЩИК — перетащи блоки в ячейки таблицы':'ЯЩИК УРАВНЕНИЯ — собери равенство из блоков';$('btn-check').textContent=t.step===1?'ПРОВЕРИТЬ ТАБЛИЦУ':'ПРОВЕРИТЬ УРАВНЕНИЕ';$('btn-check').disabled=!canAnswer;$('btn-clear').disabled=!canAnswer;$('btn-hint').disabled=!canAnswer||t.hintUsed;$('btn-skip').disabled=!canAnswer;$('btn-next').hidden=!t.resolved;$('btn-next').disabled=!canAdvance;$('btn-next').textContent=(g.index===g.deck.length-1?'ЗАВЕРШИТЬ ИГРУ ▶':'СЛЕДУЮЩАЯ ЗАДАЧА ▶');renderTable(t,canAnswer);renderBank(t,canAnswer);renderEq(t,canAnswer);const row=$('game-system-row');row.innerHTML=role==='teacher'?'<button class="btn sys-finish" id="teacherFinishInline">⏹ ЗАВЕРШИТЬ ЗАНЯТИЕ</button>':'';if($('teacherFinishInline'))$('teacherFinishInline').onclick=teacherFinishLesson;updateSessionPanel();attachBoardLayer();consumeFeedback(t.feedback)}
 function renderTable(t,canAnswer){const tableEl=$('table');tableEl.innerHTML='';tableEl.style.gridTemplateColumns=`minmax(72px,auto) repeat(${t.cols.length}, minmax(62px,1fr))`;const corner=document.createElement('div');corner.className='th';tableEl.appendChild(corner);for(const c of t.cols){const th=document.createElement('div');th.className='th';th.textContent=c;tableEl.appendChild(th)}t.rows.forEach((rname,ri)=>{const rh=document.createElement('div');rh.className='rh';rh.textContent=rname;tableEl.appendChild(rh);t.cells[ri].forEach((_,ci)=>{const key=ri+','+ci,fill=t.fills[key],got=fill?.val||'';const el=document.createElement('div');el.className='cell'+(got?' has':'')+(t.step===2&&got?' src':'')+(t.step===1&&t.selectedBankId&&!got?' armed':'');el.textContent=got;el.dataset.key=key;el.dataset.drop='cell';if(canAnswer&&t.step===1){el.addEventListener('pointerdown',e=>{if(got)startDrag(e,got,{type:'cell',key},el);else tapCellShared(key)})}else if(canAnswer&&t.step===2&&got){el.addEventListener('pointerdown',e=>startDrag(e,got,{type:'src'},el))}tableEl.appendChild(el)})})}
 function renderBank(t,canAnswer){const bankEl=$('bank');bankEl.innerHTML='';bankEl.dataset.drop='bank';if(t.step===1){for(const b of t.bank){const el=document.createElement('div');el.className='tile k-'+kindOf(b.val)+(b.used?' used':'')+(t.selectedBankId===b.id?' sel':'');el.textContent=b.val;if(canAnswer&&!b.used)el.addEventListener('pointerdown',e=>startDrag(e,b.val,{type:'bank',id:b.id},el));bankEl.appendChild(el)}}else{for(const v of t.bank2){const el=document.createElement('div');el.className='tile k-'+kindOf(v);el.textContent=v;if(canAnswer)el.addEventListener('pointerdown',e=>startDrag(e,v,{type:'bank2'},el));bankEl.appendChild(el)}}}
 function renderEq(t,canAnswer){const eqLine=$('eq-line');eqLine.innerHTML='';eqLine.dataset.drop='eq';if(!t.eqLine.length){const s=document.createElement('span');s.id='eq-empty';s.textContent='пусто — перетащи сюда первый блок';eqLine.appendChild(s);return}t.eqLine.forEach((tok,i)=>{const el=document.createElement('div');el.className='tile k-'+kindOf(tok);el.textContent=tok;el.dataset.eqi=i;if(canAnswer)el.addEventListener('pointerdown',e=>startDrag(e,tok,{type:'eq',i},el));eqLine.appendChild(el)})}
@@ -624,7 +786,7 @@ function openRoleModal(){openLessonModal(`<button class="modal-x" id="modalClose
 function openTeacherLogin(){openLessonModal(`<button class="modal-x" id="modalClose">×</button><h2>ВХОД УЧИТЕЛЯ</h2><form class="code-form" id="teacherForm"><input class="code" id="teacherCodeInput" type="password" autocomplete="off" placeholder="КОД УЧИТЕЛЯ"><div class="status" id="teacherLoginStatus"></div><button class="btn go" type="submit">ПРОДОЛЖИТЬ</button></form>`);$('modalClose').onclick=closeLessonModal;$('teacherForm').onsubmit=handleTeacherLogin}
 function openTeacherActionChoice(){openLessonModal(`<button class="modal-x" id="modalClose">×</button><h2>ВЫБЕРИТЕ ДЕЙСТВИЕ</h2><p>Восстановить прошлую игру или начать новую.</p><div class="native-actions"><button class="btn go" id="restoreTeacher">ВОССТАНОВИТЬ ПРОШЛУЮ ИГРУ</button><button class="btn" id="newTeacher">НАЧАТЬ НОВУЮ ИГРУ</button></div><div class="status" id="teacherActionStatus"></div>`);$('modalClose').onclick=closeLessonModal;$('restoreTeacher').onclick=restoreTeacherSession;$('newTeacher').onclick=openNewSessionChooser}
 function openStudentLogin(){const saved=storedStudent();openLessonModal(`<button class="modal-x" id="modalClose">×</button><h2>ВХОД УЧЕНИКА</h2>${saved?.name&&saved?.code?`<p>Сохранён: <b>${esc(saved.name)}</b></p><div class="native-actions"><button class="btn go" id="useSavedStudent">ПОДКЛЮЧИТЬСЯ</button><button class="btn" id="otherStudent">СМЕНИТЬ УЧЕНИКА</button></div>`:`<form class="code-form" id="studentForm"><input class="code" id="studentCodeInput" autocomplete="off" placeholder="ЛИЧНЫЙ КОД"><div class="status" id="studentLoginStatus"></div><button class="btn go" type="submit">ПОДКЛЮЧИТЬСЯ</button></form>`}`);$('modalClose').onclick=closeLessonModal;if(saved?.name&&saved?.code){$('useSavedStudent').onclick=()=>connectStudent(saved,{verify:false});$('otherStudent').onclick=()=>{clearStoredStudent();student=null;openStudentLogin()}}else $('studentForm').onsubmit=handleStudentLogin}
-function openNewSessionChooser(){openLessonModal(`<button class="modal-x" id="modalClose">×</button><h2>НОВАЯ ИГРА</h2><p>Сколько учеников будет работать?</p><div class="role-grid"><button class="role-choice" data-limit="1"><b>1 УЧЕНИК</b><small>10 задач · все 8 семейств №10</small></button><button class="role-choice" data-limit="2"><b>2 УЧЕНИКА</b><small>по 10 каждому · строгая очередь</small></button></div>`);$('modalClose').onclick=closeLessonModal;document.querySelectorAll('[data-limit]').forEach(b=>b.onclick=()=>createFreshSession(Number(b.dataset.limit)))}
+function openNewSessionChooser(){openLessonModal(`<button class="modal-x" id="modalClose">×</button><h2>НОВАЯ ИГРА</h2><p>Сколько учеников будет работать?</p><div class="role-grid"><button class="role-choice" data-limit="1"><b>1 УЧЕНИК</b><small>15 задач · все 15 прототипов</small></button><button class="role-choice" data-limit="2"><b>2 УЧЕНИКА</b><small>по 15 каждому · случайный порядок</small></button></div>`);$('modalClose').onclick=closeLessonModal;document.querySelectorAll('[data-limit]').forEach(b=>b.onclick=()=>createFreshSession(Number(b.dataset.limit)))}
 async function handleTeacherLogin(e){e.preventDefault();const input=$('teacherCodeInput'),status=$('teacherLoginStatus');if(input.value.trim()!==TEACHER_CODE){status.className='status bad';status.textContent='Неверный код учителя';return}teacherAuthenticated=true;status.textContent='';openTeacherActionChoice()}
 async function restoreTeacherSession(){const status=$('teacherActionStatus');status.textContent='Загружаем прошлую игру…';try{const snap=await get(stateRef());if(!snap.exists()){status.className='status bad';status.textContent='Прошлая игра не найдена. Начните новую игру.';return}role='teacher';participantName='Учитель';serverState=normalizeState(snap.val());startSessionListeners();await registerPresence();setConnectedUI(true);closeLessonModal();renderFromState()}catch(e){status.className='status bad';status.textContent='Не удалось восстановить прошлую игру.'}}
 function studentFromResponse(data,code){if(!data||data.ok===false)return null;const d=data.student||data.data||data;const studentId=d.studentId||d.id||d.studentID||d.student_id||'';const name=d.studentName||d.name||d.fullName||d.student_name||'Ученик';return studentId?{studentId:String(studentId),name:String(name),code:String(code)}:null}
@@ -656,7 +818,7 @@ function writeQueue(q){try{localStorage.setItem(PENDING_RESULTS_KEY,JSON.stringi
 function queueResult(payload,pk){const q=readQueue();if(!q.some(x=>x?.payload?.eventId===payload.eventId))q.push({payload,playerKey:pk});writeQueue(q)}
 function removeQueued(eventId){writeQueue(readQueue().filter(x=>x?.payload?.eventId!==eventId))}
 async function postResult(payload){const response=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow'});let answer;try{answer=await response.json()}catch{throw new Error('Система результатов не ответила.')}if(!response.ok||!answer?.ok)throw new Error(answer?.error||'Результат не принят.');return answer}
-function resultPayload(s,pk){const g=s.game,p=g.players[pk],st=normalizeStats(g.stats[pk]),completed=st.completed,score=st.firstTryCorrect,maxScore=g.endedEarly?completed:TASKS_PER_STUDENT,percent=maxScore?Math.round(score/maxScore*100):0,finished=g.finishedAt||Date.now(),started=g.startedAt||finished,duration=Math.max(1,Math.round((finished-started)/1000));return{action:'submitTest',programId:'EGE_MATH',eventId:g.eventIds[pk]||`${g.sessionId}-${pk}`,studentId:p?.studentId||p?.code||'',studentName:p?.name||'',studentCode:p?.code||'',testId:TEST_META.testId,testName:TEST_META.testName,testDate:localDate(),topicId:TEST_META.topicId,topicName:TEST_META.topicName,taskNumber:TEST_META.taskNumber,correctCount:score,totalCount:maxScore,score,maxScore,percent,scorePercent:percent,startedAt:nowIso(started),finishedAt:nowIso(finished),durationSec:duration,durationSeconds:duration,answeredCount:completed,attemptCount:st.attemptCount,studentMode:g.studentLimit,mode:g.studentLimit===2?'two':'one',schemaVersion:TEST_META.schemaVersion,roomCode:FIXED_SESSION_ID}}
+function resultPayload(s,pk){const g=s.game,p=g.players[pk],st=normalizeStats(g.stats[pk]),completed=st.completed,score=st.firstTryCorrect,maxScore=g.endedEarly?completed:assignedTotal(s,pk),percent=maxScore?Math.round(score/maxScore*100):0,finished=g.finishedAt||Date.now(),started=g.startedAt||finished,duration=Math.max(1,Math.round((finished-started)/1000));return{action:'submitTest',programId:'EGE_MATH',eventId:g.eventIds[pk]||`${g.sessionId}-${pk}`,studentId:p?.studentId||p?.code||'',studentName:p?.name||'',studentCode:p?.code||'',testId:TEST_META.testId,testName:TEST_META.testName,testDate:localDate(),topicId:TEST_META.topicId,topicName:TEST_META.topicName,taskNumber:TEST_META.taskNumber,correctCount:score,totalCount:maxScore,score,maxScore,percent,scorePercent:percent,startedAt:nowIso(started),finishedAt:nowIso(finished),durationSec:duration,durationSeconds:duration,answeredCount:completed,attemptCount:st.attemptCount,studentMode:g.studentLimit,mode:g.studentLimit===2?'two':'one',schemaVersion:TEST_META.schemaVersion,roomCode:FIXED_SESSION_ID}}
 async function claimSubmission(pk){const eventId=serverState?.game?.eventIds?.[pk];if(!eventId)return false;const r=ref(database,`${lessonRoot()}/state/game/submissions/${pk}`),res=await runTransaction(r,current=>{if(current?.status==='saved')return;if(current?.status==='sending'&&Date.now()-(Number(current.updatedAt)||0)<8000)return;return{eventId,status:'sending',updatedAt:Date.now()}});return res.committed}
 async function markSubmission(pk,status,error=''){try{await update(ref(database,`${lessonRoot()}/state/game/submissions/${pk}`),{status,error,updatedAt:Date.now()})}catch{}}
 async function ensureSubmission(pk){if(!pk||submissionInFlight.has(pk)||!serverState||serverState.game.status!=='finished'||serverState.game.submissions?.[pk]?.status==='saved')return;submissionInFlight.add(pk);const snapshot=clone(serverState),payload=resultPayload(snapshot,pk);try{const claimed=await claimSubmission(pk);if(!claimed)return;if(!navigator.onLine)throw new Error('offline');await postResult(payload);removeQueued(payload.eventId);await markSubmission(pk,'saved','')}catch(err){queueResult(payload,pk);await markSubmission(pk,'queued',String(err?.message||'offline'))}finally{submissionInFlight.delete(pk)}}
