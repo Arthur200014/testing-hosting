@@ -367,6 +367,15 @@ body{zoom:.95}
 @media print{body{zoom:1}.worksheet-head,.teacher-roster{display:none!important}}
 </style>
 <style id="critical-values-stage-style">
+
+/* Precise parameter marks for the chapter-two slider */
+.critical-tick-track{height:20px;position:relative;margin:0 7px 8px;border-bottom:1px solid #b29d79}
+.critical-tick-track .critical-tick{position:absolute;left:0;bottom:-5px;transform:translateX(-50%);width:10px;height:18px;padding:0;border:0;background:transparent;cursor:pointer}
+.critical-tick-track .critical-tick:before{content:'';display:block;position:absolute;left:4px;top:2px;width:2px;height:14px;background:#9a5540;border-radius:2px}
+.critical-tick-track .critical-tick:hover:before,.critical-tick-track .critical-tick:focus-visible:before{width:4px;left:3px;background:#40271d}
+.critical-exact-mark{font-size:13px;font-weight:800;color:#735439;min-height:0;margin:5px 0}
+.critical-tick-track .critical-tick:first-child{z-index:1}
+
 /* Новая станция: контрольные значения параметра */
 .critical-lead{font-size:19px;line-height:1.4;max-width:980px;margin:12px 0 16px}
 .critical-alg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:14px 0 19px}
@@ -916,6 +925,7 @@ CV_CASES[0].original=REAL_SYSTEM_TASKS.find(t=>t.num===84).original;
 CV_CASES[0].requirement='Ровно два различных решения.';
 CV_CASES[1].original=String.raw`\begin{cases}\dfrac{y-|x^2-6x+8|}{\sqrt{x-1}}=0,\\y=2ax+2a.\end{cases}`;
 CV_CASES[1].requirement='Единственное решение.';
+CV_CASES[1].presets[1][1]='Касание: 4−√15';
 CV_CASES[2].original=String.raw`\begin{cases}x^2+y^2=2(1+a)x+2(1-a)y-2a^2,\\x^2+y^2=2x+2y.\end{cases}`;
 CV_CASES[2].requirement='Ровно два различных решения.';
 
@@ -957,6 +967,7 @@ cvTask(60).restrictions='Дано a>0; также 0≤x≤2 и 0≤ay≤2. Па�
 cvTask(60).transformed=cvTask(60).transformed.replace('\\begin{cases}', ' \\begin{cases}a>0,\\\\');
 cvTask(60).min=.01;cvTask(60).presets=[[.01,'a→0+'],[1,'a=1'],[2,'a=2'],[4,'a=4']];
 cvTask(63).max=30;cvTask(63).presets=[[0,'a=0'],[1,'a=1'],[25,'a=25'],[30,'a=30']];
+cvTask(93).presets=[[-4,'−4'],[2-2*Math.SQRT2,'2−2√2'],[0,'0'],[2*Math.SQRT2-2,'2√2−2'],[4,'4']];
 cvTask(66).presets=[[-4,'a=−4'],[-1,'Граница −1'],[0,'a=0'],[2,'Граница 2'],[4,'a=4']];
 cvTask(77).presets=[[-4.5,'a=−9/2'],[-.5,'a=−1/2'],[-.375,'a=−3/8'],[3.75,'a=15/4']];
 cvTask(78).presets=[[-Math.sqrt(89)/5,'−√89/5'],[-1.6,'−8/5'],[0,'a=0'],[1.6,'8/5'],[Math.sqrt(89)/5,'√89/5']];
@@ -1004,7 +1015,7 @@ function criticalMarkup(){const c=cvScene(),w=state.workshop;return `<section cl
  <div class="critical-alg"><div><b>1</b><strong>Отметь A, B, C…</strong><small>Узлы, касания, концы, выколотые точки</small></div><div><b>2</b><strong>Запиши координаты</strong><small>Из уравнений двух графиков</small></div><div><b>3</b><strong>Найди a</strong><small>Подстановка, D=0, f′=k, d=R</small></div><div><b>4</b><strong>Проверь границы</strong><small>Все значения a по возрастанию</small></div></div>
  <div class="critical-switch" id="cvTabs">${cvTaskSelector(c)}</div>
  <div class="critical-layout"><div class="critical-graph"><span class="graph-hint">Графики задания №${c.taskId} · плоскость ${c.axis==='xa'||['66','77','78'].includes(c.key)?'xOa':'xOy'}</span><canvas id="cvCanvas" width="${c.key==='circle'?800:1000}" height="${c.key==='circle'?800:580}" style="${c.key==='circle'?'max-width:630px;margin:auto;aspect-ratio:1':''}" aria-label="Графики задания №${c.taskId} при изменении параметра a"></canvas>
- <div class="critical-legend">${c.extra?'<span>Допустимые ветви</span><span>Подвижный график / уровень a</span><span>Проверь ограничения справа</span>':'<span>Неподвижные графики</span><span>График с параметром a</span><span>Общие точки</span><span>Граница ОДЗ</span>'}</div><div class="critical-parameter-box"><div class="critical-slider-head"><label for="cvRange">Параметр a</label><output id="cvValue">${cvNum(w["cvVal"+c.key]??c.init)}</output></div><input id="cvRange" type="range" min="${c.min}" max="${c.max}" step="any" value="${w["cvVal"+c.key]??c.init}" aria-label="Изменить параметр a"><div class="critical-parameter-tools"><button type="button" id="cvMinus" aria-label="Уменьшить параметр">−</button><input type="number" id="cvNumeric" step="${c.step||0.1}" value="${w["cvVal"+c.key]??c.init}" aria-label="Точное значение параметра a"><button type="button" id="cvPlus" aria-label="Увеличить параметр">+</button><button type="button" id="cvReset">Сброс a</button></div><div class="critical-zoom-tools"><button type="button" id="cvZoomIn">＋ Приблизить</button><button type="button" id="cvZoomOut">− Отдалить</button><button type="button" id="cvResetView">По центру</button><small>Перетаскивай график курсором</small></div><div class="critical-presets">${c.presets.map(([v,name])=>`<button type="button" data-cv-preset="${v}" title="Установить a=${v}">${name}</button>`).join("")}</div><div class="critical-count" id="cvCount" aria-live="polite"></div><div class="critical-status" id="cvStateHint"></div></div></div>
+ <div class="critical-legend">${c.extra?'<span>Допустимые ветви</span><span>Подвижный график / уровень a</span><span>Проверь ограничения справа</span>':'<span>Неподвижные графики</span><span>График с параметром a</span><span>Общие точки</span><span>Граница ОДЗ</span>'}</div><div class="critical-parameter-box"><div class="critical-slider-head"><label for="cvRange">Параметр a</label><output id="cvValue">${cvNum(w["cvVal"+c.key]??c.init)}</output></div><input id="cvRange" type="range" min="${c.min}" max="${c.max}" step="any" value="${w["cvVal"+c.key]??c.init}" aria-label="Изменить параметр a"><div class="critical-tick-track" aria-label="Отметки важных значений параметра">${c.presets.map(([v,label])=>`<button type="button" class="critical-tick" data-cv-preset="${v}" style="left:${Math.max(0,Math.min(100,(v-c.min)/(c.max-c.min)*100))}%" title="a = ${label}" aria-label="Перейти к ${label}"></button>`).join("")}</div><div class="critical-exact-mark" id="cvExactMark" aria-live="polite"></div><div class="critical-parameter-tools"><button type="button" id="cvMinus" aria-label="Уменьшить параметр">−</button><input type="text" inputmode="decimal" id="cvNumeric" value="${w["cvVal"+c.key]??c.init}" aria-label="Точное значение параметра a"><button type="button" id="cvPlus" aria-label="Увеличить параметр">+</button><button type="button" id="cvReset">Сброс a</button></div><div class="critical-zoom-tools"><button type="button" id="cvZoomIn">＋ Приблизить</button><button type="button" id="cvZoomOut">− Отдалить</button><button type="button" id="cvResetView">По центру</button><small>Перетаскивай график курсором</small></div><div class="critical-presets">${c.presets.map(([v,name])=>`<button type="button" data-cv-preset="${v}" title="Установить a=${v}">${name}</button>`).join("")}</div><div class="critical-count" id="cvCount" aria-live="polite"></div><div class="critical-status" id="cvStateHint"></div></div></div>
  <aside class="critical-controls"><div class="critical-task-id">${c.src}</div><div class="critical-source"><h3>Исходное условие</h3><div class="critical-original">\\[${c.original}\\]</div><p>${c.requirement}</p></div><h3>Преобразованная система с ограничениями</h3>
  <div class="critical-transformed">${c.transformed}</div>
  <div class="critical-odz"><b>Ограничения.</b> ${c.restrictions}</div>
@@ -1337,7 +1348,8 @@ function cvDrawExtra(){
  const count=$('#cvCount');if(count)count.textContent='Допустимых различных решений: '+intersections.length;
  const value=$('#cvValue');if(value)value.textContent='a = '+cvNum(a);
  const numeric=$('#cvNumeric');if(numeric&&document.activeElement!==numeric)numeric.value=a;
- const live=$('#cvLiveEq');if(live)live.textContent='a = '+cvNum(a);
+ cvCurrentMark(c,a);
+  const live=$('#cvLiveEq');if(live)live.textContent='a = '+cvNum(a);
  const hint=$('#cvStateHint');if(hint)hint.textContent=cvMotionHint(c,a);
 }
 
@@ -1397,7 +1409,8 @@ function cvDraw(){
  const count=document.getElementById('cvCount');
  if(count)count.textContent='Общих точек: '+(c.key==='circle'&&Math.abs(a)<1e-9?'бесконечно много':pts.length);
  const value=document.getElementById('cvValue');if(value)value.textContent='a = '+cvNum(a);
- const live=document.getElementById('cvLiveEq');if(live)live.textContent=cvLiveEquation(c,a);
+ cvCurrentMark(c,a);
+  const live=document.getElementById('cvLiveEq');if(live)live.textContent=cvLiveEquation(c,a);
  const hint=document.getElementById('cvStateHint');if(hint)hint.textContent=cvMotionHint(c,a);
 }
 function cvFillPointCards(){
@@ -1410,8 +1423,9 @@ function cvFillPointCards(){
 }
 function cvStepRender(){const c=cvScene();let i=Math.max(0,Math.min(c.steps.length-1,Number(state.workshop['cvStep'+c.key]||0)));const s=c.steps[i];$('#cvStep').innerHTML=`<b>${s[0]}</b><div>${s[1]}</div>${s[2]?`<span class="mathline">${s[2]}</span>`:''}`;$('#cvStepPosition').textContent=(i+1)+' / '+c.steps.length;$('#cvPrev').disabled=i===0;$('#cvNext').disabled=i===c.steps.length-1;}
 function cvQuizRender(){const c=cvScene(),select=$('#cvAnswer');$('#cvQuestion').textContent=c.test;select.innerHTML='<option value="">Выбери ответ</option>'+c.answers.map(([label,v],i)=>`<option value="${i}">${label}</option>`).join('');let idx=state.workshop['cvQuiz'+c.key];if(idx!==undefined)select.value=String(idx);$('#cvFeedback').textContent=idx===undefined?'':(c.answers[Number(idx)]?.[1]===c.right?'✓ Верно. ':'Проверь ещё раз. ')+c.why;}
+function cvCurrentMark(c,a){const out=$('#cvExactMark');if(!out)return;const p=c.presets.find(([v])=>Math.abs(Number(v)-a)<1e-10);out.textContent=p?'Точная отметка: a = '+p[1]:'';}
 function cvApplyValue(raw){
- const c=cvScene(),v=Number(raw);if(!Number.isFinite(v))return;
+ const c=cvScene(),str=String(raw).trim().replace(',','.');if(!str)return;const v=Number(str);if(!Number.isFinite(v))return;
  const a=Math.max(c.min,Math.min(c.max,v));workshopSet('cvVal'+c.key,a);
  const r=$('#cvRange');if(r)r.value=a;const n=$('#cvNumeric');if(n&&document.activeElement!==n)n.value=a;
  cvDraw();if(c.key==='circle')cvFillPointCards();
