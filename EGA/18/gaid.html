@@ -974,7 +974,104 @@ function criticalMarkup(){const c=cvScene(),w=state.workshop;return `<section cl
  <div class="critical-work"><h3 class="section-title">Реши самостоятельно</h3><p>Обозначь точки на графике буквами, выпиши их координаты и все найденные a.</p><div class="worksheet"><div class="worksheet-head"><b class="drag-grip" title="Переместить инструменты">⠿</b><button class="board-collapse" title="Свернуть панель">−</button><button class="tool" data-tool="cursor" title="Курсор">↖</button><button class="tool" data-tool="pen" title="Карандаш">✎</button><button class="tool" data-tool="eraser" title="Ластик">⌫</button><button class="tool" id="undoInk" title="Отменить">↶</button><button class="tool" id="clearInk" title="Очистить">⌧</button><input id="inkColor" type="color" value="${inkColor}" title="Цвет карандаша"/><input id="inkWidth" type="range" min="2" max="14" value="4" title="Толщина карандаша"/></div><div class="worksheet-grid"><div class="draw-area graph-board"><canvas id="inkCanvas" width="750" height="600" aria-label="Поле для записи решения"></canvas></div></div></div></div>
  <div class="foot-actions"><button type="button" class="secondary" id="cvBackToGraphs">← Построение графиков</button><button type="button" class="accent" id="cvFurther">К практике →</button></div></section>`}
 function renderCriticalLesson(){stopPlay();stopSpeed();$('#lessonHost').innerHTML=criticalMarkup();bindCriticalLesson();updateMenu();updateProgress();updateStatus();if(state.connected)subscribeInk();formula()}
+
+function cvDrawExtra(){
+ const c=cvScene(),canvas=$('#cvCanvas');if(!canvas)return;
+ const a=Number(state.workshop['cvVal'+c.key]??c.init),id=Number(c.key),
+ ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height,m=50,
+ xmin=c.xmin,xmax=c.xmax,ymin=c.ymin,ymax=c.ymax,
+ X=x=>m+(x-xmin)*(W-2*m)/(xmax-xmin),Y=y=>H-m-(y-ymin)*(H-2*m)/(ymax-y);
+ const green='#278168',red='#bc4c3d',boundary='#ad9470',shapes=[];
+ const F=(f,ok=()=>true,color=green,dash=false)=>shapes.push({type:'graph',f,ok,color,dash});
+ const V=(x,ok=()=>true,color=green,dash=false)=>shapes.push({type:'vertical',x,ok,color,dash});
+ const C=(x,y,r,ok=()=>true,color=green)=>shapes.push({type:'circle',x,y,r,ok,color});
+ const H=()=>F(()=>a,()=>true,red);
+ const ab=Math.abs;
+ switch(id){
+  case 85:
+   F(x=>2*x-x*x,x=>x>=0&&x<=2);F(x=>x*x-2*x,x=>x>=0&&x<=2);
+   F(x=>ab(x-a)-1,()=>true,red);break;
+  case 86:
+   F(x=>3/x-2,x=>x>0&&x<=1.5);
+   F(x=>2-3/x,x=>x>0&&x<=1.5);
+   if(ab(a)<1e-9)V(1.5,()=>true,red);else F(x=>(3-a-2*x)/(2*a),()=>true,red);break;
+  case 93:
+   F(x=>Math.sqrt(4-x*x),x=>ab(x)<=2);
+   F(x=>2-ab(x-a),x=>ab(x-a)<=2,red);break;
+  case 82:
+   F(x=>ab(x+1)+ab(x-3),(x,y)=>x+y<=10+1e-7);
+   F(x=>10-x);
+   F(x=>x+a,(x,y)=>x+y<=10+1e-7,red);break;
+  case 66:
+   F(x=>-(2+ab(x-1))/(ab(x+1)-ab(x-1)),x=>ab(x)>1e-6);
+   H();break;
+  case 79:
+   C(-3,0,3,(x,y)=>x+y+6>=-1e-7);
+   F(x=>-x-6);
+   F(x=>x+a,(x,y)=>x+y+6>=-1e-7,red);break;
+  case 81:
+   F(x=>1-8/x,(x,y)=>ab(x)>1e-6&&y>=x-8-1e-7);
+   F(x=>x-8);
+   F(x=>2*x+a,(x,y)=>y>=x-8-1e-7,red);break;
+  case 69:
+   F(x=>3,x=>x>=3);
+   F(x=>3/x,x=>x>=3);
+   V(3);
+   F(x=>a*x,x=>x>=3,red);break;
+  case 75:
+   F(x=>2);
+   F(x=>4/x,(x,y)=>ab(x)>1e-6&&y<4-1e-7);
+   F(x=>a*x,(x,y)=>y<4-1e-7,red);break;
+  case 78:
+   V(1.4,(x,y)=>x*x-6*x+10-y*y>1e-9);
+   F(x=>x-3,(x,y)=>x>=1.4&&x<=3&&x*x-6*x+10-y*y>1e-9);
+   F(x=>3-x,(x,y)=>x>=1.4&&x<=3&&x*x-6*x+10-y*y>1e-9);
+   H();break;
+  case 77:
+   V(.75,(x,y)=>y<5*x&&y>-6*x);
+   F(x=>-x/2,(x,y)=>x>=.75&&x<=1&&y<5*x&&y>-6*x);
+   H();break;
+ }
+ ctx.clearRect(0,0,W,H);ctx.fillStyle='#fffdf8';ctx.fillRect(0,0,W,H);
+ ctx.font='12px system-ui';ctx.lineWidth=1;
+ const dx=Math.max(.2,Math.ceil((xmax-xmin)/14));
+ const dy=Math.max(.2,Math.ceil((ymax-ymin)/12));
+ for(let k=Math.ceil(xmin/dx);k<=Math.floor(xmax/dx);k++){const x=k*dx;ctx.beginPath();ctx.moveTo(X(x),m);ctx.lineTo(X(x),H-m);ctx.strokeStyle='#e9e4d9';ctx.stroke();ctx.fillStyle='#746d60';ctx.fillText(Number(x.toFixed(2)),X(x)+3,H-m+16);}
+ for(let k=Math.ceil(ymin/dy);k<=Math.floor(ymax/dy);k++){const y=k*dy;ctx.beginPath();ctx.moveTo(m,Y(y));ctx.lineTo(W-m,Y(y));ctx.strokeStyle='#e9e4d9';ctx.stroke();ctx.fillStyle='#746d60';ctx.fillText(Number(y.toFixed(2)),m-41,Y(y)-4);}
+ ctx.strokeStyle='#878a7b';ctx.lineWidth=2;ctx.beginPath();
+ if(xmin<=0&&xmax>=0){ctx.moveTo(X(0),m);ctx.lineTo(X(0),H-m);}
+ if(ymin<=0&&ymax>=0){ctx.moveTo(m,Y(0));ctx.lineTo(W-m,Y(0));}
+ ctx.stroke();ctx.fillStyle='#4a554d';ctx.font='bold 16px system-ui';
+ ctx.fillText('x',W-m+10,H-m+5);ctx.fillText([66,77,78].includes(id)?'a':'y',m+7,m-15);
+ ctx.save();ctx.beginPath();ctx.rect(m,m,W-2*m,H-2*m);ctx.clip();
+ for(const o of shapes){
+  ctx.beginPath();ctx.strokeStyle=o.color;ctx.lineWidth=o.dash?2:3.5;ctx.lineCap='round';ctx.lineJoin='round';ctx.setLineDash(o.dash?[7,6]:[]);
+  let started=false,last=null;const steps=o.type==='circle'?2800:2600;
+  for(let k=0;k<=steps;k++){
+   let x,y;
+   if(o.type==='circle'){const t=2*Math.PI*k/steps;x=o.x+o.r*Math.cos(t);y=o.y+o.r*Math.sin(t);}
+   else if(o.type==='vertical'){x=o.x;y=ymin+(ymax-ymin)*k/steps;}
+   else{x=xmin+(xmax-xmin)*k/steps;y=o.f(x);}
+   const valid=Number.isFinite(x)&&Number.isFinite(y)&&x>=xmin-1e-7&&x<=xmax+1e-7&&y>=ymin-1e-7&&y<=ymax+1e-7&&o.ok(x,y);
+   if(!valid){started=false;last=null;continue;}
+   const px=X(x),py=Y(y);
+   if(!started||(last&&Math.hypot(px-last[0],py-last[1])>70))ctx.moveTo(px,py);else ctx.lineTo(px,py);
+   last=[px,py];started=true;
+  }ctx.stroke();
+ }
+ ctx.setLineDash([]);
+ if(id===75){ctx.beginPath();ctx.moveTo(m,Y(4));ctx.lineTo(W-m,Y(4));ctx.strokeStyle=boundary;ctx.setLineDash([8,7]);ctx.lineWidth=1.5;ctx.stroke();ctx.setLineDash([]);}
+ if(id===86){ctx.beginPath();ctx.moveTo(X(0),m);ctx.lineTo(X(0),H-m);ctx.strokeStyle=boundary;ctx.setLineDash([7,6]);ctx.lineWidth=1.4;ctx.stroke();ctx.setLineDash([]);}
+ ctx.restore();
+ const count=$('#cvCount');if(count)count.textContent='Пересечения: исследуй на графике (точный подсчёт для этого номера ещё не включён).';
+ const value=$('#cvValue');if(value)value.textContent='a = '+cvNum(a);
+ const numeric=$('#cvNumeric');if(numeric&&document.activeElement!==numeric)numeric.value=a;
+ const live=$('#cvLiveEq');if(live)live.textContent='a = '+cvNum(a);
+ const hint=$('#cvStateHint');if(hint)hint.textContent=cvMotionHint(c,a);
+}
+
 function cvDraw(){
+ if(cvScene().extra){cvDrawExtra();return;}
  const c=cvScene(),w=state.workshop,cv=$('#cvCanvas');if(!cv)return;
  const ctx=cv.getContext('2d'),W=cv.width,H=cv.height,m=52,xmin=c.xmin,xmax=c.xmax,ymin=c.ymin,ymax=c.ymax;
  let a=Number(w['cvVal'+c.key]??c.init);if(!Number.isFinite(a))a=c.init;
