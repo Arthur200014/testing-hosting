@@ -24,21 +24,7 @@
 <body>
 <header><a class="brand" href="./"><span class="mark">◉</span>Call Lab</a><div class="chip"><span class="dot"></span><span>Тестовая видеосвязь</span></div></header>
 <main class="shell">
-<section id="home" class="home"><div class="eyebrow">Звонки без регистрации</div><h1 id="homeTitle">Видеозвонок<br>в один клик.</h1><p id="homeLead" class="lead">Начни встречу, отправь ссылку человеку и общайтесь прямо в браузере. Ничего устанавливать не нужно.</p><div class="panel start"><button id="startBtn" class="btn primary">◉ <span id="startText">Начать видеозвонок</span></button><p id="startHint">Разреши доступ к камере и микрофону в браузере</p></div><details class="tele-panel" id="telePanel">
-<summary>Создать встречу через Яндекс Телемост</summary>
-<p class="subnote">Звонок откроется на стороне Яндекса. Для создания нужен защищённый сервер с настроенным OAuth-токеном — токен в это поле вводить НЕ нужно.</p>
-<label for="teleServer">Адрес API-сервера (если отдельно от сайта)</label>
-<input type="url" id="teleServer" placeholder="https://адрес-твоего-сервера" autocomplete="url">
-<label for="telePin">Код администратора (ADMIN_PIN, не OAuth-токен)</label>
-<input type="password" id="telePin" placeholder="Код из настроек сервера" autocomplete="off">
-<button type="button" class="btn primary" id="teleCreate" style="margin-top:17px">Создать встречу в Телемосте</button>
-<div class="tele-error" id="teleError" role="status"></div>
-<div class="tele-result hidden" id="teleResult">
-<strong>Встреча создана!</strong>
-<div class="tele-url" id="teleUrl"></div>
-<div class="tele-actions"><button type="button" class="btn" id="teleCopy">Скопировать ссылку</button><a class="btn primary" id="teleOpen" target="_blank" rel="noopener noreferrer">Войти во встречу</a></div>
-</div>
-</details>
+<section id="home" class="home"><div class="eyebrow">Звонки без регистрации</div><h1 id="homeTitle">Видеозвонок<br>в один клик.</h1><p id="homeLead" class="lead">Начни встречу, отправь ссылку человеку и общайтесь прямо в браузере. Ничего устанавливать не нужно.</p><div class="panel start"><button id="startBtn" class="btn primary">◉ <span id="startText">Начать видеозвонок</span></button><p id="startHint">Разреши доступ к камере и микрофону в браузере</p></div><div class="tele-panel"><strong>Яндекс Телемост</strong><p class="subnote">Создать настоящую встречу через GitHub Actions. Ссылка появится в Summary завершённого запуска.</p><a class="btn primary" href="https://github.com/Arthur200014/testing-hosting/actions/workflows/telemost-create.yml" target="_blank" rel="noopener noreferrer">Открыть создание встречи ↗</a><p class="subnote">В GitHub нажми Run workflow. Токен хранится в GitHub Secrets, а не на сайте.</p></div>
 <p class="help">Свой видеозвонок работает здесь в браузере. Телемост создаёт ссылку на встречу на стороне Яндекса.</p></section>
 <section id="call" class="hidden"><div class="call-head"><div><h2>Комната звонка</h2><div class="status"><span class="dot"></span><span id="status">Ожидаем подключения</span></div></div><div class="time" id="timer">00:00</div></div><div class="videos"><div class="video remote" id="remoteBox"><video id="remoteVideo" autoplay playsinline></video><div class="placeholder" id="remotePlaceholder"><div class="avatar">☺</div><strong>Ожидаем собеседника</strong><small>Отправь ему ссылку</small></div><div class="label">Собеседник</div></div><div class="video local"><video id="localVideo" autoplay playsinline muted></video><div class="placeholder hidden" id="localPlaceholder"><div class="avatar">◉</div><strong>Камера выключена</strong></div><div class="label">Вы</div></div></div><div class="panel invitation"><div class="invite-txt"><strong>Пригласить в звонок</strong><div class="url" id="inviteUrl">Подготавливаем ссылку…</div></div><button id="copyBtn" class="btn">▢ Скопировать</button></div><div class="controls"><button id="micBtn" class="btn">🎙 Микрофон</button><button id="cameraBtn" class="btn">▣ Камера</button><button id="screenBtn" class="btn">▤ Экран</button><button id="leaveBtn" class="btn danger">✕ Завершить</button></div><p class="help">Для связи используется WebRTC и публичный сервер сигнализации PeerJS. Тест рассчитан на двух участников; в некоторых сетях потребуется TURN-сервер.</p></section>
 <section id="ended" class="panel end hidden"><div class="eyebrow">Call Lab</div><h2>Звонок завершён</h2><p id="endText">Ты вышел из комнаты.</p><a class="btn primary" href="./">Новый звонок</a></section>
@@ -69,37 +55,6 @@ async function start(){if(active)return;if(isGuest&&!safeTarget){notify('Нек�
 function stopResources(){clearInterval(clock);if(screenStream){screenStream.getTracks().forEach(t=>t.stop());screenStream=null;}if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}if(mediaCall){try{mediaCall.close();}catch{}mediaCall=null;}if(dataConn){try{dataConn.close();}catch{}dataConn=null;}if(peer){try{peer.destroy();}catch{}peer=null;}ui.local.srcObject=null;ui.remote.srcObject=null;active=false;}
 function finish(message,signal){if(leaving)return;leaving=true;if(signal&&dataConn?.open){try{dataConn.send({type:isGuest?'left':'ended'});}catch{}}stopResources();ui.endText.textContent=message;show(ui.ended);}
 ui.start.addEventListener('click',start);
-
-const tCreate=$('teleCreate'),tServer=$('teleServer'),tPin=$('telePin'),tError=$('teleError'),tResult=$('teleResult'),tUrl=$('teleUrl'),tOpen=$('teleOpen');
-try{tServer.value=localStorage.getItem('call-lab-telemost-server')||'';}catch{}
-tCreate.addEventListener('click',async()=>{
-  tError.textContent='';tResult.classList.add('hidden');
-  let origin;
-  try{
-    const u=new URL((tServer.value||location.origin).trim());
-    if(u.username||u.password||(u.protocol!=='https:'&&u.hostname!=='localhost'&&u.hostname!=='127.0.0.1'))throw Error('Нужен HTTPS-адрес сервера');
-    origin=u.origin;
-  }catch(e){tError.textContent='Укажи корректный HTTPS-адрес API-сервера.';return;}
-  if(!tPin.value){tError.textContent='Введи ADMIN_PIN, который задан на сервере. Это не OAuth-токен.';return;}
-  try{localStorage.setItem('call-lab-telemost-server',tServer.value);}catch{}
-  tCreate.disabled=true;tCreate.textContent='Создаём встречу…';
-  try{
-    const response=await fetch(origin+'/api/telemost/create',{method:'POST',headers:{'X-Admin-Pin':tPin.value},signal:AbortSignal.timeout(18000)});
-    const result=await response.json();
-    if(!response.ok)throw Error([result.error,result.code,result.detail].filter(Boolean).join(' · '));
-    const link=new URL(result.join_url);
-    if(link.protocol!=='https:'||link.hostname!=='telemost.yandex.ru')throw Error('Сервер вернул некорректную ссылку');
-    tUrl.textContent=link.href;tOpen.href=link.href;tResult.classList.remove('hidden');
-    tPin.value='';
-    notify('Встреча создана!');
-  }catch(e){
-    tError.textContent=e instanceof TypeError?'Не удалось связаться с сервером. Проверь HTTPS-адрес, запуск сервера и разрешённый CORS.':(e.message||'Ошибка создания встречи');
-  }finally{tCreate.disabled=false;tCreate.textContent='Создать встречу в Телемосте';}
-});
-$('teleCopy').addEventListener('click',async()=>{
-  try{await navigator.clipboard.writeText(tUrl.textContent);notify('Ссылка Телемоста скопирована');}
-  catch{notify('Не удалось скопировать ссылку автоматически');}
-});
 
 ui.copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(ui.invite.textContent);notify('Ссылка скопирована');}catch{notify('Скопируй ссылку вручную');}});
 ui.mic.addEventListener('click',()=>{if(!localStream)return;const tracks=localStream.getAudioTracks();if(!tracks.length)return notify('Микрофон не найден');const enabled=!tracks[0].enabled;tracks.forEach(t=>t.enabled=enabled);ui.mic.textContent=enabled?'🎙 Микрофон':'🔇 Без звука';});
