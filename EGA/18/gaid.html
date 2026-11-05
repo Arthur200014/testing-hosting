@@ -581,16 +581,16 @@ const labs=[
  {label:'Карта допустимых областей',eq:'x≥1 и x²≤a',min:-1,max:5,step:.25,start:0,presets:[0,.5,1,2,4],hint:'Есть ли хоть одна точка выше параболы и правее x=1?',mode:'exist'},
  {label:'Экзаменационная миссия',eq:'x²+y²=4 и y=a(x−3)',min:-2,max:2,step:.05,start:0,presets:[-1,-.9,0,.9,1],hint:'Сравни расстояние от центра до вращающейся прямой с радиусом 2.',mode:'intersections'}
 ];
-const state={lesson:-1, workshop:{}, values:Object.fromEntries(labs.map((b,i)=>[i+1,b.start])), answers:{},notes:{},ink:{}, reveal:{}, progress:{},assignment:{},room:'',role:'',person:'', connected:false,remote:false};
+const state={lesson:-1, workshop:{}, values:Object.fromEntries(labs.map((b,i)=>[i+1,b.start])), answers:{},notes:{},ink:{}, reveal:{}, progress:{},ui:{},assignment:{},room:'',role:'',person:'', connected:false,remote:false};
 let channel=null,db=null,fb=null,root='',remoteUnsubs=[],seen={},pencil='cursor',inkColor='#8e2d2b',inkWidth=3,painting=null,playTimer=null,autosound=false,taskFilter={search:'',chapter:0,level:0};
 let roomSubInk=null,strokeSendTime=0,changeNotesTimer=null;
 const canSave=()=>{try{localStorage.setItem('_test_storage','1');localStorage.removeItem('_test_storage');return true}catch{return false}};
 const cacheKey=()=>`PARAMETERS_GUIDE_V3_${state.room||'offline'}`;
 let saveTimer=null;
-function flushLocal(){if(!canSave())return;try{localStorage.setItem(cacheKey(),JSON.stringify({lesson:state.lesson,values:state.values,answers:state.answers,notes:state.notes,ink:state.ink,progress:state.progress,assignment:state.assignment,workshop:state.workshop}))}catch{}}
+function flushLocal(){if(!canSave())return;try{localStorage.setItem(cacheKey(),JSON.stringify({lesson:state.lesson,values:state.values,answers:state.answers,notes:state.notes,ink:state.ink,progress:state.progress,ui:state.ui,assignment:state.assignment,workshop:state.workshop}))}catch{}}
 function saveLocal(){clearTimeout(saveTimer);saveTimer=setTimeout(flushLocal,450)}
 window.addEventListener('pagehide',()=>{clearTimeout(saveTimer);flushLocal()});
-function restoreLocal(){if(!canSave())return;try{const o=JSON.parse(localStorage.getItem(cacheKey())||'null');if(!o)return;for(const k of ['values','answers','notes','ink','progress','assignment','workshop'])Object.assign(state[k],o[k]||{});state.lesson=(o.lesson===0?0:Number(o.lesson)||0)}catch{}}
+function restoreLocal(){if(!canSave())return;try{const o=JSON.parse(localStorage.getItem(cacheKey())||'null');if(!o)return;for(const k of ['values','answers','notes','ink','progress','ui','assignment','workshop'])Object.assign(state[k],o[k]||{});state.lesson=(o.lesson===0?0:Number(o.lesson)||0)}catch{}}
 function toast(s){let el=$('#toast');el.textContent=s;el.classList.add('show');clearTimeout(el.timer);el.timer=setTimeout(()=>el.classList.remove('show'),3500)}
 let formulaFrame=0,formulaRun=0;
 function formula(){cancelAnimationFrame(formulaFrame);const run=++formulaRun;formulaFrame=requestAnimationFrame(()=>{const host=$('#lessonHost');if(run!==formulaRun||!host?.isConnected)return;if(window.MathJax?.typesetPromise)window.MathJax.typesetPromise([host]).catch(()=>{})})}
@@ -777,7 +777,7 @@ function bindWorkshop(){
  
  $('#wkDone').addEventListener('click',()=>{state.progress[0]=true;saveLocal();broadcast('progress:0',true);updateMenu();updateProgress();toast('Графический полигон отмечен как освоенный.');});$('#wkNextLesson').addEventListener('click',()=>showLesson(0.5));
  $('#workNotes').value=state.notes[0]||'';$('#workNotes').addEventListener('input',()=>{state.notes[0]=$('#workNotes').value;saveLocal();clearTimeout(changeNotesTimer);changeNotesTimer=setTimeout(()=>broadcast('notes:0',state.notes[0]),450)});
- $$('[data-tool]').forEach(b=>b.addEventListener('click',()=>selectTool(b.dataset.tool)));$('#undoInk').addEventListener('click',undo);$('#clearInk').addEventListener('click',()=>{if(confirm('Очистить доску у всех участников комнаты?'))clearInk()});$('#inkColor').addEventListener('input',ev=>{inkColor=ev.target.value});$('#inkWidth').addEventListener('change',ev=>{inkWidth=+ev.target.value});initInkCanvas();selectTool(pencil);setupBoardToolbar();
+ $$('[data-tool]').forEach(b=>b.addEventListener('click',()=>{selectTool(b.dataset.tool);broadcast('tool',b.dataset.tool)}));$('#undoInk').addEventListener('click',undo);$('#clearInk').addEventListener('click',()=>{if(confirm('Очистить доску у всех участников комнаты?'))clearInk()});$('#inkColor').addEventListener('input',ev=>{inkColor=ev.target.value;broadcast('toolColor',inkColor)});$('#inkWidth').addEventListener('change',ev=>{inkWidth=+ev.target.value;broadcast('toolWidth',inkWidth)});initInkCanvas();selectTool(pencil);setupBoardToolbar();
  for(let i=0;i<DRILLS.length;i++)updateMicro(i);
 }
 function graphValue(fn,x,w){const a=Number(w.a??1),h=Number(w.h??0),k=Number(w.k??0),c=Number(w.c??1);
@@ -1118,7 +1118,7 @@ function criticalMarkup(){const c=cvScene(),w=state.workshop,metric=cvIsMetricGr
  <div class="critical-proof-list"><h3>Контрольные точки — полные обоснования</h3><p>Нажми на обозначение точки, чтобы раскрыть готовое оформление решения.</p>${cvProofMarkup(c)}</div>
  <div class="critical-work"><h3 class="section-title">Реши самостоятельно</h3><p>Обозначь точки на графике буквами, выпиши их координаты и все найденные a.</p><div class="worksheet"><div class="worksheet-head"><b class="drag-grip" title="Переместить инструменты">⠿</b><button class="board-collapse" title="Свернуть панель">−</button><button class="tool" data-tool="cursor" title="Курсор">↖</button><button class="tool" data-tool="pen" title="Карандаш">✎</button><button class="tool" data-tool="eraser" title="Ластик">⌫</button><button class="tool" id="undoInk" title="Отменить">↶</button><button class="tool" id="clearInk" title="Очистить">⌧</button><input id="inkColor" type="color" value="${inkColor}" title="Цвет карандаша"/><input id="inkWidth" type="range" min="2" max="14" value="4" title="Толщина карандаша"/></div><div class="worksheet-grid"><div class="draw-area graph-board"><canvas id="inkCanvas" width="750" height="600" aria-label="Поле для записи решения"></canvas></div></div></div></div>
  <div class="foot-actions"><button type="button" class="secondary" id="cvBackToGraphs">← Построение графиков</button><button type="button" class="accent" id="cvFurther">К практике →</button></div></section>`}
-function renderCriticalLesson(){stopPlay();stopSpeed();$('#lessonHost').innerHTML=criticalMarkup();bindCriticalLesson();updateMenu();updateProgress();updateStatus();if(state.connected)subscribeInk();formula()}
+function renderCriticalLesson(){stopPlay();stopSpeed();$('#lessonHost').innerHTML=criticalMarkup();bindCriticalLesson();updateMenu();updateProgress();updateStatus();if(state.connected)subscribeInk();formula();restoreMirroredUI()}
 
 
 
@@ -1578,8 +1578,8 @@ function bindCriticalLesson(){const w=state.workshop;
  cvBindPan();
 
  $('#cvBackToGraphs').addEventListener('click',()=>showLesson(0));$('#cvFurther').addEventListener('click',()=>showLesson(5));
- $$('[data-tool]').forEach(b=>b.addEventListener('click',()=>selectTool(b.dataset.tool)));
- $('#inkColor').addEventListener('input',ev=>{inkColor=ev.target.value});$('#inkWidth').addEventListener('input',ev=>{inkWidth=Number(ev.target.value)});
+ $$('[data-tool]').forEach(b=>b.addEventListener('click',()=>{selectTool(b.dataset.tool);broadcast('tool',b.dataset.tool)}));
+ $('#inkColor').addEventListener('input',ev=>{inkColor=ev.target.value;broadcast('toolColor',inkColor)});$('#inkWidth').addEventListener('input',ev=>{inkWidth=Number(ev.target.value);broadcast('toolWidth',inkWidth)});
  $('#undoInk').addEventListener('click',undo);$('#clearInk').addEventListener('click',clearInk);
  initInkCanvas();setupBoardToolbar();cvDraw();}
 function cvRemoteUpdate(key){if(state.lesson!==0.5)return;const c=cvScene();if(key==='cvCase'){renderCriticalLesson();return;}if(key==='cvVal'+c.key){const r=$('#cvRange');if(r)r.value=state.workshop[key];cvDraw()}else if(key.startsWith('cvZoom')||key.startsWith('cvPan'))cvDraw();else if(key.startsWith('cvShow'))cvFillPointCards();}
@@ -1595,11 +1595,11 @@ function renderLessonBody(){if(state.lesson===-1){renderIntro();return;}if(state
  $('#prevLesson').addEventListener('click',()=>showLesson(state.lesson===5?0:state.lesson-1));$('#nextLesson').addEventListener('click',()=>showLesson(state.lesson+1));
  $('#completeLesson').addEventListener('click',()=>{state.progress[state.lesson]=true;saveLocal();broadcast('progress:'+state.lesson,true);updateMenu();updateProgress();toast('Занятие отмечено как освоенное. Следующий шаг — самостоятельная практика.');});
  $('#workNotes').value=state.notes[state.lesson]||'';$('#workNotes').addEventListener('input',()=>{state.notes[state.lesson]=$('#workNotes').value;saveLocal();clearTimeout(changeNotesTimer);changeNotesTimer=setTimeout(()=>broadcast('notes:'+state.lesson,state.notes[state.lesson]),450)});
- $$('[data-tool]').forEach(b=>b.addEventListener('click',()=>selectTool(b.dataset.tool)));
+ $$('[data-tool]').forEach(b=>b.addEventListener('click',()=>{selectTool(b.dataset.tool);broadcast('tool',b.dataset.tool)}));
  $('#undoInk').addEventListener('click',undo);$('#clearInk').addEventListener('click',()=>{if(confirm('Очистить рисунки этого урока у всех участников комнаты?'))clearInk()});
- $('#inkColor').addEventListener('input',ev=>{inkColor=ev.target.value});$('#inkWidth').addEventListener('change',ev=>{inkWidth=+ev.target.value});initInkCanvas();selectTool(pencil);setupBoardToolbar();displayAssignment(state.assignment[state.lesson]);drawLab();updateMenu();updateProgress(); updateStatus();newChallenge();if(state.connected)subscribeInk();formula();
+ $('#inkColor').addEventListener('input',ev=>{inkColor=ev.target.value;broadcast('toolColor',inkColor)});$('#inkWidth').addEventListener('change',ev=>{inkWidth=+ev.target.value;broadcast('toolWidth',inkWidth)});initInkCanvas();selectTool(pencil);setupBoardToolbar();displayAssignment(state.assignment[state.lesson]);drawLab();updateMenu();updateProgress(); updateStatus();newChallenge();if(state.connected)subscribeInk();formula();
 }
-function renderLesson(){renderLessonBody();const root=$('#lessonRoot');if(root)root.dataset.renderedLesson=String(state.lesson)}
+function renderLesson(){renderLessonBody();const root=$('#lessonRoot');if(root)root.dataset.renderedLesson=String(state.lesson);restoreMirroredUI()}
 function showLesson(n,fromRemote=false){
  if(n<-1||n>12)return;if(n>=1&&n<=4)n=5;
  const isSame=state.lesson===n&&$('#lessonRoot')?.dataset.renderedLesson===String(n)&&$('#lessonHost').style.display!=='none';
@@ -1686,7 +1686,59 @@ function buildBank(){const s=$('#bankChapter');s.innerHTML=`<option value="0">В
 function imgTag(url,label){if(!url)return '';return `<img loading="lazy" class="inline-img" src="${e(url)}" alt="${e(label)}" onerror="this.style.opacity=0.3;this.alt='Изображение временно недоступно'">`}
 function bankHTML(t){return `<details class="bank-card" id="bank-${t.id}"><summary><b>Задача</b><span>${e(t.title)} ${t.real?'· Реальный ЕГЭ':''}</span><span class="level">Ур. ${t.level}</span></summary><div class="bank-card-body"><p class="mini">${e(PROT[t.chapter-1])}</p><div class="nearby">${(t.related||[]).map(n=>`<button type="button" class="tool" data-show-task="${n}">Похожая задача →</button>`).join('')}</div>${t.conditions.map(u=>imgTag(u,'Условие '+t.id)).join('')}<details><summary>💡 Ключевые шаги (подсказка)</summary><ol>${t.algo.map(s=>`<li>${e(s)}</li>`).join('')}</ol></details><details><summary>📚 Необходимая теория</summary><ul>${t.theory.map(s=>`<li>${e(s)}</li>`).join('')}</ul></details><details><summary>✔ Ответ</summary>${t.answers.map(u=>imgTag(u,'Ответ '+t.id)).join('')}</details><details><summary>📜 ${t.solutions.length?'Полное решение · '+t.solutions.length+' вариант(ов)':'Авторский подробный разбор'}</summary>${t.solutions.length?t.solutions.map((u,i)=>`<p class="mini">Вариант ${i+1}</p>${imgTag(u,'Решение '+t.id)}`).join(''):t.selfProof?`${t.selfProof}`:'<p>Разбор пока не добавлен. Используйте подсказки и теорию.</p>'}</details><button type="button" class="secondary" data-assign-task="${t.id}">✍️ Решать эту задачу на общей доске</button></div></details>`}
 function renderBank(){let terms=taskFilter.search;let filtered=B.filter(t=>(!taskFilter.chapter||t.chapter===taskFilter.chapter)&&(!taskFilter.level||t.level===taskFilter.level)&&(!$('#realOnly').checked||t.real)&&(!terms||(t.title+' 1018-'+t.id+' '+PROT[t.chapter-1]).toLowerCase().includes(terms)));$('#bankCount').textContent=`Показано ${filtered.length} из ${B.length}`;$('#bankList').innerHTML=filtered.length?filtered.map(bankHTML).join(''):'<p class="no-results">Нет совпадений. Сбросьте фильтры.</p>'}
-function openBank(id,fromRemote=false){if(id){const t=B.find(t=>t.id===id);if(t){$('#bankChapter').value='0';taskFilter.chapter=0;$('#bankLevel').value='0';taskFilter.level=0;$('#realOnly').checked=false;$('#bankSearch').value='';taskFilter.search='';renderBank()}}let s=$('#bankSection');s.style.display='block';$('#lessonHost').style.display='none';$$('.lesson-tab').forEach(b=>b.classList.remove('active'));$$('[data-bank-nav]').forEach(b=>b.classList.add('active'));s.scrollIntoView({behavior:'smooth',block:'start'});if(id){let c=$('#bank-'+id);if(c){c.open=true;setTimeout(()=>c.scrollIntoView({behavior:'smooth',block:'start'}),160);}}if(!fromRemote)broadcast('view:bank',Number(id)||0);}
+function openBank(id,fromRemote=false){if(id){const t=B.find(t=>t.id===id);if(t){$('#bankChapter').value='0';taskFilter.chapter=0;$('#bankLevel').value='0';taskFilter.level=0;$('#realOnly').checked=false;$('#bankSearch').value='';taskFilter.search='';renderBank()}}let s=$('#bankSection');s.style.display='block';$('#lessonHost').style.display='none';$$('.lesson-tab').forEach(b=>b.classList.remove('active'));$$('[data-bank-nav]').forEach(b=>b.classList.add('active'));s.scrollIntoView({behavior:'smooth',block:'start'});if(id){let c=$('#bank-'+id);if(c){c.open=true;setTimeout(()=>c.scrollIntoView({behavior:'smooth',block:'start'}),160);}}if(!fromRemote)broadcast('view:bank',Number(id)||0);restoreMirroredUI();}
+
+// Синхронизация раскрытия объяснений и полей ответа без изменения модели графиков.
+function mirrorKey(el){
+  const scope=el?.closest?.('#lessonRoot,#bankSection');if(!scope)return '';
+  const chapter=scope.id==='bankSection'?'B':'L'+String(state.lesson).replace('.','_')+(state.lesson===0.5?'_C'+String(state.workshop.cvCase||'84'):'');
+  const steps=[];let node=el;
+  while(node&&node!==scope){const parent=node.parentElement;if(!parent)return '';steps.unshift(Array.prototype.indexOf.call(parent.children,node).toString(36));node=parent;}
+  return 'ui:'+chapter+':'+steps.join('_');
+}
+function ignoreMirroring(el){
+  if(!el||el.closest('#roomDialog')||!el.closest('#lessonRoot,#bankSection'))return true;
+  if(el.tagName==='DETAILS')return false;
+  if(!el.matches('input,textarea,select'))return true;
+  if(['password','file','hidden','color','range'].includes(el.type))return true;
+  if(el.closest('#wkDynamic')||el.dataset.graphParam)return true;
+  return ['workNotes','trDraft','wkFn','wkPractice','wkTangMode','cvSelectTask','labRange','introParam'].includes(el.id);
+}
+function applyMirroredNode(node,value){
+  if(!node||!value)return;
+  if(value.kind==='details'&&node.tagName==='DETAILS'){if(node.open!==!!value.open)node.open=!!value.open;return;}
+  if(value.kind!=='control'||!node.matches('input,textarea,select')||document.activeElement===node)return;
+  if(node.type==='checkbox'||node.type==='radio')node.checked=!!value.checked;
+  else if(value.value!==undefined)node.value=String(value.value);
+  if(node.id==='bankSearch'){taskFilter.search=node.value.toLowerCase().trim();renderBank();}
+  else if(node.id==='bankChapter'){taskFilter.chapter=Number(node.value)||0;renderBank();}
+  else if(node.id==='bankLevel'){taskFilter.level=Number(node.value)||0;renderBank();}
+  else if(node.id==='realOnly')renderBank();
+}
+function applyMirroredKey(key,value){
+  const nodes=document.querySelectorAll('#lessonRoot details,#lessonRoot input,#lessonRoot select,#lessonRoot textarea,#bankSection details,#bankSection input,#bankSection select,#bankSection textarea');
+  for(const node of nodes)if(mirrorKey(node)===key){applyMirroredNode(node,value);break;}
+}
+function restoreMirroredUI(){
+  if(!state.ui)return;
+  const nodes=document.querySelectorAll('#lessonRoot details,#lessonRoot input,#lessonRoot select,#lessonRoot textarea,#bankSection details,#bankSection input,#bankSection select,#bankSection textarea');
+  for(const node of nodes){if(ignoreMirroring(node))continue;const value=state.ui[mirrorKey(node)];if(!value)continue;
+    if(value.kind==='details'&&node.tagName==='DETAILS'&&node.open!==!!value.open)node.open=!!value.open;
+    else if(value.kind==='control'&&document.activeElement!==node){if(node.type==='checkbox'||node.type==='radio')node.checked=!!value.checked;else if(value.value!==undefined)node.value=String(value.value);}
+  }
+}
+function installMirroring(){
+  const handler=ev=>{if(!state.connected)return;const node=ev.target;if(ignoreMirroring(node))return;
+    const key=mirrorKey(node);if(!key)return;
+    const value=node.tagName==='DETAILS'?{kind:'details',open:node.open}:{kind:'control',value:node.value,checked:node.checked};
+    if(JSON.stringify(state.ui[key])===JSON.stringify(value))return;
+    state.ui[key]=value;saveLocal();broadcast(key,value);
+  };
+  document.addEventListener('toggle',handler,true);
+  document.addEventListener('input',handler,true);
+  document.addEventListener('change',handler,true);
+}
+
 // Collaboration: in one browser across tabs via BroadcastChannel. Optionally RTDB across devices,
 // using a separate namespace from the user's source vectors guide.
 const clientId=uid();
@@ -1718,7 +1770,7 @@ function setupJoinScreen(){let lastMouseAt=0;document.addEventListener('pointerm
  $('#roleStudentBtn')?.addEventListener('click',()=>renderJoinRole('Ученик'));
  $('#teacherStart')?.addEventListener('click',()=>joinRole('Учитель'));
  $('#studentStart')?.addEventListener('click',()=>joinRole('Ученик'));
- $('#newSessionBtn')?.addEventListener('click',async()=>{if(state.role!=='Учитель'||!state.remote||!fb||!db)return;if(!confirm('Начать новое совместное занятие и очистить общие рисунки?'))return;try{await fb.remove(fb.ref(db,root+'/shared'));await fb.remove(fb.ref(db,root+'/ink'));state.ink={};state.workshop={};state.answers={};state.lesson=-1;showLesson(-1);broadcast('reset',{epoch:Date.now()});broadcast('lesson',-1);toast('Новое занятие создано.')}catch{toast('Не удалось обновить общую сессию.')}});
+ $('#newSessionBtn')?.addEventListener('click',async()=>{if(state.role!=='Учитель'||!state.remote||!fb||!db)return;if(!confirm('Начать новое совместное занятие и очистить общие рисунки?'))return;try{await fb.remove(fb.ref(db,root+'/shared'));await fb.remove(fb.ref(db,root+'/ink'));state.ink={};state.workshop={};state.answers={};state.ui={};state.progress={};state.lesson=-1;showLesson(-1);broadcast('reset',{epoch:Date.now()});broadcast('lesson',-1);toast('Новое занятие создано.')}catch{toast('Не удалось обновить общую сессию.')}});
  $('#pullEveryoneBtn')?.addEventListener('click',()=>{if(state.role!=='Учитель'||!state.connected)return;broadcast('pull',{lesson:state.lesson,ratio:Math.max(0,Math.min(1,scrollY/Math.max(1,document.documentElement.scrollHeight-innerHeight)))});toast('Ученики перейдут к этому месту.')});
  // Сохранённый код ученика, повторного ввода не требуется.
  const st=localStorage.getItem('egeStudentCode');if(st)$('#studentCode').value=st;
@@ -1765,24 +1817,24 @@ function broadcast(key,value){if(!state.connected)return;
  if(channel)channel.postMessage(msg);
  if(!state.remote||!db||!fb){if(!state.remote)awaitingFirebase.set(key,msg);return;}
  if(state.remote&&db&&fb){
-  const isContinuous=/^lab:\d+$/.test(key)||/^workshop:(a|h|k|c|m|b|r|introA|tangentB|cvA|cvB|cvC)$/.test(key)||/^workshop:cvVal(?:\d+|circle)$/.test(key)||key==='teacherCursor';
+  const isContinuous=/^lab:\d+$/.test(key)||/^workshop:(a|h|k|c|m|b|r|introA|tangentB|cvA|cvB|cvC)$/.test(key)||/^workshop:cvVal(?:\d+|circle)$/.test(key)||key==='teacherCursor'||key==='toolColor'||key==='toolWidth'||key.startsWith('ui:');
   if(!isContinuous)writeFirebaseField(msg);
   else{pendingFirebase.set(key,msg);if(!firebaseTimers.has(key))firebaseTimers.set(key,setTimeout(()=>{
    firebaseTimers.delete(key);const last=pendingFirebase.get(key);pendingFirebase.delete(key);if(last)writeFirebaseField(last);
   },key==='teacherCursor'?180:90));}
  }
 }
-function applyRemote(key,value){if(key==='view:bank'){openBank(Number(value)||0,true);return;}if(key==='quizCheck'){if(Number(value)===state.lesson)checkQuiz();return;}if(key.startsWith('progress:')){state.progress[Number(key.slice(9))]=!!value;updateMenu();updateProgress();saveLocal();return;}if(key==='reset'){state.lesson=-1;state.workshop={};state.ink={};state.answers={};state.progress={};renderLesson();saveLocal();return}if(key==='pull'){if(state.role!=='Учитель'&&value&&typeof value==='object'){const l=Number(value.lesson);if(l!==state.lesson&&([-1,0,0.5,5,6,7,8,9,10,11,12].includes(l)))showLesson(l,true);setTimeout(()=>scrollTo({top:Math.max(0,Math.min(1,Number(value.ratio)||0))*Math.max(1,document.documentElement.scrollHeight-innerHeight),behavior:'smooth'}),150)}return}if(key==='teacherCursor'){if(state.role!=='Учитель'){const mark=$('#globalTeacherCursor');if(mark){mark.style.display='block';mark.style.left=Number(value?.x)*innerWidth+'px';mark.style.top=Number(value?.y)*innerHeight+'px';clearTimeout(mark.hideTimer);mark.hideTimer=setTimeout(()=>mark.style.display='none',1500)}}return}if(key==='lesson'){if(Number(value)!==state.lesson||$('#lessonHost').style.display==='none')showLesson(+value,true)}else if(key.startsWith('lab:')){const n=+key.split(':')[1];state.values[n]=+value;if(n===state.lesson)setLab(+value,true)}else if(key.startsWith('quiz:')){let id=key.slice(5);state.answers[id]=value;let c=$('#'+id);if(c){$$('button[data-choice]',c).forEach(b=>b.classList.toggle('chosen',+b.dataset.choice===value));const note=$('#note-'+id);note.hidden=true;}}else if(key.startsWith('task:')){let n=+key.split(':')[1];state.assignment[n]=+value;if(n===state.lesson)displayAssignment(+value)}else if(key.startsWith('workshop:')){let wkey=key.slice(9);state.workshop[wkey]=value;if(state.lesson===0||state.lesson===-1)updateWorkshopFromRemote(wkey);else if(state.lesson===0.5)cvRemoteUpdate(wkey);else if(wkey.startsWith('warm'))refreshWarmup();}else if(key.startsWith('notes:')){let n=+key.split(':')[1];state.notes[n]=String(value||'');if(n===state.lesson){let el=$('#workNotes');if(document.activeElement!==el)el.value=state.notes[n];else $('#padSyncHint').textContent='Получено изменение общего поля. При одновременном вводе последнее сохранение может заменить другое.'}}saveLocal()}
+function applyRemote(key,value){if(key.startsWith('ui:')){state.ui[key]=value;applyMirroredKey(key,value);saveLocal();return;}if(key==='tool'){selectTool(String(value));return;}if(key==='toolColor'){inkColor=String(value);if($('#inkColor'))$('#inkColor').value=inkColor;return;}if(key==='toolWidth'){inkWidth=Number(value)||3;if($('#inkWidth'))$('#inkWidth').value=inkWidth;return;}if(key==='view:bank'){openBank(Number(value)||0,true);return;}if(key==='quizCheck'){if(Number(value)===state.lesson)checkQuiz();return;}if(key.startsWith('progress:')){state.progress[Number(key.slice(9))]=!!value;updateMenu();updateProgress();saveLocal();return;}if(key==='reset'){state.lesson=-1;state.workshop={};state.ink={};state.answers={};state.progress={};state.ui={};renderLesson();saveLocal();return}if(key==='pull'){if(state.role!=='Учитель'&&value&&typeof value==='object'){const l=Number(value.lesson);if(l!==state.lesson&&([-1,0,0.5,5,6,7,8,9,10,11,12].includes(l)))showLesson(l,true);setTimeout(()=>scrollTo({top:Math.max(0,Math.min(1,Number(value.ratio)||0))*Math.max(1,document.documentElement.scrollHeight-innerHeight),behavior:'smooth'}),150)}return}if(key==='teacherCursor'){if(state.role!=='Учитель'){const mark=$('#globalTeacherCursor');if(mark){mark.style.display='block';mark.style.left=Number(value?.x)*innerWidth+'px';mark.style.top=Number(value?.y)*innerHeight+'px';clearTimeout(mark.hideTimer);mark.hideTimer=setTimeout(()=>mark.style.display='none',1500)}}return}if(key==='lesson'){if(Number(value)!==state.lesson||$('#lessonHost').style.display==='none')showLesson(+value,true)}else if(key.startsWith('lab:')){const n=+key.split(':')[1];state.values[n]=+value;if(n===state.lesson)setLab(+value,true)}else if(key.startsWith('quiz:')){let id=key.slice(5);state.answers[id]=value;let c=$('#'+id);if(c){$$('button[data-choice]',c).forEach(b=>b.classList.toggle('chosen',+b.dataset.choice===value));const note=$('#note-'+id);note.hidden=true;}}else if(key.startsWith('task:')){let n=+key.split(':')[1];state.assignment[n]=+value;if(n===state.lesson)displayAssignment(+value)}else if(key.startsWith('workshop:')){let wkey=key.slice(9);state.workshop[wkey]=value;if(state.lesson===0||state.lesson===-1)updateWorkshopFromRemote(wkey);else if(state.lesson===0.5)cvRemoteUpdate(wkey);else if(wkey.startsWith('warm'))refreshWarmup();}else if(key.startsWith('notes:')){let n=+key.split(':')[1];state.notes[n]=String(value||'');if(n===state.lesson){let el=$('#workNotes');if(document.activeElement!==el)el.value=state.notes[n];else $('#padSyncHint').textContent='Получено изменение общего поля. При одновременном вводе последнее сохранение может заменить другое.'}}saveLocal()}
 let acceptedTeacherSnapshot=false;
 function handleChannel(msg){if(!msg||msg.by===clientId)return;
  if(msg.kind==='hello'){
-  if(channel&&state.role==='Учитель')channel.postMessage({kind:'snapshot',by:clientId,role:'Учитель',lesson:state.lesson,values:state.values,answers:state.answers,notes:state.notes,ink:state.remote?{}:state.ink,progress:state.progress,assignment:state.assignment,workshop:state.workshop})
+  if(channel&&state.role==='Учитель')channel.postMessage({kind:'snapshot',by:clientId,role:'Учитель',lesson:state.lesson,values:state.values,answers:state.answers,notes:state.notes,ink:state.remote?{}:state.ink,progress:state.progress,ui:state.ui,assignment:state.assignment,workshop:state.workshop})
  }
  else if(msg.kind==='snapshot'){
   if(state.role==='Учитель'||msg.role!=='Учитель'||acceptedTeacherSnapshot)return;acceptedTeacherSnapshot=true;
   for(const n of Object.keys(msg.values||{}))state.values[n]=msg.values[n];Object.assign(state.answers,msg.answers||{});Object.assign(state.notes,msg.notes||{});
   for(const [n,strokes] of Object.entries(msg.ink||{}))if(!state.ink[n]?.length)state.ink[n]=strokes;
-  Object.assign(state.progress,msg.progress||{});Object.assign(state.assignment,msg.assignment||{});Object.assign(state.workshop,msg.workshop||{});
+  Object.assign(state.progress,msg.progress||{});Object.assign(state.ui,msg.ui||{});Object.assign(state.assignment,msg.assignment||{});Object.assign(state.workshop,msg.workshop||{});
   const lesson=Number(msg.lesson);if([-1,0,0.5,5,6,7,8,9,10,11,12].includes(lesson)&&lesson!==state.lesson)showLesson(lesson,true);else renderLesson();saveLocal();
  }
  else if(msg.kind==='field'){if(msg.ts<=(seen[msg.key]||0))return;seen[msg.key]=msg.ts;applyRemote(msg.key,msg.value)}
@@ -1802,6 +1854,7 @@ for(const [key,entry] of Object.entries(initial)){
  if(!entry||entry.by===clientId||entry.ts<=(seen[key]||0))continue;seen[key]=entry.ts;
  if(key==='lesson'||key==='view:bank'){if(Number(entry.ts)>=viewTimestamp){viewTimestamp=Number(entry.ts);targetView=key;targetLesson=Number(entry.v)||0;}continue}
  if(key.startsWith('workshop:')){state.workshop[key.slice(9)]=entry.v;needsRefresh=true}
+ else if(key.startsWith('ui:')){state.ui[key]=entry.v;needsRefresh=true}
  else if(key.startsWith('notes:')){state.notes[Number(key.slice(6))]=String(entry.v||'');needsRefresh=true}
  else if(key.startsWith('progress:')){state.progress[Number(key.slice(9))]=!!entry.v;needsRefresh=true}
  else if(key.startsWith('lab:')){state.values[Number(key.slice(4))]=Number(entry.v);needsRefresh=true}
@@ -1829,7 +1882,7 @@ function subscribeInk(){if(roomSubInk){roomSubInk();roomSubInk=null}if(!state.re
 function logoutRoom(){awaitingFirebase.clear();pendingFirebase.clear();for(const t of firebaseTimers.values())clearTimeout(t);firebaseTimers.clear();acceptedTeacherSnapshot=false;if(state.remote&&fb&&db)fb.remove(fb.ref(db,root+'/presence/'+clientId)).catch(()=>{});state.connected=false;state.remote=false;state.room='';state.role='';state.person='';updateTeacherRoster({});try{sessionStorage.removeItem('param-guide-room')}catch{}if(channel)channel.close();channel=null;remoteUnsubs.forEach(u=>u());remoteUnsubs=[];if(roomSubInk)roomSubInk();roomSubInk=null;renderLesson();updateStatus();toast('Вы вышли из комнаты. Локальные заметки остались.')}
 function downloadProgress(){const payload={version:3,created:new Date().toISOString(),room:state.room||null,lessons:state.progress,answers:state.answers,notes:state.notes,ink:state.ink,assignment:state.assignment,workshop:state.workshop};let blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='parametry-progress-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),500)}
 function restoreProgress(file){if(!file)return;file.text().then(s=>{let data=JSON.parse(s);if(data.version!==3)throw Error('Неподдерживаемый формат');Object.assign(state.progress,data.lessons||{});Object.assign(state.answers,data.answers||{});Object.assign(state.notes,data.notes||{});Object.assign(state.ink,data.ink||{});Object.assign(state.assignment,data.assignment||{});Object.assign(state.workshop,data.workshop||{});renderLesson();saveLocal();toast('Прогресс восстановлен из файла.')}).catch(()=>toast('Не удалось прочитать файл. Требуется экспорт этого гайда.'))}
-function init(){buildMenu();buildBank();$('#openRoom').addEventListener('click',openRoom);$('#joinFab')?.addEventListener('click',openRoom);setupJoinScreen();$('#roomMenuBtn').addEventListener('click',openRoom);$('#closeRoom').addEventListener('click',closeRoom);$('#roomRandom').addEventListener('click',roomRandom);$('#joinRoom').addEventListener('click',joinRoom);$('#leaveRoom').addEventListener('click',()=>{logoutRoom();closeRoom()});$('#roomDialog').addEventListener('click',ev=>{if(ev.target.id==='roomDialog')closeRoom()});$('#exportProgress').addEventListener('click',downloadProgress);$('#importProgress').addEventListener('change',ev=>restoreProgress(ev.target.files?.[0]));$('#toggleSound').addEventListener('click',ev=>{autosound=!autosound;ev.target.textContent=autosound?'🔊 Звук включён':'🔈 Звук выключен';if(autosound)beep(420)});$('#toggleMotion').addEventListener('click',ev=>{document.body.classList.toggle('motion-off');ev.target.textContent=document.body.classList.contains('motion-off')?'Включить анимации':'Отключить анимации';stopPlay()});$('#printGuide').addEventListener('click',()=>window.print());document.addEventListener('keydown',ev=>{if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==='z'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){ev.preventDefault();undo()}});
+function init(){installMirroring();buildMenu();buildBank();$('#openRoom').addEventListener('click',openRoom);$('#joinFab')?.addEventListener('click',openRoom);setupJoinScreen();$('#roomMenuBtn').addEventListener('click',openRoom);$('#closeRoom').addEventListener('click',closeRoom);$('#roomRandom').addEventListener('click',roomRandom);$('#joinRoom').addEventListener('click',joinRoom);$('#leaveRoom').addEventListener('click',()=>{logoutRoom();closeRoom()});$('#roomDialog').addEventListener('click',ev=>{if(ev.target.id==='roomDialog')closeRoom()});$('#exportProgress').addEventListener('click',downloadProgress);$('#importProgress').addEventListener('change',ev=>restoreProgress(ev.target.files?.[0]));$('#toggleSound').addEventListener('click',ev=>{autosound=!autosound;ev.target.textContent=autosound?'🔊 Звук включён':'🔈 Звук выключен';if(autosound)beep(420)});$('#toggleMotion').addEventListener('click',ev=>{document.body.classList.toggle('motion-off');ev.target.textContent=document.body.classList.contains('motion-off')?'Включить анимации':'Отключить анимации';stopPlay()});$('#printGuide').addEventListener('click',()=>window.print());document.addEventListener('keydown',ev=>{if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==='z'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){ev.preventDefault();undo()}});
  try{let a=JSON.parse(sessionStorage.getItem('param-guide-room')||'null');if(a?.room){state.room=a.room;state.role=a.role;state.person=a.person;state.connected=true;restoreLocal();}}catch{}if(!state.room)restoreLocal();if(state.lesson<-1||state.lesson>12||(state.lesson>=1&&state.lesson<=4))state.lesson=-1;renderLesson();updateStatus();if(state.room){try{channel=new BroadcastChannel('parametry-ege-12-'+state.room);channel.onmessage=ev=>handleChannel(ev.data);channel.postMessage({kind:'hello',by:clientId})}catch{}connectFirebase()};}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
