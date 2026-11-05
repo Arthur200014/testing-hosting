@@ -388,7 +388,7 @@ body{zoom:.95}
 .critical-switch button.active{background:#335b4f;border-color:#335b4f;color:#fff}
 .critical-layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(250px,.66fr);gap:14px}
 .critical-graph{background:#fffcf4;border:1px solid #d3bb90;border-radius:16px;overflow:hidden;position:relative;padding:12px}
-.critical-graph canvas{width:100%;height:auto;display:block;aspect-ratio:1.7;background:#fffef9;border-radius:9px}
+.critical-graph canvas{width:100%;height:auto;display:block;aspect-ratio:1;background:#fffef9;border-radius:9px}
 .critical-graph .graph-hint{position:absolute;top:19px;left:23px;background:#fff7e9dd;padding:5px 10px;border-radius:7px;font-size:13px;font-weight:700;color:#6c5343;pointer-events:none}
 .critical-controls{border-radius:14px;background:linear-gradient(140deg,#284c40,#386d54);color:#fff8dd;padding:16px;display:flex;flex-direction:column;gap:11px}
 .critical-controls h3{margin:0;font-size:20px;color:#ffe2a0}
@@ -1076,7 +1076,7 @@ function criticalMarkup(){const c=cvScene(),w=state.workshop,metric=cvIsMetricGr
  <div class="critical-lead">Найди все <b>особые точки</b> на графике и назови их буквами. Через координаты точек получи значения <b>a</b>.</div>
  <div class="critical-alg"><div><b>1</b><strong>Отметь A, B, C…</strong><small>Узлы, касания, концы, выколотые точки</small></div><div><b>2</b><strong>Запиши координаты</strong><small>Из уравнений двух графиков</small></div><div><b>3</b><strong>Найди a</strong><small>Подстановка, D=0, f′=k, d=R</small></div><div><b>4</b><strong>Проверь границы</strong><small>Все значения a по возрастанию</small></div></div>
  <div class="critical-switch" id="cvTabs">${cvTaskSelector(c)}</div>
- <div class="critical-layout"><div class="critical-graph"><span class="graph-hint">Графики задания №${c.taskId} · плоскость ${c.axis==='xa'||['66','77','78'].includes(c.key)?'xOa':'xOy'}</span><canvas id="cvCanvas" width="${metric?800:1000}" height="${metric?800:580}" style="${metric?'max-width:690px;margin:auto;aspect-ratio:1':''}" aria-label="Графики задания №${c.taskId} при изменении параметра a"></canvas>
+ <div class="critical-layout"><div class="critical-graph"><span class="graph-hint">Графики задания №${c.taskId} · плоскость ${c.axis==='xa'||['66','77','78'].includes(c.key)?'xOa':'xOy'}</span><canvas id="cvCanvas" width="800" height="800" style="max-width:690px;margin:auto;aspect-ratio:1" aria-label="Графики задания №${c.taskId} при изменении параметра a"></canvas>
  <div class="critical-legend">${c.extra?'<span>Допустимые ветви</span><span>Подвижный график / уровень a</span><span>Проверь ограничения справа</span>':'<span>Неподвижные графики</span><span>График с параметром a</span><span>Общие точки</span><span>Граница ОДЗ</span>'}</div><div class="critical-parameter-box"><div class="critical-slider-head"><label for="cvRange">Параметр a</label><output id="cvValue">${cvNum(w["cvVal"+c.key]??c.init)}</output></div><input id="cvRange" type="range" min="${c.min}" max="${c.max}" step="any" value="${w["cvVal"+c.key]??c.init}" aria-label="Изменить параметр a"><div class="critical-tick-track" aria-label="Отметки важных значений параметра">${c.presets.map(([v,label])=>`<button type="button" class="critical-tick" data-cv-preset="${v}" style="left:${Math.max(0,Math.min(100,(v-c.min)/(c.max-c.min)*100))}%" title="a = ${label}" aria-label="Перейти к ${label}"></button>`).join("")}</div><div class="critical-exact-mark" id="cvExactMark" aria-live="polite"></div><div class="critical-parameter-tools"><button type="button" id="cvMinus" aria-label="Уменьшить параметр">−</button><input type="text" inputmode="decimal" id="cvNumeric" value="${w["cvVal"+c.key]??c.init}" aria-label="Точное значение параметра a"><button type="button" id="cvPlus" aria-label="Увеличить параметр">+</button><button type="button" id="cvReset">Сброс a</button></div><div class="critical-zoom-tools"><button type="button" id="cvZoomIn">＋ Приблизить</button><button type="button" id="cvZoomOut">− Отдалить</button><button type="button" id="cvResetView">По центру</button><small>Перетаскивай график курсором</small></div><div class="critical-presets">${c.presets.map(([v,name])=>`<button type="button" data-cv-preset="${v}" title="Установить a=${v}">${name}</button>`).join("")}</div><div class="critical-count" id="cvCount" aria-live="polite"></div><div class="critical-status" id="cvStateHint"></div></div></div>
  <aside class="critical-controls"><div class="critical-task-id">${c.src}</div><div class="critical-source"><h3>Исходное условие</h3><div class="critical-original">\\[${c.original}\\]</div><p>${c.requirement}</p></div><h3>Преобразованная система с ограничениями</h3>
  <div class="critical-transformed">${c.transformed}</div>
@@ -1097,7 +1097,7 @@ function renderCriticalLesson(){stopPlay();stopSpeed();$('#lessonHost').innerHTM
 
 
 
-function cvIsMetricGraph(c){return c.key==='circle'||['93','79','61','62','63','41','43','4','3','11'].includes(c.key)}
+function cvIsMetricGraph(c){return true} // Одинаковый масштаб обеих осей во всех задачах
 function cvViewport(c){
  const w=state.workshop,z=Math.max(.4,Math.min(6,Number(w['cvZoom'+c.key]||1))),
  px=Number(w['cvPanX'+c.key]||0),py=Number(w['cvPanY'+c.key]||0),
@@ -1258,18 +1258,27 @@ function cvDrawExtra(){
  switch(id){
   case 85:
    F(x=>2*x-x*x,x=>x>=0&&x<=2);F(x=>x*x-2*x,x=>x>=0&&x<=2);
-   F(x=>ab(x-a)-1,x=>x>=0&&x<=2,red);
+   // y=|x-a|-1 — две ПРЯМЫЕ, соединяющиеся острым углом в x=a.
+   F(x=>a-x-1,x=>x>=0&&x<=2&&x<=a,red);
+   F(x=>x-a-1,x=>x>=0&&x<=2&&x>=a,red);
    V(0,()=>true,boundary,true);V(2,()=>true,boundary,true);break;
   case 86:
    F(x=>3/x-2,x=>x>0&&x<=1.5);
    F(x=>2-3/x,x=>x>0&&x<=1.5);
-   P(y=>[(3-a-2*a*y)/2,y],ymin,ymax,(x,y)=>x>0&&x<=1.5+1e-10,red);
+   // 2x+2ay+a-3=0: при a=0 это вертикаль, иначе прямая.
+   if(ab(a)<1e-12)V(1.5,()=>true,red);
+   else F(x=>(3-a-2*x)/(2*a),x=>x>0&&x<=1.5,red);
    V(1.5,()=>true,boundary,true);break;
   case 93:
    F(x=>Math.sqrt(4-x*x),x=>ab(x)<=2);
-   F(x=>2-ab(x-a),x=>ab(x)<=2&&ab(x-a)<=2,red);break;
+   // V-образный график из двух линейных отрезков, только при |x-a|≤2.
+   F(x=>2-a+x,(x,y)=>ab(x)<=2&&x<=a&&x>=a-2,red);
+   F(x=>2+a-x,(x,y)=>ab(x)<=2&&x>=a&&x<=a+2,red);break;
   case 82:
-   F(x=>ab(x+1)+ab(x-3),(x,y)=>x+y<=10+1e-7);
+   // |x+1|+|x-3| — три линейных участка с точными изломами при -1 и 3.
+   F(x=>2-2*x,(x,y)=>x<=-1&&x+y<=10+1e-7);
+   F(x=>4,(x,y)=>x>=-1&&x<=3&&x+y<=10+1e-7);
+   F(x=>2*x-2,(x,y)=>x>=3&&x+y<=10+1e-7);
    F(x=>10-x);
    F(x=>x+a,(x,y)=>x+y<=10+1e-7,red);break;
   case 66:
@@ -1303,11 +1312,11 @@ function cvDrawExtra(){
    horizontalLevel();break;
 
   case 61:
-   C(1,3,Math.sqrt(10),(x,y)=>ab(y)<6-1e-7&&ab(a*x)<6-1e-7);
+   C(1,3,Math.sqrt(10),(x,y)=>ab(y)<6-1e-7);
    F(x=>a*x,(x,y)=>ab(y)<6-1e-7,red);
    F(x=>-a*x,(x,y)=>ab(y)<6-1e-7,red);break;
   case 62:
-   C(4,2,Math.sqrt(20),(x,y)=>ab(y)<=4+1e-7&&ab(a*x)<=4+1e-7);
+   C(4,2,Math.sqrt(20),(x,y)=>ab(y)<=4+1e-7);
    F(x=>a*x,(x,y)=>ab(y)<=4+1e-7,red);
    F(x=>-a*x,(x,y)=>ab(y)<=4+1e-7,red);break;
   case 63:
@@ -1352,7 +1361,15 @@ function cvDrawExtra(){
    C(2*a+2,a,1,()=>true,red);break;
   case 43:
    V(1);F(x=>x);
-   for(let j=0;j<2;j++)P(y=>{const xs=cvRoots(a,5-2*a,a*(y*y+2*y)+1);return [xs[j]??NaN,y]},ymin,ymax,()=>true,red);
+   // При a≠0 первая кривая — точная окружность, при a=0 вертикальная прямая.
+   // Вблизи a=0 используем параметризацию по y, чтобы не терять почти вертикальную дугу.
+   if(ab(a)<1e-12)V(-.2,()=>true,red);
+   else if(ab(a)<.02){
+    for(let j=0;j<2;j++)P(y=>{const xs=cvRoots(a,5-2*a,a*(y*y+2*y)+1);return [xs[j]??NaN,y]},ymin,ymax,()=>true,red);
+   }else{
+    const centerX=1-5/(2*a),radius=Math.sqrt(centerX*centerX+1-1/a);
+    C(centerX,-1,radius,()=>true,red);
+   }
    break;
   case 4:
    C(0,1,Math.sqrt(2));
@@ -1369,8 +1386,10 @@ function cvDrawExtra(){
  }
  ctx.clearRect(0,0,W,H);ctx.fillStyle='#fffdf8';ctx.fillRect(0,0,W,H);
  ctx.font='12px system-ui';ctx.lineWidth=1;
- const dx=Math.max(.2,Math.ceil((xmax-xmin)/14));
- const dy=Math.max(.2,Math.ceil((ymax-ymin)/12));
+ // Общий шаг по двум осям: при равном масштабе клетки всегда квадратные.
+ const targetStep=(xmax-xmin)/12,order=Math.pow(10,Math.floor(Math.log10(targetStep)));
+ const scaled=targetStep/order,cell=(scaled<=1?1:scaled<=2?2:scaled<=5?5:10)*order;
+ const dx=cell,dy=cell;
  for(let k=Math.ceil(xmin/dx);k<=Math.floor(xmax/dx);k++){const x=k*dx;ctx.beginPath();ctx.moveTo(X(x),m);ctx.lineTo(X(x),H-m);ctx.strokeStyle='#e9e4d9';ctx.stroke();ctx.fillStyle='#746d60';ctx.fillText(Number(x.toFixed(2)),X(x)+3,H-m+16);}
  for(let k=Math.ceil(ymin/dy);k<=Math.floor(ymax/dy);k++){const y=k*dy;ctx.beginPath();ctx.moveTo(m,Y(y));ctx.lineTo(W-m,Y(y));ctx.strokeStyle='#e9e4d9';ctx.stroke();ctx.fillStyle='#746d60';ctx.fillText(Number(y.toFixed(2)),m-41,Y(y)-4);}
  ctx.strokeStyle='#878a7b';ctx.lineWidth=2;ctx.beginPath();
@@ -1460,12 +1479,12 @@ function cvDraw(){
  if(c.key==='84'){
   curve(x=>x*x-2*x,'#267959',x=>x<=0||x>=2);
   curve(x=>-x*x+2*x,'#267959',x=>x<=0||x>=2);
-  curve(x=>4*x+a,'#bc503f',x=>x<=0||x>=2);
+  curve(x=>4*x+a,'#bc503f'); // Прямая целиком; запретная полоса x∈(0;2) уже затенена
   verticalBoundary(0);verticalBoundary(2);
   c.points.forEach(p=>spot(p[1],p[2],p[0]));
  }else if(c.key==='5'){
   curve(x=>Math.abs(x*x-6*x+8),'#267959',x=>x>1);
-  curve(x=>2*a*(x+1),'#bc503f',x=>x>1);
+  curve(x=>2*a*(x+1),'#bc503f'); // Прямая целиком; x≤1 отмечено как недопустимое
   verticalBoundary(1);
   c.points.forEach(p=>spot(p[1],p[2],p[0],p[0]==='E'?'open':'special'));
   spot(1,4*a,'','open');
