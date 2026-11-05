@@ -1,0 +1,228 @@
+name: Apply corrected EGE variant 2
+on:
+  push:
+    paths:
+      - .github/workflows/one-time-variant2-fix.yml
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Correct LaTeX, diagrams and solutions in probnic.html
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64, json, math, re
+          from pathlib import Path
+          
+          file = Path("EGA/config/probnic.html")
+          shell = file.read_text(encoding="utf-8")
+          match = re.search(r"(htmlB64:')([A-Za-z0-9+/=]+)(')", shell)
+          assert match, "EGE child HTML not found"
+          child = base64.b64decode(match.group(2)).decode("utf-8", "surrogateescape")
+          key = "const UPLOADED_VARIANT_1="
+          start = child.index(key) + len(key)
+          end = child.index("\n", start)
+          preset = json.loads(child[start:end].strip().rstrip(";"))
+          assert len(preset["questions"]) == 13 and len(preset["secondPart"]) == 7
+          assert "105060" in preset["secondPart"][2]["source"], "Keep the user's photographic replacement for #16"
+          
+          preset["name"] = "Пробный вариант 2"
+          questions = {q["task"]: q for q in preset["questions"]}
+          part2 = {q["task"]: q for q in preset["secondPart"]}
+          
+          texts = {
+          1: r"Площадь параллелограмма \(ABCD\) равна 60. Точка \(E\) — середина стороны \(AD\). Найдите площадь треугольника \(ABE\).",
+          2: r"На координатной плоскости изображены векторы \(\vec a\) и \(\vec b\), координатами которых являются целые числа. Найдите длину вектора \(\vec a+\vec b\).",
+          3: "Объём куба равен 80. Найдите объём треугольной призмы, отсекаемой от куба плоскостью, проходящей через середины двух рёбер, выходящих из одной вершины, и параллельной третьему ребру, выходящему из этой же вершины.",
+          4: "В чемпионате по гимнастике участвуют 45 спортсменок: 6 из России, 21 из США, остальные — из Китая. Порядок, в котором выступают гимнастки, определяется жребием. Найдите вероятность того, что спортсменка, выступающая первой, окажется из Китая.",
+          5: "Автоматическая линия изготавливает батарейки. Вероятность того, что готовая батарейка неисправна, равна 0,04. Перед упаковкой каждая батарейка проходит систему контроля качества. Вероятность того, что система забракует неисправную батарейку, равна 0,96. Вероятность того, что система по ошибке забракует исправную батарейку, равна 0,01. Найдите вероятность того, что случайно выбранная изготовленная батарейка будет забракована системой контроля.",
+          6: """Организаторы лотереи выпустили 10 000 билетов. Выигрыши распределены следующим образом.<div class="preset-math-table"><table><thead><tr><th>Выигрыш (в рублях)</th><th>100</th><th>1000</th><th>5000</th><th>10 000</th><th>50 000</th></tr></thead><tbody><tr><th>Число выигрышных билетов</th><td>500</td><td>100</td><td>50</td><td>10</td><td>1</td></tr></tbody></table></div>Найдите математическое ожидание величины «выигрыш на один билет». Ответ дайте в рублях.""",
+          7: r"Решите уравнение \[\sqrt[3]{x-5}=3.\]",
+          8: r"Найдите значение выражения \(8\log_5\sqrt[4]{5}\).",
+          9: r"На рисунке изображены график функции \(y=f(x)\) и касательная к нему в точке с абсциссой \(x_0\). Найдите значение производной функции \(f'(x)\) в точке \(x_0\).",
+          10: r"Мотоциклист, движущийся по городу со скоростью \(v_0=60\) км/ч, выезжает из него и сразу после выезда начинает разгоняться с постоянным ускорением \(a=32\) км/ч². Расстояние (в км) от мотоциклиста до города вычисляется по формуле \[S=v_0t+\frac{at^2}{2},\] где \(t\) — время (в часах), прошедшее после выезда из города. Определите время, прошедшее после выезда мотоциклиста из города, если известно, что за это время он удалился от города на 154 км. Ответ дайте в минутах.",
+          11: "От пристани А к пристани В, расстояние между которыми равно 240 км, отправился с постоянной скоростью первый теплоход, а через 8 часов после этого следом за ним, со скоростью на 8 км/ч больше, отправился второй. Найдите скорость первого теплохода, если в пункт В оба теплохода прибыли одновременно. Ответ дайте в км/ч.",
+          12: r"На рисунке изображены графики функций \(f(x)=\frac{k}{x}\) и \(g(x)=ax+b\), пересекающиеся в точках \(A\) и \(B\). Найдите абсциссу точки \(B\).",
+          13: "В июле 2030 года планируется взять кредит 182 000 рублей в банке на три года. Условия его возврата таковы:<br>– каждый январь долг увеличивается на 20% по сравнению с концом предыдущего года;<br>– с февраля по июнь каждого года необходимо выплатить одним платежом часть долга.<br>Сколько рублей составит общая сумма платежей после полного погашения кредита, если известно, что кредит будет полностью погашен тремя равными платежами?"
+          }
+          solutions = {
+          1: r"<b>1. Найдём долю основания.</b> Так как \(E\) — середина \(AD\), то \(AE=\frac{AD}{2}\).<br><b>2. Сравним высоты.</b> У треугольника \(ABE\) и параллелограмма \(ABCD\) высота, проведённая к прямой \(AD\), одинаковая.<br><b>3. Вычислим площадь.</b> \[S_{ABE}=\frac12\cdot AE\cdot h=\frac12\cdot\frac{AD}{2}\cdot h=\frac14 S_{ABCD}=\frac{60}{4}=15.\]<b>Ответ: 15.</b>",
+          2: r"<b>1. Считаем клетки по осям.</b> По рисунку \(\vec a=(2;4)\): 2 клетки вправо и 4 вверх. Аналогично \(\vec b=(4;4)\).<br><b>2. Складываем координаты векторов.</b> \[\vec a+\vec b=(2+4;4+4)=(6;8).\]<b>3. Используем формулу длины.</b> \[|\vec a+\vec b|=\sqrt{6^2+8^2}=\sqrt{36+64}=\sqrt{100}=10.\]<b>Ответ: 10.</b>",
+          3: r"<b>1. Обозначим ребро куба за \(a\).</b> Тогда \(V_{\text{куба}}=a^3=80\).<br><b>2. Найдём площадь основания отсекаемой призмы.</b> Она равна площади прямоугольного треугольника с катетами \(\frac a2\) и \(\frac a2\): \[S=\frac12\cdot\frac a2\cdot\frac a2=\frac{a^2}{8}.\]<b>3. Умножаем на высоту.</b> Высота призмы равна \(a\), поэтому \[V_{\text{призмы}}=\frac{a^2}{8}\cdot a=\frac{a^3}{8}=\frac{80}{8}=10.\]<b>Ответ: 10.</b>",
+          4: r"<b>1. Находим количество спортсменок из Китая.</b> \[45-6-21=18.\]<b>2. Все 45 спортсменок равновероятно могут выступить первыми.</b> Благоприятных исходов 18.<br><b>3. Считаем вероятность.</b> \[P=\frac{18}{45}=\frac25=0{,}4.\]<b>Ответ: 0,4.</b>",
+          5: r"<b>1. Учитываем два несовместных случая.</b> Система бракует либо действительно неисправную батарейку, либо исправную по ошибке.<br><b>2. Неисправная и забракованная.</b> \[P_1=0{,}04\cdot0{,}96=0{,}0384.\]<b>3. Исправная и ошибочно забракованная.</b> \[P_2=(1-0{,}04)\cdot0{,}01=0{,}96\cdot0{,}01=0{,}0096.\]<b>4. Складываем.</b> \[P=P_1+P_2=0{,}0384+0{,}0096=0{,}048.\]<b>Ответ: 0,048.</b>",
+          6: r"<b>1. Используем определение математического ожидания.</b> Выигрыш каждого номинала умножаем на вероятность получить такой билет. Невыигрышные билеты дают вклад 0.<br><b>2. Составляем выражение по таблице.</b> \[M(X)=\frac{100\cdot500+1000\cdot100+5000\cdot50+10000\cdot10+50000\cdot1}{10000}.\]<b>3. Вычисляем.</b> \[M(X)=\frac{50000+100000+250000+100000+50000}{10000}=\frac{550000}{10000}=55.\]<b>Ответ: 55.</b>",
+          7: r"<b>1. Возводим обе части уравнения в куб.</b> Для кубического корня это равносильное преобразование: \[\sqrt[3]{x-5}=3\ \Longleftrightarrow\ x-5=3^3.\]<b>2. Решаем.</b> \[x-5=27,\qquad x=27+5=32.\]<b>3. Проверка.</b> \(\sqrt[3]{32-5}=\sqrt[3]{27}=3\).<br><b>Ответ: 32.</b>",
+          8: r"<b>1. Представляем корень как степень.</b> \[\sqrt[4]{5}=5^{\frac14}.\]<b>2. Применяем свойство логарифма.</b> \[\log_5 5^{\frac14}=\frac14.\]<b>3. Умножаем на 8.</b> \[8\log_5\sqrt[4]{5}=8\cdot\frac14=2.\]<b>Ответ: 2.</b>",
+          9: r"<b>1. Вспоминаем геометрический смысл производной.</b> \(f'(x_0)\) равна угловому коэффициенту касательной в точке \(x_0\).<br><b>2. Берём две удобные точки на прямой.</b> По клеткам касательная проходит через \((-3;-3)\) и \((2;5)\).<br><b>3. Вычисляем наклон.</b> \[f'(x_0)=k=\frac{y_2-y_1}{x_2-x_1}=\frac{5-(-3)}{2-(-3)}=\frac85=1{,}6.\]<b>Ответ: 1,6.</b>",
+          10: r"<b>1. Подставляем данные в формулу.</b> \[154=60t+\frac{32t^2}{2}=60t+16t^2.\]<b>2. Получаем квадратное уравнение.</b> \[16t^2+60t-154=0\quad\Longleftrightarrow\quad8t^2+30t-77=0.\]<b>3. Находим время.</b> \[D=30^2+4\cdot8\cdot77=3364=58^2,\quad t=\frac{-30+58}{16}=\frac74\ \text{ч}.\] Отрицательный корень не подходит по смыслу задачи.<br><b>4. Переводим часы в минуты.</b> \[\frac74\cdot60=105\ \text{мин}.\]<b>Ответ: 105.</b>",
+          11: r"<b>1. Обозначим скорость первого теплохода за \(v\) км/ч.</b> Скорость второго \(v+8\) км/ч.<br><b>2. Запишем время в пути.</b> Первому нужно \(\frac{240}{v}\) часов, второму — \(\frac{240}{v+8}\) часов. Первый вышел на 8 часов раньше: \[\frac{240}{v}-\frac{240}{v+8}=8.\]<b>3. Решаем.</b> \[\frac{1920}{v(v+8)}=8,\quad v^2+8v-240=0.\] \[v=\frac{-8\pm\sqrt{1024}}2=\frac{-8\pm32}{2}.\]<b>4. Выбираем положительную скорость.</b> \(v=12\) (корень \(-20\) не подходит).<br><b>Ответ: 12.</b>",
+          12: r"<b>1. Считываем координаты точки \(A\) и пересечение прямой с осью \(Oy\).</b> \(A=(-5;-2)\), \(g(0)=-1\).<br><b>2. Находим функции.</b> Из \(f(-5)=-2\) имеем \(\frac{k}{-5}=-2\), откуда \(k=10\). Для прямой \(b=-1\), \(-5a-1=-2\), значит \(a=\frac15\).<br><b>3. Приравниваем функции.</b> \[\frac{10}{x}=\frac{x}{5}-1,\quad x\ne0.\] \[50=x^2-5x,\quad x^2-5x-50=(x+5)(x-10)=0.\]<b>4. Второе пересечение.</b> \(x_A=-5\), поэтому \(x_B=10\).<br><b>Ответ: 10.</b>",
+          13: r"<b>1. Обозначим ежегодный равный платёж за \(P\).</b> Каждый январь оставшийся долг умножается на \(1{,}2\).<br><b>2. Запишем остатки долга.</b> После первого платежа \(D_1=182000\cdot1{,}2-P\). После второго \(D_2=1{,}2D_1-P\). После третьего долг равен нулю: \[0=1{,}2D_2-P=182000\cdot1{,}2^3-P(1{,}2^2+1{,}2+1).\]<b>3. Определим один платёж.</b> \[P=\frac{182000\cdot1{,}728}{1{,}44+1{,}2+1}=\frac{314496}{3{,}64}=86400.\]<b>4. Найдём сумму трёх платежей.</b> \[3P=3\cdot86400=259200.\]<b>Ответ: 259200.</b>"
+          }
+          
+          def svg_frame(body, view="0 0 620 380"):
+              return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{view}" role="img" style="display:block;width:100%;max-width:650px;max-height:400px;margin:10px auto;background:#fff">{body}</svg>'
+          
+          def point_label(x,y,t,dx=5,dy=-7):
+              return f'<text x="{x+dx:.1f}" y="{y+dy:.1f}" font-family="serif" font-size="21" font-style="italic" fill="#1b1b1b">{t}</text>'
+          
+          def grid_graph(u=38, ox=155, oy=310, xmin=-1, xmax=9, ymin=-1, ymax=7, width=620, height=380):
+              lines=[]
+              for i in range(xmin,xmax+1):
+                  x=ox+u*i
+                  lines.append(f'<path d="M{x} {oy-u*ymax} V{oy-u*ymin}" stroke="#d1d5db" stroke-width="1"/>')
+              for j in range(ymin,ymax+1):
+                  y=oy-u*j
+                  lines.append(f'<path d="M{ox+u*xmin} {y} H{ox+u*xmax}" stroke="#d1d5db" stroke-width="1"/>')
+              lines.append(f'<path d="M{ox+u*xmin-5} {oy} H{ox+u*xmax+9} l-10 -5 m10 5 l-10 5 M{ox} {oy-u*ymin+5} V{oy-u*ymax-9} l-5 10 m5 -10 l5 10" fill="none" stroke="#111" stroke-width="2.5"/>')
+              lines.append(point_label(ox+u*xmax+9,oy,"x",0,22))
+              lines.append(point_label(ox,oy-u*ymax-9,"y",9,0))
+              lines.append(f'<text x="{ox-14}" y="{oy+20}" font-family="serif" font-size="16" fill="#222">0</text>')
+              return "".join(lines)
+          
+          diagrams={}
+          diagrams[1]=svg_frame(
+              '<path d="M170 275 L492 275 L413 110 L91 110 Z M91 110 L331 275" fill="none" stroke="#202020" stroke-width="2.5"/>'
+              '<path d="M246 267 l8 16 M407 267 l8 16" stroke="#202020" stroke-width="2" fill="none"/>'
+              +point_label(170,275,"A",-15,25)+point_label(91,110,"B",-9,-15)
+              +point_label(413,110,"C",-5,-15)+point_label(492,275,"D",9,17)
+              +point_label(331,275,"E",-5,25), "0 0 620 350")
+          g2=grid_graph()
+          def vxy(x,y): return (155+38*x,310-38*y)
+          a0=vxy(1,1);a1=vxy(3,5);b0=vxy(2,1);b1=vxy(6,5)
+          g2+='<defs><marker id="v2arrow" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7" fill="none" stroke="#151515" stroke-width="1.4"/></marker></defs>'
+          g2+=f'<path d="M{a0[0]} {a0[1]} L{a1[0]} {a1[1]} M{b0[0]} {b0[1]} L{b1[0]} {b1[1]}" stroke="#171717" stroke-width="2.8" fill="none" marker-end="url(#v2arrow)"/>'
+          g2+=point_label(ox:=220, y:=190,"a",0,-2)+point_label(330,215,"b",0,0)
+          g2+='<text x="177" y="294" font-size="15">1</text><text x="143" y="270" font-size="15">1</text>'
+          diagrams[2]=svg_frame(g2)
+          diagrams[3]=svg_frame(
+              '<g fill="none" stroke="#242424" stroke-width="2.3">'
+              '<path d="M115 132 L292 178 L480 125 L303 78 Z M115 132 V288 L292 333 L480 281 V125 M292 178 V333"/>'
+              '<path d="M115 288 L303 235 L480 281 M303 78 V235" stroke-dasharray="7 6"/>'
+              '<path d="M385 103 L385 260 M385 260 L303 235 M385 103 L385 260" stroke-dasharray="7 5"/>'
+              '<path d="M385 103 L385 260 L480 281" stroke="#252525" stroke-dasharray="6 5"/>'
+              '</g>'
+              +''.join(point_label(x,y,name,dx,dy) for x,y,name,dx,dy in [
+                  (115,132,'A₁',-35,-10),(292,178,'B₁',-5,-13),(480,125,'C₁',6,-8),(303,78,'D₁',-7,-14),
+                  (115,288,'A',-27,15),(292,333,'B',-5,21),(480,281,'C',10,12),(303,235,'D',-23,8),
+                  (385,103,'M₁',0,-13),(385,260,'N',6,14) ]),"0 0 620 380")
+          
+          def svg9():
+              ox,oy,u=336,359,41
+              out=[grid_graph(u,ox,oy,-5,5,-3,6)]
+              def pt(x,y):return (ox+u*x,oy-u*y)
+              p1,p2=pt(-3.4,1.6*(-3.4)+1.8),pt(2.25,1.6*2.25+1.8)
+              out.append(f'<path d="M{p1[0]:.1f} {p1[1]:.1f} L{p2[0]:.1f} {p2[1]:.1f}" stroke="#111" stroke-width="2.6"/>')
+              coords=[(-5,-3.9),(-4,-3.1),(-3,-3),(-2.5,-2.2),(-2,0.0),(-1,3.1),(0,4),(1,4.35),(1.8,4.6),(2,5),(2.15,5.5)]
+              # Smooth Catmull-Rom interpolation via cubic Bezier, all points fixed to grid.
+              path=[]
+              for i,(x,y) in enumerate(coords[:-1]):
+                  x1,y1=coords[i+1]
+                  pre=coords[max(0,i-1)]
+                  post=coords[min(len(coords)-1,i+2)]
+                  c1=(x+(x1-pre[0])/6,y+(y1-pre[1])/6)
+                  c2=(x1-(post[0]-x)/6,y1-(post[1]-y)/6)
+                  P=pt(x,y);C1=pt(*c1);C2=pt(*c2);Q=pt(x1,y1)
+                  if i==0:path.append(f'M{P[0]:.1f} {P[1]:.1f}')
+                  path.append(f'C{C1[0]:.1f} {C1[1]:.1f} {C2[0]:.1f} {C2[1]:.1f} {Q[0]:.1f} {Q[1]:.1f}')
+              out.append('<path d="'+" ".join(path)+'" fill="none" stroke="#55aeef" stroke-width="3"/>')
+              for x,y in [(-3,-3),(2,5),(-2.5,-2.2)]:
+                  X,Y=pt(x,y)
+                  out.append(f'<circle cx="{X:.1f}" cy="{Y:.1f}" r="4.3" fill="#151515"/>')
+              x0,y0=pt(-2.5,-2.2)
+              out.append(f'<path d="M{x0:.1f} {oy} V{y0:.1f}" stroke="#151515" stroke-width="1.8" stroke-dasharray="6 6"/>')
+              out.append(point_label(x0,oy,"x₀",-16,-10))
+              out.append(point_label(*pt(-4.5,2.9),"y=f(x)",-8,-3))
+              for x in [-3,1,2]:
+                  X,Y=pt(x,0);out.append(f'<text x="{X-6:.1f}" y="{Y+21:.1f}" font-size="16" fill="#111">{x}</text>')
+              for y in [-3,1,5]:
+                  X,Y=pt(0,y);out.append(f'<text x="{X-19:.1f}" y="{Y-3:.1f}" font-size="16" fill="#111">{y}</text>')
+              return svg_frame("".join(out),"0 0 650 520")
+          diagrams[9]=svg9()
+          
+          def svg12():
+              ox,oy,u=310,315,34
+              grid=grid_graph(u,ox,oy,-6,8,-6,6)
+              def pt(x,y):return(ox+u*x,oy-u*y)
+              out=[grid, '<defs><clipPath id="v2clip"><rect x="89" y="70" width="495" height="449"/></clipPath></defs>']
+              P=pt(-6,-6/5-1);Q=pt(8,8/5-1)
+              out.append(f'<path d="M{P[0]:.1f} {P[1]:.1f} L{Q[0]:.1f} {Q[1]:.1f}" stroke="#171717" stroke-width="2.4" fill="none"/>')
+              for a,b in [(-9,-0.18),(0.18,9)]:
+                  pts=[]
+                  for i in range(500):
+                      x=a+(b-a)*i/499
+                      y=10/x
+                      X,Y=pt(x,y)
+                      pts.append(f'{X:.1f},{Y:.1f}')
+                  out.append('<polyline points="'+' '.join(pts)+'" fill="none" stroke="#222" stroke-width="2.4" clip-path="url(#v2clip)"/>')
+              X,Y=pt(-5,-2)
+              out.append(f'<circle cx="{X:.1f}" cy="{Y:.1f}" r="5" fill="#111"/>')
+              out.append(point_label(X,Y,'A',-20,-10))
+              for x in [1]:
+                  T=pt(x,0);out.append(f'<text x="{T[0]-5:.1f}" y="{T[1]+22:.1f}" font-size="16" fill="#111">1</text>')
+              out.append(f'<text x="{ox-21}" y="{oy-u-5}" font-size="16" fill="#111">1</text>')
+              return svg_frame("".join(out),"0 0 650 540")
+          diagrams[12]=svg12()
+          
+          for n,q in questions.items():
+              q["text"] = texts[n]
+              q["explain"] = solutions[n]
+              q["prototypeLabel"] = f"Вариант 2 · №{n}"
+              q["source"] = "Пробный вариант 2"
+              if n in diagrams:
+                  q["diagram"] = diagrams[n]
+              assert q["answer"] and q["explain"]
+          
+          part2[14]["text"] = r"<b>а)</b> Решите уравнение \[5^{2\log_2^2(\sin x)}=\frac{5}{5^{\log_2(\sin x)}}.\]<b>б)</b> Найдите все корни этого уравнения, принадлежащие отрезку \(\left[\pi;\frac{5\pi}{2}\right]\)."
+          part2[15]["text"] = r"В прямоугольном параллелепипеде \(ABCDA_1B_1C_1D_1\) основание \(ABCD\) является прямоугольником со сторонами 9 и 12, диагонали которого пересекаются в точке \(O\). Плоскость, содержащая диагональ \(AC_1\) и параллельная прямой \(B_1D\), пересекает ребро \(BB_1\) в точке \(K\). Угол между плоскостями \((ABC_1)\) и \((AC_1K)\) равен \(45^\circ\).<br><b>а)</b> Докажите, что угол \(KOB\) меньше \(45^\circ\).<br><b>б)</b> Найдите объём прямоугольного параллелепипеда \(ABCDA_1B_1C_1D_1\)."
+          part2[17]["text"] = r"На заводе имеется генератор с ЭДС \(\varepsilon=50\) В и внутренним сопротивлением \(r=1\) Ом. Инженер подключает к генератору нагрузку, используя реостат, чтобы установить сопротивление нагрузки \(R\) (в омах). Сила тока в цепи (в амперах) определяется законом Ома: \(I=\frac{\varepsilon}{r+R}\). Тепловая мощность (в ваттах), выделяемая в нагрузке, может быть рассчитана по формуле Джоуля–Ленца: \(P=I^2R\). Какова максимальная тепловая мощность \(P\), которая может быть выделена нагрузкой?"
+          part2[18]["text"] = r"В равнобедренную трапецию \(ABCD\) с большим основанием \(AD\) вписаны две окружности так, что одна из них касается сторон \(AB\), \(BC\) и \(AD\), вторая — сторон \(BC\), \(CD\) и \(AD\), а сами они касаются друг друга внешним образом. Точка касания стороны \(CD\) с одной из окружностей радиуса \(r\) делит сторону \(CD\) в отношении \(1:4\).<br><b>а)</b> Докажите, что \(r=0{,}4\cdot CD\).<br><b>б)</b> Найдите радиус окружности, описанной около трапеции \(ABCD\), если \(AB=30\)."
+          part2[19]["text"] = r"Найдите все значения параметра \(a\), при каждом из которых система уравнений \[\begin{cases}(x^2-5x-y+3)\cdot\sqrt{x-y+3}=0,\\y=3x+a\end{cases}\] имеет ровно два различных решения."
+          part2[20]["text"] = "Есть 4 камня, каждый массой 7 тонн, и 9 камней, каждый массой 22 тонны.<br><b>а)</b> Можно ли разложить все эти камни на две группы так, чтобы разность суммарных масс камней в этих группах составила 8 тонн?<br><b>б)</b> Можно ли разложить все эти камни на две группы, суммарные массы камней в которых равны?<br><b>в)</b> Все камни хотят разложить на две группы. Какое наименьшее положительное значение (в тоннах) может принимать разность суммарных масс камней в этих группах?"
+          for n,q in part2.items():
+              q["source"] = "Пробный вариант 2" if n != 16 else "Неравенство №105060"
+          assert "log_{125}(2-3x)" in part2[16]["text"], "User-provided replacement lost"
+          
+          serialized = json.dumps(preset, ensure_ascii=False, separators=(",",":"))
+          old = child[start:end]
+          assert old.rstrip().endswith(";")
+          child = child[:start] + serialized + ";" + child[end:]
+          child = child.replace("ВАРИАНТ 2 · Школково", "Пробный вариант 2")
+          child = child.replace("рисунки готового варианта перенесены точно", "рисунки построены по условиям и координатам")
+          child = child.replace("Школково", "")
+          child = child.replace("SHKOLKOVO", "V2") # no publisher identifiers in the HTML; use preset's current ID across the form
+          
+          css = """
+          <style id="v2-exact-math-styles">
+          .preset-math-table{overflow-x:auto;margin:14px 0 12px}
+          .preset-math-table table{border-collapse:collapse;min-width:540px;width:100%;background:#fff;color:#171717;font-size:14px}
+          .preset-math-table th,.preset-math-table td{border:1px solid #888;padding:6px 8px;text-align:center;white-space:nowrap}
+          .preset-math-table th:first-child{text-align:left}
+          .math mjx-container[display="true"],.task-text mjx-container[display="true"]{max-width:100%;overflow-x:auto;overflow-y:hidden}
+          @media(max-width:750px){.preset-math-table table{font-size:12px}}
+          </style>
+          """
+          if 'id="v2-exact-math-styles"' not in child:
+              child = child.replace("</head>", css + "</head>", 1)
+          assert child.count("const UPLOADED_VARIANT_1=") == 1
+          assert "Школково" not in child and "SHKOLKOVO" not in child
+          assert all(q["explain"] for q in preset["questions"])
+          b64 = base64.b64encode(child.encode("utf-8", "surrogateescape")).decode("ascii")
+          result = shell[:match.start(2)] + b64 + shell[match.end(2):]
+          assert result.count("htmlB64:'") == 2
+          file.write_text(result, encoding="utf-8")
+          print("Updated probnic.html; first-part solutions:", len(solutions), "diagrams:", len(diagrams), "part 2:", len(preset["secondPart"]), "size:", len(result))
+          
+          PY
+          rm -f .github/workflows/one-time-variant2-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add EGA/config/probnic.html .github/workflows/one-time-variant2-fix.yml
+          git commit -m "Fix EGE variant 2 math, diagrams and step-by-step solutions"
+          git push origin HEAD:main
