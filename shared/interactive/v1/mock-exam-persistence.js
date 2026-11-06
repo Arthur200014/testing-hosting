@@ -657,7 +657,16 @@ function installMockExamUxFixes(root, programId) {
         });
       }
       doc.addEventListener('click', event => {
-        if (event.target?.closest?.('#resultReviewBtn')) displayConcreteEgeSolutions();
+        if (!event.target?.closest?.('#resultReviewBtn')) return;
+        displayConcreteEgeSolutions();
+        // The original review starts MathJax before the replacement. Typeset
+        // the newly inserted calculations as a separate queued pass.
+        root.setTimeout?.(() => {
+          const lists = [...doc.querySelectorAll('#solutionReviewList .solution-steps-v13')];
+          if (!lists.length || !root.MathJax?.typesetPromise) return;
+          root.MathJax.typesetPromise(lists).catch(error =>
+            root.console?.warn?.('Mock solution typesetting', error));
+        }, 0);
       });
     } else if (programId === 'OGE_MATH') {
       doc.addEventListener('click', event => {
