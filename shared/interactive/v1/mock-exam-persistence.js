@@ -548,6 +548,133 @@ export function createMockExamPersistence({
   };
 }
 
+function installMockExamUxFixes(root, programId) {
+  try {
+    if (!root?.document || root.__MOCK_UX_FIXES_20261107__) return;
+    root.__MOCK_UX_FIXES_20261107__ = true;
+    const doc = root.document;
+    const css = doc.createElement('style');
+    css.id = 'mock-ux-fixes-20261107';
+    if (programId === 'EGE_MATH') {
+      css.textContent = `
+        /* Screenshot diagrams are part of the actual task; do not shrink them to 46–88px. */
+        #shotPage1 .shot-column:first-child .shot-task:nth-child(2) .mini-diagram,
+        #shotPage1 .shot-column:nth-child(2) .shot-task:nth-child(4) .mini-diagram {
+          max-height: 174px !important; min-height: 142px !important;
+          overflow: visible !important; padding: 2px 0 !important;
+        }
+        #shotPage1 .shot-column:first-child .shot-task:nth-child(2) .mini-diagram svg,
+        #shotPage1 .shot-column:first-child .shot-task:nth-child(2) .mini-diagram img,
+        #shotPage1 .shot-column:nth-child(2) .shot-task:nth-child(4) .mini-diagram svg,
+        #shotPage1 .shot-column:nth-child(2) .shot-task:nth-child(4) .mini-diagram img {
+          display: block !important; width: auto !important;
+          max-width: 100% !important; height: 164px !important;
+          max-height: 164px !important; margin: 2px auto !important;
+          object-fit: contain !important;
+        }
+        #shotPage1 .shot-column:first-child .shot-task:nth-child(2),
+        #shotPage1 .shot-column:nth-child(2) .shot-task:nth-child(4) {
+          overflow: visible !important; color: #161616 !important;
+        }
+      `;
+    } else if (programId === 'OGE_MATH') {
+      css.textContent = `
+        /* Bank tasks use near-white text on dark previews. Restore black text on the white screenshot. */
+        #shotPage .shot-p2 .shot-task, #shotPage .shot-p2 .bank-body,
+        #shotPage .shot-p2 .bank-body p, #shotPage .shot-p2 .bank-formula,
+        #shotPage .shot-p2 .bank-body b, #shotPage .shot-p2 .bank-body span {
+          color: #171717 !important; opacity: 1 !important;
+          visibility: visible !important; filter: none !important;
+        }
+        #shotPage .shot-p2 .shot-task { background: #fff !important; }
+        #shotPage .shot-p2 .bank-body { font-size: 16px !important; line-height: 1.4 !important; }
+        #shotPage .shot-p2 { overflow: visible !important; }
+      `;
+    }
+    doc.head?.append(css);
+
+    if (programId === 'EGE_MATH') {
+      // The old button reloaded the inner iframe, and the shell auto-entered
+      // with its remembered code. Exit the shell session instead.
+      doc.addEventListener('click', event => {
+        const button = event.target?.closest?.('[data-new-attempt]');
+        if (!button) return;
+        let shell = null;
+        try {
+          shell = root.parent;
+          if (!shell || shell === root || typeof shell.setHome !== 'function') return;
+        } catch (_) { return; }
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        shell.setHome(true);
+        const field = shell.document?.getElementById('shellStudentCode');
+        if (field) field.value = '';
+        shell.studentOpen?.();
+      }, true);
+
+      // Show the actual calculations supplied by the chosen task instead of
+      // boilerplate "understand the question / select a method / verify".
+      function displayConcreteEgeSolutions() {
+        const current = root.__EGE2027_MOCK_DIAGNOSTICS__?.getState?.();
+        if (!Array.isArray(current?.questions)) return;
+        current.questions.forEach((q, index) => {
+          const box = doc.getElementById('reviewSolutionV15-' + index);
+          const list = box?.querySelector('.solution-steps-v13');
+          if (!list) return;
+          let raw = String(q?.explain || '').trim();
+          if (String(q?.prototypeId || '') === 'EGE-11-003' &&
+              /90/.test(String(q?.text || '')) && /5/.test(String(q?.text || ''))) {
+            raw = '<p>Пусть \\(x\\) л/мин — производительность первой трубы. Тогда у второй \\(x+5\\) л/мин.</p>'
+              + '<p>Первая заполняет 90 л за \\(\\frac{90}{x}\\) мин, вторая — за \\(\\frac{90}{x+5}\\) мин. '
+              + 'Разница времени 3 минуты: \\[\\frac{90}{x}-\\frac{90}{x+5}=3.\\]</p>'
+              + '<p>Умножаем на \\(x(x+5)\\): \\[90(x+5)-90x=3x(x+5),\\quad 450=3x^2+15x.\\]</p>'
+              + '<p>Делим на 3: \\[x^2+5x-150=0,\\quad (x-10)(x+15)=0.\\]</p>'
+              + '<p>\\(x=10\\) или \\(x=-15\\). Скорость положительна, поэтому \\(x=10\\).</p>';
+          }
+          if (!raw) {
+            // Keep genuine ready-made solutions, but not abstract fallback steps.
+            const steps = [...list.querySelectorAll('.solution-step-v13')];
+            for (const step of steps) {
+              if (/Разбираем условие|Выбираем способ|Выбираем ключевое свойство|Объясняем применение|Проверяем итог|Аккуратно выполняем преобразования/i.test(step.textContent || '')) {
+                step.remove();
+              }
+            }
+            if (!list.querySelector('.solution-step-v13')) {
+              list.textContent = 'Для этого задания пока нет проверенного разбора с вычислениями.';
+            }
+            return;
+          }
+          raw = raw.replace(/<b>\s*Ответ:\s*[^<]*<\/b>/gi, '').trim();
+          const numbered = /<b>\s*\d+\.\s*/.test(raw);
+          const fragments = numbered
+            ? raw.split(/(?=<b>\s*\d+\.\s*)/gi)
+            : (/<\/p>\s*<p/i.test(raw)
+                ? raw.split(/(?=<p(?:\s|>))/gi)
+                : (/<br\s*\/?>/i.test(raw) ? raw.split(/<br\s*\/?>/gi) : [raw]));
+          const cleanSteps = fragments.map(x => x.trim()).filter(x => x && x !== '</p>' && !/^<p>\s*<\/p>$/.test(x));
+          list.innerHTML = (cleanSteps.length ? cleanSteps : [raw])
+            .map(x => '<div class="solution-step-v13"><div class="solution-step-content-v13">' + x + '</div></div>').join('');
+        });
+      }
+      doc.addEventListener('click', event => {
+        if (event.target?.closest?.('#resultReviewBtn')) displayConcreteEgeSolutions();
+      });
+    } else if (programId === 'OGE_MATH') {
+      doc.addEventListener('click', event => {
+        if (!event.target?.closest?.('#reviewOpen')) return;
+        doc.querySelectorAll('.review-card .solution-box').forEach(box => {
+          const html = box.innerHTML || '';
+          if (/Шаг 1\.<\/b>.*(?:Разбираем условие|Читаем условие|выполняем вычисления).*Шаг 2\.<\/b>.*(?:Проверяем единицы|формат записи)/is.test(html)) {
+            box.textContent = 'Для этого прототипа пока нет проверенного решения с вычислениями.';
+          }
+        });
+      });
+    }
+  } catch (error) {
+    root?.console?.warn?.('Mock exam UX fixes could not be installed', error);
+  }
+}
+
 // Installs the EGE mock page adapter without exposing transport state in the
 // student interface. The large embedded page keeps rendering the exam; this
 // bridge owns persistence, delivery retries and receipt validation.
@@ -986,6 +1113,7 @@ export function installEgeMockPersistenceBridge({
     }
   };
   root.__EGE_MOCK_PERSISTENCE__ = api;
+  installMockExamUxFixes(root, programId);
   retry();
   return api;
 }
@@ -1431,6 +1559,7 @@ export function installOgeMockPersistenceBridge({
     }
   };
   root.__OGE_MOCK_PERSISTENCE__ = api;
+  installMockExamUxFixes(root, programId);
   retry();
   return api;
 }
