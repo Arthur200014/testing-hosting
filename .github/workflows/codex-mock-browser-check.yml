@@ -1,0 +1,31 @@
+name: Browser check mock form
+on:
+  push:
+    paths:
+      - .github/workflows/codex-mock-browser-check.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            EGA/config
+            shared/interactive/v1
+            scripts
+            .github/workflows
+      - name: Install browser test dependencies
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Run mock form browser check
+        run: node scripts/mock-unified-entry-browser.mjs
+      - name: Remove temporary workflow
+        if: always()
+        run: |
+          git rm -- .github/workflows/codex-mock-browser-check.yml
+          git -c user.name=codex -c user.email=codex@users.noreply.github.com commit -m "Remove temporary mock browser check"
+          git push origin HEAD:main
