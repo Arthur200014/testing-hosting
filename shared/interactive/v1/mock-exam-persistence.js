@@ -53,6 +53,29 @@ function showAlreadySubmittedNotice(root, programId = '', score = {}) {
   return overlay;
 }
 
+function showPendingCompletion(root, eventId) {
+  const document = root.document;
+  if (!document?.createElement) return;
+  let overlay = document.getElementById('mockPendingOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'mockPendingOverlay';
+    overlay.className = 'overlay';
+    const modal = document.createElement('section');
+    modal.className = 'modal';
+    const title = document.createElement('h2');
+    title.textContent = 'Работа завершена';
+    const copy = document.createElement('p');
+    copy.textContent = 'Ответы сохранены. Итог появится после подтверждения сдачи.';
+    modal.append(title, copy);
+    overlay.append(modal);
+    document.body?.append(overlay);
+  }
+  document.getElementById('loginOverlay')?.classList?.add('hidden');
+  overlay.dataset.eventId = clean(eventId);
+  overlay.classList.remove('hidden');
+}
+
 function numberOrNull(value) {
   if (value === null || value === undefined || clean(value) === '') return null;
   const number = Number(value);
@@ -92,6 +115,23 @@ function updateSavedServerResult(persistence, saved, lookupResult, programId) {
   const result = serverResult(programId, lookupResult, saved.result || {});
   if (result === saved.result) return saved;
   return persistence.saveAttempt({ ...saved, result });
+}
+
+function reopenUnsubmittedAttempt(persistence, saved, identity, durationSeconds) {
+  const startedAt = Date.now();
+  const duration = Math.max(60, Number(durationSeconds) || 0);
+  return persistence.saveAttempt({
+    ...saved,
+    ...identity,
+    eventId: clean(saved?.eventId || identity.eventId),
+    phase: MOCK_ATTEMPT_PHASES.IN_PROGRESS,
+    startedAt,
+    deadlineAt: startedAt + duration * 1000,
+    submittedAt: 0,
+    confirmedAt: 0,
+    result: null,
+    serverVerifiedNoSubmission: true
+  });
 }
 
 function ensureResultMetric(document, containerSelector, metricClass, id) {
@@ -710,6 +750,34 @@ export function installEgeMockPersistenceBridge({
     return migrateAttempt(code, wantedVariant, legacy);
   };
 
+
+  const verifyStoredCompletion = async (code, variantId, durationSeconds) => {
+    const key = identity(code, variantId);
+    const saved = persistence.loadAttempt(key) || original.loadLocal(code, variantId);
+    if (!saved?.submittedAt) return;
+    await acquireCanonicalIdentity(code);
+    const pending = persistence.readOutbox().some(entry => entry.eventId === saved.eventId);
+    let found;
+    try {
+      found = await priorLookup({
+        studentId: canonicalStudentId,
+        programId,
+        mockId: `EGE2027-MOCK-${clean(variantId)}`
+      });
+    } catch (error) {
+      if (pending) return 'pending';
+      throw error;
+    }
+    if (lookupHasSubmission(found)) return;
+    if (pending) return 'pending';
+    reopenUnsubmittedAttempt(persistence, saved, {
+      ...key,
+      eventId: clean(saved.eventId) || stableMockSubmissionEventId({
+        studentId: canonicalStudentId, programId, mockId: `EGE2027-MOCK-${clean(variantId)}`
+      })
+    }, durationSeconds);
+  };
+
   root.storeLocal = function storeLocalWithPersistence(extra = {}) {
     const current = state();
     if (!clean(current?.code) || !clean(current?.variantId) || !clean(current?.eventId)) return null;
@@ -870,9 +938,24 @@ export function installEgeMockPersistenceBridge({
     };
   }
 
+  let pendingVariantId = '';
+  let checkingPending = false;
+  const refreshPending = async () => {
+    const overlay = root.document?.getElementById('mockPendingOverlay');
+    if (!overlay || !pendingVariantId || checkingPending
+        || persistence.readOutbox().some(entry => entry.eventId === overlay.dataset.eventId)) return;
+    checkingPending = true;
+    try {
+      const found = await priorLookup({
+        studentId: canonicalStudentId, programId, mockId: `EGE2027-MOCK-${pendingVariantId}`
+      });
+      if (lookupHasSubmission(found)) root.location?.reload?.();
+    } catch {} finally { checkingPending = false; }
+  };
   const retry = () => {
     if (root.document?.visibilityState === 'hidden') return;
-    if (persistence.readOutbox().length) void flush();
+    if (persistence.readOutbox().length) void flush().then(refreshPending);
+    else void refreshPending();
   };
   root.addEventListener?.('online', retry);
   root.addEventListener?.('focus', retry);
@@ -885,6 +968,12 @@ export function installEgeMockPersistenceBridge({
     persistence,
     flush,
     lookup: priorLookup,
+    verifyStoredCompletion,
+    showPendingCompletion: (code, variantId) => {
+      pendingVariantId = clean(variantId);
+      showPendingCompletion(root, persistence.loadAttempt(identity(code, variantId))?.eventId);
+      retry();
+    },
     snapshot,
     isLocked: () => lockedByPriorSubmission,
     ready: true,
@@ -1028,7 +1117,7 @@ export function installOgeMockPersistenceBridge({
       saved = persistence.loadAttempt(identity(ids));
     } catch {}
     const legacy = original.loadLocal(...args);
-    if (saved && saved.phase !== MOCK_ATTEMPT_PHASES.IN_PROGRESS) return saved;
+    if (saved && (saved.phase !== MOCK_ATTEMPT_PHASES.IN_PROGRESS || saved.serverVerifiedNoSubmission)) return saved;
     if (isObject(legacy)) {
       const legacyIds = fields({ ...legacy, studentId: legacy.studentId || args[0], variantId: legacy.variantId || args[1] });
       try {
@@ -1044,6 +1133,37 @@ export function installOgeMockPersistenceBridge({
       } catch {}
     }
     return saved || legacy;
+  };
+
+
+  const verifyStoredCompletion = async (code, variantId, durationSeconds) => {
+    const key = identity({ studentCode: code, studentId: code, variantId });
+    const persisted = persistence.loadAttempt(key);
+    const legacy = original.loadLocal(code, variantId);
+    const completed = [persisted, legacy].find(item => item?.submittedAt);
+    if (!completed) return;
+    const saved = persisted || completed;
+    await acquireCanonicalIdentity(code);
+    const pending = persistence.readOutbox().some(entry => entry.eventId === completed.eventId);
+    let found;
+    try {
+      found = await priorLookup({
+        studentId: canonicalStudentId,
+        programId,
+        mockId: `OGE2027-MOCK-${clean(variantId)}`
+      });
+    } catch (error) {
+      if (pending) return 'pending';
+      throw error;
+    }
+    if (lookupHasSubmission(found)) return;
+    if (pending) return 'pending';
+    reopenUnsubmittedAttempt(persistence, saved, {
+      ...key,
+      eventId: clean(saved.eventId) || stableMockSubmissionEventId({
+        studentId: canonicalStudentId, programId, mockId: `OGE2027-MOCK-${clean(variantId)}`
+      })
+    }, durationSeconds);
   };
   root.saveLocal = function saveLocalWithPersistence(value, ...args) {
     const result = original.saveLocal(value, ...args);
@@ -1263,9 +1383,24 @@ export function installOgeMockPersistenceBridge({
   for (const name of ['setSaveState', 'setResultSubmitState', 'setNetworkStatus']) root[name] = hideTransportState;
   hideTransportState();
 
+  let pendingVariantId = '';
+  let checkingPending = false;
+  const refreshPending = async () => {
+    const overlay = root.document?.getElementById('mockPendingOverlay');
+    if (!overlay || !pendingVariantId || checkingPending
+        || persistence.readOutbox().some(entry => entry.eventId === overlay.dataset.eventId)) return;
+    checkingPending = true;
+    try {
+      const found = await priorLookup({
+        studentId: canonicalStudentId, programId, mockId: `OGE2027-MOCK-${pendingVariantId}`
+      });
+      if (lookupHasSubmission(found)) root.location?.reload?.();
+    } catch {} finally { checkingPending = false; }
+  };
   const retry = () => {
     if (root.document?.visibilityState === 'hidden') return;
-    if (persistence.readOutbox().length) void flush();
+    if (persistence.readOutbox().length) void flush().then(refreshPending);
+    else void refreshPending();
   };
   root.addEventListener?.('online', retry);
   root.addEventListener?.('focus', retry);
@@ -1277,6 +1412,12 @@ export function installOgeMockPersistenceBridge({
     persistence,
     flush,
     lookup: priorLookup,
+    verifyStoredCompletion,
+    showPendingCompletion: (code, variantId) => {
+      pendingVariantId = clean(variantId);
+      showPendingCompletion(root, persistence.loadAttempt(identity({ studentCode: code, variantId }))?.eventId);
+      retry();
+    },
     snapshot,
     ready: true,
     isLocked: () => lockedByPriorSubmission,

@@ -5,6 +5,7 @@ import {
   confirmMockSubmissionResponse,
   createMockExamPersistence,
   createMockSubmissionLookup,
+  installEgeMockPersistenceBridge,
   installOgeMockPersistenceBridge,
   stableMockSubmissionEventId
 } from './mock-exam-persistence.js';
@@ -473,5 +474,106 @@ test('OGE submission waits durably for canonical identity and delivers after val
     programId: 'OGE_MATH',
     mockId: 'MOCK-7'
   }));
+  bridge.dispose();
+});
+
+test('OGE stale local completion becomes a draft only when the sheet has no submission', async () => {
+  const { root } = fakeOgeRoot({ lookup: async () => false });
+  const bridge = installOgeMockPersistenceBridge({ root, lookup: root.__lookup });
+  const key = { programId: 'OGE_MATH', studentCode: 'S-1', variantId: 'VAR-7' };
+  bridge.persistence.saveAttempt({ ...key, eventId: 'old-event', phase: 'confirmed',
+    startedAt: 1, deadlineAt: 2, submittedAt: 3, result: { primary: 9 }, answers: { 1: '42' } });
+  await bridge.verifyStoredCompletion('S-1', 'VAR-7', 600);
+  const saved = bridge.persistence.loadAttempt(key);
+  assert.equal(saved.submittedAt, 0);
+  assert.equal(saved.result, null);
+  assert.equal(saved.phase, 'in_progress');
+  assert.equal(saved.answers[1], '42');
+  assert.ok(saved.deadlineAt > saved.startedAt);
+  assert.deepEqual(root.lookups.at(-1), {
+    studentId: 'S-1', programId: 'OGE_MATH', mockId: 'OGE2027-MOCK-VAR-7'
+  });
+  bridge.dispose();
+});
+
+test('OGE does not revive a stale legacy completion over a newer shared draft', async () => {
+  const { root } = fakeOgeRoot({ lookup: async () => false });
+  root.loadLocal = () => ({ submittedAt: 10, eventId: 'legacy-event',
+    answers: { 1: 'old' }, result: { primary: 9 } });
+  const bridge = installOgeMockPersistenceBridge({ root, lookup: root.__lookup });
+  const key = { programId: 'OGE_MATH', studentCode: 'S-1', variantId: 'VAR-7' };
+  bridge.persistence.saveAttempt({ ...key, eventId: 'draft-event',
+    phase: 'in_progress', answers: { 1: 'new' } });
+  await bridge.verifyStoredCompletion('S-1', 'VAR-7', 600);
+  const restored = root.loadLocal('S-1', 'VAR-7');
+  assert.equal(restored.submittedAt, 0);
+  assert.equal(restored.result, null);
+  assert.equal(restored.answers[1], 'new');
+  bridge.dispose();
+});
+
+test('EGE reopens a stale result as a draft, then keeps a result with a matching sheet row', async () => {
+  const storage = memoryStorage();
+  const root = {
+    localStorage: storage, navigator: { onLine: true },
+    document: { visibilityState: 'visible', getElementById: () => null,
+      addEventListener() {}, removeEventListener() {} },
+    addEventListener() {}, removeEventListener() {},
+    setInterval: () => 1, clearInterval() {},
+    __EGE2027_MOCK_DIAGNOSTICS__: { mockId: 'EGE-MOCK', getState: () => ({}) },
+    loadLocal: () => null, postResult: async () => ({}), showResult() {},
+    validateStudentCode: async () => ({ studentId: 'EGE-1' })
+  };
+  const seen = [];
+  let submitted = false;
+  const bridge = installEgeMockPersistenceBridge({ root, lookup: async input => {
+    seen.push(input);
+    return { submitted };
+  } });
+  const key = { programId: 'EGE_MATH', studentCode: 'EGE-CODE', variantId: 'VAR-8' };
+  bridge.persistence.saveAttempt({ ...key, eventId: 'old-event', phase: 'confirmed',
+    submittedAt: 3, result: { primary: 7 }, answers: ['42'] });
+  await bridge.verifyStoredCompletion('EGE-CODE', 'VAR-8', 3600);
+  const draft = bridge.persistence.loadAttempt(key);
+  assert.equal(draft.submittedAt, 0);
+  assert.equal(draft.result, null);
+  assert.deepEqual(draft.answers, ['42']);
+  bridge.persistence.saveAttempt({ ...draft, submittedAt: 3, phase: 'confirmed', result: { primary: 7 } });
+  submitted = true;
+  await bridge.verifyStoredCompletion('EGE-CODE', 'VAR-8', 3600);
+  assert.equal(bridge.persistence.loadAttempt(key).submittedAt, 3);
+  assert.deepEqual(seen, Array(2).fill({ studentId: 'EGE-1', programId: 'EGE_MATH', mockId: 'EGE2027-MOCK-VAR-8' }));
+  bridge.dispose();
+});
+
+test('pending OGE submission stays closed until its exact server row becomes visible', async () => {
+  const { root, listeners } = fakeOgeRoot({ lookup: async () => false, online: false });
+  let reloads = 0;
+  let rowVisible = false;
+  let pendingOverlay = null;
+  root.location = { reload: () => { reloads += 1; } };
+  root.document.getElementById = id => id === 'mockPendingOverlay' ? pendingOverlay : null;
+  root.document.createElement = tag => ({
+    tag, dataset: {}, classList: { add() {}, remove() {} },
+    append() {}, textContent: ''
+  });
+  root.document.body = { append: element => { pendingOverlay = element; } };
+  root._lookup = async () => ({ submitted: rowVisible });
+  const bridge = installOgeMockPersistenceBridge({ root, lookup: root.__lookup });
+  const key = { programId: 'OGE_MATH', studentCode: 'S-1', variantId: 'VAR-7' };
+  const payload = { eventId: 'pending-event', studentId: 'S-1', programId: 'OGE_MATH', mockId: 'OGE2027-MOCK-VAR-7' };
+  bridge.persistence.queueSubmission({ snapshot: { ...key, eventId: payload.eventId,
+    submittedAt: 10, result: { primary: 4 }, answers: { 1: '42' } }, payload });
+  assert.equal(await bridge.verifyStoredCompletion('S-1', 'VAR-7', 600), 'pending');
+  assert.equal(bridge.persistence.loadAttempt(key).phase, 'queued');
+  bridge.showPendingCompletion('S-1', 'VAR-7');
+  bridge.persistence.remove(payload.eventId);
+  await listeners.get('online')();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(reloads, 0, 'receipt alone cannot restore a result before the sheet row appears');
+  rowVisible = true;
+  await listeners.get('online')();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(reloads, 1);
   bridge.dispose();
 });

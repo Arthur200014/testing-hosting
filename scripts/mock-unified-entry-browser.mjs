@@ -49,6 +49,7 @@ const students = {
 const productionPosts = [];
 
 async function configureRoutes(context, student) {
+  const lookupState = { submitted: false };
   await context.route('https://cdn.jsdelivr.net/**', route => route.fulfill({
     status: 200,
     contentType: 'application/javascript',
@@ -57,7 +58,15 @@ async function configureRoutes(context, student) {
   await context.route('https://docs.google.com/spreadsheets/**/gviz/tq**', route => {
     const url = new URL(route.request().url());
     const callback = url.searchParams.get('tqx')?.split('responseHandler:')[1];
-    const data = { status: 'ok', table: { cols: [], rows: [] } };
+    const query = url.searchParams.get('tq') || '';
+    const mockId = query.match(/\bC='([^']+)'/)?.[1] || '';
+    const rows = lookupState.submitted ? [{ c: [
+      { v: 'confirmed-test-event' }, { v: student.studentId }, { v: mockId },
+      { v: student.programId }, { v: '' }, { v: 1 }, { v: '' },
+      { v: typeOfStudent(student) === 'ege' ? 32 : 31 }, { v: 5 },
+      { v: new Date().toISOString() }, { v: '' }
+    ] }] : [];
+    const data = { status: 'ok', table: { cols: [], rows } };
     return route.fulfill({
       status: 200,
       contentType: 'application/javascript',
@@ -85,7 +94,10 @@ async function configureRoutes(context, student) {
       body: callback ? `${callback}(${JSON.stringify(data)});` : JSON.stringify(data)
     });
   });
+  return lookupState;
 }
+
+function typeOfStudent(student) { return student.programId === 'EGE_MATH' ? 'ege' : 'oge'; }
 
 async function childFrame(page, type) {
   const key = type === 'ege' ? '__EGE_MOCK_PERSISTENCE__' : '__OGE_MOCK_PERSISTENCE__';
@@ -105,7 +117,7 @@ async function waitForExam(frame, type) {
 async function runResumeScenario(type, viewport) {
   const student = students[type];
   const context = await browser.newContext({ viewport, ignoreHTTPSErrors: Boolean(remoteBase) });
-  await configureRoutes(context, student);
+  const lookupState = await configureRoutes(context, student);
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -245,6 +257,28 @@ async function runResumeScenario(type, viewport) {
           : { primary: 1, blank: 18, durationSeconds: 60, scorePercent: 5, autoSubmitted: false }
       });
     }, type);
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 });
+    frame = await childFrame(page, type);
+    await waitForExam(frame, type);
+    assert.equal(await frame.locator('#resultOverlay').evaluate(node => node.classList.contains('hidden')), true,
+      'a local result without a matching server row must not appear');
+    assert.equal(await (type === 'ege' ? frame.locator('#answer-1') : frame.locator('.answer-input').first()).inputValue(),
+      type === 'ege' ? '17' : '195', 'the stale result must revert to an editable draft with its answers');
+    const reopened = await frame.evaluate(examType => {
+      const api = globalThis[examType === 'ege' ? '__EGE_MOCK_PERSISTENCE__' : '__OGE_MOCK_PERSISTENCE__'];
+      return api.persistence.loadAttempt(api.snapshot());
+    }, type);
+    assert.equal(reopened.submittedAt, 0);
+    assert.equal(reopened.phase, 'in_progress');
+    assert.equal(reopened.result, null);
+    await frame.evaluate(examType => {
+      const api = globalThis[examType === 'ege' ? '__EGE_MOCK_PERSISTENCE__' : '__OGE_MOCK_PERSISTENCE__'];
+      api.persistence.saveAttempt({
+        ...api.snapshot(), submittedAt: Date.now(), phase: 'confirmed',
+        result: { primary: 1, durationSeconds: 60, scorePercent: 5 }
+      });
+    }, type);
+    lookupState.submitted = true;
     await page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 });
     frame = await childFrame(page, type);
     await frame.locator('#resultOverlay:not(.hidden)').waitFor({ timeout: 20_000 });
