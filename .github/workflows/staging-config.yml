@@ -1,0 +1,30 @@
+name: TAS staging configuration
+
+on:
+  push:
+    paths:
+      - '.github/workflows/staging-config.yml'
+      - 'compose.staging.yaml'
+      - '.env.staging.example'
+      - 'platform/deploy/caddy-staging/**'
+      - 'platform/scripts/staging-preflight.sh'
+      - 'platform/scripts/check-staging-config.py'
+      - '.gitignore'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate isolated staging Compose topology (synthetic secrets only)
+        run: bash platform/scripts/staging-preflight.sh .env.staging.example --example
+      - name: Validate Caddy config (no ACME / no deployment)
+        run: |
+          docker run --rm --env STAGING_DOMAIN=staging.example.invalid \
+            --volume "$PWD/platform/deploy/caddy-staging:/etc/caddy:ro" \
+            caddy:2.11.9-alpine caddy validate --config /etc/caddy/Caddyfile
