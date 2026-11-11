@@ -11,6 +11,7 @@ public static class HistoryImportProgram
     public static async Task<int> Main(string[] args)
     {
         string? xlsx = null, map = null, workspace = null;
+        var kind = "lessons";
         var apply = false;
         for (var i = 0; i < args.Length; i++)
         {
@@ -19,13 +20,14 @@ public static class HistoryImportProgram
                 case "--xlsx" when i + 1 < args.Length: xlsx = args[++i]; break;
                 case "--program-map" when i + 1 < args.Length: map = args[++i]; break;
                 case "--workspace" when i + 1 < args.Length: workspace = args[++i]; break;
+                case "--kind" when i + 1 < args.Length: kind = args[++i]; break;
                 case "--apply": apply = true; break;
                 default: return Usage();
             }
         }
 
         if (string.IsNullOrWhiteSpace(xlsx) || string.IsNullOrWhiteSpace(map) ||
-            string.IsNullOrWhiteSpace(workspace)) return Usage();
+            string.IsNullOrWhiteSpace(workspace) || kind is not ("lessons" or "tests")) return Usage();
 
         try
         {
@@ -33,10 +35,20 @@ public static class HistoryImportProgram
             var options = new DbContextOptionsBuilder<PlatformDbContext>()
                 .UseNpgsql(StartupConfiguration.GetConnectionString(config),
                     pg => pg.MigrationsHistoryTable("__EFMigrationsHistory", "public")).Options;
-            var importer = new HistoryImportService(() => new PlatformDbContext(options));
-            var report = await importer.ImportAsync(xlsx, map, workspace, apply);
-            Console.WriteLine(JsonSerializer.Serialize(report));
-            return report.CanApply ? 0 : 1;
+            if (kind == "tests")
+            {
+                var report = await new TestHistoryImportService(() => new PlatformDbContext(options))
+                    .ImportAsync(xlsx, map, workspace, apply);
+                Console.WriteLine(JsonSerializer.Serialize(report));
+                return report.CanApply ? 0 : 1;
+            }
+            else
+            {
+                var report = await new HistoryImportService(() => new PlatformDbContext(options))
+                    .ImportAsync(xlsx, map, workspace, apply);
+                Console.WriteLine(JsonSerializer.Serialize(report));
+                return report.CanApply ? 0 : 1;
+            }
         }
         catch (Exception)
         {
@@ -48,7 +60,7 @@ public static class HistoryImportProgram
 
     private static int Usage()
     {
-        Console.Error.WriteLine("Usage: Platform.HistoryImport --xlsx PATH --program-map PATH --workspace SLUG [--apply]");
+        Console.Error.WriteLine("Usage: Platform.HistoryImport --xlsx PATH --program-map PATH --workspace SLUG [--kind lessons|tests] [--apply]");
         return 2;
     }
 }
