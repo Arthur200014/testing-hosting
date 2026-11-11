@@ -1,6 +1,6 @@
 # TEACHER AI STUDENT — актуальная доска задач (migration-first)
 
-**Дата:** 2026-11-11. **Единственный актуальный NEXT_ACTION:** `M01-03`.
+**Дата:** 2026-11-11. **Единственный актуальный NEXT_ACTION:** `M01-04`.
 **Цель первой версии:** работающая PostgreSQL + сервер + **существующая** преподавательская форма `EGA/config/manage.html`. Новая админка — позже. Интерактивный движок, AI и оформление уроков — отложены.
 **Продукт:** универсальная multi-tenant платформа для преподавателей **разных предметов**, а не персональная система для одного учителя и не исключительно ЕГЭ/ОГЭ.
 
@@ -26,7 +26,7 @@
 |---|---|---|---|---|
 | `M01-01` | DONE (адресная сверка Git; свежий XLSX NOT_RUN) | Адресно сопоставить все вкладки Google Sheets и запросы `EGA/config/manage.html` с API, чтением и записью; отметить, что уже реализовано, а что отсутствует. | [Матрица manage→Sheets→PG](../../docs/architecture/manage-postgres-coverage.md): 5 действий формы, 20 вкладок, границы teacher auth/tenant/cache/atomicity; документальная проверка PASS. | P00-04; gas-postgres-audit |
 | `M01-02` | DONE (техническая модель v1; миграции NOT_RUN) | Спроектировать workspace/tenant → преподаватель → ученик → предмет → курс/программа; разные предметы и разные преподаватели без привязки к ЕГЭ/ОГЭ. | [Subject/Course/Enrollment tenant model](../../docs/architecture/tenant-subject-model-v1.md): существующие ключи сохранены, additive migration/backfill и cross-tenant проверки определены; runtime NOT_RUN. | P04-01/02; P02-05 (частично) |
-| `M01-03` | TODO | Определить безопасный вход преподавателя и права на manage, роли, приглашения, отзыв сессии, аудит операций. | Контракт teacher auth/RBAC с отрицательными кейсами cross-tenant/IDOR; никакого публичного getTeacherFormData. | P04-01...05 |
+| `M01-03` | DONE (teacher login, DB session/RBAC/revoke; приглашения M06) | Защищённый вход преподавателя и workspace-role checks без публичной регистрации: admin-only bootstrap, JWT/session/revoke, rate limit. Полная teacher CRUD аудиторская запись M04, приглашения M06. | [PR №5](https://github.com/Arthur200014/testing-hosting/pull/5), [auth contract](../../docs/architecture/teacher-auth-m01-03.md): [PostgreSQL 66/66 PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43005907321), [TAS CI gate PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43005907193). Prod/staging NOT_RUN. | P04-01...05 |
 | `M01-04` | TODO | Сверить свежий snapshot Google Sheets, дубли, пустые обязательные поля и ранее найденные 17 проблемных назначений. | Только обезличенные counts/diagnostics, план исправления источника; неизменённая копия до переноса, без угадывания дат. | existing import audits |
 
 **Gate:** G-M01: есть карта листов/действий manage, утверждённая subject-neutral модель, схема изоляции преподавателей и перечень аномалий источника.
