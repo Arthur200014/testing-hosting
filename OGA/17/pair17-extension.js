@@ -232,7 +232,13 @@ async function changeStation(proto,mode,mixIndex,order){
   s.mode=mode;s.proto=proto;s.mixIndex=mixIndex;s.order=order||s.order;s.slots=created;
   s.inputs={};s.pads={};s.checks={};s.reveals={a:0,b:0};s.boardEpoch=(s.boardEpoch||0)+1;
  });
- if(done){await clearBoard();render();document.getElementById('trainer')?.scrollIntoView({block:'start',behavior:'smooth'})}
+ if(done){
+   if(window.getStereoPrototypeIndex?.()!==proto-1)
+     window.setStereoPrototype?.(proto-1,{silent:true,scroll:false});
+   await clearBoard();
+   render();
+   document.getElementById('trainer')?.scrollIntoView({block:'start',behavior:'smooth'});
+ }
 }
 async function syncMain(proto){
  if(!pair||pair.mode!=='main'||!canTeach())return;
@@ -283,7 +289,14 @@ async function connectFirebase(){
    }));
    unsubs.push(fb.onValue(fb.ref(db,root+'/pair17'),snap=>{
      const p=snap.val();
-     if(p?.schema===1&&p.sessionId===metaId){pair=p;render();}
+     if(p?.schema===1&&p.sessionId===metaId){
+      pair=p;
+      const required=taskNumber(p)-1;
+      // В миксе эталонный чертёж и теория должны соответствовать станции.
+      if(p.mode==='mix'&&window.getStereoPrototypeIndex?.()!==required)
+        window.setStereoPrototype?.(required,{silent:true,scroll:false});
+      else render();
+     }
      else if(currentRole()==='teacher')createSessionPair().catch(console.warn);
    }));
    unsubs.push(fb.onValue(fb.ref(db,root+'/members'),snap=>{
@@ -347,7 +360,7 @@ function init(){
    const summary=e.target.closest?.('details.answer-details > summary');
    if(summary&&currentRole()==='student'){e.preventDefault();e.stopImmediatePropagation()}
  },true);
- document.addEventListener('keydown',e=>{if(e.key==='Escape')$('pair17MemberBox').hidden=true});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('pair17MemberBox'))$('pair17MemberBox').hidden=true});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
