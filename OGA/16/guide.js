@@ -24,7 +24,7 @@ function stationId(index,order){return index<COUNT?PROTOTYPES[index].id:(order||
 function freshState(){
  const order=shuffle(PROTOTYPES.map(p=>p.id));
  return {schema:1,sessionId:randomId(),index:0,order,slots:makePair(PROTOTYPES[0].id),
-  owners:{a:'',b:''},reveals:{a:0,b:0},boardEpoch:0,slotEpoch:{a:0,b:0},version:1};
+  owners:{a:'',b:''},ownerSelectionLocked:false,reveals:{a:0,b:0},boardEpoch:0,slotEpoch:{a:0,b:0},version:1};
 }
 state=freshState();
 function stageName(i=state.index){return i<COUNT?'ПРОТОТИП '+(i+1)+' ИЗ '+COUNT:'СТАНЦИЯ-МИКС '+(i-COUNT+1)+' ИЗ '+COUNT}
@@ -123,7 +123,7 @@ async function joinStudent(person){
    if(!current||current.sessionId!==s.sessionId)return;
    current.owners=current.owners||{a:'',b:''};
    const id=String(person.studentId);
-   if(!Object.values(current.owners).includes(id)){if(!current.owners.a)current.owners.a=id;else if(!current.owners.b)current.owners.b=id}
+   if(!current.ownerSelectionLocked&&!Object.values(current.owners).includes(id)){if(!current.owners.a)current.owners.a=id;else if(!current.owners.b)current.owners.b=id}
    current.version=(current.version||0)+1;
    return current;
  });
@@ -149,6 +149,7 @@ function renderMembers(){
    sel.innerHTML='<option value="">Не назначен</option>'+students.map(m=>'<option value="'+escapeHTML(m.studentId)+'">'+escapeHTML(m.name)+'</option>').join('');
    if(old&&!students.some(s=>s.studentId===old))sel.innerHTML+='<option value="'+escapeHTML(old)+'">'+escapeHTML(joinName(old))+' (не в сети)</option>';
    sel.value=old;
+   $('owner'+upper(slot)).textContent=old?joinName(old):'Ученик '+(slot==='a'?'1':'2');
  }
  updateSessionButtons();
 }
@@ -467,7 +468,7 @@ async function changeOwner(slot,id){
  if(role!=='teacher'||!joined)return;
  const chosen=String(id||'');
  try{await mutateState(s=>{
-   s.owners[slot]=chosen;
+   s.owners[slot]=chosen;s.ownerSelectionLocked=true;
    const other=slot==='a'?'b':'a';
    if(chosen&&s.owners[other]===chosen)s.owners[other]='';
  })}catch(e){showError(e)}
