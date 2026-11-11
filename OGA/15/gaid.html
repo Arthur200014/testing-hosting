@@ -638,8 +638,10 @@
     function applyVariantValues(value,replacements){return oge15ReplaceSimul(value,replacements);}
     const SECOND_VARIANTS=TASKS.map((task,index)=>{const [replacements,answer,steps]=PAIR_VARIANT_DATA[index];return {...task,condition:applyVariantValues(task.condition,replacements),answer,solution:steps.split("|"),replacements};});
     function oge15ReplaceSimul(value,table){
-  const pairs=Object.entries(table||{}).sort((a,b)=>b[0].length-a[0].length),tokens=pairs.map((_,i)=>"\uE000".repeat(i+1)+"\uE001");
-  let text=String(value);pairs.forEach(([from],i)=>{text=text.split(from).join(tokens[i]);});pairs.forEach(([,to],i)=>{text=text.split(tokens[i]).join(String(to));});return text;
+  const entries=Object.entries(table||{}).sort((a,b)=>b[0].length-a[0].length);
+  if(!entries.length)return String(value);
+  const pattern=entries.map(([key])=>key.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")).join("|");
+  return String(value).replace(new RegExp(pattern,"g"),match=>String(table[match]));
 }
     function oge15BuildVariant(task,k,stage,slot,revision,attempt=0){
   let seed=(Math.imul(k+3,0x9e3779b1)^Math.imul(stage+5,0x85ebca6b)^Math.imul(slot+7,0xc2b2ae35)^Math.imul(revision+11,0x27d4eb2f)^Math.imul(attempt+13,0x165667b1))>>>0;
