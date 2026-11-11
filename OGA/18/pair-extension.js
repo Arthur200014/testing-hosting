@@ -147,6 +147,7 @@
       b.textContent=count>=steps.length?'Решение раскрыто':'Шаг решения '+(count+1)+' из '+steps.length;
       if(box){box.innerHTML='<ol class="solution-step-list">'+steps.slice(0,count).map(s=>'<li>'+esc(s)+'</li>').join('')+'</ol>';box.classList.toggle('hidden',count===0)}
     });
+    requestAnimationFrame(sizeBoard);
   }
   document.addEventListener('click',e=>{
     const b=e.target.closest('.generated-card .show-solution');if(!b)return;
@@ -159,8 +160,22 @@
   },true);
   const board=$('boardToolbar');if(board){
     const mini=$('lessonMini');if(mini)board.querySelector('.board-tools')?.appendChild(mini);
-    board.querySelector('.board-tools')?.insertAdjacentHTML('beforeend','<button class="board-tool" type="button" id="pairPull18" title="Притянуть учеников к этому месту">⇣</button>');
-    $('pairPull18').onclick=()=>{if(connected&&role==='teacher'&&FB)FB.set(FB.ref(db,rootPath()+'/messages/pull'),{top:Math.round(scrollY),at:Date.now()}).catch(()=>{})};
+    board.querySelector('.board-tools')?.insertAdjacentHTML('beforeend','<button class="board-tool" type="button" id="pairPull18" title="Притянуть учеников к этому месту" aria-label="Притянуть учеников">⇣</button>');
+    $('pairPull18').onclick=()=>{
+      if(!connected||role!=='teacher'||!FB)return;
+      const focus=Math.min(innerHeight-20,Math.max(100,Math.round(innerHeight*.22)));
+      const anchor=[...document.querySelectorAll('.generated-card[data-gen-id],section[id]')]
+        .filter(el=>{const r=el.getBoundingClientRect();return r.top<=focus&&r.bottom>focus})
+        .sort((a,b)=>a.getBoundingClientRect().height-b.getBoundingClientRect().height)[0];
+      const rect=anchor?.getBoundingClientRect();
+      const max=Math.max(1,document.documentElement.scrollHeight-innerHeight);
+      FB.set(FB.ref(db,rootPath()+'/messages/pull'),{
+        id:crypto.randomUUID?.()||String(Date.now())+Math.random(),at:Date.now(),
+        anchorId:anchor?.dataset.genId||anchor?.id||'',anchorType:anchor?.dataset.genId?'task':'section',
+        progress:rect?Math.max(0,Math.min(1,(focus-rect.top)/Math.max(1,rect.height))):0,
+        ratio:scrollY/max
+      }).catch(console.warn);
+    };
   }
   /* Assigned pupils: the teacher chooses who can edit left and right variants. */
   const ownerButton=document.createElement('button');ownerButton.type='button';ownerButton.id='pair18AssignButton';ownerButton.className='board-tool';ownerButton.textContent='♙';ownerButton.title='Назначить учеников';
@@ -182,6 +197,7 @@
   function renderOwnership(){
     const options=memberOptions(),owners=localState.pairOwners||{};
     ownerButton.hidden=!connected||role!=='teacher';
+    if($('pairPull18'))$('pairPull18').style.display=connected&&role==='teacher'?'':'none';
     if(!connected||role!=='teacher')ownerPanel.hidden=true;
     for(const slot of ['a','b']){
       const U=slot.toUpperCase(),sel=$('pair18Owner'+U),owner=owners[slot]||'';
@@ -226,11 +242,23 @@
       e.preventDefault();e.stopImmediatePropagation();
     }
   },true);
-  let seenPull=0;
+  let seenPull='';
   let metaAt=null;
   const origSubscribe=subscribeAll;subscribeAll=function(){
     metaAt=null;origSubscribe();
-    unsubs.push(FB.onValue(FB.ref(db,rootPath()+'/messages/pull'),snap=>{const v=snap.val();if(role==='student'&&v&&v.at!==seenPull&&Date.now()-v.at<2500){seenPull=v.at;window.scrollTo({top:v.top,behavior:'smooth'})}}));
+    unsubs.push(FB.onValue(FB.ref(db,rootPath()+'/messages/pull'),snap=>{
+      const v=snap.val(),id=v?.id||String(v?.at||'');
+      if(role!=='student'||!v||id===seenPull||Date.now()-v.at>=6000)return;
+      seenPull=id;
+      const anchor=[...document.querySelectorAll(v.anchorType==='task'?'.generated-card[data-gen-id]':'section[id]')]
+        .find(el=>(v.anchorType==='task'?el.dataset.genId:el.id)===v.anchorId);
+      const rect=anchor?.getBoundingClientRect();
+      const max=Math.max(0,document.documentElement.scrollHeight-innerHeight);
+      const focus=Math.min(innerHeight-20,Math.max(100,Math.round(innerHeight*.22)));
+      const target=rect?scrollY+rect.top+Math.max(0,Math.min(1,Number(v.progress)||0))*rect.height-focus:
+        Number.isFinite(Number(v.ratio))?Number(v.ratio)*max:Number(v.top)||0;
+      window.scrollTo({top:Math.max(0,Math.min(max,target)),behavior:'smooth'});
+    }));
     unsubs.push(FB.onValue(FB.ref(db,rootPath()+'/members'),snap=>{activeMembers=snap.val()||{};renderOwnership();autoAssignPair()}));
     unsubs.push(FB.onValue(FB.ref(db,rootPath()+'/meta/createdAt'),snap=>{const newAt=snap.val();if(!newAt)return;if(metaAt===null){metaAt=newAt;return}if(metaAt!==newAt){metaAt=newAt;if(role==='student')disconnect().catch(console.warn)}}));
   };
@@ -242,11 +270,12 @@
   function restoreRows(){for(const {anchor,row} of homes.values()){if(row.parentElement===$('mix18Host'))anchor.parentNode.insertBefore(row,anchor.nextSibling)}}
   function renderMix(){
     restoreRows();$('mix18Host').innerHTML='';
-    if(!mixState?.active){$('mix18Status').textContent='Готово к повторению';updateMixPermissions();return}
+    if(!mixState?.active){$('mix18Status').textContent='Готово к повторению';updateMixPermissions();requestAnimationFrame(sizeBoard);return}
     const order=ordered(mixState.seed),index=Math.max(0,Math.min(order.length-1,+mixState.index||0)),id=order[index];
     $('mix18Status').textContent='Станция '+(index+1)+' из '+order.length+' · '+(taskInfo(localState.generated[id]||initialGeneratedState()[id]).type);
     const row=homes.get(id)?.row;if(row){$('mix18Host').appendChild(row);renderGenerated(id);renderGenerated(id+'-b')}
     updateMixPermissions();
+    requestAnimationFrame(sizeBoard);
   }
   function updateMixPermissions(){for(const id of ['mix18Start','mix18Next','mix18End'])$(id).disabled=!!connected&&role!=='teacher'}
   async function clearInk(){if(connected&&role==='teacher'&&FB)try{await FB.runTransaction(FB.ref(db,rootPath()+'/pads/boardEpoch'),v=>(+v||0)+1)}catch{}}

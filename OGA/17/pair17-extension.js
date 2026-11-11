@@ -262,7 +262,16 @@ async function endMix(){
 async function pullStudents(){
  if(currentRole()!=='teacher'||!fb||!db)return;
  const max=Math.max(1,document.documentElement.scrollHeight-window.innerHeight);
- try{await fb.set(fb.ref(db,root+'/pair17Pull'),{sessionId:metaId,ratio:scrollY/max,id:uid(),at:Date.now()})}catch(e){console.warn(e)}
+ const focus=96;
+ const anchor=[...document.querySelectorAll('[data-board-anchor]')].find(el=>{
+   const rect=el.getBoundingClientRect();return rect.top<=focus&&rect.bottom>focus;
+ });
+ const rect=anchor?.getBoundingClientRect();
+ try{await fb.set(fb.ref(db,root+'/pair17Pull'),{
+   sessionId:metaId,ratio:scrollY/max,anchorId:anchor?.dataset.boardAnchor||'',
+   anchorProgress:rect?Math.max(0,Math.min(1,(focus-rect.top)/Math.max(1,rect.height))):0,
+   id:uid(),at:Date.now()
+ })}catch(e){console.warn(e)}
 }
 async function connectFirebase(){
  if(initPending||!bridge?.connected)return;
@@ -306,7 +315,10 @@ async function connectFirebase(){
    unsubs.push(fb.onValue(fb.ref(db,root+'/pair17Pull'),snap=>{
      const d=snap.val();if(currentRole()!=='student'||!d||d.sessionId!==metaId||d.id===lastPull||Date.now()-d.at>3500)return;
      lastPull=d.id;const max=Math.max(0,document.documentElement.scrollHeight-window.innerHeight);
-     window.scrollTo({top:Math.max(0,Math.min(max,Number(d.ratio||0)*max)),behavior:'smooth'});
+     const anchor=[...document.querySelectorAll('[data-board-anchor]')].find(el=>el.dataset.boardAnchor===d.anchorId);
+     const rect=anchor?.getBoundingClientRect();
+     const target=rect?scrollY+rect.top+Math.max(0,Math.min(1,Number(d.anchorProgress)||0))*rect.height-96:Number(d.ratio||0)*max;
+     window.scrollTo({top:Math.max(0,Math.min(max,target)),behavior:'smooth'});
    }));
  }catch(e){console.warn('ОГЭ17 Firebase pair:',e)}
  finally{initPending=false}
