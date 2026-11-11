@@ -290,9 +290,21 @@
     }catch(e){console.warn('Не удалось переключить станцию микса',e)}
     finally{mixChanging=false}
   }
-  $('mix18Start').onclick=async()=>{if(connected&&role!=='teacher')return;await clearInk();await setMix({active:true,seed:(Date.now()>>>0),index:0})};
-  $('mix18Next').onclick=async()=>{if(mixChanging||!mixState?.active||(connected&&role!=='teacher'))return;await clearInk();if(mixState.index>=kinds.length-1){await setMix({active:false});return}await setMix({...mixState,index:mixState.index+1})};
-  $('mix18End').onclick=async()=>{if(connected&&role!=='teacher')return;await clearInk();await setMix({active:false})};
+  // Protect against rapid repeated clicks while the shared board is clearing.
+  let stationNavigationBusy=false;
+  async function navigateMix(action){
+    if(stationNavigationBusy||mixChanging||(connected&&role!=='teacher'))return;
+    stationNavigationBusy=true;
+    try{await clearInk();await setMix(action())}
+    finally{stationNavigationBusy=false}
+  }
+  $('mix18Start').onclick=()=>navigateMix(()=>({active:true,seed:(Date.now()>>>0),index:0}));
+  $('mix18Next').onclick=()=>navigateMix(()=>{
+    if(!mixState?.active)return {active:false};
+    if(mixState.index>=kinds.length-1)return {active:false};
+    return {...mixState,index:mixState.index+1};
+  });
+  $('mix18End').onclick=()=>navigateMix(()=>({active:false}));
   for(const b of [$('mix18Start'),$('mix18Next'),$('mix18End')])b.addEventListener('click',renderSolutions);
   localState.generated={...initialGeneratedState(),...(localState.generated||{})};localState.pairSolutions=localState.pairSolutions||{};
   renderGeneratedAll();renderSolutions();renderMix();renderOwnership();
