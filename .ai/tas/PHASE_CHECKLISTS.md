@@ -1,6 +1,6 @@
 # TEACHER AI STUDENT — актуальные чеклисты (сначала база и manage)
 
-**Source of truth по порядку:** [TASK_BOARD.md](./TASK_BOARD.md), `NEXT_ACTION=M02-03`. Старые P00–P15 чеклисты сохранены как история в [PHASE_CHECKLISTS_LEGACY.md](./PHASE_CHECKLISTS_LEGACY.md). Они **не задают текущий порядок**.
+**Source of truth по порядку:** [TASK_BOARD.md](./TASK_BOARD.md), `NEXT_ACTION=M03-02`. Старые P00–P15 чеклисты сохранены как история в [PHASE_CHECKLISTS_LEGACY.md](./PHASE_CHECKLISTS_LEGACY.md). Они **не задают текущий порядок**.
 
 **Определение MVP:** преподаватель входит в существующую `EGA/config/manage.html`, работает с учениками/уроками/ДЗ/абонементами через ASP.NET API и PostgreSQL на сервере, видит корректную историю и отчёты; данные разных преподавателей и предметов изолированы. Это не новая админка, AI или механики.
 
