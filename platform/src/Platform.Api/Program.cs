@@ -34,7 +34,9 @@ builder.Services.AddDbContext<PlatformDbContext>(options =>
     options.UseNpgsql(
         StartupConfiguration.GetConnectionString(builder.Configuration),
         postgres => postgres.MigrationsHistoryTable("__EFMigrationsHistory", "public")));
-builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"])
+    .AddCheck<DatabaseMigrationsHealthCheck>("migrations", tags: ["migrations"]);
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -214,6 +216,7 @@ app.MapPost("/api/v1/homework-submissions", async (
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = registration => registration.Tags.Contains("ready") });
+app.MapHealthChecks("/health/migrations", new HealthCheckOptions { Predicate = registration => registration.Tags.Contains("migrations") });
 
 await app.RunAsync();
 
