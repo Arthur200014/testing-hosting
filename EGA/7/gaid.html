@@ -2006,17 +2006,18 @@ function createStep(row,step,i){
  const math=document.createElement('div');math.className='pair-step-math';body.appendChild(math);
  row.className='pair-step';row.append(label,body);renderMath(math,step.tex);
 }
-function revealNext(el){const panel=el.querySelector('.pair-solution'),item=active[el.dataset.pairSlot];if(!item||!panel)return;
+function emitSolution(el){const id=el.dataset.pairSlot,item=active[id];if(!item)return;const panel=el.querySelector('.pair-solution');window.dispatchEvent(new CustomEvent('guide:interaction',{detail:{id:'pair-solution-'+id,value:{tex:item.tex,count:panel.hidden?0:panel.querySelectorAll('.pair-step').length}}}));}
+function revealNext(el,external=false){if(!external&&!window.GuideSession?.isTeacher())return;const panel=el.querySelector('.pair-solution'),item=active[el.dataset.pairSlot];if(!item||!panel)return;
  const index=panel.querySelectorAll('.pair-step').length;
  if(index>=item.steps.length)return;
  const row=document.createElement('div');createStep(row,item.steps[index],index);panel.insertBefore(row,panel.querySelector('.pair-next-step'));
- const next=panel.querySelector('.pair-next-step');next.textContent=index+1>=item.steps.length?'✓ Все шаги показаны':'Следующий шаг →';next.disabled=index+1>=item.steps.length;
+ const next=panel.querySelector('.pair-next-step');next.textContent=index+1>=item.steps.length?'✓ Все шаги показаны':'Следующий шаг →';next.disabled=index+1>=item.steps.length;if(!external)emitSolution(el);
 }
-function toggleSolution(el){const panel=el.querySelector('.pair-solution'),btn=el.querySelector('.pair-solve'),item=active[el.dataset.pairSlot];if(!item||!panel||!btn)return;
- if(!panel.hidden){closeSolution(el);return;}
+function toggleSolution(el,external=false){if(!external&&!window.GuideSession?.isTeacher())return;const panel=el.querySelector('.pair-solution'),btn=el.querySelector('.pair-solve'),item=active[el.dataset.pairSlot];if(!item||!panel||!btn)return;
+ if(!panel.hidden){closeSolution(el);if(!external)emitSolution(el);return;}
  panel.replaceChildren();panel.hidden=false;btn.textContent='Скрыть решение';btn.setAttribute('aria-expanded','true');
  const head=document.createElement('div');head.className='pair-solution-title';head.textContent='Пошаговое решение';panel.appendChild(head);
- const next=document.createElement('button');next.type='button';next.className='pair-next-step';next.textContent='Следующий шаг →';next.addEventListener('click',()=>revealNext(el));panel.appendChild(next);revealNext(el);
+ const next=document.createElement('button');next.type='button';next.className='pair-next-step';next.textContent='Следующий шаг →';next.addEventListener('click',()=>revealNext(el));panel.appendChild(next);revealNext(el,true);if(!external)emitSolution(el);
 }
 function paint(el,item,external=false){
  if(!item||typeof item.tex!=='string'||!Number.isFinite(Number(item.answer))||!Array.isArray(item.steps)||item.steps.length<2)return;
@@ -2027,6 +2028,12 @@ function paint(el,item,external=false){
  if(!external)window.dispatchEvent(new CustomEvent('guide:interaction',{detail:{id:'pair-'+id,value:item}}));
 }
 function receive(id,item){const el=document.querySelector(`[data-pair-slot="${id}"]`);if(el&&item&&JSON.stringify(item)!==JSON.stringify(active[id]))paint(el,item,true);}
+function receiveSolution(id,value){const el=document.querySelector(`[data-pair-slot="${id}"]`),item=active[id];if(!el||!item||value?.tex!==item.tex)return;const panel=el.querySelector('.pair-solution');const want=Math.max(0,Math.min(item.steps.length,Number(value.count)||0));if(!want){closeSolution(el);return;}if(panel.hidden||panel.querySelectorAll('.pair-step').length>want){closeSolution(el);toggleSolution(el,true);}while(panel.querySelectorAll('.pair-step').length<want)revealNext(el,true);}
+function sendPair(id,kind,value){window.dispatchEvent(new CustomEvent('guide:interaction',{detail:{id:'pair-'+kind+'-'+id,value}}));}
+function receiveInput(id,value){const el=document.querySelector(`[data-pair-slot="${id}"]`),input=el?.querySelector('input');if(!input||value?.tex!==active[id]?.tex)return;if(input.value!==String(value.text||''))input.value=String(value.text||'');el.querySelector('.pair-feedback').textContent='';el.classList.remove('correct','incorrect');}
+const checkedEventAt={};
+function receiveCheck(id,value){const el=document.querySelector(`[data-pair-slot="${id}"]`);if(!el||value?.tex!==active[id]?.tex)return;el.classList.toggle('correct',!!value.ok);el.classList.toggle('incorrect',!value.ok);el.querySelector('.pair-feedback').textContent=String(value.text||'');if(value.valid&&value.at!==checkedEventAt[id]&&Math.abs(Date.now()-Number(value.at))<3500){feedbackSound(!!value.ok);flash(!!value.ok);}checkedEventAt[id]=value.at;}
+
 let ctx=null;
 function feedbackSound(success){try{ctx??=new(window.AudioContext||window.webkitAudioContext)();ctx.resume?.();const now=ctx.currentTime;
  for(let i=0;i<(success?3:2);i++){const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type=success?'sine':'triangle';osc.frequency.value=success?[523,659,784][i]:[260,185][i];gain.gain.setValueAtTime(.0001,now+i*.11);gain.gain.exponentialRampToValueAtTime(.09,now+i*.11+.008);gain.gain.exponentialRampToValueAtTime(.0001,now+i*.11+.16);osc.connect(gain);gain.connect(ctx.destination);osc.start(now+i*.11);osc.stop(now+i*.11+.17);}
@@ -2037,15 +2044,16 @@ function verify(el){const id=el.dataset.pairSlot,item=active[id],input=el.queryS
  const valid=/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(s)&&Number.isFinite(answer),ok=valid&&Math.abs(answer-item.answer)<1e-7;
  el.classList.toggle('correct',ok);el.classList.toggle('incorrect',!ok);
  el.querySelector('.pair-feedback').textContent=!valid?'Введите число (например, −1,5).':ok?'✓ Правильно! Можно взять новую задачу.':'✕ Пока неверно. Проверь вычисления.';
- if(valid){feedbackSound(ok);flash(ok);}else input.focus();return ok;}
+ if(valid){feedbackSound(ok);flash(ok);}else input.focus();const at=Date.now();checkedEventAt[id]=at;sendPair(id,'check',{tex:item.tex,valid,ok,at,text:el.querySelector('.pair-feedback').textContent});return ok;}
 for(const el of document.querySelectorAll('[data-pair-slot]')){
  const id=el.dataset.pairSlot,topic=id.split('-')[0],starter=(starts[id]&&distinctFromMate(id,starts[id]))?starts[id]:freshForSlot(id,topic);paint(el,starter,true);
  el.querySelector('.pair-check').addEventListener('click',()=>verify(el));
+ el.querySelector('input').addEventListener('input',()=>{el.querySelector('.pair-feedback').textContent='';el.classList.remove('correct','incorrect');sendPair(id,'input',{tex:active[id]?.tex,text:el.querySelector('input').value.slice(0,40)});});
  el.querySelector('input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();verify(el);}});
- el.querySelector('.pair-new').addEventListener('click',()=>{const next=freshForSlot(id,topic);paint(el,next);window.dispatchEvent(new Event('guide:resizeboard'));});
- el.querySelector('.pair-solve').addEventListener('click',()=>toggleSolution(el));
+ el.querySelector('.pair-new').addEventListener('click',async()=>{const shared=window.GuideSession?.isJoined()&&window.GuideSession?.generatePair;if(shared){el.querySelector('.pair-new').disabled=true;try{await window.GuideSession.generatePair(id,topic)}finally{el.querySelector('.pair-new').disabled=false;}}else{const next=freshForSlot(id,topic);paint(el,next);}window.dispatchEvent(new Event('guide:resizeboard'));});
+ el.querySelector('.pair-solve').addEventListener('click',()=>{if(window.GuideSession?.isTeacher())toggleSolution(el);});
 }
-window.GuidePair={receive,generators,starts,active,verify,make:topic=>generators[topic](),makeDistinct:freshForSlot,set:paint,toggleSolution};
+window.GuidePair={receive,receiveSolution,receiveInput,receiveCheck,generators,starts,active,verify,make:topic=>generators[topic](),makeDistinct:freshForSlot,set:paint,toggleSolution};
 })();
 </script><script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
