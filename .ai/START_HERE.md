@@ -46,12 +46,12 @@ context. No external memory service is required for this workflow.
 
 If the user task mentions TAS, the teacher platform, interactive lesson generation, AI curator, roadmap IDs `P00`–`P15`, or continuing a TAS task:
 
-1. Read `.ai/tas/HANDOFF.md` first to learn the one `NEXT_ACTION`.
+1. Read `.ai/tas/HANDOFF.md` **on main** first. If it names an `ACTIVE_BRANCH`, fetch that branch and read its newer `HANDOFF.md` before choosing a task. For no active branch, use the one `NEXT_ACTION`.
 2. Read `.ai/tas/TASK_BOARD.md` **only for the task ID / current phase**, not the entire board.
 3. Read `.ai/tas/PHASE_CHECKLISTS.md` **only for that phase**.
 4. Read `.ai/tas/MASTER_TZ.md` only where requirements or scope need clarification.
 5. Use `.ai/CONTEXT_MAP.md` and targeted file/symbol searches; inspect just the affected source files and tests.
-6. Make the smallest coherent verified change. Update task evidence and `HANDOFF.md`, commit/push to `main` after verification under `AGENTS.md`.
+6. For a task longer than 5 minutes, use `.ai/tas/CHECKPOINTS.md` and push task-scoped checkpoints to `tas/<TASK_ID>` after small milestones. Update the branch `HANDOFF.md`; only a fully verified result may move to `main`. Short completed tasks follow `AGENTS.md`.
 
 Do not bulk-read `EGA/`, `OGA/`, `platform/` or all task memories.
 The current `testing-hosting` implementation is partially built; roadmap TODOs require an audit before declaring functionality missing.

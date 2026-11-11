@@ -208,6 +208,49 @@ deterministic checks pass, browser/behavior checks pass when applicable, the dif
 matches scope, and no known unresolved failure remains. Never hide failed
 verification.
 
+## Long-task checkpoints and recovery (TAS)
+
+For a TAS task likely to take more than 5 minutes, or any task that might be
+interrupted by conversation/context limits, use a dedicated recoverable branch
+`tas/<TASK_ID>` (for example `tas/P08-03`). This is an explicit exception to
+the default direct-to-`main` policy, authorized to protect unfinished work.
+
+1. **Before editing:** read `.ai/tas/HANDOFF.md` on `main`. If it names an
+   `ACTIVE_BRANCH`, resume it rather than creating a second branch. If none,
+   record `ACTIVE_TASK`, `ACTIVE_BRANCH`, and `STATUS: IN_PROGRESS` in
+   `HANDOFF.md` on `main`, safely commit/push that tiny pointer, and create
+   the task branch from the resulting `main` commit. Work on that branch.
+2. **Checkpoint after each small meaningful milestone**, aiming for about
+   3–5 minutes of active editing between pushes (not a literal timed daemon).
+   Before the next long edit or tool batch, checkpoint the already changed
+   files. Inspect the diff, exclude secrets/private student data, and commit
+   only task files plus the branch's `.ai/tas/HANDOFF.md`.
+3. **Push each checkpoint to the remote task branch immediately.** Use a
+   message such as `wip(P08-03): checkpoint lesson schema and parser`.
+   Record in the branch HANDOFF: completed work, precise next action, affected
+   paths, known failures, verification actually run, and checkpoint commit SHA
+   (or HEAD if written in the same commit). NEVER label WIP as DONE.
+4. An incomplete checkpoint may have **unverified or failing tests** and must
+   be clearly labelled `IN_PROGRESS / UNVERIFIED`; it must not be deployed,
+   merged to `main`, or represented as working. Do not checkpoint sensitive
+   data, broken public configurations, secrets, or unrelated changes.
+5. **On continuation:** read the pointer in `main` HANDOFF; fetch the named
+   task branch; read its HEAD and branch-specific HANDOFF; inspect only the
+   relevant source files and tests. Unpushed local edits are not recoverable
+   from GitHub, and a new chat may not have the same local checkout.
+6. **On completion:** run required tests and browser checks, inspect diff,
+   integrate any changes to `main` safely without force-push, update
+   `TASK_BOARD.md`, `TEST_RESULTS.md`, branch HANDOFF with DONE and
+   `ACTIVE_BRANCH: none`, then push the verified result to `main`. If
+   integration/testing is blocked, leave the task branch pushed and the
+   pointer active; report BLOCKED instead of faking completion.
+7. If no repository write/push access exists, state this explicitly. Do not
+   claim work survived a chat reset until a remote checkpoint SHA is verified.
+   Avoid more than one active TAS branch unless the user explicitly approves.
+
+Full procedure and continuation template:
+`.ai/tas/CHECKPOINTS.md` and `.ai/tas/NEW_CHAT_PROMPT.md`.
+
 ## Automatic Git completion policy
 
 For every successfully completed software-engineering task:
@@ -218,12 +261,12 @@ For every successfully completed software-engineering task:
 4. Inspect the Git diff and confirm that it matches requested scope.
 5. Stage only files belonging to the task.
 6. Automatically create a meaningful commit.
-7. Automatically push directly to `main`.
+7. For short complete tasks, push directly to `main`. For long TAS tasks, checkpoint on the dedicated branch and merge/push to `main` **only after final verification**.
 8. Do not wait for an additional commit or push instruction.
 
 Permanent rules:
 
-- `main` is the default working and push branch.
+- `main` is the default working and push branch; the TAS checkpoint branch exception above applies to long/incomplete work.
 - Do not create `codex/*` task branches unless the user explicitly asks.
 - Do not create a pull request unless the user explicitly asks.
 - Do not wait for approval before a normal successful push to `main`.
@@ -231,12 +274,12 @@ Permanent rules:
 - NEVER rewrite Git history.
 - NEVER commit secrets.
 - NEVER commit unrelated modifications.
-- NEVER push an implementation whose required verification failed.
+- NEVER push unverified or failing implementation to `main`; explicit WIP checkpoints may be pushed only to their `tas/<TASK_ID>` branch and must be labelled UNVERIFIED.
 - Inspect the actual diff before every commit.
 - If remote `main` moved, fetch or pull safely and integrate without discarding
   other work. Do not overwrite remote changes.
 
-After every task report BRANCH, COMMIT, PUSH_STATUS, and VERIFICATION.
+After every task report BRANCH, COMMIT, PUSH_STATUS, and VERIFICATION; for an interrupted TAS task also report ACTIVE_BRANCH, LAST_CHECKPOINT, and NEXT_STEP.
 
 ## Context Loading and Project Memory Policy
 
