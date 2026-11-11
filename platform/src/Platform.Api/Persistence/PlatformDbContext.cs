@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using TestingHosting.Platform.Homework;
 using TestingHosting.Platform.IdentityAccess;
 using TestingHosting.Platform.Lessons;
+using TestingHosting.Platform.Mocks;
 using TestingHosting.Platform.Subscriptions;
 using TestingHosting.Platform.Students;
 using TestingHosting.Platform.TestAttempts;
@@ -20,6 +21,10 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<StudentImportBatch> StudentImportBatches => Set<StudentImportBatch>();
     public DbSet<TestAttempt> TestAttempts => Set<TestAttempt>();
     public DbSet<HistoricalTestResult> HistoricalTestResults => Set<HistoricalTestResult>();
+    public DbSet<HistoricalMockResult> HistoricalMockResults => Set<HistoricalMockResult>();
+    public DbSet<HistoricalMockTaskResult> HistoricalMockTaskResults => Set<HistoricalMockTaskResult>();
+    public DbSet<HistoricalMockSession> HistoricalMockSessions => Set<HistoricalMockSession>();
+    public DbSet<HistoricalMockVariant> HistoricalMockVariants => Set<HistoricalMockVariant>();
     public DbSet<HomeworkCatalogItem> HomeworkCatalogItems => Set<HomeworkCatalogItem>();
     public DbSet<HomeworkAssignment> HomeworkAssignments => Set<HomeworkAssignment>();
     public DbSet<HomeworkSubmission> HomeworkSubmissions => Set<HomeworkSubmission>();
@@ -286,6 +291,101 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 table.HasCheckConstraint("CK_SubscriptionSnapshots_Package", "\"PackageSize\" BETWEEN 1 AND 1000");
                 table.HasCheckConstraint("CK_SubscriptionSnapshots_PriceCount", "(\"LessonPrice\" IS NULL OR \"LessonPrice\" >= 0) AND (\"BaseLessonCount\" IS NULL OR \"BaseLessonCount\" >= 0)");
             });
+        });
+
+        modelBuilder.Entity<HistoricalMockResult>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.EventId).HasMaxLength(128);
+            entity.Property(x => x.MockId).HasMaxLength(128);
+            entity.Property(x => x.VariantName).HasMaxLength(200);
+            entity.Property(x => x.SchemaVersion).HasMaxLength(64);
+            entity.HasIndex(x => new { x.WorkspaceId, x.EventId }).IsUnique().HasDatabaseName("IX_MockResults_Event");
+            entity.HasIndex(x => new { x.WorkspaceId, x.MembershipId, x.MockDate }).HasDatabaseName("IX_MockResults_StudentDate");
+            entity.HasIndex(x => new { x.WorkspaceId, x.MembershipId, x.StudentId }).HasDatabaseName("IX_MockResults_Membership");
+            entity.HasIndex(x => new { x.WorkspaceId, x.ProgramId }).HasDatabaseName("IX_MockResults_Program");
+            entity.HasOne(x => x.Membership).WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.MembershipId, x.StudentId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.StudentId })
+                .HasConstraintName("FK_MockResults_Membership")
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Program).WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.ProgramId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .HasConstraintName("FK_MockResults_Program")
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(t => t.HasCheckConstraint("CK_HistoricalMockResults_Scores",
+                "(\"Score\" IS NULL OR \"Score\" BETWEEN 0 AND 100) AND \"PrimaryScore\" >= 0 AND \"MaxPrimaryScore\" > 0 AND \"ScorePercent\" BETWEEN 0 AND 100 AND \"DurationSeconds\" BETWEEN 0 AND 86400"));
+        });
+
+        modelBuilder.Entity<HistoricalMockTaskResult>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.EventId).HasMaxLength(128);
+            entity.Property(x => x.MockId).HasMaxLength(128);
+            entity.Property(x => x.TopicId).HasMaxLength(200);
+            entity.Property(x => x.TopicName).HasMaxLength(200);
+            entity.Property(x => x.SchemaVersion).HasMaxLength(64);
+            entity.HasIndex(x => new { x.WorkspaceId, x.EventId, x.TaskNumber }).IsUnique().HasDatabaseName("IX_MockTasks_EventTask");
+            entity.HasIndex(x => new { x.WorkspaceId, x.MembershipId, x.StudentId }).HasDatabaseName("IX_MockTasks_Membership");
+            entity.HasIndex(x => new { x.WorkspaceId, x.ProgramId }).HasDatabaseName("IX_MockTasks_Program");
+            entity.HasOne(x => x.Membership).WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.MembershipId, x.StudentId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.StudentId })
+                .HasConstraintName("FK_MockTasks_Membership")
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Program).WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.ProgramId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .HasConstraintName("FK_MockTasks_Program")
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(t => t.HasCheckConstraint("CK_HistoricalMockTaskResults_Points",
+                "\"TaskNumber\" BETWEEN 1 AND 1000 AND (\"EarnedPoints\" IS NULL OR \"EarnedPoints\" >= 0) AND (\"MaxPoints\" IS NULL OR \"MaxPoints\" > 0) AND (\"EarnedPoints\" IS NULL OR \"MaxPoints\" IS NULL OR \"EarnedPoints\" <= \"MaxPoints\")"));
+        });
+
+        modelBuilder.Entity<HistoricalMockSession>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.SessionId).HasMaxLength(128);
+            entity.Property(x => x.MockId).HasMaxLength(128);
+            entity.Property(x => x.Status).HasMaxLength(64);
+            entity.Property(x => x.EventId).HasMaxLength(128);
+            entity.Property(x => x.SchemaVersion).HasMaxLength(64);
+            entity.Property(x => x.AnswersJson).HasColumnType("text");
+            entity.Property(x => x.MockConfigJson).HasColumnType("text");
+            entity.HasIndex(x => new { x.WorkspaceId, x.SessionId }).IsUnique().HasDatabaseName("IX_MockSessions_Session");
+            entity.HasIndex(x => new { x.WorkspaceId, x.MembershipId, x.StudentId }).HasDatabaseName("IX_MockSessions_Membership");
+            entity.HasIndex(x => new { x.WorkspaceId, x.ProgramId }).HasDatabaseName("IX_MockSessions_Program");
+            entity.HasOne(x => x.Membership).WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.MembershipId, x.StudentId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.StudentId })
+                .HasConstraintName("FK_MockSessions_Membership")
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Program).WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.ProgramId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .HasConstraintName("FK_MockSessions_Program")
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(t => t.HasCheckConstraint("CK_HistoricalMockSessions_Values",
+                "\"DeadlineAt\" >= \"StartedAt\" AND (\"DurationSeconds\" IS NULL OR \"DurationSeconds\" BETWEEN 0 AND 86400) AND (\"ScorePercent\" IS NULL OR \"ScorePercent\" BETWEEN 0 AND 100)"));
+        });
+
+        modelBuilder.Entity<HistoricalMockVariant>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.MockId).HasMaxLength(128);
+            entity.Property(x => x.VariantName).HasMaxLength(200);
+            entity.Property(x => x.SchemaVersion).HasMaxLength(64);
+            entity.Property(x => x.ConfigJson).HasColumnType("text");
+            entity.HasIndex(x => new { x.WorkspaceId, x.ProgramId, x.MockId, x.VariantName })
+                .IsUnique().HasDatabaseName("IX_MockVariants_NaturalKey");
+            entity.HasOne(x => x.Program).WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.ProgramId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .HasConstraintName("FK_MockVariants_Program")
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(t => t.HasCheckConstraint("CK_HistoricalMockVariants_Values",
+                "\"DurationSeconds\" BETWEEN 1 AND 86400 AND \"TaskCount\" BETWEEN 1 AND 1000"));
         });
 
         modelBuilder.Entity<HistoricalTestResult>(entity =>
