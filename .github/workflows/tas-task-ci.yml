@@ -66,10 +66,50 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test shared/interactive/v1/*.test.mjs
+      - name: Run tests only for changed shared module
+        shell: bash
+        env:
+          TASK_ID: ${{ needs.scope.outputs.task_id }}
+        run: |
+          set -euo pipefail
+          git fetch origin main --quiet
+          base="$(git merge-base origin/main "$GITHUB_SHA")"
+          mapfile -t changed < <(git diff --name-only "$base" "$GITHUB_SHA" -- shared/interactive/v1)
+          declare -a tests=()
+          for file in "${changed[@]}"; do
+            if [[ "$file" == *.test.mjs ]]; then
+              tests+=("$file")
+            elif [[ "$file" == *.js ]]; then
+              paired="${file%.js}.test.mjs"
+              if [[ -f "$paired" ]]; then
+                tests+=("$paired")
+              elif [[ -n "$TASK_ID" && -f "tests/tas/${TASK_ID}.test.mjs" ]]; then
+                tests+=("tests/tas/${TASK_ID}.test.mjs")
+              else
+                echo "::error::No tests for changed module $file; add paired .test.mjs or a task test"
+                exit 1
+              fi
+            fi
+          done
+          if [[ "${#tests[@]}" -eq 0 ]]; then
+            echo '::error::No shared tests selected'
+            exit 1
+          fi
+          declare -A seen=()
+          declare -a unique=()
+          for file in "${tests[@]}"; do
+            if [[ -z "${seen[$file]:-}" ]]; then
+              seen["$file"]=1
+              unique+=("$file")
+            fi
+          done
+          printf 'Selected task tests: %s\n' "${unique[@]}"
+          node --test "${unique[@]}"
   backend:
     needs: scope
     if: needs.scope.outputs.run_backend == 'true'
