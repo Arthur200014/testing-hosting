@@ -1,6 +1,6 @@
 # TEACHER AI STUDENT — актуальные чеклисты (сначала база и manage)
 
-**Source of truth по порядку:** [TASK_BOARD.md](./TASK_BOARD.md), `NEXT_ACTION=M01-04`. Старые P00–P15 чеклисты сохранены как история в [PHASE_CHECKLISTS_LEGACY.md](./PHASE_CHECKLISTS_LEGACY.md). Они **не задают текущий порядок**.
+**Source of truth по порядку:** [TASK_BOARD.md](./TASK_BOARD.md), `NEXT_ACTION=M02-01`. Старые P00–P15 чеклисты сохранены как история в [PHASE_CHECKLISTS_LEGACY.md](./PHASE_CHECKLISTS_LEGACY.md). Они **не задают текущий порядок**.
 
 **Определение MVP:** преподаватель входит в существующую `EGA/config/manage.html`, работает с учениками/уроками/ДЗ/абонементами через ASP.NET API и PostgreSQL на сервере, видит корректную историю и отчёты; данные разных преподавателей и предметов изолированы. Это не новая админка, AI или механики.
 
@@ -8,7 +8,7 @@
 - [x] `M01-01` Сверены 5 вызовов `manage`, 20 исторических вкладок и текущий PG/API; [матрица](../../docs/architecture/manage-postgres-coverage.md). Свежий XLSX и runtime NOT_RUN.
 - [x] `M01-02` Согласована техническая [subject-neutral tenant/teacher/student/course/enrollment модель](../../docs/architecture/tenant-subject-model-v1.md), совместимая с legacy importers; миграции и пилот NOT_RUN.
 - [x] `M01-03` Server-side teacher login + password hash + DB-bound JWT session, tenant/role checks, revocation, rate limit, [66/66 PostgreSQL integration tests PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43005907321). Bootstrap без публичной регистрации; полноценные приглашения (M06) и аудит teacher writes (M04) остаются впереди.
-- [ ] `M01-04` Обновить dry-run source diagnostics, включая исторические проблемные строки `ДЗ_Назначения`.
+- [x] `M01-04` Проведён read-only live audit 20 вкладок + [обезличенные diagnostics](../../docs/architecture/sheets-source-audit-2026-11-11.md). **Это не ClosedXML dry-run**: 15 назначений и 3 строки учеников требуют проверки/исправления перед M03.
 **Приёмка G-M01:** подтверждена матрица source→PG→manage, данные не подвергались записи, есть критерии изоляции и исправления source.
 
 ## M02 — staging сервер и PostgreSQL
