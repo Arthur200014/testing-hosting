@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using ClosedXML.Excel;
@@ -215,12 +216,32 @@ public sealed class StudentWorkbookParser(IStudentCodeHasher codeHasher)
         }
     }
 
+    private static readonly string[] ExplicitOffsetDateTimeFormats =
+    [
+        "yyyy-MM-dd'T'HH:mm:sszzz",
+        "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFzzz",
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'"
+    ];
+
     private static void ValidateOptionalDateTime(IXLCell cell, int rowNumber, string field, ICollection<ImportDiagnostic> diagnostics)
     {
-        if (!cell.IsEmpty() && (cell.HasFormula || cell.DataType != XLDataType.DateTime))
+        if (cell.IsEmpty()) return;
+
+        // Google Sheets exports createdAt as ISO-8601 text with an explicit UTC offset.
+        // Accept that unambiguous format without accepting arbitrary locale-dependent dates.
+        if (!cell.HasFormula && (cell.DataType == XLDataType.DateTime ||
+            (cell.DataType == XLDataType.Text && DateTimeOffset.TryParseExact(
+                cell.GetString().Trim(),
+                ExplicitOffsetDateTimeFormats,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal,
+                out _))))
         {
-            diagnostics.Add(new ImportDiagnostic(rowNumber, field, "invalid_type"));
+            return;
         }
+
+        diagnostics.Add(new ImportDiagnostic(rowNumber, field, "invalid_type"));
     }
 
     private static void ValidateOptionalTextOrNumber(IXLCell cell, int rowNumber, string field, ICollection<ImportDiagnostic> diagnostics)
