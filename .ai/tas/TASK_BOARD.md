@@ -1,6 +1,6 @@
 # TEACHER AI STUDENT — актуальная доска задач (migration-first)
 
-**Дата:** 2026-11-11. **Единственный актуальный NEXT_ACTION:** `M02-02`.
+**Дата:** 2026-11-11. **Единственный актуальный NEXT_ACTION:** `M02-03`.
 **Цель первой версии:** работающая PostgreSQL + сервер + **существующая** преподавательская форма `EGA/config/manage.html`. Новая админка — позже. Интерактивный движок, AI и оформление уроков — отложены.
 **Продукт:** универсальная multi-tenant платформа для преподавателей **разных предметов**, а не персональная система для одного учителя и не исключительно ЕГЭ/ОГЭ.
 
@@ -37,7 +37,7 @@
 | ID | Статус | Конкретная работа | Критерий готовности | Связь с прежними задачами |
 |---|---|---|---|---|
 | `M02-01` | PARTIAL (Timeweb managed API+PostgreSQL online; security gate pending) | Поднять приватную PostgreSQL и staging API на выбранном сервере (учесть прежнюю неудачную попытку Timeweb), сетевое разделение, env/secret manager. | Managed Timeweb App Platform и приватный кластер PostgreSQL уже существуют. [Лог деплоя 2026-11-11](../../docs/deployment/timeweb-managed-migrations.md): Build succeeded, Deploy succeeded, user-confirmed HTTPS `/health/live` и `/health/ready` Healthy. Пароль БД ранее оказался в чате — **ротация НЕ подтверждена**; hosted TLS и network access проверены только по сведениям пользователя. VPS/Compose/Caddy **не требуются** для этого варианта. | P03-02/03; timeweb-deployment |
-| `M02-02` | PARTIAL (read-only migration endpoint + 67/67 CI PASS; Timeweb schema unknown) | Развернуть ASP.NET Core Docker image, отдельный `--migrate`, доступ через HTTPS/proxy/CORS и health. | [PR №7](https://github.com/Arthur200014/testing-hosting/pull/7), [Timeweb runbook](../../docs/deployment/timeweb-managed-migrations.md), [67/67 PostgreSQL CI PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43087810977). `/health/migrations` добавлен без записи БД; проверить на Timeweb после нового деплоя. Реальные `--migrate`, backup/restore и повторное развёртывание с включённой проверкой состояния **NOT_RUN**. | P03-05/06 |
+| `M02-02` | DONE (владелец подтвердил `Healthy` после настоящего `--migrate`) | Развернуть ASP.NET Core Docker image, отдельный `--migrate`, доступ через HTTPS/proxy/CORS и health. | [PR №7](https://github.com/Arthur200014/testing-hosting/pull/7) + [PR №8](https://github.com/Arthur200014/testing-hosting/pull/8), [68/68 PostgreSQL CI PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43090374884). Владелец через консоль Timeweb запустил `dotnet Platform.Api.dll --migrate`; присланные логи подтверждают применение до `20261111120000_TeacherSessions`, затем HTTPS `/health/live`, `/health/ready` и `/health/migrations` ответили `Healthy` по сообщению владельца. Проверка native deploy health probe пока отключена; контролировать в M02-03. Restore и импорт не выполнялись. | P03-05/06 |
 | `M02-03` | TODO | Добавить автоматический backup PostgreSQL, проверить restore, изоляцию доступов, логи/алерты и обновление без потери данных. | Пробное восстановление на отдельной БД; задокументированы retention и restore steps; минимальный staging smoke. | P13 backup/security |
 
 **Gate:** G-M02: API + приватная PostgreSQL доступны на staging по HTTPS, миграции воспроизводимы, health PASS, backup/restore проверен. Это не prod.
