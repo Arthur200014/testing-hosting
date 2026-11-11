@@ -19,6 +19,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<WorkspaceStudentMembership> WorkspaceStudentMemberships => Set<WorkspaceStudentMembership>();
     public DbSet<StudentImportBatch> StudentImportBatches => Set<StudentImportBatch>();
     public DbSet<TestAttempt> TestAttempts => Set<TestAttempt>();
+    public DbSet<HistoricalTestResult> HistoricalTestResults => Set<HistoricalTestResult>();
     public DbSet<HomeworkCatalogItem> HomeworkCatalogItems => Set<HomeworkCatalogItem>();
     public DbSet<HomeworkAssignment> HomeworkAssignments => Set<HomeworkAssignment>();
     public DbSet<HomeworkSubmission> HomeworkSubmissions => Set<HomeworkSubmission>();
@@ -284,6 +285,32 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             {
                 table.HasCheckConstraint("CK_SubscriptionSnapshots_Package", "\"PackageSize\" BETWEEN 1 AND 1000");
                 table.HasCheckConstraint("CK_SubscriptionSnapshots_PriceCount", "(\"LessonPrice\" IS NULL OR \"LessonPrice\" >= 0) AND (\"BaseLessonCount\" IS NULL OR \"BaseLessonCount\" >= 0)");
+            });
+        });
+
+        modelBuilder.Entity<HistoricalTestResult>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.EventId).HasMaxLength(128);
+            entity.Property(x => x.TestId).HasMaxLength(128);
+            entity.Property(x => x.TopicId).HasMaxLength(200);
+            entity.Property(x => x.TopicName).HasMaxLength(200);
+            entity.Property(x => x.SchemaVersion).HasMaxLength(64);
+            entity.HasIndex(x => new { x.WorkspaceId, x.EventId }).IsUnique();
+            entity.HasIndex(x => new { x.WorkspaceId, x.MembershipId, x.TestId, x.TestDate });
+            entity.HasOne(x => x.Membership).WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.MembershipId, x.StudentId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.StudentId })
+                .HasConstraintName("FK_HistoricalTestResults_WorkspaceStudentMemberships_Identity")
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Program).WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.ProgramId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_HistoricalTestResults_Required", "length(\"EventId\") > 0 AND length(\"TestId\") > 0 AND length(\"TopicId\") > 0 AND length(\"TopicName\") > 0 AND length(\"SchemaVersion\") > 0");
+                table.HasCheckConstraint("CK_HistoricalTestResults_Score", "\"TaskNumber\" BETWEEN 1 AND 1000 AND \"ScorePercent\" BETWEEN 0 AND 100 AND \"DurationSeconds\" BETWEEN 0 AND 86400 AND (\"CorrectCount\" IS NULL OR \"CorrectCount\" >= 0) AND (\"TotalCount\" IS NULL OR \"TotalCount\" > 0) AND (\"CorrectCount\" IS NULL OR \"TotalCount\" IS NULL OR \"CorrectCount\" <= \"TotalCount\")");
             });
         });
 

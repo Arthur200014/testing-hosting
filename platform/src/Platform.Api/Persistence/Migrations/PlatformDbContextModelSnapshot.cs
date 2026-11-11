@@ -681,6 +681,39 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     b.ToTable("SubscriptionSnapshots", "platform", t => { t.HasCheckConstraint("CK_SubscriptionSnapshots_Package", "\"PackageSize\" BETWEEN 1 AND 1000"); t.HasCheckConstraint("CK_SubscriptionSnapshots_PriceCount", "(\"LessonPrice\" IS NULL OR \"LessonPrice\" >= 0) AND (\"BaseLessonCount\" IS NULL OR \"BaseLessonCount\" >= 0)"); });
                 });
 
+            modelBuilder.Entity("TestingHosting.Platform.TestAttempts.HistoricalTestResult", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<int?>("CorrectCount").HasColumnType("integer");
+                    b.Property<int>("DurationSeconds").HasColumnType("integer");
+                    b.Property<string>("EventId").IsRequired().HasMaxLength(128).HasColumnType("character varying(128)");
+                    b.Property<DateTimeOffset?>("FinishedAt").HasColumnType("timestamp with time zone");
+                    b.Property<Guid>("MembershipId").HasColumnType("uuid");
+                    b.Property<Guid>("ProgramId").HasColumnType("uuid");
+                    b.Property<string>("SchemaVersion").IsRequired().HasMaxLength(64).HasColumnType("character varying(64)");
+                    b.Property<int>("ScorePercent").HasColumnType("integer");
+                    b.Property<DateTimeOffset>("ServerSubmittedAt").HasColumnType("timestamp with time zone");
+                    b.Property<DateTimeOffset?>("StartedAt").HasColumnType("timestamp with time zone");
+                    b.Property<Guid>("StudentId").HasColumnType("uuid");
+                    b.Property<int>("TaskNumber").HasColumnType("integer");
+                    b.Property<DateOnly>("TestDate").HasColumnType("date");
+                    b.Property<string>("TestId").IsRequired().HasMaxLength(128).HasColumnType("character varying(128)");
+                    b.Property<string>("TopicId").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                    b.Property<string>("TopicName").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                    b.Property<int?>("TotalCount").HasColumnType("integer");
+                    b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                    b.HasKey("Id");
+                    b.HasIndex("WorkspaceId", "EventId").IsUnique();
+                    b.HasIndex("WorkspaceId", "MembershipId", "TestId", "TestDate");
+                    b.HasIndex("WorkspaceId", "MembershipId", "StudentId");
+                    b.HasIndex("WorkspaceId", "ProgramId");
+                    b.ToTable("HistoricalTestResults", "platform", t =>
+                    {
+                        t.HasCheckConstraint("CK_HistoricalTestResults_Required", "length(\"EventId\") > 0 AND length(\"TestId\") > 0 AND length(\"TopicId\") > 0 AND length(\"TopicName\") > 0 AND length(\"SchemaVersion\") > 0");
+                        t.HasCheckConstraint("CK_HistoricalTestResults_Score", "\"TaskNumber\" BETWEEN 1 AND 1000 AND \"ScorePercent\" BETWEEN 0 AND 100 AND \"DurationSeconds\" BETWEEN 0 AND 86400 AND (\"CorrectCount\" IS NULL OR \"CorrectCount\" >= 0) AND (\"TotalCount\" IS NULL OR \"TotalCount\" > 0) AND (\"CorrectCount\" IS NULL OR \"TotalCount\" IS NULL OR \"CorrectCount\" <= \"TotalCount\")");
+                    });
+                });
+
             modelBuilder.Entity("TestingHosting.Platform.TestAttempts.TestAttempt", b =>
                 {
                     b.Property<Guid>("Id")
@@ -990,6 +1023,23 @@ namespace TestingHosting.Platform.Persistence.Migrations
                         .HasPrincipalKey("WorkspaceId", "Id", "StudentId", "ProgramId")
                         .OnDelete(DeleteBehavior.Restrict).IsRequired();
                     b.Navigation("Membership");
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.TestAttempts.HistoricalTestResult", b =>
+                {
+                    b.HasOne("TestingHosting.Platform.Students.WorkspaceStudentMembership", "Membership")
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "MembershipId", "StudentId")
+                        .HasPrincipalKey("WorkspaceId", "Id", "StudentId")
+                        .HasConstraintName("FK_HistoricalTestResults_WorkspaceStudentMemberships_Identity")
+                        .OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("TestingHosting.Platform.Students.LearningProgram", "Program")
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "ProgramId")
+                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.Navigation("Membership");
+                    b.Navigation("Program");
                 });
 
             modelBuilder.Entity("TestingHosting.Platform.TestAttempts.TestAttempt", b =>
