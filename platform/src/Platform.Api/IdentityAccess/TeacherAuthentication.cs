@@ -124,6 +124,7 @@ public sealed class ActiveTeacherSessionHandler(PlatformDbContext db, TimeProvid
             !Guid.TryParse(context.User.FindFirstValue("membership_id"), out var membershipId))
             return;
 
+        var scopedRole = context.User.FindFirstValue("workspace_role");
         var active = await db.TeacherSessions.AsNoTracking().AnyAsync(s =>
             s.Id == sessionId && s.MembershipId == membershipId &&
             s.RevokedAt == null && s.ExpiresAt > clock.GetUtcNow() &&
@@ -131,6 +132,7 @@ public sealed class ActiveTeacherSessionHandler(PlatformDbContext db, TimeProvid
             s.Membership.WorkspaceId == workspaceId &&
             s.Membership.IsActive && s.Membership.TeacherUser.IsActive &&
             s.Membership.Workspace.IsActive &&
+            s.Membership.Role == scopedRole &&
             (s.Membership.Role == "owner" || s.Membership.Role == "teacher"));
 
         if (active) context.Succeed(requirement);
