@@ -64,9 +64,17 @@ For a new shared realtime/data integration, reuse the public entry points in
 These are search terms, not claims that every feature exists in every page. Open
 only the files that the task and search results make relevant.
 
-## TEACHER AI STUDENT roadmap
+## TEACHER AI STUDENT — текущий маршрут
 
-- Start: `.ai/tas/HANDOFF.md`, then current task ID in `.ai/tas/TASK_BOARD.md`.
+- Current order: `.ai/tas/HANDOFF.md` → `.ai/tas/TASK_BOARD.md` → нужный пункт `.ai/tas/PHASE_CHECKLISTS.md`.
+- **M01-01**: `EGA/config/manage.html` (только связанный API/блоки), `docs/architecture/gas-postgres-migration-audit.md`, `.ai/tasks/{gas-postgres-audit,student-directory-import,homework-migration-slice,teacher-lesson-write-integrity,timeweb-deployment}.md`.
+- Backend: `platform/src/Platform.Api/`, `platform/src/Platform.StudentImport/`, `platform/src/Platform.HomeworkImport/`, `compose.yaml`, `platform/README.md`.
+- Старый 92-ID roadmap в `.ai/tas/TASK_BOARD_LEGACY.md`, не NEXT_ACTION.
+- Продукт универсальный для предметов и разных teacher/tenant; `manage` сейчас основной клиент, AI/интерактивы — позже.
+
+## TEACHER AI STUDENT roadmap (архивная навигация)
+
+- Start: `.ai/tas/HANDOFF.md`, then current **Mxx** task ID in `.ai/tas/TASK_BOARD.md`.
 - Product scope: `.ai/tas/MASTER_TZ.md`, implementation priorities: `.ai/tas/FOCUS_FIRST.md`.
 - Current stage checklist: `.ai/tas/PHASE_CHECKLISTS.md` (one stage only).
 - New-chat instruction: `.ai/tas/NEW_CHAT_PROMPT.md`.
