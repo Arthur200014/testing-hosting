@@ -4,22 +4,23 @@
 **STATE_UPDATED:** 2026-11-11
 **ACTIVE_TASK:** none
 **ACTIVE_BRANCH:** none
-**CURRENT_PHASE:** P01 (focused interactive lesson path)
-**LAST_COMPLETED_TASK:** P00-04 + P00-05 (roadmap reconciliation, production boundaries)
-**LAST_TASK_COMMIT:** `605ecde3c471b67ed0bad7304100bdd7702b5414`
-**NEXT_ACTION:** P01-05
+**CURRENT_PHASE:** P02 (focused lesson contract)
+**LAST_COMPLETED_TASK:** P01-05 (working technical MVP mechanics scope; no pedagogical pilot)
+**LAST_TASK_COMMIT:** `e939cd9bd3a23a8c919438a5451ea88acc930bd3`
+**NEXT_ACTION:** P02-05
 **STATUS:** READY_TO_START
 
-## Verified checkpoint
-- P00-02: [PostgreSQL 57/57 + startup smoke PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/42997203038); [TAS backend gate PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/42997203340). Production/staging/browser flow **NOT_RUN**.
-- P00-03: TAS documentation links and lean `AGENTS.md` workflow aligned.
-- P00-04: `TASK_BOARD.md` reconciled (92 task IDs preserved; 14 rows updated). Existing platform identity, migrations, homework and shared board modules marked **PARTIAL**, not DONE. Backend CI PASS does not close P03-04/full RBAC or frontend gates.
-- P00-05: public URL, GAS/Firebase, real student data and production cutover restrictions already enforced by `AGENTS.md`, root/TAS README.
-- P00 **G00 PASS for isolated baseline** in `PHASE_CHECKLISTS.md`. `DECISIONS.md` D012 supersedes obsolete planning mandates D009/D010.
+## Verified in this continuation
+
+- **P00-04/P00-05:** [roadmap reconciliation](https://github.com/Arthur200014/testing-hosting/commit/40cda70cc653b3704d1767110e56dbbdfefc993d) completed; 92 original IDs kept, partial modules marked PARTIAL, production/GAS/Firebase restrictions retained.
+- **Gate G00 (isolated baseline):** [57/57 PostgreSQL tests + startup/health/auth smoke PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/42997203038); prod/staging/browser **NOT_RUN**. P00 stage checklist checked with actual evidence.
+- **Lean workflow:** obsolete mandatory plan/test-matrix decisions superseded by D012; root `AGENTS.md` governs.
+- **P01-05:** [MVP mechanics scope](https://github.com/Arthur200014/testing-hosting/blob/main/docs/architecture/lesson-mechanics-mvp.md): 8 typed reusable math mechanics, first 5 prioritized, explicit answer formats and board controls. Design-only review PASS. Pedagogical pilot, actual renderers, and end-to-end validation **NOT_RUN**; full G01 remains open.
 
 ## Next concrete step
-**P01-05:** define a compact set of 5–10 reusable math interaction mechanics, input/answer types, and minimum board controls, grounded in existing `shared/interactive/v1/` and teaching examples. Prioritize graph parameters, geometry and probability; write implementable contract without redoing infrastructure or scanning all EGA/OGA. Keep user approval/pilot evidence separate from an internal draft.
 
-Then plan `LessonDefinition` versioned contract (`P02-05`) and reusable renderer (`P08-01...`). Use existing runtime and backend, not a parallel application.
+**P02-05:** define a strict, versioned `LessonDefinition` v1 contract and event/API boundaries for the *first* `parameterGraph` lesson. Reuse `docs/architecture/lesson-mechanics-mvp.md` and existing `platform/` + `shared/interactive/v1/`; avoid new parallel runtime. Implement a machine-validatable schema with one small synthetic example and focused validation tests if the contract code changes. No teacher/learner private data, production writes, or public page changes.
 
-**Safety:** no real student writes or production switches. Only scoped verification and necessary tests. Do not reopen completed P00 without a concrete regression.
+Then proceed to the reusable renderer `P08-01/P08-04`. This focused work does not imply all of G01/G02 or the entire P02 phase are accepted.
+
+**Rules:** Read only necessary files. No broad repository or EGA/OGA scans. Preserve legacy GAS/Firebase defaults and public URLs. Report actual PASS / FAIL / NOT_RUN and commit.
