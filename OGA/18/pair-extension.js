@@ -58,16 +58,18 @@
   initialGeneratedState=function(){const v=originalInit();for(const [id,s] of Object.entries(v))v[id+'-b']=other(s);return v};
   function sameKind(ch,original,mate){
     const s=original||generateSpec(ch),oldAnswer=taskInfo(s).answer;
-    let alternate=null;
+    let alternate=null,answerChanged=null;
     for(let i=0;i<180;i++){
       const c=generateSpec(ch);
       if(c.kind!==s.kind||(s.mode&&c.mode!==s.mode)||(s.use&&c.use!==s.use)||
          JSON.stringify(c)===JSON.stringify(s)||JSON.stringify(c)===JSON.stringify(mate))continue;
       alternate=c;
-      if(Math.abs(Number(taskInfo(c).answer)-Number(oldAnswer))>1e-8 &&
-         (!mate||Math.abs(Number(taskInfo(c).answer)-Number(taskInfo(mate).answer))>1e-8))return c;
+      if(Math.abs(Number(taskInfo(c).answer)-Number(oldAnswer))>1e-8){
+        answerChanged=c;
+        if(!mate||Math.abs(Number(taskInfo(c).answer)-Number(taskInfo(mate).answer))>1e-8)return c;
+      }
     }
-    if(alternate&&Math.abs(Number(taskInfo(alternate).answer)-Number(oldAnswer))>1e-8)return alternate;
+    if(answerChanged)return answerChanged;
     const fallback=other(s);
     return JSON.stringify(fallback)===JSON.stringify(mate)?(alternate||fallback):fallback;
   }
