@@ -22,9 +22,9 @@ if [[ "$flag" != "--example" ]]; then
   fi
 fi
 if [[ "$flag" == "--example" ]]; then
-  docker compose --env-file "$env_file" -f compose.yaml -f compose.staging.yaml config --format json |
+  docker compose --env-file "$env_file" -f compose.yaml -f compose.staging.yaml --profile tools config --format json |
     python3 platform/scripts/check-staging-config.py --example
 else
-  docker compose --env-file "$env_file" -f compose.yaml -f compose.staging.yaml config --format json |
+  docker compose --env-file "$env_file" -f compose.yaml -f compose.staging.yaml --profile tools config --format json |
     python3 platform/scripts/check-staging-config.py
 fi
