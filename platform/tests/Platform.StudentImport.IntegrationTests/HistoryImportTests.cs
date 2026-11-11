@@ -66,6 +66,7 @@ public sealed class HistoryImportTests
 
         var preview = await importer.ImportAsync(source.WorkbookPath, source.MapPath, "synthetic-school", false);
         Assert.True(preview.CanApply);
+        Assert.True(preview.Skipped.Count == 0, JsonSerializer.Serialize(preview.Skipped));
         Assert.Equal(1, preview.LessonsCreated);
         Assert.Equal(2, preview.ParticipantsCreated);
         Assert.Equal(2, preview.SubscriptionsCreated);
