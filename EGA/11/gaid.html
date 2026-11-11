@@ -453,7 +453,20 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-2;bac
 .sliders{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))!important}
 @media(max-width:980px){.learn-grid{grid-template-columns:1fr!important}.theory-card{overflow:visible!important}}
 </style>
-</head>
+<style id="ege11-pair-v1">
+.pair-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:12px}
+.pair-card{position:relative;min-width:0;border:1px solid #277398;border-radius:14px;padding:11px;background:linear-gradient(145deg,#09213c,#061529)}
+.pair-card[data-pair-slot=b]{border-color:#a58a46}
+.pair-card .practice-layout{display:grid!important;grid-template-columns:1fr!important;gap:12px}
+.pair-card .exam-sheet,.pair-card .answer-panel{min-width:0;width:100%}
+.pair-card .practice-canvas{width:100%;max-width:100%;display:block}
+.pair-card .practice-top{flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.pair-card .practice-work-wrap{margin-top:12px}
+.pair-label{font-weight:900;font-size:12px;color:#7be2ff}.pair-card[data-pair-slot=b] .pair-label{color:#ffe188}
+.pair-card [data-reveal-next]:disabled{opacity:.48;cursor:not-allowed}
+@media(max-width:1000px){.pair-grid{grid-template-columns:1fr}.pair-card .practice-layout{grid-template-columns:minmax(0,1fr) minmax(230px,.7fr)!important}}
+@media(max-width:680px){.pair-card .practice-layout{grid-template-columns:1fr!important}.pair-card{padding:8px}}
+</style></head>
 <body><div data-board-anchor="global-document" id="globalBoardSurface"></div>
 <div class="topbar"><div class="brand">⚔️ Голокрон <b>№11</b></div><div class="nav-scroller" id="protoNav"></div><button class="top-btn" id="scrollTopBtn">↑ Наверх</button></div>
 <main class="wrap">
@@ -949,6 +962,26 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-2;bac
 <div class="board-toolbar" id="boardToolbar"><div class="board-handle" id="boardHandle"><span>✥</span><b>Черновик / рисование</b><button class="board-tool" id="boardCollapse">−</button></div><div class="board-tools"><button class="board-tool on" id="toolOff">↖ Курсор</button><button class="board-tool" id="toolPen">✏ Карандаш</button><button class="board-tool" id="toolEraser">⌫ Ластик</button><input id="toolColor" type="color" value="#2d83ff"/><input id="toolWidth" max="12" min="2" type="range" value="4"/><button class="board-tool" id="toolUndo">↶ Undo</button><button class="board-tool" id="toolClear">Очистить всё</button></div></div>
 <script>
 "use strict";
+(function preparePairs(){
+ for(const card of document.querySelectorAll('.practice-card[id^="practice-"]')){
+  const id=card.id.slice(9),header=card.querySelector(':scope > .practice-top'),body=card.querySelector(':scope > .practice-layout'),work=card.querySelector(':scope > .practice-work-wrap');
+  if(!header||!body||!work)continue;
+  card.removeAttribute('data-board-anchor');
+  const a=document.createElement('section');a.className='pair-card';a.dataset.pairSlot='a';a.dataset.boardAnchor='practice-'+id+'-a';a.append(header,body,work);
+  const b=a.cloneNode(true);b.dataset.pairSlot='b';b.dataset.boardAnchor='practice-'+id+'-b';
+  b.querySelectorAll('[id]').forEach(el=>el.id+='-b');
+  b.querySelectorAll('[data-board-anchor]').forEach(el=>el.dataset.boardAnchor+='-b');
+  b.querySelectorAll('[data-new-task],[data-check],[data-reveal-next]').forEach(el=>el.dataset.slot='b');
+  for(const [panel,num,letter] of [[a,1,'А'],[b,2,'Б']]){
+   const head=panel.querySelector('.practice-top'),title=head.querySelector('h3'),kick=head.querySelector('.kicker');
+   if(title)title.textContent='Задача '+letter+' · формат ЕГЭ';if(kick)kick.textContent='Парная практика · ученик '+num;
+   const label=panel.querySelector('.answer-panel label');if(label)label.textContent='Ответ ученика '+num;
+   const name=document.createElement('span');name.className='pair-label';name.textContent='Ученик '+num+' · отдельный вариант';head.prepend(name);
+  }
+  const grid=document.createElement('div');grid.className='pair-grid';grid.append(a,b);card.append(grid);
+ }
+})();
+
 const $=id=>document.getElementById(id),clone=v=>v==null?v:JSON.parse(JSON.stringify(v)),uid=()=>crypto.randomUUID?.()||("id-"+Date.now().toString(36)+Math.random().toString(36).slice(2));
 const APP_ID='ege11-graph-holocron-shared-guide-v1',GUIDE_SCHEMA_VERSION=1,API_URL='https://script.google.com/macros/s/AKfycbw6iYfojO8VgkHU63peD2vWLybGyDm9AsYZ6TaLA_EFD4j56nQlY5SqpRANPVeTwVsj/exec';window.APP_ID=APP_ID;window.GUIDE_SCHEMA_VERSION=GUIDE_SCHEMA_VERSION;
 const PROTOS=[{"id": "linear", "n": 1, "title": "Линейная функция"}, {"id": "reciprocal", "n": 2, "title": "Обратная пропорциональность"}, {"id": "exponential", "n": 3, "title": "Показательная функция"}, {"id": "root", "n": 4, "title": "Корневая функция"}, {"id": "log", "n": 5, "title": "Логарифмическая функция"}, {"id": "quadratic", "n": 6, "title": "Квадратичная функция"}, {"id": "line-line", "n": 7, "title": "Пересечение двух прямых"}, {"id": "parabola-line", "n": 8, "title": "Пересечение параболы и прямой"}, {"id": "hyperbola-line", "n": 9, "title": "Пересечение гиперболы и прямой"}, {"id": "exp-line", "n": 10, "title": "Пересечение показательной функции и прямой"}, {"id": "mixed", "n": 11, "title": "Пересечение двух парабол"}];
@@ -1124,16 +1157,15 @@ function generateTask(id){
  }
 
  if(id==='exp-line'){
-   const p={a:2,c:8},x=3;
+   const v=pick([{a:2,x:2},{a:2,x:3},{a:3,x:2}]),p={a:v.a,c:v.a**v.x},x=v.x;
    return{kind:id,p,roots:[x],mode:'findX',answer:x,view:{x:2,y:10},readPoints:[{which:1,x:1,y:2},{which:2,x:0,y:8}],
      sourcePrototype:'generated by guide method',
      q:'На рисунке изображены график y=aˣ и горизонтальная прямая. Их точка пересечения находится правее показанного фрагмента. Найдите её абсциссу.',sol:[]};
  }
 
- const variants=[
-   {a1:1,b1:0,c1:0,a2:2,b2:-4,c2:-5,visible:-1,target:5},
-   {a1:1,b1:0,c1:0,a2:2,b2:4,c2:-5,visible:1,target:-5}
- ];
+ const variants=[];
+ for(const visible of [-1,1])for(const target of [-5,-4,4,5])if(visible!==target)variants.push({a1:1,b1:0,c1:0,a2:2,b2:-(visible+target),c2:visible*target,visible,target});
+
  const v=pick(variants),roots=[v.visible,v.target].sort((a,b)=>a-b),p={a1:v.a1,b1:v.b1,c1:v.c1,a2:v.a2,b2:v.b2,c2:v.c2};
  const A=[v.visible,v.a1*v.visible*v.visible+v.b1*v.visible+v.c1];
  const h1=-v.b1/(2*v.a1),vv1=v.a1*h1*h1+v.b1*h1+v.c1,h2=-v.b2/(2*v.a2),vv2=v.a2*h2*h2+v.b2*h2+v.c2;
@@ -1145,12 +1177,25 @@ function generateTask(id){
    sourcePrototype:'PDF №40/43 + generated by same structure',
    q:'Графики двух парабол пересекаются в точках A и B. Точка A показана на рисунке, а точка B находится за пределами поля. Найдите абсциссу точки B.',sol:[]};
 }
-function freshUi(){let models={},practice={};for(const p of PROTOS){models[p.id]={};for(const[k,c]of Object.entries(MODEL_CONFIG[p.id].sliders))models[p.id][k]=c.val;practice[p.id]={task:generateTask(p.id),answerText:'',checked:null,reveal:0}}return{activeProto:PROTOS[0].id,models,practice}}
+function makePairTask(id,peer=null,previous=null){
+ const used=new Set([peer,previous].filter(Boolean).map(taskSignature));
+ for(let i=0;i<120;i++){const t=generateTask(id);if(!used.has(taskSignature(t)))return t}
+ throw Error('Нет другой задачи для '+id);
+}
+function freshUi(){
+ const models={},practice={},practicePair={};
+ for(const item of PROTOS){
+  models[item.id]={};for(const[k,c]of Object.entries(MODEL_CONFIG[item.id].sliders))models[item.id][k]=c.val;
+  practice[item.id]={task:generateTask(item.id),answerText:'',checked:null,reveal:0};
+  practicePair[item.id]={task:makePairTask(item.id,practice[item.id].task),answerText:'',checked:null,reveal:0};
+ }
+ return{activeProto:PROTOS[0].id,models,practice,practicePair};
+}
 let ui=freshUi(),applyingShared=false,connected=false,role='',participantId='',participantName='',db=null,fb=null,unsubs=[],activeMembers={},memberRef=null,fastSeen='';
 function setDeep(obj,path,value){const parts=path.split('/');let x=obj;for(let i=0;i<parts.length-1;i++)x=x[parts[i]]||(x[parts[i]]={});x[parts.at(-1)]=clone(value)}
-function localPatch(path,value,{fast=true}={}){setDeep(ui,path,value);renderPath(path);if(connected&&fb){fb.set(fb.ref(db,`sharedGuides/${APP_ID}/currentSession/state/ui/${path}`),value).catch(()=>{});if(fast)fb.set(fb.ref(db,`sharedGuides/${APP_ID}/currentSession/messages/fastAction`),{id:uid(),path,value,at:Date.now()}).catch(()=>{})}}
-function renderPath(path){if(path==='activeProto'){renderNav();return}const parts=path.split('/');if(parts[0]==='models')renderModel(parts[1]);if(parts[0]==='practice')renderPractice(parts[1])}
-function renderAll(){renderNav();for(const p of PROTOS){renderModel(p.id);renderPractice(p.id)}}
+function localPatch(path,value,{fast=true}={}){setDeep(ui,path,value);renderPath(path);if(connected&&fb){fb.set(fb.ref(db,`sharedGuides/${APP_ID}/currentSession/state/ui/${path}`),value).catch(()=>{});if(fast){const id=uid();fastSeen=id;fb.set(fb.ref(db,`sharedGuides/${APP_ID}/currentSession/messages/fastAction`),{id,path,value,origin:participantId,at:Date.now()}).catch(()=>{})}}}
+function renderPath(path){if(path==='activeProto'){renderNav();return}const parts=path.split('/');if(parts[0]==='models')renderModel(parts[1]);if(parts[0]==='practice')renderPractice(parts[1],'a');if(parts[0]==='practicePair')renderPractice(parts[1],'b')}
+function renderAll(){renderNav();for(const p of PROTOS){renderModel(p.id);renderPractice(p.id,'a');renderPractice(p.id,'b')}}
 function renderNav(){document.querySelectorAll('.nav-chip').forEach(b=>b.classList.toggle('active',b.dataset.proto===ui.activeProto))}
 function buildNav(){const n=$('protoNav');for(const p of PROTOS){const b=document.createElement('button');b.className='nav-chip';b.dataset.proto=p.id;b.textContent=p.n+'. '+p.title;b.onclick=()=>{clearTaskInk(p.id);localPatch('activeProto',p.id);document.getElementById('proto-'+p.id).scrollIntoView({behavior:'smooth',block:'start'})};n.appendChild(b)}}
 const SLIDER_LABELS={linear:{k:'k',b:'b'},reciprocal:{k:'k'},exponential:{a:'a'},root:{a:'k'},log:{a:'a'},quadratic:{a:'a',b:'b',c:'c'},'line-line':{k1:'k₁',b1:'b₁',k2:'k₂',b2:'b₂'},'parabola-line':{a:'a',b:'b',c:'c',k:'k',d:'d'},'hyperbola-line':{k:'k',m:'m',b:'b'},'exp-line':{a:'a',c:'c'},mixed:{a1:'a₁',b1:'b₁',c1:'c₁',a2:'a₂',b2:'b₂',c2:'c₂'}};
@@ -1398,17 +1443,88 @@ function guideSolutionSteps(id,t){
 
   return Array.isArray(t?.sol)?t.sol:[];
 }
-function renderPractice(id){const st=ui.practice[id];if(!st)return;const t=st.task;$('question-'+id).textContent=t.q;const inp=$('answer-'+id);if(inp&&document.activeElement!==inp)inp.value=st.answerText||'';drawGraph($('practice-canvas-'+id),t.kind,t.p,true,t);const f=$('feedback-'+id);f.className='feedback'+(st.checked===true?' good':st.checked===false?' bad':'');f.textContent=st.checked===true?'✓ Верно. Можно раскрыть шаги решения.':st.checked===false?'Пока неверно. Сверься со способом из этой главы и попробуй ещё раз.':'Сначала реши самостоятельно.';const sol=$('solution-'+id),steps=guideSolutionSteps(id,t);sol.innerHTML='';for(let i=0;i<Math.min(st.reveal||0,steps.length);i++){const d=document.createElement('div');d.className='solution-line';d.innerHTML=`<b>Шаг ${i+1}.</b> ${steps[i]}`;sol.appendChild(d)}}
+function pairRoot(slot){return slot==='b'?'practicePair':'practice'}
+function pairSuffix(slot){return slot==='b'?'-b':''}
+function pairState(id,slot='a'){return ui[pairRoot(slot)]?.[id]}
+function renderPractice(id,slot='a'){
+ const st=pairState(id,slot),suffix=pairSuffix(slot);if(!st?.task)return;
+ const t=st.task,question=$('question-'+id+suffix),canvas=$('practice-canvas-'+id+suffix);if(!question||!canvas)return;
+ question.textContent=t.q;
+ const input=$('answer-'+id+suffix);if(input&&document.activeElement!==input)input.value=st.answerText||'';
+ drawGraph(canvas,t.kind,t.p,true,t);
+ const f=$('feedback-'+id+suffix);f.className='feedback'+(st.checked===true?' good':st.checked===false?' bad':'');
+ f.textContent=st.checked===true?'✓ Верно!':st.checked===false?'✕ Неверно. Попробуй ещё.':'Введи ответ и нажми «Проверить».';
+ const solution=$('solution-'+id+suffix),steps=guideSolutionSteps(id,t);solution.replaceChildren();
+ for(let i=0;i<Math.min(st.reveal||0,steps.length);i++){
+  const row=document.createElement('div'),no=document.createElement('b');row.className='solution-line';no.textContent='Шаг '+(i+1)+'. ';
+  row.append(no,document.createTextNode(steps[i]));solution.append(row);
+ }
+}
 function taskSignature(t){return JSON.stringify({kind:t.kind,p:t.p,x0:t.x0,mode:t.mode,q:t.q,answer:t.answer})}
-function clearTaskVisuals(id){const inp=$('answer-'+id),f=$('feedback-'+id),sol=$('solution-'+id),fx=$('screenFx');if(inp){inp.value='';inp.blur()}if(f){f.className='feedback';f.textContent=''}if(sol)sol.innerHTML='';if(fx){fx.className='screen-fx';fx.querySelectorAll('.fx-particle').forEach(n=>n.remove());const txt=$('screenFxText');if(txt)txt.textContent=''}}function newTask(id){clearTaskVisuals(id);clearTaskInk(id);const prev=ui.practice[id]?.task,prevSig=prev?taskSignature(prev):'';let task=generateTask(id);for(let i=0;i<24&&taskSignature(task)===prevSig;i++)task=generateTask(id);localPatch(`practice/${id}`,{task,answerText:'',checked:null,reveal:0})}
-function checkTask(id){const st=ui.practice[id],v=parseAns(st.answerText),ok=Number.isFinite(v)&&Math.abs(v-st.task.answer)<1e-7;localPatch(`practice/${id}/checked`,ok);const kind=ok?'good':'bad';if(window.__battleFx)window.__battleFx(kind);else{const fx=$('screenFx'),txt=$('screenFxText');if(fx&&txt){txt.textContent=ok?'✓ ВЕРНО!':'✕ НЕВЕРНО';fx.className='screen-fx '+kind+' show';setTimeout(()=>fx.className='screen-fx',850)}}}
-function revealNext(id){const st=ui.practice[id],steps=guideSolutionSteps(id,st.task),n=Math.min(steps.length,(st.reveal||0)+1);localPatch(`practice/${id}/reveal`,n)}
-function setupPractice(){for(const p of PROTOS){$(`answer-${p.id}`).addEventListener('input',e=>{setDeep(ui,`practice/${p.id}/answerText`,e.target.value);clearTimeout(e.target._t);e.target._t=setTimeout(()=>localPatch(`practice/${p.id}/answerText`,e.target.value),55)})}document.querySelectorAll('[data-new-task]').forEach(b=>b.onclick=()=>newTask(b.dataset.newTask));document.querySelectorAll('[data-check]').forEach(b=>b.onclick=()=>checkTask(b.dataset.check));document.querySelectorAll('[data-reveal-next]').forEach(b=>b.onclick=()=>revealNext(b.dataset.revealNext))}
+function clearTaskVisuals(id,slot='a'){
+ const suffix=pairSuffix(slot),input=$('answer-'+id+suffix),f=$('feedback-'+id+suffix),sol=$('solution-'+id+suffix);
+ if(input){input.value='';input.blur()}if(f){f.textContent='';f.className='feedback'}sol?.replaceChildren();
+}
+async function newTask(id,slot='a'){
+ if(!connected||!fb){
+  const next=makePairTask(id,pairState(id,slot==='a'?'b':'a')?.task,pairState(id,slot)?.task);
+  clearTaskVisuals(id,slot);clearTaskInk(id,slot);
+  localPatch(pairRoot(slot)+'/'+id,{task:next,answerText:'',checked:null,reveal:0});
+  return;
+ }
+ const ref=fb.ref(db,'sharedGuides/'+APP_ID+'/currentSession/state/ui');
+ const result=await fb.runTransaction(ref,current=>{
+  if(!current)return;
+  const own=current[pairRoot(slot)]?.[id],peer=current[pairRoot(slot==='a'?'b':'a')]?.[id]?.task;
+  if(!own)return;
+  const next=makePairTask(id,peer,own.task);
+  current[pairRoot(slot)][id]={task:next,answerText:'',checked:null,reveal:0};
+  return current;
+ },{applyLocally:false});
+ if(!result.committed)throw Error('Новую задачу не удалось сохранить');
+ clearTaskInk(id,slot);
+}
+function practiceFx(ok){
+ const kind=ok?'good':'bad';if(window.__battleFx){window.__battleFx(kind);return}
+ const fx=$('screenFx'),txt=$('screenFxText');if(!fx||!txt)return;
+ txt.textContent=ok?'✓ ВЕРНО!':'✕ НЕВЕРНО';fx.className='screen-fx '+kind+' show';
+ clearTimeout(practiceFx.timer);practiceFx.timer=setTimeout(()=>fx.className='screen-fx',850);
+}
+function checkTask(id,slot='a'){
+ const st=pairState(id,slot);if(!st?.task)return;
+ const raw=String(st.answerText||'').trim(),value=raw?parseAns(raw):NaN;
+ const ok=Number.isFinite(value)&&Math.abs(value-st.task.answer)<1e-7;
+ localPatch(pairRoot(slot)+'/'+id+'/checked',ok);practiceFx(ok);
+}
+function revealNext(id,slot='a'){
+ if(connected&&role!=='teacher')return;
+ const st=pairState(id,slot);if(!st?.task)return;
+ const n=Math.min(guideSolutionSteps(id,st.task).length,(st.reveal||0)+1);
+ localPatch(pairRoot(slot)+'/'+id+'/reveal',n);
+}
+function setupPractice(){
+ for(const p of PROTOS)for(const slot of ['a','b']){
+  const id=p.id,input=$('answer-'+id+pairSuffix(slot)),root=pairRoot(slot);
+  if(!input)throw Error('Нет поля ответа '+id+slot);
+  input.addEventListener('input',e=>{
+   const val=e.target.value;setDeep(ui,root+'/'+id+'/answerText',val);
+   clearTimeout(input._t);input._t=setTimeout(()=>localPatch(root+'/'+id+'/answerText',val),60);
+  });
+  input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();checkTask(id,slot)}});
+ }
+ document.querySelectorAll('[data-new-task]').forEach(btn=>btn.onclick=async()=>{
+  btn.disabled=true;try{await newTask(btn.dataset.newTask,btn.dataset.slot||'a')}
+  catch(err){window.showToast?.('Ошибка генерации: '+(err.message||err))}
+  finally{btn.disabled=false}
+ });
+ document.querySelectorAll('[data-check]').forEach(btn=>btn.onclick=()=>checkTask(btn.dataset.check,btn.dataset.slot||'a'));
+ document.querySelectorAll('[data-reveal-next]').forEach(btn=>btn.onclick=()=>revealNext(btn.dataset.revealNext,btn.dataset.slot||'a'));
+}
 $('scrollTopBtn').onclick=()=>scrollTo({top:0,behavior:'smooth'});buildNav();setupSliders();setupPractice();renderAll();window.addEventListener('resize',()=>{for(const p of PROTOS){renderModel(p.id);renderPractice(p.id)}});
 /* music local */const audio=$('bgAudio'),musicBtn=$('musicBtn'),volumeRange=$('volumeRange');audio.volume=Number(volumeRange.value);volumeRange.oninput=()=>audio.volume=Number(volumeRange.value);async function tryAutoMusic(){try{await audio.play();musicBtn.textContent='⏸ Imperial March';return true}catch{return false}}musicBtn.onclick=async()=>{if(audio.paused){try{await audio.play();musicBtn.textContent='⏸ Imperial March'}catch{}}else{audio.pause();musicBtn.textContent='▶ Imperial March'}};audio.onpause=()=>musicBtn.textContent='▶ Imperial March';audio.onplay=()=>musicBtn.textContent='⏸ Imperial March';tryAutoMusic();document.addEventListener('pointerdown',function firstMusicGesture(){if(audio.paused)tryAutoMusic()},{once:true,capture:true});
 /* local board engine: available without joint mode */const layers=new Map(),cursorEls=new Map();let boardEpoch=0,boardCache={},tool='off',drawing=null,lastPoint=null,lastSend=0,localRev=new Map(),optimisticDeleted=new Set(),cursorTimer=0;
-function clearTaskInk(id){
-  const victims=Object.values(boardCache).filter(st=>st&&+st.epoch===boardEpoch).map(st=>st.id);
+function clearTaskInk(id,slot=null){
+  const allowed=slot===null?null:new Set(['practice-'+id+'-'+slot,'practice-work-'+id+(slot==='b'?'-b':'')]);const victims=Object.values(boardCache).filter(st=>st&&+st.epoch===boardEpoch&&(!allowed||allowed.has(st.anchorId))).map(st=>st.id);
   drawing=null;lastPoint=null;
   if(!victims.length)return;
   const backups={};
@@ -1468,7 +1584,7 @@ async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncod
 function teacherLogin(){modalView('Вход учителя','<input class="modal-input" id="teacherCode" type="password" placeholder="КОД УЧИТЕЛЯ">');actionBtn('Войти',async()=>{if(await sha($('teacherCode').value)!==TEACHER_HASH){setMsg('Неверный код',true);return}role='teacher';participantId='teacher';participantName='Учитель';teacherDecision()},'primary');actionBtn('Назад',roleHome)}
 function teacherDecision(){modalView('Совместный урок','<p>Восстановить текущий урок или создать чистый новый?</p>');actionBtn('Восстановить прошлый урок',restoreTeacher,'primary');actionBtn('Начать новый урок',newTeacher);actionBtn('Назад',roleHome)}
 async function newTeacher(){setMsg('Создаём новый урок…');const fresh={meta:{appId:APP_ID,schemaVersion:GUIDE_SCHEMA_VERSION,createdAt:Date.now()},state:{ui:freshUi(),participants:{}},pads:{boardEpoch:0,strokes:{}},members:{},messages:{}};try{await set(rootRef(),fresh);ui=clone(fresh.state.ui);renderAll();await connectAs('teacher','teacher','Учитель');closeModal()}catch(e){setMsg('Не удалось создать урок: '+(e.message||e),true)}}
-async function restoreTeacher(){setMsg('Загружаем прошлый урок…');try{const s=await get(rootRef());if(!s.exists()){setMsg('Прошлого урока нет. Создай новый.',true);return}const v=s.val();if(v.state?.ui){ui=clone(v.state.ui);renderAll()}await connectAs('teacher','teacher','Учитель');closeModal()}catch(e){setMsg('Не удалось восстановить: '+e.message,true)}}
+async function restoreTeacher(){setMsg('Загружаем прошлый урок…');try{const s=await get(rootRef());if(!s.exists()){setMsg('Прошлого урока нет. Создай новый.',true);return}const v=s.val();if(v.state?.ui){ui=clone(v.state.ui);if(!ui.practicePair){ui.practicePair={};for(const p of PROTOS)ui.practicePair[p.id]={task:makePairTask(p.id,ui.practice?.[p.id]?.task),answerText:'',checked:null,reveal:0};await update(uiRef(),{practicePair:ui.practicePair})}renderAll()}await connectAs('teacher','teacher','Учитель');closeModal()}catch(e){setMsg('Не удалось восстановить: '+e.message,true)}}
 function savedStudent(){try{return JSON.parse(localStorage.getItem(STUDENTKEY)||'null')}catch{return null}}
 function normalizeStudentCode(code){return String(code||'').trim().toUpperCase()}
 function tempStudentKey(code){const safe=normalizeStudentCode(code).replace(/[^A-Z0-9_-]/g,'');return 'code_'+(safe||uid())}
@@ -1481,8 +1597,8 @@ async function fastJoinStudent(rawCode,cached){
  const key=tempStudentKey(code),displayName=cached?.name||'Ученик';setMsg('Входим в урок…');
  try{
   const root=await get(rootRef());if(!root.exists()){setMsg('Учитель ещё не начал совместный урок.',true);return}
-  const ok=await runTransaction(ref(db,rootPath()+'/state/participants'),cur=>{const x=cur||{},existing=x[key];if(!existing&&Object.keys(x).length>=8)return;return{...x,[key]:{...(existing||{}),id:key,studentCode:code,name:displayName,verified:!!cached?.verified,verifiedStudentId:cached?.id||existing?.verifiedStudentId||'',joinedAt:existing?.joinedAt||Date.now()}}});
-  if(!ok.committed){setMsg('На уроке уже 8 учеников.',true);return}
+  const ok=await runTransaction(ref(db,rootPath()+'/state/participants'),cur=>{const x=cur||{},existing=x[key];return{...x,[key]:{...(existing||{}),id:key,studentCode:code,name:displayName,verified:!!cached?.verified,verifiedStudentId:cached?.id||existing?.verifiedStudentId||'',joinedAt:existing?.joinedAt||Date.now()}}});
+  if(!ok.committed){setMsg('Не удалось присоединиться к занятию.',true);return}
   role='student';participantId=key;participantName=displayName;connectAs('student',key,displayName);closeModal();
   if(cached?.verified&&cached?.id&&cached?.name){update(ref(db,rootPath()+'/state/participants/'+key),{name:cached.name,verified:true,verifiedStudentId:cached.id}).catch(()=>{});participantName=cached.name;update(memberRef,{name:cached.name,verifiedStudentId:cached.id}).catch(()=>{});return}
   validateStudentInBackground(code,key);
@@ -1501,9 +1617,14 @@ async function validateStudentInBackground(code,key){
   }
  }
 }
-function connectAs(r,id,name){connected=true;role=r;participantId=id;participantName=name;clearSubs();memberRef=ref(db,rootPath()+'/members/'+clientId);set(memberRef,{id:clientId,userId:id,name,role:r,online:true,lastSeen:serverTimestamp()}).catch(()=>{});try{onDisconnect(memberRef).update({online:false,lastSeen:serverTimestamp()}).catch(()=>{})}catch{}unsubs.push(onValue(uiRef(),s=>{if(!s.exists())return;applyingShared=true;ui=clone(s.val());renderAll();applyingShared=false}));unsubs.push(onValue(membersRef(),s=>{activeMembers=s.val()||{};renderPresence()}));unsubs.push(onValue(padsRef(),s=>applyPads(s.val()||{})));unsubs.push(onValue(cursorRef(),s=>renderTeacherCursor(s.val())));unsubs.push(onValue(fastRef(),s=>{const a=s.val();if(!a||a.id===fastSeen||!a.path)return;fastSeen=a.id;setDeep(ui,a.path,a.value);renderPath(a.path)}));$('lessonFab').classList.add('hidden');$('lessonMini').classList.remove('hidden');renderPresence();updateBoardPermissions();return Promise.resolve()}
+function connectAs(r,id,name){connected=true;role=r;participantId=id;participantName=name;clearSubs();memberRef=ref(db,rootPath()+'/members/'+clientId);set(memberRef,{id:clientId,userId:id,name,role:r,online:true,lastSeen:serverTimestamp()}).catch(()=>{});try{onDisconnect(memberRef).update({online:false,lastSeen:serverTimestamp()}).catch(()=>{})}catch{}unsubs.push(onValue(uiRef(),s=>{if(!s.exists())return;applyingShared=true;ui=clone(s.val());renderAll();applyingShared=false}));unsubs.push(onValue(membersRef(),s=>{activeMembers=s.val()||{};renderPresence()}));unsubs.push(onValue(padsRef(),s=>applyPads(s.val()||{})));unsubs.push(onValue(cursorRef(),s=>renderTeacherCursor(s.val())));unsubs.push(onValue(fastRef(),snap=>{
+ const a=snap.val();if(!a||a.id===fastSeen||!a.path)return;fastSeen=a.id;
+ if(a.path.startsWith('practicePair/')&&!ui.practicePair)return;
+ setDeep(ui,a.path,a.value);renderPath(a.path);
+ if(/^(practice|practicePair)\/[^/]+\/checked$/.test(a.path)&&a.origin!==participantId&&Date.now()-Number(a.at||0)<4000)practiceFx(!!a.value);
+}));$('lessonFab').classList.add('hidden');$('lessonMini').classList.remove('hidden');renderPresence();updateBoardPermissions();return Promise.resolve()}
 function clearSubs(){while(unsubs.length){try{unsubs.pop()()}catch{}}}function renderPresence(){const vals=Object.values(activeMembers||{}).filter(m=>m?.online),u=new Map();for(const m of vals)u.set(m.userId||m.id,m);$('lessonOnline').textContent=u.size+' онлайн';if(!modal.classList.contains('hidden')&&$('participantsList'))fillParticipants()}function fillParticipants(){const list=$('participantsList');if(!list)return;const vals=Object.values(activeMembers||{}).filter(Boolean);list.innerHTML=vals.map(m=>`<div class="participant ${m.online?'':'offline'}"><span class="dot"></span><b>${String(m.name||'Участник').replace(/[<>]/g,'')}</b><small>${m.role==='teacher'?'учитель':m.online?'онлайн':'не в сети'}</small></div>`).join('')||'<p>Пока никого.</p>'}function participantsView(){modalView('Участники','<div class="participants" id="participantsList"></div>');fillParticipants();actionBtn('Закрыть',closeModal)}
-async function disconnect(){studentValidationRun++;clearSubs();connected=false;if(memberRef)try{await update(memberRef,{online:false,lastSeen:serverTimestamp()})}catch{}memberRef=null;role='';participantId='';participantName='';$('lessonMini').classList.add('hidden');$('lessonFab').classList.remove('hidden');hideAllCursors();updateBoardPermissions()}function updateBoardPermissions(){$('toolClear').textContent=connected&&role!=='teacher'?'Очистить всё (учитель)':'Очистить всё'}
+async function disconnect(){studentValidationRun++;clearSubs();connected=false;if(memberRef)try{await update(memberRef,{online:false,lastSeen:serverTimestamp()})}catch{}memberRef=null;role='';participantId='';participantName='';$('lessonMini').classList.add('hidden');$('lessonFab').classList.remove('hidden');hideAllCursors();updateBoardPermissions()}function updateBoardPermissions(){$('toolClear').textContent=connected&&role!=='teacher'?'Очистить всё (учитель)':'Очистить всё';document.querySelectorAll('[data-reveal-next]').forEach(btn=>{btn.disabled=connected&&role!=='teacher';btn.title=btn.disabled?'Решение раскрывает учитель для всех':'Показать следующий шаг'})}
 function applyPads(pads){const ep=+pads.boardEpoch||0;if(ep!==boardEpoch){boardEpoch=ep;drawing=null;boardCache={}}const incoming=pads.strokes||{},merged={};for(const[id,s]of Object.entries(incoming)){if(!s||+s.epoch!==boardEpoch)continue;const lr=localRev.get(id)||0;if(s.authorId===participantId&&lr>(+s.rev||0)&&boardCache[id])merged[id]=boardCache[id];else merged[id]=s}for(const[id,s]of Object.entries(boardCache)){if(s&&s.authorId===participantId&&+s.epoch===boardEpoch&&(localRev.get(id)||0)>(+(incoming[id]?.rev||0)))merged[id]=s}boardCache=merged;renderBoards()}
 document.addEventListener('pointermove',e=>{if(!connected||role!=='teacher'||tool!=='off')return;const anchor=e.target.closest?.('[data-board-anchor]');if(!anchor)return;const r=anchor.getBoundingClientRect(),payload={anchorId:anchor.dataset.boardAnchor,x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height,at:Date.now()};if(performance.now()-cursorTimer>45){cursorTimer=performance.now();set(cursorRef(),payload).catch(()=>{})}});function renderTeacherCursor(c){hideAllCursors();if(role==='teacher'||!c||Date.now()-(c.at||0)>2500)return;const el=cursorEls.get(c.anchorId);if(!el)return;el.style.left=Math.max(0,Math.min(1,c.x))*100+'%';el.style.top=Math.max(0,Math.min(1,c.y))*100+'%';el.classList.remove('hidden');clearTimeout(renderTeacherCursor.t);renderTeacherCursor.t=setTimeout(()=>el.classList.add('hidden'),1600)}function hideAllCursors(){cursorEls.forEach(e=>e.classList.add('hidden'))}
 $('lessonFab').onclick=()=>{roleHome();openModal()};$('lessonPeople').onclick=participantsView;$('lessonIdentity').onclick=async()=>{if(role==='student'){localStorage.removeItem(STUDENTKEY);localStorage.removeItem('egeStudentId');localStorage.removeItem('egeStudentName');localStorage.removeItem('egeStudentCode')}await disconnect();roleHome();openModal()};$('lessonEnd').onclick=disconnect;updateBoardPermissions();
