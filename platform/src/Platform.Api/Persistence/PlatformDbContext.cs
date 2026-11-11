@@ -299,9 +299,13 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(x => new { x.WorkspaceId, x.EventId }).IsUnique();
             entity.HasIndex(x => new { x.WorkspaceId, x.MembershipId, x.TestId, x.TestDate });
             entity.HasOne(x => x.Membership).WithMany()
-                .HasForeignKey(x => new { x.WorkspaceId, x.MembershipId, x.StudentId, x.ProgramId })
-                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.StudentId, x.ProgramId })
+                .HasForeignKey(x => new { x.WorkspaceId, x.MembershipId, x.StudentId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.StudentId })
                 .HasConstraintName("FK_HistoricalTestResults_WorkspaceStudentMemberships_Identity")
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Program).WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.ProgramId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
                 .OnDelete(DeleteBehavior.Restrict);
             entity.ToTable(table =>
             {

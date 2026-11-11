@@ -39,11 +39,13 @@ public sealed class TestHistoryImportService(Func<PlatformDbContext> dbFactory)
         if (conflicts.Count > 0) return Report(false, 0, 0);
         var workspaceId = workspace!.Id;
 
-        var memberships = await db.WorkspaceStudentMemberships.AsNoTracking().Include(x => x.Program)
+        var memberships = await db.WorkspaceStudentMemberships.AsNoTracking()
             .Where(x => x.WorkspaceId == workspaceId && x.ImportSource == StudentImportService.ImportSource)
             .ToListAsync(cancellationToken);
         var byStudent = memberships.Where(x => x.ImportExternalId is not null)
             .ToDictionary(x => x.ImportExternalId!, StringComparer.Ordinal);
+        var programs = (await db.Programs.AsNoTracking().Where(x => x.WorkspaceId == workspaceId)
+            .ToListAsync(cancellationToken)).ToDictionary(x => x.Code, StringComparer.Ordinal);
         var existing = (await db.HistoricalTestResults.AsNoTracking()
             .Where(x => x.WorkspaceId == workspaceId).ToListAsync(cancellationToken))
             .ToDictionary(x => x.EventId, StringComparer.Ordinal);
@@ -61,9 +63,9 @@ public sealed class TestHistoryImportService(Func<PlatformDbContext> dbFactory)
                 continue;
             }
             if (!map.Entries.TryGetValue(StudentWorkbookParser.NormalizeExternalId(row.ProgramSourceId), out var target) ||
-                !string.Equals(target.Code, member.Program.Code, StringComparison.Ordinal))
+                !programs.TryGetValue(target.Code, out var program))
             {
-                skipped.Add(new(row.Number, "program_mismatch"));
+                skipped.Add(new(row.Number, "program_not_found"));
                 continue;
             }
             if (currentEventIds.Contains(row.EventId))
@@ -73,7 +75,7 @@ public sealed class TestHistoryImportService(Func<PlatformDbContext> dbFactory)
             }
             if (existing.TryGetValue(row.EventId, out var prior))
             {
-                if (Equivalent(prior, row, member.Id, member.StudentId, member.ProgramId)) unchanged++;
+                if (Equivalent(prior, row, member.Id, member.StudentId, program.Id)) unchanged++;
                 else conflicts.Add(new(row.Number, "event_conflict"));
                 continue;
             }
@@ -81,7 +83,7 @@ public sealed class TestHistoryImportService(Func<PlatformDbContext> dbFactory)
             var result = new HistoricalTestResult
             {
                 Id = Guid.NewGuid(), WorkspaceId = workspaceId, MembershipId = member.Id,
-                StudentId = member.StudentId, ProgramId = member.ProgramId,
+                StudentId = member.StudentId, ProgramId = program.Id,
                 EventId = row.EventId, TestId = row.TestId, TestDate = row.TestDate,
                 TopicId = row.TopicId, TopicName = row.TopicName, TaskNumber = row.TaskNumber,
                 CorrectCount = row.CorrectCount, TotalCount = row.TotalCount,

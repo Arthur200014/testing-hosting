@@ -705,7 +705,8 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     b.HasKey("Id");
                     b.HasIndex("WorkspaceId", "EventId").IsUnique();
                     b.HasIndex("WorkspaceId", "MembershipId", "TestId", "TestDate");
-                    b.HasIndex("WorkspaceId", "MembershipId", "StudentId", "ProgramId");
+                    b.HasIndex("WorkspaceId", "MembershipId", "StudentId");
+                    b.HasIndex("WorkspaceId", "ProgramId");
                     b.ToTable("HistoricalTestResults", "platform", t =>
                     {
                         t.HasCheckConstraint("CK_HistoricalTestResults_Required", "length(\"EventId\") > 0 AND length(\"TestId\") > 0 AND length(\"TopicId\") > 0 AND length(\"TopicName\") > 0 AND length(\"SchemaVersion\") > 0");
@@ -1028,11 +1029,17 @@ namespace TestingHosting.Platform.Persistence.Migrations
                 {
                     b.HasOne("TestingHosting.Platform.Students.WorkspaceStudentMembership", "Membership")
                         .WithMany()
-                        .HasForeignKey("WorkspaceId", "MembershipId", "StudentId", "ProgramId")
-                        .HasPrincipalKey("WorkspaceId", "Id", "StudentId", "ProgramId")
+                        .HasForeignKey("WorkspaceId", "MembershipId", "StudentId")
+                        .HasPrincipalKey("WorkspaceId", "Id", "StudentId")
                         .HasConstraintName("FK_HistoricalTestResults_WorkspaceStudentMemberships_Identity")
                         .OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("TestingHosting.Platform.Students.LearningProgram", "Program")
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "ProgramId")
+                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict).IsRequired();
                     b.Navigation("Membership");
+                    b.Navigation("Program");
                 });
 
             modelBuilder.Entity("TestingHosting.Platform.TestAttempts.TestAttempt", b =>

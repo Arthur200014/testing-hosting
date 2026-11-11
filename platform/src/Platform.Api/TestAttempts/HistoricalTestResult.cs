@@ -25,4 +25,5 @@ public sealed class HistoricalTestResult
     public DateTimeOffset ServerSubmittedAt { get; set; }
     public required string SchemaVersion { get; set; }
     public WorkspaceStudentMembership Membership { get; set; } = null!;
+    public LearningProgram Program { get; set; } = null!;
 }

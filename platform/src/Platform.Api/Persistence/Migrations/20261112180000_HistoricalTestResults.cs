@@ -39,9 +39,14 @@ public sealed class HistoricalTestResults : Migration
             {
                 table.PrimaryKey("PK_HistoricalTestResults", x => x.Id);
                 table.ForeignKey("FK_HistoricalTestResults_WorkspaceStudentMemberships_Identity",
-                    x => new { x.WorkspaceId, x.MembershipId, x.StudentId, x.ProgramId },
+                    x => new { x.WorkspaceId, x.MembershipId, x.StudentId },
                     principalSchema: "platform", principalTable: "WorkspaceStudentMemberships",
-                    principalColumns: new[] { "WorkspaceId", "Id", "StudentId", "ProgramId" },
+                    principalColumns: new[] { "WorkspaceId", "Id", "StudentId" },
+                    onDelete: ReferentialAction.Restrict);
+                table.ForeignKey("FK_HistoricalTestResults_Programs_WorkspaceId_ProgramId",
+                    x => new { x.WorkspaceId, x.ProgramId },
+                    principalSchema: "platform", principalTable: "Programs",
+                    principalColumns: new[] { "WorkspaceId", "Id" },
                     onDelete: ReferentialAction.Restrict);
                 table.CheckConstraint("CK_HistoricalTestResults_Required",
                     "length(\"EventId\") > 0 AND length(\"TestId\") > 0 AND length(\"TopicId\") > 0 AND length(\"TopicName\") > 0 AND length(\"SchemaVersion\") > 0");
@@ -55,8 +60,11 @@ public sealed class HistoricalTestResults : Migration
             name: "IX_HistoricalTestResults_WorkspaceId_MembershipId_TestId_TestDate", schema: "platform", table: "HistoricalTestResults",
             columns: new[] { "WorkspaceId", "MembershipId", "TestId", "TestDate" });
         migrationBuilder.CreateIndex(
-            name: "IX_HistoricalTestResults_WorkspaceId_MembershipId_StudentId_ProgramId", schema: "platform", table: "HistoricalTestResults",
-            columns: new[] { "WorkspaceId", "MembershipId", "StudentId", "ProgramId" });
+            name: "IX_HistoricalTestResults_WorkspaceId_MembershipId_StudentId", schema: "platform", table: "HistoricalTestResults",
+            columns: new[] { "WorkspaceId", "MembershipId", "StudentId" });
+        migrationBuilder.CreateIndex(
+            name: "IX_HistoricalTestResults_WorkspaceId_ProgramId", schema: "platform", table: "HistoricalTestResults",
+            columns: new[] { "WorkspaceId", "ProgramId" });
     }
 
     protected override void Down(MigrationBuilder migrationBuilder) =>

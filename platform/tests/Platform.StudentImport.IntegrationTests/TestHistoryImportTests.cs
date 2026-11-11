@@ -26,9 +26,15 @@ public sealed class TestHistoryImportTests
                 Id = Guid.NewGuid(), Workspace = workspace, Code = "EGE_MATH",
                 DisplayName = "Synthetic mathematics"
             };
+            var historicalProgram = new LearningProgram
+            {
+                Id = Guid.NewGuid(), Workspace = workspace, Code = "OGE_MATH",
+                DisplayName = "Synthetic OGE mathematics"
+            };
             var student = new Student { Id = Guid.NewGuid(), DisplayName = "Synthetic" };
             db.Workspaces.Add(workspace);
             db.Programs.Add(program);
+            db.Programs.Add(historicalProgram);
             db.Students.Add(student);
             db.WorkspaceStudentMemberships.Add(new WorkspaceStudentMembership
             {
@@ -44,7 +50,7 @@ public sealed class TestHistoryImportTests
         var importer = new TestHistoryImportService(Connect);
         var preview = await importer.ImportAsync(source.WorkbookPath, source.MapPath, "history-tests", false);
         Assert.True(preview.CanApply);
-        Assert.Equal(1, preview.Created);
+        Assert.Equal(2, preview.Created);
         Assert.Equal(0, preview.Unchanged);
         Assert.Single(preview.Skipped);
         Assert.Equal("student_not_imported", preview.Skipped[0].Reason);
@@ -52,11 +58,11 @@ public sealed class TestHistoryImportTests
 
         var applied = await importer.ImportAsync(source.WorkbookPath, source.MapPath, "history-tests", true);
         Assert.True(applied.CanApply);
-        Assert.Equal(1, applied.Created);
+        Assert.Equal(2, applied.Created);
         var replay = await importer.ImportAsync(source.WorkbookPath, source.MapPath, "history-tests", true);
         Assert.True(replay.CanApply);
         Assert.Equal(0, replay.Created);
-        Assert.Equal(1, replay.Unchanged);
+        Assert.Equal(2, replay.Unchanged);
 
         using (var book = new XLWorkbook(source.WorkbookPath))
         {
@@ -69,7 +75,11 @@ public sealed class TestHistoryImportTests
 
         await using (var db = Connect())
         {
-            var result = Assert.Single(await db.HistoricalTestResults.ToListAsync());
+            var results = await db.HistoricalTestResults.OrderBy(x => x.EventId).ToListAsync();
+            Assert.Equal(2, results.Count);
+            Assert.Equal(2, results.Select(x => x.ProgramId).Distinct().Count());
+            Assert.Single(results.Select(x => x.MembershipId).Distinct());
+            var result = results[0];
             Assert.Equal(72, result.ScorePercent);
             Assert.Equal(new DateOnly(2026, 7, 2), result.TestDate);
             Assert.Equal(new DateTimeOffset(2026, 7, 2, 18, 0, 0, TimeSpan.Zero), result.ServerSubmittedAt);
@@ -107,10 +117,10 @@ public sealed class TestHistoryImportTests
                     "startedAt", "finishedAt", "durationSeconds", "serverSubmittedAt",
                     "schemaVersion", "programId" };
                 for (var i = 0; i < headers.Length; i++) sheet.Cell(1, i + 1).Value = headers[i];
-                for (var r = 2; r <= 3; r++)
+                for (var r = 2; r <= 4; r++)
                 {
                     sheet.Cell(r, 1).Value = "synthetic-event-" + r;
-                    sheet.Cell(r, 2).Value = r == 2 ? "synthetic-1" : "missing-2";
+                    sheet.Cell(r, 2).Value = r == 4 ? "missing-2" : "synthetic-1";
                     sheet.Cell(r, 3).Value = "synthetic-test";
                     sheet.Cell(r, 4).Value = "2026-07-02";
                     sheet.Cell(r, 5).Value = "topic-1";
@@ -120,16 +130,16 @@ public sealed class TestHistoryImportTests
                     sheet.Cell(r, 13).Value = 2280;
                     sheet.Cell(r, 14).Value = "2026-07-02T21:00:00.000+03:00";
                     sheet.Cell(r, 15).Value = 1;
-                    sheet.Cell(r, 16).Value = "EGE_MATH";
+                    sheet.Cell(r, 16).Value = r == 3 ? "OGE_MATH" : "EGE_MATH";
                 }
                 book.SaveAs(source.WorkbookPath);
             }
             File.WriteAllText(source.MapPath, JsonSerializer.Serialize(new
             {
-                programs = new[] { new
-                {
-                    sourceId = "EGE_MATH", code = "EGE_MATH", displayName = "Synthetic mathematics"
-                } }
+                programs = new[] {
+                    new { sourceId = "EGE_MATH", code = "EGE_MATH", displayName = "Synthetic mathematics" },
+                    new { sourceId = "OGE_MATH", code = "OGE_MATH", displayName = "Synthetic OGE mathematics" }
+                }
             }));
             return source;
         }
