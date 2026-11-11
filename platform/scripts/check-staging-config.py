@@ -84,7 +84,7 @@ def main():
     origin = api_env.get("Cors__AllowedOrigins__0", "")
     cors_host = origin.removeprefix("https://")
     require(origin.startswith("https://") and re.fullmatch(
-        r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}",
+        r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}",
         cors_host, re.IGNORECASE),
         "staging CORS must be an explicit HTTPS DNS origin without path/wildcard")
 
