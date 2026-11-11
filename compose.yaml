@@ -53,6 +53,22 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  teacher-bootstrap:
+    build:
+      context: ./platform
+      target: runtime
+    profiles: ["admin"]
+    environment:
+      <<: *api-environment
+      TeacherBootstrap__Email: ${TEACHER_BOOTSTRAP_EMAIL:-}
+      TeacherBootstrap__Password: ${TEACHER_BOOTSTRAP_PASSWORD:-}
+      TeacherBootstrap__Workspace: ${TEACHER_BOOTSTRAP_WORKSPACE:-}
+    command: ["--bootstrap-teacher"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
   student-import:
     build:
       context: ./platform
