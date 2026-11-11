@@ -17,11 +17,14 @@
     '.board-toolbar .board-tool{min-width:42px;max-width:54px;padding:7px 4px;font-size:15px}',
     '.board-toolbar #toolColor{width:34px;height:34px;padding:0}', '.board-toolbar #toolWidth{width:44px}',
     '.board-toolbar #toolClear{font-size:9px;white-space:normal}',
-    '.lesson-mini:not(.hidden){position:fixed!important;left:8px!important;top:auto!important;bottom:8px!important;right:auto!important;z-index:10015;display:flex;flex-direction:column;align-items:center;width:64px;padding:6px;gap:4px}',
+    '.board-toolbar .lesson-mini:not(.hidden){position:static!important;left:auto!important;bottom:auto!important;right:auto!important;top:auto!important;display:flex;flex-direction:column;align-items:center;width:100%;padding:5px 0;gap:4px;border:0;border-top:1px solid #457da0;box-shadow:none;background:transparent}',
     '.lesson-mini #lessonWho{max-width:54px;overflow:hidden;text-overflow:ellipsis;font-size:10px}',
     '.lesson-mini #lessonOnline{font-size:9px;text-align:center}',
     '.lesson-mini button{font-size:10px;max-width:58px;padding:4px 2px}',
     '.pair18-row .show-solution.hidden{display:inline-flex!important}',
+    '.generated-card .show-solution{display:inline-flex!important;align-items:center;font-size:12px}',
+    '.pair18-row .solution-step-list{padding-left:20px;margin:7px 0;font-size:13px;line-height:1.55}',
+    '.pair18-row .solution-step-list li{margin:5px 0}',
     '.pair18-flash{position:fixed;inset:0;z-index:30000;display:flex;align-items:center;justify-content:center;pointer-events:none;font-size:clamp(35px,7vw,72px);font-weight:1000;animation:pair18Fade .75s ease-out forwards}',
     '.pair18-flash.good{background:#27b55a96;color:#fff}.pair18-flash.bad{background:#d8333690;color:#fff}',
     '@keyframes pair18Fade{0%{opacity:0}15%{opacity:1}68%{opacity:1}100%{opacity:0}}',
@@ -34,7 +37,7 @@
   function other(s) {
     const x=clone(s);
     switch(s.kind){
-      case 'rhombus_diag': case 'rhombus_area': x.dx=s.dx===3?4:3;break;
+      case 'rhombus_diag': case 'rhombus_area': x.dx=[3,4,5].find(v=>v!==s.dx&&v!==s.dy)||s.dx+1;break;
       case 'right_leg': x.h=s.h===7?6:7;break;
       case 'segment_ab':x.crossY=s.crossY===3?4:3;break;
       case 'point_distance':x.a=[1,7];x.b=[5,4];break;
@@ -60,7 +63,8 @@
     localState.generated[id]=s;delete localState.answers[id];
     const inp=card.querySelector('.answer-input');if(inp)inp.value='';
     const sol=document.getElementById('solution-'+id);if(sol)sol.classList.add('hidden');
-    renderGenerated(id);sharedPatch('generated/'+id,s);sharedPatch('answers/'+id,null);
+    localState.pairSolutions=localState.pairSolutions||{};localState.pairSolutions[id]=0;
+    renderGenerated(id);renderSolutions();sharedPatch('generated/'+id,s);sharedPatch('answers/'+id,null);sharedPatch('pairSolutions/'+id,0);
   };
   const cards=[...document.querySelectorAll('.generated-card[data-gen-id]')];
   cards.forEach((card,i)=>{
@@ -84,10 +88,7 @@
       localState.answers[newId]={value:input.value,checked:true,ok,checkedAt:Date.now()};
       renderAnswer(newId);sharedPatch('answers/'+newId,localState.answers[newId]);showFlash(ok);
     });
-    cloneCard.querySelector('.show-solution')?.addEventListener('click',()=>{
-      if(connected&&role!=='teacher')return;
-      const b=document.getElementById('solution-'+newId);b?.classList.toggle('hidden');
-    });
+    // Solution buttons are handled once, in capture phase, for both participants.
   });
   qsa('.check-answer').filter(b=>!b.dataset.answerId.endsWith('-b')).forEach(b=>b.addEventListener('click',()=>{
     const id=b.dataset.answerId,s=localState.answers[id];if(!s?.checked)return;
@@ -95,10 +96,50 @@
   }));
   function showFlash(ok){const div=document.createElement('div');div.className='pair18-flash '+(ok?'good':'bad');div.textContent=ok?'✓ Верно!':'✕ Попробуй ещё';document.body.appendChild(div);setTimeout(()=>div.remove(),760)}
   function onSharedAnswers(){for(const [id,s] of Object.entries(localState.answers||{})){const at=Number(s?.checkedAt||0);if(at&&at!==seenFeedback.get(id)&&Math.abs(Date.now()-at)<2500){seenFeedback.set(id,at);showFlash(s.ok)}}}
-  applyState=function(s){if(!s)return;const value={...s,generated:{...initialGeneratedState(),...(s.generated||{})}};originalApply(value);mixState=s.mix||null;renderMix();onSharedAnswers();renderSolutions()};
-  function renderSolutions(){document.querySelectorAll('.generated-card .show-solution').forEach(b=>{b.classList.remove('hidden');b.disabled=!!connected&&role!=='teacher';b.title=b.disabled?'Решение открывает учитель':'Показать решение'})}
-  document.addEventListener('click',e=>{const b=e.target.closest('.generated-card .show-solution');if(b&&connected&&role!=='teacher'){e.preventDefault();e.stopImmediatePropagation()}},true);
+  applyState=function(s){if(!s)return;const value={...s,generated:{...initialGeneratedState(),...(s.generated||{})}};originalApply(value);localState.pairSolutions=s.pairSolutions||{};mixState=s.mix||null;renderMix();onSharedAnswers();renderSolutions()};
+  function solutionSteps(spec) {
+    const info=taskInfo(spec),f=fmtNum;
+    let steps=[];
+    switch(spec.kind){
+      case 'rhombus_diag':steps=['Подсчитываем длины диагоналей по клеткам: '+2*spec.dx+' и '+2*spec.dy+'.','Сравниваем две длины.','Большая диагональ равна '+f(info.answer)+'.'];break;
+      case 'right_leg':steps=['Катеты идут по горизонтали и вертикали сетки.','Длины катетов: '+spec.h+' и '+spec.v+' клеток.','Больший катет '+f(info.answer)+'.'];break;
+      case 'segment_ab':steps=['По рисунку определяем подобные треугольники.','Доля оставшегося горизонтального отрезка: ('+spec.apexY+' − '+spec.crossY+') : ('+spec.apexY+' − '+spec.topY+').','AB = 2 · '+spec.halfTop+' · ('+(spec.apexY-spec.crossY)+' / '+(spec.apexY-spec.topY)+') = '+f(info.answer)+'.'];break;
+      case 'point_distance':{
+        const dx=Math.abs(spec.b[0]-spec.a[0]),dy=Math.abs(spec.b[1]-spec.a[1]);
+        steps=['По клеткам находим горизонтальное смещение '+dx+' и вертикальное '+dy+'.','Используем теорему Пифагора: d² = '+dx+'² + '+dy+'² = '+(dx*dx+dy*dy)+'.','d = √'+(dx*dx+dy*dy)+' = '+f(info.answer)+'.'];break;}
+      case 'triangle_midline':{const length=Math.abs(spec.c[0]-spec.a[0]);steps=['По клеткам находим AC = '+length+'.','Средняя линия треугольника вдвое короче AC.','m = '+length+' : 2 = '+f(info.answer)+'.'];break;}
+      case 'trapezoid_midline':steps=['По клеткам основания равны '+spec.top+' и '+spec.bottom+'.','Средняя линия = (a + b) / 2.','m = ('+spec.top+' + '+spec.bottom+') : 2 = '+f(info.answer)+'.'];break;
+      case 'ratio_segment':steps=['По рисунку находим, на какие доли M делит AC.','Большую часть делим на меньшую.','Искомое отношение равно '+f(info.answer)+'.'];break;
+      case 'triangle_area':steps=['Основание треугольника равно '+spec.base+', высота '+spec.h+'.','Площадь треугольника S = a · h / 2.','S = '+spec.base+' · '+spec.h+' / 2 = '+f(info.answer)+'.'];break;
+      case 'parallelogram_area':steps=['Основание параллелограмма равно '+spec.base+', высота '+spec.h+'.','Площадь S = a · h.','S = '+spec.base+' · '+spec.h+' = '+f(info.answer)+'.'];break;
+      case 'rhombus_area':steps=['Диагонали ромба равны '+2*spec.dx+' и '+2*spec.dy+'.','Площадь ромба — половина произведения диагоналей.','S = '+2*spec.dx+' · '+2*spec.dy+' / 2 = '+f(info.answer)+'.'];break;
+      case 'trapezoid_area':steps=['Основания трапеции '+spec.top+' и '+spec.bottom+', высота '+spec.h+'.','Площадь S = (a + b) · h / 2.','S = ('+spec.top+' + '+spec.bottom+') · '+spec.h+' / 2 = '+f(info.answer)+'.'];break;
+      default:{const k=spec.r2/spec.r1;steps=[spec.use==='diameter'?'Сравниваем диаметры двух кругов.':'Сравниваем радиусы двух кругов.','Отношение радиусов равно '+f(k)+'. Площади относятся как квадраты радиусов.','S₂/S₁ = '+f(k)+'² = '+f(info.answer)+'.'];break;}
+    }
+    return steps;
+  }
+  function renderSolutions(){
+    document.querySelectorAll('.generated-card .show-solution').forEach(b=>{
+      const id=b.dataset.solutionFor,card=b.closest('[data-gen-id]'),spec=localState.generated[id]||initialGeneratedState()[id];
+      if(!spec||!card)return;
+      const steps=solutionSteps(spec),count=Math.min(steps.length,Math.max(0,+((localState.pairSolutions||{})[id]||0))),box=document.getElementById('solution-'+id);
+      b.classList.remove('hidden');b.disabled=!!connected&&role!=='teacher';
+      b.title=b.disabled?'Решение открывает учитель':'Открыть очередной шаг';
+      b.textContent=count>=steps.length?'Решение раскрыто':'Шаг решения '+(count+1)+' из '+steps.length;
+      if(box){box.innerHTML='<ol class="solution-step-list">'+steps.slice(0,count).map(s=>'<li>'+esc(s)+'</li>').join('')+'</ol>';box.classList.toggle('hidden',count===0)}
+    });
+  }
+  document.addEventListener('click',e=>{
+    const b=e.target.closest('.generated-card .show-solution');if(!b)return;
+    e.preventDefault();e.stopImmediatePropagation();
+    if(connected&&role!=='teacher')return;
+    const id=b.dataset.solutionFor,spec=localState.generated[id]||initialGeneratedState()[id],max=solutionSteps(spec).length;
+    localState.pairSolutions=localState.pairSolutions||{};
+    const next=Math.min(max,(+localState.pairSolutions[id]||0)+1);
+    localState.pairSolutions[id]=next;renderSolutions();sharedPatch('pairSolutions/'+id,next);
+  },true);
   const board=$('boardToolbar');if(board){
+    const mini=$('lessonMini');if(mini)board.querySelector('.board-tools')?.appendChild(mini);
     board.querySelector('.board-tools')?.insertAdjacentHTML('beforeend','<button class="board-tool" type="button" id="pairPull18" title="Притянуть учеников к этому месту">⇣</button>');
     $('pairPull18').onclick=()=>{if(connected&&role==='teacher'&&FB)FB.set(FB.ref(db,rootPath()+'/messages/pull'),{top:Math.round(scrollY),at:Date.now()}).catch(()=>{})};
   }
@@ -118,11 +159,11 @@
     const row=homes.get(id)?.row;if(row){$('mix18Host').appendChild(row);renderGenerated(id);renderGenerated(id+'-b')}
   }
   async function clearInk(){if(connected&&role==='teacher'&&FB)try{await FB.runTransaction(FB.ref(db,rootPath()+'/pads/boardEpoch'),v=>(+v||0)+1)}catch{}}
-  function setMix(data){mixState=data;renderMix();sharedPatch('mix',data);$('mix18').scrollIntoView({behavior:'smooth',block:'start'})}
+  function setMix(data){mixState=data;renderMix();renderSolutions();sharedPatch('mix',data);$('mix18').scrollIntoView({behavior:'smooth',block:'start'})}
   $('mix18Start').onclick=()=>{if(connected&&role!=='teacher')return;clearInk();setMix({active:true,seed:(Date.now()>>>0),index:0})};
   $('mix18Next').onclick=()=>{if(!mixState?.active||(connected&&role!=='teacher'))return;if(mixState.index>=kinds.length-1){setMix({active:false});return}clearInk();setMix({...mixState,index:mixState.index+1})};
   $('mix18End').onclick=()=>{if(connected&&role!=='teacher')return;setMix({active:false})};
   for(const b of [$('mix18Start'),$('mix18Next'),$('mix18End')])b.addEventListener('click',renderSolutions);
-  localState.generated={...initialGeneratedState(),...(localState.generated||{})};
+  localState.generated={...initialGeneratedState(),...(localState.generated||{})};localState.pairSolutions=localState.pairSolutions||{};
   renderGeneratedAll();renderSolutions();renderMix();
 })();
