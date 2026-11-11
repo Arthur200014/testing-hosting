@@ -110,7 +110,7 @@ public sealed class TeacherTokenIssuer(JwtOptions options)
     }
 }
 
-public sealed class ActiveTeacherSessionRequirement : IAuthorizationRequirement;
+public sealed class ActiveTeacherSessionRequirement : IAuthorizationRequirement { }
 
 public sealed class ActiveTeacherSessionHandler(PlatformDbContext db, TimeProvider clock)
     : AuthorizationHandler<ActiveTeacherSessionRequirement>
