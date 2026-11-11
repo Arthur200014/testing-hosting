@@ -629,7 +629,7 @@ namespace TestingHosting.Platform.Persistence.Migrations
 
             modelBuilder.Entity("TestingHosting.Platform.Lessons.Lesson", b =>
                 {
-                    b.Property<Guid>("Id").HasColumnType("uuid");
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
                     b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
                     b.Property<string>("LegacyLessonId").IsRequired().HasMaxLength(128).HasColumnType("character varying(128)");
                     b.Property<DateTimeOffset>("LessonAt").HasColumnType("timestamp with time zone");
@@ -643,7 +643,7 @@ namespace TestingHosting.Platform.Persistence.Migrations
 
             modelBuilder.Entity("TestingHosting.Platform.Lessons.LessonParticipant", b =>
                 {
-                    b.Property<Guid>("Id").HasColumnType("uuid");
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
                     b.Property<string>("AttendanceStatus").IsRequired().HasMaxLength(128).HasColumnType("character varying(128)");
                     b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
                     b.Property<int>("DurationMinutes").HasColumnType("integer");
@@ -663,9 +663,9 @@ namespace TestingHosting.Platform.Persistence.Migrations
 
             modelBuilder.Entity("TestingHosting.Platform.Subscriptions.SubscriptionSnapshot", b =>
                 {
-                    b.Property<Guid>("Id").HasColumnType("uuid");
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
                     b.Property<int?>("BaseLessonCount").HasColumnType("integer");
-                    b.Property<decimal?>("LessonPrice").HasColumnType("numeric(12,2)");
+                    b.Property<decimal?>("LessonPrice").HasPrecision(12, 2).HasColumnType("numeric(12,2)");
                     b.Property<Guid>("MembershipId").HasColumnType("uuid");
                     b.Property<int>("PackageSize").HasColumnType("integer");
                     b.Property<Guid>("ProgramId").HasColumnType("uuid");
