@@ -1,23 +1,24 @@
-# TEACHER AI STUDENT — current handoff
+# TEACHER AI STUDENT — HANDOFF
 
 **REPO:** `Arthur200014/testing-hosting`
 **STATE_UPDATED:** 2026-11-11
+**CURRENT_PHASE:** M02 (staging/server PostgreSQL)
 **ACTIVE_TASK:** none
 **ACTIVE_BRANCH:** none
-**CURRENT_PHASE:** M01 (migration-first)
-**LAST_COMPLETED_TASK:** M01-03 (teacher login baseline, PostgreSQL-backed revocable sessions)
-**LAST_TASK_COMMIT:** `2e2fbc1d70c44c0e089077f7bed1f7ca71e70749` (PR #5 squash merge)
-**NEXT_ACTION:** M01-04
-**STATUS:** READY_TO_START
+**LAST_COMPLETED_TASK:** M01-04 (live, read-only Google Sheets source inventory and diagnostics)
+**LAST_TASK_COMMIT:** `934791515c142338300eb508f5750f5ac9324331`
+**NEXT_ACTION:** M02-01
+**STATUS:** READY_TO_START (server access unverified)
 
 ## Verified
-- M01-01: [current manage + Google Sheets → PostgreSQL matrix](https://github.com/Arthur200014/testing-hosting/blob/main/docs/architecture/manage-postgres-coverage.md): five actual GAS calls in `EGA/config/manage.html`; historical inventory 20 sheets (including archive/service).
-- M01-02: [multi-subject, multi-teacher model](https://github.com/Arthur200014/testing-hosting/blob/main/docs/architecture/tenant-subject-model-v1.md) is design-only; new subject/enrollment EF migrations **NOT_RUN**.
-- M01-03: [PR #5](https://github.com/Arthur200014/testing-hosting/pull/5) merged. Real ASP.NET API now supports `POST /api/v1/teacher-sessions`, `GET /api/v1/teacher/me`, `POST /api/v1/teacher-sessions/logout`; salted hash, initial owner via admin-only CLI, session expiry/revocation, DB-backed active role/tenant checks and login limiter. [66/66 PostgreSQL tests + API startup smoke PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43005907321), [TAS scoped CI gate PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43005907193). [Operations/limitations](https://github.com/Arthur200014/testing-hosting/blob/main/docs/architecture/teacher-auth-m01-03.md).
-- This **does not** add teacher CRUD, real onboarding/invitations, password reset, manage login UI or production/staging deployment. No live data migrated. Existing `manage.html` still uses GAS; its persistent cache is not tenant-safe.
-- Stage/prod live endpoints, restored backup, HTTPS, real Sheets import, browser teacher login **NOT_RUN**. Earlier Timeweb deploy BLOCKED; no production cutover.
+- [M01-04 live source audit](https://github.com/Arthur200014/testing-hosting/blob/main/docs/architecture/sheets-source-audit-2026-11-11.md) confirms 20 sheet tabs, headers and current nonempty row counts (e.g. 35 student rows, 223 assignment rows, 317 lesson rows, 70 catalog rows). Read-only; **no real data exported/imported/written**.
+- Source blockers: **10 distinct structurally problematic homework assignment rows** (23, 27, 29, 37, 45, 56, 89, 101, 104, 105), **5 orphan student references in assignment rows** (6–10, four distinct IDs), **3 incomplete student rows** (5, 9, 14). Old 17-row audit is outdated; 13 old rows no longer exhibit former basic errors. **M03 apply prohibited** until owner-reviewed corrections/quarantine and official importer dry-run.
+- Also found legacy nullable test fields, repeated lesson rows for group attendance and older mock task results with missing points; preserve as unknown, **do not auto-fill zero**.
+- M01-01 mapping, M01-02 subject-neutral model and M01-03 teacher auth remain as previously verified. [Auth CI 66/66 PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43005907321); this does **not** validate live source or server deployment.
 
-## Next action — M01-04
-Inspect latest available source snapshot **read-only** for all needed Google Sheets headers/rows and constraints, especially the 17 formerly blocked records in `ДЗ_Назначения` (older source audit: 83 total, 66 valid, 17 blocking). Compare with importers and document **aggregate diagnostics only**, without personal data or unapproved writes. Do not assume old row counts remain current. If access/file unavailable, record precisely and proceed with synthetic validation/repair plan rather than invent results.
+## Next action — M02-01
+Goal: **staging**, private PostgreSQL 17, ASP.NET Core API, secrets outside Git and TLS for external requests. Read `.ai/tasks/timeweb-deployment.md` and `compose.yaml` before changing only deployment files. Prior Timeweb attempt **BLOCKED** (failed deploy, precise cause unknown); owner subsequently prioritized server deployment, but host/domain/SSH access are **not yet verified**.
 
-Then M02 private PostgreSQL + staging API deployment, M03 controlled rehearsal/import, M04 protected `manage` adapter, M05 owner-approved cutover. M06 new universal admin and invites; M07 AI/interactive later. Follow `AGENTS.md` minimal-context process.
+Proceed with secure, reproducible staging configuration and targeted Compose/CI checks. Do not claim a live server deployment without actual host access and health verification. Do not publish database port or passwords, and do not switch `EGA/config/manage.html` from GAS. M02-02 migrations/health and M02-03 backup+restore gates are separate.
+
+**Priority:** PostgreSQL + server + existing manage through authenticated teacher API; later new universal multi-teacher/multi-subject admin; interactive lessons/AI parked. Use `AGENTS.md`, minimal scope, commit only verified changes.
