@@ -1,6 +1,6 @@
 # TEACHER AI STUDENT — актуальные чеклисты (сначала база и manage)
 
-**Source of truth по порядку:** [TASK_BOARD.md](./TASK_BOARD.md), `NEXT_ACTION=M02-01`. Старые P00–P15 чеклисты сохранены как история в [PHASE_CHECKLISTS_LEGACY.md](./PHASE_CHECKLISTS_LEGACY.md). Они **не задают текущий порядок**.
+**Source of truth по порядку:** [TASK_BOARD.md](./TASK_BOARD.md), `NEXT_ACTION=M02-02`. Старые P00–P15 чеклисты сохранены как история в [PHASE_CHECKLISTS_LEGACY.md](./PHASE_CHECKLISTS_LEGACY.md). Они **не задают текущий порядок**.
 
 **Определение MVP:** преподаватель входит в существующую `EGA/config/manage.html`, работает с учениками/уроками/ДЗ/абонементами через ASP.NET API и PostgreSQL на сервере, видит корректную историю и отчёты; данные разных преподавателей и предметов изолированы. Это не новая админка, AI или механики.
 
@@ -12,8 +12,8 @@
 **Приёмка G-M01:** подтверждена матрица source→PG→manage, данные не подвергались записи, есть критерии изоляции и исправления source.
 
 ## M02 — staging сервер и PostgreSQL
-- [ ] `M02-01` Конфигурация staging с приватной PostgreSQL, Caddy HTTPS и проверкой секретов [CI PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43019796458); **настоящий VPS/HTTPS deployment NOT_RUN**, поэтому пункт остаётся открытым.
-- [ ] `M02-02` Docker build/deploy, миграции отдельно, HTTPS, `/health/live` и `/health/ready`.
+- [ ] `M02-01` Приложение Timeweb App Platform и управляемая PostgreSQL доступны; `/health/live` + `/health/ready` Healthy **по сообщению владельца**. Осталась обязательная ротация ранее раскрытого пароля БД и подтверждение сетевых/секретных настроек. Docker Compose/Caddy относятся к альтернативному VPS-варианту.
+- [ ] `M02-02` [Безопасная проверка `/health/migrations`](../../docs/deployment/timeweb-managed-migrations.md) добавлена, [67/67 тестов PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43087810977). Публичный Timeweb ответ ещё не проверен; миграции в настоящей БД НЕ запускались; health-check-path деплоя временно отключён.
 - [ ] `M02-03` Автоматический backup и **настоящий restore**, контроль логов/доступов.
 **Приёмка G-M02:** чистая проверка сервера с синтетической учётной записью, restore работает, production writes = 0.
 
