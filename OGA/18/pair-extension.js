@@ -85,14 +85,14 @@
     cloneCard.querySelector('.check-answer')?.addEventListener('click',()=>{
       const input=cloneCard.querySelector('.answer-input'),val=normAnswer(input.value),target=normAnswer(cloneCard.querySelector('.check-answer').dataset.correct);
       const ok=val!==''&&(val===target||(Number.isFinite(+val)&&Number.isFinite(+target)&&Math.abs(+val-(+target))<1e-5));
-      localState.answers[newId]={value:input.value,checked:true,ok,checkedAt:Date.now()};
+      localState.answers[newId]={value:input.value,checked:true,ok,checkedAt:Date.now()};seenFeedback.set(newId,localState.answers[newId].checkedAt);
       renderAnswer(newId);sharedPatch('answers/'+newId,localState.answers[newId]);showFlash(ok);
     });
     // Solution buttons are handled once, in capture phase, for both participants.
   });
   qsa('.check-answer').filter(b=>!b.dataset.answerId.endsWith('-b')).forEach(b=>b.addEventListener('click',()=>{
     const id=b.dataset.answerId,s=localState.answers[id];if(!s?.checked)return;
-    s.checkedAt=Date.now();sharedPatch('answers/'+id,s);showFlash(s.ok);
+    s.checkedAt=Date.now();seenFeedback.set(id,s.checkedAt);sharedPatch('answers/'+id,s);showFlash(s.ok);
   }));
   function showFlash(ok){const div=document.createElement('div');div.className='pair18-flash '+(ok?'good':'bad');div.textContent=ok?'✓ Верно!':'✕ Попробуй ещё';document.body.appendChild(div);setTimeout(()=>div.remove(),760)}
   function onSharedAnswers(){for(const [id,s] of Object.entries(localState.answers||{})){const at=Number(s?.checkedAt||0);if(at&&at!==seenFeedback.get(id)&&Math.abs(Date.now()-at)<2500){seenFeedback.set(id,at);showFlash(s.ok)}}}
@@ -153,13 +153,23 @@
   function restoreRows(){for(const {anchor,row} of homes.values()){if(row.parentElement===$('mix18Host'))anchor.parentNode.insertBefore(row,anchor.nextSibling)}}
   function renderMix(){
     restoreRows();$('mix18Host').innerHTML='';
-    if(!mixState?.active){$('mix18Status').textContent='Готово к повторению';return}
+    if(!mixState?.active){$('mix18Status').textContent='Готово к повторению';updateMixPermissions();return}
     const order=ordered(mixState.seed),index=Math.max(0,Math.min(order.length-1,+mixState.index||0)),id=order[index];
     $('mix18Status').textContent='Станция '+(index+1)+' из '+order.length+' · '+(taskInfo(localState.generated[id]||initialGeneratedState()[id]).type);
     const row=homes.get(id)?.row;if(row){$('mix18Host').appendChild(row);renderGenerated(id);renderGenerated(id+'-b')}
+    updateMixPermissions();
   }
+  function updateMixPermissions(){for(const id of ['mix18Start','mix18Next','mix18End'])$(id).disabled=!!connected&&role!=='teacher'}
   async function clearInk(){if(connected&&role==='teacher'&&FB)try{await FB.runTransaction(FB.ref(db,rootPath()+'/pads/boardEpoch'),v=>(+v||0)+1)}catch{}}
-  function setMix(data){mixState=data;renderMix();renderSolutions();sharedPatch('mix',data);$('mix18').scrollIntoView({behavior:'smooth',block:'start'})}
+  function setMix(data){
+    const old=mixState;
+    mixState=data;
+    if(data.active&&(!old?.active||old.index!==data.index||old.seed!==data.seed)){
+      const id=ordered(data.seed)[Math.min(kinds.length-1,Number(data.index)||0)];
+      if(id){replaceGenerated(id);replaceGenerated(id+'-b');}
+    }
+    renderMix();renderSolutions();sharedPatch('mix',data);$('mix18').scrollIntoView({behavior:'smooth',block:'start'})
+  }
   $('mix18Start').onclick=()=>{if(connected&&role!=='teacher')return;clearInk();setMix({active:true,seed:(Date.now()>>>0),index:0})};
   $('mix18Next').onclick=()=>{if(!mixState?.active||(connected&&role!=='teacher'))return;if(mixState.index>=kinds.length-1){setMix({active:false});return}clearInk();setMix({...mixState,index:mixState.index+1})};
   $('mix18End').onclick=()=>{if(connected&&role!=='teacher')return;setMix({active:false})};
