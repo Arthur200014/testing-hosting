@@ -32,6 +32,11 @@
     '.mix18-box h2{margin:0 0 8px;color:#fff}.mix18-buttons{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}',
     '.mix18-buttons button{border:0;border-radius:9px;padding:10px 16px;background:#ffe47e;color:#172d44;font-weight:900;cursor:pointer}',
     '.mix18-box .pair18-row{margin-top:16px}.mix18-status{font-weight:800}',
+    '.pair18-assignment{position:fixed;left:78px;top:90px;z-index:18000;max-width:300px;width:calc(100vw - 95px);background:#082942;border:2px solid #5cb8da;border-radius:15px;padding:13px;color:white;box-shadow:0 16px 40px #0008}',
+    '.pair18-assignment[hidden]{display:none!important}.pair18-assignment label{display:grid;gap:5px;margin:12px 0;font-size:13px;font-weight:850}',
+    '.pair18-assignment select{width:100%;padding:8px;border-radius:8px;background:white;color:#162d42}',
+    '.pair18-assign-top{display:flex;justify-content:space-between;gap:6px}.pair18-assign-top button{background:transparent;border:0;color:white;font-size:23px}',
+    '.pair18-row .pair18-owner{max-width:55%;white-space:normal}',
     '@media(max-width:780px){.pair18-row{grid-template-columns:minmax(0,1fr)}.board-toolbar:not(.hidden){left:2px!important;top:75px!important;width:52px!important}.lesson-mini:not(.hidden){left:2px!important;width:52px!important}}'
   ].join('\n');document.head.appendChild(css);
   function other(s) {
@@ -96,7 +101,7 @@
   }));
   function showFlash(ok){const div=document.createElement('div');div.className='pair18-flash '+(ok?'good':'bad');div.textContent=ok?'✓ Верно!':'✕ Попробуй ещё';document.body.appendChild(div);setTimeout(()=>div.remove(),760)}
   function onSharedAnswers(){for(const [id,s] of Object.entries(localState.answers||{})){const at=Number(s?.checkedAt||0);if(at&&at!==seenFeedback.get(id)&&Math.abs(Date.now()-at)<2500){seenFeedback.set(id,at);showFlash(s.ok)}}}
-  applyState=function(s){if(!s)return;const value={...s,generated:{...initialGeneratedState(),...(s.generated||{})}};originalApply(value);localState.pairSolutions=s.pairSolutions||{};mixState=s.mix||null;renderMix();onSharedAnswers();renderSolutions()};
+  applyState=function(s){if(!s)return;const value={...s,generated:{...initialGeneratedState(),...(s.generated||{})}};originalApply(value);localState.pairSolutions=s.pairSolutions||{};localState.pairOwners=s.pairOwners||{};localState.pairOwnersLocked=!!s.pairOwnersLocked;mixState=s.mix||null;renderMix();onSharedAnswers();renderSolutions();renderOwnership()};
   function solutionSteps(spec) {
     const info=taskInfo(spec),f=fmtNum;
     let steps=[];
@@ -143,8 +148,72 @@
     board.querySelector('.board-tools')?.insertAdjacentHTML('beforeend','<button class="board-tool" type="button" id="pairPull18" title="Притянуть учеников к этому месту">⇣</button>');
     $('pairPull18').onclick=()=>{if(connected&&role==='teacher'&&FB)FB.set(FB.ref(db,rootPath()+'/messages/pull'),{top:Math.round(scrollY),at:Date.now()}).catch(()=>{})};
   }
+  /* Assigned pupils: the teacher chooses who can edit left and right variants. */
+  const ownerButton=document.createElement('button');ownerButton.type='button';ownerButton.id='pair18AssignButton';ownerButton.className='board-tool';ownerButton.textContent='♙';ownerButton.title='Назначить учеников';
+  board?.querySelector('.board-tools')?.appendChild(ownerButton);
+  const ownerPanel=document.createElement('aside');ownerPanel.id='pair18Assignment';ownerPanel.className='pair18-assignment';ownerPanel.hidden=true;
+  ownerPanel.innerHTML='<div class="pair18-assign-top"><b>Кто решает задачи</b><button type="button" id="pair18CloseAssignment">×</button></div><label>Задача 1<select id="pair18OwnerA"></select></label><label>Задача 2<select id="pair18OwnerB"></select></label><p>Другие ученики наблюдают и видят проверку.</p>';
+  document.body.append(ownerPanel);
+  ownerButton.onclick=()=>{ownerPanel.hidden=!ownerPanel.hidden;renderOwnership()};
+  $('pair18CloseAssignment').onclick=()=>ownerPanel.hidden=true;
+  for(const slot of ['a','b'])$('pair18Owner'+slot.toUpperCase()).onchange=e=>assignPair(slot,e.target.value);
+  function memberOptions(){
+    return Object.entries(activeMembers).filter(([,m])=>m&&m.role==='student'&&m.online!==false)
+      .map(([id,m])=>({id,name:String(m.name||'Ученик')})).sort((a,b)=>a.name.localeCompare(b.name,'ru'));
+  }
+  function canEditPair(slot){
+    if(!connected||role==='teacher')return true;
+    return role==='student'&&String((localState.pairOwners||{})[slot]||'')===String(clientId);
+  }
+  function renderOwnership(){
+    const options=memberOptions(),owners=localState.pairOwners||{};
+    ownerButton.hidden=!connected||role!=='teacher';
+    if(!connected||role!=='teacher')ownerPanel.hidden=true;
+    for(const slot of ['a','b']){
+      const U=slot.toUpperCase(),sel=$('pair18Owner'+U),owner=owners[slot]||'';
+      sel.innerHTML='<option value="">Не назначен</option>'+options.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>').join('');
+      if(owner&&!options.some(x=>x.id===owner))sel.innerHTML+='<option value="'+esc(owner)+'">Ученик не в сети</option>';
+      sel.value=owner;
+    }
+    document.querySelectorAll('.generated-card[data-gen-id]').forEach(card=>{
+      const slot=card.dataset.genId.endsWith('-b')?'b':'a',owner=owners[slot]||'',student=options.find(x=>x.id===owner);
+      const label=card.querySelector('.pair18-owner');
+      if(label)label.textContent=(slot==='a'?'УЧЕНИК 1':'УЧЕНИК 2')+(student?' · '+student.name:'');
+      const edit=canEditPair(slot);
+      card.querySelectorAll('.regen-one,.answer-input,.check-answer,.solution-field').forEach(el=>{el.disabled=!edit});
+    });
+    document.querySelectorAll('.regen-all').forEach(b=>{b.disabled=connected&&role!=='teacher'});
+  }
+  async function assignPair(slot,id){
+    if(!connected||role!=='teacher'||!FB||!db)return;
+    const owners=localState.pairOwners||{},other=slot==='a'?'b':'a';
+    const values={['pairOwners/'+slot]:id||'',pairOwnersLocked:true};
+    if(id&&owners[other]===id)values['pairOwners/'+other]='';
+    try{await FB.update(FB.ref(db,rootPath()+'/state'),values)}catch(e){console.warn('Не удалось назначить ученика',e)}
+  }
+  async function autoAssignPair(){
+    if(!connected||role!=='teacher'||localState.pairOwnersLocked||!FB)return;
+    const available=memberOptions().map(x=>x.id);if(!available.length)return;
+    try{
+      await FB.runTransaction(FB.ref(db,rootPath()+'/state/pairOwners'),value=>{
+        const owners={...(value||{})},taken=new Set(Object.values(owners).filter(Boolean));let changed=false;
+        for(const slot of ['a','b'])if(!owners[slot]){
+          const next=available.find(x=>!taken.has(x));if(next){owners[slot]=next;taken.add(next);changed=true}
+        }
+        return changed?owners:undefined;
+      },{applyLocally:false});
+    }catch(e){console.warn('Ошибка назначения учеников',e)}
+  }
+  document.addEventListener('click',e=>{
+    if(!connected||role==='teacher')return;
+    const card=e.target.closest?.('.generated-card[data-gen-id]');if(!card)return;
+    const slot=card.dataset.genId.endsWith('-b')?'b':'a';
+    if(!canEditPair(slot)&&e.target.closest?.('.regen-one,.check-answer')){
+      e.preventDefault();e.stopImmediatePropagation();
+    }
+  },true);
   let seenPull=0;
-  const origSubscribe=subscribeAll;subscribeAll=function(){origSubscribe();unsubs.push(FB.onValue(FB.ref(db,rootPath()+'/messages/pull'),snap=>{const v=snap.val();if(role==='student'&&v&&v.at!==seenPull&&Date.now()-v.at<2500){seenPull=v.at;window.scrollTo({top:v.top,behavior:'smooth'})}}))};
+  const origSubscribe=subscribeAll;subscribeAll=function(){origSubscribe();unsubs.push(FB.onValue(FB.ref(db,rootPath()+'/messages/pull'),snap=>{const v=snap.val();if(role==='student'&&v&&v.at!==seenPull&&Date.now()-v.at<2500){seenPull=v.at;window.scrollTo({top:v.top,behavior:'smooth'})}}));unsubs.push(FB.onValue(FB.ref(db,rootPath()+'/members'),snap=>{activeMembers=snap.val()||{};renderOwnership();autoAssignPair()}))};
   const mix=document.createElement('section');mix.className='mix18-box';mix.id='mix18';mix.innerHTML='<h2>Микс · 12 станций</h2><p>Каждый вид задания встречается один раз, порядок случайный. На станции два разных варианта для учеников.</p><div class="mix18-buttons"><button id="mix18Start">Начать микс</button><button id="mix18Next">Следующая станция →</button><button id="mix18End">Завершить микс</button></div><div class="mix18-status" id="mix18Status">Готово к повторению</div><div id="mix18Host"></div>';
   (document.querySelector('main')||document.body).appendChild(mix);
   const kinds=[...new Map(cards.map(c=>[initialGeneratedState()[c.dataset.genId]?.kind,c.dataset.genId])).values()];
@@ -175,5 +244,5 @@
   $('mix18End').onclick=()=>{if(connected&&role!=='teacher')return;setMix({active:false})};
   for(const b of [$('mix18Start'),$('mix18Next'),$('mix18End')])b.addEventListener('click',renderSolutions);
   localState.generated={...initialGeneratedState(),...(localState.generated||{})};localState.pairSolutions=localState.pairSolutions||{};
-  renderGeneratedAll();renderSolutions();renderMix();
+  renderGeneratedAll();renderSolutions();renderMix();renderOwnership();
 })();
