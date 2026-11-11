@@ -189,6 +189,21 @@ public sealed class StudentImportTests
         await AssertDatabaseEmptyAsync();
     }
 
+    [Theory]
+    [InlineData("2026-11-11T12:34:56.789+03:00", true)]
+    [InlineData("2026-11-11T12:34:56Z", true)]
+    [InlineData("2026-11-11 12:34:56", false)]
+    [InlineData("not-a-date", false)]
+    public void CreatedAtAcceptsOnlyTypedDatesOrExplicitOffsetIsoText(string createdAt, bool accepted)
+    {
+        using var input = ImportInput.Create(mutateWorkbook: sheet => sheet.Cell(2, 7).Value = createdAt);
+        var parser = new StudentWorkbookParser(new StudentCodeHasher(Pepper));
+        var parsed = parser.Parse(input.WorkbookPath);
+
+        Assert.Equal(accepted, !parsed.Diagnostics.Any(x => x.Field == "createdAt"));
+        Assert.Equal(accepted, parsed.Rows.Count == 1);
+    }
+
     [Fact]
     public async Task MalformedCellTypeBlocksAllWrites()
     {
