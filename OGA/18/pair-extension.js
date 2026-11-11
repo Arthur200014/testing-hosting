@@ -57,19 +57,31 @@
   }
   initialGeneratedState=function(){const v=originalInit();for(const [id,s] of Object.entries(v))v[id+'-b']=other(s);return v};
   function sameKind(ch,original,mate){
-    let s=original||generateSpec(ch);
-    for(let i=0;i<120;i++){const c=generateSpec(ch);if(c.kind===s.kind&&(!s.mode||c.mode===s.mode)&&(!s.use||c.use===s.use)&&JSON.stringify(c)!==JSON.stringify(s)&&JSON.stringify(c)!==JSON.stringify(mate)){return c}}
-    return other(s);
+    const s=original||generateSpec(ch),oldAnswer=taskInfo(s).answer;
+    let alternate=null;
+    for(let i=0;i<180;i++){
+      const c=generateSpec(ch);
+      if(c.kind!==s.kind||(s.mode&&c.mode!==s.mode)||(s.use&&c.use!==s.use)||
+         JSON.stringify(c)===JSON.stringify(s)||JSON.stringify(c)===JSON.stringify(mate))continue;
+      alternate=c;
+      if(Math.abs(Number(taskInfo(c).answer)-Number(oldAnswer))>1e-8 &&
+         (!mate||Math.abs(Number(taskInfo(c).answer)-Number(taskInfo(mate).answer))>1e-8))return c;
+    }
+    if(alternate&&Math.abs(Number(taskInfo(alternate).answer)-Number(oldAnswer))>1e-8)return alternate;
+    const fallback=other(s);
+    return JSON.stringify(fallback)===JSON.stringify(mate)?(alternate||fallback):fallback;
   }
   replaceGenerated=function(id){
     const card=document.querySelector('[data-gen-id="'+id+'"]');if(!card)return;
     const ch=card.dataset.genChapter,mateId=id.endsWith('-b')?id.slice(0,-2):id+'-b';
     const s=sameKind(ch,localState.generated[id]||initialGeneratedState()[id],localState.generated[mateId]);
     localState.generated[id]=s;delete localState.answers[id];
+    localState.notes=localState.notes||{};localState.notes[id]='';
+    const note=card.querySelector('.solution-field');if(note)note.value='';
     const inp=card.querySelector('.answer-input');if(inp)inp.value='';
     const sol=document.getElementById('solution-'+id);if(sol)sol.classList.add('hidden');
     localState.pairSolutions=localState.pairSolutions||{};localState.pairSolutions[id]=0;
-    renderGenerated(id);renderSolutions();sharedPatch('generated/'+id,s);sharedPatch('answers/'+id,null);sharedPatch('pairSolutions/'+id,0);
+    renderGenerated(id);renderSolutions();sharedPatch('generated/'+id,s);sharedPatch('answers/'+id,null);sharedPatch('pairSolutions/'+id,0);sharedPatch('notes/'+id,'');
   };
   const cards=[...document.querySelectorAll('.generated-card[data-gen-id]')];
   cards.forEach((card,i)=>{
@@ -236,18 +248,49 @@
   }
   function updateMixPermissions(){for(const id of ['mix18Start','mix18Next','mix18End'])$(id).disabled=!!connected&&role!=='teacher'}
   async function clearInk(){if(connected&&role==='teacher'&&FB)try{await FB.runTransaction(FB.ref(db,rootPath()+'/pads/boardEpoch'),v=>(+v||0)+1)}catch{}}
-  function setMix(data){
-    const old=mixState;
-    mixState=data;
-    if(data.active&&(!old?.active||old.index!==data.index||old.seed!==data.seed)){
-      const id=ordered(data.seed)[Math.min(kinds.length-1,Number(data.index)||0)];
-      if(id){replaceGenerated(id);replaceGenerated(id+'-b');}
-    }
-    renderMix();renderSolutions();sharedPatch('mix',data);$('mix18').scrollIntoView({behavior:'smooth',block:'start'})
+  // One atomic payload for the station and both refreshed tasks.
+  let mixChanging=false;
+  async function setMix(data){
+    if(mixChanging)return;
+    mixChanging=true;
+    try{
+      const old=mixState,changed=!!data.active&&(!old?.active||old.index!==data.index||old.seed!==data.seed);
+      const payload={mix:data};
+      if(changed){
+        const id=ordered(data.seed)[Math.min(kinds.length-1,Number(data.index)||0)];
+        if(id){
+          const second=id+'-b',card=document.querySelector('[data-gen-id="'+id+'"]');
+          const chapter=card?.dataset.genChapter||id.split('-')[0];
+          const oldA=localState.generated[id]||initialGeneratedState()[id];
+          const oldB=localState.generated[second]||initialGeneratedState()[second];
+          const a=sameKind(chapter,oldA,oldB),b=sameKind(chapter,oldB,a);
+          localState.generated[id]=a;localState.generated[second]=b;
+          localState.notes=localState.notes||{};localState.answers=localState.answers||{};
+          localState.pairSolutions=localState.pairSolutions||{};
+          for(const slotId of [id,second]){
+            delete localState.answers[slotId];localState.notes[slotId]='';
+            localState.pairSolutions[slotId]=0;
+            const el=document.querySelector('[data-gen-id="'+slotId+'"]');
+            const input=el?.querySelector('.answer-input');if(input)input.value='';
+            const pad=el?.querySelector('.solution-field');if(pad)pad.value='';
+            payload['answers/'+slotId]=null;payload['notes/'+slotId]='';
+            payload['pairSolutions/'+slotId]=0;
+          }
+          payload['generated/'+id]=a;payload['generated/'+second]=b;
+          renderGenerated(id);renderGenerated(second);
+        }
+      }
+      mixState=data;renderMix();renderSolutions();
+      if(connected&&FB&&role==='teacher'){
+        await FB.update(FB.ref(db,rootPath()+'/state'),payload);
+      }
+      $('mix18').scrollIntoView({behavior:'smooth',block:'start'});
+    }catch(e){console.warn('Не удалось переключить станцию микса',e)}
+    finally{mixChanging=false}
   }
-  $('mix18Start').onclick=()=>{if(connected&&role!=='teacher')return;clearInk();setMix({active:true,seed:(Date.now()>>>0),index:0})};
-  $('mix18Next').onclick=()=>{if(!mixState?.active||(connected&&role!=='teacher'))return;if(mixState.index>=kinds.length-1){setMix({active:false});return}clearInk();setMix({...mixState,index:mixState.index+1})};
-  $('mix18End').onclick=()=>{if(connected&&role!=='teacher')return;setMix({active:false})};
+  $('mix18Start').onclick=async()=>{if(connected&&role!=='teacher')return;await clearInk();await setMix({active:true,seed:(Date.now()>>>0),index:0})};
+  $('mix18Next').onclick=async()=>{if(mixChanging||!mixState?.active||(connected&&role!=='teacher'))return;await clearInk();if(mixState.index>=kinds.length-1){await setMix({active:false});return}await setMix({...mixState,index:mixState.index+1})};
+  $('mix18End').onclick=async()=>{if(connected&&role!=='teacher')return;await clearInk();await setMix({active:false})};
   for(const b of [$('mix18Start'),$('mix18Next'),$('mix18End')])b.addEventListener('click',renderSolutions);
   localState.generated={...initialGeneratedState(),...(localState.generated||{})};localState.pairSolutions=localState.pairSolutions||{};
   renderGeneratedAll();renderSolutions();renderMix();renderOwnership();
