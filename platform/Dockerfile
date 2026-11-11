@@ -75,6 +75,9 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --chown=$APP_UID:$APP_UID --from=build /app/publish ./
+# Opt-in admin console importers; never execute when the web app starts.
+COPY --chown=$APP_UID:$APP_UID --from=importer-build /app/student-importer /app/importers/students/
+COPY --chown=$APP_UID:$APP_UID --from=importer-build /app/homework-importer /app/importers/homework/
 USER $APP_UID
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "Platform.Api.dll"]
