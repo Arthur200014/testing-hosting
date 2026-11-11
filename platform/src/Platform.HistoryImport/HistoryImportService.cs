@@ -161,12 +161,12 @@ public sealed class HistoryImportService(Func<PlatformDbContext> dbFactory)
             out TestingHosting.Platform.Students.WorkspaceStudentMembership? membership)
         {
             membership = null;
-            if (!memberByExternalId.TryGetValue(externalId, out var found))
+            if (!memberByExternalId.TryGetValue(StudentWorkbookParser.NormalizeExternalId(externalId), out var found))
             {
                 skipped.Add(new(sheet, row, "student_not_imported"));
                 return false;
             }
-            if (!programMap.Entries.TryGetValue(programSourceId, out var target) ||
+            if (!programMap.Entries.TryGetValue(StudentWorkbookParser.NormalizeExternalId(programSourceId), out var target) ||
                 !string.Equals(target.Code, found.Program.Code, StringComparison.Ordinal))
             {
                 skipped.Add(new(sheet, row, "program_mismatch"));
