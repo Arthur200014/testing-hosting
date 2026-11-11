@@ -1,6 +1,9 @@
 using System.Text.Json;
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using TestingHosting.Platform.HistoryImport;
 using TestingHosting.Platform.IdentityAccess;
 using TestingHosting.Platform.Persistence;
@@ -11,6 +14,21 @@ namespace TestingHosting.Platform.StudentImport.IntegrationTests;
 
 public sealed class HistoryImportTests
 {
+    [Fact]
+    public void MigrationSnapshotMatchesCurrentEfModel()
+    {
+        using var db = Connect();
+        var migrations = db.GetService<IMigrationsAssembly>();
+        var differ = db.GetService<IMigrationsModelDiffer>();
+        var source = migrations.ModelSnapshot!.Model.GetRelationalModel();
+        var current = db.GetService<IDesignTimeModel>().Model.GetRelationalModel();
+        var differences = differ.GetDifferences(source, current);
+        Assert.True(differences.Count == 0, string.Join("; ", differences.Select(item =>
+            item.GetType().Name + "(" + string.Join(",", item.GetType().GetProperties()
+                .Where(p => p.Name is "Name" or "Table" or "Column")
+                .Select(p => p.Name + "=" + p.GetValue(item))) + ")")));
+    }
+
     [Fact]
     public async Task PairedLessonIsSingleLessonWithIndependentAttendanceAndRepeatIsIdempotent()
     {
