@@ -165,3 +165,19 @@ docker compose --profile import run --rm \
 The importer preserves assignment snapshots, repeated assignments, historical submissions, deadlines, status, score, event/lesson references, and schema version. Apply is serializable, journaled, repeatable, and all-or-nothing. Real Google Sheets exports with Moscow `dd.MM.yyyy` dates are supported; incomplete source rows remain blocking diagnostics instead of being guessed or partially written.
 
 Verification on 2026-10-06: API/PostgreSQL integration suite 43/43, student-import integration suite 13/13, shared browser tests 52/52, and headless Chrome smoke for `EGA/6/dz1.html`–`dz3.html` at desktop and mobile sizes passed. Production provider and production data were not switched or modified.
+
+## Isolated backend startup smoke (P00-02)
+
+Run `bash platform/scripts/backend-smoke.sh` from the repository root on a machine
+with Docker Compose, OpenSSL, and curl. The script generates **independent,
+throwaway secrets**, builds the API, starts its own PostgreSQL 17 database,
+runs committed migrations, verifies `/health/live` and `/health/ready`,
+and checks generic `401` responses for fabricated credentials and an
+unauthenticated test-attempt write. It removes all its test containers and
+volumes on exit and never uses real student data.
+
+The GitHub workflow `.github/workflows/homework-import-integration.yml`
+runs the integration tests followed by this startup smoke on an isolated
+GitHub-hosted runner. A successful compile/restore alone is not proof that
+startup or migrations work. The script does not verify any production or
+staging deployment.
