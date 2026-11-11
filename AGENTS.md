@@ -208,6 +208,55 @@ deterministic checks pass, browser/behavior checks pass when applicable, the dif
 matches scope, and no known unresolved failure remains. Never hide failed
 verification.
 
+## TAS: targeted test-driven implementation and acceptance
+
+For each TAS task, tests are part of **that task**, not a disconnected,
+repository-wide testing project. Keep tests and changes limited to the task's
+affected module and its directly dependent interfaces.
+
+1. **Before code:** in `.ai/tasks/tas-<TASK_ID>.md` define a finite test
+   matrix derived from acceptance criteria: one or more normal success cases,
+   invalid/negative cases, meaningful boundary/edge cases, and regression cases
+   for behavior touched by this task. Include input, expected output/observable
+   behavior, exact test file, runner/command, and environment. Do not invent
+   test commands or claim a missing test runner exists.
+2. **Implement and test together:** for a behavior change, create or update
+   automated tests beside the changed code. Ideally first demonstrate the test
+   fails for the missing behavior, then write code until it passes. Existing
+   relevant tests should be reused, not duplicated. For a pure documentation
+   or audit task, use verifiable document checks rather than irrelevant code
+   tests.
+3. **Run only the tests that cover this task plus necessary narrow regression
+   checks.** Examples by module: targeted `node --test <file>` for shared
+   JavaScript, filtered `dotnet test`/targeted existing Docker integration
+   harness for ASP.NET Core, or focused Playwright browser checks for changed
+   UI. Use the actual repository commands; do not run all 92 tasks, test all
+   EGA/OGA pages, or add a global CI matrix just for one change.
+4. **Where to execute:** use a local or isolated environment that really can
+   run the code. When a GitHub Actions job exists for the affected code, push
+   the task branch and inspect the **actual run for its commit SHA** and
+   logs/status. If no suitable runner exists, add the smallest safe scoped
+   test workflow/harness needed for this task, or execute existing tests in an
+   available environment. Do not claim GitHub ran tests merely because a
+   workflow YAML file exists. GitHub API file edits alone do not execute tests.
+5. **Failure loop:** if an expected case fails, capture the error, fix only
+   affected code or the test if its expectation was demonstrably wrong, and
+   rerun all task cases plus relevant regressions. Mark checkbox `[x]` only
+   when its acceptance criterion and checks actually pass.
+6. **No runner or blocked test:** leave task `IN_PROGRESS`/`BLOCKED`,
+   record exactly which cases/commands were NOT RUN and why in
+   `.ai/tas/TEST_RESULTS.md` and handoff, and push a labelled WIP checkpoint
+   to the task branch. Never mark DONE or merge unverified implementation
+   into `main`.
+7. **Final evidence:** record a concise per-case PASS/FAIL/NOT_RUN table,
+   commands, environment, GitHub Actions run URL/commit SHA when applicable,
+   and remaining risks. PASS is evidence from execution, not code reading.
+   Test only synthetic/isolated data; do not write to live student systems.
+
+The normal cycle is: task card with case matrix -> plan commit -> code + task
+tests -> real execution -> repair and retest -> branch checkpoint -> final
+verified integration to `main`. A checkpoint itself may be UNVERIFIED.
+
 ## TAS: mandatory task card before implementation
 
 For every planned TEACHER AI STUDENT roadmap task `Pxx-yy`, **prepare and
