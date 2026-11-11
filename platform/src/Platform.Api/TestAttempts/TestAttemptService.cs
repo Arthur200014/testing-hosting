@@ -64,15 +64,6 @@ public sealed class TestAttemptService(PlatformDbContext dbContext, TimeProvider
             return await BuildReplayResultAsync(existing, identity, canonical, cancellationToken);
         }
 
-        // Historical source rows have their own nullable fields; do not accept a new live
-        // attempt with the same workspace/event identity as an imported legacy result.
-        if (await dbContext.HistoricalTestResults.AsNoTracking().AnyAsync(x =>
-                x.WorkspaceId == identity.WorkspaceId && x.EventId == canonical.EventId,
-                cancellationToken))
-        {
-            return new(TestAttemptWriteStatus.Conflict);
-        }
-
         var attempt = new TestAttempt
         {
             Id = Guid.NewGuid(),
