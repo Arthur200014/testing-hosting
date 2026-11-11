@@ -1,0 +1,44 @@
+name: EGE 11 paired guide upgrade
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/ege11-pair-upgrade.mjs'
+      - '.github/workflows/ege11-pair-upgrade.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ege11-pair-upgrade-main
+  cancel-in-progress: false
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify script syntax
+        run: node --check scripts/ege11-pair-upgrade.mjs
+      - name: Update existing EGE 11 guide in place
+        run: node scripts/ege11-pair-upgrade.mjs
+      - name: Commit modified guide to main
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- EGA/11/gaid.html; then
+            echo "No changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- EGA/11/gaid.html
+          git commit -m "feat(ege11): paired graph practice for all prototypes"
+          git push origin HEAD:main
