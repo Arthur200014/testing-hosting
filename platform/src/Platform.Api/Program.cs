@@ -72,7 +72,9 @@ builder.Services.AddRateLimiter(options =>
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
         {
-            PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true
+            PermitLimit = studentSessionOptions.RateLimitPermitLimit,
+            Window = TimeSpan.FromSeconds(studentSessionOptions.RateLimitWindowSeconds),
+            QueueLimit = 0, AutoReplenishment = true
         }));
     options.AddPolicy("student-sessions", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
