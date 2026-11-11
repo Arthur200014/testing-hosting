@@ -1,13 +1,13 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **REPO:** `Arthur200014/testing-hosting`
-**STATE_UPDATED:** 2026-11-11
-**CURRENT_PHASE:** M02 (managed Timeweb App Platform + managed PostgreSQL)
-**ACTIVE_TASK:** M02-03 (verify Timeweb PostgreSQL backups and isolated restore)
-**ACTIVE_BRANCH:** `tas/M03-01-source-import-date` ([PR #10](https://github.com/Arthur200014/testing-hosting/pull/10); keep unmerged until CI PASS)
-**LAST_PROGRESS_COMMIT:** `9bcb79d6955319e71c074de82ea7ba0c33567507` ([PR #11](https://github.com/Arthur200014/testing-hosting/pull/11))
-**NEXT_ACTION:** M02-03
-**STATUS:** M02-02 DONE; M02-03 PARTIAL (owner reports backup, restore NOT_VERIFIED); M03-01 private filtered workbook + one-shot import command ready, Timeweb DB APPLY NOT_RUN
+**STATE_UPDATED:** 2026-11-12
+**CURRENT_PHASE:** M03 (history import into managed Timeweb PostgreSQL; M02 backup restore verification still open)
+**ACTIVE_TASK:** M03-02 (apply paired lessons/subscription migration and import historical records)
+**ACTIVE_BRANCH:** none (PR #12 merged; PR #10 remains open separately)
+**LAST_PROGRESS_COMMIT:** `fd5816f141668a2df30ce719671a12f8201c1b91` ([PR #12](https://github.com/Arthur200014/testing-hosting/pull/12))
+**NEXT_ACTION:** M03-02
+**STATUS:** M02-02 DONE; M03-01 owner reports IMPORT COMPLETE (not independently queried); M03-02 schema and CLI merged, Timeweb migration/import NOT_RUN; M02-03 restore NOT_VERIFIED
 
 ## What is verified
 - User supplied actual Timeweb app deployment log: **Deploy succeeded**, 2026-11-11 22:17:41 (after temporarily removing deploy health-check path); new container on port 8080, managed web-server configured. User subsequently reported **Healthy** at both HTTPS `/health/live` and `/health/ready`; thus API process and DB connectivity operational **per user**, not independently probed by assistant.
@@ -22,10 +22,10 @@
 - **Security:** user previously posted actual PostgreSQL URI/password in chat; rotation in Timeweb and connection-string update **NOT CONFIRMED**. Do not repeat/log/store password.
 - Timeweb's **deploy health check path** `/health/live` was temporarily cleared to diagnose failed deploy; API route still exists. Leave server controls unchanged until troubleshooting why original Timeweb probe failed; do not equate successful deploy with health-check-enabled verification.
 
-## Next concrete action
-1. Immediate import: owner opens the private `tas_private_timeweb_import_command.txt` artifact from this conversation, copies all text into Timeweb App Platform console after new main deploy; script verifies SHA, does student dry-run/apply then homework dry-run/apply, aborts on first failure and deletes temporary source. Owner shares only sanitized report (never source contents or secrets) for verification. In this turn no direct Timeweb console access; actual write NOT_RUN.
-2. M02-03 still requires separate backup restore confirmation; owner reported backup is OK. Do not overwrite active database.
-3. Rotate previously exposed PostgreSQL password, update Timeweb secret, confirm `/health/ready` Healthy. Re-enable native deploy probe only after verifying it works.
-4. Continue M03-02 lesson/participants, subscriptions, tests and mocks after the student/homework import. Preserve old GAS and `EGA/config/manage.html` until a separate approved cutover.
+- 2026-11-12: Owner reported the previous filtered student/homework one-off Timeweb command printed `TAS IMPORT COMPLETE`. Interpret as owner-confirmed successful command sequence (32 students, 70 catalog, 212 assignments), **not** independently verified database counts. Do NOT repeat initial import on ordinary deployments.
+- 2026-11-12: [PR #12](https://github.com/Arthur200014/testing-hosting/pull/12) squash-merged to main (`fd5816f`). Additive EF migration `20261112103000_LessonsAndSubscriptionSnapshots` creates `Lessons`, `LessonParticipants`, `SubscriptionSnapshots`. Private console-only `/app/importers/history/Platform.HistoryImport.dll` accepts XLSX with original `Занятия`/`Абонементы`, program map/workspace and `--apply`; default dry-run, transaction + natural-key idempotency, explicit skipped row reasons, no invented payments. Isolated PostgreSQL integration CI [70/70 PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43104533300); [TAS task CI PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43104533363). Source snapshot: 322 lesson participant rows / 294 lesson IDs; 31 subscription rows. 8 lesson rows/3 subscription rows unmapped to initial 32 student memberships; these are skipped explicitly, not deleted from source. **Cloud migration and new history apply NOT_RUN.**
 
-Read narrow task instructions and Timeweb runbook only. Avoid broad repo scans. Preserve paired lesson semantics.
+## Next concrete action
+1. Confirm deployed Timeweb App Platform image includes merged PR #12. Apply **new additive** EF migration once in private Timeweb console (`dotnet Platform.Api.dll --migrate`) only after backup status check; no new PostgreSQL cluster or public SQL endpoint.
+2. Prepare private history-only XLSX snapshot from connected Sheet + program map and run the new importer dry-run, then `--apply` using same console and existing `tas-main` workspace. Never commit student IDs or file bytes in public GitHub. Explicit skip diagnostics allowed by user; preserve original source untouched. Owner supplies sanitized output for count verification.
+3. Continue M03-03 (tests/mocks) and M04 teacher API/manage adapter, preserving GAS and current manage default. M02-03 independent restore & exposed credential rotation remain open; do not claim them done.
