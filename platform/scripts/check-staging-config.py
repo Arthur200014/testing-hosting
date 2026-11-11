@@ -82,8 +82,11 @@ def main():
     require("Host=db;Port=5432;" in api_env.get("Database__ConnectionString", ""),
             "API database must be the internal db service")
     origin = api_env.get("Cors__AllowedOrigins__0", "")
-    require(origin.startswith("https://") and "/" not in origin[len("https://"):],
-            "staging CORS must be an explicit HTTPS origin without path/wildcard")
+    cors_host = origin.removeprefix("https://")
+    require(origin.startswith("https://") and re.fullmatch(
+        r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}",
+        cors_host, re.IGNORECASE),
+        "staging CORS must be an explicit HTTPS DNS origin without path/wildcard")
 
     domain = proxy_env.get("STAGING_DOMAIN", "")
     domain_valid = re.fullmatch(
@@ -95,6 +98,10 @@ def main():
     if not example:
         require(not domain.lower().endswith((".invalid", ".example", ".test", ".local")),
                 "replace the example domain with a DNS name you control")
+        admin_password = service_environment(services.get("pgadmin", {})).get("PGADMIN_DEFAULT_PASSWORD", "")
+        require(len(admin_password) >= 16 and not re.search(
+            r"replace|example|changeme", admin_password, re.I),
+            "replace placeholder pgAdmin password even when tools profile is disabled")
         password = db_env.get("POSTGRES_PASSWORD", "")
         require(len(password) >= 16 and not re.search(r"replace|example|changeme", password, re.I),
                 "replace placeholder database password with 16+ random characters")
