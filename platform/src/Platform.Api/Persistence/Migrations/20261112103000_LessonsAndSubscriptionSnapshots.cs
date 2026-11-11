@@ -102,6 +102,10 @@ public sealed class LessonsAndSubscriptionSnapshots : Migration
                     "(\"LessonPrice\" IS NULL OR \"LessonPrice\" >= 0) AND (\"BaseLessonCount\" IS NULL OR \"BaseLessonCount\" >= 0)");
             });
         migrationBuilder.CreateIndex(
+            name: "IX_SubscriptionSnapshots_MembershipIdentity",
+            schema: "platform", table: "SubscriptionSnapshots",
+            columns: new[] { "WorkspaceId", "MembershipId", "StudentId", "ProgramId" });
+        migrationBuilder.CreateIndex(
             name: "IX_SubscriptionSnapshots_WorkspaceId_MembershipId",
             schema: "platform", table: "SubscriptionSnapshots",
             columns: new[] { "WorkspaceId", "MembershipId" }, unique: true);
