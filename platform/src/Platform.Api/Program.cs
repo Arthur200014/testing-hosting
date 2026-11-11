@@ -3,6 +3,9 @@ using System.Text.Json;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using TestingHosting.Platform.IdentityAccess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using TestingHosting.Platform.Configuration;
@@ -20,6 +23,10 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IStudentCodeHasher>(serviceProvider =>
     new StudentCodeHasher(StartupConfiguration.GetPepper(serviceProvider.GetRequiredService<IConfiguration>())));
 builder.Services.AddScoped<StudentSessionService>();
+builder.Services.AddScoped<TeacherSessionService>();
+builder.Services.AddSingleton<IPasswordHasher<TeacherUser>, PasswordHasher<TeacherUser>>();
+builder.Services.AddSingleton<TeacherTokenIssuer>();
+builder.Services.AddScoped<IAuthorizationHandler, ActiveTeacherSessionHandler>();
 builder.Services.AddScoped<TestAttemptService>();
 builder.Services.AddScoped<HomeworkService>();
 builder.Services.AddSingleton<StudentTokenIssuer>();
@@ -48,8 +55,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             NameClaimType = ClaimsIdentity.DefaultNameClaimType
         };
     });
-builder.Services.AddAuthorization(options => options.AddPolicy("student", policy =>
-    policy.RequireAuthenticatedUser().RequireClaim("role", "student")));
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("student", policy => policy.RequireAuthenticatedUser().RequireClaim("role", "student"));
+    options.AddPolicy("teacher", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim("role", "teacher").AddRequirements(new ActiveTeacherSessionRequirement()));
+});
 builder.Services.AddCors(options => options.AddPolicy("browser", policy =>
     policy.WithOrigins(StartupConfiguration.GetAllowedOrigins(builder.Configuration))
         .WithMethods("GET", "POST").WithHeaders("Content-Type", "Authorization")));
@@ -57,6 +68,14 @@ builder.Services.AddRateLimiter(options =>
 {
     var studentSessionOptions = StartupConfiguration.GetStudentSessionOptions(builder.Configuration);
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("teacher-sessions", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = studentSessionOptions.RateLimitPermitLimit,
+            Window = TimeSpan.FromSeconds(studentSessionOptions.RateLimitWindowSeconds),
+            QueueLimit = 0, AutoReplenishment = true
+        }));
     options.AddPolicy("student-sessions", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
@@ -75,6 +94,12 @@ if (args.Contains("--migrate", StringComparer.Ordinal))
 {
     await using var scope = app.Services.CreateAsyncScope();
     await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().Database.MigrateAsync();
+    return;
+}
+
+if (args.Contains("--bootstrap-teacher", StringComparer.Ordinal))
+{
+    await TeacherBootstrapper.RunAsync(app.Services, app.Configuration);
     return;
 }
 
@@ -101,6 +126,31 @@ app.MapPost("/api/v1/student-sessions", async (
             contentType: "application/problem+json")
         : Results.Ok(tokenIssuer.Issue(identity));
 }).RequireRateLimiting("student-sessions");
+
+app.MapPost("/api/v1/teacher-sessions", async (
+    TeacherLoginRequest request, TeacherSessionService sessions, CancellationToken cancellationToken) =>
+{
+    var session = await sessions.LoginAsync(request, cancellationToken);
+    return session is null
+        ? Results.Json(new { title = "Invalid teacher credentials.", status = 401 }, statusCode: 401,
+            contentType: "application/problem+json")
+        : Results.Ok(session);
+}).RequireRateLimiting("teacher-sessions");
+
+app.MapGet("/api/v1/teacher/me", (ClaimsPrincipal principal) => Results.Ok(new
+{
+    TeacherId = principal.FindFirstValue(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub),
+    WorkspaceId = principal.FindFirstValue("workspace_id"),
+    MembershipId = principal.FindFirstValue("membership_id"),
+    WorkspaceRole = principal.FindFirstValue("workspace_role")
+})).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher-sessions/logout", async (
+    ClaimsPrincipal principal, TeacherSessionService sessions, CancellationToken cancellationToken) =>
+{
+    await sessions.RevokeCurrentAsync(principal, cancellationToken);
+    return Results.NoContent();
+}).RequireAuthorization("teacher");
 
 app.MapPost("/api/v1/test-attempts", async (
     TestAttemptRequest request,

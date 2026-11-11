@@ -331,6 +331,31 @@ namespace TestingHosting.Platform.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("TestingHosting.Platform.IdentityAccess.TeacherSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("MembershipId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MembershipId");
+
+                    b.ToTable("TeacherSessions", "platform");
+                });
+
             modelBuilder.Entity("TestingHosting.Platform.IdentityAccess.TeacherUser", b =>
                 {
                     b.Property<Guid>("Id")
@@ -352,6 +377,9 @@ namespace TestingHosting.Platform.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(320)
                         .HasColumnType("character varying(320)");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -799,6 +827,17 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     b.Navigation("Program");
 
                     b.Navigation("Workspace");
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.IdentityAccess.TeacherSession", b =>
+                {
+                    b.HasOne("TestingHosting.Platform.IdentityAccess.WorkspaceMembership", "Membership")
+                        .WithMany()
+                        .HasForeignKey("MembershipId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Membership");
                 });
 
             modelBuilder.Entity("TestingHosting.Platform.IdentityAccess.WorkspaceMembership", b =>

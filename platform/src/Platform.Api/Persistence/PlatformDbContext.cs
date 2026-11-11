@@ -10,6 +10,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 {
     public DbSet<Workspace> Workspaces => Set<Workspace>();
     public DbSet<TeacherUser> TeacherUsers => Set<TeacherUser>();
+    public DbSet<TeacherSession> TeacherSessions => Set<TeacherSession>();
     public DbSet<WorkspaceMembership> WorkspaceMemberships => Set<WorkspaceMembership>();
     public DbSet<LearningProgram> Programs => Set<LearningProgram>();
     public DbSet<Student> Students => Set<Student>();
@@ -37,7 +38,16 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Email).HasMaxLength(320);
             entity.Property(x => x.NormalizedEmail).HasMaxLength(320);
+            entity.Property(x => x.PasswordHash).HasColumnType("text");
             entity.HasIndex(x => x.NormalizedEmail).IsUnique();
+        });
+
+        modelBuilder.Entity<TeacherSession>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.MembershipId);
+            entity.HasOne(x => x.Membership).WithMany().HasForeignKey(x => x.MembershipId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<WorkspaceMembership>(entity =>
