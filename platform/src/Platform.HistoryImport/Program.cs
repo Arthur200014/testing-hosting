@@ -27,7 +27,7 @@ public static class HistoryImportProgram
         }
 
         if (string.IsNullOrWhiteSpace(xlsx) || string.IsNullOrWhiteSpace(map) ||
-            string.IsNullOrWhiteSpace(workspace) || kind is not ("lessons" or "tests")) return Usage();
+            string.IsNullOrWhiteSpace(workspace) || kind is not ("lessons" or "tests" or "mocks")) return Usage();
 
         try
         {
@@ -38,6 +38,13 @@ public static class HistoryImportProgram
             if (kind == "tests")
             {
                 var report = await new TestHistoryImportService(() => new PlatformDbContext(options))
+                    .ImportAsync(xlsx, map, workspace, apply);
+                Console.WriteLine(JsonSerializer.Serialize(report));
+                return report.CanApply ? 0 : 1;
+            }
+            if (kind == "mocks")
+            {
+                var report = await new MockHistoryImportService(() => new PlatformDbContext(options))
                     .ImportAsync(xlsx, map, workspace, apply);
                 Console.WriteLine(JsonSerializer.Serialize(report));
                 return report.CanApply ? 0 : 1;
@@ -60,7 +67,7 @@ public static class HistoryImportProgram
 
     private static int Usage()
     {
-        Console.Error.WriteLine("Usage: Platform.HistoryImport --xlsx PATH --program-map PATH --workspace SLUG [--kind lessons|tests] [--apply]");
+        Console.Error.WriteLine("Usage: Platform.HistoryImport --xlsx PATH --program-map PATH --workspace SLUG [--kind lessons|tests|mocks] [--apply]");
         return 2;
     }
 }

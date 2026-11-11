@@ -681,6 +681,106 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     b.ToTable("SubscriptionSnapshots", "platform", t => { t.HasCheckConstraint("CK_SubscriptionSnapshots_Package", "\"PackageSize\" BETWEEN 1 AND 1000"); t.HasCheckConstraint("CK_SubscriptionSnapshots_PriceCount", "(\"LessonPrice\" IS NULL OR \"LessonPrice\" >= 0) AND (\"BaseLessonCount\" IS NULL OR \"BaseLessonCount\" >= 0)"); });
                 });
 
+            modelBuilder.Entity("TestingHosting.Platform.Mocks.HistoricalMockResult", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                    b.Property<Guid>("MembershipId").HasColumnType("uuid");
+                    b.Property<Guid>("StudentId").HasColumnType("uuid");
+                    b.Property<Guid>("ProgramId").HasColumnType("uuid");
+                    b.Property<string>("EventId").IsRequired().HasMaxLength(128).HasColumnType("character varying(128)");
+                    b.Property<string>("MockId").IsRequired().HasMaxLength(128).HasColumnType("character varying(128)");
+                    b.Property<DateOnly>("MockDate").HasColumnType("date");
+                    b.Property<string>("VariantName").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                    b.Property<int?>("Score").HasColumnType("integer");
+                    b.Property<int>("PrimaryScore").HasColumnType("integer");
+                    b.Property<int>("DurationSeconds").HasColumnType("integer");
+                    b.Property<DateTimeOffset>("ServerSubmittedAt").HasColumnType("timestamp with time zone");
+                    b.Property<string>("SchemaVersion").IsRequired().HasMaxLength(64).HasColumnType("character varying(64)");
+                    b.Property<int?>("GradeMark").HasColumnType("integer");
+                    b.Property<int>("MaxPrimaryScore").HasColumnType("integer");
+                    b.Property<int>("ScorePercent").HasColumnType("integer");
+                    b.HasKey("Id");
+                    b.HasIndex("WorkspaceId", "EventId").IsUnique().HasDatabaseName("IX_MockResults_Event");
+                    b.HasIndex("WorkspaceId", "MembershipId", "MockDate").HasDatabaseName("IX_MockResults_StudentDate");
+                    b.HasIndex("WorkspaceId", "MembershipId", "StudentId").HasDatabaseName("IX_MockResults_Membership");
+                    b.HasIndex("WorkspaceId", "ProgramId").HasDatabaseName("IX_MockResults_Program");
+                    b.ToTable("HistoricalMockResults", "platform", t => t.HasCheckConstraint("CK_HistoricalMockResults_Scores", "(\"Score\" IS NULL OR \"Score\" BETWEEN 0 AND 100) AND \"PrimaryScore\" >= 0 AND \"MaxPrimaryScore\" > 0 AND \"ScorePercent\" BETWEEN 0 AND 100 AND \"DurationSeconds\" BETWEEN 0 AND 86400"));
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.Mocks.HistoricalMockTaskResult", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                    b.Property<Guid>("MembershipId").HasColumnType("uuid");
+                    b.Property<Guid>("StudentId").HasColumnType("uuid");
+                    b.Property<Guid>("ProgramId").HasColumnType("uuid");
+                    b.Property<string>("EventId").IsRequired().HasMaxLength(128).HasColumnType("character varying(128)");
+                    b.Property<string>("MockId").IsRequired().HasMaxLength(128).HasColumnType("character varying(128)");
+                    b.Property<DateOnly>("MockDate").HasColumnType("date");
+                    b.Property<int>("TaskNumber").HasColumnType("integer");
+                    b.Property<string>("TopicId").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                    b.Property<string>("TopicName").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                    b.Property<bool>("IsCorrect").HasColumnType("boolean");
+                    b.Property<bool>("Answered").HasColumnType("boolean");
+                    b.Property<DateTimeOffset>("ServerSubmittedAt").HasColumnType("timestamp with time zone");
+                    b.Property<string>("SchemaVersion").IsRequired().HasMaxLength(64).HasColumnType("character varying(64)");
+                    b.Property<int?>("EarnedPoints").HasColumnType("integer");
+                    b.Property<int?>("MaxPoints").HasColumnType("integer");
+                    b.HasKey("Id");
+                    b.HasIndex("WorkspaceId", "EventId", "TaskNumber").IsUnique().HasDatabaseName("IX_MockTasks_EventTask");
+                    b.HasIndex("WorkspaceId", "MembershipId", "StudentId").HasDatabaseName("IX_MockTasks_Membership");
+                    b.HasIndex("WorkspaceId", "ProgramId").HasDatabaseName("IX_MockTasks_Program");
+                    b.ToTable("HistoricalMockTaskResults", "platform", t => t.HasCheckConstraint("CK_HistoricalMockTaskResults_Points", "\"TaskNumber\" BETWEEN 1 AND 1000 AND (\"EarnedPoints\" IS NULL OR \"EarnedPoints\" >= 0) AND (\"MaxPoints\" IS NULL OR \"MaxPoints\" > 0) AND (\"EarnedPoints\" IS NULL OR \"MaxPoints\" IS NULL OR \"EarnedPoints\" <= \"MaxPoints\")"));
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.Mocks.HistoricalMockSession", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                    b.Property<Guid>("MembershipId").HasColumnType("uuid");
+                    b.Property<Guid>("StudentId").HasColumnType("uuid");
+                    b.Property<Guid>("ProgramId").HasColumnType("uuid");
+                    b.Property<string>("SessionId").IsRequired().HasMaxLength(128).HasColumnType("character varying(128)");
+                    b.Property<string>("MockId").IsRequired().HasMaxLength(128).HasColumnType("character varying(128)");
+                    b.Property<DateTimeOffset>("StartedAt").HasColumnType("timestamp with time zone");
+                    b.Property<DateTimeOffset>("DeadlineAt").HasColumnType("timestamp with time zone");
+                    b.Property<string>("AnswersJson").IsRequired().HasColumnType("text");
+                    b.Property<string>("Status").IsRequired().HasMaxLength(64).HasColumnType("character varying(64)");
+                    b.Property<DateTimeOffset?>("SubmittedAt").HasColumnType("timestamp with time zone");
+                    b.Property<int?>("PrimaryScore").HasColumnType("integer");
+                    b.Property<int?>("TestScore").HasColumnType("integer");
+                    b.Property<int?>("DurationSeconds").HasColumnType("integer");
+                    b.Property<string>("EventId").HasMaxLength(128).HasColumnType("character varying(128)");
+                    b.Property<string>("SchemaVersion").IsRequired().HasMaxLength(64).HasColumnType("character varying(64)");
+                    b.Property<string>("MockConfigJson").IsRequired().HasColumnType("text");
+                    b.Property<int?>("GradeMark").HasColumnType("integer");
+                    b.Property<int?>("MaxPrimaryScore").HasColumnType("integer");
+                    b.Property<int?>("ScorePercent").HasColumnType("integer");
+                    b.HasKey("Id");
+                    b.HasIndex("WorkspaceId", "SessionId").IsUnique().HasDatabaseName("IX_MockSessions_Session");
+                    b.HasIndex("WorkspaceId", "MembershipId", "StudentId").HasDatabaseName("IX_MockSessions_Membership");
+                    b.HasIndex("WorkspaceId", "ProgramId").HasDatabaseName("IX_MockSessions_Program");
+                    b.ToTable("HistoricalMockSessions", "platform", t => t.HasCheckConstraint("CK_HistoricalMockSessions_Values", "\"DeadlineAt\" >= \"StartedAt\" AND (\"DurationSeconds\" IS NULL OR \"DurationSeconds\" BETWEEN 0 AND 86400) AND (\"ScorePercent\" IS NULL OR \"ScorePercent\" BETWEEN 0 AND 100)"));
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.Mocks.HistoricalMockVariant", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                    b.Property<Guid>("ProgramId").HasColumnType("uuid");
+                    b.Property<string>("MockId").IsRequired().HasMaxLength(128).HasColumnType("character varying(128)");
+                    b.Property<string>("VariantName").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                    b.Property<int>("DurationSeconds").HasColumnType("integer");
+                    b.Property<int>("TaskCount").HasColumnType("integer");
+                    b.Property<string>("ConfigJson").IsRequired().HasColumnType("text");
+                    b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
+                    b.Property<string>("SchemaVersion").IsRequired().HasMaxLength(64).HasColumnType("character varying(64)");
+                    b.HasKey("Id");
+                    b.HasIndex("WorkspaceId", "ProgramId", "MockId", "VariantName").IsUnique().HasDatabaseName("IX_MockVariants_NaturalKey");
+                    b.ToTable("HistoricalMockVariants", "platform", t => t.HasCheckConstraint("CK_HistoricalMockVariants_Values", "\"DurationSeconds\" BETWEEN 1 AND 86400 AND \"TaskCount\" BETWEEN 1 AND 1000"));
+                });
+
             modelBuilder.Entity("TestingHosting.Platform.TestAttempts.HistoricalTestResult", b =>
                 {
                     b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
@@ -1023,6 +1123,64 @@ namespace TestingHosting.Platform.Persistence.Migrations
                         .HasPrincipalKey("WorkspaceId", "Id", "StudentId", "ProgramId")
                         .OnDelete(DeleteBehavior.Restrict).IsRequired();
                     b.Navigation("Membership");
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.Mocks.HistoricalMockResult", b =>
+                {
+                    b.HasOne("TestingHosting.Platform.Students.WorkspaceStudentMembership", "Membership")
+                        .WithMany().HasForeignKey("WorkspaceId", "MembershipId", "StudentId")
+                        .HasPrincipalKey("WorkspaceId", "Id", "StudentId")
+                        .HasConstraintName("FK_MockResults_Membership")
+                        .OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("TestingHosting.Platform.Students.LearningProgram", "Program")
+                        .WithMany().HasForeignKey("WorkspaceId", "ProgramId")
+                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .HasConstraintName("FK_MockResults_Program")
+                        .OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.Navigation("Membership");
+                    b.Navigation("Program");
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.Mocks.HistoricalMockTaskResult", b =>
+                {
+                    b.HasOne("TestingHosting.Platform.Students.WorkspaceStudentMembership", "Membership")
+                        .WithMany().HasForeignKey("WorkspaceId", "MembershipId", "StudentId")
+                        .HasPrincipalKey("WorkspaceId", "Id", "StudentId")
+                        .HasConstraintName("FK_MockTasks_Membership")
+                        .OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("TestingHosting.Platform.Students.LearningProgram", "Program")
+                        .WithMany().HasForeignKey("WorkspaceId", "ProgramId")
+                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .HasConstraintName("FK_MockTasks_Program")
+                        .OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.Navigation("Membership");
+                    b.Navigation("Program");
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.Mocks.HistoricalMockSession", b =>
+                {
+                    b.HasOne("TestingHosting.Platform.Students.WorkspaceStudentMembership", "Membership")
+                        .WithMany().HasForeignKey("WorkspaceId", "MembershipId", "StudentId")
+                        .HasPrincipalKey("WorkspaceId", "Id", "StudentId")
+                        .HasConstraintName("FK_MockSessions_Membership")
+                        .OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("TestingHosting.Platform.Students.LearningProgram", "Program")
+                        .WithMany().HasForeignKey("WorkspaceId", "ProgramId")
+                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .HasConstraintName("FK_MockSessions_Program")
+                        .OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.Navigation("Membership");
+                    b.Navigation("Program");
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.Mocks.HistoricalMockVariant", b =>
+                {
+                    b.HasOne("TestingHosting.Platform.Students.LearningProgram", "Program")
+                        .WithMany().HasForeignKey("WorkspaceId", "ProgramId")
+                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .HasConstraintName("FK_MockVariants_Program")
+                        .OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.Navigation("Program");
                 });
 
             modelBuilder.Entity("TestingHosting.Platform.TestAttempts.HistoricalTestResult", b =>
