@@ -32,7 +32,7 @@
 | `WorkspaceStudentProfile` | `WorkspaceId,StudentId,Grade,Target,ParentContact,Notes` (опционально и с политикой ПДн) | unique `(WorkspaceId,StudentId)`; данные одного teacher workspace не показывать другому |
 | `CourseGroup` (по потребности) | `Id,WorkspaceId,ProgramId,Label,IsActive` | unique scoped key; legacy `groupId` сопоставлять явно |
 | `WorkspaceSettings` | `WorkspaceId,TimeZoneId,Locale,DefaultCurrency` | IANA zone (в пилоте `Europe/Moscow`); цена в minor units + ISO currency, не глобальный `₽` hardcode |
-| Исторические `Lesson/Participant/Subscription/Ledger` | `WorkspaceId`, teacher membership, optional `ProgramId/EnrollmentId`, `ImportSource/ExternalId` | Схемы создаются в M03-02; PK/FK tenant-scoped, операции идемпотентны, lesson+HW atomic |
+| Исторические `Lesson/Participant/Subscription/Ledger` | `WorkspaceId`, teacher membership, optional `ProgramId/EnrollmentId`, `ImportSource/ExternalId` | Схемы создаются в M03-02; одна запись `Lesson` на `(WorkspaceId,lessonId)` и несколько `LessonParticipant` по `(LessonId,studentId)`, индивидуальные статусы/посещения. Парные занятия **подтверждены владельцем как штатный формат**, не дубли. PK/FK tenant-scoped, операции идемпотентны, lesson+HW atomic |
 
 Рекомендация для `StudentEnrollment`: FK `(WorkspaceId,StudentMembershipId,StudentId)` → membership (существующий alternate key) и `(WorkspaceId,ProgramId)` → program; не доверять `WorkspaceId` из browser body. Не создавать вторую `Student` сущность на каждую программу.
 
