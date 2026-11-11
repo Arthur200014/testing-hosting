@@ -8,15 +8,14 @@ export function selectScopes(paths, branch, forced = 'auto') {
   const files = [...new Set(paths.map(x => x.trim()).filter(Boolean))];
   const task = /^tas\/(P\d{2}-\d{2})$/.exec(branch)?.[1] ?? '';
   const includes = re => files.some(path => re.test(path));
-  const config = includes(/^(\.github\/workflows\/tas-task-ci\.yml|scripts\/tas-ci-scope(?:\.test)?\.mjs)$/);
   const backend = includes(/^(platform\/|compose\.yaml$)/);
   const shared = includes(/^shared\/interactive\/v1\//);
   const web = includes(/^web\//);
   const taskCode = includes(/^(EGA\/|OGA\/|scripts\/(?!tas-ci-scope(?:\.test)?\.mjs$))/);
   const taskTests = includes(/^tests\/tas\//);
   const result = {
-    run_backend: backend || config || forced === 'backend',
-    run_shared: shared || config || forced === 'shared',
+    run_backend: backend || forced === 'backend',
+    run_shared: shared || forced === 'shared',
     run_web: web || forced === 'web',
     run_task: taskCode || taskTests || forced === 'task',
     task_id: task,
