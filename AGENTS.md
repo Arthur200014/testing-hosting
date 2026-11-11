@@ -36,3 +36,10 @@ Additional research, architecture review, independent review, and agents are **o
 
 ## Safety and public compatibility
 Do not change public URLs, unrelated lessons, UI styling, Firebase, Google Apps Script, database schemas, production configs, or live student data unless the task requires it. Never commit secrets or personal student records. Preserve existing behavior and avoid production test writes. Do not claim tests, browser checks, deployment, or push succeeded without verifying them.
+
+## Large OGA/EGA guides — token economy
+- For a guide edit, open only the specified `OGA/<number>/gaid.html` or `EGA/<number>/gaid.html` and its strictly necessary dependencies; do not load neighboring guides or scan whole folders.
+- Find relevant CSS/JS identifiers first; inspect bounded line ranges (ideally 50–150 lines). Do not print full HTML, huge search results, logs or diffs into the model context.
+- If an API requires the complete file for an update, fetch and transform it entirely inside the tool call; emit only brief findings, changed section names and commit SHA. Preserve unrelated source exactly.
+- Reuse existing implementation patterns; change only the requested behavior. Never reread unchanged code or repeat previously completed analysis without a specific reason.
+- Check targeted changes and relevant syntax/behavior only. Make one focused commit to the intended branch and summarize result, actual checks and remaining issues in a few sentences.
