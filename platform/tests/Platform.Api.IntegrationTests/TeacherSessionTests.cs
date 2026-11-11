@@ -165,7 +165,7 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     [Fact]
     public async Task TeacherSignInHasIndependentIpRateLimit()
     {
-        await using var limited = new ApiFactory(rateLimit: 100);
+        await using var limited = new ApiFactory(rateLimit: 5);
         await ResetAsync(limited);
         using var client = limited.CreateClient();
         for (int i = 0; i < 5; i++)
