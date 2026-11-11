@@ -38,3 +38,15 @@
 - GitHub-коммит **не** равен автоматически проверенному развёртыванию на VPS.
 
 - Новый чат/облачная среда не гарантирует доступ к локальным незакоммиченным файлам: восстанавливается только подтверждённый remote checkpoint.
+
+## TAS CI — только изменённые модули
+
+- Workflow: `.github/workflows/tas-task-ci.yml`; push в `tas/<TASK_ID>` запускает проверки, если изменены пути TAS, либо ручной запуск через GitHub Actions.
+- `scripts/tas-ci-scope.mjs` выбирает `shared`, `backend`, `web`, `task` по diff. Его 12 unit-тестов запускаются при каждом TAS CI.
+- Изменения CI-файлов проверяют сам selector, **не запускают старые не связанные с изменением продуктовые тесты**.
+- Изменения `shared/interactive/v1/*.js` запускают парный `.test.mjs`; если его нет, нужно добавить `tests/tas/Pxx-yy.test.mjs`. Отсутствие test-case — FAIL.
+- Изменения `platform/` запускают существующую Docker integration suite на **изолированной** PostgreSQL 17.
+- Будущий `web/` требует `package.json`, `package-lock.json`, `test` и `typecheck` или `build` scripts. Без них CI завершится ошибкой, а не ложным PASS.
+- Изменения `EGA/`, `OGA/` или связанных `scripts/` в task-ветке требуют `tests/tas/Pxx-yy.test.mjs` или `tests/tas/Pxx-yy.browser.mjs`. Browser-test запускается с Playwright и локальным HTTP-сервером.
+- Результат проверять **по статусу run и commit SHA**. Если обязательный тест упал или не был запущен — чеклист не ставить DONE.
+- Тесты старого кода вне изменённой области не исправляются автоматически: их проблемы записываются в `TEST_RESULTS.md` и выносятся в отдельные задачи.

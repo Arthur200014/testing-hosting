@@ -48,7 +48,7 @@
 | `P03-01` | TODO | G02 | Инициализировать web/backend/test директории и версионирование. | — | — |
 | `P03-02` | TODO | G02 | Docker Compose dev: PostgreSQL, API, web; Redis и хранилище по потребности. | — | — |
 | `P03-03` | TODO | G02 | Настроить env.example, secrets policy, миграции/seed test data, локальные команды. | — | — |
-| `P03-04` | TODO | G02 | CI: lint/typecheck, dotnet format/build/test, Playwright smoke, миграции в test БД. | — | — |
+| `P03-04` | BLOCKED (частично: CI-bootstrap PASS; G02 и baseline ошибки) | G02 | CI: lint/typecheck, dotnet format/build/test, Playwright smoke, миграции в test БД. | [CI run 42990977589](https://github.com/Arthur200014/testing-hosting/actions/runs/42990977589): selector 12/12 PASS; полный CI ещё не принят | `09171df9` |
 | `P03-05` | TODO | G02 | Логи/trace IDs/healthcheck; errors возвращают безопасные коды. | — | — |
 | `P03-06` | TODO | G02 | Проверить запуск на чистой среде с нуля по README. | — | — |
 

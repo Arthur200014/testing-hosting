@@ -3,22 +3,23 @@
 **Updated:** 2026-11-11
 **REPO:** `Arthur200014/testing-hosting`
 **BRANCH:** `main`
-**ACTIVE_TASK:** `P03-04`
-**ACTIVE_BRANCH:** `tas/P03-04`
-**LAST_CHECKPOINT:** `none`
-**TASK_CARD:** `.ai/tasks/tas-P03-04.md` (первый план будет сохранён в рабочей ветке)
-**PLAN_COMMIT:** `none`
-**NEXT_STEP:** подготовить карточку P03-04, настроить scoped TAS CI с реальными GitHub Actions проверками
-**CURRENT_PHASE:** `P03` (выборочно: только CI; gate G02 не закрыт)
-**NEXT_ACTION:** `P03-04` (явная текущая задача; после CI вернуться к P00-01)
-**STATUS:** `IN_PROGRESS`
+**ACTIVE_TASK:** `none`
+**ACTIVE_BRANCH:** `none`
+**LAST_CHECKPOINT:** `09171df9` (последний CI-код)
+**TASK_CARD:** `none` (CI-карточка завершённого инкремента: `.ai/tasks/tas-P03-04.md`)
+**PLAN_COMMIT:** `8d59d250` (CI)
+**NEXT_STEP:** начать выборочный аудит P00-01 и подготовить `.ai/tasks/tas-P00-01.md` перед реализацией
+**CURRENT_PHASE:** `P00`
+**NEXT_ACTION:** `P00-01`
+**STATUS:** `AUDIT_REQUIRED`
 
-## Текущий фокус: выборочный CI
+## Последняя завершённая работа: выборочный CI (инкремент P03-04)
 
-- Пользователь явно поручил настроить CI. Эту часть задачи P03-04 выполняем независимо от недостигнутого G02; **не помечать весь P03-04 DONE**, пока не подтверждены все предусмотренные критерии.
-- Рабочая ветка `tas/P03-04`; первая операция — commit + push карточки задачи с тестовыми кейсами.
-- Существующие workflow для backend и EGE не переписывать без причины; новый TAS CI должен выбирать только изменяемые модули.
-- Исходный NEXT_ACTION `P00-01` возобновить после завершения CI-инициализации.
+- Создан `.github/workflows/tas-task-ci.yml`; автозапуск на push в `tas/**`, выбор `shared`/`backend`/`web`/`task` по реально изменённым файлам.
+- На обновление самого CI запускаются только selector tests. Для изменённых legacy-страниц требуется тест текущего task ID; для shared JS — парный `.test.mjs` или тест задачи.
+- [GitHub run 42990977589](https://github.com/Arthur200014/testing-hosting/actions/runs/42990977589) — **success**, selector 12/12 PASS, gate PASS на коде `09171df9`.
+- Ранний широкий smoke run [42990533464](https://github.com/Arthur200014/testing-hosting/actions/runs/42990533464) нашёл существующие сбои: 2 старых shared теста (52 vs 50 и OGE regexp), NuGet предупреждения NU1902/NU1903 по `System.Security.Cryptography.Pkcs` 9.0.0. Они не исправлялись.
+- Полный P03-04 остаётся **BLOCKED/partial** до G02 и отдельного исправления прежних ошибок. Сейчас возобновляем `P00-01`, не повторяем готовый CI-bootstrap.
 
 ## Что достоверно известно
 
