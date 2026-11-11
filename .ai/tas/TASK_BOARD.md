@@ -36,7 +36,7 @@
 
 | ID | Статус | Конкретная работа | Критерий готовности | Связь с прежними задачами |
 |---|---|---|---|---|
-| `M02-01` | TODO | Поднять приватную PostgreSQL и staging API на выбранном сервере (учесть прежнюю неудачную попытку Timeweb), сетевое разделение, env/secret manager. | Нет открытого порта БД наружу; секретов в Git/логах; staging не связан с рабочими учениками. | P03-02/03; timeweb-deployment |
+| `M02-01` | PARTIAL (staging config + CI PASS; remote VPS NOT_RUN) | Поднять приватную PostgreSQL и staging API на выбранном сервере (учесть прежнюю неудачную попытку Timeweb), сетевое разделение, env/secret manager. | [PR №6](https://github.com/Arthur200014/testing-hosting/pull/6), [runbook](../../docs/deployment/tas-staging.md), [staging config CI PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43019796458): приватная БД и сети в Compose, Caddy HTTPS, preflight секретов. **Реальный VPS/DNS/TLS/health NOT_RUN**, gate не закрыт. | P03-02/03; timeweb-deployment |
 | `M02-02` | TODO | Развернуть ASP.NET Core Docker image, отдельный `--migrate`, доступ через HTTPS/proxy/CORS и health. | `/health/live` и `/health/ready` PASS после миграций, проверено повторное развёртывание; отсутствие production cutover. | P03-05/06 |
 | `M02-03` | TODO | Добавить автоматический backup PostgreSQL, проверить restore, изоляцию доступов, логи/алерты и обновление без потери данных. | Пробное восстановление на отдельной БД; задокументированы retention и restore steps; минимальный staging smoke. | P13 backup/security |
 

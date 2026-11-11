@@ -2,23 +2,23 @@
 
 **REPO:** `Arthur200014/testing-hosting`
 **STATE_UPDATED:** 2026-11-11
-**CURRENT_PHASE:** M02 (staging/server PostgreSQL)
-**ACTIVE_TASK:** none
-**ACTIVE_BRANCH:** none
-**LAST_COMPLETED_TASK:** M01-04 (live, read-only Google Sheets source inventory and diagnostics)
-**LAST_TASK_COMMIT:** `934791515c142338300eb508f5750f5ac9324331`
-**NEXT_ACTION:** M02-01
-**STATUS:** READY_TO_START (server access unverified)
+**CURRENT_PHASE:** M02 (staging / private PostgreSQL / API server)
+**ACTIVE_TASK:** M02-01 (real VPS deployment pending)
+**ACTIVE_BRANCH:** none — reviewed staging configuration merged to `main`
+**LAST_COMPLETED_TASK:** M01-04 (live Sheets read-only audit)
+**LAST_PROGRESS_COMMIT:** `9d06c1e21a1859211c66194eef5989e4f36c96ba` (PR #6)
+**NEXT_ACTION:** M02-01 (finish on real host; config done, server unverified)
+**STATUS:** PARTIAL — config CI PASS, remote VPS/DNS/TLS/health NOT_RUN
 
-## Verified
-- [M01-04 live source audit](https://github.com/Arthur200014/testing-hosting/blob/main/docs/architecture/sheets-source-audit-2026-11-11.md) confirms 20 sheet tabs, headers and current nonempty row counts (e.g. 35 student rows, 223 assignment rows, 317 lesson rows, 70 catalog rows). Read-only; **no real data exported/imported/written**.
-- Source blockers: **10 distinct structurally problematic homework assignment rows** (23, 27, 29, 37, 45, 56, 89, 101, 104, 105), **5 orphan student references in assignment rows** (6–10, four distinct IDs), **3 incomplete student rows** (5, 9, 14). Old 17-row audit is outdated; 13 old rows no longer exhibit former basic errors. **M03 apply prohibited** until owner-reviewed corrections/quarantine and official importer dry-run.
-- Also found legacy nullable test fields, repeated lesson rows for group attendance and older mock task results with missing points; preserve as unknown, **do not auto-fill zero**.
-- M01-01 mapping, M01-02 subject-neutral model and M01-03 teacher auth remain as previously verified. [Auth CI 66/66 PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43005907321); this does **not** validate live source or server deployment.
+## Verified work
+- **M02-01 configuration:** [PR #6](https://github.com/Arthur200014/testing-hosting/pull/6) merged. Adds `compose.staging.yaml` with internal-only PostgreSQL network, API private+ingress, public HTTPS Caddy (80/443), `.env.staging.example` with synthetic placeholders and ignored private env, safe preflight + [VPS deployment runbook](https://github.com/Arthur200014/testing-hosting/blob/main/docs/deployment/tas-staging.md).
+- [Staging config workflow](https://github.com/Arthur200014/testing-hosting/actions/runs/43019796458): **PASS** Docker Compose topology, Caddy syntax, rejection of placeholders, acceptance of random synthetic secrets. No live server was contacted.
+- **Paired lessons:** owner confirmed identical `lessonId` across students is normal. The migration model is now explicit: one `Lesson` per workspace/lessonId, several `LessonParticipant` records per student with individual attendance/status; no deduplication by lessonId across participant rows. Updated `M03-02`, checklist, source-audit note and tenant model.
+- **M01-04 source blockers still pending M03:** 10 structurally invalid homework assignment rows, 5 orphan references, 3 incomplete student rows; report at `docs/architecture/sheets-source-audit-2026-11-11.md`. No XLSX apply or production writes.
 
-## Next action — M02-01
-Goal: **staging**, private PostgreSQL 17, ASP.NET Core API, secrets outside Git and TLS for external requests. Read `.ai/tasks/timeweb-deployment.md` and `compose.yaml` before changing only deployment files. Prior Timeweb attempt **BLOCKED** (failed deploy, precise cause unknown); owner subsequently prioritized server deployment, but host/domain/SSH access are **not yet verified**.
+## Next action
+**M02-01:** Real deployment requires a server with **authorized SSH or cloud-console access**, an actual staging DNS name and Docker Compose v2. Previous Timeweb attempt was BLOCKED and there is **no verified server connection in this chat**. Follow `docs/deployment/tas-staging.md` on the chosen VPS: create private env on host, run preflight, start private PostgreSQL, run migrations, start API + Caddy, verify public HTTPS `/health/live`, `/health/ready`, DB port 5432 not published. Never upload credentials to Git or chat. Do not mark M02-01 DONE based on local CI.
 
-Proceed with secure, reproducible staging configuration and targeted Compose/CI checks. Do not claim a live server deployment without actual host access and health verification. Do not publish database port or passwords, and do not switch `EGA/config/manage.html` from GAS. M02-02 migrations/health and M02-03 backup+restore gates are separate.
+Then M02-02 repeatable startup/health and M02-03 backup+restore; M03 data migration dry-run/reconciliation; M04 tenant-scoped teacher API + existing `manage.html`; M05 owner-approved cutover. Until then **Google Sheets/GAS remains production**. New universal admin, AI, interactives are deferred.
 
-**Priority:** PostgreSQL + server + existing manage through authenticated teacher API; later new universal multi-teacher/multi-subject admin; interactive lessons/AI parked. Use `AGENTS.md`, minimal scope, commit only verified changes.
+**Constraints:** Read only relevant repo files; use existing ASP.NET Core 10 / PostgreSQL 17, preserve multi-tenant/multi-subject and paired session model; no unrelated UI, student data, production settings or secrets.

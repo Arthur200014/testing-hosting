@@ -12,7 +12,7 @@
 **Приёмка G-M01:** подтверждена матрица source→PG→manage, данные не подвергались записи, есть критерии изоляции и исправления source.
 
 ## M02 — staging сервер и PostgreSQL
-- [ ] `M02-01` Секреты вне Git; приватная PostgreSQL и изолированный staging API на сервере.
+- [ ] `M02-01` Конфигурация staging с приватной PostgreSQL, Caddy HTTPS и проверкой секретов [CI PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43019796458); **настоящий VPS/HTTPS deployment NOT_RUN**, поэтому пункт остаётся открытым.
 - [ ] `M02-02` Docker build/deploy, миграции отдельно, HTTPS, `/health/live` и `/health/ready`.
 - [ ] `M02-03` Автоматический backup и **настоящий restore**, контроль логов/доступов.
 **Приёмка G-M02:** чистая проверка сервера с синтетической учётной записью, restore работает, production writes = 0.
