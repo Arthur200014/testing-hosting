@@ -185,11 +185,11 @@ async function connectSession(expected){
  updateSessionButtons();renderState();renderMembers();
 }
 async function mutateState(callback){
- if(!joined){callback(state);state.version++;renderState();drawBoard();return true}
+ if(!joined){if(callback(state)===false)return false;state.version++;renderState();drawBoard();return true}
  const currentId=sessionId;
  const result=await runTransaction(stateRef(),previous=>{
    if(!previous||previous.sessionId!==currentId||previous.schema!==1)return;
-   callback(previous);previous.version=(previous.version||0)+1;return previous;
+   if(callback(previous)===false)return;previous.version=(previous.version||0)+1;return previous;
  });
  return result.committed;
 }
@@ -202,13 +202,15 @@ function syncClears(slot){
 }
 async function numbersFor(slot){
  if(!canEdit(slot))return;
- const proto=stationId(state.index,state.order),generator=getPrototype(proto);
+ const origin=state.index,previousNonce=state.slots[slot].nonce;
+ const proto=stationId(origin,state.order),generator=getPrototype(proto);
  const other=slot==='a'?'b':'a';let next=generator.make(),attempts=0;
  while((next.q===state.slots[slot].q||next.q===state.slots[other].q||next.answer===state.slots[other].answer)&&attempts++<100)next=generator.make();
  if(next.q===state.slots[slot].q||next.q===state.slots[other].q)throw Error('Не удалось создать неповторяющийся вариант');
  next.proto=proto;next.nonce=randomId();
  try{
    const committed=await mutateState(s=>{
+     if(s.index!==origin||s.slots[slot].nonce!==previousNonce)return false;
      s.slots[slot]=next;s.slotEpoch[slot]=(s.slotEpoch[slot]||0)+1;s.reveals[slot]=0;
    });
    if(committed){resetInput(slot);syncClears(slot);if(joined)pruneStrokes(slot)}
@@ -216,11 +218,13 @@ async function numbersFor(slot){
 }
 async function changeStage(delta){
  if(!canTeach())return;
- const index=Math.max(0,Math.min(2*COUNT-1,state.index+delta));
+ const originalIndex=state.index;
+ const index=Math.max(0,Math.min(2*COUNT-1,originalIndex+delta));
  if(index===state.index)return;
  const pair=makePair(stationId(index,state.order));
  try{
    const committed=await mutateState(s=>{
+     if(s.index!==originalIndex)return false;
      s.index=index;s.slots=pair;s.reveals={a:0,b:0};
      s.boardEpoch=(s.boardEpoch||0)+1;s.slotEpoch={a:0,b:0};
    });
@@ -234,7 +238,8 @@ async function changeStage(delta){
 }
 async function showStep(slot){
  if(!canTeach())return;
- try{await mutateState(s=>{s.reveals[slot]=Math.min(s.slots[slot].steps.length,(s.reveals[slot]||0)+1)})}
+ const nonce=state.slots[slot].nonce;
+ try{await mutateState(s=>{if(s.slots[slot].nonce!==nonce)return false;s.reveals[slot]=Math.min(s.slots[slot].steps.length,(s.reveals[slot]||0)+1)})}
  catch(e){showError(e)}
 }
 function formatAnswer(text){
@@ -358,7 +363,7 @@ function pathData(points){
  return d;
 }
 function validStroke(s){
- return s&&s.boardEpoch===state.boardEpoch&&s.slotEpoch===state.slotEpoch?.[s.slot]&&slots.includes(s.slot)&&Array.isArray(s.points);
+ return s&&s.sessionId===state.sessionId&&s.boardEpoch===state.boardEpoch&&s.slotEpoch===state.slotEpoch?.[s.slot]&&slots.includes(s.slot)&&Array.isArray(s.points);
 }
 function drawBoard(){
  for(const slot of slots){
@@ -407,7 +412,7 @@ function inkStart(e,slot){
  const svg=e.currentTarget; e.preventDefault();svg.setPointerCapture(e.pointerId);
  const pt=currentPoint(e,svg);
  if(drawingTool==='eraser'){eraseNear(slot,pt);activeInk={slot,mode:'erase',pointer:e.pointerId};return}
- const stroke={slot,points:[pt],boardEpoch:state.boardEpoch,slotEpoch:state.slotEpoch[slot],width:3.2,color:slot==='a'?'#236baf':'#7b52ba',owner:me?.id||'local',at:Date.now()};
+ const stroke={slot,sessionId:state.sessionId,points:[pt],boardEpoch:state.boardEpoch,slotEpoch:state.slotEpoch[slot],width:3.2,color:slot==='a'?'#236baf':'#7b52ba',owner:me?.id||'local',at:Date.now()};
  activeInk={slot,mode:'pen',pointer:e.pointerId,id:randomId(),stroke,lastWrite:0};
  drawBoard();
 }
