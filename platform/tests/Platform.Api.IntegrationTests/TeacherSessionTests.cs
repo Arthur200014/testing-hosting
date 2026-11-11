@@ -152,6 +152,29 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/v1/teacher/me")).StatusCode);
     }
 
+
+    [Fact]
+    public async Task ChangingTeacherRoleRevokesOldOwnerToken()
+    {
+        await ResetAsync(factory);
+        var seed = await SeedAsync(factory, "school-roles", "owner@example.invalid", "owner");
+        using var client = factory.CreateClient();
+        var session = await (await LoginAsync(client, "school-roles", "owner@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>();
+        Assert.NotNull(session);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/v1/teacher/me")).StatusCode);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            await db.WorkspaceMemberships.Where(x => x.Id == seed.MembershipId)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.Role, "teacher"));
+        }
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/v1/teacher/me")).StatusCode);
+    }
+
     [Fact]
     public async Task ViewerMembershipCannotObtainTeacherToken()
     {
@@ -237,7 +260,8 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
             new Claim(JwtRegisteredClaimNames.Jti, sessionId.ToString()),
             new Claim("workspace_id", workspaceId.ToString()),
             new Claim("membership_id", membershipId.ToString()),
-            new Claim("role", role)
+            new Claim("role", role),
+            new Claim("workspace_role", "owner")
         };
         var signed = new JwtSecurityToken(
             issuer: ApiFactory.Issuer, audience: ApiFactory.Audience, claims: claims,
