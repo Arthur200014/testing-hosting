@@ -75,6 +75,10 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --chown=$APP_UID:$APP_UID --from=build /app/publish ./
+# Privileged one-shot console imports; never auto-run on web startup.
+# Keep importer assemblies off public HTTP routes and student-facing pages.
+COPY --chown=$APP_UID:$APP_UID --from=importer-build /app/student-importer /app/importers/students/
+COPY --chown=$APP_UID:$APP_UID --from=importer-build /app/homework-importer /app/importers/homework/
 USER $APP_UID
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "Platform.Api.dll"]
