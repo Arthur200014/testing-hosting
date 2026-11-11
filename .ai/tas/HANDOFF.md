@@ -3,11 +3,11 @@
 **REPO:** `Arthur200014/testing-hosting`
 **STATE_UPDATED:** 2026-11-12
 **CURRENT_PHASE:** M03 (history import into managed Timeweb PostgreSQL; M02 backup restore verification still open)
-**ACTIVE_TASK:** M03-03 (historical tests and mocks import; first slice tests)
-**ACTIVE_BRANCH:** none (PR #13 merged; M03-03 test cloud import pending)
-**LAST_PROGRESS_COMMIT:** `8f2d485bbd3c20f7655bcaa89bb8eeaa865f278e` ([PR #13](https://github.com/Arthur200014/testing-hosting/pull/13))
+**ACTIVE_TASK:** M03-03 (historical tests and mocks; Timeweb imports pending)
+**ACTIVE_BRANCH:** none (PR #14 merged)
+**LAST_PROGRESS_COMMIT:** `dc301706c3989f4a619d8fd8eec1fe1fbfd3114e` ([PR #14](https://github.com/Arthur200014/testing-hosting/pull/14))
 **NEXT_ACTION:** M03-03
-**STATUS:** M03-01/M03-02 owner-confirmed imports (not independently SQL-queried); M03-03 test-history code merged, 71/71 PostgreSQL CI PASS, Timeweb test import NOT_RUN; Timeweb test migration/import NOT_RUN; M02-03 restore NOT_VERIFIED
+**STATUS:** M03-01/M03-02 owner-confirmed imports (not independently SQL-queried); M03-03 test and mock-history code merged, latest 72/72 PostgreSQL CI PASS; Timeweb test/mock migration/import NOT_CONFIRMED; M02-03 restore NOT_VERIFIED
 
 ## What is verified
 - User supplied actual Timeweb app deployment log: **Deploy succeeded**, 2026-11-11 22:17:41 (after temporarily removing deploy health-check path); new container on port 8080, managed web-server configured. User subsequently reported **Healthy** at both HTTPS `/health/live` and `/health/ready`; thus API process and DB connectivity operational **per user**, not independently probed by assistant.
@@ -28,8 +28,9 @@
 - 2026-11-12: [PR #12](https://github.com/Arthur200014/testing-hosting/pull/12) squash-merged to main (`fd5816f`). Additive EF migration `20261112103000_LessonsAndSubscriptionSnapshots` creates `Lessons`, `LessonParticipants`, `SubscriptionSnapshots`. Private console-only `/app/importers/history/Platform.HistoryImport.dll` accepts XLSX with original `Занятия`/`Абонементы`, program map/workspace and `--apply`; default dry-run, transaction + natural-key idempotency, explicit skipped row reasons, no invented payments. Isolated PostgreSQL integration CI [70/70 PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43104533300); [TAS task CI PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43104533363). Source snapshot: 322 lesson participant rows / 294 lesson IDs; 31 subscription rows. 8 lesson rows/3 subscription rows unmapped to initial 32 student memberships; these are skipped explicitly, not deleted from source. Cloud migration and history apply were NOT_RUN when PR #12 merged; the owner later reported completion.
 
 - 2026-11-12: Merged [PR #13](https://github.com/Arthur200014/testing-hosting/pull/13) on `tas/M03-03-test-history` adds additive `HistoricalTestResults` migration and `--kind tests` private CLI mode. Current Sheet has 269 test rows; all lack correct/total and start/finish. An explicit historical-program FK preserves 27 rows whose program differs from current membership; 36 rows reference unimported students and will be reported, not fabricated. Expected 233 mappable rows from private snapshot `tas_tests_history_private.xlsx` (Library); real C# dry-run NOT_RUN. Latest isolated PostgreSQL CI 71/71 PASS, backend gate PASS. Timeweb migration/import NOT_RUN.
+- 2026-11-12: Merged [PR #14](https://github.com/Arthur200014/testing-hosting/pull/14) (`dc301706`) adds `HistoricalMockResults`, `HistoricalMockTaskResults`, `HistoricalMockSessions`, `HistoricalMockVariants` and private `--kind mocks` importer. Four original Sheet tabs are read independently: task rows may lack matching summary events and session event IDs differ from summary IDs. Nullable score/grade/task points and raw session/config JSON are preserved; source programs can differ from current membership. Default dry-run, row skip/conflict report, transactional apply and natural-key replay. Synthetic isolated PostgreSQL CI **72/72 PASS**, scoped backend gate PASS. No source XLSX or personal data committed; real source C# dry-run and Timeweb migration/import NOT_RUN.
 
 ## Next concrete action
 1. After updated Timeweb image includes PR #13, use private Library `tas_tests_timeweb_command.txt` once in App Platform console after backup check. It applies the additive migration, dry-runs and guards expected 233 imported / 36 explicit orphan skips, applies, then checks replay. Do not rerun student/homework/lesson imports. Owner supplies sanitized completion output; real SQL verification remains open.
-2. Continue M03-03 mock result/session/config/task history and questionnaires; preserve current GAS forms and manage default.
+2. Prepare a private four-tab mock-history snapshot and guarded Timeweb one-off command. Verify source skips and expected totals before applying; the test import completion is still unconfirmed. Continue questionnaires after mock history. Preserve current GAS forms and manage default.
 3. M02-03 isolated backup restore and exposed credential rotation remain open; do not claim them done.
