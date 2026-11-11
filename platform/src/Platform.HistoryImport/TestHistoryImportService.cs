@@ -37,17 +37,18 @@ public sealed class TestHistoryImportService(Func<PlatformDbContext> dbFactory)
             x.Slug == workspaceSlug.Trim().ToLowerInvariant() && x.IsActive, cancellationToken);
         if (workspace is null) conflicts.Add(new(0, "workspace_not_found"));
         if (conflicts.Count > 0) return Report(false, 0, 0);
+        var workspaceId = workspace!.Id;
 
         var memberships = await db.WorkspaceStudentMemberships.AsNoTracking().Include(x => x.Program)
-            .Where(x => x.WorkspaceId == workspace!.Id && x.ImportSource == StudentImportService.ImportSource)
+            .Where(x => x.WorkspaceId == workspaceId && x.ImportSource == StudentImportService.ImportSource)
             .ToListAsync(cancellationToken);
         var byStudent = memberships.Where(x => x.ImportExternalId is not null)
             .ToDictionary(x => x.ImportExternalId!, StringComparer.Ordinal);
         var existing = (await db.HistoricalTestResults.AsNoTracking()
-            .Where(x => x.WorkspaceId == workspace.Id).ToListAsync(cancellationToken))
+            .Where(x => x.WorkspaceId == workspaceId).ToListAsync(cancellationToken))
             .ToDictionary(x => x.EventId, StringComparer.Ordinal);
         var currentEventIds = (await db.TestAttempts.AsNoTracking()
-            .Where(x => x.WorkspaceId == workspace.Id).Select(x => x.EventId)
+            .Where(x => x.WorkspaceId == workspaceId).Select(x => x.EventId)
             .ToListAsync(cancellationToken)).ToHashSet(StringComparer.Ordinal);
         var pending = new List<HistoricalTestResult>();
         var unchanged = 0;
@@ -79,7 +80,7 @@ public sealed class TestHistoryImportService(Func<PlatformDbContext> dbFactory)
 
             var result = new HistoricalTestResult
             {
-                Id = Guid.NewGuid(), WorkspaceId = workspace.Id, MembershipId = member.Id,
+                Id = Guid.NewGuid(), WorkspaceId = workspaceId, MembershipId = member.Id,
                 StudentId = member.StudentId, ProgramId = member.ProgramId,
                 EventId = row.EventId, TestId = row.TestId, TestDate = row.TestDate,
                 TopicId = row.TopicId, TopicName = row.TopicName, TaskNumber = row.TaskNumber,
