@@ -23,6 +23,36 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate isolated staging Compose topology (synthetic secrets only)
         run: bash platform/scripts/staging-preflight.sh .env.staging.example --example
+      - name: Reject placeholders and accept only private independent synthetic secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .env.staging.example .env.staging
+          chmod 600 .env.staging
+          if bash platform/scripts/staging-preflight.sh .env.staging >/dev/null 2>&1; then
+            echo "::error::staging preflight accepted placeholder secrets"
+            exit 1
+          fi
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64
+          import secrets
+          p = Path(".env.staging")
+          content = p.read_text()
+          values = {
+              "REPLACE_WITH_RANDOM_48_CHAR_HEX_DATABASE_PASSWORD": secrets.token_hex(24),
+              "REPLACE_WITH_INDEPENDENT_BASE64_JWT_SECRET": base64.b64encode(secrets.token_bytes(48)).decode(),
+              "REPLACE_WITH_DIFFERENT_BASE64_STUDENT_SECRET": base64.b64encode(secrets.token_bytes(48)).decode(),
+              "REPLACE_WITH_SEPARATE_RANDOM_ADMIN_PASSWORD": secrets.token_hex(24),
+              "staging.example.invalid": "staging.synthetic-domain.org",
+          }
+          for old, new in values.items():
+              assert old in content
+              content = content.replace(old, new)
+          p.write_text(content)
+          PY
+          bash platform/scripts/staging-preflight.sh .env.staging
+          rm .env.staging
       - name: Validate Caddy config (no ACME / no deployment)
         run: |
           docker run --rm --env STAGING_DOMAIN=staging.example.invalid \
