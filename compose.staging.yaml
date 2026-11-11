@@ -1,0 +1,70 @@
+name: tas-staging
+
+# Overlay for a dedicated, controlled staging host. Base compose.yaml stays unchanged.
+# PostgreSQL is reachable only over the internal "database" network.
+services:
+  db:
+    networks:
+      - database
+    security_opt:
+      - no-new-privileges:true
+
+  migrate:
+    networks:
+      - database
+    security_opt:
+      - no-new-privileges:true
+
+  api:
+    networks:
+      - database
+      - ingress
+    security_opt:
+      - no-new-privileges:true
+    # Base compose.yaml publishes API ONLY on 127.0.0.1; never expose 8080 externally.
+
+  teacher-bootstrap:
+    networks:
+      - database
+
+  student-import:
+    networks:
+      - database
+
+  homework-import:
+    networks:
+      - database
+
+  pgadmin:
+    networks:
+      - database
+    # Admin-profile tools must never be exposed to the public Internet.
+
+  caddy:
+    image: caddy:2.11.9-alpine
+    restart: unless-stopped
+    environment:
+      STAGING_DOMAIN: ${STAGING_DOMAIN:?set STAGING_DOMAIN to a real DNS name}
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+      - "443:443/udp"
+    volumes:
+      - ./platform/deploy/caddy-staging:/etc/caddy:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - ingress
+    depends_on:
+      - api
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  database:
+    internal: true
+  ingress: {}
+
+volumes:
+  caddy-data: {}
+  caddy-config: {}
