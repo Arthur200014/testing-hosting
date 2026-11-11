@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using TestingHosting.Platform.Homework;
 using TestingHosting.Platform.IdentityAccess;
+using TestingHosting.Platform.Lessons;
+using TestingHosting.Platform.Subscriptions;
 using TestingHosting.Platform.Students;
 using TestingHosting.Platform.TestAttempts;
 
@@ -21,6 +23,9 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<HomeworkAssignment> HomeworkAssignments => Set<HomeworkAssignment>();
     public DbSet<HomeworkSubmission> HomeworkSubmissions => Set<HomeworkSubmission>();
     public DbSet<HomeworkImportBatch> HomeworkImportBatches => Set<HomeworkImportBatch>();
+    public DbSet<Lesson> Lessons => Set<Lesson>();
+    public DbSet<LessonParticipant> LessonParticipants => Set<LessonParticipant>();
+    public DbSet<SubscriptionSnapshot> SubscriptionSnapshots => Set<SubscriptionSnapshot>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -227,6 +232,58 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 table.HasCheckConstraint("CK_HomeworkImportBatches_ProgramMapDigest_Length", "length(\"ProgramMapDigest\") = 64");
                 table.HasCheckConstraint("CK_HomeworkImportBatches_Status", "\"Status\" = 'applied'");
                 table.HasCheckConstraint("CK_HomeworkImportBatches_Counts", "\"CatalogRowCount\" >= 0 AND \"AssignmentRowCount\" >= 0 AND \"SubmissionRowCount\" >= 0 AND \"CatalogCreatedCount\" >= 0 AND \"CatalogUnchangedCount\" >= 0 AND \"CatalogCreatedCount\" + \"CatalogUnchangedCount\" = \"CatalogRowCount\" AND \"AssignmentCreatedCount\" >= 0 AND \"AssignmentUnchangedCount\" >= 0 AND \"AssignmentCreatedCount\" + \"AssignmentUnchangedCount\" = \"AssignmentRowCount\" AND \"SubmissionCreatedCount\" >= 0 AND \"SubmissionUnchangedCount\" >= 0 AND \"SubmissionCreatedCount\" + \"SubmissionUnchangedCount\" = \"SubmissionRowCount\"");
+            });
+        });
+
+        modelBuilder.Entity<Lesson>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id });
+            entity.Property(x => x.LegacyLessonId).HasMaxLength(128);
+            entity.HasIndex(x => new { x.WorkspaceId, x.LegacyLessonId }).IsUnique();
+            entity.HasOne(x => x.Workspace).WithMany().HasForeignKey(x => x.WorkspaceId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table =>
+                table.HasCheckConstraint("CK_Lessons_LegacyId", "length(\"LegacyLessonId\") > 0"));
+        });
+
+        modelBuilder.Entity<LessonParticipant>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.TaskNumbers).HasMaxLength(2048);
+            entity.Property(x => x.TopicComment).HasMaxLength(4096);
+            entity.Property(x => x.AttendanceStatus).HasMaxLength(128);
+            entity.HasIndex(x => new { x.WorkspaceId, x.LessonId, x.StudentId }).IsUnique();
+            entity.HasOne(x => x.Lesson).WithMany(x => x.Participants)
+                .HasForeignKey(x => new { x.WorkspaceId, x.LessonId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Membership).WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.MembershipId, x.StudentId, x.ProgramId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.StudentId, x.ProgramId })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_LessonParticipants_Duration", "\"DurationMinutes\" BETWEEN 1 AND 1440");
+                table.HasCheckConstraint("CK_LessonParticipants_Attendance", "length(\"AttendanceStatus\") > 0");
+            });
+        });
+
+        modelBuilder.Entity<SubscriptionSnapshot>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.LessonPrice).HasPrecision(12, 2);
+            entity.HasIndex(x => new { x.WorkspaceId, x.MembershipId }).IsUnique();
+            entity.HasIndex(x => new { x.WorkspaceId, x.MembershipId, x.StudentId, x.ProgramId })
+                .HasDatabaseName("IX_SubscriptionSnapshots_MembershipIdentity");
+            entity.HasOne(x => x.Membership).WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.MembershipId, x.StudentId, x.ProgramId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.StudentId, x.ProgramId })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_SubscriptionSnapshots_Package", "\"PackageSize\" BETWEEN 1 AND 1000");
+                table.HasCheckConstraint("CK_SubscriptionSnapshots_PriceCount", "(\"LessonPrice\" IS NULL OR \"LessonPrice\" >= 0) AND (\"BaseLessonCount\" IS NULL OR \"BaseLessonCount\" >= 0)");
             });
         });
 

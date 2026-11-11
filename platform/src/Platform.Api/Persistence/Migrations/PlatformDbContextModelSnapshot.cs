@@ -627,6 +627,60 @@ namespace TestingHosting.Platform.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("TestingHosting.Platform.Lessons.Lesson", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
+                    b.Property<string>("LegacyLessonId").IsRequired().HasMaxLength(128).HasColumnType("character varying(128)");
+                    b.Property<DateTimeOffset>("LessonAt").HasColumnType("timestamp with time zone");
+                    b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+
+                    b.HasKey("Id");
+                    b.HasAlternateKey("WorkspaceId", "Id");
+                    b.HasIndex("WorkspaceId", "LegacyLessonId").IsUnique();
+                    b.ToTable("Lessons", "platform", t => t.HasCheckConstraint("CK_Lessons_LegacyId", "length(\"LegacyLessonId\") > 0"));
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.Lessons.LessonParticipant", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<string>("AttendanceStatus").IsRequired().HasMaxLength(128).HasColumnType("character varying(128)");
+                    b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
+                    b.Property<int>("DurationMinutes").HasColumnType("integer");
+                    b.Property<Guid>("LessonId").HasColumnType("uuid");
+                    b.Property<Guid>("MembershipId").HasColumnType("uuid");
+                    b.Property<Guid>("ProgramId").HasColumnType("uuid");
+                    b.Property<Guid>("StudentId").HasColumnType("uuid");
+                    b.Property<string>("TaskNumbers").HasMaxLength(2048).HasColumnType("character varying(2048)");
+                    b.Property<string>("TopicComment").HasMaxLength(4096).HasColumnType("character varying(4096)");
+                    b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+
+                    b.HasKey("Id");
+                    b.HasIndex("WorkspaceId", "LessonId", "StudentId").IsUnique();
+                    b.HasIndex("WorkspaceId", "MembershipId", "StudentId", "ProgramId");
+                    b.ToTable("LessonParticipants", "platform", t => { t.HasCheckConstraint("CK_LessonParticipants_Duration", "\"DurationMinutes\" BETWEEN 1 AND 1440"); t.HasCheckConstraint("CK_LessonParticipants_Attendance", "length(\"AttendanceStatus\") > 0"); });
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.Subscriptions.SubscriptionSnapshot", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<int?>("BaseLessonCount").HasColumnType("integer");
+                    b.Property<decimal?>("LessonPrice").HasPrecision(12, 2).HasColumnType("numeric(12,2)");
+                    b.Property<Guid>("MembershipId").HasColumnType("uuid");
+                    b.Property<int>("PackageSize").HasColumnType("integer");
+                    b.Property<Guid>("ProgramId").HasColumnType("uuid");
+                    b.Property<DateTimeOffset?>("ResetAt").HasColumnType("timestamp with time zone");
+                    b.Property<Guid>("StudentId").HasColumnType("uuid");
+                    b.Property<DateTimeOffset>("UpdatedAt").HasColumnType("timestamp with time zone");
+                    b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+
+                    b.HasKey("Id");
+                    b.HasIndex("WorkspaceId", "MembershipId").IsUnique();
+                    b.HasIndex("WorkspaceId", "MembershipId", "StudentId", "ProgramId")
+                        .HasDatabaseName("IX_SubscriptionSnapshots_MembershipIdentity");
+                    b.ToTable("SubscriptionSnapshots", "platform", t => { t.HasCheckConstraint("CK_SubscriptionSnapshots_Package", "\"PackageSize\" BETWEEN 1 AND 1000"); t.HasCheckConstraint("CK_SubscriptionSnapshots_PriceCount", "(\"LessonPrice\" IS NULL OR \"LessonPrice\" >= 0) AND (\"BaseLessonCount\" IS NULL OR \"BaseLessonCount\" >= 0)"); });
+                });
+
             modelBuilder.Entity("TestingHosting.Platform.TestAttempts.TestAttempt", b =>
                 {
                     b.Property<Guid>("Id")
@@ -909,6 +963,35 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     b.Navigation("Workspace");
                 });
 
+            modelBuilder.Entity("TestingHosting.Platform.Lessons.Lesson", b =>
+                {
+                    b.HasOne("TestingHosting.Platform.IdentityAccess.Workspace", "Workspace")
+                        .WithMany().HasForeignKey("WorkspaceId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.Navigation("Workspace");
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.Lessons.LessonParticipant", b =>
+                {
+                    b.HasOne("TestingHosting.Platform.Lessons.Lesson", "Lesson")
+                        .WithMany("Participants").HasForeignKey("WorkspaceId", "LessonId")
+                        .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("TestingHosting.Platform.Students.WorkspaceStudentMembership", "Membership")
+                        .WithMany().HasForeignKey("WorkspaceId", "MembershipId", "StudentId", "ProgramId")
+                        .HasPrincipalKey("WorkspaceId", "Id", "StudentId", "ProgramId")
+                        .OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.Navigation("Lesson");
+                    b.Navigation("Membership");
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.Subscriptions.SubscriptionSnapshot", b =>
+                {
+                    b.HasOne("TestingHosting.Platform.Students.WorkspaceStudentMembership", "Membership")
+                        .WithMany().HasForeignKey("WorkspaceId", "MembershipId", "StudentId", "ProgramId")
+                        .HasPrincipalKey("WorkspaceId", "Id", "StudentId", "ProgramId")
+                        .OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.Navigation("Membership");
+                });
+
             modelBuilder.Entity("TestingHosting.Platform.TestAttempts.TestAttempt", b =>
                 {
                     b.HasOne("TestingHosting.Platform.IdentityAccess.Workspace", "Workspace")
@@ -957,6 +1040,11 @@ namespace TestingHosting.Platform.Persistence.Migrations
                 {
                     b.Navigation("WorkspaceMemberships");
                 });
+            modelBuilder.Entity("TestingHosting.Platform.Lessons.Lesson", b =>
+                {
+                    b.Navigation("Participants");
+                });
+
 #pragma warning restore 612, 618
         }
     }

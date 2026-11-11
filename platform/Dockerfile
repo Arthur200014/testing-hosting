@@ -11,6 +11,7 @@ RUN --mount=type=secret,id=build_ca,required=false \
 FROM api-restore AS restore
 COPY src/Platform.StudentImport/Platform.StudentImport.csproj src/Platform.StudentImport/
 COPY src/Platform.HomeworkImport/Platform.HomeworkImport.csproj src/Platform.HomeworkImport/
+COPY src/Platform.HistoryImport/Platform.HistoryImport.csproj src/Platform.HistoryImport/
 COPY tests/Platform.Api.IntegrationTests/Platform.Api.IntegrationTests.csproj tests/Platform.Api.IntegrationTests/
 COPY tests/Platform.StudentImport.IntegrationTests/Platform.StudentImport.IntegrationTests.csproj tests/Platform.StudentImport.IntegrationTests/
 RUN --mount=type=secret,id=build_ca,required=false \
@@ -27,7 +28,8 @@ RUN dotnet publish src/Platform.Api/Platform.Api.csproj --no-restore -c Release 
 FROM restore AS importer-build
 COPY src/ src/
 RUN dotnet publish src/Platform.StudentImport/Platform.StudentImport.csproj --no-restore -c Release -o /app/student-importer /p:UseAppHost=false && \
-    dotnet publish src/Platform.HomeworkImport/Platform.HomeworkImport.csproj --no-restore -c Release -o /app/homework-importer /p:UseAppHost=false
+    dotnet publish src/Platform.HomeworkImport/Platform.HomeworkImport.csproj --no-restore -c Release -o /app/homework-importer /p:UseAppHost=false && \
+    dotnet publish src/Platform.HistoryImport/Platform.HistoryImport.csproj --no-restore -c Release -o /app/history-importer /p:UseAppHost=false
 
 FROM restore AS test-build
 COPY src/ src/
@@ -38,6 +40,7 @@ RUN dotnet build tests/Platform.Api.IntegrationTests/Platform.Api.IntegrationTes
     tar -C tests/Platform.StudentImport.IntegrationTests/bin/Release/net10.0 -czf /tmp/import-integration-tests.tgz . && \
     rm -rf src/Platform.Api/bin src/Platform.Api/obj \
       src/Platform.StudentImport/bin src/Platform.StudentImport/obj \
+      src/Platform.HistoryImport/bin src/Platform.HistoryImport/obj \
       tests/Platform.Api.IntegrationTests/bin tests/Platform.Api.IntegrationTests/obj \
       tests/Platform.StudentImport.IntegrationTests/bin tests/Platform.StudentImport.IntegrationTests/obj
 
@@ -78,6 +81,7 @@ COPY --chown=$APP_UID:$APP_UID --from=build /app/publish ./
 # Opt-in admin console importers; never execute when the web app starts.
 COPY --chown=$APP_UID:$APP_UID --from=importer-build /app/student-importer /app/importers/students/
 COPY --chown=$APP_UID:$APP_UID --from=importer-build /app/homework-importer /app/importers/homework/
+COPY --chown=$APP_UID:$APP_UID --from=importer-build /app/history-importer /app/importers/history/
 USER $APP_UID
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "Platform.Api.dll"]
