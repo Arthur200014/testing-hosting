@@ -2056,11 +2056,11 @@ function paint(el,item,external=false){
  if(!external)window.dispatchEvent(new CustomEvent('guide:interaction',{detail:{id:'pair-'+id,value:item}}));
 }
 function receive(id,item){const el=document.querySelector(`[data-pair-slot="${id}"]`);if(el&&item&&JSON.stringify(item)!==JSON.stringify(active[id]))paint(el,item,true);}
-function receiveSolution(id,value){const el=document.querySelector(`[data-pair-slot="${id}"]`),item=active[id];if(!el||!item||value?.tex!==item.tex)return;const panel=el.querySelector('.pair-solution');const want=Math.max(0,Math.min(item.steps.length,Number(value.count)||0));if(!want){closeSolution(el);return;}if(panel.hidden||panel.querySelectorAll('.pair-step').length>want){closeSolution(el);toggleSolution(el,true);}while(panel.querySelectorAll('.pair-step').length<want)revealNext(el,true);}
+function receiveSolution(id,value){const el=document.querySelector(`[data-pair-slot="${id}"]`),item=active[id];if(!el||!item||value?.tex!==item.tex)return;const panel=el.querySelector('.pair-solution');const want=Math.max(0,Math.min(item.steps.length,Number(value.count)||0));if(!want){closeSolution(el);return;}if(panel.hidden||panel.querySelectorAll('.pair-step').length>want){closeSolution(el);toggleSolution(el,true);}while(panel.querySelectorAll('.pair-step').length<want)revealNext(el,true);const next=panel.querySelector('.pair-next-step');if(next)next.disabled=!window.GuideSession?.isTeacher()||want>=item.steps.length;}
 function sendPair(id,kind,value){window.dispatchEvent(new CustomEvent('guide:interaction',{detail:{id:'pair-'+kind+'-'+id,value}}));}
-function receiveInput(id,value){const el=document.querySelector(`[data-pair-slot="${id}"]`),input=el?.querySelector('input');if(!input||value?.tex!==active[id]?.tex)return;if(input.value!==String(value.text||''))input.value=String(value.text||'');el.querySelector('.pair-feedback').textContent='';el.classList.remove('correct','incorrect');}
+function receiveInput(id,value){const el=document.querySelector(`[data-pair-slot="${id}"]`),input=el?.querySelector('input');if(!input||value?.tex!==active[id]?.tex)return;if(input.value===String(value.text||''))return;input.value=String(value.text||'');el.querySelector('.pair-feedback').textContent='';el.classList.remove('correct','incorrect');}
 const checkedEventAt={};
-function receiveCheck(id,value){const el=document.querySelector(`[data-pair-slot="${id}"]`);if(!el||value?.tex!==active[id]?.tex)return;el.classList.toggle('correct',!!value.ok);el.classList.toggle('incorrect',!value.ok);el.querySelector('.pair-feedback').textContent=String(value.text||'');if(value.valid&&value.at!==checkedEventAt[id]&&Math.abs(Date.now()-Number(value.at))<3500){feedbackSound(!!value.ok);flash(!!value.ok);}checkedEventAt[id]=value.at;}
+function receiveCheck(id,value){const el=document.querySelector(`[data-pair-slot="${id}"]`);if(!el||value?.tex!==active[id]?.tex||value.at===checkedEventAt[id])return;el.classList.toggle('correct',!!value.ok);el.classList.toggle('incorrect',!value.ok);el.querySelector('.pair-feedback').textContent=String(value.text||'');if(value.valid&&value.at!==checkedEventAt[id]&&Math.abs(Date.now()-Number(value.at))<3500){feedbackSound(!!value.ok);flash(!!value.ok);}checkedEventAt[id]=value.at;}
 
 let ctx=null;
 function feedbackSound(success){try{ctx??=new(window.AudioContext||window.webkitAudioContext)();ctx.resume?.();const now=ctx.currentTime;
@@ -2329,6 +2329,15 @@ $('#joinFab').onclick=showRoles;$('#changeStudentBtn').onclick=()=>{clearStudent
 </script>
 <script>document.documentElement.classList.add('noanim');document.getElementById('sessionMiniToggle')?.addEventListener('click',()=>{const p=document.getElementById('sessionPanel');p.classList.toggle('expanded');document.getElementById('sessionMiniToggle').setAttribute('aria-expanded',String(p.classList.contains('expanded')))});document.getElementById('boardCollapse')?.addEventListener('click',()=>document.getElementById('boardToolbar').classList.toggle('collapsed'));document.getElementById('boardSettingsToggle')?.addEventListener('click',()=>document.getElementById('boardSettings').classList.toggle('hidden'));</script><script id="compact-trig-checks">(()=>{
  const area=document.querySelector('#theory-trig .ct-exercises');
+  area.querySelectorAll('.ct-exercise').forEach((row,i)=>{row.dataset.ctSyncId=String(i)});
+  const send=(type,row,value)=>window.dispatchEvent(new CustomEvent('guide:interaction',{detail:{id:'ct-'+type+'-'+row.dataset.ctSyncId,value}}));
+  const lastChecks=new Map();
+  function remoteRow(id){return /^\d{1,3}$/.test(String(id))?area.querySelector('[data-ct-sync-id="'+id+'"]'):null}
+  window.GuideFormula={
+   receiveInput(id,value){const row=remoteRow(id),input=row?.querySelector('input');if(!input)return;const text=String(value?.text||'').slice(0,60);if(input.value===text)return;input.value=text;row.classList.remove('correct','incorrect');row.querySelector('.ct-ex-feedback').textContent='';},
+   receiveCheck(id,value){const row=remoteRow(id);if(!row||!value||lastChecks.get(id)===value.at)return;lastChecks.set(id,value.at);row.classList.toggle('correct',!!value.correct);row.classList.toggle('incorrect',!value.correct);row.querySelector('.ct-ex-feedback').textContent=String(value.feedback||'');}
+  };
+
  if(!area)return;
  function normalize(value){
   return String(value??'').trim().toLowerCase()
@@ -2353,6 +2362,7 @@ $('#joinFab').onclick=showRoles;$('#changeStudentBtn').onclick=()=>{clearStudent
   row.classList.toggle('correct',correct);
   row.classList.toggle('incorrect',!correct);
   feedback.textContent=correct?'✓ Верно':!valid?'Введите sinα или cosα (со знаком при необходимости)':'✕ Проверь знак или функцию';
+   const at=Date.now();lastChecks.set(row.dataset.ctSyncId,at);send('result',row,{correct,feedback:feedback.textContent,at});
  }
  area.addEventListener('click',event=>{
   const button=event.target.closest('.ct-check');
@@ -2368,6 +2378,7 @@ $('#joinFab').onclick=showRoles;$('#changeStudentBtn').onclick=()=>{clearStudent
    const row=event.target.closest('.ct-exercise');
    row.classList.remove('correct','incorrect');
    row.querySelector('.ct-ex-feedback').textContent='';
+    send('input',row,{text:event.target.value.slice(0,60),at:Date.now()});
   }
  });
 })();</script></body></html>
