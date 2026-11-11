@@ -2,7 +2,7 @@
 
 **Статус на 11.11.2026:** основной репозиторий `Arthur200014/testing-hosting` подтверждён. В нём уже есть ASP.NET Core/PostgreSQL, интерактивы и тесты. Статусы ниже перенесены из проектного плана; `TODO` означает «не принято в качестве задачи TAS» и **не доказывает отсутствие реализации**. Сначала сделать выборочный аудит.
 
-**NEXT_ACTION: `P00-04`**. Ссылки на актуальные документы сверены, устаревшие обязательные процедуры устранены. Далее — адресная сверка TASK_BOARD с реализованными модулями, без полного сканирования. Главный последующий продуктовый путь: интерактивный урок на шаблонах.
+**NEXT_ACTION: `P01-05`** (первый продуктовый шаг после P00). Подтверждена часть существующей платформы; `PARTIAL` означает «код есть, полный gate не принят». Фокус дальше — 5–10 переиспользуемых механик для интерактивного урока, а не новый CRM. P00-04/P00-05 закрыты без вмешательства в production.
 
 У каждой задачи статус из `RELEASE_GATES.md`; колонка `Evidence` — ссылка на PR/лог/скриншот + корректная команда и результат; `Commit` — hash. Не ставить `DONE`, если есть unverified assumptions. При переносе фазы не считать зависимости DONE автоматически.
 
@@ -13,8 +13,8 @@
 | `P00-01` | DONE (аудит кода и документальная приёмка; runtime NOT_RUN) | — | Проверить текущий репозиторий `Arthur200014/testing-hosting` и ветку `main`; сопоставить существующие `platform/`, `shared/interactive/v1/`, `EGA/`, `OGA/` с требованиями TAS и зафиксировать подтверждённое состояние без полного сканирования. | [Карточка с матрицей](../tasks/tas-P00-01.md); A1–A6 PASS (GitHub API, docs), runtime NOT_RUN; [CI run](https://github.com/Arthur200014/testing-hosting/actions/runs/42990977589) только selector | `b29b3cc8` (audit evidence) |
 | `P00-02` | DONE (изолированный runner; prod/staging NOT_RUN) | — | Зафиксировать содержимое и работоспособность текущего кода (если есть): команды запуска, стек, тесты, состояние prod/staging. | [Integration + startup CI](https://github.com/Arthur200014/testing-hosting/actions/runs/42997203038): 57/57 PASS, PostgreSQL migrations, live/ready and synthetic 401 PASS; [TAS CI](https://github.com/Arthur200014/testing-hosting/actions/runs/42997203340): backend PASS. Реальные prod/staging NOT_RUN. | `fdca474a` |
 | `P00-03` | DONE (ссылки и инструкции сверены) | — | Проверить, что актуальные документы TAS уже находятся в `.ai/tas/` и README/START_HERE ссылаются на них. Не переносить весь архив повторно. | Проверены файлы `.ai/tas/`, корневой `README.md` и `.ai/START_HERE.md`; обновлён противоречивший `AGENTS.md` процесс в `.ai/tas/README.md`. Документация, runtime NOT_RUN (doc-only). | main (P00-03 docs) |
-| `P00-04` | TODO | — | Сверить task board с реально реализованными модулями и существующими `.ai/tasks/`; сохранить ID и отметить подтверждённые результаты. Стратегия веток и коммитов уже описана в `AGENTS.md`. | — | — |
-| `P00-05` | TODO | — | Зафиксировать запрет менять рабочие страницы, GAS/Firebase и production-потоки без отдельной проверенной задачи. | — | — |
+| `P00-04` | DONE (выборочная сверка; без повторного полного аудита) | — | Сверить task board с реально реализованными модулями и существующими `.ai/tasks/`; сохранить ID и отметить подтверждённые результаты. Стратегия веток и коммитов уже описана в `AGENTS.md`. | Сверены `platform/src/Platform.Api/{Program.cs,Persistence/PlatformDbContext.cs}`, `compose.yaml`, `shared/interactive/v1/`, `.ai/tasks/{platform-foundation,student-directory-import,homework-migration-slice,shared-interactive-package,tas-P03-04}.md` и [backend CI](https://github.com/Arthur200014/testing-hosting/actions/runs/42997203038). Ни один PARTIAL ниже не закрывает gate целиком. | this update |
+| `P00-05` | DONE (правило уже действует) | — | Зафиксировать запрет менять рабочие страницы, GAS/Firebase и production-потоки без отдельной проверенной задачи. | `AGENTS.md` (Safety and public compatibility), `README.md`, `.ai/tas/README.md`: без отдельной проверенной задачи нельзя менять рабочие страницы, GAS/Firebase, production потоки, публичные URL и реальные данные. Код не менялся. | this update |
 
 ## P01
 
@@ -46,21 +46,21 @@
 | ID | Статус | Gate-зависимость | Задача | Evidence | Commit |
 |---|---|---|---|---|---|
 | `P03-01` | TODO | G02 | Инициализировать web/backend/test директории и версионирование. | — | — |
-| `P03-02` | TODO | G02 | Docker Compose dev: PostgreSQL, API, web; Redis и хранилище по потребности. | — | — |
-| `P03-03` | TODO | G02 | Настроить env.example, secrets policy, миграции/seed test data, локальные команды. | — | — |
-| `P03-04` | BLOCKED (частично: CI-bootstrap PASS; G02 и baseline ошибки) | G02 | CI: lint/typecheck, dotnet format/build/test, Playwright smoke, миграции в test БД. | [CI run 42990977589](https://github.com/Arthur200014/testing-hosting/actions/runs/42990977589): selector 12/12 PASS; полный CI ещё не принят | `09171df9` |
-| `P03-05` | TODO | G02 | Логи/trace IDs/healthcheck; errors возвращают безопасные коды. | — | — |
-| `P03-06` | TODO | G02 | Проверить запуск на чистой среде с нуля по README. | — | — |
+| `P03-02` | PARTIAL (БД/API/migrate есть; web-сервис не подтверждён) | G02 | Docker Compose dev: PostgreSQL, API, web; Redis и хранилище по потребности. | [`compose.yaml`](../../compose.yaml): PostgreSQL 17, `migrate`, `api`, изолированная `test-db`; пункты про web и полный G02 не приняты. | — |
+| `P03-03` | PARTIAL (конфигурация и миграции реализованы) | G02 | Настроить env.example, secrets policy, миграции/seed test data, локальные команды. | [`.env.example`](../../.env.example), [`platform/README.md`](../../platform/README.md), EF migrations, [CI smoke](https://github.com/Arthur200014/testing-hosting/actions/runs/42997203038); полноценный seed/dev gate не подтверждён. | — |
+| `P03-04` | BLOCKED (backend PASS; общая frontend/Playwright/format gate не закрыта) | G02 | CI: lint/typecheck, dotnet format/build/test, Playwright smoke, миграции в test БД. | [Backend CI](https://github.com/Arthur200014/testing-hosting/actions/runs/42997203340): 57/57 PASS; [CI selector](https://github.com/Arthur200014/testing-hosting/actions/runs/42990977589): 12/12 PASS. Web/format/Playwright и старые shared baseline failures остаются отдельно; [карточка](../tasks/tas-P03-04.md). | 09171df9 |
+| `P03-05` | PARTIAL (health/error handling есть; observability не принята) | G02 | Логи/trace IDs/healthcheck; errors возвращают безопасные коды. | [`platform/src/Platform.Api/Program.cs`](../../platform/src/Platform.Api/Program.cs): `/health/live`, `/health/ready`, безопасный 500; trace IDs и весь G02 не подтверждены. | — |
+| `P03-06` | PARTIAL (изолированный чистый CI PASS; prod/dev отдельно) | G02 | Проверить запуск на чистой среде с нуля по README. | [P00-02 startup smoke](https://github.com/Arthur200014/testing-hosting/actions/runs/42997203038): PostgreSQL migrations, API live/ready, synthetic 401 PASS; ручной dev запуск из README и prod/staging NOT_RUN. | fdca474a |
 
 ## P04
 
 | ID | Статус | Gate-зависимость | Задача | Evidence | Commit |
 |---|---|---|---|---|---|
-| `P04-01` | TODO | G03 | Внедрить Organization/tenant + User/Teacher/Student, auth, session expiry. | — | — |
-| `P04-02` | TODO | G03 | RBAC middleware/policies и tenant scope в EF queries/handlers. | — | — |
-| `P04-03` | TODO | G03 | Приглашение ученика по ссылке/коду с TTL, rate limiting, отзывом. | — | — |
+| `P04-01` | PARTIAL (модель и студенческие сессии; не полный auth) | G03 | Внедрить Organization/tenant + User/Teacher/Student, auth, session expiry. | [`PlatformDbContext.cs`](../../platform/src/Platform.Api/Persistence/PlatformDbContext.cs): Workspace, TeacherUser, Student/membership; [`Program.cs`](../../platform/src/Platform.Api/Program.cs): student Bearer JWT. Teacher login и полный role lifecycle не приняты. | — |
+| `P04-02` | PARTIAL (student-policy/tenant checks; не полный RBAC) | G03 | RBAC middleware/policies и tenant scope в EF queries/handlers. | [`Program.cs`](../../platform/src/Platform.Api/Program.cs): policy `student`; student session/test/homework server-side identity и workspace isolation. Полный teacher/admin RBAC и G03 не приняты. | — |
+| `P04-03` | PARTIAL (student-code exchange и throttling; нет приглашений) | G03 | Приглашение ученика по ссылке/коду с TTL, rate limiting, отзывом. | [`Program.cs`](../../platform/src/Platform.Api/Program.cs): rate-limited `POST /api/v1/student-sessions`, короткоживущий JWT. Invitation links, TTL, revoke — не подтверждены. | — |
 | `P04-04` | TODO | G03 | Базовые кабинеты, вход/выход, защищённые маршруты. | — | — |
-| `P04-05` | TODO | G03 | Unit/integration tests против IDOR и cross-tenant access. | — | — |
+| `P04-05` | PARTIAL (student isolation tests есть; полный RBAC gate не принят) | G03 | Unit/integration tests против IDOR и cross-tenant access. | [`platform/tests/Platform.Api.IntegrationTests/`](../../platform/tests/Platform.Api.IntegrationTests/) и [PostgreSQL CI 57/57](https://github.com/Arthur200014/testing-hosting/actions/runs/42997203038); широкий cross-role/tenant E2E не принят. | — |
 
 ## P05
 
@@ -89,7 +89,7 @@
 | ID | Статус | Gate-зависимость | Задача | Evidence | Commit |
 |---|---|---|---|---|---|
 | `P07-01` | TODO | G06 | Room lifecycle и приглашения, авторизация JoinRoom. | — | — |
-| `P07-02` | TODO | G06 | Canvas и инструменты: рисовать, цвет/толщина, ластик по штрихам, Undo/Redo, страницы, clear confirmation. | — | — |
+| `P07-02` | PARTIAL (общая доска уже реализована; TAS acceptance не выполнена) | G06 | Canvas и инструменты: рисовать, цвет/толщина, ластик по штрихам, Undo/Redo, страницы, clear confirmation. | [`shared/interactive/v1/shared-board.js`](../../shared/interactive/v1/shared-board.js), [`drawing-transport.js`](../../shared/interactive/v1/drawing-transport.js), [архитектура](../../docs/architecture/ega6-shared-runtime.md). Все инструменты P07-02 и новый TAS room не подтверждены. | — |
 | `P07-03` | TODO | G06 | Server authoritative sequence, ACK, event dedupe, snapshot/replay. | — | — |
 | `P07-04` | TODO | G06 | Два браузера одновременно, teacher-led page nav и базовая синхронизация видимых действий. | — | — |
 | `P07-05` | TODO | G06 | Disconnect/reconnect: восстановление сохранённых штрихов, не дублируются local pending events. | — | — |
@@ -110,9 +110,9 @@
 
 | ID | Статус | Gate-зависимость | Задача | Evidence | Commit |
 |---|---|---|---|---|---|
-| `P09-01` | TODO | G08 | Назначение ДЗ из task bank; дедлайн, повторное назначение по правилам. | — | — |
+| `P09-01` | PARTIAL (модель назначений и импорт есть; task bank не принят) | G08 | Назначение ДЗ из task bank; дедлайн, повторное назначение по правилам. | [`PlatformDbContext.cs`](../../platform/src/Platform.Api/Persistence/PlatformDbContext.cs): HomeworkCatalogItem/Assignment; [homework migration](../tasks/homework-migration-slice.md): API+import. Генерация назначений из TAS task bank не подтверждена. | — |
 | `P09-02` | TODO | G08 | Ученический кабинет ДЗ и прогресс попытки. | — | — |
-| `P09-03` | TODO | G08 | Submit/resubmit, timestamps, status transitions и reviewer comments. | — | — |
+| `P09-03` | PARTIAL (сдачи и replay есть; review UX не принят) | G08 | Submit/resubmit, timestamps, status transitions и reviewer comments. | [`Program.cs`](../../platform/src/Platform.Api/Program.cs): POST homework-submissions; [homework migration](../tasks/homework-migration-slice.md): append-only/history/deadline, idempotence. Reviewer comments и полный E2E не приняты. | — |
 | `P09-04` | TODO | G08 | Учитель проверяет; итог и обратная связь сохраняются без придуманных процентов. | — | — |
 | `P09-05` | TODO | G08 | E2E: назначить → сдать → проверить → показать результат; тест дедлайна. | — | — |
 
