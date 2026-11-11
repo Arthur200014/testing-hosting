@@ -134,7 +134,8 @@ public sealed class MockHistoryImportTests
                     (8, true), (9, true), (10, "2026-07-02T21:00:00+03:00"),
                     (11, "1"), (12, "OGE_MATH"), (13, 2), (14, 2));
                 Set(tasks, 3, (1, "orphan-event"), (2, "synthetic-1"), (3, "mock-1"),
-                    (4, "2026-07-02"), (5, 2), (6, "topic-2"), (7, "Synthetic topic"),
+                    (4, "Thu Jul 02 2026 02:00:00 GMT+0500 (Yekaterinburg Standard Time)"),
+                    (5, 2), (6, "topic-2"), (7, "Synthetic topic"),
                     (8, false), (9, false), (10, "2026-07-02T21:00:00+03:00"),
                     (11, "1"), (12, "OGE_MATH"));
                 Set(tasks, 4, (1, "missing-event"), (2, "missing-student"), (3, "mock-1"),
