@@ -1,93 +1,31 @@
-# TAS <TASK_ID> — <краткое название>
+# TAS task card — optional template for multi-stage work
 
-**TASK_ID:** `Pxx-yy`
-**STATUS:** `TODO` / `IN_PROGRESS` / `BLOCKED` / `DONE`
-**PLAN_STATUS:** `DRAFT` / `READY` / `NEEDS_REVISION`
-**REPO:** `Arthur200014/testing-hosting`
-**BRANCH:** `tas/Pxx-yy` (или `main` только для маленькой задачи)
-**PLAN_COMMIT:** `none` (указать SHA после первого push)
-**LAST_CHECKPOINT:** `none`
-**NEXT_STEP:** <одно конкретное действие>
+Use only when the task is complex enough to benefit from a persistent checklist. Small changes do not need a task card or planning commit.
 
-## 1. Цель и результат
-- Что должен получить учитель/ученик или система: ...
-- Что считаем видимым подтверждением результата: ...
+**TASK_ID:** Pxx-yy
+**STATUS:** TODO / IN_PROGRESS / BLOCKED / DONE
+**BRANCH:** main or tas/Pxx-yy
+**LAST_COMMIT:** <published SHA or none>
+**NEXT_STEP:** <one concrete action>
 
-## 2. Основание в плане
-- Строка в `.ai/tas/TASK_BOARD.md`: `Pxx-yy`
-- Этап и gate из `.ai/tas/PHASE_CHECKLISTS.md`: ...
-- Какие зависимости уже реально подтверждены: ...
-- Если gate не готов: `BLOCKED`, указать причину и допустимую отдельную работу.
+## Outcome
+What observable result should work for the teacher/student?
 
-## 3. Подтверждённое начальное состояние (аудит до кода)
-- Что в репозитории уже реализовано: ...
-- Какие точные файлы/символы просмотрены: ...
-- Какие текущие тесты реально выполнены (или НЕ запускались): ...
-- Что отсутствует или требует исправления по фактам: ...
-- Не утверждать отсутствие реализации только по статусу `TODO`.
+## Scope
+Relevant paths and existing dependencies. List any areas that must not change.
 
-## 4. Область работы
-**Можно изменять:** только подтверждённо относящиеся к задаче пути: ...
-**Можно читать при необходимости:** конкретные зависимости и тесты: ...
-**Запрещено без отдельной задачи:** прочие EGA/OGA, production ссылки, GAS/Firebase, ученические данные, секреты, прочие модули.
+## Existing baseline
+Only verified facts about code that already exists. Link to older audit/architecture notes instead of copying them.
 
-## 5. План выполнения — обязательный чеклист ДО кода
-Разбить на небольшие шаги с проверяемым результатом; каждый шаг должен оставлять сохраняемый checkpoint.
+## Implementation
+- [ ] Main change
+- [ ] Necessary follow-up / compatibility
+- [ ] Relevant verification and publication
 
-- [ ] **Шаг 1:** <действие, конкретный файл/функция, видимый результат>
-- [ ] **Шаг 2:** <действие и критерий готовности>
-- [ ] **Шаг 3:** <действие и критерий готовности>
-- [ ] **Шаг 4:** <негативный сценарий, edge cases, безопасность/совместимость>
-- [ ] **Шаг 5:** <документация/проверка и обновление статусов>
+## Verification
+Write only checks useful for this feature. For each, record: command or browser scenario, PASS / FAIL / NOT_RUN, and important limitation. No mandatory four-case matrix.
 
-*Примеры выше заменяются точным планом по текущему коду. Не оставлять заглушки после установки `PLAN_STATUS: READY`.*
+## Recovery
+Changed files, actual remote commit and one concrete NEXT_STEP. Keep entries short; old detailed evidence may remain in Git history or linked reports.
 
-## 6. Проверки и критерии приёмки
-
-**Тесты разрабатываются вместе с кодом этой задачи** и должны охватывать изменения, а не весь репозиторий. Если задача чисто документальная/аудиторская, заполнять проверяемыми документальными критериями вместо искусственных unit-тестов.
-
-| Кейс | Тип | Вход/действие | Ожидаемый результат | Тестовый файл / команда | Факт |
-|---|---|---|---|---|---|
-| T1 | Позитивный | ... | ... | ... | NOT_RUN |
-| T2 | Негативный | ... | ... | ... | NOT_RUN |
-| T3 | Граничный / восстановление | ... | ... | ... | NOT_RUN |
-| T4 | Регрессия изменяемого модуля | ... | ... | ... | NOT_RUN |
-
-Точные строки определить **по задаче и текущему коду**, не запускать и не создавать несвязанные тесты. Привести реальные команды (локальный/isolated runner или подходящий GitHub Actions run) и проверить статус **на нужном SHA**. Если возможности запустить нет — `BLOCKED`, не `DONE`.
-
-- [ ] Создать/адаптировать тесты **изменённого поведения** (или документальные проверки для non-code задачи)
-- [ ] Запустить тесты текущей задачи и узкую регрессию; проверить результаты и логи
-- [ ] При ошибках исправить код, затем повторить тесты до PASS
-- [ ] <точная команда теста или браузерный сценарий; где запускать>
-- [ ] <проверка старого поведения и отсутствия регрессий>
-- [ ] <условия безопасности / восстановления / конкурентности по задаче>
-- [ ] Проверить diff и отсутствие секретов/посторонних файлов
-- [ ] Обновить `HANDOFF.md`, `TASK_BOARD.md` и `TEST_RESULTS.md`
-
-**DONE только если:** все применимые кейсы текущей задачи реально пройдены, включая узкую регрессию; зафиксированы команды и фактические результаты по SHA; код и коммит опубликованы; незакрытые обязательные проверки отсутствуют. Невозможность выполнить обязательный тест = BLOCKED, а не DONE.
-
-## 7. Журнал checkpoints (кратко)
-| Шаг | Статус | SHA в GitHub | Проверка | Что делать дальше |
-|---|---|---|---|---|
-| План | TODO | — | Проверить план и границы файлов | Начать Шаг 1 |
-
-На каждом сохранении отмечать, что фактически сделано, а что ещё не проверено. Системное время само по себе не доказательство коммита.
-
-## 8. Риски и вопросы
-- ...
-
-## 9. Передача в новый чат
-```text
-TASK_ID: Pxx-yy
-STATUS: IN_PROGRESS
-ACTIVE_BRANCH: tas/Pxx-yy
-TASK_CARD: .ai/tasks/tas-Pxx-yy.md
-PLAN_COMMIT: <sha>
-LAST_CHECKPOINT: <sha>
-FILES_CHANGED: <конкретные пути>
-VERIFICATION: <команды, фактические результаты либо НЕ ЗАПУСКАЛИСЬ>
-NEXT_STEP: <одна конкретная операция и путь>
-```
-
-## Последнее обновление
-Дата, короткая запись. Задача не считается реализованной при одном лишь заполнении этой карточки.
+Do not mark high-risk behavior as production-verified without running its required checks. Never record invented test outcomes.

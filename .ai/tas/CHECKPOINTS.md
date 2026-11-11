@@ -1,82 +1,25 @@
-# TAS: сохранения для длинных задач и восстановление после ограничения чата
+# TAS — save and resume long tasks
 
-**Зачем:** 20–60 минут реализации не должны исчезать из-за закрытия контекста. Для этого сохраняют код, точные изменения и следующий шаг **на GitHub в рабочей ветке**. Нельзя гарантировать сохранение последних незакоммиченных секунд работы.
+Checkpoint is recovery insurance, not a mandatory timer or a sign that code works.
 
-## 1. Запуск задачи
+## When
+- Small completed change: one verified commit on `main`; no task branch or planning commit needed.
+- Long, risky or interruptible change: use `tas/<TASK_ID>`. If HANDOFF already names an active branch, resume it instead of creating a second one.
+- Save after a **meaningful implemented milestone**, before context exhaustion, or before ending an unfinished chat; not every 3–5 minutes.
 
-- Задача до 5 минут, полностью проверенная: работать по стандартному `AGENTS.md`, коммит в `main`.
-- Задача больше 5 минут, несколько шагов/тестов или высок риск окончания чата: использовать `tas/<TASK_ID>`, например `tas/P08-03`.
-- Прежде чем создавать ветку, открыть `HANDOFF.md` в `main`. Если указана уже активная ветка, **продолжить её**, не создавать дубликат.
-- Если активной ветки нет, выбрать один ID, указать в HANDOFF на `main`:
-  - `ACTIVE_TASK: P08-03`
-  - `ACTIVE_BRANCH: tas/P08-03`
-  - `STATUS: IN_PROGRESS`
-  - `LAST_CHECKPOINT: none`
-  - `NEXT_STEP: <первая конкретная операция>`
-- Закоммитить/запушить этот **указатель** в `main` до начала большой работы. Затем создать `tas/P08-03` от актуального `main`. На этой ветке редактировать код и документы. Если ветка уже существует, проверить её HEAD и состояние задачи.
-- На время одной длинной задачи не начинать вторую одновременно без явного согласования владельца.
-- **Перед реализацией** выбрать/создать `.ai/tasks/tas-<TASK_ID>.md` по `.ai/tas/TASK_TEMPLATE.md`: сначала целевой аудит фактического кода, далее реальные шаги `[ ]`, границы файлов, проверки и критерии приёмки.
-- **Первым checkpoint на task-ветке ОБЯЗАТЕЛЬНО является planning commit:** сохранённая карточка задачи и HANDOFF с `NEXT_STEP`. Проверить SHA на GitHub. Пока план не опубликован — исходный код не изменять.
+## Before a long change
+Read `.ai/tas/HANDOFF.md` on `main`; determine the task and current branch. If creating a task branch, record `ACTIVE_TASK`, `ACTIVE_BRANCH`, and `NEXT_STEP` in the main HANDOFF pointer. A planning commit and template-based task card are optional, not blockers to implementation.
 
-## 2. Что делать после каждого небольшого этапа
+## At a checkpoint
+1. Review changed paths and relevant diff; exclude unrelated files, secrets and student data.
+2. Commit + push the actual work to the task branch; mark incomplete work `IN_PROGRESS` and unexecuted checks `NOT_RUN`.
+3. Record branch, last commit (or `HEAD` if still being committed), paths, real verification status, and **one concrete NEXT_STEP** in its HANDOFF.
+4. Do not merge high-risk, unverified implementation into production/main.
 
-Ориентир: **3–5 минут активной работы**, либо сразу после завершения маленькой законченной части. Это не фоновый таймер: агент должен сознательно сохранить результат **до** следующего длительного шага.
+## At resumption
+Read the main HANDOFF pointer, then the current task branch's latest HANDOFF and relevant changed code. Trust actual Git state over outdated notes. Continue from NEXT_STEP, not from a fresh audit.
 
-1. Проверить изменённые пути и diff; не включать `.env`, токены, ключи, персональные данные, файлы другого задания.
-2. Запустить применимые текущему этапу кейсы из карточки задачи (нормальные, ошибочные, границы и узкая регрессия), если среда позволяет. Если не выполнены или FAIL — честно указать `UNVERIFIED`/`FAIL`, оставить для исправления и не переносить в `main`.
-3. В карточке `.ai/tasks/tas-<TASK_ID>.md` отметить только реально завершённые шаги и добавить команды/результаты проверок; затем в HANDOFF **рабочей ветки** записать:
-   - `TASK_ID`, `STATUS: IN_PROGRESS`, `ACTIVE_BRANCH`;
-   - сделанные изменения и точные пути;
-   - последний подтверждённый коммит (`LAST_CHECKPOINT`; разрешено `HEAD`, если SHA нового коммита ещё не известен при записи);
-   - `NEXT_STEP` с файлом/функцией, на которой остановились;
-   - проверенные команды и результаты; ошибки и блокеры.
-4. Создать `wip(Pxx-yy): checkpoint ...` коммит только по файлам задания, карточке чеклиста и HANDOFF.
-5. **Немедленно push в ту же task-ветку**. Сверить remote HEAD SHA и подтвердить публикацию. У незапушенного локального коммита нет гарантии восстановления из нового чата.
-6. Если тесты ещё не прошли, статус **IN_PROGRESS / UNVERIFIED**; нельзя объявлять DONE, публиковать изменения на production или переносить в `main`.
+## At completion
+Run applicable targeted checks, integrate safely to `main` without force push, and update the main HANDOFF: clear `ACTIVE_BRANCH`, record commit and the next roadmap action. Update task boards or test reports only where they actually carry useful new information.
 
-### Пример локальных команд
-
-```bash
-# На Mac в уже клонированном репозитории:
-git fetch origin
-git switch tas/P08-03  # для новой ветки: git switch -c tas/P08-03 origin/main
-git status --short
-git diff --check
-git diff -- path/to/changed/file
-
-# Выполнять только после просмотра diff и проверки выбранных путей:
-git add path/to/changed/file .ai/tas/HANDOFF.md
-git commit -m "wip(P08-03): checkpoint interactive graph"
-git push -u origin tas/P08-03
-git rev-parse HEAD
-git ls-remote origin refs/heads/tas/P08-03
-```
-
-Команды приведены как пример. Если рабочей ветки ещё нет, сперва сохранить указатель в `main` и создать ветку. Не запускать `git add .` без проверки.
-
-## 3. Новый чат после прерывания
-
-1. Прочитать `AGENTS.md` и `.ai/START_HERE.md`, затем **HANDOFF в `main`**.
-2. Узнать `ACTIVE_BRANCH`; получить её последнюю версию из GitHub.
-3. Прочитать HANDOFF **на рабочей ветке**, карточку `.ai/tasks/tas-<TASK_ID>.md`, её HEAD и последние релевантные изменения.
-4. Открыть только относящиеся к задаче файлы и тесты; не перечитывать весь репозиторий.
-5. Продолжить с `NEXT_STEP`. При разнице между HANDOFF и настоящим Git-кодом доверять Git-коду и исправить HANDOFF.
-6. Если `ACTIVE_BRANCH` отсутствует, использовать `NEXT_ACTION` из HANDOFF на `main`.
-
-**Нельзя предполагать, что незакоммиченные изменения прошлого чата доступны в новой облачной среде.** Если не было remote SHA — честно сообщить о потере этого последнего фрагмента.
-
-## 4. Принятие готовой задачи
-
-- Создать/обновить тесты именно изменённого поведения и проверить кейсы карточки задачи. Выполнить тесты и узкую регрессию; для UI — браузерное поведение; для realtime — два клиента и reconnect, если релевантно. Результаты GitHub Actions учитывать только при проверенном запуске для SHA.
-- Проверить diff относительно текущего `main`. Если `main` сдвинулся, безопасно учесть изменения; без `force push`.
-- Закрыть все пункты карточки с подтверждёнными проверками; обновить `TASK_BOARD.md`, `TEST_RESULTS.md`, HANDOFF: `STATUS: DONE`, `ACTIVE_TASK: none`, `ACTIVE_BRANCH: none`, новый `NEXT_ACTION`.
-- Перенести проверенную ветку в `main`, без слепого переписывания истории. Если нет возможности протестировать или разрешить конфликт, оставить ветку и указатель активными, зафиксировать `BLOCKED`.
-- Подтвердить SHA именно **удалённого main** и показать ссылку на коммит. Не путать checkpoint и итоговую публикацию.
-
-## 5. Дополнительные ограничения
-
-- Публичные ветки доступны для чтения посторонним: **нельзя пушить секреты, PII, школьные списки, токены или временные базы даже в WIP**.
-- Checkpoint-коммит — страховка, **не подтверждение качества**.
-- Никакого тестирования с изменением результатов реальных учеников без отдельного безопасного плана.
-- Не создавать автоматизацию, которая без запроса переключает production, сливает непроверенный код или коммитит случайные файлы.
-- Эта схема не требует внешнего платного раннера или сервера: используются обычный Git и доступ к GitHub.
+Never claim a pushed checkpoint was tested, deployed, or completed without evidence. Do not write tests against real students.
