@@ -41,3 +41,18 @@ external semantic memory.
 
 Retrieve only task-relevant memories; never bulk-ingest external memory into
 context. No external memory service is required for this workflow.
+
+## TEACHER AI STUDENT (TAS): scoped workflow
+
+If the user task mentions TAS, the teacher platform, interactive lesson generation, AI curator, roadmap IDs `P00`–`P15`, or continuing a TAS task:
+
+1. Read `.ai/tas/HANDOFF.md` first to learn the one `NEXT_ACTION`.
+2. Read `.ai/tas/TASK_BOARD.md` **only for the task ID / current phase**, not the entire board.
+3. Read `.ai/tas/PHASE_CHECKLISTS.md` **only for that phase**.
+4. Read `.ai/tas/MASTER_TZ.md` only where requirements or scope need clarification.
+5. Use `.ai/CONTEXT_MAP.md` and targeted file/symbol searches; inspect just the affected source files and tests.
+6. Make the smallest coherent verified change. Update task evidence and `HANDOFF.md`, commit/push to `main` after verification under `AGENTS.md`.
+
+Do not bulk-read `EGA/`, `OGA/`, `platform/` or all task memories.
+The current `testing-hosting` implementation is partially built; roadmap TODOs require an audit before declaring functionality missing.
+Start or resume with the paste-ready text in `.ai/tas/NEW_CHAT_PROMPT.md`.

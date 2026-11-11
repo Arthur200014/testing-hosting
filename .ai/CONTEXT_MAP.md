@@ -63,3 +63,15 @@ For a new shared realtime/data integration, reuse the public entry points in
 
 These are search terms, not claims that every feature exists in every page. Open
 only the files that the task and search results make relevant.
+
+## TEACHER AI STUDENT roadmap
+
+- Start: `.ai/tas/HANDOFF.md`, then current task ID in `.ai/tas/TASK_BOARD.md`.
+- Product scope: `.ai/tas/MASTER_TZ.md`, implementation priorities: `.ai/tas/FOCUS_FIRST.md`.
+- Current stage checklist: `.ai/tas/PHASE_CHECKLISTS.md` (one stage only).
+- New-chat instruction: `.ai/tas/NEW_CHAT_PROMPT.md`.
+- Existing ASP.NET Core: `platform/`, `platform/README.md`, `docs/architecture/platform-foundation.md`.
+- Shared interactive runtime: `shared/interactive/v1/`, `docs/architecture/ega6-shared-runtime.md`.
+- Existing educational examples: only the relevant `EGA/<number>/` or `OGA/<number>/` directory.
+
+Do not assume all new-platform components are absent: audit targeted files and their tests before coding.
