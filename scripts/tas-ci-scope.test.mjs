@@ -27,9 +27,9 @@ test('docs-only change does not run unrelated application suites', () => {
   const r = pick(['.ai/tas/HANDOFF.md', '.ai/tasks/tas-P08-03.md']);
   assert.equal(r.run_shared || r.run_backend || r.run_task || r.run_web, false);
 });
-test('workflow change smoke-checks existing shared and backend suites', () => {
+test('workflow change runs only the selector self-tests', () => {
   const r = pick(['.github/workflows/tas-task-ci.yml']);
-  assert.deepEqual([r.run_shared, r.run_backend, r.run_web, r.run_task], [true, true, false, false]);
+  assert.deepEqual([r.run_shared, r.run_backend, r.run_web, r.run_task], [false, false, false, false]);
 });
 test('mix of backend and shared changes selects both and nothing else', () => {
   const r = pick(['platform/tests/Test.cs', 'shared/interactive/v1/aspnet-api-client.js']);
