@@ -20,7 +20,9 @@ public sealed class HistoryImportTests
         using var db = Connect();
         var migrations = db.GetService<IMigrationsAssembly>();
         var differ = db.GetService<IMigrationsModelDiffer>();
-        var source = migrations.ModelSnapshot!.Model.GetRelationalModel();
+        var snapshot = db.GetService<IModelRuntimeInitializer>().Initialize(
+            migrations.ModelSnapshot!.Model, designTime: true);
+        var source = snapshot.GetRelationalModel();
         var current = db.GetService<IDesignTimeModel>().Model.GetRelationalModel();
         var differences = differ.GetDifferences(source, current);
         Assert.True(differences.Count == 0, string.Join("; ", differences.Select(item =>
