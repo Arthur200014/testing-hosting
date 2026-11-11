@@ -415,6 +415,12 @@
     .pair-flash b{font-size:3.7rem;line-height:1}.pair-flash strong{font:900 1.35rem system-ui;letter-spacing:.04em}.pair-flash small{font-size:.85rem;opacity:.93}
     @keyframes pair-flash-in{from{opacity:0;transform:scale(.82)}to{opacity:1;transform:scale(1)}}
     @media(prefers-reduced-motion:reduce){.pair-check-overlay,.pair-flash{animation:none}}
+    /* Keep the lesson content accessible beside the left whiteboard rail. */
+    body.cb-connected main{padding-left:48px}
+    @media(max-width:800px){
+      body.cb-connected main{width:calc(100% - 78px);margin-left:72px;margin-right:6px;padding-left:0}
+      .cb-toolbar .cb-tool,.cb-toolbar .cb-rail-action{min-height:44px}
+    }
 </style>
 </head>
 <body>
@@ -792,7 +798,23 @@
     throw Error("Не удалось подобрать новые числа");
   };
   window.planPairGetRevision=rev;
-  window.planPairApplyConfig=ui=>{const next=ui?.variantSeeds&&typeof ui.variantSeeds==="object"?ui.variantSeeds:{},newSeed=Number(ui?.mixSeed)||seed,changed=JSON.stringify(next)!==JSON.stringify(seeds)||newSeed!==seed;seeds=JSON.parse(JSON.stringify(next));seed=newSeed;if(changed)render(currentTask);};
+  window.planPairApplyConfig=ui=>{
+    const next=ui?.variantSeeds&&typeof ui.variantSeeds==="object"?ui.variantSeeds:{};
+    const newSeed=Number(ui?.mixSeed)||seed,activeKey=`s${currentTask}`;
+    const changed=JSON.stringify(next[activeKey]||{})!==JSON.stringify(seeds[activeKey]||{})||(currentTask>=TOTAL_TASKS&&newSeed!==seed);
+    const focused=document.activeElement,answerFocus=focused?.matches?.(".pair-answer")?{key:focused.dataset.answerKey,revision:focused.dataset.revision,start:focused.selectionStart,end:focused.selectionEnd}:null;
+    const padFocus=focused?.matches?.(".task-workspace")?focused.dataset.padId:null;
+    seeds=JSON.parse(JSON.stringify(next));seed=newSeed;
+    if(!changed)return;
+    render(currentTask);
+    if(answerFocus){
+      const target=Array.from(mount.querySelectorAll(".pair-answer")).find(field=>field.dataset.answerKey===answerFocus.key&&field.dataset.revision===answerFocus.revision);
+      if(target){target.focus({preventScroll:true});if(answerFocus.start!==null)target.setSelectionRange(answerFocus.start,answerFocus.end);}
+    }else if(padFocus){
+      const target=Array.from(mount.querySelectorAll(".task-workspace")).find(field=>field.dataset.padId===padFocus);
+      target?.focus({preventScroll:true});
+    }
+  };
   window.planPairSetAnswer=(k,value)=>{const el=Array.from(mount.querySelectorAll(".pair-answer")).find(x=>x.dataset.answerKey===k);if(el&&el.value!==String(value??""))el.value=String(value??"");};
   window.planPairShowCheck=(k,correct,who,animate=true)=>{
     const el=Array.from(mount.querySelectorAll(".pair-answer")).find(x=>x.dataset.answerKey===k);if(!el)return;
@@ -877,7 +899,7 @@ import { getDatabase, ref, get, set, update, remove, push, onValue, onChildAdded
   const APP_ID = "oge15-triangles-madagascar-guide-v1";
   const FIXED_SESSION_ID = "currentSession";
   const SCHEMA_VERSION = 1;
-  const MAX_STUDENTS = 8;
+  const MAX_STUDENTS = Number.MAX_SAFE_INTEGER;
   const appRoot = () => `sharedGuides/${APP_ID}`;
   const lessonRoot = () => `${appRoot()}/${FIXED_SESSION_ID}`;
   const sessionRef = () => ref(database, lessonRoot());
@@ -1231,20 +1253,22 @@ import { getDatabase, ref, get, set, update, remove, push, onValue, onChildAdded
     document.querySelectorAll(".task-workspace").forEach((pad)=>{
       const padId=String(pad.dataset.padId||"prototype-workspace").replace(/[.#$\[\]\/]/g,"-");
       const padNode=ref(database,`${lessonRoot()}/pads/${padId}`);
-      let applying=false,timer=null;
-      padUnsubs.push(()=>clearTimeout(timer));
+      let applying=false,timer=null,dirty=false;
+      const flush=()=>{
+        if(!dirty||!joined||!me)return;
+        dirty=false;
+        set(padNode,{text:pad.innerText.slice(0,16000),updatedBy:me.id,updatedAt:serverTimestamp()}).catch(()=>setStatus("connecting","Запись отправится после восстановления связи"));
+      };
+      padUnsubs.push(()=>{clearTimeout(timer);flush();});
       padUnsubs.push(onValue(padNode,(snapshot)=>{
         if(!snapshot.exists())return;
         const data=snapshot.val(),text=typeof data==="string"?data:data?.text;
-        if(data?.updatedBy===me.id&&document.activeElement===pad)return;
+        if(document.activeElement===pad&&(dirty||data?.updatedBy===me.id))return;
         const next=typeof text==="string"?text:"";if(pad.innerText===next)return;
         const caret=document.activeElement===pad?selectionOffsetWithin(pad):null;
         applying=true;pad.innerText=next;if(caret!==null)restoreSelectionOffset(pad,Math.min(caret,next.length));applying=false;
       },()=>setStatus("connecting","Рабочие поля восстановятся после подключения")));
-      pad.oninput=()=>{if(applying)return;clearTimeout(timer);timer=setTimeout(()=>{
-        if(!joined||!me)return;
-        set(padNode,{text:pad.innerText.slice(0,16000),updatedBy:me.id,updatedAt:serverTimestamp()}).catch(()=>setStatus("connecting","Запись отправится после восстановления связи"));
-      },180);};
+      pad.oninput=()=>{if(applying)return;dirty=true;clearTimeout(timer);timer=setTimeout(flush,180);};
     });
   }
     function applyPracticeOpen(values) {
@@ -1262,7 +1286,7 @@ import { getDatabase, ref, get, set, update, remove, push, onValue, onChildAdded
   }
   const pairBridge=(function oge15Bridge(){
   const subscriptions=[],timers=new Map(),seen=new Map();
-  function clear(){subscriptions.splice(0).forEach(stop=>stop());timers.forEach(t=>clearTimeout(t));timers.clear();}
+  function clear(){subscriptions.splice(0).forEach(stop=>stop());timers.forEach(job=>{clearTimeout(job.id);job.flush();});timers.clear();}
   function bind(){clear();if(!joined||!me)return;document.querySelectorAll(".pair-answer").forEach(field=>{
     const key=field.dataset.answerKey,revision=Number(field.dataset.revision);
     subscriptions.push(onValue(ref(database,`${lessonRoot()}/answers/${key}`),snapshot=>{const data=snapshot.val();if(!data||Number(data.revision)!==revision)return;if(data.updatedBy===me.id&&document.activeElement===field)return;window.planPairSetAnswer?.(key,data.text??"");},()=>setStatus("connecting","Ответы восстановятся после подключения")));
@@ -1271,7 +1295,18 @@ import { getDatabase, ref, get, set, update, remove, push, onValue, onChildAdded
   });}
   window.addEventListener("planimetry:variant-rendered",()=>{if(joined&&me){bindCurrentPad();bind();}});
   window.addEventListener("planimetry:variant-regenerate",event=>{if(!canInteract())return;const {stage,slot}=event.detail||{};if(!Number.isInteger(stage)||stage<0||stage>=56||![0,1].includes(slot)||Number(localState.ui.currentPrototype)!==stage)return;const key=`s${stage}`,letter=slot?"b":"a";transactState(state=>{state.ui.variantSeeds||={};state.ui.variantSeeds[key]||={};state.ui.variantSeeds[key][letter]=window.planPairNextRevision(stage,slot,state.ui.variantSeeds);}).catch(()=>toast("Не удалось сменить числа"));});
-  window.addEventListener("planimetry:answer-input",event=>{if(!canInteract())return;const {key,stage,revision,text}=event.detail||{};if(!/^t\d+[ab]$/.test(String(key))||Number(localState.ui.currentPrototype)!==Number(stage))return;clearTimeout(timers.get(key));timers.set(key,setTimeout(()=>{if(!canInteract()||window.planPairGetRevision?.(stage,key.endsWith("a")?0:1)!==revision)return;set(ref(database,`${lessonRoot()}/answers/${key}`),{text:String(text??"").slice(0,60),revision,updatedBy:me.id,updatedAt:serverTimestamp()}).catch(()=>setStatus("connecting","Ответ отправится после подключения"));},90));});
+  window.addEventListener("planimetry:answer-input",event=>{
+    if(!canInteract())return;
+    const {key,stage,revision,text}=event.detail||{};
+    if(!/^t\d+[ab]$/.test(String(key))||Number(localState.ui.currentPrototype)!==Number(stage))return;
+    const prior=timers.get(key);if(prior)clearTimeout(prior.id);
+    const flush=()=>{
+      if(!canInteract()||window.planPairGetRevision?.(stage,key.endsWith("a")?0:1)!==revision)return;
+      set(ref(database,`${lessonRoot()}/answers/${key}`),{text:String(text??"").slice(0,60),revision,updatedBy:me.id,updatedAt:serverTimestamp()}).catch(()=>setStatus("connecting","Ответ отправится после подключения"));
+      timers.delete(key);
+    };
+    timers.set(key,{id:setTimeout(flush,90),flush});
+  });
   window.addEventListener("planimetry:answer-check",event=>{if(!canInteract())return;const {key,stage,slot,revision,correct}=event.detail||{};if(!/^t\d+[ab]$/.test(String(key))||Number(localState.ui.currentPrototype)!==Number(stage)||window.planPairGetRevision?.(stage,slot)!==revision)return;const eventId=`${browserClientId}-${randomId(8)}`;seen.set(key,eventId);set(ref(database,`${lessonRoot()}/checks/${key}`),{revision,correct:Boolean(correct),byName:me.name||"Участник",updatedBy:me.id,eventId,updatedAt:serverTimestamp()}).catch(()=>setStatus("connecting","Проверка отправится после подключения"));});
   return {bind,clear};
 })();
