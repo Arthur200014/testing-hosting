@@ -67,7 +67,7 @@ only the files that the task and search results make relevant.
 ## TEACHER AI STUDENT — текущий маршрут
 
 - Current order: `.ai/tas/HANDOFF.md` → `.ai/tas/TASK_BOARD.md` → нужный пункт `.ai/tas/PHASE_CHECKLISTS.md`.
-- **M01-01**: `EGA/config/manage.html` (только связанный API/блоки), `docs/architecture/gas-postgres-migration-audit.md`, `.ai/tasks/{gas-postgres-audit,student-directory-import,homework-migration-slice,teacher-lesson-write-integrity,timeweb-deployment}.md`.
+- **M01-01 DONE:** `docs/architecture/manage-postgres-coverage.md`; **M01-02**: модель `platform/src/Platform.Api/Persistence/PlatformDbContext.cs` и student/homework importer. Источник контракта: `EGA/config/manage.html` (только связанный API/блоки), `docs/architecture/gas-postgres-migration-audit.md`, `.ai/tasks/{gas-postgres-audit,student-directory-import,homework-migration-slice,teacher-lesson-write-integrity,timeweb-deployment}.md`.
 - Backend: `platform/src/Platform.Api/`, `platform/src/Platform.StudentImport/`, `platform/src/Platform.HomeworkImport/`, `compose.yaml`, `platform/README.md`.
 - Старый 92-ID roadmap в `.ai/tas/TASK_BOARD_LEGACY.md`, не NEXT_ACTION.
 - Продукт универсальный для предметов и разных teacher/tenant; `manage` сейчас основной клиент, AI/интерактивы — позже.
