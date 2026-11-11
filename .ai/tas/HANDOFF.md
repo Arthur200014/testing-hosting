@@ -3,11 +3,11 @@
 **REPO:** `Arthur200014/testing-hosting`
 **STATE_UPDATED:** 2026-11-12
 **CURRENT_PHASE:** M03 (history import into managed Timeweb PostgreSQL; M02 backup restore verification still open)
-**ACTIVE_TASK:** M03-02 (apply paired lessons/subscription migration and import historical records)
+**ACTIVE_TASK:** M03-03 (historical tests and mocks import; first slice tests)
 **ACTIVE_BRANCH:** none (PR #12 merged; PR #10 remains open separately)
 **LAST_PROGRESS_COMMIT:** `fd5816f141668a2df30ce719671a12f8201c1b91` ([PR #12](https://github.com/Arthur200014/testing-hosting/pull/12))
-**NEXT_ACTION:** M03-02
-**STATUS:** M02-02 DONE; M03-01 owner reports IMPORT COMPLETE (not independently queried); M03-02 schema and CLI merged, Timeweb migration/import NOT_RUN; M02-03 restore NOT_VERIFIED
+**NEXT_ACTION:** M03-03
+**STATUS:** M02-02 DONE; M03-01 owner reports IMPORT COMPLETE (not independently queried); M03-02 owner reports HISTORY IMPORT COMPLETE (not independently queried); M02-03 restore NOT_VERIFIED
 
 ## What is verified
 - User supplied actual Timeweb app deployment log: **Deploy succeeded**, 2026-11-11 22:17:41 (after temporarily removing deploy health-check path); new container on port 8080, managed web-server configured. User subsequently reported **Healthy** at both HTTPS `/health/live` and `/health/ready`; thus API process and DB connectivity operational **per user**, not independently probed by assistant.
@@ -24,9 +24,10 @@
 
 - 2026-11-12: Owner reported the previous filtered student/homework one-off Timeweb command printed `TAS IMPORT COMPLETE`. Interpret as owner-confirmed successful command sequence (32 students, 70 catalog, 212 assignments), **not** independently verified database counts. Do NOT repeat initial import on ordinary deployments.
 - 2026-11-12: Private history-only XLSX prepared from the current `Занятия` and `Абонементы` Sheet tabs, along with a single-use Timeweb console command in ChatGPT Library (`tas_history_private.xlsx`, `tas_history_timeweb_command.txt`; never publish their bytes or embed them in Git). Snapshot: 322 participant rows / 294 lesson IDs, 31 subscription rows; compared with the previously filtered 32-student import snapshot, expected eligible totals are **287 lessons / 314 participants / 28 subscription snapshots**, with **7 `student_not_imported` and 4 `program_mismatch` skips**. Workbook headers, checksum/base64 round-trip and shell syntax PASS; real C# dry-run and Timeweb migration/apply NOT_RUN (panel unavailable from this environment). The command checks the deployed importer, migrates once, guards dry-run totals and skip reasons, applies once, and checks idempotency read-only. Owner should confirm backup status before executing and share sanitized completion output. Do not repeat student/homework import.
+- 2026-11-12: Owner reports the private Timeweb history command completed successfully after PR #12. Treat `TAS HISTORY IMPORT COMPLETE` as owner-confirmed migration/import with guarded expected counts (287 lessons, 314 participants, 28 subscription snapshots) and idempotency recheck; direct SQL verification NOT_RUN. Do not rerun the one-off import on deployments.
 - 2026-11-12: [PR #12](https://github.com/Arthur200014/testing-hosting/pull/12) squash-merged to main (`fd5816f`). Additive EF migration `20261112103000_LessonsAndSubscriptionSnapshots` creates `Lessons`, `LessonParticipants`, `SubscriptionSnapshots`. Private console-only `/app/importers/history/Platform.HistoryImport.dll` accepts XLSX with original `Занятия`/`Абонементы`, program map/workspace and `--apply`; default dry-run, transaction + natural-key idempotency, explicit skipped row reasons, no invented payments. Isolated PostgreSQL integration CI [70/70 PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43104533300); [TAS task CI PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43104533363). Source snapshot: 322 lesson participant rows / 294 lesson IDs; 31 subscription rows. 8 lesson rows/3 subscription rows unmapped to initial 32 student memberships; these are skipped explicitly, not deleted from source. **Cloud migration and new history apply NOT_RUN.**
 
 ## Next concrete action
-1. Confirm deployed Timeweb App Platform image includes merged PR #12. Apply **new additive** EF migration once in private Timeweb console (`dotnet Platform.Api.dll --migrate`) only after backup status check; no new PostgreSQL cluster or public SQL endpoint.
-2. Prepare private history-only XLSX snapshot from connected Sheet + program map and run the new importer dry-run, then `--apply` using same console and existing `tas-main` workspace. Never commit student IDs or file bytes in public GitHub. Explicit skip diagnostics allowed by user; preserve original source untouched. Owner supplies sanitized output for count verification.
-3. Continue M03-03 (tests/mocks) and M04 teacher API/manage adapter, preserving GAS and current manage default. M02-03 independent restore & exposed credential rotation remain open; do not claim them done.
+1. Implement M03-03 test history import against existing TestAttempt model, then mock result/session/config/task history; use private snapshots, no public PII.
+2. Validate isolated PostgreSQL dry-run/apply and idempotency, then apply new one-off imports on Timeweb. Preserve current GAS forms and manage default.
+3. M02-03 isolated backup restore and exposed credential rotation remain open; do not claim them done.
