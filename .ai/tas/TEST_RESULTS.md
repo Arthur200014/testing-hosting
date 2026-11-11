@@ -38,3 +38,16 @@
 - Исторический CI: run [42990977589](https://github.com/Arthur200014/testing-hosting/actions/runs/42990977589) имеет SUCCESS только в scope+gate, shared/backend/web/task SKIPPED; run [42990533464](https://github.com/Arthur200014/testing-hosting/actions/runs/42990533464) failure, 2 shared теста FAIL, Docker restore не завершён (NU1902/NU1903). A5: **PASS как проверка реальных GitHub run/logs**.
 - Исполняемые тесты P00-01: **NOT_RUN**. Установлен Node 22, но git HTTPS не резолвится; Docker и dotnet недоступны. Публичные сайты, prod API и данные учеников не тронуты. Для документального аудита обязательна только A6 (сверка записей и git diff).
 - Следующее: PASS A6 -> закрыть P00-01 и перенести документацию в main; P00-02 — реальный baseline запуск только в изолированной среде.
+
+## 2026-11-11 — P00-01 финальная приёмка документального аудита
+
+| Кейс | Среда | Результат | Подтверждение |
+|---|---|---|---|
+| A1 | GitHub repo/branch API | PASS | права, main SHA, plan-commit `66da87d28f1ba52e8721c3555efe3b295ff1457e` |
+| A2 | targeted GitHub fetch_file | PASS | Program.cs, DbContext, StudentSession/TestAttempt/Homework tests |
+| A3 | targeted GitHub fetch_file | PASS | legacy `platformApi` default, opt-in ASP.NET, Firebase realtime |
+| A4 | targeted GitHub fetch_file | PASS | EGA/6 shim и OGA/6/dz1.html, отсутствие широкого сканирования |
+| A5 | GitHub Actions run/jobs/logs API | PASS (исторические статусы) | [42990977589](https://github.com/Arthur200014/testing-hosting/actions/runs/42990977589): selector success; [42990533464](https://github.com/Arthur200014/testing-hosting/actions/runs/42990533464): shared/backend failures |
+| A6 | GitHub compare_commits + 7 проверок связности | PASS 7/7 | `22de2e67` → `b29b3cc8`, изменены лишь TAS documents |
+
+**Runtime-tests:** NOT_RUN сегодня: `node --test`, Docker/.NET/PostgreSQL integration, Playwright, production smoke. Причина: audit-only, нет Docker/dotnet, git checkout через DNS недоступен. Это НЕ доказательство работоспособности и будет предметом P00-02. Данные учеников не использовались. **Статус P00-01: DONE (документальный scope).**
