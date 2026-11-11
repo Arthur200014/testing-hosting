@@ -18,7 +18,7 @@ let joined=false,connected=false,subscriptions=[],drawingTool='pointer',activeIn
 let lastNonce={a:'',b:''},lastFlash={a:'',b:''},lastPull='',flashTimer=0,inputTimers={a:0,b:0},localEdits={a:0,b:0};
 const tabKey='oge16-pair-client',tabId=sessionStorage.getItem(tabKey)||randomId();
 sessionStorage.setItem(tabKey,tabId);
-const savedRoleKey='oge16-pair-role',teacherOkKey='oge16-pair-teacher',studentSavedKey='oge16-pair-student';
+const savedRoleKey='oge16-pair-role',teacherOkKey='oge16-pair-teacher',studentSavedKey='oge16-pair-student',sessionSavedKey='oge16-pair-session';
 
 function stationId(index,order){return index<COUNT?PROTOTYPES[index].id:(order||[])[index-COUNT]||PROTOTYPES[0].id}
 function freshState(){
@@ -97,7 +97,7 @@ function localPractice(){
  if(!joined){renderState();return}
  subscriptions.forEach(f=>f?.());subscriptions=[];
  joined=false;connected=false;role='';me=null;sessionId='';
- sessionStorage.removeItem(savedRoleKey);sessionStorage.removeItem(teacherOkKey);
+ sessionStorage.removeItem(savedRoleKey);sessionStorage.removeItem(teacherOkKey);sessionStorage.removeItem(sessionSavedKey);
  state=freshState();members={};remoteInputs={};remoteChecks={};remoteStrokes={};
  lastNonce={a:'',b:''};lastFlash={a:'',b:''};lastPull='';renderMembers();setStatus('Самостоятельная практика');renderState();drawBoard();
 }
@@ -181,6 +181,7 @@ async function connectSession(expected){
    await onDisconnect(memberNode).update({online:false,lastSeen:serverTimestamp()});
    await set(memberNode,{id:me.id,name:me.name,role,studentId:me.studentId||'',online:true,sessionId,joinedAt:serverTimestamp()});
  }catch(e){showError(e)}
+ sessionStorage.setItem(sessionSavedKey,sessionId);
  updateSessionButtons();renderState();renderMembers();
 }
 async function mutateState(callback){
@@ -201,9 +202,11 @@ function syncClears(slot){
 }
 async function numbersFor(slot){
  if(!canEdit(slot))return;
- const next=getPrototype(stationId(state.index,state.order)).make();
- next.proto=stationId(state.index,state.order);next.nonce=randomId();
- if(next.q===state.slots[slot].q){return numbersFor(slot)}
+ const proto=stationId(state.index,state.order),generator=getPrototype(proto);
+ const other=slot==='a'?'b':'a';let next=generator.make(),attempts=0;
+ while((next.q===state.slots[slot].q||next.q===state.slots[other].q||next.answer===state.slots[other].answer)&&attempts++<100)next=generator.make();
+ if(next.q===state.slots[slot].q||next.q===state.slots[other].q)throw Error('Не удалось создать неповторяющийся вариант');
+ next.proto=proto;next.nonce=randomId();
  try{
    const committed=await mutateState(s=>{
      s.slots[slot]=next;s.slotEpoch[slot]=(s.slotEpoch[slot]||0)+1;s.reveals[slot]=0;
@@ -307,10 +310,10 @@ function svgDiagram(proto){
  if(['central'].includes(proto)){mark=line(150,85,91,51)+line(150,85,207,51)+point(150,85,'O')+point(91,51,'A')+point(207,51,'B')}
  else if(['inscribed','arc'].includes(proto)){mark=line(91,51,150,152)+line(207,51,150,152)+point(91,51,'A')+point(207,51,'B')+point(150,152,'C')}
  else if(proto==='tangentChord'){mark=line(82,18,82,155)+line(82,85,194,40)+point(82,85,'A')+point(194,40,'B')}
- else if(proto==='twoTangents'){mark=line(245,85,179,35)+line(245,85,179,135)+point(245,85,'P')+point(179,35,'A')+point(179,135,'B')}
+ else if(proto==='twoTangents'){mark=line(252,85,195,34)+line(252,85,195,136)+point(252,85,'P')+point(195,34,'A')+point(195,136,'B')}
  else if(proto==='cyclic'){mark=line(109,30,204,61)+line(204,61,178,147)+line(178,147,84,112)+line(84,112,109,30)+point(109,30,'A')+point(204,61,'B')+point(178,147,'C')+point(84,112,'D')}
  else if(['chords','intersectionAngle'].includes(proto)){mark=line(93,43,207,127)+line(93,127,207,43)+point(150,85,'P')+point(93,43,'A')+point(207,127,'B')+point(93,127,'C')+point(207,43,'D')}
- else if(proto==='tangentSecant'){mark=line(250,85,179,35)+line(250,85,85,85)+point(250,85,'P')+point(179,35,'A')+point(218,85,'B')+point(82,85,'C')}
+ else if(proto==='tangentSecant'){mark=line(250,85,196,35)+line(250,85,85,85)+point(250,85,'P')+point(196,35,'A')+point(218,85,'B')+point(82,85,'C')}
  else if(proto==='twoSecants'||proto==='outsideAngle'){mark=line(266,85,85,40)+line(266,85,85,131)+point(266,85,'P')+point(208,71,'A')+point(85,40,'B')+point(207,100,'C')+point(85,131,'D')}
  else if(proto==='chordDistance'){mark=line(93,49,93,121)+line(150,85,93,85)+line(150,85,93,49)+point(150,85,'O')+point(93,49,'A')+point(93,121,'B')+point(93,85,'M')}
  return '<svg viewBox="0 0 305 170" role="presentation" xmlns="http://www.w3.org/2000/svg">'+circle+mark+'</svg>';
@@ -427,7 +430,7 @@ function inkEnd(e,slot){
  activeInk=null;drawBoard();
 }
 async function pruneStrokes(slot){
- for(const [id,s] of Object.entries(remoteStrokes))if(s?.slot===slot&&!validStroke(s)){
+ for(const [id,s] of Object.entries(remoteStrokes))if(s?.slot===slot){
    delete remoteStrokes[id];remove(path('strokes/'+id)).catch(showError);
  }
  drawBoard();
@@ -500,13 +503,24 @@ function bindUI(){
  document.addEventListener('keydown',e=>{if(e.key==='Escape'){$('authModal').hidden=true;$('membersPanel').hidden=true}});
 }
 async function restore(){
- const roleSaved=sessionStorage.getItem(savedRoleKey);
- if(roleSaved==='teacher'&&sessionStorage.getItem(teacherOkKey)==='1'){
-   role='teacher';me={id:'teacher',name:'Учитель',role};
-   try{const snap=await get(stateRef());const s=snap.val();if(s?.schema===1)await connectSession(s.sessionId)}catch(e){showError(e)}
- }else if(roleSaved==='student'){
-   const person=readStudent();
-   if(person){try{const snap=await get(stateRef());const s=snap.val();if(s?.schema===1)await joinStudent(person)}catch(e){showError(e)}}
- }
+ const roleSaved=sessionStorage.getItem(savedRoleKey),savedSession=sessionStorage.getItem(sessionSavedKey);
+ if(!roleSaved||!savedSession)return;
+ try{
+   const snap=await get(stateRef()),s=snap.val();
+   if(!s||s.schema!==1||s.sessionId!==savedSession){
+     sessionStorage.removeItem(savedRoleKey);
+     sessionStorage.removeItem(teacherOkKey);
+     sessionStorage.removeItem(sessionSavedKey);
+     setStatus('Это уже новый урок. Подключитесь снова.');
+     return;
+   }
+   if(roleSaved==='teacher'&&sessionStorage.getItem(teacherOkKey)==='1'){
+     role='teacher';me={id:'teacher',name:'Учитель',role};
+     await connectSession(s.sessionId);
+   }else if(roleSaved==='student'){
+     const person=readStudent();
+     if(person)await joinStudent(person);
+   }
+ }catch(e){showError(e)}
 }
 bindUI();renderState();drawBoard();updateSessionButtons();restore();
