@@ -254,8 +254,19 @@ public sealed class MockHistoryImportService(Func<PlatformDbContext> dbFactory)
             if (cell.DataType == XLDataType.DateTime) value = DateOnly.FromDateTime(cell.GetDateTime());
             else if (cell.DataType == XLDataType.Number && cell.TryGetValue<double>(out var serial))
                 value = DateOnly.FromDateTime(DateTime.FromOADate(serial));
-            else if (!DateOnly.TryParseExact(Text(cell), ["yyyy-MM-dd", "dd.MM.yyyy"],
-                         CultureInfo.InvariantCulture, DateTimeStyles.None, out value)) return false;
+            else
+            {
+                var source = Text(cell);
+                if (Regex.IsMatch(source,
+                        @"^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) [A-Z][a-z]{2} \d{2} \d{4} \d{2}:\d{2}:\d{2} GMT[+-]\d{4} \(.+\)$"))
+                {
+                    if (!DateTime.TryParseExact(source[..15], "ddd MMM dd yyyy",
+                            CultureInfo.InvariantCulture, DateTimeStyles.None, out var javascriptDate)) return false;
+                    value = DateOnly.FromDateTime(javascriptDate);
+                }
+                else if (!DateOnly.TryParseExact(source, ["yyyy-MM-dd", "dd.MM.yyyy"],
+                             CultureInfo.InvariantCulture, DateTimeStyles.None, out value)) return false;
+            }
             return value.Year is >= 2015 and <= 2100;
         }
         catch (Exception e) when (e is ArgumentException or FormatException or OverflowException) { return false; }
