@@ -766,14 +766,31 @@
   try{localStorage.setItem("oge15MixSeedV1",seed);}catch(_){}
   const order=()=>{let x=seed>>>0,a=Array.from({length:TOTAL_TASKS},(_,i)=>i);for(let i=a.length-1;i>0;i--){x=(Math.imul(x,1664525)+1013904223)>>>0;const j=Math.floor(x/4294967296*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
   const proto=stage=>stage<TOTAL_TASKS?stage:order()[stage-TOTAL_TASKS];
-  const rev=(stage,slot)=>Math.max(0,Number(seeds[`s${stage}`]?.[slot?"b":"a"])||0);
-  const key=(stage,slot)=>`t${stage}${slot?"b":"a"}`;
+
+  const seedFor=(stage,slot,source=seeds)=>{
+    const stored=source[`s${stage}`]?.[slot?"b":"a"];
+    if(stored!==undefined&&Number.isInteger(Number(stored))&&Number(stored)>=0)return Number(stored);
+    if(!slot)return 0;
+    const index=proto(stage),task=TASKS[index],initialA=oge15BuildVariant(task,index+1,stage,0,0).condition;
+    let candidate=0;
+    while(candidate<100&&oge15BuildVariant(task,index+1,stage,1,candidate).condition===initialA)candidate++;
+    return candidate;
+  };
+  const rev=(stage,slot)=>seedFor(stage,slot);
   function variant(stage,slot){
-    const i=proto(stage),task=TASKS[i],v=rev(stage,slot),prev=v>0?oge15BuildVariant(task,i+1,stage,slot,v-1):null,other=oge15BuildVariant(task,i+1,stage,1-slot,rev(stage,1-slot));
-    let out=oge15BuildVariant(task,i+1,stage,slot,v);
-    for(let n=1;n<=40&&(out.condition===prev?.condition||out.condition===other.condition);n++)out=oge15BuildVariant(task,i+1,stage,slot,v,n);
-    return out;
+    const index=proto(stage);
+    return oge15BuildVariant(TASKS[index],index+1,stage,slot,rev(stage,slot));
   }
+  window.planPairNextRevision=(stage,slot,source=seeds)=>{
+    const index=proto(stage),task=TASKS[index],old=seedFor(stage,slot,source),other=seedFor(stage,1-slot,source);
+    const oldText=oge15BuildVariant(task,index+1,stage,slot,old).condition;
+    const otherText=oge15BuildVariant(task,index+1,stage,1-slot,other).condition;
+    for(let candidate=old+1;candidate<old+500;candidate++){
+      const newText=oge15BuildVariant(task,index+1,stage,slot,candidate).condition;
+      if(newText!==oldText&&newText!==otherText)return candidate;
+    }
+    throw Error("Не удалось подобрать новые числа");
+  };
   window.planPairGetRevision=rev;
   window.planPairApplyConfig=ui=>{const next=ui?.variantSeeds&&typeof ui.variantSeeds==="object"?ui.variantSeeds:{},newSeed=Number(ui?.mixSeed)||seed,changed=JSON.stringify(next)!==JSON.stringify(seeds)||newSeed!==seed;seeds=JSON.parse(JSON.stringify(next));seed=newSeed;if(changed)render(currentTask);};
   window.planPairSetAnswer=(k,value)=>{const el=Array.from(mount.querySelectorAll(".pair-answer")).find(x=>x.dataset.answerKey===k);if(el&&el.value!==String(value??""))el.value=String(value??"");};
@@ -808,7 +825,7 @@
   }
   window.setPlanPrototype=(index,options={})=>{const old=currentTask;render(index);if(options.scroll!==false)document.getElementById("trainer").scrollIntoView({behavior:options.silent?"auto":"smooth",block:"start"});if(!options.silent&&currentTask!==old)window.dispatchEvent(new CustomEvent("planimetry:prototype-change",{detail:{index:currentTask}}));};
   document.addEventListener("click",event=>{
-    const regen=event.target.closest?.(".pair-regenerate");if(regen){const slot=Number(regen.dataset.slot),stage=currentTask;if(document.body.classList.contains("cb-connected"))window.dispatchEvent(new CustomEvent("planimetry:variant-regenerate",{detail:{stage,slot}}));else{const k=`s${stage}`,letter=slot?"b":"a";seeds[k]||={};seeds[k][letter]=(Number(seeds[k][letter])||0)+1;render(stage);}return;}
+    const regen=event.target.closest?.(".pair-regenerate");if(regen){const slot=Number(regen.dataset.slot),stage=currentTask;if(document.body.classList.contains("cb-connected"))window.dispatchEvent(new CustomEvent("planimetry:variant-regenerate",{detail:{stage,slot}}));else{const k=`s${stage}`,letter=slot?"b":"a";seeds[k]||={};seeds[k][letter]=window.planPairNextRevision(stage,slot,seeds);render(stage);}return;}
     const button=event.target.closest?.(".pair-check");if(!button)return;const slot=Number(button.dataset.slot),field=mount.querySelector(`.pair-answer[data-slot="${slot}"]`);if(!field)return;
     const entered=num(field.value),expected=num(variant(currentTask,slot).answer);
     if(!Number.isFinite(entered)){const out=field.closest(".pair-answerbox").querySelector(".pair-check-status");out.textContent="Введите числовой ответ";out.className="pair-check-status failure";return;}
@@ -1253,7 +1270,7 @@ import { getDatabase, ref, get, set, update, remove, push, onValue, onChildAdded
     subscriptions.push(onValue(ref(database,`${lessonRoot()}/checks/${key}`),snapshot=>{const data=snapshot.val();if(!data||Number(data.revision)!==revision){ready=true;return;}if(!data.eventId||seen.get(key)===data.eventId){ready=true;return;}seen.set(key,data.eventId);window.planPairShowCheck?.(key,Boolean(data.correct),data.byName||"Участник",ready&&data.updatedBy!==me.id);ready=true;},()=>setStatus("connecting","Проверка восстановится после подключения")));
   });}
   window.addEventListener("planimetry:variant-rendered",()=>{if(joined&&me){bindCurrentPad();bind();}});
-  window.addEventListener("planimetry:variant-regenerate",event=>{if(!canInteract())return;const {stage,slot}=event.detail||{};if(!Number.isInteger(stage)||stage<0||stage>=56||![0,1].includes(slot)||Number(localState.ui.currentPrototype)!==stage)return;const key=`s${stage}`,letter=slot?"b":"a";transactState(state=>{state.ui.variantSeeds||={};state.ui.variantSeeds[key]||={};state.ui.variantSeeds[key][letter]=(Number(state.ui.variantSeeds[key][letter])||0)+1;}).catch(()=>toast("Не удалось сменить числа"));});
+  window.addEventListener("planimetry:variant-regenerate",event=>{if(!canInteract())return;const {stage,slot}=event.detail||{};if(!Number.isInteger(stage)||stage<0||stage>=56||![0,1].includes(slot)||Number(localState.ui.currentPrototype)!==stage)return;const key=`s${stage}`,letter=slot?"b":"a";transactState(state=>{state.ui.variantSeeds||={};state.ui.variantSeeds[key]||={};state.ui.variantSeeds[key][letter]=window.planPairNextRevision(stage,slot,state.ui.variantSeeds);}).catch(()=>toast("Не удалось сменить числа"));});
   window.addEventListener("planimetry:answer-input",event=>{if(!canInteract())return;const {key,stage,revision,text}=event.detail||{};if(!/^t\d+[ab]$/.test(String(key))||Number(localState.ui.currentPrototype)!==Number(stage))return;clearTimeout(timers.get(key));timers.set(key,setTimeout(()=>{if(!canInteract()||window.planPairGetRevision?.(stage,key.endsWith("a")?0:1)!==revision)return;set(ref(database,`${lessonRoot()}/answers/${key}`),{text:String(text??"").slice(0,60),revision,updatedBy:me.id,updatedAt:serverTimestamp()}).catch(()=>setStatus("connecting","Ответ отправится после подключения"));},90));});
   window.addEventListener("planimetry:answer-check",event=>{if(!canInteract())return;const {key,stage,slot,revision,correct}=event.detail||{};if(!/^t\d+[ab]$/.test(String(key))||Number(localState.ui.currentPrototype)!==Number(stage)||window.planPairGetRevision?.(stage,slot)!==revision)return;const eventId=`${browserClientId}-${randomId(8)}`;seen.set(key,eventId);set(ref(database,`${lessonRoot()}/checks/${key}`),{revision,correct:Boolean(correct),byName:me.name||"Участник",updatedBy:me.id,eventId,updatedAt:serverTimestamp()}).catch(()=>setStatus("connecting","Проверка отправится после подключения"));});
   return {bind,clear};
