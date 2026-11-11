@@ -36,7 +36,8 @@ builder.Services.AddDbContext<PlatformDbContext>(options =>
         postgres => postgres.MigrationsHistoryTable("__EFMigrationsHistory", "public")));
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"])
-    .AddCheck<DatabaseMigrationsHealthCheck>("migrations", tags: ["migrations"]);
+    .AddCheck<DatabaseMigrationsHealthCheck>("migrations", tags: ["migrations"],
+        timeout: TimeSpan.FromSeconds(6));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
