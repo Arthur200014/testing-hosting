@@ -3,15 +3,15 @@
 **Updated:** 2026-11-11
 **REPO:** `Arthur200014/testing-hosting`
 **BRANCH:** `main`
-**ACTIVE_TASK:** `none`
-**ACTIVE_BRANCH:** `none`
+**ACTIVE_TASK:** `P00-01`
+**ACTIVE_BRANCH:** `tas/P00-01`
 **LAST_CHECKPOINT:** `09171df9` (последний CI-код)
-**TASK_CARD:** `none` (CI-карточка завершённого инкремента: `.ai/tasks/tas-P03-04.md`)
-**PLAN_COMMIT:** `8d59d250` (CI)
-**NEXT_STEP:** начать выборочный аудит P00-01 и подготовить `.ai/tasks/tas-P00-01.md` перед реализацией
+**TASK_CARD:** `.ai/tasks/tas-P00-01.md` (план создаётся в task-ветке)
+**PLAN_COMMIT:** `pending` (сначала checkpoint карточки)
+**NEXT_STEP:** сохранить план P00-01 первым checkpoint в `tas/P00-01`, затем провести выборочный кодовый аудит
 **CURRENT_PHASE:** `P00`
 **NEXT_ACTION:** `P00-01`
-**STATUS:** `AUDIT_REQUIRED`
+**STATUS:** `IN_PROGRESS`
 
 ## Последняя завершённая работа: выборочный CI (инкремент P03-04)
 
