@@ -100,6 +100,16 @@ if (args.Contains("--migrate", StringComparer.Ordinal))
     return;
 }
 
+// App Platform Dockerfile deployments may lack a container console.
+// This opt-in path is pinned to the current migration batch and cannot apply future batches.
+await using (var startupScope = app.Services.CreateAsyncScope())
+{
+    await ManagedMigrationStartup.ApplyIfRequestedAsync(
+        app.Configuration,
+        startupScope.ServiceProvider.GetRequiredService<PlatformDbContext>(),
+        app.Logger);
+}
+
 if (args.Contains("--bootstrap-teacher", StringComparer.Ordinal))
 {
     await TeacherBootstrapper.RunAsync(app.Services, app.Configuration);
