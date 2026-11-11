@@ -343,6 +343,10 @@ function init(){
  const bar=$('cbToolbar');
  if(bar&&typeof MutationObserver==='function')new MutationObserver(()=>{start();setTimeout(start,350)}).observe(bar,{attributes:true,attributeFilter:['class']});
  window.addEventListener('stereometry:prototype-change',()=>{if(bridge?.role==='teacher')syncMain(Number(window.getStereoPrototypeIndex?.()||0)+1).catch(()=>{})});
+ document.addEventListener('click',e=>{
+   const summary=e.target.closest?.('details.answer-details > summary');
+   if(summary&&currentRole()==='student'){e.preventDefault();e.stopImmediatePropagation()}
+ },true);
  document.addEventListener('keydown',e=>{if(e.key==='Escape')$('pair17MemberBox').hidden=true});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
