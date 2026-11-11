@@ -1,0 +1,170 @@
+name: TAS task CI
+on:
+  push:
+    branches: ['tas/**']
+    paths:
+      - '.github/workflows/tas-task-ci.yml'
+      - 'scripts/**'
+      - 'shared/interactive/v1/**'
+      - 'platform/**'
+      - 'compose.yaml'
+      - 'web/**'
+      - 'EGA/**'
+      - 'OGA/**'
+      - 'tests/tas/**'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Component to test; auto selects changed paths'
+        type: choice
+        default: auto
+        options: [auto, shared, backend, web, task]
+permissions:
+  contents: read
+concurrency:
+  group: tas-task-ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  scope:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run_shared: ${{ steps.detect.outputs.run_shared }}
+      run_backend: ${{ steps.detect.outputs.run_backend }}
+      run_web: ${{ steps.detect.outputs.run_web }}
+      run_task: ${{ steps.detect.outputs.run_task }}
+      task_id: ${{ steps.detect.outputs.task_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify CI selector (12 test cases)
+        run: node --test scripts/tas-ci-scope.test.mjs
+      - id: detect
+        name: Select task-specific tests
+        shell: bash
+        env:
+          PREVIOUS_SHA: ${{ github.event.before }}
+          TAS_CI_BRANCH: ${{ github.ref_name }}
+          TAS_CI_TARGET: ${{ inputs.target || 'auto' }}
+        run: |
+          set -euo pipefail
+          git fetch origin main --quiet
+          base="${PREVIOUS_SHA:-}"
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch || -z "$base" || "$base" =~ ^0+$ ]] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            base="$(git merge-base origin/main "$GITHUB_SHA")"
+          fi
+          git diff --name-only "$base" "$GITHUB_SHA" > "$RUNNER_TEMP/tas-changed.txt"
+          node scripts/tas-ci-scope.mjs "$RUNNER_TEMP/tas-changed.txt"
+  shared:
+    needs: scope
+    if: needs.scope.outputs.run_shared == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test shared/interactive/v1/*.test.mjs
+  backend:
+    needs: scope
+    if: needs.scope.outputs.run_backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose --env-file .env.example --profile test build tests
+      - run: docker compose --env-file .env.example --profile test run --rm tests
+      - if: always()
+        run: docker compose --env-file .env.example --profile test down -v
+  web:
+    needs: scope
+    if: needs.scope.outputs.run_web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Require real frontend tests and lockfile
+        run: |
+          node --input-type=commonjs - <<'NODE'
+          const fs = require('node:fs');
+          if (!fs.existsSync('web/package.json') || !fs.existsSync('web/package-lock.json')) {
+            throw new Error('Missing web package.json or lockfile');
+          }
+          const s = JSON.parse(fs.readFileSync('web/package.json', 'utf8')).scripts ?? {};
+          if (!s.test || (!s.typecheck && !s.build)) {
+            throw new Error('Frontend must provide test and typecheck/build scripts');
+          }
+          NODE
+      - run: npm --prefix web ci
+      - run: npm --prefix web run lint --if-present
+      - run: npm --prefix web run typecheck --if-present
+      - env:
+          CI: 'true'
+        run: npm --prefix web test
+      - run: npm --prefix web run build --if-present
+  task:
+    needs: scope
+    if: needs.scope.outputs.run_task == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run only the active EGA/OGA task's tests
+        shell: bash
+        env:
+          TASK_ID: ${{ needs.scope.outputs.task_id }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$TASK_ID" =~ ^P[0-9]{2}-[0-9]{2}$ ]]; then
+            echo '::error::Expected branch tas/Pxx-yy'
+            exit 1
+          fi
+          unit="tests/tas/${TASK_ID}.test.mjs"
+          browser="tests/tas/${TASK_ID}.browser.mjs"
+          if [[ ! -f "$unit" && ! -f "$browser" ]]; then
+            echo "::error::Missing $unit or $browser"
+            exit 1
+          fi
+          if [[ -f "$unit" ]]; then node --test "$unit"; fi
+          if [[ -f "$browser" ]]; then
+            npm install --no-save --no-package-lock playwright@1.55.0
+            npx playwright install --with-deps chromium
+            python3 -m http.server 8766 --bind 127.0.0.1 > "$RUNNER_TEMP/tas-http.log" 2>&1 &
+            pid=$!
+            trap 'kill "$pid" || true' EXIT
+            node "$browser" --base=http://127.0.0.1:8766
+          fi
+  gate:
+    needs: [scope, shared, backend, web, task]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Fail if selected checks did not pass
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          results = json.loads(os.environ['RESULTS'])
+          for name, info in results.items():
+              print(name, info['result'])
+          bad = [name for name, info in results.items()
+                 if info['result'] in ('failure', 'cancelled', 'timed_out')]
+          if results.get('scope', {}).get('result') != 'success':
+              bad.append('scope')
+          if bad:
+              print('::error::TAS checks failed: ' + ', '.join(bad))
+              sys.exit(1)
+          PY
