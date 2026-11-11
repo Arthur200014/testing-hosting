@@ -1,12 +1,12 @@
 # TEACHER AI STUDENT — актуальные чеклисты (сначала база и manage)
 
-**Source of truth по порядку:** [TASK_BOARD.md](./TASK_BOARD.md), `NEXT_ACTION=M01-02`. Старые P00–P15 чеклисты сохранены как история в [PHASE_CHECKLISTS_LEGACY.md](./PHASE_CHECKLISTS_LEGACY.md). Они **не задают текущий порядок**.
+**Source of truth по порядку:** [TASK_BOARD.md](./TASK_BOARD.md), `NEXT_ACTION=M01-03`. Старые P00–P15 чеклисты сохранены как история в [PHASE_CHECKLISTS_LEGACY.md](./PHASE_CHECKLISTS_LEGACY.md). Они **не задают текущий порядок**.
 
 **Определение MVP:** преподаватель входит в существующую `EGA/config/manage.html`, работает с учениками/уроками/ДЗ/абонементами через ASP.NET API и PostgreSQL на сервере, видит корректную историю и отчёты; данные разных преподавателей и предметов изолированы. Это не новая админка, AI или механики.
 
 ## M01 — инвентаризация и безопасность модели
 - [x] `M01-01` Сверены 5 вызовов `manage`, 20 исторических вкладок и текущий PG/API; [матрица](../../docs/architecture/manage-postgres-coverage.md). Свежий XLSX и runtime NOT_RUN.
-- [ ] `M01-02` Утвердить subject-neutral model: workspace, teacher, student, subject, course/program, membership и зависимости.
+- [x] `M01-02` Согласована техническая [subject-neutral tenant/teacher/student/course/enrollment модель](../../docs/architecture/tenant-subject-model-v1.md), совместимая с legacy importers; миграции и пилот NOT_RUN.
 - [ ] `M01-03` Составить безопасный teacher auth/RBAC и tenant enforcement contract.
 - [ ] `M01-04` Обновить dry-run source diagnostics, включая исторические проблемные строки `ДЗ_Назначения`.
 **Приёмка G-M01:** подтверждена матрица source→PG→manage, данные не подвергались записи, есть критерии изоляции и исправления source.
