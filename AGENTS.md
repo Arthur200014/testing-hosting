@@ -208,6 +208,51 @@ deterministic checks pass, browser/behavior checks pass when applicable, the dif
 matches scope, and no known unresolved failure remains. Never hide failed
 verification.
 
+## TAS: mandatory task card before implementation
+
+For every planned TEACHER AI STUDENT roadmap task `Pxx-yy`, **prepare and
+push a concrete task card BEFORE modifying implementation files**.
+An entry in `.ai/tas/TASK_BOARD.md` is only the high-level backlog item;
+the detailed executable plan lives at `.ai/tasks/tas-Pxx-yy.md`.
+
+Order is mandatory (do not skip preparation to save context):
+
+1. Read `.ai/tas/HANDOFF.md` on `main`. If `ACTIVE_BRANCH` exists,
+   resume its task card and unfinished checklist, do not select a new task.
+   Otherwise select one unblocked task ID from the board and check its
+   gate dependencies. Never infer from TODO that current code is absent.
+2. Targeted audit: consult `.ai/CONTEXT_MAP.md`, the current phase checklist,
+   any relevant prior `.ai/tasks/` file, and only the source/tests necessary
+   to understand the task and what already exists.
+3. Create or update **one** card at `.ai/tasks/tas-<TASK_ID>.md` using
+   `.ai/tas/TASK_TEMPLATE.md`. Include the verified baseline, allowed paths,
+   exclusions, prerequisites, step-by-step `[ ]` implementation checklist,
+   test commands, observable acceptance criteria, and exact `NEXT_STEP`.
+   Do not invent filenames, commands, completed work, or test results.
+4. **Persist the plan on GitHub first**. For long tasks follow
+   `.ai/tas/CHECKPOINTS.md`: set the pointer in `main`, create or resume
+   `tas/<TASK_ID>`, then commit and push the card + branch HANDOFF as the
+   **first checkpoint, before implementation**. Verify remote HEAD SHA.
+   For a small task, commit the planning card before coding on `main`.
+   Never claim the plan was saved until the remote commit is confirmed.
+5. Only after the planning commit is confirmed, implement checklist items
+   in small increments. At each checkpoint mark checked items only when
+   verified, record changed paths/tests/results and the precise `NEXT_STEP`,
+   and push the branch. Unverified WIP must stay off `main`.
+6. On completion: pass applicable checks and review, mark the remaining
+   checklist complete, update `.ai/tas/TASK_BOARD.md`,
+   `.ai/tas/HANDOFF.md`, and `.ai/tas/TEST_RESULTS.md`, then integrate
+   to `main` safely as defined by `AGENTS.md`. If blocked, mark
+   BLOCKED with reason, keep the pushed branch and a resumable step.
+7. When task scope or criteria change, **edit and checkpoint the plan first**,
+   then implement. Never quietly expand scope or rewrite existing completed
+   modules without evidence.
+
+Do not create duplicate task cards. Older `.ai/tasks/` records are
+implementation history; prefer updating an existing matching TAS task card
+over a second copy. Keep the card compact and readable in Russian, linking
+to exact paths rather than copying source code or entire conversations.
+
 ## Long-task checkpoints and recovery (TAS)
 
 For a TAS task likely to take more than 5 minutes, or any task that might be
