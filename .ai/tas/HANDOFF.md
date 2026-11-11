@@ -5,7 +5,8 @@
 **ACTIVE_TASK:** none
 **ACTIVE_BRANCH:** none
 **CURRENT_PHASE:** M01 (Sheets → PostgreSQL, universal domain)
-**LAST_COMPLETED_TASK:** roadmap reprioritization (docs only)
+**LAST_COMPLETED_TASK:** migration-first roadmap and checklists reorganized (docs only)
+**LAST_TASK_COMMIT:** `08e058c7f1c579df50abf43ec0052ed3834dd0d8`
 **NEXT_ACTION:** M01-01
 **STATUS:** READY_TO_START
 
