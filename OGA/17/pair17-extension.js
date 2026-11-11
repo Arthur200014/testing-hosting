@@ -58,6 +58,7 @@ function updateSidebar(){
 function mount(){
  const host=$('prototypeMount');if(!host)return;
  if(mounted&&mounted.isConnected)return;
+ const existing=document.getElementById('pair17Work');if(existing&&host.contains(existing)){mounted=existing;return}
  const source=host.querySelector('.prototype-main');
  if(source){
    const original=document.createElement('details');original.className='pair17-original';
@@ -231,7 +232,7 @@ async function changeStation(proto,mode,mixIndex,order){
   s.mode=mode;s.proto=proto;s.mixIndex=mixIndex;s.order=order||s.order;s.slots=created;
   s.inputs={};s.pads={};s.checks={};s.reveals={a:0,b:0};s.boardEpoch=(s.boardEpoch||0)+1;
  });
- if(done){await clearBoard();mounted=null;render();document.getElementById('trainer')?.scrollIntoView({block:'start',behavior:'smooth'})}
+ if(done){await clearBoard();render();document.getElementById('trainer')?.scrollIntoView({block:'start',behavior:'smooth'})}
 }
 async function syncMain(proto){
  if(!pair||pair.mode!=='main'||!canTeach())return;
@@ -278,7 +279,7 @@ async function connectFirebase(){
    if(!metaId)return;
    connected=true;
    unsubs.push(fb.onValue(fb.ref(db,root+'/meta/sessionId'),snap=>{
-     const id=snap.val()||'';if(id&&id!==metaId){connected=false;pair=null;metaId=id;unsubs.forEach(u=>u?.());unsubs=[];initPending=false;start(); }
+     const id=snap.val()||'';if(id&&id!==metaId){const wasStudent=currentRole()==='student';connected=false;pair=null;metaId=id;unsubs.forEach(u=>u?.());unsubs=[];initPending=false;if(wasStudent){bridge?.leave?.().catch(console.warn);return}start();}
    }));
    unsubs.push(fb.onValue(fb.ref(db,root+'/pair17'),snap=>{
      const p=snap.val();
@@ -340,7 +341,7 @@ function init(){
  ensureCss();start();
  // Existing guide uses Firebase only after choosing a role. Detect that transition without polling the network.
  const bar=$('cbToolbar');
- if(bar&&typeof MutationObserver==='function')new MutationObserver(()=>start()).observe(bar,{attributes:true,attributeFilter:['class']});
+ if(bar&&typeof MutationObserver==='function')new MutationObserver(()=>{start();setTimeout(start,350)}).observe(bar,{attributes:true,attributeFilter:['class']});
  window.addEventListener('stereometry:prototype-change',()=>{if(bridge?.role==='teacher')syncMain(Number(window.getStereoPrototypeIndex?.()||0)+1).catch(()=>{})});
  document.addEventListener('keydown',e=>{if(e.key==='Escape')$('pair17MemberBox').hidden=true});
 }
