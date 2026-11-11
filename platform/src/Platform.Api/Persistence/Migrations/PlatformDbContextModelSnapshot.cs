@@ -676,6 +676,8 @@ namespace TestingHosting.Platform.Persistence.Migrations
 
                     b.HasKey("Id");
                     b.HasIndex("WorkspaceId", "MembershipId").IsUnique();
+                    b.HasIndex("WorkspaceId", "MembershipId", "StudentId", "ProgramId")
+                        .HasDatabaseName("IX_SubscriptionSnapshots_MembershipIdentity");
                     b.ToTable("SubscriptionSnapshots", "platform", t => { t.HasCheckConstraint("CK_SubscriptionSnapshots_Package", "\"PackageSize\" BETWEEN 1 AND 1000"); t.HasCheckConstraint("CK_SubscriptionSnapshots_PriceCount", "(\"LessonPrice\" IS NULL OR \"LessonPrice\" >= 0) AND (\"BaseLessonCount\" IS NULL OR \"BaseLessonCount\" >= 0)"); });
                 });
 
