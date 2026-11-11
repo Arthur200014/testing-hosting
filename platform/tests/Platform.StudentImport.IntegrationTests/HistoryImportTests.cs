@@ -56,7 +56,8 @@ public sealed class HistoryImportTests
                 {
                     Id = Guid.NewGuid(), Workspace = workspace, Program = program, Student = student,
                     CodeHash = Enumerable.Repeat((byte)i, 32).ToArray(),
-                    ImportSource = StudentImportService.ImportSource, ImportExternalId = "syn-" + i
+                    ImportSource = StudentImportService.ImportSource,
+                    ImportExternalId = StudentWorkbookParser.NormalizeExternalId("syn-" + i)
                 });
             }
             await db.SaveChangesAsync();
