@@ -5,10 +5,10 @@
 **BRANCH:** `tas/P00-01`
 **ACTIVE_TASK:** `P00-01`
 **ACTIVE_BRANCH:** `tas/P00-01`
-**LAST_CHECKPOINT:** `HEAD` (план)
-**TASK_CARD:** `.ai/tasks/tas-P00-01.md` (план создаётся в task-ветке)
-**PLAN_COMMIT:** `HEAD` (task-ветка, первоначальный план; SHA из commit)
-**NEXT_STEP:** выполнить целевой аудит исходников/test evidence и заполнить матрицу в `.ai/tasks/tas-P00-01.md`
+**LAST_CHECKPOINT:** `HEAD` (WIP: матрица аудита)
+**TASK_CARD:** `.ai/tasks/tas-P00-01.md` (аудит и матрица сохранены)
+**PLAN_COMMIT:** `66da87d28f1ba52e8721c3555efe3b295ff1457e`
+**NEXT_STEP:** провести документальную проверку A6 (согласованность карточки/board/HANDOFF/TEST_RESULTS), проверить diff и закрыть P00-01 если PASS
 **CURRENT_PHASE:** `P00`
 **NEXT_ACTION:** `P00-01`
 **STATUS:** `IN_PROGRESS`
