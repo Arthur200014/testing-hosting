@@ -213,7 +213,13 @@
     }
   },true);
   let seenPull=0;
-  const origSubscribe=subscribeAll;subscribeAll=function(){origSubscribe();unsubs.push(FB.onValue(FB.ref(db,rootPath()+'/messages/pull'),snap=>{const v=snap.val();if(role==='student'&&v&&v.at!==seenPull&&Date.now()-v.at<2500){seenPull=v.at;window.scrollTo({top:v.top,behavior:'smooth'})}}));unsubs.push(FB.onValue(FB.ref(db,rootPath()+'/members'),snap=>{activeMembers=snap.val()||{};renderOwnership();autoAssignPair()}))};
+  let metaAt=null;
+  const origSubscribe=subscribeAll;subscribeAll=function(){
+    metaAt=null;origSubscribe();
+    unsubs.push(FB.onValue(FB.ref(db,rootPath()+'/messages/pull'),snap=>{const v=snap.val();if(role==='student'&&v&&v.at!==seenPull&&Date.now()-v.at<2500){seenPull=v.at;window.scrollTo({top:v.top,behavior:'smooth'})}}));
+    unsubs.push(FB.onValue(FB.ref(db,rootPath()+'/members'),snap=>{activeMembers=snap.val()||{};renderOwnership();autoAssignPair()}));
+    unsubs.push(FB.onValue(FB.ref(db,rootPath()+'/meta/createdAt'),snap=>{const newAt=snap.val();if(!newAt)return;if(metaAt===null){metaAt=newAt;return}if(metaAt!==newAt){metaAt=newAt;if(role==='student')disconnect().catch(console.warn)}}));
+  };
   const mix=document.createElement('section');mix.className='mix18-box';mix.id='mix18';mix.innerHTML='<h2>Микс · 12 станций</h2><p>Каждый вид задания встречается один раз, порядок случайный. На станции два разных варианта для учеников.</p><div class="mix18-buttons"><button id="mix18Start">Начать микс</button><button id="mix18Next">Следующая станция →</button><button id="mix18End">Завершить микс</button></div><div class="mix18-status" id="mix18Status">Готово к повторению</div><div id="mix18Host"></div>';
   (document.querySelector('main')||document.body).appendChild(mix);
   const kinds=[...new Map(cards.map(c=>[initialGeneratedState()[c.dataset.genId]?.kind,c.dataset.genId])).values()];
