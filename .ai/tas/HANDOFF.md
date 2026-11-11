@@ -2,13 +2,13 @@
 
 **Updated:** 2026-11-11
 **REPO:** `Arthur200014/testing-hosting`
-**BRANCH:** `main`
+**BRANCH:** `tas/P00-01`
 **ACTIVE_TASK:** `P00-01`
 **ACTIVE_BRANCH:** `tas/P00-01`
-**LAST_CHECKPOINT:** `09171df9` (последний CI-код)
+**LAST_CHECKPOINT:** `HEAD` (план)
 **TASK_CARD:** `.ai/tasks/tas-P00-01.md` (план создаётся в task-ветке)
-**PLAN_COMMIT:** `pending` (сначала checkpoint карточки)
-**NEXT_STEP:** сохранить план P00-01 первым checkpoint в `tas/P00-01`, затем провести выборочный кодовый аудит
+**PLAN_COMMIT:** `HEAD` (task-ветка, первоначальный план; SHA из commit)
+**NEXT_STEP:** выполнить целевой аудит исходников/test evidence и заполнить матрицу в `.ai/tasks/tas-P00-01.md`
 **CURRENT_PHASE:** `P00`
 **NEXT_ACTION:** `P00-01`
 **STATUS:** `IN_PROGRESS`
