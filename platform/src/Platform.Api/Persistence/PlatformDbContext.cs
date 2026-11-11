@@ -274,6 +274,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(x => x.Id);
             entity.Property(x => x.LessonPrice).HasPrecision(12, 2);
             entity.HasIndex(x => new { x.WorkspaceId, x.MembershipId }).IsUnique();
+            entity.HasIndex(x => new { x.WorkspaceId, x.MembershipId, x.StudentId, x.ProgramId })
+                .HasDatabaseName("IX_SubscriptionSnapshots_MembershipIdentity");
             entity.HasOne(x => x.Membership).WithMany()
                 .HasForeignKey(x => new { x.WorkspaceId, x.MembershipId, x.StudentId, x.ProgramId })
                 .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.StudentId, x.ProgramId })
