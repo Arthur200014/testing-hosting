@@ -10,21 +10,22 @@ public sealed record TeacherStudentView(
 
 public sealed class TeacherStudentDirectory(PlatformDbContext db)
 {
-    private IQueryable<TeacherStudentView> InWorkspace(Guid workspaceId) =>
+    private IQueryable<WorkspaceStudentMembership> InWorkspace(Guid workspaceId) =>
         db.WorkspaceStudentMemberships.AsNoTracking()
-            .Where(x => x.WorkspaceId == workspaceId && x.IsActive && x.Student.IsActive && x.Program.IsActive)
-            .Select(x => new TeacherStudentView(
-                x.Id, x.StudentId, x.Student.DisplayName,
-                x.ProgramId, x.Program.Code, x.Program.DisplayName,
-                x.ImportExternalId));
+            .Where(x => x.WorkspaceId == workspaceId && x.IsActive && x.Student.IsActive && x.Program.IsActive);
+
+    private static IQueryable<TeacherStudentView> Project(IQueryable<WorkspaceStudentMembership> memberships) =>
+        memberships.Select(x => new TeacherStudentView(
+            x.Id, x.StudentId, x.Student.DisplayName,
+            x.ProgramId, x.Program.Code, x.Program.DisplayName,
+            x.ImportExternalId));
 
     public Task<List<TeacherStudentView>> ListAsync(Guid workspaceId, CancellationToken cancellationToken) =>
-        InWorkspace(workspaceId)
-            .OrderBy(x => x.StudentName).ThenBy(x => x.MembershipId)
+        Project(InWorkspace(workspaceId).OrderBy(x => x.Student.DisplayName).ThenBy(x => x.Id))
             .ToListAsync(cancellationToken);
 
     public Task<TeacherStudentView?> GetAsync(
         Guid workspaceId, Guid membershipId, CancellationToken cancellationToken) =>
-        InWorkspace(workspaceId)
-            .SingleOrDefaultAsync(x => x.MembershipId == membershipId, cancellationToken);
+        Project(InWorkspace(workspaceId).Where(x => x.Id == membershipId))
+            .SingleOrDefaultAsync(cancellationToken);
 }
