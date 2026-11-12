@@ -2,11 +2,11 @@
 
 **REPO:** `Arthur200014/testing-hosting`
 **STATE_UPDATED:** 2026-11-12
-**CURRENT_PHASE:** M04 (protected teacher API reads; M02 isolated restore deferred by owner)
-**ACTIVE_TASK:** M04-02 teacher reads
-**ACTIVE_BRANCH:** none (PR #17 merged)
-**LAST_PROGRESS_COMMIT:** `fec9f5e17408d2721753cc622928dfc48a7a34fd` ([PR #18](https://github.com/Arthur200014/testing-hosting/pull/18))
-**NEXT_ACTION:** M04-02 finish response shape/reports and live attempts; M04-03 protected idempotent teacher writes; M04-04 opt-in manage adapter
+**CURRENT_PHASE:** M04 (protected teacher API writes; M02 isolated restore deferred by owner)
+**ACTIVE_TASK:** M04-03 teacher writes
+**ACTIVE_BRANCH:** none (PR #20 merged)
+**LAST_PROGRESS_COMMIT:** `8f04a728103484fad8188ca483f2c90415bc04c8` ([PR #20](https://github.com/Arthur200014/testing-hosting/pull/20))
+**NEXT_ACTION:** M04-03 idempotent homework assignment and student creation, then atomic lesson+homework flow; M04-02 manage aggregate/report parity before M04-04 adapter
 **STATUS:** M03-01/M03-02 and mock-history import owner-confirmed (not independently SQL-queried); test-history 233 rows read-only replay verified from owner Timeweb console output; questionnaires excluded by owner; M02-03 restore NOT_VERIFIED
 
 ## What is verified
@@ -36,7 +36,10 @@
 
 - 2026-11-12: [PR #18](https://github.com/Arthur200014/testing-hosting/pull/18) merged: teacher workspace-scoped reads for homework catalog/assignments/submissions, historical tests and mock summaries/tasks. Optional membership filter returns empty for foreign IDs. Synthetic PostgreSQL integration and backend gate PASS. Live test attempts, mock sessions, manage aggregate response/reports and teacher writes remain pending. No Timeweb write or GAS change.
 
+- 2026-11-12: [PR #19](https://github.com/Arthur200014/testing-hosting/pull/19) merged: protected teacher lesson POST creates one lesson with per-student attendance atomically; request GUID replay returns 200 or conflicting 409, concurrent duplicates tested. Synthetic PostgreSQL integration and backend gate PASS. No live data writes.
+- 2026-11-12: [PR #20](https://github.com/Arthur200014/testing-hosting/pull/20) merged: protected subscription create/edit by membership, idempotent equal-state replay and ExpectedUpdatedAt compare-and-swap. Null price/reset/base count retained; foreign member 404, stale 409. Synthetic PostgreSQL integration and backend gate PASS. No migration or live data writes.
+
 ## Next concrete action
-1. M04-02: complete manage-compatible aggregate/report read including live TestAttempts and mock sessions where needed; verify shape against the current `getTeacherFormData` consumer with synthetic cross-workspace data.
-2. M04-03: implement protected idempotent writes for student, lesson/attendance and homework, subscription edits, with tenant isolation and atomic related operations; focused PostgreSQL tests.
-3. M04-04: add an opt-in adapter to `EGA/config/manage.html` after read/write parity. Legacy GAS stays default; real cutover requires separate owner authorization. Do not repeat one-off imports or migrate questionnaires. M02-03 real restore remains deferred by owner.
+1. M04-03: add tenant-scoped idempotent homework assignment and student create/archive; implement combined lesson+homework transaction for `manage` rather than separate partial writes. Synthetic negative and concurrency tests.
+2. M04-02: reconcile manage aggregate/report response including live TestAttempts and mock sessions, preserving unknown/null values. Then M04-04: staging opt-in adapter in `EGA/config/manage.html`, legacy GAS default until explicit cutover.
+3. Owner deferred real isolated backup restore. Do not repeat one-off imports, migrate questionnaires or require routine Timeweb commands for code changes.
