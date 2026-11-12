@@ -66,7 +66,9 @@ public sealed class TeacherStudentCreator(
         catch (DbUpdateException exception) when (
             exception.InnerException is PostgresException postgres &&
             postgres.SqlState == PostgresErrorCodes.UniqueViolation &&
-            postgres.ConstraintName == "IX_WorkspaceStudentMemberships_WorkspaceId_ImportSource_Import~")
+            postgres.ConstraintName is
+                "IX_WorkspaceStudentMemberships_WorkspaceId_ImportSource_Import~" or
+                "IX_WorkspaceStudentMemberships_WorkspaceId_CodeHash")
         {
             db.ChangeTracker.Clear();
             var winner = await FindAsync(workspaceId, externalId, cancellationToken);
