@@ -32,7 +32,8 @@ builder.Services.AddScoped<TeacherLessonService>();
 builder.Services.AddScoped<TeacherSubscriptionService>();
 builder.Services.AddScoped<TeacherHomeworkReader>();
 builder.Services.AddScoped<TeacherHomeworkAssignmentService>();
-builder.Services.AddSingleton(new TeacherInviteCodeIssuer(StartupConfiguration.GetPepper(builder.Configuration)));
+builder.Services.AddSingleton(serviceProvider => new TeacherInviteCodeIssuer(
+    StartupConfiguration.GetPepper(serviceProvider.GetRequiredService<IConfiguration>())));
 builder.Services.AddScoped<TeacherStudentCreator>();
 builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddSingleton<IPasswordHasher<TeacherUser>, PasswordHasher<TeacherUser>>();
