@@ -24,6 +24,53 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     private const string Password = "Synthetic-Teacher-Password-Only-123!";
 
     [Fact]
+    public async Task ArchivingStudentRevokesCodeButKeepsLessonHistoryAndOtherWorkspace()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "archive-north", "north@example.invalid", "owner");
+        var south = await SeedAsync(factory, "archive-south", "south@example.invalid", "teacher");
+        var program = await SeedProgramAsync(factory, north.WorkspaceId);
+        var foreign = await SeedStudentAsync(factory, south.WorkspaceId, "Other", true);
+        using var client = factory.CreateClient();
+        var session = await (await LoginAsync(client, "archive-north", "north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>();
+        Assert.NotNull(session);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+        var create = await client.PostAsJsonAsync("/api/v1/teacher/students",
+            new TeacherCreateStudentRequest(Guid.NewGuid(), program, "Synthetic"));
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        var student = await create.Content.ReadFromJsonAsync<TeacherCreateStudentResponse>();
+        Assert.NotNull(student);
+        await SeedHistoryAsync(factory, north.WorkspaceId, [student.MembershipId]);
+
+        var path = $"/api/v1/teacher/students/{student.MembershipId}/archive";
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsync($"/api/v1/teacher/students/{foreign}/archive", null)).StatusCode);
+        var archived = await client.PostAsync(path, null);
+        Assert.Equal(HttpStatusCode.OK, archived.StatusCode);
+        Assert.False((await archived.Content.ReadFromJsonAsync<TeacherArchiveStudentResponse>())!.IsActive);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync(path, null)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/v1/teacher/students/{student.MembershipId}")).StatusCode);
+        Assert.Empty((await client.GetFromJsonAsync<List<TeacherStudentView>>(
+            "/api/v1/teacher/students"))!);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.PostAsJsonAsync("/api/v1/student-sessions",
+                new { workspace = "archive-north", code = student.InviteCode })).StatusCode);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            Assert.Single(await db.Lessons.AsNoTracking().ToListAsync());
+            Assert.Single(await db.LessonParticipants.AsNoTracking().ToListAsync());
+            Assert.True((await db.WorkspaceStudentMemberships.AsNoTracking()
+                .SingleAsync(x => x.Id == foreign)).IsActive);
+        }
+        await client.PostAsync("/api/v1/teacher-sessions/logout", null);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsync(path, null)).StatusCode);
+    }
+
+    [Fact]
     public async Task LessonAndHomeworkCommitTogetherOrRollBackAndReplayAsOneOperation()
     {
         await ResetAsync(factory);
