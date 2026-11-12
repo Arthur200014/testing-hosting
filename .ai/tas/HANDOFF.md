@@ -3,10 +3,10 @@
 **REPO:** `Arthur200014/testing-hosting`
 **STATE_UPDATED:** 2026-11-12
 **CURRENT_PHASE:** M04 (separate teacher platform UI; M02 isolated restore deferred by owner)
-**ACTIVE_TASK:** M04-05 live cabinet verification; synthetic API flow complete
-**ACTIVE_BRANCH:** none
+**ACTIVE_TASK:** M04 teacher cabinet request loading optimization
+**ACTIVE_BRANCH:** `tas/M04-lazy-teacher-data`
 **LAST_PROGRESS_COMMIT:** `e34b29bc690efb528158254aad27cfdb5f8fbada` ([PR #31](https://github.com/Arthur200014/testing-hosting/pull/31))
-**NEXT_ACTION:** Verify one existing student's report in the signed-in teacher cabinet against source dates/counts; then exercise one intentionally chosen catalog assignment and network retry in the separate UI. Synthetic cross-tenant API flow passed. No repeat import, and keep `EGA/config/manage.html` and GAS unchanged.
+**NEXT_ACTION:** Release route-based, cached teacher reads so login does not await test/mock history; verify responsive overview and lazy tab loading. Then compare one existing student's report through owner sign-in. No repeat import, and keep `EGA/config/manage.html` and GAS unchanged.
 **STATUS:** M03-01/M03-02 and mock-history import owner-confirmed (not independently SQL-queried); test-history 233 rows read-only replay verified from owner Timeweb console output; questionnaires excluded by owner; M02-03 restore NOT_VERIFIED
 
 ## What is verified
