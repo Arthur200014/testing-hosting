@@ -154,7 +154,7 @@
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
-      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, pending: {}, inviteCode: '' };
+      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, pending: {}, inviteCode: '', resultStudent: '' };
       const $ = id => document.getElementById(id);
       const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const date = value => value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
@@ -171,7 +171,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
-        state.token = ''; state.expiresAt = ''; state.data = {}; state.pending = {}; state.inviteCode = '';
+        state.token = ''; state.expiresAt = ''; state.data = {}; state.pending = {}; state.inviteCode = ''; state.resultStudent = '';
         $('app').hidden = true; $('loginScreen').hidden = false;
         $('loginError').textContent = message; $('loginError').hidden = !message;
       }
@@ -201,12 +201,13 @@
         $('refresh').disabled = true;
         showNotice('Загружаем данные…');
         try {
-          const keys = ['programs', 'students', 'lessons', 'homework/catalog', 'homework/assignments', 'subscriptions', 'tests/history', 'mocks/results'];
-          const values = await Promise.all(keys.map(path => api('teacher/' + path)));
-          state.data = Object.fromEntries(keys.map((key, i) => [key, values[i]]));
-          state.data.programs = values[0]; state.data.students = values[1]; state.data.lessons = values[2];
-          state.data.catalog = values[3]; state.data.assignments = values[4]; state.data.subscriptions = values[5];
-          state.data.tests = values[6]; state.data.mocks = values[7];
+          const paths = { programs: 'programs', students: 'students', lessons: 'lessons',
+            catalog: 'homework/catalog', assignments: 'homework/assignments', submissions: 'homework/submissions',
+            subscriptions: 'subscriptions', tests: 'tests/history', liveTests: 'tests/attempts',
+            mocks: 'mocks/results', mockSessions: 'mocks/sessions' };
+          const entries = Object.entries(paths);
+          const values = await Promise.all(entries.map(([, path]) => api('teacher/' + path)));
+          state.data = Object.fromEntries(entries.map(([key], i) => [key, values[i]]));
           render();
           showNotice(state.inviteCode ? 'Ученик создан. Код доступа: ' + state.inviteCode + ' — скопируйте его сейчас.' : 'Данные обновлены · ' + date(new Date()));
         } catch (error) { showNotice(error.message, true); }
@@ -287,7 +288,8 @@
           <div><span class="muted small">Ученики</span><div id="homeworkStudents" class="check-list" style="margin-top:7px">${studentChoices().map(x => `<label><input type="checkbox" name="membershipId" value="${safe(x.membershipId)}" data-program="${safe(x.programId)}">${safe(x.studentName)} · ${safe(x.programName)}</label>`).join('') || 'Добавьте ученика.'}</div></div>
           <div class="form-row"><label><span>Назначено</span><input name="assignedAt" type="datetime-local" value="${nowLocal()}" required></label><label><span>Срок</span><select name="deadlineHours"><option value="24">24 часа</option><option value="48">48 часов</option><option value="72">72 часа</option></select></label></div>
           <button class="primary" type="submit" ${d.catalog?.length && d.students?.length ? '' : 'disabled'}>Назначить</button></form></div>
-          <div class="card stack"><div class="section-head"><h2>Недавние назначения</h2><span class="muted small">${d.assignments?.length || 0}</span></div>${list((d.assignments || []).slice(0, 80), 'Назначений пока нет.', x => `<div class="item"><div><strong>${safe(x.name)}</strong><small>${safe(studentName(x.membershipId))} · до ${safe(date(x.deadlineAt))}</small></div><span class="pill ${x.submittedAt ? '' : 'warn'}">${x.submittedAt ? 'Сдано' : 'Ожидается'}</span></div>`)}</div></div>`;
+          <div class="card stack"><div class="section-head"><h2>Недавние назначения</h2><span class="muted small">${d.assignments?.length || 0}</span></div>${list((d.assignments || []).slice(0, 80), 'Назначений пока нет.', x => `<div class="item"><div><strong>${safe(x.name)}</strong><small>${safe(studentName(x.membershipId))} · до ${safe(date(x.deadlineAt))}</small></div><span class="pill ${x.submittedAt ? '' : 'warn'}">${x.submittedAt ? 'Сдано' : 'Ожидается'}</span></div>`)}</div></div>
+          <div class="card stack" style="grid-column:1 / -1"><div class="section-head"><h2>Сдачи домашних работ</h2><span class="muted small">${d.submissions?.length || 0}</span></div>${list((d.submissions || []).slice(0, 80), 'Сдач пока нет.', x => `<div class="item"><div><strong>${safe(studentName(x.membershipId))}</strong><small>${safe(date(x.completedAt))}${x.isLate ? ' · после срока' : ''}</small></div><span class="pill">${safe(x.scorePercent)}%</span></div>`)}</div></div>`;
       }
       function subscriptions() {
         const d = state.data;
@@ -304,8 +306,15 @@
       }
       function results() {
         const d = state.data;
-        return `<div class="grid two"><div class="card stack"><div class="section-head"><h2>Исторические тесты</h2><span class="muted small">${d.tests?.length || 0}</span></div>${list((d.tests || []).slice(0, 80), 'Результатов пока нет.', x => `<div class="item"><div><strong>${safe(studentName(x.membershipId))} · ${safe(x.topicName)}</strong><small>${safe(x.testDate)} · задание ${safe(x.taskNumber)}</small></div><span class="pill">${safe(x.scorePercent)}%</span></div>`)}</div>
-          <div class="card stack"><div class="section-head"><h2>Пробники</h2><span class="muted small">${d.mocks?.length || 0}</span></div>${list((d.mocks || []).slice(0, 80), 'Пробников пока нет.', x => `<div class="item"><div><strong>${safe(studentName(x.membershipId))} · ${safe(x.variantName)}</strong><small>${safe(x.mockDate)} · первичные ${safe(x.primaryScore)}/${safe(x.maxPrimaryScore)}</small></div><span class="pill">${safe(x.scorePercent)}%</span></div>`)}</div></div>`;
+        const forStudent = rows => (rows || []).filter(x => !state.resultStudent || x.membershipId === state.resultStudent);
+        const liveTests = forStudent(d.liveTests), historicalTests = forStudent(d.tests);
+        const mocks = forStudent(d.mocks), sessions = forStudent(d.mockSessions);
+        const studentOptions = (d.students || []).map(x => `<option value="${safe(x.membershipId)}" ${state.resultStudent === x.membershipId ? 'selected' : ''}>${safe(x.studentName)} · ${safe(x.programName)}</option>`).join('');
+        return `<label style="max-width:390px;margin-bottom:18px"><span>Ученик</span><select id="resultStudent"><option value="">Все ученики</option>${studentOptions}</select></label>
+          <div class="grid two"><div class="card stack"><div class="section-head"><h2>Тесты на платформе</h2><span class="muted small">${liveTests.length}</span></div>${list(liveTests.slice(0, 80), 'Новых попыток пока нет.', x => `<div class="item"><div><strong>${safe(studentName(x.membershipId))} · ${safe(x.topic)}</strong><small>${safe(date(x.completedAt))} · задание ${safe(x.taskNumber)} · ${safe(x.correct)}/${safe(x.total)}</small></div><span class="pill">${safe(x.percent)}%</span></div>`)}</div>
+          <div class="card stack"><div class="section-head"><h2>Тесты из истории</h2><span class="muted small">${historicalTests.length}</span></div>${list(historicalTests.slice(0, 80), 'Исторических тестов нет.', x => `<div class="item"><div><strong>${safe(studentName(x.membershipId))} · ${safe(x.topicName)}</strong><small>${safe(x.testDate)} · задание ${safe(x.taskNumber)}</small></div><span class="pill">${safe(x.scorePercent)}%</span></div>`)}</div>
+          <div class="card stack"><div class="section-head"><h2>Результаты пробников</h2><span class="muted small">${mocks.length}</span></div>${list(mocks.slice(0, 80), 'Результатов пробников нет.', x => `<div class="item"><div><strong>${safe(studentName(x.membershipId))} · ${safe(x.variantName)}</strong><small>${safe(x.mockDate)} · первичные ${safe(x.primaryScore)}/${safe(x.maxPrimaryScore)}</small></div><span class="pill">${safe(x.scorePercent)}%</span></div>`)}</div>
+          <div class="card stack"><div class="section-head"><h2>Сессии пробников из истории</h2><span class="muted small">${sessions.length}</span></div>${list(sessions.slice(0, 80), 'Сессий пробников нет.', x => `<div class="item"><div><strong>${safe(studentName(x.membershipId))} · ${safe(x.mockId)}</strong><small>${safe(date(x.startedAt))} · ${safe(x.status)}${x.submittedAt ? ' · сдан ' + safe(date(x.submittedAt)) : ''}</small></div><span class="pill ${x.scorePercent == null ? 'warn' : ''}">${x.scorePercent == null ? 'Без оценки' : safe(x.scorePercent) + '%'}</span></div>`)}</div></div>`;
       }
       function render() {
         $('content').innerHTML = ({ overview, students, lessons, homework, subscriptions, results })[state.view]();
@@ -394,6 +403,7 @@
         if (event.target.id === 'studentSearch') studentRows(event.target.value.trim());
       });
       $('content').addEventListener('change', event => {
+        if (event.target.id === 'resultStudent') { state.resultStudent = event.target.value; render(); }
         if (event.target.matches('#subscriptionForm select[name="membershipId"]')) {
           const form = event.target.form;
           const sub = (state.data.subscriptions || []).find(x => x.membershipId === event.target.value);

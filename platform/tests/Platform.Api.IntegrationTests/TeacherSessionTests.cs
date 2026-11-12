@@ -670,7 +670,18 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Equal(own, task.MembershipId);
         Assert.Null(task.EarnedPoints);
 
-        foreach (var path in new[] { "tests/history", "mocks/results", "mocks/tasks" })
+        var attempt = Assert.Single((await client.GetFromJsonAsync<List<TeacherLiveTestAttemptView>>(
+            "/api/v1/teacher/tests/attempts"))!);
+        Assert.Equal(own, attempt.MembershipId);
+        Assert.Equal(80, attempt.Percent);
+        var mockSessionResponse = await client.GetAsync("/api/v1/teacher/mocks/sessions");
+        var mockSessionJson = await mockSessionResponse.Content.ReadAsStringAsync();
+        var mockSession = Assert.Single((await mockSessionResponse.Content.ReadFromJsonAsync<List<TeacherMockSessionView>>())!);
+        Assert.Equal(own, mockSession.MembershipId);
+        Assert.Null(mockSession.ScorePercent);
+        Assert.DoesNotContain("answersJson", mockSessionJson, StringComparison.OrdinalIgnoreCase);
+
+        foreach (var path in new[] { "tests/history", "tests/attempts", "mocks/results", "mocks/tasks", "mocks/sessions" })
         {
             var response = await client.GetAsync($"/api/v1/teacher/{path}?membershipId={foreign}");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -1067,6 +1078,25 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
             EventId = "synthetic-mock", MockId = "mock-1", MockDate = date,
             TaskNumber = 6, TopicId = "topic", TopicName = "Topic",
             IsCorrect = false, Answered = true, ServerSubmittedAt = now, SchemaVersion = "2"
+        });
+        var completedAt = new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero);
+        db.TestAttempts.Add(new TestAttempt
+        {
+            Id = Guid.NewGuid(), WorkspaceId = workspaceId, MembershipId = member.Id,
+            StudentId = member.StudentId, ProgramId = member.ProgramId,
+            EventId = "synthetic-live-test", TestId = "test-live", Topic = "Live topic",
+            TaskNumber = 6, Correct = 4, Total = 5, Percent = 80,
+            StartedAt = completedAt.AddMinutes(-2), CompletedAt = completedAt,
+            DurationSeconds = 120, SchemaVersion = "1.0", MoscowMonthKey = "2026-11", CreatedAt = now
+        });
+        db.HistoricalMockSessions.Add(new HistoricalMockSession
+        {
+            Id = Guid.NewGuid(), WorkspaceId = workspaceId, MembershipId = member.Id,
+            StudentId = member.StudentId, ProgramId = member.ProgramId,
+            SessionId = "synthetic-session", MockId = "mock-1", StartedAt = completedAt,
+            DeadlineAt = completedAt.AddHours(1), Status = "submitted",
+            SubmittedAt = completedAt.AddMinutes(30), AnswersJson = "{}", MockConfigJson = "{}",
+            SchemaVersion = "2"
         });
         await db.SaveChangesAsync();
     }

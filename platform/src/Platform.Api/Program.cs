@@ -355,6 +355,13 @@ app.MapGet("/api/v1/teacher/tests/history", async (
         Guid.Parse(principal.FindFirstValue("workspace_id")!), membershipId, cancellationToken)))
     .RequireAuthorization("teacher");
 
+app.MapGet("/api/v1/teacher/tests/attempts", async (
+    Guid? membershipId, ClaimsPrincipal principal, TeacherResultsReader results,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await results.LiveTestsAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), membershipId, cancellationToken)))
+    .RequireAuthorization("teacher");
+
 app.MapGet("/api/v1/teacher/mocks/results", async (
     Guid? membershipId, ClaimsPrincipal principal, TeacherResultsReader results,
     CancellationToken cancellationToken) =>
@@ -366,6 +373,13 @@ app.MapGet("/api/v1/teacher/mocks/tasks", async (
     Guid? membershipId, ClaimsPrincipal principal, TeacherResultsReader results,
     CancellationToken cancellationToken) =>
     Results.Ok(await results.MockTasksAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), membershipId, cancellationToken)))
+    .RequireAuthorization("teacher");
+
+app.MapGet("/api/v1/teacher/mocks/sessions", async (
+    Guid? membershipId, ClaimsPrincipal principal, TeacherResultsReader results,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await results.MockSessionsAsync(
         Guid.Parse(principal.FindFirstValue("workspace_id")!), membershipId, cancellationToken)))
     .RequireAuthorization("teacher");
 
