@@ -161,7 +161,9 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         var foreignProgram = await SeedProgramAsync(factory, south.WorkspaceId);
         using var client = factory.CreateClient();
         const string path = "/api/v1/teacher/students";
-        var request = new TeacherCreateStudentRequest(Guid.NewGuid(), program, " Synthetic Student ");
+        var request = new TeacherCreateStudentRequest(Guid.NewGuid(), program, " Synthetic Student ",
+            new TeacherStudentProfile(Grade: " 11 ", GroupId: " Group A ", TargetScore: "85",
+                ParentName: "Synthetic parent", Notes: "Initial notes"));
         Assert.Equal(HttpStatusCode.Unauthorized,
             (await client.PostAsJsonAsync(path, request)).StatusCode);
         var session = await (await LoginAsync(client, "create-north", "north@example.invalid", Password))
@@ -189,13 +191,25 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         var created = results[0];
         Assert.NotNull(created);
         Assert.Equal("Synthetic Student", created.StudentName);
+        Assert.Equal("11", created.Profile.Grade);
+        Assert.Equal("Group A", created.Profile.GroupId);
         Assert.Equal(32, created.InviteCode.Length);
         foreach (var result in results)
             Assert.Equal(created.InviteCode, result!.InviteCode);
 
         Assert.DoesNotContain(created.InviteCode, await client.GetStringAsync(path));
+        var listed = Assert.Single((await client.GetFromJsonAsync<List<TeacherStudentView>>(path))!);
+        Assert.Equal("11", listed.Grade);
+        Assert.Equal("Group A", listed.GroupId);
+        Assert.Equal("Synthetic parent", listed.ParentName);
+        Assert.Equal("Initial notes", listed.Notes);
         Assert.Equal(HttpStatusCode.Conflict,
             (await client.PostAsJsonAsync(path, request with { StudentName = "Other" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync(path, request with
+            {
+                Profile = request.Profile! with { TargetScore = "90" }
+            })).StatusCode);
         var studentSession = await client.PostAsJsonAsync("/api/v1/student-sessions",
             new { workspace = "create-north", code = created.InviteCode });
         Assert.Equal(HttpStatusCode.OK, studentSession.StatusCode);
@@ -208,6 +222,7 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
             Assert.Single(await db.Students.AsNoTracking().ToListAsync());
             var membership = Assert.Single(await db.WorkspaceStudentMemberships.AsNoTracking().ToListAsync());
             Assert.Equal(created.MembershipId, membership.Id);
+            Assert.Equal("85", membership.TargetScore);
             Assert.NotEqual(System.Text.Encoding.UTF8.GetBytes(created.InviteCode), membership.CodeHash);
         }
         await client.PostAsync("/api/v1/teacher-sessions/logout", null);
@@ -453,6 +468,8 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Equal("North student", own.StudentName);
         Assert.Equal("MATH", own.ProgramCode);
         Assert.Equal("source-north student", own.ImportExternalId);
+        Assert.Null(own.Grade);
+        Assert.Null(own.ParentName);
         var rawList = await client.GetStringAsync("/api/v1/teacher/students");
         Assert.DoesNotContain("codeHash", rawList, StringComparison.OrdinalIgnoreCase);
 

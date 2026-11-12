@@ -96,6 +96,15 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(x => x.CodeHash).HasColumnType("bytea").HasMaxLength(32);
             entity.Property(x => x.ImportSource).HasMaxLength(64);
             entity.Property(x => x.ImportExternalId).HasMaxLength(200);
+            entity.Property(x => x.Grade).HasMaxLength(32);
+            entity.Property(x => x.GroupId).HasMaxLength(128);
+            entity.Property(x => x.TargetScore).HasMaxLength(32);
+            entity.Property(x => x.TargetGrade).HasMaxLength(32);
+            entity.Property(x => x.InitialScore).HasMaxLength(32);
+            entity.Property(x => x.InitialPrimaryScore).HasMaxLength(32);
+            entity.Property(x => x.InitialGrade).HasMaxLength(32);
+            entity.Property(x => x.ParentName).HasMaxLength(200);
+            entity.Property(x => x.Notes).HasMaxLength(4096);
             entity.HasIndex(x => new { x.WorkspaceId, x.StudentId }).IsUnique();
             entity.HasIndex(x => new { x.WorkspaceId, x.CodeHash }).IsUnique();
             entity.HasIndex(x => new { x.WorkspaceId, x.ImportSource, x.ImportExternalId })

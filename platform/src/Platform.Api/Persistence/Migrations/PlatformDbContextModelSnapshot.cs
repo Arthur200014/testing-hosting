@@ -572,6 +572,16 @@ namespace TestingHosting.Platform.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Grade").HasMaxLength(32).HasColumnType("character varying(32)");
+                    b.Property<string>("GroupId").HasMaxLength(128).HasColumnType("character varying(128)");
+                    b.Property<string>("TargetScore").HasMaxLength(32).HasColumnType("character varying(32)");
+                    b.Property<string>("TargetGrade").HasMaxLength(32).HasColumnType("character varying(32)");
+                    b.Property<string>("InitialScore").HasMaxLength(32).HasColumnType("character varying(32)");
+                    b.Property<string>("InitialPrimaryScore").HasMaxLength(32).HasColumnType("character varying(32)");
+                    b.Property<string>("InitialGrade").HasMaxLength(32).HasColumnType("character varying(32)");
+                    b.Property<string>("ParentName").HasMaxLength(200).HasColumnType("character varying(200)");
+                    b.Property<string>("Notes").HasMaxLength(4096).HasColumnType("character varying(4096)");
+
                     b.Property<byte[]>("CodeHash")
                         .IsRequired()
                         .HasMaxLength(32)
