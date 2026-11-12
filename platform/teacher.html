@@ -163,6 +163,7 @@
   <script type="module">
     import { buildTeacherReport } from './teacher-report.mjs';
     import { teacherNeeds, invalidateTeacherData, loadTeacherKey } from './teacher-data.mjs';
+    import { performTeacherMutation } from './teacher-mutation.mjs';
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
@@ -233,23 +234,8 @@
         render();
       }
       async function mutation(kind, path, build) {
-        const candidate = build();
-        const fingerprint = JSON.stringify(candidate);
-        const previous = state.pending[kind];
-        if (previous && previous.fingerprint !== fingerprint)
-          throw new Error('Предыдущий запрос не подтверждён. Повторите его с прежними данными или обновите список и проверьте запись.');
-        const requestId = previous?.requestId || crypto.randomUUID();
-        state.pending[kind] = { requestId, fingerprint };
-        const payload = kind === 'lesson' ? { ...candidate, lesson: { ...candidate.lesson, requestId } }
-          : { ...candidate, requestId };
-        try {
-          const result = await api('teacher/' + path, { method: 'POST', body: payload });
-          delete state.pending[kind];
-          return result;
-        } catch (error) {
-          if (error.status && error.status < 500) delete state.pending[kind];
-          throw error;
-        }
+        return performTeacherMutation(state, kind, build,
+          body => api('teacher/' + path, { method: 'POST', body }));
       }
       function setView(view) {
         state.view = view;
@@ -395,7 +381,12 @@
       async function onForm(form, callback) {
         setBusy(form, true); showNotice('Сохраняем…');
         try { await callback(); invalidate(); await refresh(); }
-        catch (error) { showNotice(error.message, true); }
+        catch (error) {
+          if (error.retrySameRequest) {
+            form.querySelector('button[type="submit"]').textContent = 'Повторить сохранение';
+            showNotice('Не удалось подтвердить сохранение. Не меняйте поля и нажмите «Повторить сохранение»: запись не продублируется.', true);
+          } else showNotice(error.message, true);
+        }
         finally { if (form.isConnected) setBusy(form, false); }
       }
 
@@ -522,7 +513,12 @@
           const id = formValue(form, 'membershipId'); if (!id) throw new Error('Выберите ученика.');
           const previous = state.data.subscriptions.find(x => x.membershipId === id);
           const value = formValue(form, 'lessonPrice'); const count = formValue(form, 'baseLessonCount'); const reset = formValue(form, 'resetAt');
-          await api('teacher/subscriptions/' + encodeURIComponent(id), { method: 'POST', body: { packageSize: Number(formValue(form, 'packageSize')), lessonPrice: value === '' ? null : Number(value), baseLessonCount: count === '' ? null : Number(count), resetAt: reset ? new Date(reset).toISOString() : null, expectedUpdatedAt: previous?.updatedAt || null } });
+          try {
+            await api('teacher/subscriptions/' + encodeURIComponent(id), { method: 'POST', body: { packageSize: Number(formValue(form, 'packageSize')), lessonPrice: value === '' ? null : Number(value), baseLessonCount: count === '' ? null : Number(count), resetAt: reset ? new Date(reset).toISOString() : null, expectedUpdatedAt: previous?.updatedAt || null } });
+          } catch (error) {
+            if (!error.status || error.status >= 500) error.retrySameRequest = true;
+            throw error;
+          }
         });
       });
     })();
