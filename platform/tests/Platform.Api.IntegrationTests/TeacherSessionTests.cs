@@ -276,6 +276,53 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     }
 
     [Fact]
+    public async Task TeacherCreatesWorkspaceScopedCatalogItemAndCanAssignItWithoutDuplicates()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "catalog-north", "north@example.invalid", "owner");
+        var south = await SeedAsync(factory, "catalog-south", "south@example.invalid", "owner");
+        var foreignProgram = await SeedProgramAsync(factory, south.WorkspaceId);
+        var student = await SeedStudentAsync(factory, north.WorkspaceId, "Synthetic", true);
+        Guid program;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            program = (await db.WorkspaceStudentMemberships.SingleAsync(x => x.Id == student)).ProgramId;
+        }
+        using var client = factory.CreateClient();
+        const string path = "/api/v1/teacher/homework/catalog";
+        var request = new TeacherCreateHomeworkCatalogRequest(
+            Guid.NewGuid(), program, 6, "  New work  ", "  https://tests.invalid/new-work  ");
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync(path, request)).StatusCode);
+        var session = await (await LoginAsync(client, "catalog-north", "north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>();
+        Assert.NotNull(session);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync(path, request with { RequestId = Guid.NewGuid(), ProgramId = foreignProgram })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsJsonAsync(path, request with { RequestId = Guid.NewGuid(), Url = "javascript:alert(1)" })).StatusCode);
+
+        var writes = await Task.WhenAll(Enumerable.Range(0, 3).Select(_ => client.PostAsJsonAsync(path, request)));
+        Assert.Single(writes, x => x.StatusCode == HttpStatusCode.Created);
+        Assert.Equal(2, writes.Count(x => x.StatusCode == HttpStatusCode.OK));
+        var item = await writes[0].Content.ReadFromJsonAsync<TeacherHomeworkCatalogView>();
+        Assert.NotNull(item);
+        Assert.Equal("New work", item.Name);
+        Assert.Equal("https://tests.invalid/new-work", item.Url);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync(path, request with { Name = "Different" })).StatusCode);
+        Assert.Equal(item.Id, Assert.Single((await client.GetFromJsonAsync<List<TeacherHomeworkCatalogView>>(path))!).Id);
+        var assignment = await client.PostAsJsonAsync("/api/v1/teacher/homework/assignments",
+            new TeacherAssignHomeworkRequest(Guid.NewGuid(), item.Id, DateTimeOffset.UtcNow, 48, [student]));
+        Assert.Equal(HttpStatusCode.Created, assignment.StatusCode);
+        await using var verify = factory.Services.CreateAsyncScope();
+        var catalog = await verify.ServiceProvider.GetRequiredService<PlatformDbContext>()
+            .HomeworkCatalogItems.AsNoTracking().ToListAsync();
+        Assert.Single(catalog);
+    }
+
+    [Fact]
     public async Task TeacherAssignsHomeworkAtomicallyAndReplaysConcurrentBatchWithoutResettingSubmissions()
     {
         await ResetAsync(factory);

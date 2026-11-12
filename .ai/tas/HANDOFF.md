@@ -3,10 +3,10 @@
 **REPO:** `Arthur200014/testing-hosting`
 **STATE_UPDATED:** 2026-11-12
 **CURRENT_PHASE:** M04 (separate teacher platform UI; M02 isolated restore deferred by owner)
-**ACTIVE_TASK:** M04-02 live report verification (code and Pages release complete)
-**ACTIVE_BRANCH:** none
+**ACTIVE_TASK:** M04 standalone teacher catalog authoring; live report verification remains pending owner sign-in
+**ACTIVE_BRANCH:** `tas/M04-catalog-authoring`
 **LAST_PROGRESS_COMMIT:** `6990b85543350f61080fc64adaf52fe4475137ac` ([PR #29](https://github.com/Arthur200014/testing-hosting/pull/29))
-**NEXT_ACTION:** Verify the report for one existing student in the signed-in separate cabinet against the source dates and counts; then continue catalog authoring and the M04-05 teacher flow. No repeat import, and keep `EGA/config/manage.html` and GAS unchanged.
+**NEXT_ACTION:** Finish protected, idempotent catalog creation and separate teacher UI, run scoped checks, release; then verify one existing student's report through owner sign-in. No repeat import, and keep `EGA/config/manage.html` and GAS unchanged.
 **STATUS:** M03-01/M03-02 and mock-history import owner-confirmed (not independently SQL-queried); test-history 233 rows read-only replay verified from owner Timeweb console output; questionnaires excluded by owner; M02-03 restore NOT_VERIFIED
 
 ## What is verified
