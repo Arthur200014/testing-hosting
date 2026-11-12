@@ -22,6 +22,51 @@ namespace TestingHosting.Platform.IntegrationTests;
 public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private const string Password = "Synthetic-Teacher-Password-Only-123!";
+    private const string ClaimCode = "synthetic-claim-code-for-integration-tests-only-2026";
+
+    [Fact]
+    public async Task FirstOwnerRegistrationClaimsImportedWorkspaceOnlyOnce()
+    {
+        await ResetAsync(factory);
+        Guid workspaceId;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var workspace = new Workspace { Id = Guid.NewGuid(), Slug = "claimed-workspace" };
+            db.Workspaces.Add(workspace);
+            await db.SaveChangesAsync();
+            workspaceId = workspace.Id;
+        }
+        var imported = await SeedStudentAsync(factory, workspaceId, "Imported", true);
+        await SeedAsync(factory, "foreign-workspace", "other@example.invalid", "owner");
+        using var client = factory.CreateClient();
+        const string path = "/api/v1/teacher-registrations";
+        var request = new TeacherOwnerRegistrationRequest(
+            "claimed-workspace", "new-owner@example.invalid", Password, ClaimCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.PostAsJsonAsync(path, request with { ClaimCode = "wrong-code-value-long-enough-12345" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.PostAsJsonAsync(path, request with { Workspace = "foreign-workspace" })).StatusCode);
+
+        var attempts = await Task.WhenAll(
+            client.PostAsJsonAsync(path, request),
+            client.PostAsJsonAsync(path, request with { Email = "second@example.invalid" }));
+        Assert.Single(attempts, x => x.StatusCode == HttpStatusCode.Created);
+        Assert.Single(attempts, x => x.StatusCode == HttpStatusCode.Conflict);
+        var winnerEmail = attempts[0].StatusCode == HttpStatusCode.Created
+            ? request.Email! : "second@example.invalid";
+        var session = await (await LoginAsync(client, "claimed-workspace", winnerEmail, Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>();
+        Assert.NotNull(session);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+        Assert.Equal(imported, Assert.Single((await client.GetFromJsonAsync<List<TeacherStudentView>>(
+            "/api/v1/teacher/students"))!).MembershipId);
+        await using var verify = factory.Services.CreateAsyncScope();
+        var verifyDb = verify.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Equal(2, await verifyDb.Workspaces.CountAsync());
+        Assert.Single(await verifyDb.WorkspaceMemberships.Where(x => x.WorkspaceId == workspaceId).ToListAsync());
+        Assert.Equal("owner", (await verifyDb.WorkspaceMemberships.SingleAsync(x => x.WorkspaceId == workspaceId)).Role);
+    }
 
     [Fact]
     public async Task ArchivingStudentRevokesCodeButKeepsLessonHistoryAndOtherWorkspace()

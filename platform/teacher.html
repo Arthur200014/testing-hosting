@@ -80,6 +80,7 @@
     .divider { border: 0; border-top: 1px solid #2d3e58; margin: 8px 0; }
     .link { color: #f8bf66; text-decoration: none; }
     .link:hover { text-decoration: underline; }
+    .text-button { background: none; border: 0; padding: 0; color: #f8bf66; text-decoration: underline; }
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; text-align: left; }
     th, td { padding: 11px 9px; border-bottom: 1px solid #293a55; vertical-align: top; }
@@ -106,7 +107,7 @@
     <div class="card login-card">
       <div class="brand"><span class="brand-mark">✦</span><span>Teacher AI Student<small>КАБИНЕТ ПРЕПОДАВАТЕЛЯ</small></span></div>
       <p class="eyebrow">Новая платформа</p>
-      <h1>Ваши занятия в одном месте</h1>
+      <h1 id="loginTitle">Ваши занятия в одном месте</h1>
       <p class="subtitle">Войдите в пространство преподавателя, чтобы работать с учениками и занятиями.</p>
       <form id="loginForm" class="stack">
         <label><span>Пространство</span><input name="workspace" required autocomplete="organization" placeholder="например, tas-main" spellcheck="false"></label>
@@ -114,8 +115,18 @@
         <label><span>Пароль</span><input name="password" type="password" required autocomplete="current-password"></label>
         <button class="primary" type="submit">Войти</button>
       </form>
+      <form id="registerForm" class="stack" hidden>
+        <p class="muted small">Создайте аккаунт владельца для уже импортированного пространства. Код подтверждения задаётся один раз в переменной Timeweb <code>TeacherRegistration__ClaimCode</code> (от 24 символов), а <code>TeacherRegistration__Workspace</code> должен быть <code>tas-main</code>.</p>
+        <label><span>Пространство с импортированными учениками</span><input name="workspace" value="tas-main" required autocomplete="organization" spellcheck="false"></label>
+        <label><span>Ваша почта</span><input name="email" type="email" required autocomplete="username"></label>
+        <label><span>Новый пароль, от 16 символов</span><input name="password" type="password" minlength="16" required autocomplete="new-password"></label>
+        <label><span>Повторите пароль</span><input name="confirmPassword" type="password" minlength="16" required autocomplete="new-password"></label>
+        <label><span>Код подтверждения владельца</span><input name="claimCode" type="password" minlength="24" required autocomplete="off"></label>
+        <button class="primary" type="submit">Создать аккаунт</button>
+      </form>
       <p id="loginError" class="banner error" role="alert" hidden></p>
-      <p class="muted small" style="margin-top:20px">Отдельный кабинет. Действующая форма преподавателя продолжает работать.</p>
+      <p class="muted small" style="margin-top:20px"><button id="toggleRegistration" class="text-button" type="button">Зарегистрироваться как владелец</button></p>
+      <p class="muted small" style="margin-top:10px">Отдельный кабинет. Действующая форма преподавателя продолжает работать.</p>
     </div>
   </div>
 
@@ -309,6 +320,11 @@
         return programs[0];
       }
       function setBusy(form, value) { form.querySelector('button[type="submit"]').disabled = value; }
+      function enterSession(session, workspace) {
+        state.token = session.accessToken; state.expiresAt = session.expiresAt; state.workspace = workspace;
+        $('workspaceName').textContent = workspace; $('loginScreen').hidden = true; $('app').hidden = false;
+        setView('overview'); return refresh();
+      }
       async function onForm(form, callback) {
         setBusy(form, true); showNotice('Сохраняем…');
         try { await callback(); await refresh(); }
@@ -323,11 +339,48 @@
           const workspace = formValue(form, 'workspace');
           const session = await api('teacher-sessions', { method: 'POST', token: '', body: { workspace, email: formValue(form, 'email'), password: form.elements.password.value } });
           form.elements.password.value = '';
-          state.token = session.accessToken; state.expiresAt = session.expiresAt; state.workspace = workspace;
-          $('workspaceName').textContent = workspace; $('loginScreen').hidden = true; $('app').hidden = false;
-          setView('overview'); await refresh();
+          await enterSession(session, workspace);
         } catch (error) { form.elements.password.value = ''; $('loginError').textContent = error.message; $('loginError').hidden = false; }
         finally { setBusy(form, false); }
+      });
+      $('toggleRegistration').addEventListener('click', () => {
+        const registering = $('registerForm').hidden;
+        $('registerForm').hidden = !registering; $('loginForm').hidden = registering;
+        $('loginTitle').textContent = registering ? 'Регистрация владельца' : 'Ваши занятия в одном месте';
+        $('toggleRegistration').textContent = registering ? 'Уже есть аккаунт? Войти' : 'Зарегистрироваться как владелец';
+        $('loginError').hidden = true;
+      });
+      $('registerForm').addEventListener('submit', async event => {
+        event.preventDefault(); const form = event.currentTarget;
+        const password = form.elements.namedItem('password').value;
+        if (password !== form.elements.namedItem('confirmPassword').value) {
+          $('loginError').textContent = 'Пароли не совпадают.'; $('loginError').hidden = false; return;
+        }
+        setBusy(form, true); $('loginError').hidden = true;
+        let created = false;
+        try {
+          const workspace = formValue(form, 'workspace');
+          const email = formValue(form, 'email');
+          await api('teacher-registrations', { method: 'POST', token: '', body: { workspace, email, password, claimCode: formValue(form, 'claimCode') } });
+          created = true;
+          form.elements.namedItem('claimCode').value = '';
+          const session = await api('teacher-sessions', { method: 'POST', token: '', body: { workspace, email, password } });
+          form.reset(); await enterSession(session, workspace);
+        } catch (error) {
+          if (created) {
+            $('loginForm').elements.namedItem('workspace').value = formValue(form, 'workspace');
+            $('loginForm').elements.namedItem('email').value = formValue(form, 'email');
+            $('toggleRegistration').click();
+          }
+          form.elements.namedItem('password').value = '';
+          form.elements.namedItem('confirmPassword').value = '';
+          form.elements.namedItem('claimCode').value = '';
+          $('loginError').textContent = created ? 'Аккаунт создан. Войдите с выбранной почтой и паролем.'
+            : error.status === 401 ? 'Проверьте код подтверждения и пространство.'
+            : error.status === 503 ? 'Регистрация ещё не включена в Timeweb. Задайте две переменные, указанные выше.'
+            : error.message;
+          $('loginError').hidden = false;
+        } finally { setBusy(form, false); }
       });
       document.querySelector('.nav').addEventListener('click', event => {
         const button = event.target.closest('[data-view]'); if (button) setView(button.dataset.view);

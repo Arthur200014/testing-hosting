@@ -26,6 +26,7 @@ builder.Services.AddSingleton<IStudentCodeHasher>(serviceProvider =>
     new StudentCodeHasher(StartupConfiguration.GetPepper(serviceProvider.GetRequiredService<IConfiguration>())));
 builder.Services.AddScoped<StudentSessionService>();
 builder.Services.AddScoped<TeacherSessionService>();
+builder.Services.AddScoped<TeacherOwnerRegistration>();
 builder.Services.AddScoped<TeacherStudentDirectory>();
 builder.Services.AddScoped<TeacherHistoryReader>();
 builder.Services.AddScoped<TeacherLessonService>();
@@ -152,6 +153,25 @@ app.MapPost("/api/v1/teacher-sessions", async (
         ? Results.Json(new { title = "Invalid teacher credentials.", status = 401 }, statusCode: 401,
             contentType: "application/problem+json")
         : Results.Ok(session);
+}).RequireRateLimiting("teacher-sessions");
+
+app.MapPost("/api/v1/teacher-registrations", async (
+    TeacherOwnerRegistrationRequest request, TeacherOwnerRegistration registration,
+    CancellationToken cancellationToken) =>
+{
+    var result = await registration.RegisterAsync(request, cancellationToken);
+    return result.Status switch
+    {
+        TeacherOwnerRegistrationStatus.Created => Results.Created("/api/v1/teacher-sessions", new { created = true }),
+        TeacherOwnerRegistrationStatus.Unavailable => Results.Problem(statusCode: 503,
+            title: "Owner registration is not configured."),
+        TeacherOwnerRegistrationStatus.InvalidCode => Results.Problem(statusCode: 401,
+            title: "Invalid registration code or workspace."),
+        TeacherOwnerRegistrationStatus.InvalidRequest => Results.ValidationProblem(result.Errors!),
+        TeacherOwnerRegistrationStatus.Conflict => Results.Problem(statusCode: 409,
+            title: "This workspace already has an owner or cannot be claimed."),
+        _ => throw new InvalidOperationException("Unknown owner registration result.")
+    };
 }).RequireRateLimiting("teacher-sessions");
 
 app.MapGet("/api/v1/teacher/me", (ClaimsPrincipal principal) => Results.Ok(new
