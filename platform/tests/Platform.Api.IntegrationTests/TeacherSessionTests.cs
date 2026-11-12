@@ -97,6 +97,68 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     }
 
     [Fact]
+    public async Task TeacherSubscriptionWritePreservesNullsAndRejectsStaleOrForeignEdits()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "subscription-north", "north@example.invalid", "owner");
+        var south = await SeedAsync(factory, "subscription-south", "south@example.invalid", "teacher");
+        var own = await SeedStudentAsync(factory, north.WorkspaceId, "North", true);
+        var foreign = await SeedStudentAsync(factory, south.WorkspaceId, "South", true);
+        using var client = factory.CreateClient();
+        var blank = new TeacherSubscriptionWriteRequest(8, null, null, null, null);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.PostAsJsonAsync($"/api/v1/teacher/subscriptions/{own}", blank)).StatusCode);
+        var session = await (await LoginAsync(client, "subscription-north", "north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>();
+        Assert.NotNull(session);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync($"/api/v1/teacher/subscriptions/{foreign}", blank)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsJsonAsync($"/api/v1/teacher/subscriptions/{own}",
+                blank with { LessonPrice = -1 })).StatusCode);
+        var created = await client.PostAsJsonAsync($"/api/v1/teacher/subscriptions/{own}", blank);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var first = await created.Content.ReadFromJsonAsync<TeacherSubscriptionView>();
+        Assert.NotNull(first);
+        Assert.Null(first.LessonPrice);
+        Assert.Null(first.ResetAt);
+        Assert.Null(first.BaseLessonCount);
+
+        var repeat = await client.PostAsJsonAsync($"/api/v1/teacher/subscriptions/{own}", blank);
+        Assert.Equal(HttpStatusCode.OK, repeat.StatusCode);
+        Assert.Equal(first.UpdatedAt,
+            (await repeat.Content.ReadFromJsonAsync<TeacherSubscriptionView>())!.UpdatedAt);
+        var update = blank with { PackageSize = 10, ExpectedUpdatedAt = first.UpdatedAt };
+        var changed = await client.PostAsJsonAsync($"/api/v1/teacher/subscriptions/{own}", update);
+        Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
+        var second = await changed.Content.ReadFromJsonAsync<TeacherSubscriptionView>();
+        Assert.NotNull(second);
+        Assert.True(second.UpdatedAt > first.UpdatedAt);
+        Assert.Null(second.LessonPrice);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync($"/api/v1/teacher/subscriptions/{own}",
+                update with { PackageSize = 12 })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,
+            (await client.PostAsJsonAsync($"/api/v1/teacher/subscriptions/{own}", update)).StatusCode);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var stored = Assert.Single(await db.SubscriptionSnapshots.AsNoTracking()
+                .Where(x => x.WorkspaceId == north.WorkspaceId).ToListAsync());
+            Assert.Equal(10, stored.PackageSize);
+            Assert.Null(stored.LessonPrice);
+            Assert.Null(stored.ResetAt);
+            Assert.Null(stored.BaseLessonCount);
+        }
+        await client.PostAsync("/api/v1/teacher-sessions/logout", null);
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await client.PostAsJsonAsync($"/api/v1/teacher/subscriptions/{own}", update)).StatusCode);
+    }
+
+    [Fact]
     public async Task TeacherStudentDirectoryIsScopedAndRevokedSessionsCannotReadIt()
     {
         await ResetAsync(factory);
