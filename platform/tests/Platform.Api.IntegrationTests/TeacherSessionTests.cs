@@ -351,10 +351,11 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var program = new LearningProgram
-        {
-            Id = Guid.NewGuid(), WorkspaceId = workspaceId, Code = "MATH", DisplayName = "Mathematics"
-        };
+        var program = await db.Programs.SingleOrDefaultAsync(x => x.WorkspaceId == workspaceId && x.Code == "MATH")
+            ?? new LearningProgram
+            {
+                Id = Guid.NewGuid(), WorkspaceId = workspaceId, Code = "MATH", DisplayName = "Mathematics"
+            };
         var student = new Student { Id = Guid.NewGuid(), DisplayName = name };
         var membership = new WorkspaceStudentMembership
         {
