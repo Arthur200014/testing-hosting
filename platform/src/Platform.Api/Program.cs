@@ -14,6 +14,7 @@ using TestingHosting.Platform.Lessons;
 using TestingHosting.Platform.Persistence;
 using TestingHosting.Platform.StudentSessions;
 using TestingHosting.Platform.Students;
+using TestingHosting.Platform.Subscriptions;
 using TestingHosting.Platform.TestAttempts;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,6 +29,7 @@ builder.Services.AddScoped<TeacherSessionService>();
 builder.Services.AddScoped<TeacherStudentDirectory>();
 builder.Services.AddScoped<TeacherHistoryReader>();
 builder.Services.AddScoped<TeacherLessonService>();
+builder.Services.AddScoped<TeacherSubscriptionService>();
 builder.Services.AddScoped<TeacherHomeworkReader>();
 builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddSingleton<IPasswordHasher<TeacherUser>, PasswordHasher<TeacherUser>>();
@@ -200,6 +202,25 @@ app.MapGet("/api/v1/teacher/subscriptions", async (
     Results.Ok(await history.ListSubscriptionsAsync(
         Guid.Parse(principal.FindFirstValue("workspace_id")!), cancellationToken)))
     .RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/subscriptions/{membershipId:guid}", async (
+    Guid membershipId, TeacherSubscriptionWriteRequest request, ClaimsPrincipal principal,
+    TeacherSubscriptionService subscriptions, CancellationToken cancellationToken) =>
+{
+    var result = await subscriptions.SaveAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), membershipId, request, cancellationToken);
+    return result.Status switch
+    {
+        TeacherSubscriptionWriteStatus.Created => Results.Created(
+            $"/api/v1/teacher/subscriptions/{membershipId}", result.Response),
+        TeacherSubscriptionWriteStatus.Updated or TeacherSubscriptionWriteStatus.Duplicate => Results.Ok(result.Response),
+        TeacherSubscriptionWriteStatus.Conflict => Results.Problem(statusCode: 409,
+            title: "The subscription changed; reload it before saving."),
+        TeacherSubscriptionWriteStatus.NotFound => Results.NotFound(),
+        TeacherSubscriptionWriteStatus.InvalidRequest => Results.ValidationProblem(result.Errors!),
+        _ => throw new InvalidOperationException("Unknown teacher subscription write result.")
+    };
+}).RequireAuthorization("teacher");
 
 app.MapGet("/api/v1/teacher/homework/catalog", async (
     ClaimsPrincipal principal, TeacherHomeworkReader homework, CancellationToken cancellationToken) =>
