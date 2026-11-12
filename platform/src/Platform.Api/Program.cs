@@ -27,6 +27,7 @@ builder.Services.AddScoped<StudentSessionService>();
 builder.Services.AddScoped<TeacherSessionService>();
 builder.Services.AddScoped<TeacherStudentDirectory>();
 builder.Services.AddScoped<TeacherHistoryReader>();
+builder.Services.AddScoped<TeacherLessonService>();
 builder.Services.AddScoped<TeacherHomeworkReader>();
 builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddSingleton<IPasswordHasher<TeacherUser>, PasswordHasher<TeacherUser>>();
@@ -174,6 +175,25 @@ app.MapGet("/api/v1/teacher/lessons", async (
     Results.Ok(await history.ListLessonsAsync(
         Guid.Parse(principal.FindFirstValue("workspace_id")!), cancellationToken)))
     .RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/lessons", async (
+    TeacherLessonWriteRequest request, ClaimsPrincipal principal, TeacherLessonService lessons,
+    CancellationToken cancellationToken) =>
+{
+    var workspaceId = Guid.Parse(principal.FindFirstValue("workspace_id")!);
+    var result = await lessons.SaveAsync(workspaceId, request, cancellationToken);
+    return result.Status switch
+    {
+        TeacherLessonWriteStatus.Created => Results.Created(
+            $"/api/v1/teacher/lessons/{result.Response!.LessonId}", result.Response),
+        TeacherLessonWriteStatus.Duplicate => Results.Ok(result.Response),
+        TeacherLessonWriteStatus.Conflict => Results.Problem(statusCode: 409,
+            title: "The request ID is already associated with a different lesson."),
+        TeacherLessonWriteStatus.MembershipNotFound => Results.NotFound(),
+        TeacherLessonWriteStatus.InvalidRequest => Results.ValidationProblem(result.Errors!),
+        _ => throw new InvalidOperationException("Unknown teacher lesson write result.")
+    };
+}).RequireAuthorization("teacher");
 
 app.MapGet("/api/v1/teacher/subscriptions", async (
     ClaimsPrincipal principal, TeacherHistoryReader history, CancellationToken cancellationToken) =>

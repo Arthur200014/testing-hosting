@@ -24,6 +24,79 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     private const string Password = "Synthetic-Teacher-Password-Only-123!";
 
     [Fact]
+    public async Task TeacherCreatesOnePairedLessonAndReplayCannotChangeAttendanceOrCrossWorkspace()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "lesson-north", "north@example.invalid", "owner");
+        var south = await SeedAsync(factory, "lesson-south", "south@example.invalid", "teacher");
+        var first = await SeedStudentAsync(factory, north.WorkspaceId, "First", true);
+        var second = await SeedStudentAsync(factory, north.WorkspaceId, "Second", true);
+        var foreign = await SeedStudentAsync(factory, south.WorkspaceId, "Foreign", true);
+        using var client = factory.CreateClient();
+        var request = new TeacherLessonWriteRequest(Guid.NewGuid(), DateTimeOffset.UtcNow,
+        [
+            new(first, 60, "6", "Synthetic topic", "Present"),
+            new(second, 45, "6", "Synthetic topic", "Absent")
+        ]);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.PostAsJsonAsync("/api/v1/teacher/lessons", request)).StatusCode);
+        var session = await (await LoginAsync(client, "lesson-north", "north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>();
+        Assert.NotNull(session);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync("/api/v1/teacher/lessons", request with
+            {
+                RequestId = Guid.NewGuid(), Participants = [new(foreign, 60, null, null, "Present")]
+            })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsJsonAsync("/api/v1/teacher/lessons", request with
+            {
+                RequestId = Guid.NewGuid(), Participants = [request.Participants![0], request.Participants[0]]
+            })).StatusCode);
+
+        var created = await client.PostAsJsonAsync("/api/v1/teacher/lessons", request);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var firstResponse = await created.Content.ReadFromJsonAsync<TeacherLessonWriteResponse>();
+        Assert.NotNull(firstResponse);
+        Assert.Equal(2, firstResponse.ParticipantCount);
+        var replay = await client.PostAsJsonAsync("/api/v1/teacher/lessons", request with
+        {
+            Participants = [request.Participants![1], request.Participants[0]]
+        });
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        Assert.Equal(firstResponse.LessonId,
+            (await replay.Content.ReadFromJsonAsync<TeacherLessonWriteResponse>())!.LessonId);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync("/api/v1/teacher/lessons", request with
+            {
+                Participants = [request.Participants[0] with { AttendanceStatus = "Absent" }, request.Participants[1]]
+            })).StatusCode);
+
+        var simultaneous = request with { RequestId = Guid.NewGuid() };
+        var responses = await Task.WhenAll(Enumerable.Range(0, 4)
+            .Select(_ => client.PostAsJsonAsync("/api/v1/teacher/lessons", simultaneous)));
+        Assert.Single(responses, x => x.StatusCode == HttpStatusCode.Created);
+        Assert.Equal(3, responses.Count(x => x.StatusCode == HttpStatusCode.OK));
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var all = await db.Lessons.AsNoTracking().Include(x => x.Participants)
+                .Where(x => x.WorkspaceId == north.WorkspaceId).ToListAsync();
+            Assert.Equal(2, all.Count);
+            var saved = Assert.Single(all, x => x.Id == firstResponse.LessonId);
+            Assert.Equal(2, saved.Participants.Count);
+            Assert.Contains(saved.Participants, x => x.MembershipId == first && x.AttendanceStatus == "Present");
+            Assert.Contains(saved.Participants, x => x.MembershipId == second && x.AttendanceStatus == "Absent");
+        }
+        await client.PostAsync("/api/v1/teacher-sessions/logout", null);
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await client.PostAsJsonAsync("/api/v1/teacher/lessons", request)).StatusCode);
+    }
+
+    [Fact]
     public async Task TeacherStudentDirectoryIsScopedAndRevokedSessionsCannotReadIt()
     {
         await ResetAsync(factory);
