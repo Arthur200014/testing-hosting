@@ -24,6 +24,69 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     private const string Password = "Synthetic-Teacher-Password-Only-123!";
 
     [Fact]
+    public async Task TeacherCreatesStudentWithRepeatablePrivateCodeAndCannotUseForeignProgram()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "create-north", "north@example.invalid", "owner");
+        var south = await SeedAsync(factory, "create-south", "south@example.invalid", "teacher");
+        var program = await SeedProgramAsync(factory, north.WorkspaceId);
+        var foreignProgram = await SeedProgramAsync(factory, south.WorkspaceId);
+        using var client = factory.CreateClient();
+        const string path = "/api/v1/teacher/students";
+        var request = new TeacherCreateStudentRequest(Guid.NewGuid(), program, " Synthetic Student ");
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.PostAsJsonAsync(path, request)).StatusCode);
+        var session = await (await LoginAsync(client, "create-north", "north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>();
+        Assert.NotNull(session);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync(path, request with
+            {
+                RequestId = Guid.NewGuid(), ProgramId = foreignProgram
+            })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsJsonAsync(path, request with
+            {
+                RequestId = Guid.NewGuid(), StudentName = " "
+            })).StatusCode);
+
+        var responses = await Task.WhenAll(Enumerable.Range(0, 4)
+            .Select(_ => client.PostAsJsonAsync(path, request)));
+        Assert.Single(responses, x => x.StatusCode == HttpStatusCode.Created);
+        Assert.Equal(3, responses.Count(x => x.StatusCode == HttpStatusCode.OK));
+        var created = await responses[0].Content.ReadFromJsonAsync<TeacherCreateStudentResponse>();
+        Assert.NotNull(created);
+        Assert.Equal("Synthetic Student", created.StudentName);
+        Assert.Equal(32, created.InviteCode.Length);
+        foreach (var response in responses)
+            Assert.Equal(created.InviteCode,
+                (await response.Content.ReadFromJsonAsync<TeacherCreateStudentResponse>())!.InviteCode);
+
+        Assert.DoesNotContain(created.InviteCode, await client.GetStringAsync(path));
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync(path, request with { StudentName = "Other" })).StatusCode);
+        var studentSession = await client.PostAsJsonAsync("/api/v1/student-sessions",
+            new { workspace = "create-north", code = created.InviteCode });
+        Assert.Equal(HttpStatusCode.OK, studentSession.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.PostAsJsonAsync("/api/v1/student-sessions",
+                new { workspace = "create-south", code = created.InviteCode })).StatusCode);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            Assert.Single(await db.Students.AsNoTracking().ToListAsync());
+            var membership = Assert.Single(await db.WorkspaceStudentMemberships.AsNoTracking().ToListAsync());
+            Assert.Equal(created.MembershipId, membership.Id);
+            Assert.NotEqual(System.Text.Encoding.UTF8.GetBytes(created.InviteCode), membership.CodeHash);
+        }
+        await client.PostAsync("/api/v1/teacher-sessions/logout", null);
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await client.PostAsJsonAsync(path, request)).StatusCode);
+    }
+
+    [Fact]
     public async Task TeacherAssignsHomeworkAtomicallyAndReplaysConcurrentBatchWithoutResettingSubmissions()
     {
         await ResetAsync(factory);
@@ -659,6 +722,20 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         db.WorkspaceStudentMemberships.Add(membership);
         await db.SaveChangesAsync();
         return membership.Id;
+    }
+
+    private static async Task<Guid> SeedProgramAsync(ApiFactory factory, Guid workspaceId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var program = new LearningProgram
+        {
+            Id = Guid.NewGuid(), WorkspaceId = workspaceId,
+            Code = "SYNTHETIC", DisplayName = "Synthetic subject"
+        };
+        db.Programs.Add(program);
+        await db.SaveChangesAsync();
+        return program.Id;
     }
 
     private static async Task SeedHistoryAsync(ApiFactory factory, Guid workspaceId, Guid[] membershipIds)
