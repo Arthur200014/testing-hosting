@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using TestingHosting.Platform.Configuration;
 using TestingHosting.Platform.Homework;
+using TestingHosting.Platform.Lessons;
 using TestingHosting.Platform.Persistence;
 using TestingHosting.Platform.StudentSessions;
 using TestingHosting.Platform.Students;
@@ -24,6 +25,8 @@ builder.Services.AddSingleton<IStudentCodeHasher>(serviceProvider =>
     new StudentCodeHasher(StartupConfiguration.GetPepper(serviceProvider.GetRequiredService<IConfiguration>())));
 builder.Services.AddScoped<StudentSessionService>();
 builder.Services.AddScoped<TeacherSessionService>();
+builder.Services.AddScoped<TeacherStudentDirectory>();
+builder.Services.AddScoped<TeacherHistoryReader>();
 builder.Services.AddSingleton<IPasswordHasher<TeacherUser>, PasswordHasher<TeacherUser>>();
 builder.Services.AddSingleton<TeacherTokenIssuer>();
 builder.Services.AddScoped<IAuthorizationHandler, ActiveTeacherSessionHandler>();
@@ -147,6 +150,34 @@ app.MapGet("/api/v1/teacher/me", (ClaimsPrincipal principal) => Results.Ok(new
     MembershipId = principal.FindFirstValue("membership_id"),
     WorkspaceRole = principal.FindFirstValue("workspace_role")
 })).RequireAuthorization("teacher");
+
+app.MapGet("/api/v1/teacher/students", async (
+    ClaimsPrincipal principal, TeacherStudentDirectory directory, CancellationToken cancellationToken) =>
+{
+    var workspaceId = Guid.Parse(principal.FindFirstValue("workspace_id")!);
+    return Results.Ok(await directory.ListAsync(workspaceId, cancellationToken));
+}).RequireAuthorization("teacher");
+
+app.MapGet("/api/v1/teacher/students/{membershipId:guid}", async (
+    Guid membershipId, ClaimsPrincipal principal, TeacherStudentDirectory directory,
+    CancellationToken cancellationToken) =>
+{
+    var workspaceId = Guid.Parse(principal.FindFirstValue("workspace_id")!);
+    var student = await directory.GetAsync(workspaceId, membershipId, cancellationToken);
+    return student is null ? Results.NotFound() : Results.Ok(student);
+}).RequireAuthorization("teacher");
+
+app.MapGet("/api/v1/teacher/lessons", async (
+    ClaimsPrincipal principal, TeacherHistoryReader history, CancellationToken cancellationToken) =>
+    Results.Ok(await history.ListLessonsAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), cancellationToken)))
+    .RequireAuthorization("teacher");
+
+app.MapGet("/api/v1/teacher/subscriptions", async (
+    ClaimsPrincipal principal, TeacherHistoryReader history, CancellationToken cancellationToken) =>
+    Results.Ok(await history.ListSubscriptionsAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), cancellationToken)))
+    .RequireAuthorization("teacher");
 
 app.MapPost("/api/v1/teacher-sessions/logout", async (
     ClaimsPrincipal principal, TeacherSessionService sessions, CancellationToken cancellationToken) =>
