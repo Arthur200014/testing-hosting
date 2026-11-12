@@ -36,6 +36,7 @@ builder.Services.AddScoped<TeacherHomeworkAssignmentService>();
 builder.Services.AddSingleton(serviceProvider => new TeacherInviteCodeIssuer(
     StartupConfiguration.GetPepper(serviceProvider.GetRequiredService<IConfiguration>())));
 builder.Services.AddScoped<TeacherStudentCreator>();
+builder.Services.AddScoped<TeacherStudentArchiver>();
 builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddSingleton<IPasswordHasher<TeacherUser>, PasswordHasher<TeacherUser>>();
 builder.Services.AddSingleton<TeacherTokenIssuer>();
@@ -194,6 +195,17 @@ app.MapGet("/api/v1/teacher/students/{membershipId:guid}", async (
     var workspaceId = Guid.Parse(principal.FindFirstValue("workspace_id")!);
     var student = await directory.GetAsync(workspaceId, membershipId, cancellationToken);
     return student is null ? Results.NotFound() : Results.Ok(student);
+}).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/students/{membershipId:guid}/archive", async (
+    Guid membershipId, ClaimsPrincipal principal, TeacherStudentArchiver students,
+    CancellationToken cancellationToken) =>
+{
+    var result = await students.ArchiveAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), membershipId, cancellationToken);
+    return result.Status == TeacherArchiveStudentStatus.NotFound
+        ? Results.NotFound()
+        : Results.Ok(result.Response);
 }).RequireAuthorization("teacher");
 
 app.MapGet("/api/v1/teacher/lessons", async (
