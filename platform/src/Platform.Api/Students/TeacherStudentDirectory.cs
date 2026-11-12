@@ -6,7 +6,9 @@ namespace TestingHosting.Platform.Students;
 public sealed record TeacherStudentView(
     Guid MembershipId, Guid StudentId, string StudentName,
     Guid ProgramId, string ProgramCode, string ProgramName,
-    string? ImportExternalId);
+    string? ImportExternalId, string? Grade, string? GroupId,
+    string? TargetScore, string? TargetGrade, string? InitialScore,
+    string? InitialPrimaryScore, string? InitialGrade, string? ParentName, string? Notes);
 
 public sealed class TeacherStudentDirectory(PlatformDbContext db)
 {
@@ -18,7 +20,8 @@ public sealed class TeacherStudentDirectory(PlatformDbContext db)
         memberships.Select(x => new TeacherStudentView(
             x.Id, x.StudentId, x.Student.DisplayName,
             x.ProgramId, x.Program.Code, x.Program.DisplayName,
-            x.ImportExternalId));
+            x.ImportExternalId, x.Grade, x.GroupId, x.TargetScore, x.TargetGrade,
+            x.InitialScore, x.InitialPrimaryScore, x.InitialGrade, x.ParentName, x.Notes));
 
     public Task<List<TeacherStudentView>> ListAsync(Guid workspaceId, CancellationToken cancellationToken) =>
         Project(InWorkspace(workspaceId).OrderBy(x => x.Student.DisplayName).ThenBy(x => x.Id))
