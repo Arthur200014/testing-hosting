@@ -24,6 +24,87 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     private const string Password = "Synthetic-Teacher-Password-Only-123!";
 
     [Fact]
+    public async Task LessonAndHomeworkCommitTogetherOrRollBackAndReplayAsOneOperation()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "combined-north", "north@example.invalid", "owner");
+        var south = await SeedAsync(factory, "combined-south", "south@example.invalid", "teacher");
+        var first = await SeedStudentAsync(factory, north.WorkspaceId, "First", true);
+        var second = await SeedStudentAsync(factory, north.WorkspaceId, "Second", true);
+        var foreign = await SeedStudentAsync(factory, south.WorkspaceId, "Foreign", true);
+        await SeedHomeworkAsync(factory, north.WorkspaceId, first);
+        Guid catalog;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            catalog = (await db.HomeworkCatalogItems.AsNoTracking().SingleAsync()).Id;
+        }
+        var lesson = new TeacherLessonWriteRequest(Guid.NewGuid(), DateTimeOffset.UtcNow,
+        [
+            new(first, 60, "6", "Synthetic topic", "Present"),
+            new(second, 45, "6", "Synthetic topic", "Absent")
+        ]);
+        var request = new TeacherLessonHomeworkRequest(lesson, catalog, 48);
+        const string path = "/api/v1/teacher/lessons-with-homework";
+        using var client = factory.CreateClient();
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.PostAsJsonAsync(path, request)).StatusCode);
+        var session = await (await LoginAsync(client, "combined-north", "north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>();
+        Assert.NotNull(session);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync(path, request with
+            {
+                Lesson = lesson with
+                {
+                    RequestId = Guid.NewGuid(), Participants = [new(foreign, 60, null, null, "Present")]
+                }
+            })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync(path, request)).StatusCode);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            Assert.Empty(await db.Lessons.AsNoTracking().ToListAsync());
+            Assert.Single(await db.HomeworkAssignments.AsNoTracking().ToListAsync());
+            await db.HomeworkAssignments.ExecuteUpdateAsync(setters => setters
+                .SetProperty(x => x.SubmittedAt, DateTimeOffset.UtcNow)
+                .SetProperty(x => x.Status, "submitted"));
+        }
+
+        var responses = await Task.WhenAll(Enumerable.Range(0, 3)
+            .Select(_ => client.PostAsJsonAsync(path, request)));
+        Assert.Single(responses, x => x.StatusCode == HttpStatusCode.Created);
+        Assert.Equal(2, responses.Count(x => x.StatusCode == HttpStatusCode.OK));
+        var returned = await responses[0].Content.ReadFromJsonAsync<TeacherLessonHomeworkResponse>();
+        Assert.NotNull(returned);
+        Assert.Equal(2, returned.Lesson.ParticipantCount);
+        Assert.Equal(2, returned.Homework!.AssignmentIds.Count);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync(path, request with { DeadlineHours = 72 })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync(path, request with
+            {
+                CatalogItemId = null, DeadlineHours = null
+            })).StatusCode);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var saved = Assert.Single(await db.Lessons.AsNoTracking().Include(x => x.Participants).ToListAsync());
+            Assert.Equal(2, saved.Participants.Count);
+            Assert.Contains(saved.Participants, x => x.MembershipId == first && x.AttendanceStatus == "Present");
+            Assert.Contains(saved.Participants, x => x.MembershipId == second && x.AttendanceStatus == "Absent");
+            Assert.Equal(3, await db.HomeworkAssignments.CountAsync());
+        }
+        await client.PostAsync("/api/v1/teacher-sessions/logout", null);
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await client.PostAsJsonAsync(path, request)).StatusCode);
+    }
+
+    [Fact]
     public async Task TeacherCreatesStudentWithRepeatablePrivateCodeAndCannotUseForeignProgram()
     {
         await ResetAsync(factory);

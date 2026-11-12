@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using TestingHosting.Platform.Persistence;
@@ -23,6 +24,30 @@ public sealed record TeacherLessonWriteResult(
 public sealed class TeacherLessonService(PlatformDbContext db, TimeProvider clock)
 {
     public async Task<TeacherLessonWriteResult> SaveAsync(
+        Guid workspaceId, TeacherLessonWriteRequest request, CancellationToken cancellationToken)
+    {
+        if (db.Database.CurrentTransaction is not null)
+        {
+            await LockRequestAsync(workspaceId, request.RequestId, cancellationToken);
+            return await SaveCoreAsync(workspaceId, request, cancellationToken);
+        }
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.ReadCommitted, cancellationToken);
+        await LockRequestAsync(workspaceId, request.RequestId, cancellationToken);
+        var result = await SaveCoreAsync(workspaceId, request, cancellationToken);
+        if (result.Status == TeacherLessonWriteStatus.Created)
+            await transaction.CommitAsync(cancellationToken);
+        return result;
+    }
+
+    private async Task LockRequestAsync(Guid workspaceId, Guid requestId, CancellationToken cancellationToken)
+    {
+        var lockKey = workspaceId.ToString("N") + ":" + requestId.ToString("N");
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock(hashtextextended({lockKey}, 0))", cancellationToken);
+    }
+
+    private async Task<TeacherLessonWriteResult> SaveCoreAsync(
         Guid workspaceId, TeacherLessonWriteRequest request, CancellationToken cancellationToken)
     {
         var validation = Validate(request);
