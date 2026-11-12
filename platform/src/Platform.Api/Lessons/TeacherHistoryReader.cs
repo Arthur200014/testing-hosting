@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TestingHosting.Platform.Persistence;
+using TestingHosting.Platform.Subscriptions;
 
 namespace TestingHosting.Platform.Lessons;
 
@@ -10,11 +11,6 @@ public sealed record TeacherLessonParticipantView(
 public sealed record TeacherLessonView(
     Guid Id, string LegacyLessonId, DateTimeOffset LessonAt,
     List<TeacherLessonParticipantView> Participants);
-
-public sealed record TeacherSubscriptionView(
-    Guid MembershipId, Guid StudentId, Guid ProgramId,
-    int PackageSize, DateTimeOffset? ResetAt, DateTimeOffset UpdatedAt,
-    decimal? LessonPrice, int? BaseLessonCount);
 
 public sealed class TeacherHistoryReader(PlatformDbContext db)
 {
