@@ -3,10 +3,10 @@
 **REPO:** `Arthur200014/testing-hosting`
 **STATE_UPDATED:** 2026-11-12
 **CURRENT_PHASE:** M04 (separate teacher platform UI; M02 isolated restore deferred by owner)
-**ACTIVE_TASK:** M04-05 live teacher flow verification pending owner sign-in and backend deploy
-**ACTIVE_BRANCH:** none
+**ACTIVE_TASK:** M04-05 synthetic teacher flow and live report verification
+**ACTIVE_BRANCH:** `tas/M04-teacher-flow`
 **LAST_PROGRESS_COMMIT:** `21976ca4d7f764efc10902d1c03dbc6cd5f93b9e` ([PR #30](https://github.com/Arthur200014/testing-hosting/pull/30))
-**NEXT_ACTION:** After Timeweb deploy of PR #30, verify one real student report read-only, then create and assign one new catalog homework in the separate cabinet if owner chooses a real assignment. Continue M04-05 end-to-end teacher flow. No repeat import, and keep `EGA/config/manage.html` and GAS unchanged.
+**NEXT_ACTION:** Run the connected synthetic teacher flow on isolated PostgreSQL and release it. Public HTTPS `/health/live` returned 200; unauthenticated POST to the catalog route returned 401 (route deployed); Pages report module returned 200 with JavaScript MIME. One real student report still requires owner sign-in to compare. No repeat import, and keep `EGA/config/manage.html` and GAS unchanged.
 **STATUS:** M03-01/M03-02 and mock-history import owner-confirmed (not independently SQL-queried); test-history 233 rows read-only replay verified from owner Timeweb console output; questionnaires excluded by owner; M02-03 restore NOT_VERIFIED
 
 ## What is verified
