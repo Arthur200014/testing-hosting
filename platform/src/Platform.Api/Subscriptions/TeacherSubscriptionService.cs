@@ -37,8 +37,8 @@ public sealed class TeacherSubscriptionService(PlatformDbContext db, TimeProvide
             .SingleOrDefaultAsync(cancellationToken);
         if (member is null) return new(TeacherSubscriptionWriteStatus.NotFound);
 
-        var resetAt = request.ResetAt is null ? null : Truncate(request.ResetAt.Value);
-        var expected = request.ExpectedUpdatedAt is null ? null : Truncate(request.ExpectedUpdatedAt.Value);
+        DateTimeOffset? resetAt = request.ResetAt is null ? null : Truncate(request.ResetAt.Value);
+        DateTimeOffset? expected = request.ExpectedUpdatedAt is null ? null : Truncate(request.ExpectedUpdatedAt.Value);
         var existing = await FindAsync(workspaceId, membershipId, cancellationToken);
         if (existing is not null)
         {
