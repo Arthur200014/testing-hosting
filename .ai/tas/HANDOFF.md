@@ -3,10 +3,10 @@
 **REPO:** `Arthur200014/testing-hosting`
 **STATE_UPDATED:** 2026-11-12
 **CURRENT_PHASE:** M04 (protected teacher API writes; M02 isolated restore deferred by owner)
-**ACTIVE_TASK:** M04-03 teacher writes
-**ACTIVE_BRANCH:** none (PR #22 merged)
-**LAST_PROGRESS_COMMIT:** `8fa62937a4919b77bee1db4d565081a8300c7619` ([PR #22](https://github.com/Arthur200014/testing-hosting/pull/22))
-**NEXT_ACTION:** M04-03 atomic lesson+homework endpoint and student profile/archive parity; M04-02 manage aggregate/report parity before M04-04 adapter
+**ACTIVE_TASK:** M04-02 manage read parity
+**ACTIVE_BRANCH:** none (PR #25 merged)
+**LAST_PROGRESS_COMMIT:** `613beea24ef66965a21fb2d492759a360ba6d453` ([PR #25](https://github.com/Arthur200014/testing-hosting/pull/25))
+**NEXT_ACTION:** M04-02 manage aggregate/report read parity (live TestAttempts and mock sessions); then M04-04 staging opt-in adapter
 **STATUS:** M03-01/M03-02 and mock-history import owner-confirmed (not independently SQL-queried); test-history 233 rows read-only replay verified from owner Timeweb console output; questionnaires excluded by owner; M02-03 restore NOT_VERIFIED
 
 ## What is verified
@@ -42,7 +42,11 @@
 - 2026-11-12: [PR #21](https://github.com/Arthur200014/testing-hosting/pull/21) merged: tenant-scoped teacher POST assigns catalog homework atomically to multiple active same-program students. Same request ID replay is idempotent, altered payload conflicts; advisory locks prevent concurrent duplicate pending assignments. PostgreSQL integration and backend gate PASS. No live data writes.
 - 2026-11-12: [PR #22](https://github.com/Arthur200014/testing-hosting/pull/22) merged: teacher student creation by name/program with deterministic HMAC-derived invite code recoverable on request replay, storing only workspace-scoped code hash. Concurrent duplicates, foreign program and real student-session login PASS in synthetic PostgreSQL CI. No profile fields yet (grade/group/parent/score/notes) and no archive endpoint.
 
+- 2026-11-12: [PR #23](https://github.com/Arthur200014/testing-hosting/pull/23) merged: atomic lesson + optional homework teacher write. Pending homework conflict rolls back lesson; request replay and paired attendance covered by synthetic PostgreSQL tests. Backend gate PASS.
+- 2026-11-12: [PR #24](https://github.com/Arthur200014/testing-hosting/pull/24) merged: idempotent tenant-scoped student archive disables code and retains lesson history; synthetic PostgreSQL tests PASS.
+- 2026-11-12: [PR #25](https://github.com/Arthur200014/testing-hosting/pull/25) merged: additive nullable profile fields (grade/group/targets/initial diagnostics/parent/notes) in membership, teacher create/read. Existing imported records remain null. Synthetic PostgreSQL migration/model parity PASS. **Timeweb migration NOT_APPLIED** after this PR; after updated Docker deploy run `dotnet Platform.Api.dll --migrate` once before using profile-aware teacher reads. This is schema migration only, not data re-import. Current GAS manage remains default.
+
 ## Next concrete action
-1. M04-03: one atomic teacher endpoint for lesson + optional homework assignments matching `saveLessonAndHomework`, including replay and pending-conflict behavior. Add student profile fields to PG and create/read contract, then archive endpoint.
-2. M04-02: finish manage-compatible aggregate/report read including live TestAttempts and mock sessions. Then M04-04: staging opt-in adapter in `EGA/config/manage.html`; legacy GAS remains default until explicit cutover.
-3. Owner deferred real isolated backup restore. Do not repeat one-off imports, migrate questionnaires or require Timeweb commands for routine code changes.
+1. M04-02: assemble manage-compatible teacher read response including current TestAttempts and mock sessions; map report fields without invented values; verify tenant boundaries with synthetic data. Profile columns on Timeweb require one-time EF migration before teacher reads.
+2. M04-04: staging opt-in adapter in `EGA/config/manage.html` after read/write parity; GAS default. Production cutover needs separate owner authorization. Old imported profile fields remain null until separately reconciled; do not rerun initial student/homework import.
+3. Owner deferred real isolated backup restore. Do not migrate questionnaires or require routine Timeweb commands for code changes.
