@@ -33,6 +33,7 @@ builder.Services.AddScoped<TeacherLessonService>();
 builder.Services.AddScoped<TeacherLessonHomeworkService>();
 builder.Services.AddScoped<TeacherSubscriptionService>();
 builder.Services.AddScoped<TeacherHomeworkReader>();
+builder.Services.AddScoped<TeacherHomeworkCatalogService>();
 builder.Services.AddScoped<TeacherHomeworkAssignmentService>();
 builder.Services.AddSingleton(serviceProvider => new TeacherInviteCodeIssuer(
     StartupConfiguration.GetPepper(serviceProvider.GetRequiredService<IConfiguration>())));
@@ -314,6 +315,25 @@ app.MapGet("/api/v1/teacher/homework/catalog", async (
     Results.Ok(await homework.CatalogAsync(
         Guid.Parse(principal.FindFirstValue("workspace_id")!), cancellationToken)))
     .RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/homework/catalog", async (
+    TeacherCreateHomeworkCatalogRequest request, ClaimsPrincipal principal,
+    TeacherHomeworkCatalogService catalog, CancellationToken cancellationToken) =>
+{
+    var result = await catalog.CreateAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), request, cancellationToken);
+    return result.Status switch
+    {
+        TeacherCreateHomeworkCatalogStatus.Created => Results.Created(
+            $"/api/v1/teacher/homework/catalog/{result.Response!.Id}", result.Response),
+        TeacherCreateHomeworkCatalogStatus.Duplicate => Results.Ok(result.Response),
+        TeacherCreateHomeworkCatalogStatus.Conflict => Results.Problem(statusCode: 409,
+            title: "The request ID is already associated with another catalog item."),
+        TeacherCreateHomeworkCatalogStatus.NotFound => Results.NotFound(),
+        TeacherCreateHomeworkCatalogStatus.InvalidRequest => Results.ValidationProblem(result.Errors!),
+        _ => throw new InvalidOperationException("Unknown catalog create result.")
+    };
+}).RequireAuthorization("teacher");
 
 app.MapGet("/api/v1/teacher/homework/assignments", async (
     Guid? membershipId, ClaimsPrincipal principal, TeacherHomeworkReader homework,

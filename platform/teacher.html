@@ -294,11 +294,16 @@
       }
       function homework() {
         const d = state.data;
-        return `<div class="grid two"><div class="card stack"><h2>Назначить ДЗ</h2><form id="homeworkForm" class="stack">
+        return `<div class="grid two"><div class="card stack"><div><h2>Добавить работу в каталог</h2><p class="muted small">Укажите ссылку на готовое задание для выбранной программы.</p></div><form id="catalogForm" class="stack">
+          <div class="form-row"><label><span>Программа</span><select name="programId" required>${options(d.programs || [], 'id', 'displayName')}</select></label><label><span>Номер задания</span><input name="taskNumber" type="number" min="1" max="1000" required></label></div>
+          <label><span>Название</span><input name="name" maxlength="200" required></label><label><span>Ссылка HTTPS</span><input name="url" type="url" pattern="https://.*" maxlength="2048" placeholder="https://…" required></label>
+          <button class="primary" type="submit" ${d.programs?.length ? '' : 'disabled'}>Добавить в каталог</button></form></div>
+          <div class="card stack"><div class="section-head"><h2>Каталог ДЗ</h2><span class="muted small">${d.catalog?.length || 0}</span></div>${list((d.catalog || []).slice(0, 80), 'Работ пока нет.', x => `<div class="item"><div><strong>${safe(x.name)}</strong><small>${safe(programName(x.programId))} · задание ${safe(x.taskNumber)}</small></div>${/^https?:\/\//i.test(x.url) ? `<a class="link" href="${safe(x.url)}" target="_blank" rel="noopener noreferrer">Открыть</a>` : '<span class="muted small">Нет ссылки</span>'}</div>`)}</div>
+          <div class="card stack"><h2>Назначить ДЗ</h2><form id="homeworkForm" class="stack">
           <label><span>Работа из каталога</span><select name="catalogItemId" required><option value="">Выберите ДЗ</option>${(d.catalog || []).filter(x => x.isActive).map(x => `<option value="${safe(x.id)}" data-program="${safe(x.programId)}">${safe(x.name)} · ${safe(programName(x.programId))}</option>`).join('')}</select></label>
           <div><span class="muted small">Ученики</span><div id="homeworkStudents" class="check-list" style="margin-top:7px">${studentChoices().map(x => `<label><input type="checkbox" name="membershipId" value="${safe(x.membershipId)}" data-program="${safe(x.programId)}">${safe(x.studentName)} · ${safe(x.programName)}</label>`).join('') || 'Добавьте ученика.'}</div></div>
           <div class="form-row"><label><span>Назначено</span><input name="assignedAt" type="datetime-local" value="${nowLocal()}" required></label><label><span>Срок</span><select name="deadlineHours"><option value="24">24 часа</option><option value="48">48 часов</option><option value="72">72 часа</option></select></label></div>
-          <button class="primary" type="submit" ${d.catalog?.length && d.students?.length ? '' : 'disabled'}>Назначить</button></form></div>
+          <button class="primary" type="submit" ${(d.catalog || []).some(x => x.isActive) && d.students?.length ? '' : 'disabled'}>Назначить</button></form></div>
           <div class="card stack"><div class="section-head"><h2>Недавние назначения</h2><span class="muted small">${d.assignments?.length || 0}</span></div>${list((d.assignments || []).slice(0, 80), 'Назначений пока нет.', x => `<div class="item"><div><strong>${safe(x.name)}</strong><small>${safe(studentName(x.membershipId))} · до ${safe(date(x.deadlineAt))}</small></div><span class="pill ${x.submittedAt ? '' : 'warn'}">${x.submittedAt ? 'Сдано' : 'Ожидается'}</span></div>`)}</div></div>
           <div class="card stack" style="grid-column:1 / -1"><div class="section-head"><h2>Сдачи домашних работ</h2><span class="muted small">${d.submissions?.length || 0}</span></div>${list((d.submissions || []).slice(0, 80), 'Сдач пока нет.', x => `<div class="item"><div><strong>${safe(studentName(x.membershipId))}</strong><small>${safe(date(x.completedAt))}${x.isLate ? ' · после срока' : ''}</small></div><span class="pill">${safe(x.scorePercent)}%</span></div>`)}</div></div>`;
       }
@@ -467,6 +472,13 @@
       });
       $('content').addEventListener('submit', event => {
         event.preventDefault(); const form = event.target;
+        if (form.id === 'catalogForm') onForm(form, async () => {
+          await mutation('catalog', 'homework/catalog', () => ({
+            programId: formValue(form, 'programId'), taskNumber: Number(formValue(form, 'taskNumber')),
+            name: formValue(form, 'name'), url: formValue(form, 'url')
+          }));
+          form.reset();
+        });
         if (form.id === 'studentForm') onForm(form, async () => {
           const profile = Object.fromEntries(['grade', 'groupId', 'targetScore', 'parentName', 'notes'].map(k => [k, formValue(form, k) || null]));
           const result = await mutation('student', 'students', () => ({ studentName: formValue(form, 'studentName'), programId: formValue(form, 'programId'), profile }));
