@@ -9,13 +9,108 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using TestingHosting.Platform.IdentityAccess;
+using TestingHosting.Platform.Lessons;
 using TestingHosting.Platform.Persistence;
+using TestingHosting.Platform.Students;
+using TestingHosting.Platform.Subscriptions;
 
 namespace TestingHosting.Platform.IntegrationTests;
 
 public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private const string Password = "Synthetic-Teacher-Password-Only-123!";
+
+    [Fact]
+    public async Task TeacherStudentDirectoryIsScopedAndRevokedSessionsCannotReadIt()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "north", "north@example.invalid", "owner");
+        var south = await SeedAsync(factory, "south", "south@example.invalid", "teacher");
+        var ownId = await SeedStudentAsync(factory, north.WorkspaceId, "North student", true);
+        var otherId = await SeedStudentAsync(factory, south.WorkspaceId, "South student", true);
+        var inactiveId = await SeedStudentAsync(factory, north.WorkspaceId, "Archived student", false);
+        using var client = factory.CreateClient();
+
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.GetAsync("/api/v1/teacher/students")).StatusCode);
+        var session = await (await LoginAsync(client, "north", "north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>();
+        Assert.NotNull(session);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+
+        var students = await client.GetFromJsonAsync<List<TeacherStudentView>>("/api/v1/teacher/students");
+        var own = Assert.Single(students!);
+        Assert.Equal(ownId, own.MembershipId);
+        Assert.Equal("North student", own.StudentName);
+        Assert.Equal("MATH", own.ProgramCode);
+        Assert.Equal("source-north student", own.ImportExternalId);
+        var rawList = await client.GetStringAsync("/api/v1/teacher/students");
+        Assert.DoesNotContain("codeHash", rawList, StringComparison.OrdinalIgnoreCase);
+
+        Assert.Equal(HttpStatusCode.OK,
+            (await client.GetAsync($"/api/v1/teacher/students/{ownId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/v1/teacher/students/{otherId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/v1/teacher/students/{inactiveId}")).StatusCode);
+
+        var southSession = await (await LoginAsync(client, "south", "south@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>();
+        Assert.NotNull(southSession);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", southSession.AccessToken);
+        Assert.Equal(otherId, Assert.Single((await client.GetFromJsonAsync<List<TeacherStudentView>>(
+            "/api/v1/teacher/students"))!).MembershipId);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/v1/teacher/students/{ownId}")).StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+
+        await client.PostAsync("/api/v1/teacher-sessions/logout", null);
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await client.GetAsync("/api/v1/teacher/students")).StatusCode);
+    }
+
+    [Fact]
+    public async Task TeacherHistoryKeepsPairAttendanceAndNullableSubscriptionsWithinWorkspace()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "history-north", "north@example.invalid", "owner");
+        var south = await SeedAsync(factory, "history-south", "south@example.invalid", "teacher");
+        var first = await SeedStudentAsync(factory, north.WorkspaceId, "First", true);
+        var second = await SeedStudentAsync(factory, north.WorkspaceId, "Second", true);
+        var foreign = await SeedStudentAsync(factory, south.WorkspaceId, "Foreign", true);
+        await SeedHistoryAsync(factory, north.WorkspaceId, [first, second]);
+        await SeedHistoryAsync(factory, south.WorkspaceId, [foreign]);
+        using var client = factory.CreateClient();
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.GetAsync("/api/v1/teacher/lessons")).StatusCode);
+        var session = await (await LoginAsync(client, "history-north", "north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>();
+        Assert.NotNull(session);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+
+        var lesson = Assert.Single((await client.GetFromJsonAsync<List<TeacherLessonView>>(
+            "/api/v1/teacher/lessons"))!);
+        Assert.Equal(2, lesson.Participants.Count);
+        Assert.Contains(lesson.Participants, x => x.MembershipId == first && x.AttendanceStatus == "Present");
+        Assert.Contains(lesson.Participants, x => x.MembershipId == second && x.AttendanceStatus == "Absent");
+        Assert.DoesNotContain(lesson.Participants, x => x.MembershipId == foreign);
+
+        var subscriptions = await client.GetFromJsonAsync<List<TeacherSubscriptionView>>(
+            "/api/v1/teacher/subscriptions");
+        Assert.Equal(2, subscriptions!.Count);
+        Assert.All(subscriptions, x =>
+        {
+            Assert.Null(x.LessonPrice);
+            Assert.Null(x.ResetAt);
+            Assert.Null(x.BaseLessonCount);
+            Assert.NotEqual(foreign, x.MembershipId);
+        });
+
+        await client.PostAsync("/api/v1/teacher-sessions/logout", null);
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await client.GetAsync("/api/v1/teacher/subscriptions")).StatusCode);
+    }
 
     [Fact]
     public async Task TeacherSignsInToOwnWorkspaceAndLogoutRevokesToken()
@@ -251,6 +346,61 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
 
     private static Task<HttpResponseMessage> LoginAsync(HttpClient client, string workspace, string email, string password) =>
         client.PostAsJsonAsync("/api/v1/teacher-sessions", new { workspace, email, password });
+
+    private static async Task<Guid> SeedStudentAsync(ApiFactory factory, Guid workspaceId, string name, bool active)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var program = await db.Programs.SingleOrDefaultAsync(x => x.WorkspaceId == workspaceId && x.Code == "MATH")
+            ?? new LearningProgram
+            {
+                Id = Guid.NewGuid(), WorkspaceId = workspaceId, Code = "MATH", DisplayName = "Mathematics"
+            };
+        var student = new Student { Id = Guid.NewGuid(), DisplayName = name };
+        var membership = new WorkspaceStudentMembership
+        {
+            Id = Guid.NewGuid(), WorkspaceId = workspaceId, Student = student, Program = program,
+            CodeHash = System.Security.Cryptography.SHA256.HashData(Guid.NewGuid().ToByteArray()),
+            ImportSource = "synthetic", ImportExternalId = "source-" + name.ToLowerInvariant(),
+            IsActive = active
+        };
+        db.WorkspaceStudentMemberships.Add(membership);
+        await db.SaveChangesAsync();
+        return membership.Id;
+    }
+
+    private static async Task SeedHistoryAsync(ApiFactory factory, Guid workspaceId, Guid[] membershipIds)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var students = await db.WorkspaceStudentMemberships
+            .Where(x => x.WorkspaceId == workspaceId && membershipIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id);
+        var now = DateTimeOffset.UtcNow;
+        var lesson = new Lesson
+        {
+            Id = Guid.NewGuid(), WorkspaceId = workspaceId, LegacyLessonId = "synthetic-lesson",
+            LessonAt = now, CreatedAt = now
+        };
+        db.Lessons.Add(lesson);
+        for (var i = 0; i < membershipIds.Length; i++)
+        {
+            var student = students[membershipIds[i]];
+            db.LessonParticipants.Add(new LessonParticipant
+            {
+                Id = Guid.NewGuid(), WorkspaceId = workspaceId, Lesson = lesson,
+                MembershipId = student.Id, StudentId = student.StudentId, ProgramId = student.ProgramId,
+                DurationMinutes = 60, AttendanceStatus = i == 0 ? "Present" : "Absent", CreatedAt = now
+            });
+            db.SubscriptionSnapshots.Add(new SubscriptionSnapshot
+            {
+                Id = Guid.NewGuid(), WorkspaceId = workspaceId,
+                MembershipId = student.Id, StudentId = student.StudentId, ProgramId = student.ProgramId,
+                PackageSize = 8, UpdatedAt = now
+            });
+        }
+        await db.SaveChangesAsync();
+    }
 
     private static string ForgeToken(Guid sessionId, Guid userId, Guid workspaceId, Guid membershipId, string role)
     {
