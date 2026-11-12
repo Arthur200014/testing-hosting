@@ -276,6 +276,96 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     }
 
     [Fact]
+    public async Task SeparateTeacherFlowConnectsStudentCatalogPairedLessonHomeworkAndSubscription()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "flow-north", "north@example.invalid", "owner");
+        var south = await SeedAsync(factory, "flow-south", "south@example.invalid", "owner");
+        var program = await SeedProgramAsync(factory, north.WorkspaceId);
+        Guid languageProgram;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var language = new LearningProgram
+            {
+                Id = Guid.NewGuid(), WorkspaceId = south.WorkspaceId,
+                Code = "LANG", DisplayName = "Language"
+            };
+            db.Programs.Add(language);
+            await db.SaveChangesAsync();
+            languageProgram = language.Id;
+        }
+        using var client = factory.CreateClient();
+        var session = await (await LoginAsync(client, "flow-north", "north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>();
+        Assert.NotNull(session);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+
+        async Task<Guid> AddStudent(string name)
+        {
+            var response = await client.PostAsJsonAsync("/api/v1/teacher/students",
+                new TeacherCreateStudentRequest(Guid.NewGuid(), program, name));
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+            return (await response.Content.ReadFromJsonAsync<TeacherCreateStudentResponse>())!.MembershipId;
+        }
+        var first = await AddStudent("First synthetic student");
+        var second = await AddStudent("Second synthetic student");
+        var catalogResponse = await client.PostAsJsonAsync("/api/v1/teacher/homework/catalog",
+            new TeacherCreateHomeworkCatalogRequest(Guid.NewGuid(), program, 6,
+                "Geometry practice", "https://tests.invalid/geometry"));
+        Assert.Equal(HttpStatusCode.Created, catalogResponse.StatusCode);
+        var catalog = await catalogResponse.Content.ReadFromJsonAsync<TeacherHomeworkCatalogView>();
+        Assert.NotNull(catalog);
+
+        var request = new TeacherLessonHomeworkRequest(new TeacherLessonWriteRequest(
+            Guid.NewGuid(), DateTimeOffset.UtcNow,
+            [new(first, 60, "6", "Geometry", "Present"),
+             new(second, 45, "6", "Geometry", "Absent")]), catalog.Id, 48);
+        Assert.Equal(HttpStatusCode.Created,
+            (await client.PostAsJsonAsync("/api/v1/teacher/lessons-with-homework", request)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,
+            (await client.PostAsJsonAsync("/api/v1/teacher/lessons-with-homework", request)).StatusCode);
+        var subscription = await client.PostAsJsonAsync($"/api/v1/teacher/subscriptions/{first}",
+            new TeacherSubscriptionWriteRequest(8, null, null, null, null));
+        Assert.Equal(HttpStatusCode.Created, subscription.StatusCode);
+
+        Assert.Equal(2, (await client.GetFromJsonAsync<List<TeacherStudentView>>(
+            "/api/v1/teacher/students"))!.Count);
+        var lesson = Assert.Single((await client.GetFromJsonAsync<List<TeacherLessonView>>(
+            "/api/v1/teacher/lessons"))!);
+        Assert.Contains(lesson.Participants, x => x.MembershipId == first && x.AttendanceStatus == "Present");
+        Assert.Contains(lesson.Participants, x => x.MembershipId == second && x.AttendanceStatus == "Absent");
+        Assert.Equal(2, (await client.GetFromJsonAsync<List<TeacherHomeworkAssignmentView>>(
+            "/api/v1/teacher/homework/assignments"))!.Count);
+        var savedSubscription = Assert.Single((await client.GetFromJsonAsync<List<TeacherSubscriptionView>>(
+            "/api/v1/teacher/subscriptions"))!);
+        Assert.Equal(first, savedSubscription.MembershipId);
+        Assert.Null(savedSubscription.LessonPrice);
+        Assert.Null(savedSubscription.BaseLessonCount);
+
+        var southSession = await (await LoginAsync(client, "flow-south", "south@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>();
+        Assert.NotNull(southSession);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", southSession.AccessToken);
+        Assert.Empty((await client.GetFromJsonAsync<List<TeacherStudentView>>(
+            "/api/v1/teacher/students"))!);
+        Assert.Empty((await client.GetFromJsonAsync<List<TeacherLessonView>>(
+            "/api/v1/teacher/lessons"))!);
+        Assert.Empty((await client.GetFromJsonAsync<List<TeacherHomeworkCatalogView>>(
+            "/api/v1/teacher/homework/catalog"))!);
+        var otherWork = await client.PostAsJsonAsync("/api/v1/teacher/homework/catalog",
+            new TeacherCreateHomeworkCatalogRequest(Guid.NewGuid(), languageProgram, 3,
+                "Vocabulary", "https://tests.invalid/language"));
+        Assert.Equal(HttpStatusCode.Created, otherWork.StatusCode);
+        Assert.NotEqual(catalog.Id,
+            Assert.Single((await client.GetFromJsonAsync<List<TeacherHomeworkCatalogView>>(
+                "/api/v1/teacher/homework/catalog"))!).Id);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync($"/api/v1/teacher/subscriptions/{first}",
+                new TeacherSubscriptionWriteRequest(8, null, null, null, null))).StatusCode);
+    }
+
+    [Fact]
     public async Task TeacherCreatesWorkspaceScopedCatalogItemAndCanAssignItWithoutDuplicates()
     {
         await ResetAsync(factory);
