@@ -39,6 +39,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
                 ["Jwt:LifetimeMinutes"] = "5",
                 ["StudentCodes:Pepper"] = Pepper,
                 ["Cors:AllowedOrigins:0"] = "https://tests.invalid",
+                ["TeacherRegistration:Workspace"] = "claimed-workspace",
+                ["TeacherRegistration:ClaimCode"] = "synthetic-claim-code-for-integration-tests-only-2026",
                 ["StudentSessions:RateLimitPermitLimit"] = rateLimit.ToString(),
                 ["StudentSessions:RateLimitWindowSeconds"] = "60"
             }));

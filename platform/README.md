@@ -2,6 +2,10 @@
 
 The platform is an ASP.NET Core 10 modular monolith backed by PostgreSQL 17. It contains Identity/Access workspace and teacher-membership boundaries, Students, Test Attempts, and Homework. Local XLSX importers reconcile student-directory and homework snapshots without calling Google APIs.
 
+### First teacher for an imported workspace
+
+The standalone `platform/teacher.html` page can register the first owner of an **existing** imported workspace. In the private Timeweb application environment, set `TeacherRegistration__Workspace=tas-main` and `TeacherRegistration__ClaimCode` to a fresh random secret of at least 24 characters, then redeploy the API. The owner enters the same workspace and code in the registration form and chooses their own email and password (16+ characters). The endpoint does not create a new workspace or import data: it adds the owner membership to the existing workspace and refuses another claim. Remove `TeacherRegistration__ClaimCode` from the app environment after the successful claim. Never put that code, the password, or student data in Git, a URL, or a chat message. The separate GAS manage form is unchanged.
+
 Student codes are normalized and used only as request-body input. PostgreSQL stores a workspace-scoped HMAC-SHA256 digest; the pepper and JWT key are independent base64 environment secrets. Invalid workspace, code, inactive workspace, membership, or student all return the same 401 response. Successful tokens expire within 15 minutes and carry `sub`, `workspace_id`, `membership_id`, and `role=student` claims.
 
 ## Commands
