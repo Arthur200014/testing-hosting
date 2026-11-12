@@ -31,6 +31,7 @@ builder.Services.AddScoped<TeacherHistoryReader>();
 builder.Services.AddScoped<TeacherLessonService>();
 builder.Services.AddScoped<TeacherSubscriptionService>();
 builder.Services.AddScoped<TeacherHomeworkReader>();
+builder.Services.AddScoped<TeacherHomeworkAssignmentService>();
 builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddSingleton<IPasswordHasher<TeacherUser>, PasswordHasher<TeacherUser>>();
 builder.Services.AddSingleton<TeacherTokenIssuer>();
@@ -234,6 +235,25 @@ app.MapGet("/api/v1/teacher/homework/assignments", async (
     Results.Ok(await homework.AssignmentsAsync(
         Guid.Parse(principal.FindFirstValue("workspace_id")!), membershipId, cancellationToken)))
     .RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/homework/assignments", async (
+    TeacherAssignHomeworkRequest request, ClaimsPrincipal principal,
+    TeacherHomeworkAssignmentService homework, CancellationToken cancellationToken) =>
+{
+    var result = await homework.AssignAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), request, cancellationToken);
+    return result.Status switch
+    {
+        TeacherAssignHomeworkStatus.Created => Results.Created(
+            "/api/v1/teacher/homework/assignments", result.Response),
+        TeacherAssignHomeworkStatus.Duplicate => Results.Ok(result.Response),
+        TeacherAssignHomeworkStatus.Conflict => Results.Problem(statusCode: 409,
+            title: "The request ID is already associated with different assignments."),
+        TeacherAssignHomeworkStatus.NotFound => Results.NotFound(),
+        TeacherAssignHomeworkStatus.InvalidRequest => Results.ValidationProblem(result.Errors!),
+        _ => throw new InvalidOperationException("Unknown teacher homework assignment result.")
+    };
+}).RequireAuthorization("teacher");
 
 app.MapGet("/api/v1/teacher/homework/submissions", async (
     Guid? membershipId, ClaimsPrincipal principal, TeacherHomeworkReader homework,
