@@ -24,6 +24,85 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     private const string Password = "Synthetic-Teacher-Password-Only-123!";
 
     [Fact]
+    public async Task TeacherAssignsHomeworkAtomicallyAndReplaysConcurrentBatchWithoutResettingSubmissions()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "assign-north", "north@example.invalid", "owner");
+        var south = await SeedAsync(factory, "assign-south", "south@example.invalid", "teacher");
+        var first = await SeedStudentAsync(factory, north.WorkspaceId, "First", true);
+        var second = await SeedStudentAsync(factory, north.WorkspaceId, "Second", true);
+        var foreign = await SeedStudentAsync(factory, south.WorkspaceId, "Foreign", true);
+        var catalog = await SeedCatalogAsync(factory, north.WorkspaceId, first);
+        var foreignCatalog = await SeedCatalogAsync(factory, south.WorkspaceId, foreign);
+        var request = new TeacherAssignHomeworkRequest(
+            Guid.NewGuid(), catalog, DateTimeOffset.UtcNow, 48, [first, second]);
+        using var client = factory.CreateClient();
+        const string path = "/api/v1/teacher/homework/assignments";
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.PostAsJsonAsync(path, request)).StatusCode);
+        var session = await (await LoginAsync(client, "assign-north", "north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>();
+        Assert.NotNull(session);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync(path, request with
+            {
+                RequestId = Guid.NewGuid(), MembershipIds = [first, foreign]
+            })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync(path, request with
+            {
+                RequestId = Guid.NewGuid(), CatalogItemId = foreignCatalog
+            })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsJsonAsync(path, request with
+            {
+                RequestId = Guid.NewGuid(), MembershipIds = [first, first]
+            })).StatusCode);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            Assert.Empty(await db.HomeworkAssignments.AsNoTracking().ToListAsync());
+        }
+
+        var responses = await Task.WhenAll(Enumerable.Range(0, 4)
+            .Select(_ => client.PostAsJsonAsync(path, request)));
+        Assert.Single(responses, x => x.StatusCode == HttpStatusCode.Created);
+        Assert.Equal(3, responses.Count(x => x.StatusCode == HttpStatusCode.OK));
+        var response = await responses[0].Content.ReadFromJsonAsync<TeacherAssignHomeworkResponse>();
+        Assert.NotNull(response);
+        Assert.Equal(2, response.AssignmentIds.Count);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var assignments = await db.HomeworkAssignments.AsNoTracking().ToListAsync();
+            Assert.Equal(2, assignments.Count);
+            Assert.Equal(2, assignments.Select(x => x.StudentId).Distinct().Count());
+            Assert.All(assignments, x => Assert.Equal(48, (x.DeadlineAt - x.AssignedAt).TotalHours));
+            await db.HomeworkAssignments.Where(x => x.Id == assignments[0].Id)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.Status, "submitted"));
+        }
+        Assert.Equal(HttpStatusCode.OK,
+            (await client.PostAsJsonAsync(path, request with { MembershipIds = [second, first] })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync(path, request with { DeadlineHours = 72 })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync(path, request with { MembershipIds = [first] })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync(path, request with { RequestId = Guid.NewGuid() })).StatusCode);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            Assert.Equal(2, await db.HomeworkAssignments.CountAsync());
+            Assert.Equal(1, await db.HomeworkAssignments.CountAsync(x => x.Status == "submitted"));
+        }
+        await client.PostAsync("/api/v1/teacher-sessions/logout", null);
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await client.PostAsJsonAsync(path, request)).StatusCode);
+    }
+
+    [Fact]
     public async Task TeacherCreatesOnePairedLessonAndReplayCannotChangeAttendanceOrCrossWorkspace()
     {
         await ResetAsync(factory);
@@ -648,6 +727,23 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
             CreatedAt = assignedAt.AddMinutes(30)
         });
         await db.SaveChangesAsync();
+    }
+
+    private static async Task<Guid> SeedCatalogAsync(ApiFactory factory, Guid workspaceId, Guid membershipId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var member = await db.WorkspaceStudentMemberships.SingleAsync(x => x.Id == membershipId);
+        var item = new HomeworkCatalogItem
+        {
+            Id = Guid.NewGuid(), WorkspaceId = workspaceId, ProgramId = member.ProgramId,
+            HomeworkId = "batch-hw", TaskNumber = 6, Name = "Batch homework",
+            Url = "https://tests.invalid/batch-hw", IsActive = true, SortOrder = 1,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        db.HomeworkCatalogItems.Add(item);
+        await db.SaveChangesAsync();
+        return item.Id;
     }
 
     private static async Task SeedResultsAsync(ApiFactory factory, Guid workspaceId, Guid membershipId)
