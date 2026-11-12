@@ -3,10 +3,10 @@
 **REPO:** `Arthur200014/testing-hosting`
 **STATE_UPDATED:** 2026-11-12
 **CURRENT_PHASE:** M04 (separate teacher platform UI; M02 isolated restore deferred by owner)
-**ACTIVE_TASK:** M04 live cabinet speed and report verification
-**ACTIVE_BRANCH:** none
+**ACTIVE_TASK:** M04-05 teacher save retry UX after network uncertainty
+**ACTIVE_BRANCH:** `tas/M04-retry-feedback`
 **LAST_PROGRESS_COMMIT:** `1791507792261e05766a097fc8a82ece26a3aeb5` ([PR #32](https://github.com/Arthur200014/testing-hosting/pull/32))
-**NEXT_ACTION:** Check perceived load time in the signed-in teacher cabinet and compare one existing student's report against source dates/counts. If a particular tab remains slow, profile that endpoint and add bounded server pagination or summaries. No repeat import, and keep `EGA/config/manage.html` and GAS unchanged.
+**NEXT_ACTION:** Release explicit same-request retry feedback for teacher writes and verify focused network/idempotency tests. Owner confirmed cabinet speed and one real report look correct. A real catalog assignment still needs a chosen work/student; do not invent one. No repeat import, and keep `EGA/config/manage.html` and GAS unchanged.
 **STATUS:** M03-01/M03-02 and mock-history import owner-confirmed (not independently SQL-queried); test-history 233 rows read-only replay verified from owner Timeweb console output; questionnaires excluded by owner; M02-03 restore NOT_VERIFIED
 
 ## What is verified
