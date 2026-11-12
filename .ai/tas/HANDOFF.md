@@ -2,11 +2,11 @@
 
 **REPO:** `Arthur200014/testing-hosting`
 **STATE_UPDATED:** 2026-11-12
-**CURRENT_PHASE:** M04 (protected teacher API writes; M02 isolated restore deferred by owner)
-**ACTIVE_TASK:** M04-02 manage read parity
-**ACTIVE_BRANCH:** none (PR #25 merged)
+**CURRENT_PHASE:** M04 (separate teacher platform UI; M02 isolated restore deferred by owner)
+**ACTIVE_TASK:** M04 standalone teacher UI
+**ACTIVE_BRANCH:** `tas/M04-separate-teacher-ui`
 **LAST_PROGRESS_COMMIT:** `613beea24ef66965a21fb2d492759a360ba6d453` ([PR #25](https://github.com/Arthur200014/testing-hosting/pull/25))
-**NEXT_ACTION:** M04-02 manage aggregate/report read parity (live TestAttempts and mock sessions); then M04-04 staging opt-in adapter
+**NEXT_ACTION:** Finish and deploy standalone `platform/teacher.html`, then check teacher login/CORS and real read flow on Timeweb. Keep `EGA/config/manage.html` and GAS unchanged. Add live TestAttempts/mock sessions and reports to the new platform later.
 **STATUS:** M03-01/M03-02 and mock-history import owner-confirmed (not independently SQL-queried); test-history 233 rows read-only replay verified from owner Timeweb console output; questionnaires excluded by owner; M02-03 restore NOT_VERIFIED
 
 ## What is verified
@@ -47,6 +47,6 @@
 - 2026-11-12: [PR #25](https://github.com/Arthur200014/testing-hosting/pull/25) merged: additive nullable profile fields (grade/group/targets/initial diagnostics/parent/notes) in membership, teacher create/read. Existing imported records remain null. Synthetic PostgreSQL migration/model parity PASS. **Timeweb migration NOT_APPLIED** after this PR; after updated Docker deploy run `dotnet Platform.Api.dll --migrate` once before using profile-aware teacher reads. This is schema migration only, not data re-import. Current GAS manage remains default.
 
 ## Next concrete action
-1. M04-02: assemble manage-compatible teacher read response including current TestAttempts and mock sessions; map report fields without invented values; verify tenant boundaries with synthetic data. Profile columns on Timeweb require one-time EF migration before teacher reads.
-2. M04-04: staging opt-in adapter in `EGA/config/manage.html` after read/write parity; GAS default. Production cutover needs separate owner authorization. Old imported profile fields remain null until separately reconciled; do not rerun initial student/homework import.
-3. Owner deferred real isolated backup restore. Do not migrate questionnaires or require routine Timeweb commands for code changes.
+1. The owner explicitly chose a separate platform cabinet, with the existing GAS form kept working as-is. New page is `platform/teacher.html` on GitHub Pages; its teacher API is on Timeweb. Verify allowed browser origin (`https://arthur200014.github.io`) and teacher account provisioning before attempting a real login. A browser CORS failure will require an environment setting, not a Google Sheets migration.
+2. The owner reported the profile migration completed after PR #25 (“Да, все ок”); treat it as owner-confirmed. Never rerun the student/homework/history/test/mock import for routine deployments. Existing imported profile values remain nullable. The new UI covers students, paired lessons and attendance, homework assignments, subscriptions, and historical tests/mocks. Current live attempts, mock sessions, full reports and catalog authoring remain future work on the new page.
+3. Owner deferred real isolated backup restore. Do not migrate questionnaires. Do not alter `EGA/config/manage.html` or Apps Script without a new explicit request.

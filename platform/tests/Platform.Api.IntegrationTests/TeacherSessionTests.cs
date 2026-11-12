@@ -497,6 +497,29 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     }
 
     [Fact]
+    public async Task TeacherProgramsDoNotRevealOtherWorkspace()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "programs-north", "north@example.invalid", "owner");
+        var south = await SeedAsync(factory, "programs-south", "south@example.invalid", "teacher");
+        var own = await SeedProgramAsync(factory, north.WorkspaceId);
+        await SeedProgramAsync(factory, south.WorkspaceId);
+        using var client = factory.CreateClient();
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.GetAsync("/api/v1/teacher/programs")).StatusCode);
+        var session = await (await LoginAsync(client, "programs-north", "north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>();
+        Assert.NotNull(session);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+        var items = await client.GetFromJsonAsync<List<System.Text.Json.JsonElement>>(
+            "/api/v1/teacher/programs");
+        Assert.Equal(own.ToString(), Assert.Single(items!).GetProperty("id").GetString());
+        await client.PostAsync("/api/v1/teacher-sessions/logout", null);
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await client.GetAsync("/api/v1/teacher/programs")).StatusCode);
+    }
+
+    [Fact]
     public async Task TeacherHistoryKeepsPairAttendanceAndNullableSubscriptionsWithinWorkspace()
     {
         await ResetAsync(factory);
