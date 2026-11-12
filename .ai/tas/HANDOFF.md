@@ -3,10 +3,10 @@
 **REPO:** `Arthur200014/testing-hosting`
 **STATE_UPDATED:** 2026-11-12
 **CURRENT_PHASE:** M04 (separate teacher platform UI; M02 isolated restore deferred by owner)
-**ACTIVE_TASK:** M04-05 live catalog assignment pending an actual work and student
-**ACTIVE_BRANCH:** none
+**ACTIVE_TASK:** Correct external-link homework expectation and scope native homework authoring
+**ACTIVE_BRANCH:** `tas/M04-native-homework`
 **LAST_PROGRESS_COMMIT:** `76e762b24c276eb35b85ab6812feeffea3ebc633` ([PR #33](https://github.com/Arthur200014/testing-hosting/pull/33))
-**NEXT_ACTION:** Owner confirmed the real report and improved load are OK. To complete M04-05 live write flow, use an intentionally chosen HTTPS homework link/program and selected student in the separate cabinet, then verify the resulting assignment; do not invent a real assignment. Continue universal multi-teacher onboarding only after this gate or explicit owner reprioritization. No repeat import, and keep `EGA/config/manage.html` and GAS unchanged.
+**NEXT_ACTION:** Owner confirmed report and load are OK. Current catalog accepts only existing external HTTPS homework pages; the new platform has no native student homework page/editor yet. Do not require the owner to provide an external link, use an old GAS form as a PostgreSQL test, or invent a real assignment. Plan and implement platform-native authoring → assignment → student submission as the next product slice before live M04-05 homework verification. No repeat import, and keep `EGA/config/manage.html` and GAS unchanged.
 **STATUS:** M03-01/M03-02 and mock-history import owner-confirmed (not independently SQL-queried); test-history 233 rows read-only replay verified from owner Timeweb console output; questionnaires excluded by owner; M02-03 restore NOT_VERIFIED
 
 ## What is verified
