@@ -9,10 +9,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using TestingHosting.Platform.IdentityAccess;
+using TestingHosting.Platform.Homework;
 using TestingHosting.Platform.Lessons;
+using TestingHosting.Platform.Mocks;
 using TestingHosting.Platform.Persistence;
 using TestingHosting.Platform.Students;
 using TestingHosting.Platform.Subscriptions;
+using TestingHosting.Platform.TestAttempts;
 
 namespace TestingHosting.Platform.IntegrationTests;
 
@@ -110,6 +113,81 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         await client.PostAsync("/api/v1/teacher-sessions/logout", null);
         Assert.Equal(HttpStatusCode.Forbidden,
             (await client.GetAsync("/api/v1/teacher/subscriptions")).StatusCode);
+    }
+
+    [Fact]
+    public async Task TeacherHomeworkReadsAreScopedIncludingMembershipFilter()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "homework-north", "north@example.invalid", "owner");
+        var south = await SeedAsync(factory, "homework-south", "south@example.invalid", "teacher");
+        var own = await SeedStudentAsync(factory, north.WorkspaceId, "North", true);
+        var foreign = await SeedStudentAsync(factory, south.WorkspaceId, "South", true);
+        await SeedHomeworkAsync(factory, north.WorkspaceId, own);
+        await SeedHomeworkAsync(factory, south.WorkspaceId, foreign);
+        using var client = factory.CreateClient();
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.GetAsync("/api/v1/teacher/homework/catalog")).StatusCode);
+        var session = await (await LoginAsync(client, "homework-north", "north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>();
+        Assert.NotNull(session);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+
+        Assert.Single((await client.GetFromJsonAsync<List<TeacherHomeworkCatalogView>>(
+            "/api/v1/teacher/homework/catalog"))!);
+        var assignment = Assert.Single((await client.GetFromJsonAsync<List<TeacherHomeworkAssignmentView>>(
+            "/api/v1/teacher/homework/assignments"))!);
+        Assert.Equal(own, assignment.MembershipId);
+        Assert.Equal("assigned", assignment.Status);
+        var submission = Assert.Single((await client.GetFromJsonAsync<List<TeacherHomeworkSubmissionView>>(
+            $"/api/v1/teacher/homework/submissions?membershipId={own}"))!);
+        Assert.Equal(assignment.Id, submission.AssignmentId);
+        Assert.Empty((await client.GetFromJsonAsync<List<TeacherHomeworkAssignmentView>>(
+            $"/api/v1/teacher/homework/assignments?membershipId={foreign}"))!);
+        Assert.Empty((await client.GetFromJsonAsync<List<TeacherHomeworkSubmissionView>>(
+            $"/api/v1/teacher/homework/submissions?membershipId={foreign}"))!);
+    }
+
+    [Fact]
+    public async Task TeacherHistoricalResultsKeepMissingValuesAndRejectForeignMembership()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "results-north", "north@example.invalid", "owner");
+        var south = await SeedAsync(factory, "results-south", "south@example.invalid", "teacher");
+        var own = await SeedStudentAsync(factory, north.WorkspaceId, "North", true);
+        var foreign = await SeedStudentAsync(factory, south.WorkspaceId, "South", true);
+        await SeedResultsAsync(factory, north.WorkspaceId, own);
+        await SeedResultsAsync(factory, south.WorkspaceId, foreign);
+        using var client = factory.CreateClient();
+        var session = await (await LoginAsync(client, "results-north", "north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>();
+        Assert.NotNull(session);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+
+        var test = Assert.Single((await client.GetFromJsonAsync<List<TeacherTestResultView>>(
+            "/api/v1/teacher/tests/history"))!);
+        Assert.Equal(own, test.MembershipId);
+        Assert.Equal(75, test.ScorePercent);
+        Assert.Null(test.CorrectCount);
+        Assert.Null(test.TotalCount);
+        var mock = Assert.Single((await client.GetFromJsonAsync<List<TeacherMockResultView>>(
+            "/api/v1/teacher/mocks/results"))!);
+        Assert.Equal(own, mock.MembershipId);
+        Assert.Null(mock.Score);
+        var task = Assert.Single((await client.GetFromJsonAsync<List<TeacherMockTaskView>>(
+            "/api/v1/teacher/mocks/tasks"))!);
+        Assert.Equal(own, task.MembershipId);
+        Assert.Null(task.EarnedPoints);
+
+        foreach (var path in new[] { "tests/history", "mocks/results", "mocks/tasks" })
+        {
+            var response = await client.GetAsync($"/api/v1/teacher/{path}?membershipId={foreign}");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("[]", await response.Content.ReadAsStringAsync());
+        }
+        await client.PostAsync("/api/v1/teacher-sessions/logout", null);
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await client.GetAsync("/api/v1/teacher/mocks/results")).StatusCode);
     }
 
     [Fact]
@@ -399,6 +477,75 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
                 PackageSize = 8, UpdatedAt = now
             });
         }
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedHomeworkAsync(ApiFactory factory, Guid workspaceId, Guid membershipId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var member = await db.WorkspaceStudentMemberships.SingleAsync(x => x.Id == membershipId);
+        var assignedAt = DateTimeOffset.UtcNow.AddHours(-2);
+        var catalog = new HomeworkCatalogItem
+        {
+            Id = Guid.NewGuid(), WorkspaceId = workspaceId, ProgramId = member.ProgramId,
+            HomeworkId = "synthetic-hw", TaskNumber = 6, Name = "Synthetic homework",
+            Url = "https://tests.invalid/homework", IsActive = true, SortOrder = 1, CreatedAt = assignedAt
+        };
+        db.HomeworkCatalogItems.Add(catalog);
+        await db.SaveChangesAsync();
+        var assignment = new HomeworkAssignment
+        {
+            Id = Guid.NewGuid(), WorkspaceId = workspaceId, MembershipId = member.Id,
+            StudentId = member.StudentId, ProgramId = member.ProgramId, CatalogItemId = catalog.Id,
+            AssignmentRecordId = "synthetic-assignment", HomeworkId = catalog.HomeworkId,
+            TaskNumber = 6, Name = catalog.Name, Url = catalog.Url, AssignedAt = assignedAt,
+            DeadlineAt = assignedAt.AddHours(24), Status = "assigned", SchemaVersion = "2"
+        };
+        db.HomeworkAssignments.Add(assignment);
+        await db.SaveChangesAsync();
+        db.HomeworkSubmissions.Add(new HomeworkSubmission
+        {
+            Id = Guid.NewGuid(), WorkspaceId = workspaceId, AssignmentId = assignment.Id,
+            MembershipId = member.Id, StudentId = member.StudentId, ProgramId = member.ProgramId,
+            EventId = "synthetic-event", ScorePercent = 80, DurationSeconds = 60,
+            CompletedAt = assignedAt.AddMinutes(30), IsLate = false, SchemaVersion = "2",
+            CreatedAt = assignedAt.AddMinutes(30)
+        });
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedResultsAsync(ApiFactory factory, Guid workspaceId, Guid membershipId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var member = await db.WorkspaceStudentMemberships.SingleAsync(x => x.Id == membershipId);
+        var date = new DateOnly(2026, 11, 1);
+        var now = DateTimeOffset.UtcNow;
+        db.HistoricalTestResults.Add(new HistoricalTestResult
+        {
+            Id = Guid.NewGuid(), WorkspaceId = workspaceId, MembershipId = member.Id,
+            StudentId = member.StudentId, ProgramId = member.ProgramId,
+            EventId = "synthetic-test", TestId = "test-1", TestDate = date,
+            TopicId = "topic", TopicName = "Topic", TaskNumber = 6,
+            ScorePercent = 75, DurationSeconds = 120, ServerSubmittedAt = now, SchemaVersion = "2"
+        });
+        db.HistoricalMockResults.Add(new HistoricalMockResult
+        {
+            Id = Guid.NewGuid(), WorkspaceId = workspaceId, MembershipId = member.Id,
+            StudentId = member.StudentId, ProgramId = member.ProgramId,
+            EventId = "synthetic-mock", MockId = "mock-1", MockDate = date,
+            VariantName = "Variant", PrimaryScore = 6, MaxPrimaryScore = 10,
+            ScorePercent = 60, ServerSubmittedAt = now, SchemaVersion = "2"
+        });
+        db.HistoricalMockTaskResults.Add(new HistoricalMockTaskResult
+        {
+            Id = Guid.NewGuid(), WorkspaceId = workspaceId, MembershipId = member.Id,
+            StudentId = member.StudentId, ProgramId = member.ProgramId,
+            EventId = "synthetic-mock", MockId = "mock-1", MockDate = date,
+            TaskNumber = 6, TopicId = "topic", TopicName = "Topic",
+            IsCorrect = false, Answered = true, ServerSubmittedAt = now, SchemaVersion = "2"
+        });
         await db.SaveChangesAsync();
     }
 
