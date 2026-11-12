@@ -27,6 +27,8 @@ builder.Services.AddScoped<StudentSessionService>();
 builder.Services.AddScoped<TeacherSessionService>();
 builder.Services.AddScoped<TeacherStudentDirectory>();
 builder.Services.AddScoped<TeacherHistoryReader>();
+builder.Services.AddScoped<TeacherHomeworkReader>();
+builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddSingleton<IPasswordHasher<TeacherUser>, PasswordHasher<TeacherUser>>();
 builder.Services.AddSingleton<TeacherTokenIssuer>();
 builder.Services.AddScoped<IAuthorizationHandler, ActiveTeacherSessionHandler>();
@@ -177,6 +179,47 @@ app.MapGet("/api/v1/teacher/subscriptions", async (
     ClaimsPrincipal principal, TeacherHistoryReader history, CancellationToken cancellationToken) =>
     Results.Ok(await history.ListSubscriptionsAsync(
         Guid.Parse(principal.FindFirstValue("workspace_id")!), cancellationToken)))
+    .RequireAuthorization("teacher");
+
+app.MapGet("/api/v1/teacher/homework/catalog", async (
+    ClaimsPrincipal principal, TeacherHomeworkReader homework, CancellationToken cancellationToken) =>
+    Results.Ok(await homework.CatalogAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), cancellationToken)))
+    .RequireAuthorization("teacher");
+
+app.MapGet("/api/v1/teacher/homework/assignments", async (
+    Guid? membershipId, ClaimsPrincipal principal, TeacherHomeworkReader homework,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await homework.AssignmentsAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), membershipId, cancellationToken)))
+    .RequireAuthorization("teacher");
+
+app.MapGet("/api/v1/teacher/homework/submissions", async (
+    Guid? membershipId, ClaimsPrincipal principal, TeacherHomeworkReader homework,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await homework.SubmissionsAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), membershipId, cancellationToken)))
+    .RequireAuthorization("teacher");
+
+app.MapGet("/api/v1/teacher/tests/history", async (
+    Guid? membershipId, ClaimsPrincipal principal, TeacherResultsReader results,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await results.TestsAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), membershipId, cancellationToken)))
+    .RequireAuthorization("teacher");
+
+app.MapGet("/api/v1/teacher/mocks/results", async (
+    Guid? membershipId, ClaimsPrincipal principal, TeacherResultsReader results,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await results.MocksAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), membershipId, cancellationToken)))
+    .RequireAuthorization("teacher");
+
+app.MapGet("/api/v1/teacher/mocks/tasks", async (
+    Guid? membershipId, ClaimsPrincipal principal, TeacherResultsReader results,
+    CancellationToken cancellationToken) =>
+    Results.Ok(await results.MockTasksAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), membershipId, cancellationToken)))
     .RequireAuthorization("teacher");
 
 app.MapPost("/api/v1/teacher-sessions/logout", async (
