@@ -162,6 +162,18 @@ app.MapGet("/api/v1/teacher/me", (ClaimsPrincipal principal) => Results.Ok(new
     WorkspaceRole = principal.FindFirstValue("workspace_role")
 })).RequireAuthorization("teacher");
 
+app.MapGet("/api/v1/teacher/programs", async (
+    ClaimsPrincipal principal, PlatformDbContext db, CancellationToken cancellationToken) =>
+{
+    var workspaceId = Guid.Parse(principal.FindFirstValue("workspace_id")!);
+    var programs = await db.Programs.AsNoTracking()
+        .Where(x => x.WorkspaceId == workspaceId && x.IsActive)
+        .OrderBy(x => x.DisplayName).ThenBy(x => x.Id)
+        .Select(x => new { x.Id, x.Code, x.DisplayName })
+        .ToListAsync(cancellationToken);
+    return Results.Ok(programs);
+}).RequireAuthorization("teacher");
+
 app.MapGet("/api/v1/teacher/students", async (
     ClaimsPrincipal principal, TeacherStudentDirectory directory, CancellationToken cancellationToken) =>
 {

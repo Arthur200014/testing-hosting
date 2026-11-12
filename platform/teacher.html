@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Teacher AI Student — кабинет преподавателя</title>
+  <style>
+    :root { font: 15px/1.45 Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #e8edf7; background: #0a1020; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 72% -12%, #21385d 0, transparent 36%), #0a1020; }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { opacity: .55; cursor: wait; }
+    input, select, textarea { width: 100%; border: 1px solid #34445e; border-radius: 11px; padding: 10px 12px; color: #f6f8fc; background: #111d33; outline: none; }
+    textarea { min-height: 86px; resize: vertical; }
+    input:focus, select:focus, textarea:focus { border-color: #f8b547; box-shadow: 0 0 0 3px #f8b54722; }
+    label { display: grid; gap: 5px; color: #aab8cf; font-size: .9rem; }
+    label > span { color: #ced8e9; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: clamp(1.5rem, 3vw, 2.25rem); line-height: 1.15; letter-spacing: -.035em; }
+    h2 { font-size: 1.25rem; letter-spacing: -.015em; }
+    h3 { font-size: 1rem; }
+    .muted { color: #91a2bc; }
+    .small { font-size: .83rem; }
+    .card { border: 1px solid #293a55; border-radius: 18px; background: #111b2fdd; box-shadow: 0 14px 40px #02071230; padding: 22px; }
+    .grid { display: grid; gap: 16px; }
+    .two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .stack { display: grid; gap: 14px; }
+    .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .spread { justify-content: space-between; }
+    .primary, .secondary, .danger, .nav button { border: 1px solid transparent; border-radius: 11px; padding: 10px 15px; color: #10213b; background: #f8b547; font-weight: 700; }
+    .primary:hover { background: #ffca70; }
+    .secondary { color: #e5ebf5; background: #1d2c46; border-color: #354968; }
+    .secondary:hover { background: #283b5b; }
+    .danger { color: #ffbbb6; background: #48252e; border-color: #77434b; }
+    .danger:hover { background: #613039; }
+    .small-button { padding: 6px 10px; font-size: .83rem; }
+    .shell { display: grid; grid-template-columns: 238px minmax(0, 1fr); min-height: 100vh; }
+    aside { border-right: 1px solid #293a55; background: #0c1628ee; padding: 24px 16px; display: flex; flex-direction: column; gap: 22px; }
+    .brand { display: flex; align-items: center; gap: 11px; padding: 4px 10px; font-weight: 800; line-height: 1.12; letter-spacing: -.02em; }
+    .brand-mark { display: grid; place-items: center; width: 39px; height: 39px; border-radius: 12px; background: #f8b547; color: #142239; font-size: 1.3rem; }
+    .brand small { display: block; margin-top: 4px; color: #8ea0ba; font-size: .7rem; font-weight: 500; letter-spacing: .03em; }
+    .nav { display: grid; gap: 5px; }
+    .nav button { width: 100%; text-align: left; color: #9fb0ca; font-weight: 600; background: transparent; padding: 11px 13px; }
+    .nav button.active, .nav button:hover { background: #273850; color: #fff; }
+    .side-foot { margin-top: auto; display: grid; gap: 10px; padding: 10px; }
+    main { min-width: 0; padding: 31px clamp(18px, 3vw, 44px) 58px; max-width: 1550px; width: 100%; margin: 0 auto; }
+    .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 27px; }
+    .eyebrow { color: #f8b547; text-transform: uppercase; font-size: .73rem; letter-spacing: .15em; font-weight: 800; margin-bottom: 7px; }
+    .subtitle { margin-top: 8px; color: #9fb0ca; }
+    .metric { font-size: 2rem; font-weight: 800; letter-spacing: -.04em; margin-top: 9px; }
+    .metric-note { color: #91a2bc; font-size: .82rem; margin-top: 4px; }
+    .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .list { display: grid; gap: 8px; }
+    .item { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 12px 14px; border: 1px solid #2b3b56; background: #16233a; border-radius: 12px; }
+    .item strong, .item small { display: block; }
+    .item small { color: #90a2bd; margin-top: 3px; }
+    .empty { padding: 25px 16px; border: 1px dashed #34445f; border-radius: 12px; color: #91a2bc; text-align: center; }
+    .pill { border-radius: 999px; background: #254b4c; color: #9be2d1; padding: 4px 9px; font-size: .76rem; font-weight: 700; white-space: nowrap; }
+    .pill.warn { background: #543c28; color: #ffd598; }
+    .form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+    .form-row.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .form-row.one { grid-template-columns: 1fr; }
+    .check-list { max-height: 240px; overflow: auto; display: grid; gap: 7px; border: 1px solid #34445e; border-radius: 12px; padding: 10px; background: #0d182b; }
+    .check-list label { display: flex; align-items: center; gap: 9px; padding: 5px; color: #e5ebf5; }
+    .check-list input { width: auto; }
+    .check-list select { max-width: 150px; margin-left: auto; padding: 5px 7px; }
+    .banner { border: 1px solid #416a67; background: #163c3e; color: #b8f4e7; border-radius: 12px; padding: 12px 15px; }
+    .banner.error { border-color: #a45059; background: #42242e; color: #ffcac5; }
+    .banner[hidden], [hidden] { display: none !important; }
+    .login-screen { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+    .login-card { width: min(100%, 430px); }
+    .login-card .brand { padding: 0; margin-bottom: 25px; }
+    .login-card h1 { margin-bottom: 8px; }
+    .login-card form { margin-top: 23px; }
+    .login-card button { width: 100%; }
+    .divider { border: 0; border-top: 1px solid #2d3e58; margin: 8px 0; }
+    .link { color: #f8bf66; text-decoration: none; }
+    .link:hover { text-decoration: underline; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th, td { padding: 11px 9px; border-bottom: 1px solid #293a55; vertical-align: top; }
+    th { color: #91a2bc; font-size: .78rem; font-weight: 700; }
+    td { font-size: .9rem; }
+    @media (max-width: 1000px) { .four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 760px) {
+      .shell { display: block; }
+      aside { position: sticky; top: 0; z-index: 5; padding: 10px 14px; display: block; border-right: 0; border-bottom: 1px solid #293a55; }
+      aside .brand, .side-foot span { display: none; }
+      .side-foot { display: block; margin-top: 7px; padding: 0; }
+      .side-foot button { padding: 6px 10px; }
+      .nav { display: flex; overflow-x: auto; gap: 5px; }
+      .nav button { width: auto; white-space: nowrap; padding: 9px 12px; }
+      main { padding: 21px 16px 40px; }
+      .top { align-items: center; }
+      .two, .three, .four, .form-row, .form-row.three { grid-template-columns: 1fr; }
+      .card { padding: 17px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="loginScreen" class="login-screen">
+    <div class="card login-card">
+      <div class="brand"><span class="brand-mark">✦</span><span>Teacher AI Student<small>КАБИНЕТ ПРЕПОДАВАТЕЛЯ</small></span></div>
+      <p class="eyebrow">Новая платформа</p>
+      <h1>Ваши занятия в одном месте</h1>
+      <p class="subtitle">Войдите в пространство преподавателя, чтобы работать с учениками и занятиями.</p>
+      <form id="loginForm" class="stack">
+        <label><span>Пространство</span><input name="workspace" required autocomplete="organization" placeholder="например, tas-main" spellcheck="false"></label>
+        <label><span>Почта преподавателя</span><input name="email" type="email" required autocomplete="username" placeholder="teacher@example.com"></label>
+        <label><span>Пароль</span><input name="password" type="password" required autocomplete="current-password"></label>
+        <button class="primary" type="submit">Войти</button>
+      </form>
+      <p id="loginError" class="banner error" role="alert" hidden></p>
+      <p class="muted small" style="margin-top:20px">Отдельный кабинет. Действующая форма преподавателя продолжает работать.</p>
+    </div>
+  </div>
+
+  <div id="app" class="shell" hidden>
+    <aside>
+      <div class="brand"><span class="brand-mark">✦</span><span>Teacher AI Student<small>КАБИНЕТ ПРЕПОДАВАТЕЛЯ</small></span></div>
+      <nav class="nav" aria-label="Разделы">
+        <button type="button" data-view="overview" class="active">Обзор</button>
+        <button type="button" data-view="students">Ученики</button>
+        <button type="button" data-view="lessons">Занятия</button>
+        <button type="button" data-view="homework">Домашние задания</button>
+        <button type="button" data-view="subscriptions">Абонементы</button>
+        <button type="button" data-view="results">Результаты</button>
+      </nav>
+      <div class="side-foot"><span id="workspaceName" class="muted small"></span><button id="logout" class="secondary small-button" type="button">Выйти</button></div>
+    </aside>
+    <main>
+      <div class="top"><div><p class="eyebrow">Teacher AI Student</p><h1 id="viewTitle">Обзор</h1><p id="viewSubtitle" class="subtitle"></p></div><button id="refresh" class="secondary" type="button">Обновить</button></div>
+      <div id="notice" class="banner" role="status" hidden></div>
+      <div id="content"></div>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+      const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
+      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, pending: {}, inviteCode: '' };
+      const $ = id => document.getElementById(id);
+      const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      const date = value => value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
+      const money = value => value == null ? '—' : new Intl.NumberFormat('ru-RU').format(Number(value)) + ' ₽';
+      const nowLocal = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
+      const names = { overview: ['Обзор', 'Все важное на сегодня'], students: ['Ученики', 'Список, программы и новые ученики'], lessons: ['Занятия', 'Парные уроки и отдельная посещаемость'], homework: ['Домашние задания', 'Каталог и назначения'], subscriptions: ['Абонементы', 'Текущее состояние без выдуманных платежей'], results: ['Результаты', 'Доступная история тестов и пробников'] };
+      const list = (items, empty, item) => items.length ? `<div class="list">${items.map(item).join('')}</div>` : `<div class="empty">${safe(empty)}</div>`;
+      const studentName = id => state.data.students?.find(x => x.membershipId === id)?.studentName || 'Ученик';
+      const programName = id => state.data.programs?.find(x => x.id === id)?.displayName || 'Программа';
+      const options = (items, value, label) => items.map(x => `<option value="${safe(x[value])}">${safe(x[label])}</option>`).join('');
+      const studentChoices = (programId = '') => (state.data.students || []).filter(x => !programId || x.programId === programId);
+
+      function showNotice(message, error = false) {
+        const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
+      }
+      function logout(message = '') {
+        state.token = ''; state.expiresAt = ''; state.data = {}; state.pending = {}; state.inviteCode = '';
+        $('app').hidden = true; $('loginScreen').hidden = false;
+        $('loginError').textContent = message; $('loginError').hidden = !message;
+      }
+      async function api(path, { method = 'GET', body, token = state.token } = {}) {
+        let response;
+        try {
+          response = await fetch(API + '/api/v1/' + path, {
+            method, mode: 'cors', cache: 'no-store',
+            headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+            body: body ? JSON.stringify(body) : undefined
+          });
+        } catch (_) { throw new Error('Нет соединения с сервером. Проверьте сеть и доступность API.'); }
+        if ((response.status === 401 || response.status === 403) && token && token === state.token) { logout('Сессия завершилась. Войдите ещё раз.'); throw new Error('Сессия завершилась.'); }
+        const data = response.status === 204 ? null : await response.json().catch(() => null);
+        if (!response.ok) {
+          const reason = response.status === 401 ? 'Неверные данные для входа или сессия истекла.'
+            : response.status === 404 ? 'Запись или программа не найдена в вашем пространстве.'
+            : response.status === 409 ? 'Конфликт с уже сохранённой записью. Обновите данные.'
+            : response.status === 400 ? Object.values(data?.errors || {}).flat().join(' ') || 'Проверьте заполненные поля.'
+            : data?.title || 'Сервер временно недоступен.';
+          const error = new Error(reason); error.status = response.status; throw error;
+        }
+        return data;
+      }
+      async function refresh() {
+        if (!state.token) return;
+        $('refresh').disabled = true;
+        showNotice('Загружаем данные…');
+        try {
+          const keys = ['programs', 'students', 'lessons', 'homework/catalog', 'homework/assignments', 'subscriptions', 'tests/history', 'mocks/results'];
+          const values = await Promise.all(keys.map(path => api('teacher/' + path)));
+          state.data = Object.fromEntries(keys.map((key, i) => [key, values[i]]));
+          state.data.programs = values[0]; state.data.students = values[1]; state.data.lessons = values[2];
+          state.data.catalog = values[3]; state.data.assignments = values[4]; state.data.subscriptions = values[5];
+          state.data.tests = values[6]; state.data.mocks = values[7];
+          render();
+          showNotice(state.inviteCode ? 'Ученик создан. Код доступа: ' + state.inviteCode + ' — скопируйте его сейчас.' : 'Данные обновлены · ' + date(new Date()));
+        } catch (error) { showNotice(error.message, true); }
+        finally { $('refresh').disabled = false; }
+      }
+      async function mutation(kind, path, build) {
+        const candidate = build();
+        const fingerprint = JSON.stringify(candidate);
+        const previous = state.pending[kind];
+        if (previous && previous.fingerprint !== fingerprint)
+          throw new Error('Предыдущий запрос не подтверждён. Повторите его с прежними данными или обновите список и проверьте запись.');
+        const requestId = previous?.requestId || crypto.randomUUID();
+        state.pending[kind] = { requestId, fingerprint };
+        const payload = kind === 'lesson' ? { ...candidate, lesson: { ...candidate.lesson, requestId } }
+          : { ...candidate, requestId };
+        try {
+          const result = await api('teacher/' + path, { method: 'POST', body: payload });
+          delete state.pending[kind];
+          return result;
+        } catch (error) {
+          if (error.status && error.status < 500) delete state.pending[kind];
+          throw error;
+        }
+      }
+      function setView(view) {
+        state.view = view;
+        document.querySelectorAll('[data-view]').forEach(x => x.classList.toggle('active', x.dataset.view === view));
+        $('viewTitle').textContent = names[view][0]; $('viewSubtitle').textContent = names[view][1]; render();
+      }
+      function overview() {
+        const d = state.data;
+        const upcoming = (d.lessons || []).slice(0, 5);
+        const pending = (d.assignments || []).filter(x => !x.submittedAt);
+        return `<div class="grid four" style="margin-bottom:18px">
+          <div class="card"><span class="muted">Ученики</span><div class="metric">${d.students?.length || 0}</div><div class="metric-note">активных в пространстве</div></div>
+          <div class="card"><span class="muted">Занятия</span><div class="metric">${d.lessons?.length || 0}</div><div class="metric-note">в истории</div></div>
+          <div class="card"><span class="muted">ДЗ ожидают сдачи</span><div class="metric">${pending.length}</div><div class="metric-note">текущих назначений</div></div>
+          <div class="card"><span class="muted">Абонементы</span><div class="metric">${d.subscriptions?.length || 0}</div><div class="metric-note">сохранённых состояний</div></div>
+        </div><div class="grid two"><div class="card"><div class="section-head"><h2>Последние занятия</h2></div>${list(upcoming, 'Занятий пока нет.', x => `<div class="item"><div><strong>${safe(date(x.lessonAt))}</strong><small>${safe((x.participants || []).map(p => studentName(p.membershipId)).join(', '))}</small></div><span class="pill">${x.participants?.length || 0} уч.</span></div>`)}</div>
+        <div class="card"><div class="section-head"><h2>Что уже доступно</h2></div><div class="stack muted"><p>Учеников, занятия, ДЗ и абонементы можно просматривать в своих разделах.</p><p>История тестов и пробников доступна в «Результатах». Финансовые суммы выводятся только там, где они сохранены.</p></div></div></div>`;
+      }
+      function students() {
+        const d = state.data;
+        return `<div class="grid two"><div class="card stack"><div class="section-head"><h2>Ученики</h2><span class="muted small">${d.students?.length || 0} активных</span></div>
+          <label><span>Поиск по имени</span><input id="studentSearch" type="search" placeholder="Начните вводить имя"></label><div id="studentRows"></div></div>
+          <div class="card stack"><div><h2>Новый ученик</h2><p class="muted small">Код доступа появится после создания. Скопируйте его ученику.</p></div>
+          <form id="studentForm" class="stack">
+            <div class="form-row"><label><span>Имя ученика</span><input name="studentName" maxlength="200" required></label><label><span>Программа</span><select name="programId" required>${options(d.programs || [], 'id', 'displayName')}</select></label></div>
+            <div class="form-row three"><label><span>Класс</span><input name="grade" maxlength="32"></label><label><span>Группа</span><input name="groupId" maxlength="128"></label><label><span>Цель</span><input name="targetScore" maxlength="32"></label></div>
+            <div class="form-row"><label><span>Имя родителя</span><input name="parentName" maxlength="200"></label><label><span>Заметки</span><input name="notes" maxlength="4096"></label></div>
+            <button class="primary" type="submit" ${d.programs?.length ? '' : 'disabled'}>Создать ученика</button>
+          </form>${state.inviteCode ? `<div class="banner" role="status">Код нового ученика: <strong>${safe(state.inviteCode)}</strong>. Скопируйте его сейчас.</div>` : ''}${d.programs?.length ? '' : '<p class="muted small">В пространстве пока нет активных программ.</p>'}</div></div>`;
+      }
+      function studentRows(query = '') {
+        const filtered = (state.data.students || []).filter(x => x.studentName.toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru')));
+        $('studentRows').innerHTML = list(filtered, 'Ученики не найдены.', x => `<div class="item"><div><strong>${safe(x.studentName)}</strong><small>${safe(x.programName)}${x.grade ? ' · ' + safe(x.grade) + ' класс' : ''}${x.groupId ? ' · ' + safe(x.groupId) : ''}</small></div><button class="danger small-button" data-archive="${safe(x.membershipId)}" type="button">В архив</button></div>`);
+      }
+      function participantList() {
+        const selected = studentChoices();
+        return selected.length ? selected.map(x => `<label><input type="checkbox" name="membershipId" value="${safe(x.membershipId)}" data-program="${safe(x.programId)}"><span>${safe(x.studentName)} <small class="muted">· ${safe(x.programName)}</small></span><select name="attendance-${safe(x.membershipId)}" aria-label="Посещаемость: ${safe(x.studentName)}"><option value="Present">Присутствовал</option><option value="Absent">Отсутствовал</option></select></label>`).join('') : '<span class="muted">Добавьте ученика перед созданием занятия.</span>';
+      }
+      function lessons() {
+        const d = state.data;
+        return `<div class="grid two"><div class="card stack"><h2>Провести занятие</h2><form id="lessonForm" class="stack">
+          <label><span>Дата и время</span><input name="lessonAt" type="datetime-local" value="${nowLocal()}" required></label>
+          <div class="form-row"><label><span>Длительность, минут</span><input name="durationMinutes" type="number" min="1" max="1440" value="60" required></label><label><span>Номера заданий</span><input name="taskNumbers" placeholder="например, 6, 13"></label></div>
+          <label><span>Тема и комментарий</span><textarea name="topicComment" maxlength="4096"></textarea></label>
+          <div><span class="muted small">Ученики и посещаемость</span><div class="check-list" style="margin-top:7px">${participantList()}</div></div>
+          <label><span>Назначить ДЗ вместе с занятием</span><select name="catalogItemId"><option value="">Без ДЗ</option>${(d.catalog || []).filter(x => x.isActive).map(x => `<option value="${safe(x.id)}" data-program="${safe(x.programId)}">${safe(x.name)} · ${safe(programName(x.programId))}</option>`).join('')}</select></label>
+          <label><span>Срок ДЗ</span><select name="deadlineHours"><option value="24">24 часа</option><option value="48">48 часов</option><option value="72">72 часа</option></select></label>
+          <button class="primary" type="submit" ${d.students?.length ? '' : 'disabled'}>Сохранить занятие</button></form></div>
+          <div class="card stack"><div class="section-head"><h2>История занятий</h2><span class="muted small">${d.lessons?.length || 0} записей</span></div>${list((d.lessons || []).slice(0, 80), 'Занятий пока нет.', x => `<div class="item"><div><strong>${safe(date(x.lessonAt))}</strong><small>${safe((x.participants || []).map(p => studentName(p.membershipId) + ' · ' + p.attendanceStatus).join(' / '))}</small></div><span class="pill">${x.participants?.length || 0}</span></div>`)}</div></div>`;
+      }
+      function homework() {
+        const d = state.data;
+        return `<div class="grid two"><div class="card stack"><h2>Назначить ДЗ</h2><form id="homeworkForm" class="stack">
+          <label><span>Работа из каталога</span><select name="catalogItemId" required><option value="">Выберите ДЗ</option>${(d.catalog || []).filter(x => x.isActive).map(x => `<option value="${safe(x.id)}" data-program="${safe(x.programId)}">${safe(x.name)} · ${safe(programName(x.programId))}</option>`).join('')}</select></label>
+          <div><span class="muted small">Ученики</span><div id="homeworkStudents" class="check-list" style="margin-top:7px">${studentChoices().map(x => `<label><input type="checkbox" name="membershipId" value="${safe(x.membershipId)}" data-program="${safe(x.programId)}">${safe(x.studentName)} · ${safe(x.programName)}</label>`).join('') || 'Добавьте ученика.'}</div></div>
+          <div class="form-row"><label><span>Назначено</span><input name="assignedAt" type="datetime-local" value="${nowLocal()}" required></label><label><span>Срок</span><select name="deadlineHours"><option value="24">24 часа</option><option value="48">48 часов</option><option value="72">72 часа</option></select></label></div>
+          <button class="primary" type="submit" ${d.catalog?.length && d.students?.length ? '' : 'disabled'}>Назначить</button></form></div>
+          <div class="card stack"><div class="section-head"><h2>Недавние назначения</h2><span class="muted small">${d.assignments?.length || 0}</span></div>${list((d.assignments || []).slice(0, 80), 'Назначений пока нет.', x => `<div class="item"><div><strong>${safe(x.name)}</strong><small>${safe(studentName(x.membershipId))} · до ${safe(date(x.deadlineAt))}</small></div><span class="pill ${x.submittedAt ? '' : 'warn'}">${x.submittedAt ? 'Сдано' : 'Ожидается'}</span></div>`)}</div></div>`;
+      }
+      function subscriptions() {
+        const d = state.data;
+        const rows = (d.students || []).map(x => {
+          const sub = (d.subscriptions || []).find(s => s.membershipId === x.membershipId);
+          return `<div class="item"><div><strong>${safe(x.studentName)}</strong><small>${safe(x.programName)} · пакет ${sub ? sub.packageSize + ' занятий' : 'не задан'} · цена ${safe(money(sub?.lessonPrice))}</small></div><button class="secondary small-button" type="button" data-edit-sub="${safe(x.membershipId)}">${sub ? 'Изменить' : 'Настроить'}</button></div>`;
+        });
+        return `<div class="grid two"><div class="card stack"><h2>Абонементы учеников</h2>${rows.length ? `<div class="list">${rows.join('')}</div>` : '<div class="empty">Нет учеников.</div>'}</div>
+          <div class="card stack"><div><h2>Состояние абонемента</h2><p class="muted small">Пустая цена остаётся неизвестной. Сохранение не создаёт платёж.</p></div>
+          <form id="subscriptionForm" class="stack"><label><span>Ученик</span><select name="membershipId" required><option value="">Выберите ученика</option>${options(d.students || [], 'membershipId', 'studentName')}</select></label>
+          <div class="form-row"><label><span>Размер пакета</span><input name="packageSize" type="number" min="1" max="1000" value="8" required></label><label><span>Цена урока, ₽</span><input name="lessonPrice" type="number" min="0" step="0.01" placeholder="Неизвестно"></label></div>
+          <div class="form-row"><label><span>Начало пакета</span><input name="resetAt" type="datetime-local"></label><label><span>Базовое число занятий</span><input name="baseLessonCount" type="number" min="0" placeholder="Неизвестно"></label></div>
+          <button class="primary" type="submit">Сохранить состояние</button></form></div></div>`;
+      }
+      function results() {
+        const d = state.data;
+        return `<div class="grid two"><div class="card stack"><div class="section-head"><h2>Исторические тесты</h2><span class="muted small">${d.tests?.length || 0}</span></div>${list((d.tests || []).slice(0, 80), 'Результатов пока нет.', x => `<div class="item"><div><strong>${safe(studentName(x.membershipId))} · ${safe(x.topicName)}</strong><small>${safe(x.testDate)} · задание ${safe(x.taskNumber)}</small></div><span class="pill">${safe(x.scorePercent)}%</span></div>`)}</div>
+          <div class="card stack"><div class="section-head"><h2>Пробники</h2><span class="muted small">${d.mocks?.length || 0}</span></div>${list((d.mocks || []).slice(0, 80), 'Пробников пока нет.', x => `<div class="item"><div><strong>${safe(studentName(x.membershipId))} · ${safe(x.variantName)}</strong><small>${safe(x.mockDate)} · первичные ${safe(x.primaryScore)}/${safe(x.maxPrimaryScore)}</small></div><span class="pill">${safe(x.scorePercent)}%</span></div>`)}</div></div>`;
+      }
+      function render() {
+        $('content').innerHTML = ({ overview, students, lessons, homework, subscriptions, results })[state.view]();
+        if (state.view === 'students') studentRows();
+      }
+      const formValue = (form, name) => form.elements.namedItem(name)?.value?.trim() || '';
+      const selectedIds = form => [...form.querySelectorAll('input[name="membershipId"]:checked')];
+      function oneProgram(ids) {
+        const programs = [...new Set(ids.map(x => x.dataset.program))];
+        if (!ids.length) throw new Error('Выберите хотя бы одного ученика.');
+        if (programs.length !== 1) throw new Error('В одном занятии или назначении должна быть одна программа.');
+        return programs[0];
+      }
+      function setBusy(form, value) { form.querySelector('button[type="submit"]').disabled = value; }
+      async function onForm(form, callback) {
+        setBusy(form, true); showNotice('Сохраняем…');
+        try { await callback(); await refresh(); }
+        catch (error) { showNotice(error.message, true); }
+        finally { if (form.isConnected) setBusy(form, false); }
+      }
+
+      $('loginForm').addEventListener('submit', async event => {
+        event.preventDefault(); const form = event.currentTarget;
+        setBusy(form, true); $('loginError').hidden = true;
+        try {
+          const workspace = formValue(form, 'workspace');
+          const session = await api('teacher-sessions', { method: 'POST', token: '', body: { workspace, email: formValue(form, 'email'), password: form.elements.password.value } });
+          form.elements.password.value = '';
+          state.token = session.accessToken; state.expiresAt = session.expiresAt; state.workspace = workspace;
+          $('workspaceName').textContent = workspace; $('loginScreen').hidden = true; $('app').hidden = false;
+          setView('overview'); await refresh();
+        } catch (error) { form.elements.password.value = ''; $('loginError').textContent = error.message; $('loginError').hidden = false; }
+        finally { setBusy(form, false); }
+      });
+      document.querySelector('.nav').addEventListener('click', event => {
+        const button = event.target.closest('[data-view]'); if (button) setView(button.dataset.view);
+      });
+      $('refresh').addEventListener('click', refresh);
+      $('logout').addEventListener('click', async () => {
+        try { await api('teacher-sessions/logout', { method: 'POST' }); } catch (_) {}
+        logout();
+      });
+      $('content').addEventListener('input', event => {
+        if (event.target.id === 'studentSearch') studentRows(event.target.value.trim());
+      });
+      $('content').addEventListener('change', event => {
+        if (event.target.matches('#subscriptionForm select[name="membershipId"]')) {
+          const form = event.target.form;
+          const sub = (state.data.subscriptions || []).find(x => x.membershipId === event.target.value);
+          form.elements.packageSize.value = sub?.packageSize ?? 8;
+          form.elements.lessonPrice.value = sub?.lessonPrice ?? '';
+          form.elements.baseLessonCount.value = sub?.baseLessonCount ?? '';
+          form.elements.resetAt.value = sub?.resetAt ? new Date(new Date(sub.resetAt).getTime() - new Date(sub.resetAt).getTimezoneOffset() * 60000).toISOString().slice(0,16) : '';
+        }
+      });
+      $('content').addEventListener('click', async event => {
+        const edit = event.target.closest('[data-edit-sub]');
+        if (edit) { const form = $('subscriptionForm'); form.elements.membershipId.value = edit.dataset.editSub; form.elements.membershipId.dispatchEvent(new Event('change')); form.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+        const archive = event.target.closest('[data-archive]');
+        if (archive) {
+          const student = state.data.students.find(x => x.membershipId === archive.dataset.archive);
+          if (!student || !confirm(`Перенести «${student.studentName}» в архив? История сохранится, код перестанет работать.`)) return;
+          archive.disabled = true;
+          try { await api('teacher/students/' + encodeURIComponent(student.membershipId) + '/archive', { method: 'POST' }); await refresh(); }
+          catch (error) { showNotice(error.message, true); archive.disabled = false; }
+        }
+      });
+      $('content').addEventListener('submit', event => {
+        event.preventDefault(); const form = event.target;
+        if (form.id === 'studentForm') onForm(form, async () => {
+          const profile = Object.fromEntries(['grade', 'groupId', 'targetScore', 'parentName', 'notes'].map(k => [k, formValue(form, k) || null]));
+          const result = await mutation('student', 'students', () => ({ studentName: formValue(form, 'studentName'), programId: formValue(form, 'programId'), profile }));
+          state.inviteCode = result.inviteCode;
+          form.reset();
+        });
+        if (form.id === 'lessonForm') onForm(form, async () => {
+          const ids = selectedIds(form); const program = oneProgram(ids);
+          const catalogItemId = formValue(form, 'catalogItemId') || null;
+          const catalog = state.data.catalog.find(x => x.id === catalogItemId);
+          if (catalog && catalog.programId !== program) throw new Error('ДЗ и ученики должны быть одной программы.');
+          const lesson = { lessonAt: new Date(formValue(form, 'lessonAt')).toISOString(), participants: ids.map(x => ({ membershipId: x.value, durationMinutes: Number(formValue(form, 'durationMinutes')), taskNumbers: formValue(form, 'taskNumbers') || null, topicComment: formValue(form, 'topicComment') || null, attendanceStatus: form.elements.namedItem('attendance-' + x.value).value })) };
+          await mutation('lesson', 'lessons-with-homework', () => ({ lesson, catalogItemId, deadlineHours: catalogItemId ? Number(formValue(form, 'deadlineHours')) : null }));
+          form.reset();
+        });
+        if (form.id === 'homeworkForm') onForm(form, async () => {
+          const ids = selectedIds(form); const program = oneProgram(ids);
+          const catalog = state.data.catalog.find(x => x.id === formValue(form, 'catalogItemId'));
+          if (!catalog || catalog.programId !== program) throw new Error('Выберите ДЗ той же программы, что у учеников.');
+          await mutation('homework', 'homework/assignments', () => ({ catalogItemId: catalog.id, assignedAt: new Date(formValue(form, 'assignedAt')).toISOString(), deadlineHours: Number(formValue(form, 'deadlineHours')), membershipIds: ids.map(x => x.value) }));
+          form.reset();
+        });
+        if (form.id === 'subscriptionForm') onForm(form, async () => {
+          const id = formValue(form, 'membershipId'); if (!id) throw new Error('Выберите ученика.');
+          const previous = state.data.subscriptions.find(x => x.membershipId === id);
+          const value = formValue(form, 'lessonPrice'); const count = formValue(form, 'baseLessonCount'); const reset = formValue(form, 'resetAt');
+          await api('teacher/subscriptions/' + encodeURIComponent(id), { method: 'POST', body: { packageSize: Number(formValue(form, 'packageSize')), lessonPrice: value === '' ? null : Number(value), baseLessonCount: count === '' ? null : Number(count), resetAt: reset ? new Date(reset).toISOString() : null, expectedUpdatedAt: previous?.updatedAt || null } });
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
