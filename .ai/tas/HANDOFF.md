@@ -3,10 +3,10 @@
 **REPO:** `Arthur200014/testing-hosting`
 **STATE_UPDATED:** 2026-11-12
 **CURRENT_PHASE:** M04 (separate teacher platform UI; M02 isolated restore deferred by owner)
-**ACTIVE_TASK:** M04 teacher activity reads on standalone page
-**ACTIVE_BRANCH:** `tas/M04-live-results`
-**LAST_PROGRESS_COMMIT:** `0e1c520b0177ee273f90fb86a03fd5ed31de48eb` ([PR #27](https://github.com/Arthur200014/testing-hosting/pull/27))
-**NEXT_ACTION:** Add workspace-scoped live TestAttempts and historical mock session metadata to the new teacher page, along with homework submissions. Keep `EGA/config/manage.html` and GAS unchanged. Reports remain a separate next slice.
+**ACTIVE_TASK:** M04-02 student report in the standalone teacher cabinet
+**ACTIVE_BRANCH:** `tas/M04-student-reports`
+**LAST_PROGRESS_COMMIT:** `e21863570b3f0bdc91bc090cd5d97440d9b06aa4` ([PR #28](https://github.com/Arthur200014/testing-hosting/pull/28))
+**NEXT_ACTION:** Finish a selectable student report for the last eight past lessons, with evidence-backed homework/test metrics and print view; verify Pages deployment. Keep `EGA/config/manage.html` and GAS unchanged.
 **STATUS:** M03-01/M03-02 and mock-history import owner-confirmed (not independently SQL-queried); test-history 233 rows read-only replay verified from owner Timeweb console output; questionnaires excluded by owner; M02-03 restore NOT_VERIFIED
 
 ## What is verified
@@ -47,6 +47,7 @@
 - 2026-11-12: [PR #25](https://github.com/Arthur200014/testing-hosting/pull/25) merged: additive nullable profile fields (grade/group/targets/initial diagnostics/parent/notes) in membership, teacher create/read. Existing imported records remain null. Synthetic PostgreSQL migration/model parity PASS. **Timeweb migration NOT_APPLIED** after this PR; after updated Docker deploy run `dotnet Platform.Api.dll --migrate` once before using profile-aware teacher reads. This is schema migration only, not data re-import. Current GAS manage remains default.
 
 ## Next concrete action
+0. PR #28 merged and added workspace-scoped live test attempts, homework submissions and historical mock sessions to the standalone teacher page; main commit above. The owner approved starting the next report slice. No repeat import or Timeweb migration is required for this UI change.
 1. PR #26 deployed standalone `platform/teacher.html` on GitHub Pages; PR #27 added first-owner registration of the existing imported workspace guarded by a private one-time code. Owner now reports successful sign-in and that the imported data appear in their own account (“Сделал, все вошло и данные есть”). This is owner-confirmed live login/read flow, not a direct SQL count. No test teacher or new workspace was created for this check. Remind owner to remove `TeacherRegistration__ClaimCode` from Timeweb environment after successful registration; no data import is needed. Existing GAS form remains untouched. Timeweb `/health/migrations` returned Healthy and CORS origin `https://arthur200014.github.io` passed real GET/preflight checks.
 2. The owner reported the profile migration completed after PR #25 (“Да, все ок”); treat it as owner-confirmed. Never rerun the student/homework/history/test/mock import for routine deployments. Existing imported profile values remain nullable. The new UI covers students, paired lessons and attendance, homework assignments, subscriptions, and historical tests/mocks. Current live attempts, mock sessions, full reports and catalog authoring remain future work on the new page.
 3. Owner deferred real isolated backup restore. Do not migrate questionnaires. Do not alter `EGA/config/manage.html` or Apps Script without a new explicit request.
