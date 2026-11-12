@@ -100,6 +100,15 @@
       .two, .three, .four, .form-row, .form-row.three { grid-template-columns: 1fr; }
       .card { padding: 17px; }
     }
+    @media print {
+      :root, body { color: #172033; background: #fff; }
+      .shell { display: block; }
+      aside, #refresh, #notice, #printReport, #reportStudentLabel { display: none !important; }
+      main { padding: 0; max-width: none; }
+      .card, .item { color: #172033; background: #fff; box-shadow: none; border-color: #cbd5e1; break-inside: avoid; }
+      .muted, .subtitle, .metric-note, .item small { color: #475569; }
+      .pill { color: #172033; background: #e2e8f0; }
+    }
   </style>
 </head>
 <body>
@@ -140,6 +149,7 @@
         <button type="button" data-view="homework">Домашние задания</button>
         <button type="button" data-view="subscriptions">Абонементы</button>
         <button type="button" data-view="results">Результаты</button>
+        <button type="button" data-view="report">Отчёт</button>
       </nav>
       <div class="side-foot"><span id="workspaceName" class="muted small"></span><button id="logout" class="secondary small-button" type="button">Выйти</button></div>
     </aside>
@@ -150,17 +160,18 @@
     </main>
   </div>
 
-  <script>
+  <script type="module">
+    import { buildTeacherReport } from './teacher-report.mjs';
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
-      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, pending: {}, inviteCode: '', resultStudent: '' };
+      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '' };
       const $ = id => document.getElementById(id);
       const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const date = value => value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
       const money = value => value == null ? '—' : new Intl.NumberFormat('ru-RU').format(Number(value)) + ' ₽';
       const nowLocal = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
-      const names = { overview: ['Обзор', 'Все важное на сегодня'], students: ['Ученики', 'Список, программы и новые ученики'], lessons: ['Занятия', 'Парные уроки и отдельная посещаемость'], homework: ['Домашние задания', 'Каталог и назначения'], subscriptions: ['Абонементы', 'Текущее состояние без выдуманных платежей'], results: ['Результаты', 'Доступная история тестов и пробников'] };
+      const names = { overview: ['Обзор', 'Все важное на сегодня'], students: ['Ученики', 'Список, программы и новые ученики'], lessons: ['Занятия', 'Парные уроки и отдельная посещаемость'], homework: ['Домашние задания', 'Каталог и назначения'], subscriptions: ['Абонементы', 'Текущее состояние без выдуманных платежей'], results: ['Результаты', 'Доступная история тестов и пробников'], report: ['Отчёт ученика', 'Последние восемь занятий и результаты за этот период'] };
       const list = (items, empty, item) => items.length ? `<div class="list">${items.map(item).join('')}</div>` : `<div class="empty">${safe(empty)}</div>`;
       const studentName = id => state.data.students?.find(x => x.membershipId === id)?.studentName || 'Ученик';
       const programName = id => state.data.programs?.find(x => x.id === id)?.displayName || 'Программа';
@@ -171,7 +182,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
-        state.token = ''; state.expiresAt = ''; state.data = {}; state.pending = {}; state.inviteCode = ''; state.resultStudent = '';
+        state.token = ''; state.expiresAt = ''; state.data = {}; state.pending = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = '';
         $('app').hidden = true; $('loginScreen').hidden = false;
         $('loginError').textContent = message; $('loginError').hidden = !message;
       }
@@ -263,7 +274,7 @@
       }
       function studentRows(query = '') {
         const filtered = (state.data.students || []).filter(x => x.studentName.toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru')));
-        $('studentRows').innerHTML = list(filtered, 'Ученики не найдены.', x => `<div class="item"><div><strong>${safe(x.studentName)}</strong><small>${safe(x.programName)}${x.grade ? ' · ' + safe(x.grade) + ' класс' : ''}${x.groupId ? ' · ' + safe(x.groupId) : ''}</small></div><button class="danger small-button" data-archive="${safe(x.membershipId)}" type="button">В архив</button></div>`);
+        $('studentRows').innerHTML = list(filtered, 'Ученики не найдены.', x => `<div class="item"><div><strong>${safe(x.studentName)}</strong><small>${safe(x.programName)}${x.grade ? ' · ' + safe(x.grade) + ' класс' : ''}${x.groupId ? ' · ' + safe(x.groupId) : ''}</small></div><div class="row"><button class="secondary small-button" data-report="${safe(x.membershipId)}" type="button">Отчёт</button><button class="danger small-button" data-archive="${safe(x.membershipId)}" type="button">В архив</button></div></div>`);
       }
       function participantList() {
         const selected = studentChoices();
@@ -316,8 +327,33 @@
           <div class="card stack"><div class="section-head"><h2>Результаты пробников</h2><span class="muted small">${mocks.length}</span></div>${list(mocks.slice(0, 80), 'Результатов пробников нет.', x => `<div class="item"><div><strong>${safe(studentName(x.membershipId))} · ${safe(x.variantName)}</strong><small>${safe(x.mockDate)} · первичные ${safe(x.primaryScore)}/${safe(x.maxPrimaryScore)}</small></div><span class="pill">${safe(x.scorePercent)}%</span></div>`)}</div>
           <div class="card stack"><div class="section-head"><h2>Сессии пробников из истории</h2><span class="muted small">${sessions.length}</span></div>${list(sessions.slice(0, 80), 'Сессий пробников нет.', x => `<div class="item"><div><strong>${safe(studentName(x.membershipId))} · ${safe(x.mockId)}</strong><small>${safe(date(x.startedAt))} · ${safe(x.status)}${x.submittedAt ? ' · сдан ' + safe(date(x.submittedAt)) : ''}</small></div><span class="pill ${x.scorePercent == null ? 'warn' : ''}">${x.scorePercent == null ? 'Без оценки' : safe(x.scorePercent) + '%'}</span></div>`)}</div></div>`;
       }
+      function report() {
+        const students = state.data.students || [];
+        if (!students.length) return '<div class="empty">Добавьте ученика, чтобы посмотреть отчёт.</div>';
+        const membershipId = students.some(x => x.membershipId === state.reportStudent)
+          ? state.reportStudent : students[0].membershipId;
+        state.reportStudent = membershipId;
+        const student = students.find(x => x.membershipId === membershipId);
+        const r = buildTeacherReport(state.data, membershipId);
+        const percent = value => value == null ? '—' : safe(value) + '%';
+        const studentOptions = students.map(x => `<option value="${safe(x.membershipId)}" ${x.membershipId === membershipId ? 'selected' : ''}>${safe(x.studentName)} · ${safe(x.programName)}</option>`).join('');
+        const header = `<div class="row spread" style="margin-bottom:18px"><label id="reportStudentLabel" style="min-width:min(100%,350px)"><span>Ученик</span><select id="reportStudent">${studentOptions}</select></label><button id="printReport" class="secondary" type="button" ${r.from ? '' : 'disabled'}>Печать / PDF</button></div>`;
+        if (!r.from) return header + `<div class="card stack"><h2>${safe(student.studentName)}</h2><p class="muted">Занятий пока нет. Отчёт за последние восемь занятий появится после первой записи.</p></div>`;
+        return header + `<div class="card stack" style="margin-bottom:18px"><div><p class="eyebrow">${safe(student.programName)}</p><h2>${safe(student.studentName)}</h2></div><p class="muted">Период: ${safe(r.from)} — ${safe(r.through)} · последние ${r.lessons.length} ${r.lessons.length === 1 ? 'занятие' : 'занятий'}</p></div>
+          <div class="grid four" style="margin-bottom:18px">
+            <div class="card"><span class="muted">Посещение</span><div class="metric">${r.presentCount}/${r.lessons.length}</div><div class="metric-note">пропущено: ${r.absentCount}; неизвестные статусы не считаются посещением</div></div>
+            <div class="card"><span class="muted">ДЗ сданы</span><div class="metric">${r.submittedCount}/${r.homework.length}</div><div class="metric-note">средний балл оценённых: ${percent(r.homeworkAveragePercent)}</div></div>
+            <div class="card"><span class="muted">Тесты</span><div class="metric">${r.tests.length}</div><div class="metric-note">среднее лучших попыток: ${percent(r.testAveragePercent)}</div></div>
+            <div class="card"><span class="muted">Итог 80% ДЗ / 20% тесты</span><div class="metric">${percent(r.progressPercent)}</div><div class="metric-note">${r.progressPercent == null ? 'Для расчёта нужны оценённые ДЗ и тесты' : 'Только по результатам с известным баллом'}</div></div>
+          </div><div class="grid two">
+            <div class="card stack"><h2>Занятия</h2>${list(r.lessons, 'Нет занятий.', x => `<div class="item"><div><strong>${safe(date(x.lessonAt))}</strong><small>${safe(x.participation.topicComment || x.participation.taskNumbers || 'Тема не указана')} · ${safe(x.participation.durationMinutes)} мин</small></div><span class="pill ${x.participation.attendanceStatus === 'Absent' ? 'warn' : ''}">${x.participation.attendanceStatus === 'Present' ? 'Был' : x.participation.attendanceStatus === 'Absent' ? 'Пропуск' : safe(x.participation.attendanceStatus)}</span></div>`)}</div>
+            <div class="card stack"><h2>Домашние задания</h2>${list(r.homework, 'В выбранном периоде ДЗ нет.', x => `<div class="item"><div><strong>${safe(x.name)}</strong><small>Назначено ${safe(date(x.assignedAt))} · до ${safe(date(x.deadlineAt))}</small></div><span class="pill ${x.isSubmitted ? '' : 'warn'}">${x.scorePercent == null ? x.isSubmitted ? 'Сдано · без балла' : 'Не сдано' : percent(x.scorePercent)}</span></div>`)}</div>
+            <div class="card stack"><h2>Лучшие попытки тестов</h2>${list(r.tests, 'В выбранном периоде тестов нет.', x => `<div class="item"><div><strong>${safe(x.topic || x.testId)}</strong><small>${safe(x.at)} · задание ${safe(x.taskNumber)}</small></div><span class="pill">${percent(x.percent)}</span></div>`)}</div>
+            <div class="card stack"><h2>Пробники</h2>${list(r.mocks, 'В выбранном периоде пробников нет.', x => `<div class="item"><div><strong>${safe(x.variantName)}</strong><small>${safe(x.mockDate)} · первичные ${safe(x.primaryScore)}/${safe(x.maxPrimaryScore)}</small></div><span class="pill">${percent(x.scorePercent)}</span></div>`)}</div>
+          </div>`;
+      }
       function render() {
-        $('content').innerHTML = ({ overview, students, lessons, homework, subscriptions, results })[state.view]();
+        $('content').innerHTML = ({ overview, students, lessons, homework, subscriptions, results, report })[state.view]();
         if (state.view === 'students') studentRows();
       }
       const formValue = (form, name) => form.elements.namedItem(name)?.value?.trim() || '';
@@ -404,6 +440,7 @@
       });
       $('content').addEventListener('change', event => {
         if (event.target.id === 'resultStudent') { state.resultStudent = event.target.value; render(); }
+        if (event.target.id === 'reportStudent') { state.reportStudent = event.target.value; render(); }
         if (event.target.matches('#subscriptionForm select[name="membershipId"]')) {
           const form = event.target.form;
           const sub = (state.data.subscriptions || []).find(x => x.membershipId === event.target.value);
@@ -414,6 +451,9 @@
         }
       });
       $('content').addEventListener('click', async event => {
+        if (event.target.id === 'printReport') { window.print(); return; }
+        const studentReport = event.target.closest('[data-report]');
+        if (studentReport) { state.reportStudent = studentReport.dataset.report; setView('report'); return; }
         const edit = event.target.closest('[data-edit-sub]');
         if (edit) { const form = $('subscriptionForm'); form.elements.membershipId.value = edit.dataset.editSub; form.elements.membershipId.dispatchEvent(new Event('change')); form.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
         const archive = event.target.closest('[data-archive]');
