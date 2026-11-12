@@ -29,6 +29,7 @@ builder.Services.AddScoped<TeacherSessionService>();
 builder.Services.AddScoped<TeacherStudentDirectory>();
 builder.Services.AddScoped<TeacherHistoryReader>();
 builder.Services.AddScoped<TeacherLessonService>();
+builder.Services.AddScoped<TeacherLessonHomeworkService>();
 builder.Services.AddScoped<TeacherSubscriptionService>();
 builder.Services.AddScoped<TeacherHomeworkReader>();
 builder.Services.AddScoped<TeacherHomeworkAssignmentService>();
@@ -217,6 +218,25 @@ app.MapPost("/api/v1/teacher/lessons", async (
         TeacherLessonWriteStatus.MembershipNotFound => Results.NotFound(),
         TeacherLessonWriteStatus.InvalidRequest => Results.ValidationProblem(result.Errors!),
         _ => throw new InvalidOperationException("Unknown teacher lesson write result.")
+    };
+}).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/lessons-with-homework", async (
+    TeacherLessonHomeworkRequest request, ClaimsPrincipal principal,
+    TeacherLessonHomeworkService lessons, CancellationToken cancellationToken) =>
+{
+    var result = await lessons.SaveAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), request, cancellationToken);
+    return result.Status switch
+    {
+        TeacherLessonHomeworkStatus.Created => Results.Created(
+            $"/api/v1/teacher/lessons/{result.Response!.Lesson.LessonId}", result.Response),
+        TeacherLessonHomeworkStatus.Duplicate => Results.Ok(result.Response),
+        TeacherLessonHomeworkStatus.Conflict => Results.Problem(statusCode: 409,
+            title: "The request conflicts with a saved lesson or pending homework assignment."),
+        TeacherLessonHomeworkStatus.NotFound => Results.NotFound(),
+        TeacherLessonHomeworkStatus.InvalidRequest => Results.ValidationProblem(result.Errors!),
+        _ => throw new InvalidOperationException("Unknown combined lesson write result.")
     };
 }).RequireAuthorization("teacher");
 

@@ -22,6 +22,19 @@ public sealed class TeacherHomeworkAssignmentService(PlatformDbContext db)
     public async Task<TeacherAssignHomeworkResult> AssignAsync(
         Guid workspaceId, TeacherAssignHomeworkRequest request, CancellationToken cancellationToken)
     {
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+        var result = await AssignInTransactionAsync(workspaceId, request, cancellationToken);
+        if (result.Status == TeacherAssignHomeworkStatus.Created)
+            await transaction.CommitAsync(cancellationToken);
+        return result;
+    }
+
+    // The caller owns the transaction; this is also used by the combined lesson+homework operation.
+    public async Task<TeacherAssignHomeworkResult> AssignInTransactionAsync(
+        Guid workspaceId, TeacherAssignHomeworkRequest request, CancellationToken cancellationToken)
+    {
+        if (db.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("Homework assignment requires a database transaction.");
         var errors = new Dictionary<string, string[]>();
         if (request.RequestId == Guid.Empty)
             errors["requestId"] = ["A non-empty request ID is required."];
@@ -41,7 +54,6 @@ public sealed class TeacherHomeworkAssignmentService(PlatformDbContext db)
         var deadlineAt = assignedAt.AddHours(request.DeadlineHours);
         var prefix = "api:" + request.RequestId.ToString("N") + ":";
 
-        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
         // Serialize every attempt with this workspace/request ID, including attempts with different student sets.
         var lockKey = workspaceId.ToString("N") + ":" + request.RequestId.ToString("N");
         await db.Database.ExecuteSqlInterpolatedAsync(
@@ -105,7 +117,6 @@ public sealed class TeacherHomeworkAssignmentService(PlatformDbContext db)
         }).ToList();
         db.HomeworkAssignments.AddRange(assignments);
         await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
         return new(TeacherAssignHomeworkStatus.Created,
             new(request.RequestId, catalog.HomeworkId, assignments.Select(x => x.Id).ToList()));
     }
