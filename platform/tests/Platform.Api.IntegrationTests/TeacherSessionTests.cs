@@ -56,13 +56,14 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
             .Select(_ => client.PostAsJsonAsync(path, request)));
         Assert.Single(responses, x => x.StatusCode == HttpStatusCode.Created);
         Assert.Equal(3, responses.Count(x => x.StatusCode == HttpStatusCode.OK));
-        var created = await responses[0].Content.ReadFromJsonAsync<TeacherCreateStudentResponse>();
+        var results = await Task.WhenAll(responses.Select(x =>
+            x.Content.ReadFromJsonAsync<TeacherCreateStudentResponse>()));
+        var created = results[0];
         Assert.NotNull(created);
         Assert.Equal("Synthetic Student", created.StudentName);
         Assert.Equal(32, created.InviteCode.Length);
-        foreach (var response in responses)
-            Assert.Equal(created.InviteCode,
-                (await response.Content.ReadFromJsonAsync<TeacherCreateStudentResponse>())!.InviteCode);
+        foreach (var result in results)
+            Assert.Equal(created.InviteCode, result!.InviteCode);
 
         Assert.DoesNotContain(created.InviteCode, await client.GetStringAsync(path));
         Assert.Equal(HttpStatusCode.Conflict,
