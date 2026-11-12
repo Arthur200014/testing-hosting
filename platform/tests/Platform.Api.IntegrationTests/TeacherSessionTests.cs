@@ -77,7 +77,7 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         var simultaneous = request with { RequestId = Guid.NewGuid() };
         var responses = await Task.WhenAll(Enumerable.Range(0, 4)
             .Select(_ => client.PostAsJsonAsync("/api/v1/teacher/lessons", simultaneous)));
-        Assert.Single(responses.Where(x => x.StatusCode == HttpStatusCode.Created));
+        Assert.Single(responses, x => x.StatusCode == HttpStatusCode.Created);
         Assert.Equal(3, responses.Count(x => x.StatusCode == HttpStatusCode.OK));
 
         await using (var scope = factory.Services.CreateAsyncScope())
@@ -86,7 +86,7 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
             var all = await db.Lessons.AsNoTracking().Include(x => x.Participants)
                 .Where(x => x.WorkspaceId == north.WorkspaceId).ToListAsync();
             Assert.Equal(2, all.Count);
-            var saved = Assert.Single(all.Where(x => x.Id == firstResponse.LessonId));
+            var saved = Assert.Single(all, x => x.Id == firstResponse.LessonId);
             Assert.Equal(2, saved.Participants.Count);
             Assert.Contains(saved.Participants, x => x.MembershipId == first && x.AttendanceStatus == "Present");
             Assert.Contains(saved.Participants, x => x.MembershipId == second && x.AttendanceStatus == "Absent");
