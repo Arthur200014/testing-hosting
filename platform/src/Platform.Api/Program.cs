@@ -32,6 +32,9 @@ builder.Services.AddScoped<TeacherLessonService>();
 builder.Services.AddScoped<TeacherSubscriptionService>();
 builder.Services.AddScoped<TeacherHomeworkReader>();
 builder.Services.AddScoped<TeacherHomeworkAssignmentService>();
+builder.Services.AddSingleton(serviceProvider => new TeacherInviteCodeIssuer(
+    StartupConfiguration.GetPepper(serviceProvider.GetRequiredService<IConfiguration>())));
+builder.Services.AddScoped<TeacherStudentCreator>();
 builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddSingleton<IPasswordHasher<TeacherUser>, PasswordHasher<TeacherUser>>();
 builder.Services.AddSingleton<TeacherTokenIssuer>();
@@ -162,6 +165,25 @@ app.MapGet("/api/v1/teacher/students", async (
 {
     var workspaceId = Guid.Parse(principal.FindFirstValue("workspace_id")!);
     return Results.Ok(await directory.ListAsync(workspaceId, cancellationToken));
+}).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/students", async (
+    TeacherCreateStudentRequest request, ClaimsPrincipal principal,
+    TeacherStudentCreator students, CancellationToken cancellationToken) =>
+{
+    var result = await students.CreateAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), request, cancellationToken);
+    return result.Status switch
+    {
+        TeacherCreateStudentStatus.Created => Results.Created(
+            $"/api/v1/teacher/students/{result.Response!.MembershipId}", result.Response),
+        TeacherCreateStudentStatus.Duplicate => Results.Ok(result.Response),
+        TeacherCreateStudentStatus.Conflict => Results.Problem(statusCode: 409,
+            title: "The request ID is already associated with a different student."),
+        TeacherCreateStudentStatus.ProgramNotFound => Results.NotFound(),
+        TeacherCreateStudentStatus.InvalidRequest => Results.ValidationProblem(result.Errors!),
+        _ => throw new InvalidOperationException("Unknown teacher student create result.")
+    };
 }).RequireAuthorization("teacher");
 
 app.MapGet("/api/v1/teacher/students/{membershipId:guid}", async (
