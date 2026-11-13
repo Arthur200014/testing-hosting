@@ -4,10 +4,10 @@
 **STATE_UPDATED:** 2026-11-13
 **CURRENT_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — 3 outcomes, not historical Mxx TODO queue
 **ACTIVE_RESULT:** 1 — рабочий кабинет преподавателя
-**ACTIVE_TASK:** Result 1 — cabinet gaps; existing student profile edit DONE
-**ACTIVE_BRANCH:** none (PR #41 merged)
+**ACTIVE_TASK:** Result 1 — native homework due/overdue/submitted timing visible in teacher, learner and report
+**ACTIVE_BRANCH:** tas/cabinet-homework-deadlines
 **LAST_PROGRESS_COMMIT:** `80daa213281c7524275b889f94d7d546f412a717` ([PR #41](https://github.com/Arthur200014/testing-hosting/pull/41))
-**NEXT_ACTION:** Continue Result 1 with a coherent native-homework deadline/status improvement: awaiting, overdue, submitted on time, submitted late in student and teacher views/report. Keep existing submission semantics (do not reject late work) and run targeted synthetic checks. After that review lesson correction editing if genuinely required for everyday workflow. Do not touch manage/GAS or live records.
+**NEXT_ACTION:** Verify synthetic Node and Chromium deadline scenarios for this branch and merge when PASS; continue Result 1 by evaluating whether editing mistaken lessons is needed. Keep last-eight-lessons report and 80/20 unchanged, do not change late-submission permission, manage/GAS or live data.
 **VERIFICATION:** [PR #41](https://github.com/Arthur200014/testing-hosting/pull/41) student profile edit merged. [Chromium PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43483691477), [PostgreSQL integration PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43483691480), [backend gate PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43483691523). Production edit/deploy NOT_VERIFIED; no live student data touched. Prior PR #40 verified.
 
 ## Non-negotiable context
