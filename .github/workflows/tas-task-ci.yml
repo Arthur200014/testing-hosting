@@ -117,8 +117,12 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+      - name: Verify runtime migration startup and admin commands
+        run: bash platform/scripts/runtime-entrypoint.test.sh
       - run: docker compose --env-file .env.example --profile test build tests
       - run: docker compose --env-file .env.example --profile test run --rm tests
+      - name: Verify runtime image and API startup
+        run: bash platform/scripts/backend-smoke.sh
       - if: always()
         run: docker compose --env-file .env.example --profile test down -v
   web:
