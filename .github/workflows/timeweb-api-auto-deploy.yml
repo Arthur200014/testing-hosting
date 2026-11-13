@@ -1,0 +1,102 @@
+name: TAS Timeweb auto-deploy (API fallback)
+
+# Inert until TIMEWEB_DEPLOY_MODE=api in GitHub repository variables.
+# Prefer Timeweb's native GitHub auto-deploy whenever possible.
+on:
+  workflow_run:
+    workflows: ['Homework import integration']
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tas-timeweb-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && vars.TIMEWEB_DEPLOY_MODE == 'api' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      TIMEWEB_API_TOKEN: ${{ secrets.TIMEWEB_API_TOKEN }}
+      TIMEWEB_APP_ID: ${{ vars.TIMEWEB_APP_ID }}
+      TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure tested commit is still main
+        id: current
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$TIMEWEB_API_TOKEN" || -z "$TIMEWEB_APP_ID" ]]; then
+            echo "::error::Configure TIMEWEB_API_TOKEN secret and TIMEWEB_APP_ID variable."
+            exit 1
+          fi
+          if [[ ! "$TIMEWEB_APP_ID" =~ ^[A-Za-z0-9-]+$ ]]; then
+            echo "::error::Invalid Timeweb application ID."
+            exit 1
+          fi
+          latest="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [[ -z "$latest" ]]; then
+            echo "::error::Could not read the current main SHA."
+            exit 1
+          fi
+          if [[ "$latest" != "$TESTED_SHA" ]]; then
+            echo "Skipping superseded main revision."
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "current=true" >> "$GITHUB_OUTPUT"
+
+      - name: Verify Timeweb target and native auto-deploy state
+        if: steps.current.outputs.current == 'true'
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --max-time 30 \
+            --output "$RUNNER_TEMP/timeweb-app.json" --write-out '%{http_code}' \
+            --header "Authorization: Bearer $TIMEWEB_API_TOKEN" \
+            "https://api.timeweb.cloud/api/v1/apps/$TIMEWEB_APP_ID")"
+          if [[ "$status" != "200" ]]; then
+            echo "::error::Timeweb app lookup returned HTTP $status."
+            exit 1
+          fi
+          python3 - "$RUNNER_TEMP/timeweb-app.json" "$GITHUB_OUTPUT" <<'PY'
+          import json, sys
+          with open(sys.argv[1], encoding='utf-8') as file:
+              payload = json.load(file)
+          app = payload.get('app')
+          if not isinstance(app, dict):
+              raise SystemExit('No app object in Timeweb API response; refusing deployment.')
+          if app.get('branch_name') != 'main':
+              raise SystemExit('Timeweb app is not bound to main; refusing deployment.')
+          enabled = app.get('is_auto_deploy') is True
+          if enabled:
+              print('Native Timeweb auto-deploy already enabled; skipping duplicate trigger.')
+          with open(sys.argv[2], 'a', encoding='utf-8') as output:
+              output.write('trigger=' + ('false' if enabled else 'true') + '\n')
+          PY
+
+      - name: Trigger Timeweb deploy after successful integration CI
+        if: steps.target.outputs.trigger == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --max-time 30 \
+            --output "$RUNNER_TEMP/timeweb-deploy.json" --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer $TIMEWEB_API_TOKEN" \
+            "https://api.timeweb.cloud/api/v1/apps/$TIMEWEB_APP_ID/deploy")"
+          case "$status" in
+            200|201|202)
+              echo "Timeweb accepted the deployment request for the tested main revision."
+              echo "Check completion separately in Timeweb; an accepted request is not a health result." ;;
+            *)
+              echo "::error::Timeweb deploy refused (HTTP $status)."
+              exit 1 ;;
+          esac
