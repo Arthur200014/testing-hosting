@@ -94,7 +94,7 @@ try {
   await teacher.locator('#nativeTaskForm [name="title"]').fill('Explain the rule');
   await teacher.locator('#nativeTaskForm [name="prompt"]').fill('Write an explanation with an example.');
   await teacher.locator('#nativeTaskForm button[type="submit"]').click();
-  await teacher.locator('#nativeAssignForm [name="taskId"] option[value]:not([value=""])').waitFor();
+  await teacher.locator('#nativeAssignForm [name="taskId"] option[value]:not([value=""])').waitFor({ state: 'attached' });
   await teacher.locator('#nativeAssignForm [name="taskId"]').selectOption(tasks[0].id);
   await teacher.locator('#nativeAssignForm input[name="membershipId"]').check();
   await teacher.locator('#nativeAssignForm button[type="submit"]').click();
