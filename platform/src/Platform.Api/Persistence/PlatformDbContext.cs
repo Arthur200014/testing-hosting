@@ -59,6 +59,9 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(x => new { x.WorkspaceId, x.RequestId, x.MembershipId }).IsUnique();
             entity.HasIndex(x => new { x.WorkspaceId, x.MembershipId, x.AssignedAt });
             entity.Property(x => x.Answer).HasMaxLength(10000);
+            entity.Property(x => x.TeacherFeedback).HasMaxLength(2000);
+            entity.ToTable(t => t.HasCheckConstraint("CK_NativeHomeworkAssignments_Grade",
+                "(\\"ScorePercent\\" IS NULL AND \\"GradeRequestId\\" IS NULL AND \\"GradedAt\\" IS NULL AND \\"TeacherFeedback\\" IS NULL) OR (\\"ScorePercent\\" BETWEEN 0 AND 100 AND \\"GradeRequestId\\" IS NOT NULL AND \\"GradedAt\\" IS NOT NULL AND \\"SubmittedAt\\" IS NOT NULL)"));
             entity.HasOne<NativeHomeworkTask>().WithMany()
                 .HasForeignKey(x => new { x.WorkspaceId, x.TaskId, x.ProgramId })
                 .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.ProgramId }).OnDelete(DeleteBehavior.Restrict);

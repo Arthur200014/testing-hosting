@@ -46,6 +46,8 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     b.Property<string>("Answer").HasMaxLength(10000).HasColumnType("character varying(10000)");
                     b.Property<DateTimeOffset>("AssignedAt").HasColumnType("timestamp with time zone");
                     b.Property<DateTimeOffset>("DeadlineAt").HasColumnType("timestamp with time zone");
+                    b.Property<Guid?>("GradeRequestId").HasColumnType("uuid");
+                    b.Property<DateTimeOffset?>("GradedAt").HasColumnType("timestamp with time zone");
                     b.Property<Guid>("MembershipId").HasColumnType("uuid");
                     b.Property<Guid>("ProgramId").HasColumnType("uuid");
                     b.Property<Guid>("RequestId").HasColumnType("uuid");
@@ -54,6 +56,7 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     b.Property<DateTimeOffset?>("SubmittedAt").HasColumnType("timestamp with time zone");
                     b.Property<Guid>("StudentId").HasColumnType("uuid");
                     b.Property<Guid>("TaskId").HasColumnType("uuid");
+                    b.Property<string>("TeacherFeedback").HasMaxLength(2000).HasColumnType("character varying(2000)");
                     b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
                     b.HasKey("Id");
                     b.HasIndex("WorkspaceId", "MembershipId", "AssignedAt");
@@ -61,7 +64,8 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     b.HasIndex("WorkspaceId", "RequestId", "MembershipId").IsUnique();
                     b.HasIndex("WorkspaceId", "TaskId", "ProgramId");
                     b.ToTable("NativeHomeworkAssignments", "platform", t =>
-                        t.HasCheckConstraint("CK_NativeHomeworkAssignments_DeadlineAnswer", "\"DeadlineAt\" > \"AssignedAt\" AND ((\"Answer\" IS NULL AND \"SubmittedAt\" IS NULL AND \"SubmissionId\" IS NULL) OR (length(\"Answer\") > 0 AND \"SubmittedAt\" IS NOT NULL AND \"SubmissionId\" IS NOT NULL))"));
+                        t.HasCheckConstraint("CK_NativeHomeworkAssignments_Grade", "(\\\"ScorePercent\\\" IS NULL AND \\\"GradeRequestId\\\" IS NULL AND \\\"GradedAt\\\" IS NULL AND \\\"TeacherFeedback\\\" IS NULL) OR (\\\"ScorePercent\\\" BETWEEN 0 AND 100 AND \\\"GradeRequestId\\\" IS NOT NULL AND \\\"GradedAt\\\" IS NOT NULL AND \\\"SubmittedAt\\\" IS NOT NULL)")
+                         .HasCheckConstraint("CK_NativeHomeworkAssignments_DeadlineAnswer", "\"DeadlineAt\" > \"AssignedAt\" AND ((\"Answer\" IS NULL AND \"SubmittedAt\" IS NULL AND \"SubmissionId\" IS NULL) OR (length(\"Answer\") > 0 AND \"SubmittedAt\" IS NOT NULL AND \"SubmissionId\" IS NOT NULL))"));
                 });
 
             modelBuilder.Entity("TestingHosting.Platform.Homework.HomeworkAssignment", b =>

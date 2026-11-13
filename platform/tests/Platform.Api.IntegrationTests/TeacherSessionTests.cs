@@ -69,6 +69,11 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         var assignment = Assert.Single((await learner.GetFromJsonAsync<List<NativeAssignmentView>>(
             "/api/v1/homework/native/assignments"))!);
         Assert.Null(assignment.Answer);
+        var gradeRequest = new GradeNativeAnswerRequest(Guid.NewGuid(), assignment.Id, 85, "Good reasoning");
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await teacher.PostAsJsonAsync("/api/v1/teacher/homework/native/grades", gradeRequest)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await foreign.PostAsJsonAsync("/api/v1/teacher/homework/native/grades", gradeRequest)).StatusCode);
         var submit = new SubmitNativeAnswerRequest(Guid.NewGuid(), assignment.Id, "My explanation");
         Assert.Equal(HttpStatusCode.Created,
             (await learner.PostAsJsonAsync("/api/v1/homework/native/submissions", submit)).StatusCode);
@@ -82,6 +87,25 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Equal("My explanation", submitted.Answer);
         Assert.NotNull(submitted.SubmittedAt);
         Assert.Null(submitted.ScorePercent);
+        Assert.Null(submitted.TeacherFeedback);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await teacher.PostAsJsonAsync("/api/v1/teacher/homework/native/grades",
+                gradeRequest with { ScorePercent = 101 })).StatusCode);
+        Assert.Equal(HttpStatusCode.Created,
+            (await teacher.PostAsJsonAsync("/api/v1/teacher/homework/native/grades", gradeRequest)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,
+            (await teacher.PostAsJsonAsync("/api/v1/teacher/homework/native/grades", gradeRequest)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await teacher.PostAsJsonAsync("/api/v1/teacher/homework/native/grades",
+                gradeRequest with { ScorePercent = 90 })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await teacher.PostAsJsonAsync("/api/v1/teacher/homework/native/grades",
+                gradeRequest with { RequestId = Guid.NewGuid() })).StatusCode);
+        var graded = Assert.Single((await learner.GetFromJsonAsync<List<NativeAssignmentView>>(
+            "/api/v1/homework/native/assignments"))!);
+        Assert.Equal(85, graded.ScorePercent);
+        Assert.Equal("Good reasoning", graded.TeacherFeedback);
+        Assert.NotNull(graded.GradedAt);
     }
 
     [Fact]

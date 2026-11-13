@@ -9,7 +9,7 @@ const programs = [{ id: programId, displayName: 'Synthetic language', isActive: 
 const students = [{ membershipId: memberId, studentId, studentName: 'Test Student',
   programId, programName: 'Synthetic language' }];
 const tasks = [], assignments = [];
-let submissionCount = 0;
+let submissionCount = 0, gradingCount = 0;
 const browser = await chromium.launch({ headless: true });
 
 async function mockApi(page) {
@@ -48,9 +48,21 @@ async function mockApi(page) {
       const assignment = { id: crypto.randomUUID(), taskId: body.taskId, membershipId: memberId,
         programId, title: tasks[0].title, prompt: tasks[0].prompt,
         assignedAt: new Date().toISOString(), deadlineAt: new Date(Date.now() + 86400000).toISOString(),
-        answer: null, submittedAt: null, scorePercent: null };
+        answer: null, submittedAt: null, scorePercent: null, teacherFeedback: null, gradedAt: null };
       assignments.push(assignment);
       return send([assignment.id], 201);
+    }
+    if (path === 'teacher/homework/native/grades' && request.method() === 'POST') {
+      assert.equal(body.assignmentId, assignments[0]?.id);
+      assert.equal(body.scorePercent, 85);
+      assert.equal(body.feedback, 'Well explained');
+      assert.ok(body.requestId);
+      assignments[0].scorePercent = body.scorePercent;
+      assignments[0].teacherFeedback = body.feedback;
+      assignments[0].gradedAt = new Date().toISOString();
+      gradingCount++;
+      return send({ id: assignments[0].id, scorePercent: body.scorePercent,
+        teacherFeedback: body.feedback, gradedAt: assignments[0].gradedAt }, 201);
     }
     if (path === 'homework/native/submissions' && request.method() === 'POST') {
       assert.equal(body.assignmentId, assignments[0]?.id);
@@ -116,7 +128,18 @@ try {
   await teacher.locator('#content .item').getByText('My explanation').waitFor();
   assert.match(await teacher.locator('#content').innerText(), /Без оценки/);
   assert.equal(assignments[0].scorePercent, null);
-  console.log('PASS: teacher creates and assigns native homework, student submits, teacher sees ungraded answer');
+  await teacher.locator('[data-native-grade] input[name="scorePercent"]').fill('85');
+  await teacher.locator('[data-native-grade] textarea[name="feedback"]').fill('Well explained');
+  await teacher.locator('[data-native-grade] button[type="submit"]').click();
+  await teacher.locator('#content').getByText('85%').waitFor();
+  assert.equal(gradingCount, 1);
+  await student.locator('#logout').click();
+  await student.locator('#loginForm [name="workspace"]').fill('synthetic');
+  await student.locator('#loginForm [name="code"]').fill('SYNTHETIC-CODE');
+  await student.locator('#loginForm button').click();
+  await student.locator('#assignments').getByText('Well explained').waitFor();
+  assert.match(await student.locator('#assignments').innerText(), /85%/);
+  console.log('PASS: native homework assigned, submitted, graded by teacher, visible to student');
 } finally {
   await browser.close();
 }

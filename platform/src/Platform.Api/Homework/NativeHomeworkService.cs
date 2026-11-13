@@ -74,7 +74,7 @@ public sealed class NativeHomeworkService(PlatformDbContext db, TimeProvider clo
             .Select(x => new NativeAssignmentView(x.Id, x.TaskId, x.MembershipId, x.ProgramId,
                 db.NativeHomeworkTasks.Where(t => t.Id == x.TaskId && t.WorkspaceId == workspace).Select(t => t.Title).First(),
                 db.NativeHomeworkTasks.Where(t => t.Id == x.TaskId && t.WorkspaceId == workspace).Select(t => t.Prompt).First(),
-                x.AssignedAt, x.DeadlineAt, x.Answer, x.SubmittedAt, x.ScorePercent)).ToListAsync(ct);
+                x.AssignedAt, x.DeadlineAt, x.Answer, x.SubmittedAt, x.ScorePercent, x.TeacherFeedback, x.GradedAt)).ToListAsync(ct);
 
     public async Task<List<NativeAssignmentView>?> StudentAssignmentsAsync(ClaimsPrincipal principal, CancellationToken ct)
     {
@@ -86,7 +86,7 @@ public sealed class NativeHomeworkService(PlatformDbContext db, TimeProvider clo
             .Select(x => new NativeAssignmentView(x.Id, x.TaskId, x.MembershipId, x.ProgramId,
                 db.NativeHomeworkTasks.Where(t => t.Id == x.TaskId && t.WorkspaceId == x.WorkspaceId).Select(t => t.Title).First(),
                 db.NativeHomeworkTasks.Where(t => t.Id == x.TaskId && t.WorkspaceId == x.WorkspaceId).Select(t => t.Prompt).First(),
-                x.AssignedAt, x.DeadlineAt, x.Answer, x.SubmittedAt, x.ScorePercent)).ToListAsync(ct);
+                x.AssignedAt, x.DeadlineAt, x.Answer, x.SubmittedAt, x.ScorePercent, x.TeacherFeedback, x.GradedAt)).ToListAsync(ct);
     }
 
     public async Task<(int Status, object? Value)> SubmitAsync(ClaimsPrincipal principal, SubmitNativeAnswerRequest request, CancellationToken ct)
@@ -113,6 +113,33 @@ public sealed class NativeHomeworkService(PlatformDbContext db, TimeProvider clo
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return (201, new { assignment.Id, assignment.SubmittedAt });
+    }
+
+    public async Task<(int Status, object? Value)> GradeAsync(Guid workspace, GradeNativeAnswerRequest request, CancellationToken ct)
+    {
+        var feedback = string.IsNullOrWhiteSpace(request.Feedback) ? null : request.Feedback.Trim();
+        if (request.RequestId == Guid.Empty || request.AssignmentId == Guid.Empty ||
+            request.ScorePercent is < 0 or > 100 || feedback?.Length > 2000)
+            return (400, "Score must be 0–100; feedback must be at most 2000 characters.");
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await LockAsync(workspace, request.AssignmentId, ct);
+        var assignment = await Query(workspace).SingleOrDefaultAsync(x => x.Id == request.AssignmentId, ct);
+        if (assignment is null) return (404, null);
+        if (assignment.SubmittedAt is null || assignment.SubmissionId is null)
+            return (409, "Student has not submitted an answer.");
+        if (assignment.GradeRequestId is not null)
+            return assignment.GradeRequestId == request.RequestId &&
+                   assignment.ScorePercent == request.ScorePercent &&
+                   assignment.TeacherFeedback == feedback
+                ? (200, new { assignment.Id, assignment.ScorePercent, assignment.TeacherFeedback, assignment.GradedAt })
+                : (409, "This answer has already been graded. Refresh the assignment.");
+        assignment.ScorePercent = request.ScorePercent;
+        assignment.TeacherFeedback = feedback;
+        assignment.GradedAt = clock.GetUtcNow();
+        assignment.GradeRequestId = request.RequestId;
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return (201, new { assignment.Id, assignment.ScorePercent, assignment.TeacherFeedback, assignment.GradedAt });
     }
 
     private IQueryable<NativeHomeworkAssignment> Query(Guid workspace) =>

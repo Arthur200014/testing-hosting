@@ -3,13 +3,15 @@
 **REPO:** `Arthur200014/testing-hosting`
 **STATE_UPDATED:** 2026-11-13
 **CURRENT_PHASE:** M04 (separate teacher platform UI; M02 isolated restore deferred by owner)
-**ACTIVE_TASK:** M04-06 live native homework scenario with test student
-**ACTIVE_BRANCH:** none (PR #37 merged)
+**ACTIVE_TASK:** M04-08 grade submitted native homework and show feedback
+**ACTIVE_BRANCH:** tas/M04-08-native-grading
 **LAST_PROGRESS_COMMIT:** `9e9b9497a93f49440575a0f9b913ea49793e7751` ([PR #37](https://github.com/Arthur200014/testing-hosting/pull/37))
-**NEXT_ACTION:** Complete the live native homework flow with the existing `[ТЕСТ] Ученик ОГЭ` in `tas-main`: create a small native text task, assign only to that test student, submit through the student page using the student's code entered via secure browser authentication, and verify the teacher sees the ungraded answer. Teacher credentials and the test student's code were supplied in private conversation (2026-11-13), but the previous browser login does not persist into this session. The next operator with secure browser access must sign in again; do not put credentials or the student code into Git, logs or screenshots. Do not ask the owner to run a shell command or repeat any import. Keep real students, GAS/manage and questionnaires untouched. Synthetic Chromium UI and PostgreSQL integration checks have passed, but live student submission is still NOT_RUN.
+**NEXT_ACTION:** Complete M04-08 native homework grade/feedback on `tas/M04-08-native-grading`: verify PostgreSQL and Chromium CI, fix any failures, merge when green. Teacher grades submitted answer 0–100% with optional comment; student reads result. Owner deferred live M04-06 test (NOT_RUN). No live test writes, no repeat import, no change to legacy manage/GAS.
 **STATUS:** M03-01/M03-02 and mock-history import owner-confirmed (not independently SQL-queried); test-history 233 rows read-only replay verified from owner Timeweb console output; questionnaires excluded by owner; M02-03 restore NOT_VERIFIED
 
 2026-11-13: [PR #37](https://github.com/Arthur200014/testing-hosting/pull/37) merged. [Chromium browser CI PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43461067640): intercepted synthetic API covers teacher sign-in, native task creation and assignment, student code sign-in and text submission, and teacher's view of the answer with null grade. PostgreSQL integration and scoped gate also passed. Assistant signed in to the owner's live teacher account through secure browser authentication and read the native homework tab in `tas-main`: 32 active students, 287 lessons, 70 legacy catalog entries, 212 legacy assignments, 141 submissions and zero native tasks at that check. The existing `[ТЕСТ] Ученик ОГЭ` is visible. This live inspection made no writes. The owner subsequently supplied that test student's access code in private conversation. Live student submission and teacher review are still NOT_RUN; neither a successful student login nor production write has been observed. No credential was written to the repository.
+
+2026-11-13: Owner explicitly deferred M04-06 live test. M04-08 grading and feedback is a new task-branch change; PostgreSQL and browser checks PENDING. No student code/teacher credentials committed.
 
 ## What is verified
 - User supplied actual Timeweb app deployment log: **Deploy succeeded**, 2026-11-11 22:17:41 (after temporarily removing deploy health-check path); new container on port 8080, managed web-server configured. User subsequently reported **Healthy** at both HTTPS `/health/live` and `/health/ready`; thus API process and DB connectivity operational **per user**, not independently probed by assistant.
