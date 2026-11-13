@@ -2,6 +2,7 @@ export const teacherPaths = {
   programs: 'programs', students: 'students', lessons: 'lessons',
   catalog: 'homework/catalog', assignments: 'homework/assignments',
   submissions: 'homework/submissions', subscriptions: 'subscriptions',
+  nativeTasks: 'homework/native/tasks', nativeAssignments: 'homework/native/assignments',
   tests: 'tests/history', liveTests: 'tests/attempts',
   mocks: 'mocks/results', mockSessions: 'mocks/sessions'
 };
@@ -10,7 +11,7 @@ export const teacherNeeds = {
   overview: ['students', 'lessons', 'assignments', 'subscriptions'],
   students: ['students', 'programs'],
   lessons: ['students', 'programs', 'lessons', 'catalog'],
-  homework: ['students', 'programs', 'catalog', 'assignments', 'submissions'],
+  homework: ['students', 'programs', 'catalog', 'assignments', 'submissions', 'nativeTasks', 'nativeAssignments'],
   subscriptions: ['students', 'subscriptions'],
   results: ['students', 'tests', 'liveTests', 'mocks', 'mockSessions'],
   report: ['students', 'lessons', 'assignments', 'tests', 'liveTests', 'mocks']

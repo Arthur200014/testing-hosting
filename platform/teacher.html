@@ -289,7 +289,18 @@
       }
       function homework() {
         const d = state.data;
-        return `<div class="grid two"><div class="card stack"><div><h2>Добавить внешнюю работу</h2><p class="muted small">Это ссылка на уже готовую страницу ДЗ. Создание и выполнение задания внутри новой платформы появится отдельным этапом; ссылку для проверки придумывать не нужно.</p></div><form id="catalogForm" class="stack">
+        return `<p class="muted" style="margin-bottom:14px">Страница ученика: <a class="link" href="./student.html" target="_blank" rel="noopener noreferrer">открыть кабинет ДЗ</a>. Ученик входит по своему коду и видит только свои задания.</p><div class="grid two" style="margin-bottom:20px"><div class="card stack"><h2>Создать ДЗ на платформе</h2><form id="nativeTaskForm" class="stack">
+          <label><span>Программа</span><select name="programId" required>${options(d.programs || [], 'id', 'displayName')}</select></label>
+          <label><span>Название</span><input name="title" maxlength="200" required></label>
+          <label><span>Условие задания</span><textarea name="prompt" maxlength="10000" required></textarea></label>
+          <button class="primary" type="submit" ${d.programs?.length ? '' : 'disabled'}>Создать задание</button></form></div>
+          <div class="card stack"><h2>Назначить встроенное ДЗ</h2><form id="nativeAssignForm" class="stack">
+          <label><span>Задание</span><select name="taskId" required><option value="">Выберите задание</option>${(d.nativeTasks || []).map(x => `<option value="${safe(x.id)}">${safe(x.title)} · ${safe(programName(x.programId))}</option>`).join('')}</select></label>
+          <div><span class="muted small">Ученики той же программы</span><div class="check-list" style="margin-top:7px">${studentChoices().map(x => `<label><input type="checkbox" name="membershipId" value="${safe(x.membershipId)}" data-program="${safe(x.programId)}">${safe(x.studentName)} · ${safe(x.programName)}</label>`).join('') || 'Добавьте ученика.'}</div></div>
+          <label><span>Срок</span><select name="deadlineHours"><option value="24">24 часа</option><option value="48">48 часов</option><option value="72">72 часа</option></select></label>
+          <button class="primary" type="submit" ${d.nativeTasks?.length && d.students?.length ? '' : 'disabled'}>Назначить ученикам</button></form></div>
+          <div class="card stack" style="grid-column:1 / -1"><div class="section-head"><h2>Встроенные ДЗ и ответы</h2><span class="muted small">${d.nativeAssignments?.length || 0}</span></div>${list((d.nativeAssignments || []).slice(0, 100), 'Пока нет назначений.', x => `<div class="item"><div><strong>${safe(x.title)} · ${safe(studentName(x.membershipId))}</strong><small>До ${safe(date(x.deadlineAt))} · ${x.submittedAt ? 'сдано ' + safe(date(x.submittedAt)) : 'ожидает ответа'}</small>${x.answer ? `<p style="white-space:pre-wrap;margin-top:9px">${safe(x.answer)}</p>` : ''}</div><span class="pill ${x.submittedAt ? '' : 'warn'}">${x.scorePercent == null ? x.submittedAt ? 'Без оценки' : 'Ожидается' : safe(x.scorePercent) + '%'}</span></div>`)}</div></div>
+          <div class="grid two"><div class="card stack"><div><h2>Добавить внешнюю работу</h2><p class="muted small">Только для уже готовой страницы ДЗ по HTTPS.</p></div><form id="catalogForm" class="stack">
           <div class="form-row"><label><span>Программа</span><select name="programId" required>${options(d.programs || [], 'id', 'displayName')}</select></label><label><span>Номер задания</span><input name="taskNumber" type="number" min="1" max="1000" required></label></div>
           <label><span>Название</span><input name="name" maxlength="200" required></label><label><span>Ссылка на готовую работу (HTTPS)</span><input name="url" type="url" pattern="https://.*" maxlength="2048" placeholder="https://…" required></label>
           <button class="primary" type="submit" ${d.programs?.length ? '' : 'disabled'}>Добавить в каталог</button></form></div>
@@ -480,6 +491,21 @@
       });
       $('content').addEventListener('submit', event => {
         event.preventDefault(); const form = event.target;
+        if (form.id === 'nativeTaskForm') onForm(form, async () => {
+          await mutation('nativeTask', 'homework/native/tasks', () => ({
+            programId: formValue(form, 'programId'), title: formValue(form, 'title'), prompt: formValue(form, 'prompt')
+          }));
+          form.reset();
+        });
+        if (form.id === 'nativeAssignForm') onForm(form, async () => {
+          const ids = selectedIds(form); const program = oneProgram(ids);
+          const task = state.data.nativeTasks.find(x => x.id === formValue(form, 'taskId'));
+          if (!task || task.programId !== program) throw new Error('Выберите задание той же программы, что у учеников.');
+          await mutation('nativeAssign', 'homework/native/assignments', () => ({
+            taskId: task.id, membershipIds: ids.map(x => x.value), deadlineHours: Number(formValue(form, 'deadlineHours'))
+          }));
+          form.reset();
+        });
         if (form.id === 'catalogForm') onForm(form, async () => {
           await mutation('catalog', 'homework/catalog', () => ({
             programId: formValue(form, 'programId'), taskNumber: Number(formValue(form, 'taskNumber')),

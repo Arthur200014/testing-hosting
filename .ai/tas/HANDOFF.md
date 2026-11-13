@@ -4,9 +4,9 @@
 **STATE_UPDATED:** 2026-11-13
 **CURRENT_PHASE:** M04 (separate teacher platform UI; M02 isolated restore deferred by owner)
 **ACTIVE_TASK:** M04-06 platform-native homework flow
-**ACTIVE_BRANCH:** none
+**ACTIVE_BRANCH:** `tas/M04-06-native-homework`
 **LAST_PROGRESS_COMMIT:** `8b194014109746862e39367fcb6d986df2213eae` ([PR #34](https://github.com/Arthur200014/testing-hosting/pull/34))
-**NEXT_ACTION:** Owner confirmed report and load are OK. Current catalog accepts only existing external HTTPS homework pages; the new platform has no native student homework page/editor yet. Do not require the owner to provide an external link, use an old GAS form as a PostgreSQL test, or invent a real assignment. Plan and implement platform-native authoring → assignment → student submission as the next product slice before live M04-05 homework verification. No repeat import, and keep `EGA/config/manage.html` and GAS unchanged.
+**NEXT_ACTION:** Finish and verify M04-06 native homework branch: text task authoring and assignment in `platform/teacher.html`, student code login and answer in `platform/student.html`, isolated native EF tables/API. Local JS syntax and module tests PASS; .NET/PostgreSQL CI and Timeweb migration NOT_RUN. Publish PR, fix CI, merge on green, then owner applies only the new EF migration in Timeweb. No repeat import, and keep `EGA/config/manage.html` and GAS unchanged.
 **STATUS:** M03-01/M03-02 and mock-history import owner-confirmed (not independently SQL-queried); test-history 233 rows read-only replay verified from owner Timeweb console output; questionnaires excluded by owner; M02-03 restore NOT_VERIFIED
 
 ## What is verified
