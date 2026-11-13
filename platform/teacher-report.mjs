@@ -12,6 +12,31 @@ const moscowDay = value => {
 const average = values => values.length
   ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : null;
 
+// Legacy catalog and TAS-native tasks are independent assignments. Only identical
+// records repeated within the same source can be collapsed; matching titles/dates
+// across sources are not a reliable identity and must not silently remove work.
+export function collectTeacherHomework(data) {
+  const seen = new Set();
+  const rows = [
+    ...(data.assignments || []).map(item => ({
+      ...item, source: 'catalog', isSubmitted: Boolean(item.submittedAt) ||
+        ['submitted', 'completed'].includes(String(item.status).toLowerCase()) ||
+        Number.isFinite(item.scorePercent)
+    })),
+    ...(data.nativeAssignments || []).map(item => ({
+      ...item, source: 'native', name: item.title, isSubmitted: Boolean(item.submittedAt)
+    }))
+  ];
+  return rows.filter(item => {
+    if (!item.membershipId) return false;
+    if (item.id == null || item.id === '') return true;
+    const key = `${item.source}\u0000${item.membershipId}\u0000${item.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export function buildTeacherReport(data, membershipId, asOf = new Date()) {
   const lessons = (data.lessons || [])
     .filter(lesson => new Date(lesson.lessonAt) <= asOf &&
@@ -25,12 +50,9 @@ export function buildTeacherReport(data, membershipId, asOf = new Date()) {
     const day = moscowDay(value);
     return from && day && day >= from && day <= through;
   };
-  const homework = (data.assignments || [])
+  const homework = collectTeacherHomework(data)
     .filter(item => item.membershipId === membershipId && inPeriod(item.assignedAt))
-    .sort((a, b) => new Date(b.assignedAt) - new Date(a.assignedAt))
-    .map(item => ({ ...item, isSubmitted: Boolean(item.submittedAt) ||
-      ['submitted', 'completed'].includes(String(item.status).toLowerCase()) ||
-      Number.isFinite(item.scorePercent) }));
+    .sort((a, b) => new Date(b.assignedAt) - new Date(a.assignedAt));
   const submittedCount = homework.filter(item => item.isSubmitted).length;
   const homeworkAveragePercent = average(homework
     .filter(item => Number.isFinite(item.scorePercent))
