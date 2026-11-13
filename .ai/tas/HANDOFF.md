@@ -4,11 +4,11 @@
 **STATE_UPDATED:** 2026-11-13
 **CURRENT_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — 3 outcomes, not historical Mxx TODO queue
 **ACTIVE_RESULT:** 1 — рабочий кабинет преподавателя
-**ACTIVE_TASK:** Result 1 — edit existing student profile in teacher UI/API with optimistic conflict and workspace safety
-**ACTIVE_BRANCH:** tas/teacher-student-edit
-**LAST_PROGRESS_COMMIT:** `cc455d435694de598e616cc8f7a8bdac49d2347b` ([PR #40](https://github.com/Arthur200014/testing-hosting/pull/40))
-**NEXT_ACTION:** Verify PostgreSQL and Chromium synthetic checks for student edit on tas/teacher-student-edit, fix failures, merge once PASS. Then continue Result 1 with native-homework overdue/on-time status and lesson correction where needed. Do not alter existing manage or live data.
-**VERIFICATION:** PR #40 three-result plan and stale data refresh [Chromium+Node PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43482385536), [backend gate PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43482385473), [PostgreSQL PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43482385655). Production effect NOT_VERIFIED; previous PR #39 checks PASS.
+**ACTIVE_TASK:** Result 1 — cabinet gaps; existing student profile edit DONE
+**ACTIVE_BRANCH:** none (PR #41 merged)
+**LAST_PROGRESS_COMMIT:** `80daa213281c7524275b889f94d7d546f412a717` ([PR #41](https://github.com/Arthur200014/testing-hosting/pull/41))
+**NEXT_ACTION:** Continue Result 1 with a coherent native-homework deadline/status improvement: awaiting, overdue, submitted on time, submitted late in student and teacher views/report. Keep existing submission semantics (do not reject late work) and run targeted synthetic checks. After that review lesson correction editing if genuinely required for everyday workflow. Do not touch manage/GAS or live records.
+**VERIFICATION:** [PR #41](https://github.com/Arthur200014/testing-hosting/pull/41) student profile edit merged. [Chromium PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43483691477), [PostgreSQL integration PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43483691480), [backend gate PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43483691523). Production edit/deploy NOT_VERIFIED; no live student data touched. Prior PR #40 verified.
 
 ## Non-negotiable context
 - Existing Timeweb **App Platform** deployment with private managed PostgreSQL; do not create VPS/Compose infrastructure, re-import owner-confirmed students/homework/lessons or request manual migration after code deploy.
