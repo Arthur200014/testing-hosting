@@ -3,10 +3,10 @@
 **REPO:** `Arthur200014/testing-hosting`
 **STATE_UPDATED:** 2026-11-13
 **CURRENT_PHASE:** M04 (separate teacher platform UI; M02 isolated restore deferred by owner)
-**ACTIVE_TASK:** M04-06 platform-native homework flow
-**ACTIVE_BRANCH:** `tas/M04-06-native-homework`
-**LAST_PROGRESS_COMMIT:** `8b194014109746862e39367fcb6d986df2213eae` ([PR #34](https://github.com/Arthur200014/testing-hosting/pull/34))
-**NEXT_ACTION:** Finish and verify M04-06 native homework branch: text task authoring and assignment in `platform/teacher.html`, student code login and answer in `platform/student.html`, isolated native EF tables/API. Local JS syntax and module tests PASS; .NET/PostgreSQL CI and Timeweb migration NOT_RUN. Publish PR, fix CI, merge on green, then owner applies only the new EF migration in Timeweb. No repeat import, and keep `EGA/config/manage.html` and GAS unchanged.
+**ACTIVE_TASK:** M04-06 live rollout and synthetic homework verification
+**ACTIVE_BRANCH:** none
+**LAST_PROGRESS_COMMIT:** `5c4e5b2a9b8f2e75370bdb204bc88a23847ce6b3` ([PR #35](https://github.com/Arthur200014/testing-hosting/pull/35))
+**NEXT_ACTION:** Native text homework API, teacher form and student page are merged. [TAS backend CI PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43452431325), including synthetic PostgreSQL tenant/retry/null-score integration; [student page](https://arthur200014.github.io/testing-hosting/platform/student.html) loads on GitHub Pages. Timeweb deployment/migration and live UI E2E NOT_VERIFIED. After new Docker deploy succeeds, owner runs `dotnet Platform.Api.dll --migrate` once in existing Timeweb App Platform console and checks `/health/migrations` = Healthy. Then verify with a synthetic student: teacher creates text task and assigns it, student opens that page and submits text, teacher sees the answer without fabricated score. No repeat import, no questionnaires, and keep `EGA/config/manage.html` and GAS unchanged.
 **STATUS:** M03-01/M03-02 and mock-history import owner-confirmed (not independently SQL-queried); test-history 233 rows read-only replay verified from owner Timeweb console output; questionnaires excluded by owner; M02-03 restore NOT_VERIFIED
 
 ## What is verified
