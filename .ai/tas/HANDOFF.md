@@ -3,13 +3,13 @@
 **REPO:** `Arthur200014/testing-hosting`
 **STATE_UPDATED:** 2026-11-13
 **CURRENT_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — 3 outcomes, not historical Mxx TODO queue
-**ACTIVE_RESULT:** 2 — сквозная проверка и скорость (Result 1 code complete; live owner test deferred)
-**ACTIVE_TASK:** Result 2 — automated read-only Timeweb health/latency probe after main integration gate
-**ACTIVE_BRANCH:** tas/read-only-release-observability
-**LAST_PROGRESS_COMMIT:** `a62d2302b8ec5cf4ec1d00f9fa91b8593960cbf8` ([PR #44](https://github.com/Arthur200014/testing-hosting/pull/44))
-**DEPLOY_AUTOMATION:** User confirmed Timeweb deployment set up (2026-11-13), mechanism not independently observed. GitHub Pages main auto publishes. Timeweb native auto deploy needs one-time setting in Timeweb UI (not verifiable via GitHub only); opt-in API fallback `.github/workflows/timeweb-api-auto-deploy.yml` prepared and intentionally inactive until repo variables/secret set. See `docs/ops/timeweb-autodeploy.md`. Production deployment NOT_RUN.
-**NEXT_ACTION:** Verify the first Timeweb read-only health workflow on main and record measured public health TTFB; authenticated teacher API latency remains NOT_MEASURED without a safe testing principal. Complete focused tenant/report checks and advance to Result 3 release safety without any live writes/imports.
-**VERIFICATION:** [PR #44](https://github.com/Arthur200014/testing-hosting/pull/44) selective teacher refresh merged: [Chromium + 13 Node tests PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43491184697), [PostgreSQL integration PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43491184630), [backend gate PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43491184784). Synthetic UI reduced 7 GET reads to 1 after native homework writes; two synthetic workspaces, stale-session response, offline retry, expired auth PASS. Real Timeweb latency/deploy NOT_VERIFIED; no production data touched. Earlier PR #43 verified.
+**ACTIVE_RESULT:** 3 — стабильный релиз (Result 2 synthetic E2E and Timeweb public health PASS)
+**ACTIVE_TASK:** Result 3 — backup/recovery and release-source safety, read-only first
+**ACTIVE_BRANCH:** none (PR #46 merged)
+**LAST_PROGRESS_COMMIT:** `7666f2339e25de682d2f1ff3c6dd9c9ccf00d409` ([PR #46](https://github.com/Arthur200014/testing-hosting/pull/46))
+**DEPLOY_AUTOMATION:** Timeweb auto-deployment was enabled per user (2026-11-13). GitHub Pages main auto publishes. API fallback `.github/workflows/timeweb-api-auto-deploy.yml` is intentionally inactive when native deploy is used. Public Timeweb health PASS; running container commit NOT_ATTESTED. See `docs/ops/timeweb-autodeploy.md`.
+**NEXT_ACTION:** Result 3: verify existing backup/isolated-restore scripts and operational safeguards without restoring production data. Timeweb managed backup existence/retention and restore to a separately permitted isolated DB remain NOT_VERIFIED: do not create paid resources, change live DB, or switch GAS/manage writer. Authenticated teacher API latency remains NOT_MEASURED; do not assert it is fast based on health endpoints.
+**VERIFICATION:** [PR #46](https://github.com/Arthur200014/testing-hosting/pull/46) merged, [backend gate PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43500148474), [PostgreSQL integration PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43500148347), [main integration PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43500586950). [Real Timeweb read-only health PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43500996830): live HTTP200 total1150.9ms, ready HTTP200 total2222.2ms, migrations HTTP200 total702.3ms, anonymous teacher/students HTTP401 total569.3ms. One sample per endpoint; production DB writes/restore NOT_RUN. Earlier tenant, report, Chromium, delayed submission tests PASS.
 
 ## Non-negotiable context
 - Existing Timeweb **App Platform** deployment with private managed PostgreSQL; do not create VPS/Compose infrastructure, re-import owner-confirmed students/homework/lessons or request manual migration after code deploy.
