@@ -4,11 +4,11 @@
 **STATE_UPDATED:** 2026-11-13
 **CURRENT_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — 3 outcomes, not historical Mxx TODO queue
 **ACTIVE_RESULT:** 1 — рабочий кабинет преподавателя
-**ACTIVE_TASK:** Result 1 — safe correction of paired lessons (date, attendance, duration, topic)
-**ACTIVE_BRANCH:** tas/cabinet-lesson-correction
-**LAST_PROGRESS_COMMIT:** `786430ff161bac678ea13dc02932090fae0667d4` ([PR #42](https://github.com/Arthur200014/testing-hosting/pull/42))
-**NEXT_ACTION:** Verify synthetic Chromium/Node and isolated PostgreSQL tests for lesson correction in tas/cabinet-lesson-correction; fix failures, merge on PASS. Then assess remaining daily-workflow gaps; if none, move to Result 2 cross-workspace E2E and performance measurements. Do not alter live data or legacy manage/GAS.
-**VERIFICATION:** [PR #42](https://github.com/Arthur200014/testing-hosting/pull/42) homework deadlines merged: [Chromium + Node PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43487940944), [PostgreSQL integration PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43487940976), [backend gate PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43487941000). No migration, no server writes beyond synthetic tests. Production deployment/late-submission NOT_VERIFIED. Prior PR #41 verified.
+**ACTIVE_TASK:** Result 1 — safe correction of existing paired lessons DONE; assess daily-use gaps before Result 2
+**ACTIVE_BRANCH:** none (PR #43 merged)
+**LAST_PROGRESS_COMMIT:** `b7404b81284d82f54f8648aca0f2f6f03b12e5d6` ([PR #43](https://github.com/Arthur200014/testing-hosting/pull/43))
+**NEXT_ACTION:** Assess any remaining essential daily-use gaps from the code. If no release-blocking missing core operations, begin Result 2: focused synthetic cross-workspace E2E and measure actual page/API load latency to target data-loading bottlenecks. Keep work outcome-based (3 major results), do not invent more M04-xx. No live data writes or legacy manage/GAS edits.
+**VERIFICATION:** [PR #43](https://github.com/Arthur200014/testing-hosting/pull/43) paired lesson correction merged: [Chromium PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43489358232), [PostgreSQL integration PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43489357930), [backend gate PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43489357987). No migrations/import, live production write/deployment NOT_VERIFIED. Corrected attendance/time/topic/duration; same membership IDs, linked homework/subscriptions untouched. Prior PR #42 verified.
 
 ## Non-negotiable context
 - Existing Timeweb **App Platform** deployment with private managed PostgreSQL; do not create VPS/Compose infrastructure, re-import owner-confirmed students/homework/lessons or request manual migration after code deploy.
