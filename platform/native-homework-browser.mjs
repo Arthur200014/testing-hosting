@@ -77,13 +77,20 @@ async function mockApi(page) {
       const reads = {
         'teacher/students': students,
         'teacher/programs': programs,
-        'teacher/lessons': [],
+        'teacher/lessons': [{
+          id: 'lesson-test', lessonAt: new Date(Date.now() - 86400000).toISOString(),
+          participants: [{ membershipId: memberId, attendanceStatus: 'Present',
+            durationMinutes: 60, topicComment: 'Synthetic lesson' }]
+        }],
         'teacher/homework/catalog': [],
         'teacher/homework/assignments': [],
         'teacher/homework/submissions': [],
         'teacher/homework/native/tasks': tasks,
         'teacher/homework/native/assignments': assignments,
         'teacher/subscriptions': [],
+        'teacher/tests/history': [],
+        'teacher/tests/attempts': [],
+        'teacher/mocks/results': [],
         'homework/native/assignments': assignments
       };
       if (Object.hasOwn(reads, path)) return send(reads[path]);
@@ -112,6 +119,10 @@ try {
   await teacher.locator('#nativeAssignForm button[type="submit"]').click();
   await teacher.locator('#content').getByText('Встроенные ДЗ и ответы').waitFor();
   assert.equal(assignments.length, 1);
+  await teacher.locator('[data-view="overview"]').click();
+  await teacher.locator('#content').getByText('из каталога 0 · встроенных 1').waitFor();
+  await teacher.locator('[data-view="homework"]').click();
+  await teacher.locator('#content').getByText('Встроенные ДЗ и ответы').waitFor();
 
   await student.goto(base + '/platform/student.html');
   await student.locator('#loginForm [name="workspace"]').fill('synthetic');
@@ -139,7 +150,12 @@ try {
   await student.locator('#loginForm button').click();
   await student.locator('#assignments').getByText('Well explained').waitFor();
   assert.match(await student.locator('#assignments').innerText(), /85%/);
-  console.log('PASS: native homework assigned, submitted, graded by teacher, visible to student');
+  await teacher.locator('[data-view="report"]').click();
+  await teacher.locator('#content').getByText('Встроенное ДЗ').waitFor();
+  assert.match(await teacher.locator('#content').innerText(), /Well explained/);
+  assert.match(await teacher.locator('#content').innerText(), /85%/);
+  assert.match(await teacher.locator('#content').innerText(), /Для расчёта нужны оценённые ДЗ и тесты/);
+  console.log('PASS: native homework assigned, submitted, graded, counted in overview and teacher report');
 } finally {
   await browser.close();
 }
