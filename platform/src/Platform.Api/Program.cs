@@ -344,6 +344,10 @@ app.MapPost("/api/v1/teacher/homework/native/assignments", async (AssignNativeTa
     ClaimsPrincipal principal, NativeHomeworkService homework, CancellationToken ct) =>
     NativeWrite(await homework.AssignAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), request, ct)))
     .RequireAuthorization("teacher");
+app.MapPost("/api/v1/teacher/homework/native/grades", async (GradeNativeAnswerRequest request,
+    ClaimsPrincipal principal, NativeHomeworkService homework, CancellationToken ct) =>
+    NativeWrite(await homework.GradeAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), request, ct)))
+    .RequireAuthorization("teacher");
 app.MapGet("/api/v1/homework/native/assignments", async (ClaimsPrincipal principal,
     NativeHomeworkService homework, CancellationToken ct) =>
     await homework.StudentAssignmentsAsync(principal, ct) is { } items ? Results.Ok(items) : Results.Unauthorized())

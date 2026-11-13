@@ -26,12 +26,16 @@ public sealed class NativeHomeworkAssignment
     public Guid? SubmissionId { get; set; }
     public DateTimeOffset? SubmittedAt { get; set; }
     public int? ScorePercent { get; set; }
+    public Guid? GradeRequestId { get; set; }
+    public DateTimeOffset? GradedAt { get; set; }
+    public string? TeacherFeedback { get; set; }
 }
 
 public sealed record CreateNativeTaskRequest(Guid RequestId, Guid ProgramId, string? Title, string? Prompt);
 public sealed record AssignNativeTaskRequest(Guid RequestId, Guid TaskId, Guid[]? MembershipIds, int DeadlineHours);
 public sealed record SubmitNativeAnswerRequest(Guid SubmissionId, Guid AssignmentId, string? Answer);
+public sealed record GradeNativeAnswerRequest(Guid RequestId, Guid AssignmentId, int ScorePercent, string? Feedback);
 public sealed record NativeTaskView(Guid Id, Guid ProgramId, string Title, string Prompt, DateTimeOffset CreatedAt);
 public sealed record NativeAssignmentView(Guid Id, Guid TaskId, Guid MembershipId, Guid ProgramId,
     string Title, string Prompt, DateTimeOffset AssignedAt, DateTimeOffset DeadlineAt,
-    string? Answer, DateTimeOffset? SubmittedAt, int? ScorePercent);
+    string? Answer, DateTimeOffset? SubmittedAt, int? ScorePercent, string? TeacherFeedback, DateTimeOffset? GradedAt);
