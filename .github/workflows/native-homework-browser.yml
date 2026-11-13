@@ -1,0 +1,38 @@
+name: Native homework browser
+
+on:
+  push:
+    paths:
+      - 'platform/teacher.html'
+      - 'platform/student.html'
+      - 'platform/native-homework-browser.mjs'
+      - '.github/workflows/native-homework-browser.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Chromium browser runner
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start isolated local site
+        run: |
+          python3 -m http.server 8766 --bind 127.0.0.1 > /tmp/tas-native-homework-http.log 2>&1 &
+          for attempt in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:8766/platform/student.html > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/tas-native-homework-http.log
+          exit 1
+      - name: Verify teacher and student UI against synthetic API
+        run: node platform/native-homework-browser.mjs
