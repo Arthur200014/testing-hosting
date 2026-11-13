@@ -3,10 +3,10 @@
 **REPO:** `Arthur200014/testing-hosting`
 **STATE_UPDATED:** 2026-11-13
 **CURRENT_PHASE:** M04 (separate teacher platform UI; M02 isolated restore deferred by owner)
-**ACTIVE_TASK:** M04-06 live rollout and synthetic homework verification
-**ACTIVE_BRANCH:** none
+**ACTIVE_TASK:** M04-07 automatic Timeweb schema migrations (owner requested no manual commands)
+**ACTIVE_BRANCH:** `tas/M04-07-auto-migrate`
 **LAST_PROGRESS_COMMIT:** `5c4e5b2a9b8f2e75370bdb204bc88a23847ce6b3` ([PR #35](https://github.com/Arthur200014/testing-hosting/pull/35))
-**NEXT_ACTION:** Native text homework API, teacher form and student page are merged. [TAS backend CI PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43452431325), including synthetic PostgreSQL tenant/retry/null-score integration; [student page](https://arthur200014.github.io/testing-hosting/platform/student.html) loads on GitHub Pages. Direct public check 2026-11-13: `/health/ready` = Healthy; `/health/migrations` = Unhealthy, consistent with pending migration. Timeweb Docker deploy version and live UI E2E NOT_VERIFIED. Owner runs `dotnet Platform.Api.dll --migrate` once in existing Timeweb App Platform console after confirming latest Docker deploy, then checks `/health/migrations` = Healthy. Next verify with a synthetic student: teacher creates text task and assigns it, student opens that page and submits text, teacher sees the answer without fabricated score. No repeat import, no questionnaires, and keep `EGA/config/manage.html` and GAS unchanged.
+**NEXT_ACTION:** Owner asked to remove manual Timeweb migration commands. Branch changes only the runtime Docker entrypoint: normal API startup runs `dotnet Platform.Api.dll --migrate` before listening; explicit admin CLI args bypass startup wrapper, importer binaries remain opt-in. Local shell test PASS. Publish PR, run backend PostgreSQL CI plus runtime smoke, merge green, then independently recheck public `/health/ready` and `/health/migrations`. Current public check: ready Healthy, migrations Unhealthy. If auto deploy has not run or migration fails, report concrete deployment blocker without asking for repeat student/homework import. Next synthetic native homework UI verification; no questionnaires and no GAS/manage changes.
 **STATUS:** M03-01/M03-02 and mock-history import owner-confirmed (not independently SQL-queried); test-history 233 rows read-only replay verified from owner Timeweb console output; questionnaires excluded by owner; M02-03 restore NOT_VERIFIED
 
 ## What is verified

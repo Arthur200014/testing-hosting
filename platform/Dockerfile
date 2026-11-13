@@ -82,6 +82,8 @@ COPY --chown=$APP_UID:$APP_UID --from=build /app/publish ./
 COPY --chown=$APP_UID:$APP_UID --from=importer-build /app/student-importer /app/importers/students/
 COPY --chown=$APP_UID:$APP_UID --from=importer-build /app/homework-importer /app/importers/homework/
 COPY --chown=$APP_UID:$APP_UID --from=importer-build /app/history-importer /app/importers/history/
+COPY --chown=$APP_UID:$APP_UID scripts/runtime-entrypoint.sh /app/runtime-entrypoint.sh
+RUN chmod 755 /app/runtime-entrypoint.sh
 USER $APP_UID
 EXPOSE 8080
-ENTRYPOINT ["dotnet", "Platform.Api.dll"]
+ENTRYPOINT ["/app/runtime-entrypoint.sh"]
