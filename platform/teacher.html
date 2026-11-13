@@ -162,7 +162,7 @@
 
   <script type="module">
     import { buildTeacherReport, collectTeacherHomework } from './teacher-report.mjs';
-    import { teacherNeeds, invalidateTeacherData, loadTeacherKey } from './teacher-data.mjs';
+    import { teacherNeeds, teacherMutationKeys, invalidateTeacherData, invalidateTeacherKeys, loadTeacherKey } from './teacher-data.mjs';
     import { performTeacherMutation } from './teacher-mutation.mjs';
     import { nativeHomeworkDeadlineStatus } from './homework-deadline.mjs';
     (() => {
@@ -186,7 +186,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
-        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null;
+        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null;
         $('app').hidden = true; $('loginScreen').hidden = false;
         $('loginError').textContent = message; $('loginError').hidden = !message;
       }
@@ -211,8 +211,9 @@
         }
         return data;
       }
-      function invalidate() {
-        invalidateTeacherData(state);
+      function invalidate(keys = null) {
+        if (keys) invalidateTeacherKeys(state, keys);
+        else invalidateTeacherData(state);
       }
       function loadKey(key, force = false) {
         return loadTeacherKey(state, key, path => api('teacher/' + path),
@@ -454,7 +455,13 @@
       }
       async function onForm(form, callback) {
         setBusy(form, true); showNotice('Сохраняем…');
-        try { await callback(); invalidate(); await refresh(); }
+        try {
+          await callback();
+          const keys = form.matches('[data-native-grade]')
+            ? ['nativeAssignments'] : teacherMutationKeys[form.id];
+          invalidate(keys);
+          await refresh();
+        }
         catch (error) {
           if (error.retrySameRequest) {
             form.querySelector('button[type="submit"]').textContent = 'Повторить сохранение';
@@ -569,7 +576,7 @@
           const student = state.data.students.find(x => x.membershipId === archive.dataset.archive);
           if (!student || !confirm(`Перенести «${student.studentName}» в архив? История сохранится, код перестанет работать.`)) return;
           archive.disabled = true;
-          try { await api('teacher/students/' + encodeURIComponent(student.membershipId) + '/archive', { method: 'POST' }); invalidate(); await refresh(); }
+          try { await api('teacher/students/' + encodeURIComponent(student.membershipId) + '/archive', { method: 'POST' }); invalidate(['students']); await refresh(); }
           catch (error) { showNotice(error.message, true); archive.disabled = false; }
         }
       });

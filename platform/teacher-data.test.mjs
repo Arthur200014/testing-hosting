@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { teacherNeeds, invalidateTeacherData, loadTeacherKey } from './teacher-data.mjs';
+import { teacherNeeds, teacherMutationKeys, invalidateTeacherData, invalidateTeacherKeys, loadTeacherKey } from './teacher-data.mjs';
 
 const freshState = () => ({ data: {}, loadedAt: {}, inflight: {}, generation: 0 });
 
@@ -77,4 +77,50 @@ test('failed refresh leaves existing data on screen and permits retry', async ()
   assert.equal(Object.keys(state.inflight).length, 0);
   await loadTeacherKey(state, 'students', async () => ['recovered'], () => {}, false, () => time);
   assert.deepEqual(state.data.students, ['recovered']);
+});
+
+
+test('a successful mutation refetches only its modified resource instead of the whole tab', async () => {
+  const state = freshState();
+  const calls = [];
+  const request = async path => { calls.push(path); return [path]; };
+  await Promise.all(teacherNeeds.homework.map(key =>
+    loadTeacherKey(state, key, request, () => {})));
+  assert.equal(calls.length, 7);
+  assert.deepEqual(teacherMutationKeys.nativeAssignForm, ['nativeAssignments']);
+  assert.deepEqual(teacherMutationKeys.nativeTaskForm, ['nativeTasks']);
+  assert.deepEqual(teacherMutationKeys.lessonForm, ['lessons', 'assignments']);
+  assert.deepEqual(teacherMutationKeys.lessonCorrectionForm, ['lessons']);
+  assert.deepEqual(teacherMutationKeys.studentEditForm, ['students']);
+  assert.deepEqual(teacherMutationKeys.subscriptionForm, ['subscriptions']);
+
+  const cachedStudents = state.data.students;
+  const cachedCatalog = state.data.catalog;
+  invalidateTeacherKeys(state, teacherMutationKeys.nativeAssignForm);
+  assert.strictEqual(state.data.students, cachedStudents);
+  assert.strictEqual(state.data.catalog, cachedCatalog);
+  assert.equal(state.data.nativeAssignments, undefined);
+  await Promise.all(teacherNeeds.homework.map(key =>
+    loadTeacherKey(state, key, request, () => {})));
+  assert.equal(calls.length, 8); // 7 initial reads, only 1 after native assignment
+  assert.equal(calls.at(-1), 'homework/native/assignments');
+});
+
+test('an old response cannot overwrite a targeted post-write refresh, but unrelated reads survive', async () => {
+  const state = freshState();
+  await loadTeacherKey(state, 'students', async () => ['student'], () => {});
+  let resolveOld;
+  const old = loadTeacherKey(state, 'nativeAssignments',
+    () => new Promise(resolve => { resolveOld = resolve; }), () => {});
+  await Promise.resolve();
+  invalidateTeacherKeys(state, ['nativeAssignments']);
+  const current = loadTeacherKey(state, 'nativeAssignments', async () => ['new assignment'], () => {});
+  resolveOld(['obsolete']);
+  await Promise.all([old, current]);
+  assert.deepEqual(state.data.nativeAssignments, ['new assignment']);
+  assert.deepEqual(state.data.students, ['student']);
+  assert.equal(Object.keys(state.inflight).length, 0);
+  invalidateTeacherData(state);
+  assert.equal(Object.keys(state.data).length, 0);
+  assert.equal(Object.keys(state.keyVersions).length, 0);
 });

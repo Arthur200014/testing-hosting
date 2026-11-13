@@ -20,6 +20,8 @@ const lessons = [{
 }];
 let correctedCount = 0;
 let submissionCount = 0, gradingCount = 0;
+const teacherReads = [];
+const readTotal = () => teacherReads.length;
 const browser = await chromium.launch({ headless: true });
 
 async function mockApi(page) {
@@ -107,6 +109,7 @@ async function mockApi(page) {
       return send({ id: assignments[0].id, submittedAt: assignments[0].submittedAt }, 201);
     }
     if (request.method() === 'GET') {
+      if (path.startsWith('teacher/')) teacherReads.push(path);
       const reads = {
         'teacher/students': students,
         'teacher/programs': programs,
@@ -143,28 +146,36 @@ try {
   await teacher.locator('#studentEditForm [name="studentName"]').fill('Renamed Student');
   await teacher.locator('#studentEditForm [name="grade"]').fill('11');
   await teacher.locator('#studentEditForm [name="notes"]').fill('After edit');
+  const readsBeforeEdit = readTotal();
   await teacher.locator('#studentEditForm button[type="submit"]').click();
   await teacher.locator('#studentRows').getByText('Renamed Student').waitFor();
   assert.equal(editCount, 1);
+  assert.deepEqual(teacherReads.slice(readsBeforeEdit), ['teacher/students']);
   await teacher.locator('[data-view="lessons"]').click();
   await teacher.locator('[data-edit-lesson="' + lessons[0].id + '"]').click();
   await teacher.locator('#lessonCorrectionForm [data-correct-participant] input[name="durationMinutes"]').fill('75');
   await teacher.locator('#lessonCorrectionForm [data-correct-participant] select[name="attendanceStatus"]').selectOption('Absent');
   await teacher.locator('#lessonCorrectionForm [data-correct-participant] textarea[name="topicComment"]').fill('Corrected lesson');
+  const readsBeforeCorrection = readTotal();
   await teacher.locator('#lessonCorrectionForm button[type="submit"]').click();
-  await teacher.locator('#lessonCorrectionForm').waitFor({ state: 'detached' });
+  await teacher.locator('#content').getByText('Renamed Student · Absent').waitFor();
   assert.equal(correctedCount, 1);
+  assert.deepEqual(teacherReads.slice(readsBeforeCorrection), ['teacher/lessons']);
   await teacher.locator('[data-view="report"]').click();
   await teacher.locator('#content').getByText('Corrected lesson').waitFor();
   await teacher.locator('[data-view="homework"]').click();
   await teacher.locator('#nativeTaskForm [name="title"]').fill('Explain the rule');
   await teacher.locator('#nativeTaskForm [name="prompt"]').fill('Write an explanation with an example.');
+  const readsBeforeTask = readTotal();
   await teacher.locator('#nativeTaskForm button[type="submit"]').click();
   await teacher.locator('#nativeAssignForm [name="taskId"] option[value]:not([value=""])').waitFor({ state: 'attached' });
+  assert.deepEqual(teacherReads.slice(readsBeforeTask), ['teacher/homework/native/tasks']);
   await teacher.locator('#nativeAssignForm [name="taskId"]').selectOption(tasks[0].id);
   await teacher.locator('#nativeAssignForm input[name="membershipId"]').check();
+  const readsBeforeAssignment = readTotal();
   await teacher.locator('#nativeAssignForm button[type="submit"]').click();
-  await teacher.locator('#content').getByText('Встроенные ДЗ и ответы').waitFor();
+  await teacher.locator('#content').getByText('Ожидает сдачи').waitFor();
+  assert.deepEqual(teacherReads.slice(readsBeforeAssignment), ['teacher/homework/native/assignments']);
   assert.equal(assignments.length, 1);
   await teacher.locator('#content').getByText('Ожидает сдачи').waitFor();
   await teacher.locator('[data-view="overview"]').click();
@@ -201,9 +212,11 @@ try {
   assert.equal(assignments[0].scorePercent, null);
   await teacher.locator('[data-native-grade] input[name="scorePercent"]').fill('85');
   await teacher.locator('[data-native-grade] textarea[name="feedback"]').fill('Well explained');
+  const readsBeforeGrade = readTotal();
   await teacher.locator('[data-native-grade] button[type="submit"]').click();
   await teacher.locator('#content').getByText('85%').waitFor();
   assert.equal(gradingCount, 1);
+  assert.deepEqual(teacherReads.slice(readsBeforeGrade), ['teacher/homework/native/assignments']);
   await student.locator('#logout').click();
   await student.locator('#loginForm [name="workspace"]').fill('synthetic');
   await student.locator('#loginForm [name="code"]').fill('SYNTHETIC-CODE');
@@ -216,7 +229,7 @@ try {
   assert.match(await teacher.locator('#content').innerText(), /Well explained/);
   assert.match(await teacher.locator('#content').innerText(), /85%/);
   assert.match(await teacher.locator('#content').innerText(), /Для расчёта нужны оценённые ДЗ и тесты/);
-  console.log('PASS: synthetic lesson correction, student edit, homework grading and report');
+  console.log('PASS: synthetic lesson correction, student edit, homework grading and report; selective reads: seven-to-one per native mutation');
 } finally {
   await browser.close();
 }
