@@ -4,9 +4,9 @@
 **STATE_UPDATED:** 2026-11-13
 **CURRENT_PHASE:** M04 (separate teacher platform UI; M02 isolated restore deferred by owner)
 **ACTIVE_TASK:** M04-06 native homework live scenario with synthetic student
-**ACTIVE_BRANCH:** none
+**ACTIVE_BRANCH:** `tas/M04-06-native-homework-e2e`
 **LAST_PROGRESS_COMMIT:** `bb770b9afa927f95d656658d77501a752c549782` ([PR #36](https://github.com/Arthur200014/testing-hosting/pull/36))
-**NEXT_ACTION:** PR #36 automatic EF migrations before normal API startup merged; [isolated PostgreSQL CI and runtime smoke PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43454230147). Direct public Timeweb checks after deploy 2026-11-13: `/health/migrations` = Healthy and `/health/ready` = Healthy, both observed by assistant; no owner command was used. Explicit admin CLI commands bypass wrapper; importers remain opt-in and must not be repeated. Next verify native homework live UI on a synthetic student (teacher create/assign → student code login and text submission → teacher reads answer with null score). Teacher/student credentials for a synthetic account are not available in this session; do not use or alter real student data. No questionnaires or GAS/manage changes.
+**NEXT_ACTION:** Native homework API and auto migration are live (`/health/migrations` and `/health/ready` Healthy). Current branch adds Chromium browser flow for teacher create/assign → student code login and text submission → teacher reads ungraded answer, all with synthetic intercepted API, no Timeweb writes. Publish PR, run browser CI, fix any failures and merge; this validates UI contract but does not claim live signed-in E2E. Live test with a synthetic account still needs an authorized teacher session (credentials unavailable here); do not use or alter real student data. Importers remain opt-in; no questionnaires or GAS/manage changes.
 **STATUS:** M03-01/M03-02 and mock-history import owner-confirmed (not independently SQL-queried); test-history 233 rows read-only replay verified from owner Timeweb console output; questionnaires excluded by owner; M02-03 restore NOT_VERIFIED
 
 ## What is verified
