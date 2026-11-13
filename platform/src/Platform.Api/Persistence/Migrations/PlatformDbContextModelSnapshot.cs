@@ -64,7 +64,7 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     b.HasIndex("WorkspaceId", "RequestId", "MembershipId").IsUnique();
                     b.HasIndex("WorkspaceId", "TaskId", "ProgramId");
                     b.ToTable("NativeHomeworkAssignments", "platform", t =>
-                        t.HasCheckConstraint("CK_NativeHomeworkAssignments_Grade", "(\\\"ScorePercent\\\" IS NULL AND \\\"GradeRequestId\\\" IS NULL AND \\\"GradedAt\\\" IS NULL AND \\\"TeacherFeedback\\\" IS NULL) OR (\\\"ScorePercent\\\" BETWEEN 0 AND 100 AND \\\"GradeRequestId\\\" IS NOT NULL AND \\\"GradedAt\\\" IS NOT NULL AND \\\"SubmittedAt\\\" IS NOT NULL)")
+                        t.HasCheckConstraint("CK_NativeHomeworkAssignments_Grade", "(\"ScorePercent\" IS NULL AND \"GradeRequestId\" IS NULL AND \"GradedAt\" IS NULL AND \"TeacherFeedback\" IS NULL) OR (\"ScorePercent\" BETWEEN 0 AND 100 AND \"GradeRequestId\" IS NOT NULL AND \"GradedAt\" IS NOT NULL AND \"SubmittedAt\" IS NOT NULL)")
                          .HasCheckConstraint("CK_NativeHomeworkAssignments_DeadlineAnswer", "\"DeadlineAt\" > \"AssignedAt\" AND ((\"Answer\" IS NULL AND \"SubmittedAt\" IS NULL AND \"SubmissionId\" IS NULL) OR (length(\"Answer\") > 0 AND \"SubmittedAt\" IS NOT NULL AND \"SubmissionId\" IS NOT NULL))"));
                 });
 
