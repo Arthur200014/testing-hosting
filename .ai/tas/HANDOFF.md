@@ -4,11 +4,11 @@
 **STATE_UPDATED:** 2026-11-13
 **CURRENT_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — 3 outcomes, not historical Mxx TODO queue
 **ACTIVE_RESULT:** 2 — сквозная проверка и скорость (Result 1 code complete; live owner test deferred)
-**ACTIVE_TASK:** Result 2 — targeted post-mutation cache invalidation and synthetic workspace-switch/network safety
-**ACTIVE_BRANCH:** tas/cabinet-fast-safe-refresh
-**LAST_PROGRESS_COMMIT:** `b7404b81284d82f54f8648aca0f2f6f03b12e5d6` ([PR #43](https://github.com/Arthur200014/testing-hosting/pull/43))
-**NEXT_ACTION:** Verify targeted cache-invalidation tests and synthetic browser suite (including workspace isolation, stale responses and retry), fix observed failures; merge if PASS. Continue Result 2 with read-only latency measurement where production access is permitted, and targeted backend optimization only if evidence supports it. Do not alter manage/GAS or live student records.
-**VERIFICATION:** [PR #43](https://github.com/Arthur200014/testing-hosting/pull/43) paired lesson correction merged: [Chromium PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43489358232), [PostgreSQL integration PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43489357930), [backend gate PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43489357987). No migrations/import, live production write/deployment NOT_VERIFIED. Corrected attendance/time/topic/duration; same membership IDs, linked homework/subscriptions untouched. Prior PR #42 verified.
+**ACTIVE_TASK:** Result 2 — selective refresh and workspace/session/offline synthetic tests DONE; next read-only latency and remaining cross-workspace E2E checks
+**ACTIVE_BRANCH:** none (PR #44 merged)
+**LAST_PROGRESS_COMMIT:** `a62d2302b8ec5cf4ec1d00f9fa91b8593960cbf8` ([PR #44](https://github.com/Arthur200014/testing-hosting/pull/44))
+**NEXT_ACTION:** Continue Result 2, not new M04 microtasks: obtain read-only latency metrics for teacher API/page (prefer synthetic production-like dataset, label any real Timeweb observations separately); inspect the slowest endpoint(s) before optimizing database. Complete focused tenant/auth, retries and report 80/20 E2E checks and record PASS/NOT_RUN. No live data writes, no manage/GAS edits, no paid resource provisioning.
+**VERIFICATION:** [PR #44](https://github.com/Arthur200014/testing-hosting/pull/44) selective teacher refresh merged: [Chromium + 13 Node tests PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43491184697), [PostgreSQL integration PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43491184630), [backend gate PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43491184784). Synthetic UI reduced 7 GET reads to 1 after native homework writes; two synthetic workspaces, stale-session response, offline retry, expired auth PASS. Real Timeweb latency/deploy NOT_VERIFIED; no production data touched. Earlier PR #43 verified.
 
 ## Non-negotiable context
 - Existing Timeweb **App Platform** deployment with private managed PostgreSQL; do not create VPS/Compose infrastructure, re-import owner-confirmed students/homework/lessons or request manual migration after code deploy.
