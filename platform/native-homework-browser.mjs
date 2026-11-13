@@ -7,7 +7,9 @@ const memberId = '22222222-2222-4222-8222-222222222222';
 const studentId = '33333333-3333-4333-8333-333333333333';
 const programs = [{ id: programId, displayName: 'Synthetic language', isActive: true }];
 const students = [{ membershipId: memberId, studentId, studentName: 'Test Student',
-  programId, programName: 'Synthetic language' }];
+  programId, programName: 'Synthetic language', grade: '10', parentName: 'Synthetic parent',
+  notes: 'Before edit' }];
+let editCount = 0;
 const tasks = [], assignments = [];
 let submissionCount = 0, gradingCount = 0;
 const browser = await chromium.launch({ headless: true });
@@ -29,6 +31,16 @@ async function mockApi(page) {
       assert.equal(body.workspace, 'synthetic');
       assert.equal(body.code, 'SYNTHETIC-CODE');
       return send({ accessToken: 'student-test-token', student: { displayName: 'Test Student' } });
+    }
+    if (path === 'teacher/students/' + memberId + '/edit' && request.method() === 'POST') {
+      assert.equal(body.expectedStudentName, 'Test Student');
+      assert.equal(body.expectedProfile.grade, '10');
+      assert.equal(body.studentName, 'Renamed Student');
+      assert.equal(body.profile.grade, '11');
+      assert.equal(body.profile.notes, 'After edit');
+      students[0] = { ...students[0], studentName: body.studentName, ...body.profile };
+      editCount++;
+      return send(students[0]);
     }
     if (path === 'teacher/homework/native/tasks' && request.method() === 'POST') {
       assert.equal(body.programId, programId);
@@ -109,6 +121,14 @@ try {
   await teacher.locator('#loginForm [name="email"]').fill('teacher@example.invalid');
   await teacher.locator('#loginForm [name="password"]').fill('synthetic-password');
   await teacher.locator('#loginForm button[type="submit"]').click();
+  await teacher.locator('[data-view="students"]').click();
+  await teacher.locator('[data-edit-student="' + memberId + '"]').click();
+  await teacher.locator('#studentEditForm [name="studentName"]').fill('Renamed Student');
+  await teacher.locator('#studentEditForm [name="grade"]').fill('11');
+  await teacher.locator('#studentEditForm [name="notes"]').fill('After edit');
+  await teacher.locator('#studentEditForm button[type="submit"]').click();
+  await teacher.locator('#studentRows').getByText('Renamed Student').waitFor();
+  assert.equal(editCount, 1);
   await teacher.locator('[data-view="homework"]').click();
   await teacher.locator('#nativeTaskForm [name="title"]').fill('Explain the rule');
   await teacher.locator('#nativeTaskForm [name="prompt"]').fill('Write an explanation with an example.');
@@ -155,7 +175,7 @@ try {
   assert.match(await teacher.locator('#content').innerText(), /Well explained/);
   assert.match(await teacher.locator('#content').innerText(), /85%/);
   assert.match(await teacher.locator('#content').innerText(), /Для расчёта нужны оценённые ДЗ и тесты/);
-  console.log('PASS: native homework assigned, submitted, graded, counted in overview and teacher report');
+  console.log('PASS: teacher edited existing synthetic student, native homework assigned, submitted, graded and reported');
 } finally {
   await browser.close();
 }

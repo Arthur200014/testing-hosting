@@ -360,6 +360,80 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     }
 
     [Fact]
+    public async Task TeacherEditsExistingStudentSafelyWithExpectedSnapshotAndNoCodeChange()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "edit-north", "north@example.invalid", "owner");
+        var south = await SeedAsync(factory, "edit-south", "south@example.invalid", "teacher");
+        var program = await SeedProgramAsync(factory, north.WorkspaceId);
+        var foreignId = await SeedStudentAsync(factory, south.WorkspaceId, "Foreign", true);
+        using var client = factory.CreateClient();
+        var createRequest = new TeacherCreateStudentRequest(Guid.NewGuid(), program, "Old Name",
+            new TeacherStudentProfile(Grade: "10", ParentName: "Parent", Notes: "Original"));
+        var url = "/api/v1/teacher/students";
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.PostAsJsonAsync(url + "/" + foreignId + "/edit", new { studentName = "Hacked" })).StatusCode);
+        var login = await (await LoginAsync(client, "edit-north", "north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>();
+        Assert.NotNull(login);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login.AccessToken);
+        var create = await client.PostAsJsonAsync(url, createRequest);
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        var created = (await create.Content.ReadFromJsonAsync<TeacherCreateStudentResponse>())!;
+        var path = url + "/" + created.MembershipId + "/edit";
+        var expected = new TeacherStudentProfile(Grade: "10", ParentName: "Parent", Notes: "Original");
+        var desired = expected with { Grade = "11", ParentName = null, Notes = "  Updated  " };
+        var edit = new TeacherEditStudentRequest(" New Name ", desired, "Old Name", expected);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync(url + "/" + foreignId + "/edit", edit)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsJsonAsync(path, edit with { StudentName = "  " })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsJsonAsync(path, edit with {
+                Profile = desired with { Notes = new string('x', 4097) }
+            })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsJsonAsync(path, edit with { ExpectedProfile = null })).StatusCode);
+
+        var updatedResponse = await client.PostAsJsonAsync(path, edit);
+        Assert.Equal(HttpStatusCode.OK, updatedResponse.StatusCode);
+        var updated = (await updatedResponse.Content.ReadFromJsonAsync<TeacherStudentView>())!;
+        Assert.Equal("New Name", updated.StudentName);
+        Assert.Equal("11", updated.Grade);
+        Assert.Null(updated.ParentName);
+        Assert.Equal("Updated", updated.Notes);
+        Assert.Equal(created.ProgramId, updated.ProgramId);
+        Assert.Equal(created.MembershipId, updated.MembershipId);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(path, edit)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync(path, edit with {
+                StudentName = "Stale overwrite", Profile = desired with { Notes = "Other" }
+            })).StatusCode);
+        Assert.Equal("New Name", (await client.GetFromJsonAsync<TeacherStudentView>(
+            url + "/" + created.MembershipId))!.StudentName);
+        Assert.Equal(HttpStatusCode.OK,
+            (await client.PostAsJsonAsync("/api/v1/student-sessions",
+                new { workspace = "edit-north", code = created.InviteCode })).StatusCode);
+        Assert.Equal("Foreign", (await client.GetFromJsonAsync<List<TeacherStudentView>>(url))!
+            .Where(x => x.MembershipId == foreignId).Select(x => x.StudentName).FirstOrDefault() ?? "Foreign");
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var foreign = await db.WorkspaceStudentMemberships.AsNoTracking()
+                .Include(x => x.Student).SingleAsync(x => x.Id == foreignId);
+            Assert.Equal("Foreign", foreign.Student.DisplayName);
+            var own = await db.WorkspaceStudentMemberships.AsNoTracking()
+                .SingleAsync(x => x.Id == created.MembershipId);
+            Assert.Equal("11", own.Grade);
+            Assert.Null(own.ParentName);
+            Assert.Equal("Updated", own.Notes);
+        }
+        await client.PostAsync("/api/v1/teacher-sessions/logout", null);
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await client.PostAsJsonAsync(path, edit)).StatusCode);
+    }
+
+    [Fact]
     public async Task SeparateTeacherFlowConnectsStudentCatalogPairedLessonHomeworkAndSubscription()
     {
         await ResetAsync(factory);
