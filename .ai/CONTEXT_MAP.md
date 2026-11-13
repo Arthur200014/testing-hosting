@@ -66,7 +66,7 @@ only the files that the task and search results make relevant.
 
 ## TEACHER AI STUDENT — текущий маршрут
 
-- Current order: `.ai/tas/HANDOFF.md` → `.ai/tas/TASK_BOARD.md` → нужный пункт `.ai/tas/PHASE_CHECKLISTS.md`.
+- Current order: `.ai/tas/HANDOFF.md` → `.ai/tas/RELEASE_PLAN.md` → relevant code. `TASK_BOARD.md`/`PHASE_CHECKLISTS.md` are archived granularity.
 - **M01-01 DONE:** `docs/architecture/manage-postgres-coverage.md`; **M01-02**: модель `platform/src/Platform.Api/Persistence/PlatformDbContext.cs` и student/homework importer. Источник контракта: `EGA/config/manage.html` (только связанный API/блоки), `docs/architecture/gas-postgres-migration-audit.md`, `.ai/tasks/{gas-postgres-audit,student-directory-import,homework-migration-slice,teacher-lesson-write-integrity,timeweb-deployment}.md`.
 - Backend: `platform/src/Platform.Api/`, `platform/src/Platform.StudentImport/`, `platform/src/Platform.HomeworkImport/`, `compose.yaml`, `platform/README.md`.
 - Старый 92-ID roadmap в `.ai/tas/TASK_BOARD_LEGACY.md`, не NEXT_ACTION.
@@ -74,7 +74,7 @@ only the files that the task and search results make relevant.
 
 ## TEACHER AI STUDENT roadmap (архивная навигация)
 
-- Start: `.ai/tas/HANDOFF.md`, then current **Mxx** task ID in `.ai/tas/TASK_BOARD.md`.
+- Start: `.ai/tas/HANDOFF.md`, then three-outcome `.ai/tas/RELEASE_PLAN.md` (do not infer NEXT_ACTION from archived **Mxx** task IDs).
 - Product scope: `.ai/tas/MASTER_TZ.md`, implementation priorities: `.ai/tas/FOCUS_FIRST.md`.
 - Current stage checklist: `.ai/tas/PHASE_CHECKLISTS.md` (one stage only).
 - New-chat instruction: `.ai/tas/NEW_CHAT_PROMPT.md`.

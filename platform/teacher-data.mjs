@@ -28,8 +28,9 @@ export function loadTeacherKey(state, key, request, onUpdate, force = false, now
   if (state.inflight[key]) return state.inflight[key];
   if (!force && state.loadedAt[key] != null && now() - state.loadedAt[key] < 30000)
     return Promise.resolve();
-  delete state.data[key];
-  delete state.loadedAt[key];
+  // Keep the previous successful value visible while a stale/forced read refreshes.
+  // Session changes and successful mutations still clear all cached data via
+  // invalidateTeacherData, preventing cross-session or post-write stale data.
   const generation = state.generation;
   const promise = Promise.resolve().then(() => request(teacherPaths[key])).then(value => {
     if (generation !== state.generation) return;
