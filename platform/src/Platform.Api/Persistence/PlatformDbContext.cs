@@ -29,6 +29,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<HomeworkAssignment> HomeworkAssignments => Set<HomeworkAssignment>();
     public DbSet<HomeworkSubmission> HomeworkSubmissions => Set<HomeworkSubmission>();
     public DbSet<HomeworkImportBatch> HomeworkImportBatches => Set<HomeworkImportBatch>();
+    public DbSet<NativeHomeworkTask> NativeHomeworkTasks => Set<NativeHomeworkTask>();
+    public DbSet<NativeHomeworkAssignment> NativeHomeworkAssignments => Set<NativeHomeworkAssignment>();
     public DbSet<Lesson> Lessons => Set<Lesson>();
     public DbSet<LessonParticipant> LessonParticipants => Set<LessonParticipant>();
     public DbSet<SubscriptionSnapshot> SubscriptionSnapshots => Set<SubscriptionSnapshot>();
@@ -36,6 +38,37 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("platform");
+
+        modelBuilder.Entity<NativeHomeworkTask>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id, x.ProgramId });
+            entity.HasIndex(x => new { x.WorkspaceId, x.RequestId }).IsUnique();
+            entity.Property(x => x.Title).HasMaxLength(200);
+            entity.Property(x => x.Prompt).HasMaxLength(10000);
+            entity.HasOne<LearningProgram>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.ProgramId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(t => t.HasCheckConstraint("CK_NativeHomeworkTasks_Content",
+                "length(\"Title\") > 0 AND length(\"Prompt\") > 0"));
+        });
+
+        modelBuilder.Entity<NativeHomeworkAssignment>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.WorkspaceId, x.RequestId, x.MembershipId }).IsUnique();
+            entity.HasIndex(x => new { x.WorkspaceId, x.MembershipId, x.AssignedAt });
+            entity.Property(x => x.Answer).HasMaxLength(10000);
+            entity.HasOne<NativeHomeworkTask>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.TaskId, x.ProgramId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.ProgramId }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<WorkspaceStudentMembership>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.MembershipId, x.StudentId, x.ProgramId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.StudentId, x.ProgramId })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(t => t.HasCheckConstraint("CK_NativeHomeworkAssignments_DeadlineAnswer",
+                "\"DeadlineAt\" > \"AssignedAt\" AND ((\"Answer\" IS NULL AND \"SubmittedAt\" IS NULL AND \"SubmissionId\" IS NULL) OR (length(\"Answer\") > 0 AND \"SubmittedAt\" IS NOT NULL AND \"SubmissionId\" IS NOT NULL))"));
+        });
 
         modelBuilder.Entity<Workspace>(entity =>
         {

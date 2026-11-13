@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Teacher AI Student — домашние задания</title>
+  <style>
+    :root { font: 16px/1.5 system-ui, sans-serif; color: #e9eff9; background: #0b1425; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px; }
+    main { max-width: 760px; margin: 30px auto; }
+    h1 { font-size: 1.8rem; }
+    h2 { font-size: 1.2rem; }
+    .card { margin: 14px 0; padding: 22px; border: 1px solid #34445e; border-radius: 16px; background: #15233b; }
+    label { display: grid; gap: 6px; margin: 13px 0; }
+    input, textarea, button { font: inherit; padding: 11px; border-radius: 9px; }
+    input, textarea { width: 100%; color: inherit; border: 1px solid #536582; background: #0f1c32; }
+    textarea { min-height: 130px; resize: vertical; }
+    button { border: 0; background: #f8b547; color: #172235; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: .5; }
+    .muted { color: #a9b9d1; }
+    .prompt, .answer { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .error { color: #ffb5af; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <main><h1>Мои домашние задания</h1><p id="notice" role="status" class="muted"></p>
+    <section id="login" class="card"><h2>Войти по коду ученика</h2>
+      <form id="loginForm"><label>Пространство преподавателя<input name="workspace" required autocomplete="off"></label>
+        <label>Код ученика<input name="code" required autocomplete="off"></label><button type="submit">Войти</button></form>
+    </section>
+    <section id="dashboard" hidden><p><span id="studentName"></span> · <button id="logout" type="button">Выйти</button></p>
+      <div id="assignments"></div></section>
+  </main>
+  <script type="module">
+    const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/';
+    const $ = id => document.getElementById(id);
+    let token = '';
+    const pending = new Map();
+    const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const date = value => new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+    function message(value, error = false) { $('notice').textContent = value; $('notice').classList.toggle('error', error); }
+    async function api(path, body, authorized = true) {
+      const response = await fetch(API + path, { method: body ? 'POST' : 'GET', cache: 'no-store',
+        headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(authorized ? { Authorization: 'Bearer ' + token } : {}) },
+        body: body ? JSON.stringify(body) : undefined });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) { const error = new Error(response.status === 401 ? 'Проверьте код или войдите заново.' :
+        response.status === 409 ? 'Ответ уже сдан. Обновите страницу.' : data?.title || 'Не удалось выполнить запрос.'); error.status = response.status; throw error; }
+      return data;
+    }
+    async function refresh() {
+      const items = await api('homework/native/assignments');
+      $('assignments').innerHTML = items.length ? items.map(x => `<article class="card"><h2>${safe(x.title)}</h2>
+        <p class="muted">Срок: ${safe(date(x.deadlineAt))}</p><p class="prompt">${safe(x.prompt)}</p>
+        ${x.submittedAt ? `<p class="muted">Сдано ${safe(date(x.submittedAt))} · ${x.scorePercent == null ? 'без оценки' : safe(x.scorePercent) + '%'}</p><p class="answer">${safe(x.answer)}</p>` :
+          `<form data-assignment="${safe(x.id)}"><label>Ваш ответ<textarea name="answer" maxlength="10000" required></textarea></label><button type="submit">Отправить ответ</button></form>`}</article>`).join('') : '<p class="card">Пока нет назначенных заданий.</p>';
+      message('Задания загружены.');
+    }
+    $('loginForm').addEventListener('submit', async event => {
+      event.preventDefault(); const form = event.currentTarget; const button = form.querySelector('button'); button.disabled = true;
+      try {
+        const session = await api('student-sessions', { workspace: form.elements.workspace.value.trim(), code: form.elements.code.value.trim() }, false);
+        token = session.accessToken; $('studentName').textContent = session.student?.displayName || 'Ученик';
+        form.elements.code.value = ''; $('login').hidden = true; $('dashboard').hidden = false; await refresh();
+      } catch (error) { message(error.message, true); } finally { button.disabled = false; }
+    });
+    $('dashboard').addEventListener('submit', async event => {
+      event.preventDefault(); const form = event.target; const id = form.dataset.assignment;
+      const answer = form.elements.answer.value.trim(); if (!answer) return;
+      const button = form.querySelector('button'); button.disabled = true;
+      const previous = pending.get(id);
+      if (previous && previous.answer !== answer) { message('Предыдущая отправка не подтверждена. Верните прежний ответ или обновите список.', true); button.disabled = false; return; }
+      const submissionId = previous?.submissionId || crypto.randomUUID(); pending.set(id, { answer, submissionId });
+      try { await api('homework/native/submissions', { assignmentId: id, submissionId, answer }); pending.delete(id); await refresh(); }
+      catch (error) { if (error.status && error.status < 500) pending.delete(id); message(error.message, true); button.disabled = false; }
+    });
+    $('logout').addEventListener('click', () => { token = ''; pending.clear(); $('dashboard').hidden = true; $('login').hidden = false; $('assignments').replaceChildren(); message('Вы вышли.'); });
+  </script>
+</body>
+</html>

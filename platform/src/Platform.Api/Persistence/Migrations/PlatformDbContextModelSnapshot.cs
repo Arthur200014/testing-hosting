@@ -23,6 +23,47 @@ namespace TestingHosting.Platform.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("TestingHosting.Platform.Homework.NativeHomeworkTask", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
+                    b.Property<Guid>("ProgramId").HasColumnType("uuid");
+                    b.Property<string>("Prompt").IsRequired().HasMaxLength(10000).HasColumnType("character varying(10000)");
+                    b.Property<Guid>("RequestId").HasColumnType("uuid");
+                    b.Property<string>("Title").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                    b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                    b.HasKey("Id");
+                    b.HasAlternateKey("WorkspaceId", "Id", "ProgramId");
+                    b.HasIndex("WorkspaceId", "ProgramId");
+                    b.HasIndex("WorkspaceId", "RequestId").IsUnique();
+                    b.ToTable("NativeHomeworkTasks", "platform", t =>
+                        t.HasCheckConstraint("CK_NativeHomeworkTasks_Content", "length(\"Title\") > 0 AND length(\"Prompt\") > 0"));
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.Homework.NativeHomeworkAssignment", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<string>("Answer").HasMaxLength(10000).HasColumnType("character varying(10000)");
+                    b.Property<DateTimeOffset>("AssignedAt").HasColumnType("timestamp with time zone");
+                    b.Property<DateTimeOffset>("DeadlineAt").HasColumnType("timestamp with time zone");
+                    b.Property<Guid>("MembershipId").HasColumnType("uuid");
+                    b.Property<Guid>("ProgramId").HasColumnType("uuid");
+                    b.Property<Guid>("RequestId").HasColumnType("uuid");
+                    b.Property<int?>("ScorePercent").HasColumnType("integer");
+                    b.Property<Guid?>("SubmissionId").HasColumnType("uuid");
+                    b.Property<DateTimeOffset?>("SubmittedAt").HasColumnType("timestamp with time zone");
+                    b.Property<Guid>("StudentId").HasColumnType("uuid");
+                    b.Property<Guid>("TaskId").HasColumnType("uuid");
+                    b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                    b.HasKey("Id");
+                    b.HasIndex("WorkspaceId", "MembershipId", "AssignedAt");
+                    b.HasIndex("WorkspaceId", "MembershipId", "StudentId", "ProgramId");
+                    b.HasIndex("WorkspaceId", "RequestId", "MembershipId").IsUnique();
+                    b.HasIndex("WorkspaceId", "TaskId", "ProgramId");
+                    b.ToTable("NativeHomeworkAssignments", "platform", t =>
+                        t.HasCheckConstraint("CK_NativeHomeworkAssignments_DeadlineAnswer", "\"DeadlineAt\" > \"AssignedAt\" AND ((\"Answer\" IS NULL AND \"SubmittedAt\" IS NULL AND \"SubmissionId\" IS NULL) OR (length(\"Answer\") > 0 AND \"SubmittedAt\" IS NOT NULL AND \"SubmissionId\" IS NOT NULL))"));
+                });
+
             modelBuilder.Entity("TestingHosting.Platform.Homework.HomeworkAssignment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -915,6 +956,24 @@ namespace TestingHosting.Platform.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_TestAttempts_TimestampsAndDuration", "\"CompletedAt\" >= \"StartedAt\" AND \"DurationSeconds\" BETWEEN 0 AND 86400 AND \"CompletedAt\" - \"StartedAt\" <= interval '1 day' AND \"DurationSeconds\" = round(extract(epoch from (\"CompletedAt\" - \"StartedAt\")))::integer");
                         });
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.Homework.NativeHomeworkTask", b =>
+                {
+                    b.HasOne("TestingHosting.Platform.Students.LearningProgram", null)
+                        .WithMany().HasForeignKey("WorkspaceId", "ProgramId")
+                        .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.Homework.NativeHomeworkAssignment", b =>
+                {
+                    b.HasOne("TestingHosting.Platform.Homework.NativeHomeworkTask", null)
+                        .WithMany().HasForeignKey("WorkspaceId", "TaskId", "ProgramId")
+                        .HasPrincipalKey("WorkspaceId", "Id", "ProgramId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("TestingHosting.Platform.Students.WorkspaceStudentMembership", null)
+                        .WithMany().HasForeignKey("WorkspaceId", "MembershipId", "StudentId", "ProgramId")
+                        .HasPrincipalKey("WorkspaceId", "Id", "StudentId", "ProgramId")
+                        .OnDelete(DeleteBehavior.Restrict).IsRequired();
                 });
 
             modelBuilder.Entity("TestingHosting.Platform.Homework.HomeworkAssignment", b =>

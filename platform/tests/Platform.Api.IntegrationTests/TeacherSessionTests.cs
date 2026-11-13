@@ -25,6 +25,66 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     private const string ClaimCode = "synthetic-claim-code-for-integration-tests-only-2026";
 
     [Fact]
+    public async Task NativeHomeworkIsTenantScopedAndTextAnswerIsIdempotentWithoutInventedScore()
+    {
+        await ResetAsync(factory);
+        var owner = await SeedAsync(factory, "native-a", "native-a@example.invalid", "owner");
+        await SeedAsync(factory, "native-b", "native-b@example.invalid", "owner");
+        var program = await SeedProgramAsync(factory, owner.WorkspaceId);
+        using var teacher = factory.CreateClient();
+        var login = (await (await LoginAsync(teacher, "native-a", "native-a@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        teacher.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login.AccessToken);
+        var created = await teacher.PostAsJsonAsync("/api/v1/teacher/students",
+            new TeacherCreateStudentRequest(Guid.NewGuid(), program, "Synthetic"));
+        var student = (await created.Content.ReadFromJsonAsync<TeacherCreateStudentResponse>())!;
+        var taskRequest = new CreateNativeTaskRequest(Guid.NewGuid(), program, "Write", "Explain your answer");
+        var taskResponse = await teacher.PostAsJsonAsync("/api/v1/teacher/homework/native/tasks", taskRequest);
+        Assert.Equal(HttpStatusCode.Created, taskResponse.StatusCode);
+        var task = (await taskResponse.Content.ReadFromJsonAsync<NativeTaskView>())!;
+        Assert.Equal(HttpStatusCode.OK,
+            (await teacher.PostAsJsonAsync("/api/v1/teacher/homework/native/tasks", taskRequest)).StatusCode);
+        var assignRequest = new AssignNativeTaskRequest(Guid.NewGuid(), task.Id, [student.MembershipId], 24);
+        Assert.Equal(HttpStatusCode.Created,
+            (await teacher.PostAsJsonAsync("/api/v1/teacher/homework/native/assignments", assignRequest)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,
+            (await teacher.PostAsJsonAsync("/api/v1/teacher/homework/native/assignments", assignRequest)).StatusCode);
+
+        using var foreign = factory.CreateClient();
+        var foreignLogin = (await (await LoginAsync(foreign, "native-b", "native-b@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        foreign.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", foreignLogin.AccessToken);
+        Assert.Empty((await foreign.GetFromJsonAsync<List<NativeTaskView>>(
+            "/api/v1/teacher/homework/native/tasks"))!);
+        Assert.Empty((await foreign.GetFromJsonAsync<List<NativeAssignmentView>>(
+            "/api/v1/teacher/homework/native/assignments"))!);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await foreign.PostAsJsonAsync("/api/v1/teacher/homework/native/assignments", assignRequest)).StatusCode);
+
+        using var learner = factory.CreateClient();
+        var session = (await (await learner.PostAsJsonAsync("/api/v1/student-sessions",
+            new { workspace = "native-a", code = student.InviteCode }))
+            .Content.ReadFromJsonAsync<TestingHosting.Platform.StudentSessions.StudentSessionResponse>())!;
+        learner.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+        var assignment = Assert.Single((await learner.GetFromJsonAsync<List<NativeAssignmentView>>(
+            "/api/v1/homework/native/assignments"))!);
+        Assert.Null(assignment.Answer);
+        var submit = new SubmitNativeAnswerRequest(Guid.NewGuid(), assignment.Id, "My explanation");
+        Assert.Equal(HttpStatusCode.Created,
+            (await learner.PostAsJsonAsync("/api/v1/homework/native/submissions", submit)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,
+            (await learner.PostAsJsonAsync("/api/v1/homework/native/submissions", submit)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await learner.PostAsJsonAsync("/api/v1/homework/native/submissions",
+                submit with { Answer = "Different answer" })).StatusCode);
+        var submitted = Assert.Single((await teacher.GetFromJsonAsync<List<NativeAssignmentView>>(
+            "/api/v1/teacher/homework/native/assignments"))!);
+        Assert.Equal("My explanation", submitted.Answer);
+        Assert.NotNull(submitted.SubmittedAt);
+        Assert.Null(submitted.ScorePercent);
+    }
+
+    [Fact]
     public async Task FirstOwnerRegistrationClaimsImportedWorkspaceOnlyOnce()
     {
         await ResetAsync(factory);

@@ -45,6 +45,7 @@ builder.Services.AddSingleton<TeacherTokenIssuer>();
 builder.Services.AddScoped<IAuthorizationHandler, ActiveTeacherSessionHandler>();
 builder.Services.AddScoped<TestAttemptService>();
 builder.Services.AddScoped<HomeworkService>();
+builder.Services.AddScoped<NativeHomeworkService>();
 builder.Services.AddSingleton<StudentTokenIssuer>();
 builder.Services.AddDbContext<PlatformDbContext>(options =>
     options.UseNpgsql(
@@ -315,6 +316,42 @@ app.MapGet("/api/v1/teacher/homework/catalog", async (
     Results.Ok(await homework.CatalogAsync(
         Guid.Parse(principal.FindFirstValue("workspace_id")!), cancellationToken)))
     .RequireAuthorization("teacher");
+
+static IResult NativeWrite((int Status, object? Value) result) => result.Status switch
+{
+    200 => Results.Ok(result.Value),
+    201 => Results.Json(result.Value, statusCode: 201),
+    400 => Results.Problem(statusCode: 400, title: result.Value?.ToString()),
+    404 => Results.NotFound(),
+    409 => Results.Problem(statusCode: 409, title: result.Value?.ToString()),
+    401 => Results.Unauthorized(),
+    _ => throw new InvalidOperationException("Unknown native homework result.")
+};
+
+app.MapGet("/api/v1/teacher/homework/native/tasks", async (ClaimsPrincipal principal,
+    NativeHomeworkService homework, CancellationToken ct) =>
+    Results.Ok(await homework.TasksAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), ct)))
+    .RequireAuthorization("teacher");
+app.MapPost("/api/v1/teacher/homework/native/tasks", async (CreateNativeTaskRequest request,
+    ClaimsPrincipal principal, NativeHomeworkService homework, CancellationToken ct) =>
+    NativeWrite(await homework.CreateAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), request, ct)))
+    .RequireAuthorization("teacher");
+app.MapGet("/api/v1/teacher/homework/native/assignments", async (ClaimsPrincipal principal,
+    NativeHomeworkService homework, CancellationToken ct) =>
+    Results.Ok(await homework.TeacherAssignmentsAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), ct)))
+    .RequireAuthorization("teacher");
+app.MapPost("/api/v1/teacher/homework/native/assignments", async (AssignNativeTaskRequest request,
+    ClaimsPrincipal principal, NativeHomeworkService homework, CancellationToken ct) =>
+    NativeWrite(await homework.AssignAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), request, ct)))
+    .RequireAuthorization("teacher");
+app.MapGet("/api/v1/homework/native/assignments", async (ClaimsPrincipal principal,
+    NativeHomeworkService homework, CancellationToken ct) =>
+    await homework.StudentAssignmentsAsync(principal, ct) is { } items ? Results.Ok(items) : Results.Unauthorized())
+    .RequireAuthorization("student");
+app.MapPost("/api/v1/homework/native/submissions", async (SubmitNativeAnswerRequest request,
+    ClaimsPrincipal principal, NativeHomeworkService homework, CancellationToken ct) =>
+    NativeWrite(await homework.SubmitAsync(principal, request, ct)))
+    .RequireAuthorization("student");
 
 app.MapPost("/api/v1/teacher/homework/catalog", async (
     TeacherCreateHomeworkCatalogRequest request, ClaimsPrincipal principal,
