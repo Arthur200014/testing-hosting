@@ -68,17 +68,18 @@ async function login(workspace) {
   await page.locator('#loginForm [name="email"]').fill('synthetic@example.invalid');
   await page.locator('#loginForm [name="password"]').fill('synthetic-password');
   await page.locator('#loginForm button[type="submit"]').click();
-  await page.locator('#workspaceName').getByText(workspace).waitFor();
+  await page.locator('#app:not([hidden])').waitFor();
+  assert.equal(await page.locator('#workspaceName').innerText(), workspace);
 }
 try {
   await page.goto(base + '/platform/teacher.html');
   await login('north');
-  await page.locator('#content .metric').first().getByText('1').waitFor();
+  await page.locator('#content .metric').first().filter({ hasText: /^1$/ }).waitFor();
   assert.equal(northLessonsStarted, true);
   await page.locator('#logout').click();
   await page.locator('#loginScreen:not([hidden])').waitFor();
   await login('south');
-  await page.locator('#content .metric').first().getByText('2').waitFor();
+  await page.locator('#content .metric').first().filter({ hasText: /^2$/ }).waitFor();
   await page.waitForTimeout(500); // previous North lesson response has now arrived
   await page.locator('[data-view="students"]').click();
   await page.locator('#studentRows').getByText('South learner A').waitFor();
@@ -98,10 +99,10 @@ try {
       return route.fallback();
     });
   await page.locator('#refresh').click();
-  await page.locator('#notice').getByText('Synthetic network error').waitFor();
+  await page.locator('#notice').filter({ hasText: 'Synthetic network error' }).waitFor();
   assert.match(await page.locator('#studentRows').innerText(), /South learner A/);
   await page.locator('#refresh').click();
-  await page.locator('#notice').getByText('Данные обновлены').waitFor();
+  await page.locator('#notice').filter({ hasText: 'Данные обновлены' }).waitFor();
   assert.match(await page.locator('#studentRows').innerText(), /South learner B/);
 
   forceExpiry = true;
