@@ -164,6 +164,7 @@
     import { buildTeacherReport, collectTeacherHomework } from './teacher-report.mjs';
     import { teacherNeeds, invalidateTeacherData, loadTeacherKey } from './teacher-data.mjs';
     import { performTeacherMutation } from './teacher-mutation.mjs';
+    import { nativeHomeworkDeadlineStatus } from './homework-deadline.mjs';
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
@@ -248,8 +249,10 @@
         const upcoming = (d.lessons || []).slice(0, 5);
         const pending = d.assignments && d.nativeAssignments
           ? collectTeacherHomework(d).filter(x => !x.isSubmitted) : null;
+        const overdue = (d.nativeAssignments || []).filter(x =>
+          nativeHomeworkDeadlineStatus(x).key === 'overdue').length;
         const pendingSources = pending
-          ? `из каталога ${pending.filter(x => x.source === 'catalog').length} · встроенных ${pending.filter(x => x.source === 'native').length}`
+          ? `из каталога ${pending.filter(x => x.source === 'catalog').length} · встроенных ${pending.filter(x => x.source === 'native').length} · просрочено ${overdue}`
           : 'включая встроенные ДЗ';
         return `<div class="grid four" style="margin-bottom:18px">
           <div class="card"><span class="muted">Ученики</span><div class="metric">${d.students?.length ?? '—'}</div><div class="metric-note">активных в пространстве</div></div>
@@ -329,7 +332,7 @@
           <div><span class="muted small">Ученики той же программы</span><div class="check-list" style="margin-top:7px">${studentChoices().map(x => `<label><input type="checkbox" name="membershipId" value="${safe(x.membershipId)}" data-program="${safe(x.programId)}">${safe(x.studentName)} · ${safe(x.programName)}</label>`).join('') || 'Добавьте ученика.'}</div></div>
           <label><span>Срок</span><select name="deadlineHours"><option value="24">24 часа</option><option value="48">48 часов</option><option value="72">72 часа</option></select></label>
           <button class="primary" type="submit" ${d.nativeTasks?.length && d.students?.length ? '' : 'disabled'}>Назначить ученикам</button></form></div>
-          <div class="card stack" style="grid-column:1 / -1"><div class="section-head"><h2>Встроенные ДЗ и ответы</h2><span class="muted small">${d.nativeAssignments?.length || 0}</span></div>${list((d.nativeAssignments || []).slice(0, 100), 'Пока нет назначений.', x => `<div class="item"><div><strong>${safe(x.title)} · ${safe(studentName(x.membershipId))}</strong><small>До ${safe(date(x.deadlineAt))} · ${x.submittedAt ? 'сдано ' + safe(date(x.submittedAt)) : 'ожидает ответа'}</small>${x.answer ? `<p style="white-space:pre-wrap;margin-top:9px">${safe(x.answer)}</p>` : ''}${nativeGradeControls(x)}</div><span class="pill ${x.submittedAt ? '' : 'warn'}">${x.scorePercent == null ? x.submittedAt ? 'Без оценки' : 'Ожидается' : safe(x.scorePercent) + '%'}</span></div>`)}</div></div>
+          <div class="card stack" style="grid-column:1 / -1"><div class="section-head"><h2>Встроенные ДЗ и ответы</h2><span class="muted small">${d.nativeAssignments?.length || 0}</span></div>${list((d.nativeAssignments || []).slice(0, 100), 'Пока нет назначений.', x => `<div class="item"><div><strong>${safe(x.title)} · ${safe(studentName(x.membershipId))}</strong><small>До ${safe(date(x.deadlineAt))} · ${safe(nativeHomeworkDeadlineStatus(x).label)}${x.submittedAt ? ' · сдано ' + safe(date(x.submittedAt)) : ''}</small>${x.answer ? `<p style="white-space:pre-wrap;margin-top:9px">${safe(x.answer)}</p>` : ''}${nativeGradeControls(x)}</div><span class="pill ${x.submittedAt ? '' : 'warn'}">${x.scorePercent == null ? x.submittedAt ? 'Без оценки' : 'Ожидается' : safe(x.scorePercent) + '%'}</span></div>`)}</div></div>
           <div class="grid two"><div class="card stack"><div><h2>Добавить внешнюю работу</h2><p class="muted small">Только для уже готовой страницы ДЗ по HTTPS.</p></div><form id="catalogForm" class="stack">
           <div class="form-row"><label><span>Программа</span><select name="programId" required>${options(d.programs || [], 'id', 'displayName')}</select></label><label><span>Номер задания</span><input name="taskNumber" type="number" min="1" max="1000" required></label></div>
           <label><span>Название</span><input name="name" maxlength="200" required></label><label><span>Ссылка на готовую работу (HTTPS)</span><input name="url" type="url" pattern="https://.*" maxlength="2048" placeholder="https://…" required></label>
@@ -388,7 +391,7 @@
             <div class="card"><span class="muted">Итог 80% ДЗ / 20% тесты</span><div class="metric">${percent(r.progressPercent)}</div><div class="metric-note">${r.progressPercent == null ? 'Для расчёта нужны оценённые ДЗ и тесты' : 'Только по результатам с известным баллом'}</div></div>
           </div><div class="grid two">
             <div class="card stack"><h2>Занятия</h2>${list(r.lessons, 'Нет занятий.', x => `<div class="item"><div><strong>${safe(date(x.lessonAt))}</strong><small>${safe(x.participation.topicComment || x.participation.taskNumbers || 'Тема не указана')} · ${safe(x.participation.durationMinutes)} мин</small></div><span class="pill ${x.participation.attendanceStatus === 'Absent' ? 'warn' : ''}">${x.participation.attendanceStatus === 'Present' ? 'Был' : x.participation.attendanceStatus === 'Absent' ? 'Пропуск' : safe(x.participation.attendanceStatus)}</span></div>`)}</div>
-            <div class="card stack"><h2>Домашние задания</h2>${list(r.homework, 'В выбранном периоде ДЗ нет.', x => `<div class="item"><div><strong>${safe(x.name || 'Домашняя работа')}</strong><small>${x.source === 'native' ? 'Встроенное ДЗ' : 'Из каталога'} · назначено ${safe(date(x.assignedAt))} · до ${safe(date(x.deadlineAt))}</small>${x.source === 'native' && x.teacherFeedback ? `<small style="white-space:pre-wrap">Комментарий: ${safe(x.teacherFeedback)}</small>` : ''}</div><span class="pill ${x.isSubmitted ? '' : 'warn'}">${x.scorePercent == null ? x.isSubmitted ? 'Сдано · без балла' : 'Не сдано' : percent(x.scorePercent)}</span></div>`)}</div>
+            <div class="card stack"><h2>Домашние задания</h2>${list(r.homework, 'В выбранном периоде ДЗ нет.', x => `<div class="item"><div><strong>${safe(x.name || 'Домашняя работа')}</strong><small>${x.source === 'native' ? 'Встроенное ДЗ' : 'Из каталога'} · назначено ${safe(date(x.assignedAt))} · до ${safe(date(x.deadlineAt))}</small>${x.source === 'native' ? `<small>${safe(nativeHomeworkDeadlineStatus(x).label)}</small>` : ''}${x.source === 'native' && x.teacherFeedback ? `<small style="white-space:pre-wrap">Комментарий: ${safe(x.teacherFeedback)}</small>` : ''}</div><span class="pill ${x.isSubmitted ? '' : 'warn'}">${x.scorePercent == null ? x.isSubmitted ? 'Сдано · без балла' : 'Не сдано' : percent(x.scorePercent)}</span></div>`)}</div>
             <div class="card stack"><h2>Лучшие попытки тестов</h2>${list(r.tests, 'В выбранном периоде тестов нет.', x => `<div class="item"><div><strong>${safe(x.topic || x.testId)}</strong><small>${safe(x.at)} · задание ${safe(x.taskNumber)}</small></div><span class="pill">${percent(x.percent)}</span></div>`)}</div>
             <div class="card stack"><h2>Пробники</h2>${list(r.mocks, 'В выбранном периоде пробников нет.', x => `<div class="item"><div><strong>${safe(x.variantName)}</strong><small>${safe(x.mockDate)} · первичные ${safe(x.primaryScore)}/${safe(x.maxPrimaryScore)}</small></div><span class="pill">${percent(x.scorePercent)}</span></div>`)}</div>
           </div>`;

@@ -139,6 +139,7 @@ try {
   await teacher.locator('#nativeAssignForm button[type="submit"]').click();
   await teacher.locator('#content').getByText('Встроенные ДЗ и ответы').waitFor();
   assert.equal(assignments.length, 1);
+  await teacher.locator('#content').getByText('Ожидает сдачи').waitFor();
   await teacher.locator('[data-view="overview"]').click();
   await teacher.locator('#content').getByText('из каталога 0 · встроенных 1').waitFor();
   await teacher.locator('[data-view="homework"]').click();
@@ -149,14 +150,26 @@ try {
   await student.locator('#loginForm [name="code"]').fill('SYNTHETIC-CODE');
   await student.locator('#loginForm button').click();
   await student.locator('#assignments form[data-assignment]').waitFor();
+  await student.locator('#assignments').getByText('Ожидает сдачи').waitFor();
+  // Simulate an expired deadline without writing to any live database.
+  assignments[0].deadlineAt = new Date(Date.now() - 60_000).toISOString();
+  await student.locator('#logout').click();
+  await student.locator('#loginForm [name="workspace"]').fill('synthetic');
+  await student.locator('#loginForm [name="code"]').fill('SYNTHETIC-CODE');
+  await student.locator('#loginForm button').click();
+  await student.locator('#assignments').getByText('Просрочено · можно сдать').waitFor();
+  await teacher.locator('#refresh').click();
+  await teacher.locator('#content').getByText('Просрочено · можно сдать').waitFor();
   await student.locator('#assignments textarea[name="answer"]').fill('My explanation');
   await student.locator('#assignments button[type="submit"]').click();
   await student.locator('#assignments .answer').getByText('My explanation').waitFor();
+  await student.locator('#assignments').getByText('Сдано с опозданием').waitFor();
   assert.equal(submissionCount, 1);
   assert.match(await student.locator('#assignments').innerText(), /без оценки/);
 
   await teacher.locator('#refresh').click();
   await teacher.locator('#content .item').getByText('My explanation').waitFor();
+  await teacher.locator('#content').getByText('Сдано с опозданием').waitFor();
   assert.match(await teacher.locator('#content').innerText(), /Без оценки/);
   assert.equal(assignments[0].scorePercent, null);
   await teacher.locator('[data-native-grade] input[name="scorePercent"]').fill('85');
@@ -172,6 +185,7 @@ try {
   assert.match(await student.locator('#assignments').innerText(), /85%/);
   await teacher.locator('[data-view="report"]').click();
   await teacher.locator('#content').getByText('Встроенное ДЗ').waitFor();
+  await teacher.locator('#content').getByText('Сдано с опозданием').waitFor();
   assert.match(await teacher.locator('#content').innerText(), /Well explained/);
   assert.match(await teacher.locator('#content').innerText(), /85%/);
   assert.match(await teacher.locator('#content').innerText(), /Для расчёта нужны оценённые ДЗ и тесты/);
