@@ -152,7 +152,7 @@ try {
   await teacher.locator('#lessonCorrectionForm [data-correct-participant] select[name="attendanceStatus"]').selectOption('Absent');
   await teacher.locator('#lessonCorrectionForm [data-correct-participant] textarea[name="topicComment"]').fill('Corrected lesson');
   await teacher.locator('#lessonCorrectionForm button[type="submit"]').click();
-  await teacher.locator('#content').getByText('Исправить занятие').count().then(count => assert.equal(count, 0));
+  await teacher.locator('#lessonCorrectionForm').waitFor({ state: 'detached' });
   assert.equal(correctedCount, 1);
   await teacher.locator('[data-view="report"]').click();
   await teacher.locator('#content').getByText('Corrected lesson').waitFor();
