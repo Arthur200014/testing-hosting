@@ -4,9 +4,9 @@
 **STATE_UPDATED:** 2026-11-13
 **CURRENT_PHASE:** M04 (separate teacher platform UI; M02 isolated restore deferred by owner)
 **ACTIVE_TASK:** M04-07 automatic Timeweb schema migrations (owner requested no manual commands)
-**ACTIVE_BRANCH:** `tas/M04-07-auto-migrate`
-**LAST_PROGRESS_COMMIT:** `5c4e5b2a9b8f2e75370bdb204bc88a23847ce6b3` ([PR #35](https://github.com/Arthur200014/testing-hosting/pull/35))
-**NEXT_ACTION:** Owner asked to remove manual Timeweb migration commands. Branch changes only the runtime Docker entrypoint: normal API startup runs `dotnet Platform.Api.dll --migrate` before listening; explicit admin CLI args bypass startup wrapper, importer binaries remain opt-in. Local shell test PASS. Publish PR, run backend PostgreSQL CI plus runtime smoke, merge green, then independently recheck public `/health/ready` and `/health/migrations`. Current public check: ready Healthy, migrations Unhealthy. If auto deploy has not run or migration fails, report concrete deployment blocker without asking for repeat student/homework import. Next synthetic native homework UI verification; no questionnaires and no GAS/manage changes.
+**ACTIVE_BRANCH:** none
+**LAST_PROGRESS_COMMIT:** `bb770b9afa927f95d656658d77501a752c549782` ([PR #36](https://github.com/Arthur200014/testing-hosting/pull/36))
+**NEXT_ACTION:** Automatic EF migrations before normal Timeweb API startup merged in PR #36; [isolated PostgreSQL CI and runtime smoke PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43454230147). Explicit admin CLI commands bypass the wrapper; importers never run at startup. Public `/health/migrations` still Unhealthy just after merge, `/health/ready` previously Healthy; deploy status unknown because Timeweb dashboard is unavailable from this environment. Recheck public health after auto deploy, inspect Timeweb deploy/logs only if account access becomes available, and do not ask owner to repeat migration/import commands as routine update. Once migration Healthy, perform native homework E2E on synthetic student. No questionnaires or GAS/manage changes.
 **STATUS:** M03-01/M03-02 and mock-history import owner-confirmed (not independently SQL-queried); test-history 233 rows read-only replay verified from owner Timeweb console output; questionnaires excluded by owner; M02-03 restore NOT_VERIFIED
 
 ## What is verified
