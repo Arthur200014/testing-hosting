@@ -167,7 +167,7 @@
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
-      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '' };
+      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null };
       const $ = id => document.getElementById(id);
       const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const date = value => value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
@@ -185,7 +185,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
-        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = '';
+        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null;
         $('app').hidden = true; $('loginScreen').hidden = false;
         $('loginError').textContent = message; $('loginError').hidden = !message;
       }
@@ -259,6 +259,27 @@
         </div><div class="grid two"><div class="card"><div class="section-head"><h2>Последние занятия</h2></div>${d.lessons ? list(upcoming, 'Занятий пока нет.', x => `<div class="item"><div><strong>${safe(date(x.lessonAt))}</strong><small>${safe((x.participants || []).map(p => studentName(p.membershipId)).join(', '))}</small></div><span class="pill">${x.participants?.length || 0} уч.</span></div>`) : '<div class="empty">Загружаем занятия…</div>'}</div>
         <div class="card"><div class="section-head"><h2>Что уже доступно</h2></div><div class="stack muted"><p>Учеников, занятия, ДЗ и абонементы можно просматривать в своих разделах.</p><p>История тестов и пробников доступна в «Результатах». Финансовые суммы выводятся только там, где они сохранены.</p></div></div></div>`;
       }
+      const studentProfileFields = ['grade', 'groupId', 'targetScore', 'targetGrade',
+        'initialScore', 'initialPrimaryScore', 'initialGrade', 'parentName', 'notes'];
+      function studentProfile(item) {
+        return Object.fromEntries(studentProfileFields.map(key => [key, item[key] ?? null]));
+      }
+      function editStudentForm() {
+        const x = state.editSnapshot;
+        if (!state.editStudent || !x) return '';
+        const input = (key, label, max) => `<label><span>${label}</span><input name="${key}" maxlength="${max}" value="${safe(x[key])}"></label>`;
+        return `<div class="card stack" style="margin-top:18px"><div class="section-head">
+          <h2>Редактирование ученика</h2><button class="secondary small-button" type="button" data-cancel-edit>Отмена</button></div>
+          <p class="muted small">Программа и код доступа не меняются. При конфликте данных обновите страницу.</p>
+          <form id="studentEditForm" class="stack" data-student-id="${safe(x.membershipId)}">
+            <label><span>Имя ученика</span><input name="studentName" maxlength="200" required value="${safe(x.studentName)}"></label>
+            <div class="form-row three">${input('grade', 'Класс', 32)}${input('groupId', 'Группа', 128)}${input('targetScore', 'Цель', 32)}</div>
+            <div class="form-row three">${input('targetGrade', 'Целевая оценка', 32)}${input('initialScore', 'Начальный балл', 32)}${input('initialPrimaryScore', 'Начальный первичный балл', 32)}</div>
+            <div class="form-row">${input('initialGrade', 'Начальная оценка', 32)}${input('parentName', 'Имя родителя', 200)}</div>
+            <label><span>Заметки</span><textarea name="notes" maxlength="4096">${safe(x.notes)}</textarea></label>
+            <button class="primary" type="submit">Сохранить изменения</button>
+          </form></div>`;
+      }
       function students() {
         const d = state.data;
         return `<div class="grid two"><div class="card stack"><div class="section-head"><h2>Ученики</h2><span class="muted small">${d.students?.length || 0} активных</span></div>
@@ -269,11 +290,11 @@
             <div class="form-row three"><label><span>Класс</span><input name="grade" maxlength="32"></label><label><span>Группа</span><input name="groupId" maxlength="128"></label><label><span>Цель</span><input name="targetScore" maxlength="32"></label></div>
             <div class="form-row"><label><span>Имя родителя</span><input name="parentName" maxlength="200"></label><label><span>Заметки</span><input name="notes" maxlength="4096"></label></div>
             <button class="primary" type="submit" ${d.programs?.length ? '' : 'disabled'}>Создать ученика</button>
-          </form>${state.inviteCode ? `<div class="banner" role="status">Код нового ученика: <strong>${safe(state.inviteCode)}</strong>. Скопируйте его сейчас.</div>` : ''}${d.programs?.length ? '' : '<p class="muted small">В пространстве пока нет активных программ.</p>'}</div></div>`;
+          </form>${state.inviteCode ? `<div class="banner" role="status">Код нового ученика: <strong>${safe(state.inviteCode)}</strong>. Скопируйте его сейчас.</div>` : ''}${d.programs?.length ? '' : '<p class="muted small">В пространстве пока нет активных программ.</p>'}</div></div>` + editStudentForm();
       }
       function studentRows(query = '') {
         const filtered = (state.data.students || []).filter(x => x.studentName.toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru')));
-        $('studentRows').innerHTML = list(filtered, 'Ученики не найдены.', x => `<div class="item"><div><strong>${safe(x.studentName)}</strong><small>${safe(x.programName)}${x.grade ? ' · ' + safe(x.grade) + ' класс' : ''}${x.groupId ? ' · ' + safe(x.groupId) : ''}</small></div><div class="row"><button class="secondary small-button" data-report="${safe(x.membershipId)}" type="button">Отчёт</button><button class="danger small-button" data-archive="${safe(x.membershipId)}" type="button">В архив</button></div></div>`);
+        $('studentRows').innerHTML = list(filtered, 'Ученики не найдены.', x => `<div class="item"><div><strong>${safe(x.studentName)}</strong><small>${safe(x.programName)}${x.grade ? ' · ' + safe(x.grade) + ' класс' : ''}${x.groupId ? ' · ' + safe(x.groupId) : ''}</small></div><div class="row"><button class="secondary small-button" data-report="${safe(x.membershipId)}" type="button">Отчёт</button><button class="secondary small-button" data-edit-student="${safe(x.membershipId)}" type="button">Изменить</button><button class="danger small-button" data-archive="${safe(x.membershipId)}" type="button">В архив</button></div></div>`);
       }
       function participantList() {
         const selected = studentChoices();
@@ -485,6 +506,17 @@
       });
       $('content').addEventListener('click', async event => {
         if (event.target.id === 'printReport') { window.print(); return; }
+        if (event.target.closest('[data-cancel-edit]')) {
+          state.editStudent = ''; state.editSnapshot = null; render(); return;
+        }
+        const editStudent = event.target.closest('[data-edit-student]');
+        if (editStudent) {
+          const selected = state.data.students?.find(x => x.membershipId === editStudent.dataset.editStudent);
+          if (!selected) return;
+          state.editStudent = selected.membershipId;
+          state.editSnapshot = { ...selected };
+          render(); return;
+        }
         const studentReport = event.target.closest('[data-report]');
         if (studentReport) { state.reportStudent = studentReport.dataset.report; setView('report'); return; }
         const edit = event.target.closest('[data-edit-sub]');
@@ -506,6 +538,17 @@
             assignmentId, scorePercent: Number(formValue(form, 'scorePercent')),
             feedback: formValue(form, 'feedback') || null
           }));
+        });
+        if (form.id === 'studentEditForm') onForm(form, async () => {
+          const snapshot = state.editSnapshot;
+          const id = form.dataset.studentId;
+          if (!snapshot || id !== state.editStudent) throw new Error('Повторно выберите ученика.');
+          const profile = Object.fromEntries(studentProfileFields.map(key => [key, formValue(form, key) || null]));
+          await mutation('studentEdit:' + id, 'students/' + encodeURIComponent(id) + '/edit', () => ({
+            studentName: formValue(form, 'studentName'), profile,
+            expectedStudentName: snapshot.studentName, expectedProfile: studentProfile(snapshot)
+          }));
+          state.editStudent = ''; state.editSnapshot = null;
         });
         if (form.id === 'nativeTaskForm') onForm(form, async () => {
           await mutation('nativeTask', 'homework/native/tasks', () => ({

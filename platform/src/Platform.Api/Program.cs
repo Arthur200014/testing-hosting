@@ -39,6 +39,7 @@ builder.Services.AddSingleton(serviceProvider => new TeacherInviteCodeIssuer(
     StartupConfiguration.GetPepper(serviceProvider.GetRequiredService<IConfiguration>())));
 builder.Services.AddScoped<TeacherStudentCreator>();
 builder.Services.AddScoped<TeacherStudentArchiver>();
+builder.Services.AddScoped<TeacherStudentEditor>();
 builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddSingleton<IPasswordHasher<TeacherUser>, PasswordHasher<TeacherUser>>();
 builder.Services.AddSingleton<TeacherTokenIssuer>();
@@ -229,6 +230,24 @@ app.MapGet("/api/v1/teacher/students/{membershipId:guid}", async (
     var workspaceId = Guid.Parse(principal.FindFirstValue("workspace_id")!);
     var student = await directory.GetAsync(workspaceId, membershipId, cancellationToken);
     return student is null ? Results.NotFound() : Results.Ok(student);
+}).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/students/{membershipId:guid}/edit", async (
+    Guid membershipId, TeacherEditStudentRequest request, ClaimsPrincipal principal,
+    TeacherStudentEditor students, CancellationToken cancellationToken) =>
+{
+    var result = await students.EditAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), membershipId, request, cancellationToken);
+    return result.Status switch
+    {
+        TeacherEditStudentStatus.Updated or TeacherEditStudentStatus.Unchanged =>
+            Results.Ok(result.Response),
+        TeacherEditStudentStatus.Conflict => Results.Problem(statusCode: 409,
+            title: "Student details changed since they were loaded, or the name is shared. Reload before editing."),
+        TeacherEditStudentStatus.NotFound => Results.NotFound(),
+        TeacherEditStudentStatus.InvalidRequest => Results.ValidationProblem(result.Errors!),
+        _ => throw new InvalidOperationException("Unknown teacher edit result.")
+    };
 }).RequireAuthorization("teacher");
 
 app.MapPost("/api/v1/teacher/students/{membershipId:guid}/archive", async (
