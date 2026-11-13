@@ -360,6 +360,113 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     }
 
     [Fact]
+    public async Task TeacherCorrectsPairedLessonWithoutChangingLinkedHomeworkOrSubscriptions()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "correct-north", "north@example.invalid", "owner");
+        var south = await SeedAsync(factory, "correct-south", "south@example.invalid", "owner");
+        var first = await SeedStudentAsync(factory, north.WorkspaceId, "First", true);
+        var second = await SeedStudentAsync(factory, north.WorkspaceId, "Second", true);
+        var foreign = await SeedStudentAsync(factory, south.WorkspaceId, "Foreign", true);
+        var catalog = await SeedCatalogAsync(factory, north.WorkspaceId, first);
+        await SeedHistoryAsync(factory, south.WorkspaceId, [foreign]);
+        Guid foreignLesson;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            foreignLesson = await db.Lessons.Where(x => x.WorkspaceId == south.WorkspaceId)
+                .Select(x => x.Id).SingleAsync();
+        }
+        using var client = factory.CreateClient();
+        var route = "/api/v1/teacher/lessons/";
+        var unauthorized = await client.PostAsJsonAsync(route + foreignLesson + "/correct",
+            new TeacherLessonCorrectionRequest(new string('A', 64), DateTimeOffset.UtcNow, []));
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
+
+        var session = (await (await LoginAsync(client, "correct-north", "north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+
+        var when = DateTimeOffset.UtcNow.AddDays(-2);
+        var create = new TeacherLessonWriteRequest(Guid.NewGuid(), when,
+        [
+            new(first, 60, "6", "Initial topic", "Present"),
+            new(second, 60, "13", "Other topic", "Present")
+        ]);
+        var response = await client.PostAsJsonAsync("/api/v1/teacher/lessons-with-homework",
+            new TeacherLessonHomeworkRequest(create, catalog, 24));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var created = (await response.Content.ReadFromJsonAsync<TeacherLessonHomeworkResponse>())!;
+        var id = created.Lesson.LessonId;
+        var correctionPath = route + id + "/correct";
+        var source = Assert.Single((await client.GetFromJsonAsync<List<TeacherLessonView>>(route))!);
+        Assert.Equal(64, source.Revision.Length);
+        var initialAssignments = (await client.GetFromJsonAsync<List<TeacherHomeworkAssignmentView>>(
+            "/api/v1/teacher/homework/assignments"))!;
+        Assert.Equal(2, initialAssignments.Count);
+        var subscription = await client.PostAsJsonAsync(
+            "/api/v1/teacher/subscriptions/" + first,
+            new TeacherSubscriptionWriteRequest(8, null, 1500m, null, null));
+        Assert.Equal(HttpStatusCode.Created, subscription.StatusCode);
+
+        var expected = source.Participants.ToDictionary(x => x.MembershipId);
+        var correction = new TeacherLessonCorrectionRequest(source.Revision, source.LessonAt.AddMinutes(45),
+        [
+            new(first, 75, " 6, 7 ", " Revised topic ", "Absent"),
+            new(second, 45, "13", "Other topic", "Present")
+        ]);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(
+            route + foreignLesson + "/correct", correction)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(
+            correctionPath, correction with { Participants = [correction.Participants![0]] })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(
+            correctionPath, correction with {
+                Participants = [new(first, 0, null, null, "Present"), correction.Participants![1]]
+            })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(
+            correctionPath, correction with { ExpectedRevision = null })).StatusCode);
+
+        var saved = await client.PostAsJsonAsync(correctionPath, correction);
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        var current = (await saved.Content.ReadFromJsonAsync<TeacherLessonView>())!;
+        Assert.Equal(id, current.Id);
+        Assert.Equal(source.LegacyLessonId, current.LegacyLessonId);
+        Assert.NotEqual(source.Revision, current.Revision);
+        Assert.Equal(source.LessonAt.AddMinutes(45), current.LessonAt);
+        Assert.Equal(2, current.Participants.Count);
+        Assert.Equal("Absent", current.Participants.Single(x => x.MembershipId == first).AttendanceStatus);
+        Assert.Equal("Revised topic", current.Participants.Single(x => x.MembershipId == first).TopicComment);
+        Assert.Equal(75, current.Participants.Single(x => x.MembershipId == first).DurationMinutes);
+        Assert.Equal("Present", current.Participants.Single(x => x.MembershipId == second).AttendanceStatus);
+
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(correctionPath, correction)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(correctionPath,
+            correction with { LessonAt = source.LessonAt.AddDays(3) })).StatusCode);
+        var afterRead = Assert.Single((await client.GetFromJsonAsync<List<TeacherLessonView>>(route))!);
+        Assert.Equal(current.Revision, afterRead.Revision);
+        var afterAssignments = (await client.GetFromJsonAsync<List<TeacherHomeworkAssignmentView>>(
+            "/api/v1/teacher/homework/assignments"))!;
+        Assert.Equal(initialAssignments.Select(x => x.Id).Order(),
+            afterAssignments.Select(x => x.Id).Order());
+        Assert.Equal(initialAssignments.Select(x => x.DeadlineAt).Order(),
+            afterAssignments.Select(x => x.DeadlineAt).Order());
+        Assert.Single((await client.GetFromJsonAsync<List<TeacherSubscriptionView>>(
+            "/api/v1/teacher/subscriptions"))!);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            Assert.Equal(2, await db.LessonParticipants.CountAsync(x => x.LessonId == id));
+            Assert.Equal(2, await db.HomeworkAssignments.CountAsync(x => x.WorkspaceId == north.WorkspaceId));
+            Assert.Single(await db.Lessons.Where(x => x.WorkspaceId == north.WorkspaceId).ToListAsync());
+            Assert.Equal("Present", await db.LessonParticipants.Where(x =>
+                x.WorkspaceId == south.WorkspaceId).Select(x => x.AttendanceStatus).SingleAsync());
+        }
+        await client.PostAsync("/api/v1/teacher-sessions/logout", null);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync(
+            correctionPath, correction)).StatusCode);
+    }
+
+    [Fact]
     public async Task TeacherEditsExistingStudentSafelyWithExpectedSnapshotAndNoCodeChange()
     {
         await ResetAsync(factory);

@@ -30,6 +30,7 @@ builder.Services.AddScoped<TeacherOwnerRegistration>();
 builder.Services.AddScoped<TeacherStudentDirectory>();
 builder.Services.AddScoped<TeacherHistoryReader>();
 builder.Services.AddScoped<TeacherLessonService>();
+builder.Services.AddScoped<TeacherLessonCorrectionService>();
 builder.Services.AddScoped<TeacherLessonHomeworkService>();
 builder.Services.AddScoped<TeacherSubscriptionService>();
 builder.Services.AddScoped<TeacherHomeworkReader>();
@@ -266,6 +267,24 @@ app.MapGet("/api/v1/teacher/lessons", async (
     Results.Ok(await history.ListLessonsAsync(
         Guid.Parse(principal.FindFirstValue("workspace_id")!), cancellationToken)))
     .RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/lessons/{lessonId:guid}/correct", async (
+    Guid lessonId, TeacherLessonCorrectionRequest request, ClaimsPrincipal principal,
+    TeacherLessonCorrectionService lessons, CancellationToken cancellationToken) =>
+{
+    var result = await lessons.CorrectAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), lessonId, request, cancellationToken);
+    return result.Status switch
+    {
+        TeacherLessonCorrectionStatus.Updated or TeacherLessonCorrectionStatus.Unchanged =>
+            Results.Ok(result.Response),
+        TeacherLessonCorrectionStatus.Conflict => Results.Problem(statusCode: 409,
+            title: "The lesson has changed. Reload before correcting it."),
+        TeacherLessonCorrectionStatus.NotFound => Results.NotFound(),
+        TeacherLessonCorrectionStatus.InvalidRequest => Results.ValidationProblem(result.Errors!),
+        _ => throw new InvalidOperationException("Unknown lesson correction result.")
+    };
+}).RequireAuthorization("teacher");
 
 app.MapPost("/api/v1/teacher/lessons", async (
     TeacherLessonWriteRequest request, ClaimsPrincipal principal, TeacherLessonService lessons,
