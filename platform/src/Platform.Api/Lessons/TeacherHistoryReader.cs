@@ -10,7 +10,7 @@ public sealed record TeacherLessonParticipantView(
 
 public sealed record TeacherLessonView(
     Guid Id, string LegacyLessonId, DateTimeOffset LessonAt,
-    List<TeacherLessonParticipantView> Participants);
+    List<TeacherLessonParticipantView> Participants, string Revision);
 
 public sealed class TeacherHistoryReader(PlatformDbContext db)
 {
@@ -35,8 +35,12 @@ public sealed class TeacherHistoryReader(PlatformDbContext db)
             })
             .ToListAsync(cancellationToken);
         var byLesson = participants.ToLookup(x => x.LessonId, x => x.View);
-        return lessons.Select(x => new TeacherLessonView(
-            x.Id, x.LegacyLessonId, x.LessonAt, byLesson[x.Id].ToList())).ToList();
+        return lessons.Select(x =>
+        {
+            var rows = byLesson[x.Id].ToList();
+            return new TeacherLessonView(x.Id, x.LegacyLessonId, x.LessonAt,
+                rows, TeacherLessonRevision.Compute(x.LessonAt, rows));
+        }).ToList();
     }
 
     public Task<List<TeacherSubscriptionView>> ListSubscriptionsAsync(

@@ -11,6 +11,14 @@ const students = [{ membershipId: memberId, studentId, studentName: 'Test Studen
   notes: 'Before edit' }];
 let editCount = 0;
 const tasks = [], assignments = [];
+const lessons = [{
+  id: '44444444-4444-4444-8444-444444444444',
+  lessonAt: new Date(Date.now() - 86400000).toISOString(),
+  revision: 'A'.repeat(64),
+  participants: [{ membershipId: memberId, studentId, programId, attendanceStatus: 'Present',
+    durationMinutes: 60, taskNumbers: null, topicComment: 'Synthetic lesson' }]
+}];
+let correctedCount = 0;
 let submissionCount = 0, gradingCount = 0;
 const browser = await chromium.launch({ headless: true });
 
@@ -41,6 +49,19 @@ async function mockApi(page) {
       students[0] = { ...students[0], studentName: body.studentName, ...body.profile };
       editCount++;
       return send(students[0]);
+    }
+    if (path === 'teacher/lessons/' + lessons[0].id + '/correct' && request.method() === 'POST') {
+      assert.equal(body.expectedRevision, 'A'.repeat(64));
+      assert.deepEqual(body.participants.map(x => x.membershipId), [memberId]);
+      assert.equal(body.participants[0].durationMinutes, 75);
+      assert.equal(body.participants[0].attendanceStatus, 'Absent');
+      assert.equal(body.participants[0].topicComment, 'Corrected lesson');
+      assert.ok(body.requestId);
+      lessons[0].lessonAt = body.lessonAt;
+      lessons[0].participants[0] = { ...lessons[0].participants[0], ...body.participants[0] };
+      lessons[0].revision = 'B'.repeat(64);
+      correctedCount++;
+      return send(lessons[0]);
     }
     if (path === 'teacher/homework/native/tasks' && request.method() === 'POST') {
       assert.equal(body.programId, programId);
@@ -89,11 +110,7 @@ async function mockApi(page) {
       const reads = {
         'teacher/students': students,
         'teacher/programs': programs,
-        'teacher/lessons': [{
-          id: 'lesson-test', lessonAt: new Date(Date.now() - 86400000).toISOString(),
-          participants: [{ membershipId: memberId, attendanceStatus: 'Present',
-            durationMinutes: 60, topicComment: 'Synthetic lesson' }]
-        }],
+        'teacher/lessons': lessons,
         'teacher/homework/catalog': [],
         'teacher/homework/assignments': [],
         'teacher/homework/submissions': [],
@@ -129,6 +146,16 @@ try {
   await teacher.locator('#studentEditForm button[type="submit"]').click();
   await teacher.locator('#studentRows').getByText('Renamed Student').waitFor();
   assert.equal(editCount, 1);
+  await teacher.locator('[data-view="lessons"]').click();
+  await teacher.locator('[data-edit-lesson="' + lessons[0].id + '"]').click();
+  await teacher.locator('#lessonCorrectionForm [data-correct-participant] input[name="durationMinutes"]').fill('75');
+  await teacher.locator('#lessonCorrectionForm [data-correct-participant] select[name="attendanceStatus"]').selectOption('Absent');
+  await teacher.locator('#lessonCorrectionForm [data-correct-participant] textarea[name="topicComment"]').fill('Corrected lesson');
+  await teacher.locator('#lessonCorrectionForm button[type="submit"]').click();
+  await teacher.locator('#lessonCorrectionForm').waitFor({ state: 'detached' });
+  assert.equal(correctedCount, 1);
+  await teacher.locator('[data-view="report"]').click();
+  await teacher.locator('#content').getByText('Corrected lesson').waitFor();
   await teacher.locator('[data-view="homework"]').click();
   await teacher.locator('#nativeTaskForm [name="title"]').fill('Explain the rule');
   await teacher.locator('#nativeTaskForm [name="prompt"]').fill('Write an explanation with an example.');
@@ -189,7 +216,7 @@ try {
   assert.match(await teacher.locator('#content').innerText(), /Well explained/);
   assert.match(await teacher.locator('#content').innerText(), /85%/);
   assert.match(await teacher.locator('#content').innerText(), /Для расчёта нужны оценённые ДЗ и тесты/);
-  console.log('PASS: teacher edited existing synthetic student, native homework assigned, submitted, graded and reported');
+  console.log('PASS: synthetic lesson correction, student edit, homework grading and report');
 } finally {
   await browser.close();
 }

@@ -4,10 +4,10 @@
 **STATE_UPDATED:** 2026-11-13
 **CURRENT_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — 3 outcomes, not historical Mxx TODO queue
 **ACTIVE_RESULT:** 1 — рабочий кабинет преподавателя
-**ACTIVE_TASK:** Result 1 — native homework deadline/status completed; next: assess and implement safe correction of lessons if missing
-**ACTIVE_BRANCH:** none (PR #42 merged)
+**ACTIVE_TASK:** Result 1 — safe correction of paired lessons (date, attendance, duration, topic)
+**ACTIVE_BRANCH:** tas/cabinet-lesson-correction
 **LAST_PROGRESS_COMMIT:** `786430ff161bac678ea13dc02932090fae0667d4` ([PR #42](https://github.com/Arthur200014/testing-hosting/pull/42))
-**NEXT_ACTION:** Result 1: inspect existing lesson write/read contracts and add safe correction of erroneous lesson attendance/topic/time only if not already implemented; preserve paired lessons, history, subscriptions and homework, workspace protection, and explicit optimistic conflict. Use focused synthetic regression tests. Do not alter live data or legacy manage/GAS. After that assess whether any other genuine daily-workflow blockers remain before moving to Result 2 performance/E2E.
+**NEXT_ACTION:** Verify synthetic Chromium/Node and isolated PostgreSQL tests for lesson correction in tas/cabinet-lesson-correction; fix failures, merge on PASS. Then assess remaining daily-workflow gaps; if none, move to Result 2 cross-workspace E2E and performance measurements. Do not alter live data or legacy manage/GAS.
 **VERIFICATION:** [PR #42](https://github.com/Arthur200014/testing-hosting/pull/42) homework deadlines merged: [Chromium + Node PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43487940944), [PostgreSQL integration PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43487940976), [backend gate PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43487941000). No migration, no server writes beyond synthetic tests. Production deployment/late-submission NOT_VERIFIED. Prior PR #41 verified.
 
 ## Non-negotiable context
