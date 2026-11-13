@@ -158,7 +158,7 @@ try {
   await teacher.locator('#lessonCorrectionForm [data-correct-participant] textarea[name="topicComment"]').fill('Corrected lesson');
   const readsBeforeCorrection = readTotal();
   await teacher.locator('#lessonCorrectionForm button[type="submit"]').click();
-  await teacher.locator('#content').getByText('Corrected lesson').waitFor();
+  await teacher.locator('#content').getByText('Renamed Student · Absent').waitFor();
   assert.equal(correctedCount, 1);
   assert.deepEqual(teacherReads.slice(readsBeforeCorrection), ['teacher/lessons']);
   await teacher.locator('[data-view="report"]').click();
