@@ -4,24 +4,24 @@ import { teacherNeeds, invalidateTeacherData, loadTeacherKey } from './teacher-d
 
 const freshState = () => ({ data: {}, loadedAt: {}, inflight: {}, generation: 0 });
 
-test('opens overview with four reads and loads other tabs only on demand', async () => {
+test('opens overview with five reads including native homework and loads tabs on demand', async () => {
   const state = freshState(), calls = [];
   let time = 1000;
   const request = async path => { calls.push(path); return [path]; };
   const open = view => Promise.all(teacherNeeds[view].map(key =>
     loadTeacherKey(state, key, request, () => {}, false, () => time)));
   await open('overview');
-  assert.deepEqual(calls.sort(), ['homework/assignments', 'lessons', 'students', 'subscriptions']);
+  assert.deepEqual(calls.sort(), ['homework/assignments', 'homework/native/assignments', 'lessons', 'students', 'subscriptions']);
   await open('results');
-  assert.equal(calls.length, 8); // students already loaded; tests/mocks are fetched now.
+  assert.equal(calls.length, 9); // students already loaded; tests/mocks are fetched now.
   await open('overview');
-  assert.equal(calls.length, 8); // returning to a fresh tab uses memory cache.
+  assert.equal(calls.length, 9); // returning to a fresh tab uses memory cache.
   await Promise.all(teacherNeeds.overview.map(key =>
     loadTeacherKey(state, key, request, () => {}, true, () => time)));
-  assert.equal(calls.length, 12); // explicit refresh reads only the active tab.
+  assert.equal(calls.length, 14); // explicit refresh reads only the active tab.
   time += 30001;
   await open('overview');
-  assert.equal(calls.length, 16); // stale data is refreshed on the next visit.
+  assert.equal(calls.length, 19); // stale data is refreshed on the next visit.
 });
 
 test('old responses cannot overwrite data after session change or mutation', async () => {

@@ -8,13 +8,13 @@ export const teacherPaths = {
 };
 
 export const teacherNeeds = {
-  overview: ['students', 'lessons', 'assignments', 'subscriptions'],
+  overview: ['students', 'lessons', 'assignments', 'nativeAssignments', 'subscriptions'],
   students: ['students', 'programs'],
   lessons: ['students', 'programs', 'lessons', 'catalog'],
   homework: ['students', 'programs', 'catalog', 'assignments', 'submissions', 'nativeTasks', 'nativeAssignments'],
   subscriptions: ['students', 'subscriptions'],
   results: ['students', 'tests', 'liveTests', 'mocks', 'mockSessions'],
-  report: ['students', 'lessons', 'assignments', 'tests', 'liveTests', 'mocks']
+  report: ['students', 'lessons', 'assignments', 'nativeAssignments', 'tests', 'liveTests', 'mocks']
 };
 
 export function invalidateTeacherData(state) {

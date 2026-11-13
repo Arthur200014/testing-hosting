@@ -161,7 +161,7 @@
   </div>
 
   <script type="module">
-    import { buildTeacherReport } from './teacher-report.mjs';
+    import { buildTeacherReport, collectTeacherHomework } from './teacher-report.mjs';
     import { teacherNeeds, invalidateTeacherData, loadTeacherKey } from './teacher-data.mjs';
     import { performTeacherMutation } from './teacher-mutation.mjs';
     (() => {
@@ -246,11 +246,15 @@
       function overview() {
         const d = state.data;
         const upcoming = (d.lessons || []).slice(0, 5);
-        const pending = d.assignments?.filter(x => !x.submittedAt);
+        const pending = d.assignments && d.nativeAssignments
+          ? collectTeacherHomework(d).filter(x => !x.isSubmitted) : null;
+        const pendingSources = pending
+          ? `из каталога ${pending.filter(x => x.source === 'catalog').length} · встроенных ${pending.filter(x => x.source === 'native').length}`
+          : 'включая встроенные ДЗ';
         return `<div class="grid four" style="margin-bottom:18px">
           <div class="card"><span class="muted">Ученики</span><div class="metric">${d.students?.length ?? '—'}</div><div class="metric-note">активных в пространстве</div></div>
           <div class="card"><span class="muted">Занятия</span><div class="metric">${d.lessons?.length ?? '—'}</div><div class="metric-note">в истории</div></div>
-          <div class="card"><span class="muted">ДЗ ожидают сдачи</span><div class="metric">${pending?.length ?? '—'}</div><div class="metric-note">текущих назначений</div></div>
+          <div class="card"><span class="muted">ДЗ ожидают сдачи</span><div class="metric">${pending?.length ?? '—'}</div><div class="metric-note">${pendingSources}</div></div>
           <div class="card"><span class="muted">Абонементы</span><div class="metric">${d.subscriptions?.length ?? '—'}</div><div class="metric-note">сохранённых состояний</div></div>
         </div><div class="grid two"><div class="card"><div class="section-head"><h2>Последние занятия</h2></div>${d.lessons ? list(upcoming, 'Занятий пока нет.', x => `<div class="item"><div><strong>${safe(date(x.lessonAt))}</strong><small>${safe((x.participants || []).map(p => studentName(p.membershipId)).join(', '))}</small></div><span class="pill">${x.participants?.length || 0} уч.</span></div>`) : '<div class="empty">Загружаем занятия…</div>'}</div>
         <div class="card"><div class="section-head"><h2>Что уже доступно</h2></div><div class="stack muted"><p>Учеников, занятия, ДЗ и абонементы можно просматривать в своих разделах.</p><p>История тестов и пробников доступна в «Результатах». Финансовые суммы выводятся только там, где они сохранены.</p></div></div></div>`;
@@ -363,7 +367,7 @@
             <div class="card"><span class="muted">Итог 80% ДЗ / 20% тесты</span><div class="metric">${percent(r.progressPercent)}</div><div class="metric-note">${r.progressPercent == null ? 'Для расчёта нужны оценённые ДЗ и тесты' : 'Только по результатам с известным баллом'}</div></div>
           </div><div class="grid two">
             <div class="card stack"><h2>Занятия</h2>${list(r.lessons, 'Нет занятий.', x => `<div class="item"><div><strong>${safe(date(x.lessonAt))}</strong><small>${safe(x.participation.topicComment || x.participation.taskNumbers || 'Тема не указана')} · ${safe(x.participation.durationMinutes)} мин</small></div><span class="pill ${x.participation.attendanceStatus === 'Absent' ? 'warn' : ''}">${x.participation.attendanceStatus === 'Present' ? 'Был' : x.participation.attendanceStatus === 'Absent' ? 'Пропуск' : safe(x.participation.attendanceStatus)}</span></div>`)}</div>
-            <div class="card stack"><h2>Домашние задания</h2>${list(r.homework, 'В выбранном периоде ДЗ нет.', x => `<div class="item"><div><strong>${safe(x.name)}</strong><small>Назначено ${safe(date(x.assignedAt))} · до ${safe(date(x.deadlineAt))}</small></div><span class="pill ${x.isSubmitted ? '' : 'warn'}">${x.scorePercent == null ? x.isSubmitted ? 'Сдано · без балла' : 'Не сдано' : percent(x.scorePercent)}</span></div>`)}</div>
+            <div class="card stack"><h2>Домашние задания</h2>${list(r.homework, 'В выбранном периоде ДЗ нет.', x => `<div class="item"><div><strong>${safe(x.name || 'Домашняя работа')}</strong><small>${x.source === 'native' ? 'Встроенное ДЗ' : 'Из каталога'} · назначено ${safe(date(x.assignedAt))} · до ${safe(date(x.deadlineAt))}</small>${x.source === 'native' && x.teacherFeedback ? `<small style="white-space:pre-wrap">Комментарий: ${safe(x.teacherFeedback)}</small>` : ''}</div><span class="pill ${x.isSubmitted ? '' : 'warn'}">${x.scorePercent == null ? x.isSubmitted ? 'Сдано · без балла' : 'Не сдано' : percent(x.scorePercent)}</span></div>`)}</div>
             <div class="card stack"><h2>Лучшие попытки тестов</h2>${list(r.tests, 'В выбранном периоде тестов нет.', x => `<div class="item"><div><strong>${safe(x.topic || x.testId)}</strong><small>${safe(x.at)} · задание ${safe(x.taskNumber)}</small></div><span class="pill">${percent(x.percent)}</span></div>`)}</div>
             <div class="card stack"><h2>Пробники</h2>${list(r.mocks, 'В выбранном периоде пробников нет.', x => `<div class="item"><div><strong>${safe(x.variantName)}</strong><small>${safe(x.mockDate)} · первичные ${safe(x.primaryScore)}/${safe(x.maxPrimaryScore)}</small></div><span class="pill">${percent(x.scorePercent)}</span></div>`)}</div>
           </div>`;
