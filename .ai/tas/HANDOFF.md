@@ -4,11 +4,11 @@
 **STATE_UPDATED:** 2026-11-13
 **CURRENT_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — 3 outcomes, not historical Mxx TODO queue
 **ACTIVE_RESULT:** 1 — рабочий кабинет преподавателя
-**ACTIVE_TASK:** Result 1 — native homework due/overdue/submitted timing visible in teacher, learner and report
-**ACTIVE_BRANCH:** tas/cabinet-homework-deadlines
-**LAST_PROGRESS_COMMIT:** `80daa213281c7524275b889f94d7d546f412a717` ([PR #41](https://github.com/Arthur200014/testing-hosting/pull/41))
-**NEXT_ACTION:** Verify synthetic Node and Chromium deadline scenarios for this branch and merge when PASS; continue Result 1 by evaluating whether editing mistaken lessons is needed. Keep last-eight-lessons report and 80/20 unchanged, do not change late-submission permission, manage/GAS or live data.
-**VERIFICATION:** [PR #41](https://github.com/Arthur200014/testing-hosting/pull/41) student profile edit merged. [Chromium PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43483691477), [PostgreSQL integration PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43483691480), [backend gate PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43483691523). Production edit/deploy NOT_VERIFIED; no live student data touched. Prior PR #40 verified.
+**ACTIVE_TASK:** Result 1 — native homework deadline/status completed; next: assess and implement safe correction of lessons if missing
+**ACTIVE_BRANCH:** none (PR #42 merged)
+**LAST_PROGRESS_COMMIT:** `786430ff161bac678ea13dc02932090fae0667d4` ([PR #42](https://github.com/Arthur200014/testing-hosting/pull/42))
+**NEXT_ACTION:** Result 1: inspect existing lesson write/read contracts and add safe correction of erroneous lesson attendance/topic/time only if not already implemented; preserve paired lessons, history, subscriptions and homework, workspace protection, and explicit optimistic conflict. Use focused synthetic regression tests. Do not alter live data or legacy manage/GAS. After that assess whether any other genuine daily-workflow blockers remain before moving to Result 2 performance/E2E.
+**VERIFICATION:** [PR #42](https://github.com/Arthur200014/testing-hosting/pull/42) homework deadlines merged: [Chromium + Node PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43487940944), [PostgreSQL integration PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43487940976), [backend gate PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43487941000). No migration, no server writes beyond synthetic tests. Production deployment/late-submission NOT_VERIFIED. Prior PR #41 verified.
 
 ## Non-negotiable context
 - Existing Timeweb **App Platform** deployment with private managed PostgreSQL; do not create VPS/Compose infrastructure, re-import owner-confirmed students/homework/lessons or request manual migration after code deploy.
