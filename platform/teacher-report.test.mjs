@@ -102,7 +102,8 @@ test('native graded and ungraded submissions join the period without double-coun
   assert.equal(report.testAveragePercent, 80);
   assert.equal(report.progressPercent, 76); // (60 + 90) / 2 * .8 + 80 * .2
   const overviewItems = collectTeacherHomework(data);
-  assert.equal(overviewItems.filter(x => !x.isSubmitted).length, 4);
+  assert.equal(overviewItems.find(x => x.id === 'old').isSubmitted, true); // legacy 0% is a known grade
+  assert.equal(overviewItems.filter(x => !x.isSubmitted).length, 3);
   assert.equal(overviewItems.filter(x => x.source === 'native' && !x.isSubmitted).length, 3);
 });
 
