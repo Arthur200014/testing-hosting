@@ -4,11 +4,11 @@
 **STATE_UPDATED:** 2026-11-13
 **CURRENT_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — 3 outcomes, not historical Mxx TODO queue
 **ACTIVE_RESULT:** 1 — рабочий кабинет преподавателя
-**ACTIVE_TASK:** сохранить уже загруженные данные при обновлении вкладок (stale-while-refresh); обновить и закрепить дорожную карту, затем закрывать реальные пробелы кабинета по целым сценариям
-**ACTIVE_BRANCH:** tas/release-three-milestones
-**LAST_PROGRESS_COMMIT:** `8992783` (PR #39 merged; this branch starts from main)
-**NEXT_ACTION:** verify targeted `platform/teacher-data.test.mjs` and existing synthetic browser test, merge this branch if PASS. Then implement missing existing-student profile editing in teacher API+UI as part of Result 1, with focused tenant/validation tests; do not create separate tiny M04 IDs.
-**VERIFICATION:** PR #39 native homework report/overview [Chromium+Node PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43477495742), [backend gate PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43477495851), [PostgreSQL PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43477495816). New cache improvement PENDING on this branch.
+**ACTIVE_TASK:** первый результат — довести кабинет до полного повседневного использования; next gap: безопасное редактирование существующего профиля ученика из teacher UI
+**ACTIVE_BRANCH:** none (PR #40 merged)
+**LAST_PROGRESS_COMMIT:** `cc455d435694de598e616cc8f7a8bdac49d2347b` ([PR #40](https://github.com/Arthur200014/testing-hosting/pull/40))
+**NEXT_ACTION:** Implement existing-student profile editing in teacher API+UI as part of Result 1, with focused tenant isolation / validation tests. Keep work in one coherent feature slice; avoid starting more M04-xx. No real student writes without owner authorization.
+**VERIFICATION:** PR #40 three-result plan and stale data refresh [Chromium+Node PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43482385536), [backend gate PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43482385473), [PostgreSQL PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43482385655). Production effect NOT_VERIFIED; previous PR #39 checks PASS.
 
 ## Non-negotiable context
 - Existing Timeweb **App Platform** deployment with private managed PostgreSQL; do not create VPS/Compose infrastructure, re-import owner-confirmed students/homework/lessons or request manual migration after code deploy.
