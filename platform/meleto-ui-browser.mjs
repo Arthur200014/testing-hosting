@@ -18,6 +18,7 @@ const lessons = students.slice(0, 2).map((student, index) => ({
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1348, height: 926 }, deviceScaleFactor: 1 });
+page.on('pageerror', error => console.error('UI PAGE ERROR:', error.stack));
 let unexpectedWrites = 0;
 let classWrites = 0;
 let classEdits = 0;
