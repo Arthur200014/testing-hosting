@@ -9,6 +9,7 @@ using TestingHosting.Platform.IdentityAccess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using TestingHosting.Platform.Configuration;
+using TestingHosting.Platform.Classes;
 using TestingHosting.Platform.Homework;
 using TestingHosting.Platform.Lessons;
 using TestingHosting.Platform.Persistence;
@@ -42,6 +43,7 @@ builder.Services.AddScoped<TeacherStudentCreator>();
 builder.Services.AddScoped<TeacherStudentArchiver>();
 builder.Services.AddScoped<TeacherStudentEditor>();
 builder.Services.AddScoped<TeacherResultsReader>();
+builder.Services.AddScoped<TeacherClassService>();
 builder.Services.AddSingleton<IPasswordHasher<TeacherUser>, PasswordHasher<TeacherUser>>();
 builder.Services.AddSingleton<TeacherTokenIssuer>();
 builder.Services.AddScoped<IAuthorizationHandler, ActiveTeacherSessionHandler>();
@@ -203,6 +205,32 @@ app.MapGet("/api/v1/teacher/students", async (
 {
     var workspaceId = Guid.Parse(principal.FindFirstValue("workspace_id")!);
     return Results.Ok(await directory.ListAsync(workspaceId, cancellationToken));
+}).RequireAuthorization("teacher");
+
+app.MapGet("/api/v1/teacher/classes", async (
+    ClaimsPrincipal principal, TeacherClassService classes, CancellationToken cancellationToken) =>
+{
+    var workspaceId = Guid.Parse(principal.FindFirstValue("workspace_id")!);
+    return Results.Ok(await classes.ListAsync(workspaceId, cancellationToken));
+}).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/classes", async (
+    TeacherCreateClassRequest request, ClaimsPrincipal principal,
+    TeacherClassService classes, CancellationToken cancellationToken) =>
+{
+    var result = await classes.CreateAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), request, cancellationToken);
+    return result.Status switch
+    {
+        TeacherCreateClassStatus.Created => Results.Created(
+            $"/api/v1/teacher/classes/{result.Response!.Id}", result.Response),
+        TeacherCreateClassStatus.Duplicate => Results.Ok(result.Response),
+        TeacherCreateClassStatus.Conflict => Results.Problem(statusCode: 409,
+            title: "The request ID is already associated with a different class."),
+        TeacherCreateClassStatus.MembershipNotFound => Results.NotFound(),
+        TeacherCreateClassStatus.InvalidRequest => Results.ValidationProblem(result.Errors!),
+        _ => throw new InvalidOperationException("Unknown teacher class create result.")
+    };
 }).RequireAuthorization("teacher");
 
 app.MapPost("/api/v1/teacher/students", async (

@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using TestingHosting.Platform.Classes;
 using TestingHosting.Platform.IdentityAccess;
 using TestingHosting.Platform.Homework;
 using TestingHosting.Platform.Lessons;
@@ -23,6 +24,52 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
 {
     private const string Password = "Synthetic-Teacher-Password-Only-123!";
     private const string ClaimCode = "synthetic-claim-code-for-integration-tests-only-2026";
+
+    [Fact]
+    public async Task IndividualClassesPersistAndAreTenantScopedAndIdempotent()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "class-north", "class-north@example.invalid", "owner");
+        var south = await SeedAsync(factory, "class-south", "class-south@example.invalid", "owner");
+        var northStudent = await SeedStudentAsync(factory, north.WorkspaceId, "North learner", true);
+        var southStudent = await SeedStudentAsync(factory, south.WorkspaceId, "South learner", true);
+
+        using var client = factory.CreateClient();
+        var northLogin = (await (await LoginAsync(client, "class-north", "class-north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", northLogin.AccessToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsJsonAsync("/api/v1/teacher/classes",
+                new TeacherCreateClassRequest(Guid.Empty, Guid.Empty, " "))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync("/api/v1/teacher/classes",
+                new TeacherCreateClassRequest(Guid.NewGuid(), southStudent, "Foreign"))).StatusCode);
+
+        var request = new TeacherCreateClassRequest(Guid.NewGuid(), northStudent, "  ЕГЭ 2027  ");
+        var createdResponse = await client.PostAsJsonAsync("/api/v1/teacher/classes", request);
+        Assert.Equal(HttpStatusCode.Created, createdResponse.StatusCode);
+        var created = (await createdResponse.Content.ReadFromJsonAsync<TeacherClassView>())!;
+        Assert.Equal("ЕГЭ 2027", created.Title);
+        Assert.Equal(northStudent, created.StudentMembershipId);
+        Assert.Equal("individual", created.Kind);
+
+        var replay = await client.PostAsJsonAsync("/api/v1/teacher/classes", request);
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        Assert.Equal(created.Id, (await replay.Content.ReadFromJsonAsync<TeacherClassView>())!.Id);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync("/api/v1/teacher/classes", request with { Title = "Other" })).StatusCode);
+        Assert.Equal(created.Id,
+            Assert.Single((await client.GetFromJsonAsync<List<TeacherClassView>>("/api/v1/teacher/classes"))!).Id);
+
+        var southLogin = (await (await LoginAsync(client, "class-south", "class-south@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", southLogin.AccessToken);
+        Assert.Empty((await client.GetFromJsonAsync<List<TeacherClassView>>("/api/v1/teacher/classes"))!);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync("/api/v1/teacher/classes",
+                new TeacherCreateClassRequest(Guid.NewGuid(), northStudent, "North from south"))).StatusCode);
+    }
 
     [Fact]
     public async Task NativeHomeworkIsTenantScopedAndTextAnswerIsIdempotentWithoutInventedScore()
