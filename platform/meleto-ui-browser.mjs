@@ -173,6 +173,7 @@ try {
   await form.locator('[name="priceBasis"]').selectOption('month');
   await form.locator('[name="allowLessonChat"]').check();
   await form.locator('[name="allowPrivateMessages"]').check();
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: output + '/03_individual_create.png' });
   await form.locator('.class-create-actions').scrollIntoViewIfNeeded();
   await page.screenshot({ path: output + '/04_individual_settings.png' });
@@ -276,6 +277,7 @@ try {
   await codeField.waitFor();
   assert.equal(await codeField.textContent(), syntheticInviteCode);
   assert.equal(inviteWrites, 1);
+  await codeField.scrollIntoViewIfNeeded();
   await page.screenshot({ path: output + '/03_class_cover_invite.png' });
 
   await page.reload();
