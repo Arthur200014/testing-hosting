@@ -88,6 +88,11 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id });
             entity.Property(x => x.Title).HasMaxLength(200);
             entity.Property(x => x.Description).HasMaxLength(200);
+            entity.Property(x => x.PriceAmount).HasPrecision(12, 2);
+            entity.Property(x => x.PriceCurrency).HasMaxLength(3);
+            entity.Property(x => x.PriceBasis).HasMaxLength(16);
+            entity.Property(x => x.AllowLessonChat).HasDefaultValue(false);
+            entity.Property(x => x.AllowPrivateMessages).HasDefaultValue(false);
             entity.Property(x => x.Kind).HasMaxLength(32);
             entity.HasIndex(x => new { x.WorkspaceId, x.RequestId }).IsUnique();
             entity.HasIndex(x => new { x.WorkspaceId, x.StudentMembershipId, x.StudentId });
@@ -101,6 +106,12 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             {
                 table.HasCheckConstraint("CK_TeacherClasses_Title_NotEmpty", "length(\"Title\") > 0");
                 table.HasCheckConstraint("CK_TeacherClasses_Kind", "\"Kind\" = 'individual'");
+                table.HasCheckConstraint("CK_TeacherClasses_Duration",
+                    "\"DurationMinutes\" IS NULL OR (\"DurationMinutes\" BETWEEN 15 AND 240 AND \"DurationMinutes\" % 5 = 0)");
+                table.HasCheckConstraint("CK_TeacherClasses_Price",
+                    "(\"PriceAmount\" IS NULL AND \"PriceCurrency\" IS NULL AND \"PriceBasis\" IS NULL) OR " +
+                    "(\"PriceAmount\" BETWEEN 0 AND 10000000 AND \"PriceCurrency\" IN ('RUB', 'EUR', 'USD') " +
+                    "AND \"PriceBasis\" IN ('lesson', 'month'))");
             });
         });
 
