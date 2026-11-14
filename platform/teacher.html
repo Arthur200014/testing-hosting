@@ -194,6 +194,15 @@
     .class-create textarea { resize: vertical; min-height: 96px; }
     .class-create-actions { display: flex; gap: 10px; padding-top: 16px; border-top: 1px solid #e5e6ee; }
     .class-create-actions .secondary { order: 1; }
+    .class-settings { display: grid; gap: 14px; padding: 20px 0; border-top: 1px solid #e6e7ee; }
+    .class-settings h3 { color: #292a43; font-size: 1rem; }
+    .class-switch { display: flex; align-items: center; gap: 11px; cursor: pointer; color: #303149; font-weight: 600; }
+    .class-switch input { width: 17px; height: 17px; accent-color: #7564ed; flex: 0 0 auto; }
+    .class-switch span { color: inherit; }
+    .class-setting-options { padding-left: 28px; }
+    .class-setting-note { font-size: .8rem; color: #77798b; line-height: 1.4; }
+    .class-create-actions { position: sticky; bottom: 0; z-index: 2; background: #fff; padding-bottom: 10px; }
+    .class-create input:disabled, .class-create select:disabled { opacity: .6; }
     @media (max-width: 1100px) {
       .four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .classes-layout { grid-template-columns: 1fr; }
@@ -442,7 +451,13 @@
             <div class="card stack"><div class="section-head"><h2>Последние занятия</h2><span class="muted small">${lessons.length}</span></div>
               ${list(lessons.slice(0, 5), 'Занятий пока нет.', x => `<div class="item"><div><strong>${safe(date(x.lessonAt))}</strong><small>${safe(x.participants?.find(p => p.membershipId === item.studentMembershipId)?.topicComment || 'Тема не указана')}</small></div></div>`)}
             </div>
-            <div class="card stack"><h2>Об обучении</h2><p><span class="muted">Ученик:</span> ${safe(item.student.studentName)}</p><p><span class="muted">Программа:</span> ${safe(item.student.programName)}</p><p><span class="muted">Цель:</span> ${safe(item.student.targetScore || item.student.targetGrade || 'не указана')}</p></div>
+            <div class="card stack"><h2>Об обучении</h2><p><span class="muted">Ученик:</span> ${safe(item.student.studentName)}</p><p><span class="muted">Программа:</span> ${safe(item.student.programName)}</p><p><span class="muted">Цель:</span> ${safe(item.student.targetScore || item.student.targetGrade || 'не указана')}</p>
+              <h3>Настройки класса</h3>
+              <p><span class="muted">Длительность:</span> ${item.durationMinutes ? safe(item.durationMinutes) + ' мин' : 'не задана'}</p>
+              <p><span class="muted">Стоимость (условие):</span> ${item.priceAmount != null ? safe(Number(item.priceAmount).toLocaleString('ru-RU', { maximumFractionDigits: 2 })) + ' ' + safe(item.priceCurrency) + ' / ' + (item.priceBasis === 'month' ? 'месяц' : 'занятие') : 'не задана'}</p>
+              <p><span class="muted">Чат занятия:</span> ${item.allowLessonChat ? 'разрешён в настройках' : 'запрещён'}</p>
+              <p><span class="muted">Личные сообщения:</span> ${item.allowPrivateMessages ? 'разрешены в настройках' : 'запрещены'}</p>
+              <p class="muted small">Оплата и чаты пока не подключены: здесь сохранены только параметры класса.</p></div>
           </div>
         </div>${learningModal()}`;
       }
@@ -455,7 +470,33 @@
               <label class="class-field"><span class="class-field-head"><span>Название класса</span><span class="class-count" data-char-count>0 / 50</span></span><input name="title" maxlength="50" required placeholder="Название класса" autocomplete="off"></label>
               <label class="class-field"><span class="class-field-head"><span>Описание</span><span class="class-count" data-char-count>0 / 200</span></span><textarea name="description" maxlength="200" rows="4" placeholder="Краткое описание обучения (необязательно)"></textarea></label>
               <label><span>Ученик</span><select name="studentMembershipId" required>${choices}</select></label>
-              <p class="muted small">На этом шаге сохраняются название, описание и участник. Приглашение, обложка и настройки занятия будут добавлены позже.</p>
+              <section class="class-settings" data-settings>
+                <h3>Длительность</h3>
+                <label class="class-switch"><input type="checkbox" name="durationEnabled" data-settings-toggle="duration"><span>Установить длительность занятия</span></label>
+                <div class="class-setting-options" data-settings-group="duration" hidden>
+                  <label><span>Минут на занятие</span><input name="durationMinutes" type="number" value="60" min="15" max="240" step="5" required disabled></label>
+                  <p class="class-setting-note">От 15 до 240 минут, шаг 5 минут. Занятия не создаются автоматически.</p>
+                </div>
+              </section>
+              <section class="class-settings">
+                <h3>Стоимость</h3>
+                <label class="class-switch"><input type="checkbox" name="priceEnabled" data-settings-toggle="price"><span>Указать стоимость обучения</span></label>
+                <div class="class-setting-options" data-settings-group="price" hidden>
+                  <div class="form-row three">
+                    <label><span>Сумма</span><input type="number" name="priceAmount" min="0" max="10000000" step="0.01" value="0" required disabled></label>
+                    <label><span>Валюта</span><select name="priceCurrency" disabled><option value="RUB">RUB — ₽</option><option value="EUR">EUR — €</option><option value="USD">USD — $</option></select></label>
+                    <label><span>Основание</span><select name="priceBasis" disabled><option value="lesson">За занятие</option><option value="month">За месяц</option></select></label>
+                  </div>
+                  <p class="class-setting-note">Это условие обучения, не счёт и не операция оплаты.</p>
+                </div>
+              </section>
+              <section class="class-settings">
+                <h3>Настройки чата</h3>
+                <label class="class-switch"><input type="checkbox" name="allowLessonChat"><span>Разрешить чат занятия</span></label>
+                <label class="class-switch"><input type="checkbox" name="allowPrivateMessages"><span>Разрешить личные сообщения</span></label>
+                <p class="class-setting-note">Параметры сохраняются сейчас, но заработают только после подключения чатов на этапе UI-06.</p>
+              </section>
+              <p class="muted small">Класс сохраняется целиком. При отмене ни класс, ни занятия, ни счета не создаются. Приглашение и обложка — следующие функции UI-02.</p>
               <div class="class-create-actions"><button class="primary" type="submit" ${students.length ? '' : 'disabled'}>Создать</button><button class="secondary" type="button" data-cancel-class>Отменить</button></div>
             </form>${students.length ? '' : '<p class="muted small">Сначала добавьте активного ученика.</p>'}</div></section>`;
       }
@@ -777,6 +818,15 @@
         }
       });
       $('content').addEventListener('change', event => {
+        const toggle = event.target;
+        if (toggle.matches('#classForm [data-settings-toggle]')) {
+          const group = toggle.form.querySelector('[data-settings-group="' + toggle.dataset.settingsToggle + '"]');
+          if (group) {
+            group.hidden = !toggle.checked;
+            for (const field of group.querySelectorAll('input, select')) field.disabled = !toggle.checked;
+          }
+          return;
+        }
         if (event.target.id === 'resultStudent') { state.resultStudent = event.target.value; render(); }
         if (event.target.id === 'reportStudent') { state.reportStudent = event.target.value; render(); }
         if (event.target.matches('#subscriptionForm select[name="membershipId"]')) {
@@ -881,7 +931,13 @@
           await mutation('class', 'classes', () => ({
             title: formValue(form, 'title'),
             description: formValue(form, 'description'),
-            studentMembershipId: formValue(form, 'studentMembershipId')
+            studentMembershipId: formValue(form, 'studentMembershipId'),
+            durationMinutes: form.elements.durationEnabled.checked ? Number(formValue(form, 'durationMinutes')) : null,
+            priceAmount: form.elements.priceEnabled.checked ? Number(formValue(form, 'priceAmount')) : null,
+            priceCurrency: form.elements.priceEnabled.checked ? formValue(form, 'priceCurrency') : null,
+            priceBasis: form.elements.priceEnabled.checked ? formValue(form, 'priceBasis') : null,
+            allowLessonChat: form.elements.allowLessonChat.checked,
+            allowPrivateMessages: form.elements.allowPrivateMessages.checked
           }));
           state.classCreate = false;
           state.selectedClass = '';

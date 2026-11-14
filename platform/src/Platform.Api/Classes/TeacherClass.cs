@@ -12,6 +12,13 @@ public sealed class TeacherClass
     public Guid StudentId { get; set; }
     public required string Title { get; set; }
     public string Description { get; set; } = string.Empty;
+    // Preferences only; do not create lessons, invoices or chat sessions.
+    public int? DurationMinutes { get; set; }
+    public decimal? PriceAmount { get; set; }
+    public string? PriceCurrency { get; set; }
+    public string? PriceBasis { get; set; }
+    public bool AllowLessonChat { get; set; }
+    public bool AllowPrivateMessages { get; set; }
     public string Kind { get; set; } = "individual";
     public bool IsArchived { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;

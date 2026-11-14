@@ -53,12 +53,37 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
             (await client.PostAsJsonAsync("/api/v1/teacher/classes",
                 new TeacherCreateClassRequest(Guid.NewGuid(), northStudent, "Valid title", new string('Y', 201)))).StatusCode);
 
-        var request = new TeacherCreateClassRequest(Guid.NewGuid(), northStudent, "  ЕГЭ 2027  ", "  Описание класса  ");
+        // No database writes for invalid duration, price precision, currency or basis.
+        foreach (var invalid in new[]
+        {
+            new TeacherCreateClassRequest(Guid.NewGuid(), northStudent, "Invalid", DurationMinutes: 14),
+            new TeacherCreateClassRequest(Guid.NewGuid(), northStudent, "Invalid", DurationMinutes: 61),
+            new TeacherCreateClassRequest(Guid.NewGuid(), northStudent, "Invalid", DurationMinutes: 245),
+            new TeacherCreateClassRequest(Guid.NewGuid(), northStudent, "Invalid", PriceAmount: -1m, PriceCurrency: "RUB", PriceBasis: "lesson"),
+            new TeacherCreateClassRequest(Guid.NewGuid(), northStudent, "Invalid", PriceAmount: 1.001m, PriceCurrency: "RUB", PriceBasis: "lesson"),
+            new TeacherCreateClassRequest(Guid.NewGuid(), northStudent, "Invalid", PriceAmount: 10000000.01m, PriceCurrency: "RUB", PriceBasis: "lesson"),
+            new TeacherCreateClassRequest(Guid.NewGuid(), northStudent, "Invalid", PriceAmount: 100m, PriceCurrency: "GBP", PriceBasis: "lesson"),
+            new TeacherCreateClassRequest(Guid.NewGuid(), northStudent, "Invalid", PriceAmount: 100m, PriceCurrency: "RUB", PriceBasis: "week"),
+            new TeacherCreateClassRequest(Guid.NewGuid(), northStudent, "Invalid", PriceCurrency: "RUB")
+        })
+            Assert.Equal(HttpStatusCode.BadRequest,
+                (await client.PostAsJsonAsync("/api/v1/teacher/classes", invalid)).StatusCode);
+
+        var request = new TeacherCreateClassRequest(
+            Guid.NewGuid(), northStudent, "  ЕГЭ 2027  ", "  Описание класса  ",
+            DurationMinutes: 90, PriceAmount: 1750.50m, PriceCurrency: "rub",
+            PriceBasis: "MONTH", AllowLessonChat: true, AllowPrivateMessages: true);
         var createdResponse = await client.PostAsJsonAsync("/api/v1/teacher/classes", request);
         Assert.Equal(HttpStatusCode.Created, createdResponse.StatusCode);
         var created = (await createdResponse.Content.ReadFromJsonAsync<TeacherClassView>())!;
         Assert.Equal("ЕГЭ 2027", created.Title);
         Assert.Equal("Описание класса", created.Description);
+        Assert.Equal(90, created.DurationMinutes);
+        Assert.Equal(1750.50m, created.PriceAmount);
+        Assert.Equal("RUB", created.PriceCurrency);
+        Assert.Equal("month", created.PriceBasis);
+        Assert.True(created.AllowLessonChat);
+        Assert.True(created.AllowPrivateMessages);
         Assert.Equal(northStudent, created.StudentMembershipId);
         Assert.Equal("individual", created.Kind);
 
@@ -67,13 +92,38 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         var replayed = (await replay.Content.ReadFromJsonAsync<TeacherClassView>())!;
         Assert.Equal(created.Id, replayed.Id);
         Assert.Equal("Описание класса", replayed.Description);
+        Assert.Equal(created.DurationMinutes, replayed.DurationMinutes);
+        Assert.Equal(created.PriceAmount, replayed.PriceAmount);
+        Assert.True(replayed.AllowLessonChat);
         Assert.Equal(HttpStatusCode.Conflict,
             (await client.PostAsJsonAsync("/api/v1/teacher/classes", request with { Title = "Other" })).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict,
             (await client.PostAsJsonAsync("/api/v1/teacher/classes", request with { Description = "Другое описание" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync("/api/v1/teacher/classes", request with { DurationMinutes = 95 })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync("/api/v1/teacher/classes", request with { PriceAmount = 1900m })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync("/api/v1/teacher/classes", request with { AllowLessonChat = false })).StatusCode);
         var listed = Assert.Single((await client.GetFromJsonAsync<List<TeacherClassView>>("/api/v1/teacher/classes"))!);
         Assert.Equal(created.Id, listed.Id);
         Assert.Equal("Описание класса", listed.Description);
+        Assert.Equal(90, listed.DurationMinutes);
+        Assert.Equal(1750.50m, listed.PriceAmount);
+        Assert.True(listed.AllowLessonChat);
+        Assert.True(listed.AllowPrivateMessages);
+
+        // Old callers can omit all optional settings; absent settings stay null/false.
+        var defaultResponse = await client.PostAsJsonAsync("/api/v1/teacher/classes",
+            new TeacherCreateClassRequest(Guid.NewGuid(), northStudent, "Old client"));
+        Assert.Equal(HttpStatusCode.Created, defaultResponse.StatusCode);
+        var defaultClass = (await defaultResponse.Content.ReadFromJsonAsync<TeacherClassView>())!;
+        Assert.Null(defaultClass.DurationMinutes);
+        Assert.Null(defaultClass.PriceAmount);
+        Assert.Null(defaultClass.PriceCurrency);
+        Assert.Null(defaultClass.PriceBasis);
+        Assert.False(defaultClass.AllowLessonChat);
+        Assert.False(defaultClass.AllowPrivateMessages);
 
         var southLogin = (await (await LoginAsync(client, "class-south", "class-south@example.invalid", Password))
             .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;

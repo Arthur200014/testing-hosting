@@ -7,9 +7,14 @@ namespace TestingHosting.Platform.Classes;
 public sealed record TeacherClassView(
     Guid Id, string Title, string Description, string Kind, Guid StudentMembershipId,
     string StudentName, Guid ProgramId, string ProgramName,
-    bool IsArchived, DateTimeOffset CreatedAt);
+    bool IsArchived, DateTimeOffset CreatedAt,
+    int? DurationMinutes, decimal? PriceAmount, string? PriceCurrency, string? PriceBasis,
+    bool AllowLessonChat, bool AllowPrivateMessages);
 
-public sealed record TeacherCreateClassRequest(Guid RequestId, Guid StudentMembershipId, string? Title, string? Description = null);
+public sealed record TeacherCreateClassRequest(
+    Guid RequestId, Guid StudentMembershipId, string? Title, string? Description = null,
+    int? DurationMinutes = null, decimal? PriceAmount = null, string? PriceCurrency = null,
+    string? PriceBasis = null, bool AllowLessonChat = false, bool AllowPrivateMessages = false);
 
 public enum TeacherCreateClassStatus
 {
@@ -42,12 +47,31 @@ public sealed class TeacherClassService(PlatformDbContext db, TimeProvider clock
         var description = request.Description?.Trim() ?? string.Empty;
         if (description.Length > 200)
             errors["description"] = ["Description must not exceed 200 characters."];
+        if (request.DurationMinutes is int minutes && (minutes < 15 || minutes > 240 || minutes % 5 != 0))
+            errors["durationMinutes"] = ["Duration must be 15–240 minutes in 5-minute increments."];
+        var priceCurrency = string.IsNullOrWhiteSpace(request.PriceCurrency)
+            ? null : request.PriceCurrency.Trim().ToUpperInvariant();
+        var priceBasis = string.IsNullOrWhiteSpace(request.PriceBasis)
+            ? null : request.PriceBasis.Trim().ToLowerInvariant();
+        if (request.PriceAmount is decimal price)
+        {
+            if (price < 0 || price > 10000000m || price != decimal.Round(price, 2))
+                errors["priceAmount"] = ["Price must be between 0 and 10000000, with at most 2 decimal places."];
+            if (priceCurrency is not ("RUB" or "EUR" or "USD"))
+                errors["priceCurrency"] = ["Select RUB, EUR or USD."];
+            if (priceBasis is not ("lesson" or "month"))
+                errors["priceBasis"] = ["Select lesson or month."];
+        }
+        else if (priceCurrency is not null || priceBasis is not null)
+            errors["priceAmount"] = ["Price amount is required when currency or basis is set."];
         if (errors.Count > 0)
             return new(TeacherCreateClassStatus.InvalidRequest, Errors: errors);
 
         var existing = await FindByRequestAsync(workspaceId, request.RequestId, cancellationToken);
         if (existing is not null)
-            return Compare(existing, request.StudentMembershipId, title!, description);
+            return Compare(existing, request.StudentMembershipId, title!, description,
+                request.DurationMinutes, request.PriceAmount, priceCurrency, priceBasis,
+                request.AllowLessonChat, request.AllowPrivateMessages);
 
         var member = await db.WorkspaceStudentMemberships.AsNoTracking()
             .Where(x => x.WorkspaceId == workspaceId && x.Id == request.StudentMembershipId &&
@@ -62,6 +86,9 @@ public sealed class TeacherClassService(PlatformDbContext db, TimeProvider clock
             Id = Guid.NewGuid(), WorkspaceId = workspaceId, RequestId = request.RequestId,
             StudentMembershipId = request.StudentMembershipId, StudentId = member.StudentId,
             Title = title!, Description = description,
+            DurationMinutes = request.DurationMinutes, PriceAmount = request.PriceAmount,
+            PriceCurrency = priceCurrency, PriceBasis = priceBasis,
+            AllowLessonChat = request.AllowLessonChat, AllowPrivateMessages = request.AllowPrivateMessages,
             CreatedAt = clock.GetUtcNow()
         };
         db.TeacherClasses.Add(item);
@@ -77,7 +104,9 @@ public sealed class TeacherClassService(PlatformDbContext db, TimeProvider clock
             db.ChangeTracker.Clear();
             var winner = await FindByRequestAsync(workspaceId, request.RequestId, cancellationToken);
             if (winner is null) throw;
-            return Compare(winner, request.StudentMembershipId, title!, description);
+            return Compare(winner, request.StudentMembershipId, title!, description,
+                request.DurationMinutes, request.PriceAmount, priceCurrency, priceBasis,
+                request.AllowLessonChat, request.AllowPrivateMessages);
         }
 
         var created = await FindByRequestAsync(workspaceId, request.RequestId, cancellationToken)
@@ -97,18 +126,27 @@ public sealed class TeacherClassService(PlatformDbContext db, TimeProvider clock
         classes.Select(x => new TeacherClassView(
             x.Id, x.Title, x.Description, x.Kind, x.StudentMembershipId,
             x.StudentMembership.Student.DisplayName, x.StudentMembership.ProgramId,
-            x.StudentMembership.Program.DisplayName, x.IsArchived, x.CreatedAt));
+            x.StudentMembership.Program.DisplayName, x.IsArchived, x.CreatedAt,
+            x.DurationMinutes, x.PriceAmount, x.PriceCurrency, x.PriceBasis,
+            x.AllowLessonChat, x.AllowPrivateMessages));
 
     private static TeacherClassView ToView(TeacherClass item) => new(
         item.Id, item.Title, item.Description, item.Kind, item.StudentMembershipId,
         item.StudentMembership.Student.DisplayName, item.StudentMembership.ProgramId,
-        item.StudentMembership.Program.DisplayName, item.IsArchived, item.CreatedAt);
+        item.StudentMembership.Program.DisplayName, item.IsArchived, item.CreatedAt,
+        item.DurationMinutes, item.PriceAmount, item.PriceCurrency, item.PriceBasis,
+        item.AllowLessonChat, item.AllowPrivateMessages);
 
     private static TeacherCreateClassResult Compare(
-        TeacherClass existing, Guid studentMembershipId, string title, string description) =>
+        TeacherClass existing, Guid studentMembershipId, string title, string description,
+        int? durationMinutes, decimal? priceAmount, string? priceCurrency, string? priceBasis,
+        bool allowLessonChat, bool allowPrivateMessages) =>
         existing.Kind == "individual" && !existing.IsArchived &&
         existing.StudentMembershipId == studentMembershipId && existing.Title == title &&
-        existing.Description == description
+        existing.Description == description && existing.DurationMinutes == durationMinutes &&
+        existing.PriceAmount == priceAmount && existing.PriceCurrency == priceCurrency &&
+        existing.PriceBasis == priceBasis && existing.AllowLessonChat == allowLessonChat &&
+        existing.AllowPrivateMessages == allowPrivateMessages
             ? new(TeacherCreateClassStatus.Duplicate, ToView(existing))
             : new(TeacherCreateClassStatus.Conflict);
 }

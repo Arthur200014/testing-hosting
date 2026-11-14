@@ -26,10 +26,16 @@ namespace TestingHosting.Platform.Persistence.Migrations
             modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherClass", b =>
                 {
                     b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<bool>("AllowLessonChat").ValueGeneratedOnAdd().HasColumnType("boolean").HasDefaultValue(false);
+                    b.Property<bool>("AllowPrivateMessages").ValueGeneratedOnAdd().HasColumnType("boolean").HasDefaultValue(false);
                     b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
                     b.Property<string>("Description").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                    b.Property<int?>("DurationMinutes").HasColumnType("integer");
                     b.Property<bool>("IsArchived").HasColumnType("boolean");
                     b.Property<string>("Kind").IsRequired().HasMaxLength(32).HasColumnType("character varying(32)");
+                    b.Property<decimal?>("PriceAmount").HasPrecision(12, 2).HasColumnType("numeric(12,2)");
+                    b.Property<string>("PriceBasis").HasMaxLength(16).HasColumnType("character varying(16)");
+                    b.Property<string>("PriceCurrency").HasMaxLength(3).HasColumnType("character varying(3)");
                     b.Property<Guid>("RequestId").HasColumnType("uuid");
                     b.Property<Guid>("StudentMembershipId").HasColumnType("uuid");
                     b.Property<Guid>("StudentId").HasColumnType("uuid");
@@ -41,7 +47,9 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     b.HasIndex("WorkspaceId", "StudentMembershipId", "StudentId");
                     b.ToTable("TeacherClasses", "platform", t =>
                         {
+                            t.HasCheckConstraint("CK_TeacherClasses_Duration", "\"DurationMinutes\" IS NULL OR (\"DurationMinutes\" BETWEEN 15 AND 240 AND \"DurationMinutes\" % 5 = 0)");
                             t.HasCheckConstraint("CK_TeacherClasses_Kind", "\"Kind\" = 'individual'");
+                            t.HasCheckConstraint("CK_TeacherClasses_Price", "(\"PriceAmount\" IS NULL AND \"PriceCurrency\" IS NULL AND \"PriceBasis\" IS NULL) OR (\"PriceAmount\" BETWEEN 0 AND 10000000 AND \"PriceCurrency\" IN ('RUB', 'EUR', 'USD') AND \"PriceBasis\" IN ('lesson', 'month'))");
                             t.HasCheckConstraint("CK_TeacherClasses_Title_NotEmpty", "length(\"Title\") > 0");
                         });
                 });
