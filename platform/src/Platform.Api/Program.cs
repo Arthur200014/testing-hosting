@@ -44,6 +44,7 @@ builder.Services.AddScoped<TeacherStudentArchiver>();
 builder.Services.AddScoped<TeacherStudentEditor>();
 builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddScoped<TeacherClassService>();
+builder.Services.AddScoped<TeacherClassInvitationService>();
 builder.Services.AddSingleton<IPasswordHasher<TeacherUser>, PasswordHasher<TeacherUser>>();
 builder.Services.AddSingleton<TeacherTokenIssuer>();
 builder.Services.AddScoped<IAuthorizationHandler, ActiveTeacherSessionHandler>();
@@ -284,6 +285,58 @@ app.MapPost("/api/v1/teacher/classes/{classId:guid}/restore", async (
         _ => throw new InvalidOperationException("Unexpected class restore result.")
     };
 }).RequireAuthorization("teacher");
+
+
+app.MapPost("/api/v1/teacher/classes/{classId:guid}/invitation", async (
+    Guid classId, TeacherClassRevisionRequest request, ClaimsPrincipal principal,
+    TeacherClassInvitationService invitations, CancellationToken ct) =>
+{
+    var result = await invitations.IssueAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), classId, request.ExpectedRevision, ct);
+    return result.Status switch
+    {
+        ClassInviteStatus.Created => Results.Ok(result.Response),
+        ClassInviteStatus.NotFound => Results.NotFound(),
+        ClassInviteStatus.Conflict => Results.Problem(statusCode: 409, title: "Class changed or archived."),
+        ClassInviteStatus.Invalid => Results.ValidationProblem(new Dictionary<string, string[]> { ["expectedRevision"] = ["Invalid revision."] }),
+        _ => throw new InvalidOperationException("Unexpected invitation issue result.")
+    };
+}).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/classes/{classId:guid}/invitation/revoke", async (
+    Guid classId, TeacherClassRevisionRequest request, ClaimsPrincipal principal,
+    TeacherClassInvitationService invitations, CancellationToken ct) =>
+{
+    var result = await invitations.RevokeAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), classId, request.ExpectedRevision, ct);
+    return result.Status switch
+    {
+        ClassInviteStatus.Updated => Results.Ok(result.Response),
+        ClassInviteStatus.NotFound => Results.NotFound(),
+        ClassInviteStatus.Conflict => Results.Problem(statusCode: 409, title: "Class changed or invitation unavailable."),
+        ClassInviteStatus.Invalid => Results.ValidationProblem(new Dictionary<string, string[]> { ["expectedRevision"] = ["Invalid revision."] }),
+        _ => throw new InvalidOperationException("Unexpected invitation revoke result.")
+    };
+}).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/student/classes/invitations/accept", async (
+    AcceptClassInvitationRequest request, ClaimsPrincipal principal,
+    TeacherClassInvitationService invitations, CancellationToken ct) =>
+{
+    var result = await invitations.AcceptAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!),
+        Guid.Parse(principal.FindFirstValue("membership_id")!),
+        Guid.Parse(principal.FindFirstValue(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)!),
+        request.Code, ct);
+    return result.Status switch
+    {
+        ClassInviteStatus.Updated => Results.Ok(result.Response),
+        ClassInviteStatus.NotFound => Results.NotFound(),
+        ClassInviteStatus.Invalid => Results.ValidationProblem(new Dictionary<string, string[]> { ["code"] = ["Code must contain 64 hexadecimal characters."] }),
+        ClassInviteStatus.Conflict => Results.Problem(statusCode: 409, title: "Invitation expired or unavailable."),
+        _ => throw new InvalidOperationException("Unexpected invitation accept result.")
+    };
+}).RequireAuthorization("student");
 
 app.MapPost("/api/v1/teacher/students", async (
     TeacherCreateStudentRequest request, ClaimsPrincipal principal,
