@@ -1,19 +1,23 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **REPO:** `Arthur200014/testing-hosting`
-**STATE_UPDATED:** 2026-11-13
-**CURRENT_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — 3 outcomes, not historical Mxx TODO queue
-**ACTIVE_RESULT:** 3 — стабильный релиз (Result 2 synthetic E2E and Timeweb public health PASS)
-**ACTIVE_TASK:** Result 3 — synthetic backup/restore and runtime migration safety audited; actual Timeweb managed backup state NOT_VERIFIED
-**ACTIVE_BRANCH:** none (PR #46 merged)
-**LAST_PROGRESS_COMMIT:** `7666f2339e25de682d2f1ff3c6dd9c9ccf00d409` ([PR #46](https://github.com/Arthur200014/testing-hosting/pull/46))
-**DEPLOY_AUTOMATION:** Timeweb auto-deployment was enabled per user (2026-11-13). GitHub Pages main auto publishes. API fallback `.github/workflows/timeweb-api-auto-deploy.yml` is intentionally inactive when native deploy is used. Public Timeweb health PASS; running container commit NOT_ATTESTED. See `docs/ops/timeweb-autodeploy.md`.
-**NEXT_ACTION:** Release safety: confirm existence/retention of managed Timeweb PostgreSQL backups and running deployment revision via read-only Timeweb account access, before proposing any isolated restore with explicit cost/permission. The already-verified `platform/scripts/isolated-restore-smoke.sh` uses disposable synthetic DB only (pg_dump/pg_restore/EF migrations/rollback PASS); `runtime-entrypoint.sh` applies pending schema migrations but does not rerun imports. Never restore production, reimport or switch GAS/manage without explicit approval. Authenticated teacher API latency and live student submission remain NOT_MEASURED/NOT_RUN.
-**VERIFICATION:** [PR #46](https://github.com/Arthur200014/testing-hosting/pull/46) merged, [backend gate PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43500148474), [PostgreSQL integration PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43500148347), [main integration PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43500586950). [Real Timeweb read-only health PASS](https://github.com/Arthur200014/testing-hosting/actions/runs/43500996830): live HTTP200 total1150.9ms, ready HTTP200 total2222.2ms, migrations HTTP200 total702.3ms, anonymous teacher/students HTTP401 total569.3ms. One sample per endpoint; production DB writes/restore NOT_RUN. Earlier tenant, report, Chromium, delayed submission tests PASS.
+**STATE_UPDATED:** 2026-11-14
+**ACTIVE_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — Meleto UI, UI-01…UI-08
+**ACTIVE_TASK:** UI-01 — каркас кабинета и список классов
+**ACTIVE_BRANCH:** none
+**LAST_IMPLEMENTATION_COMMIT:** main до этого обновления плана; новый Meleto UI ещё не реализован
+**NEXT_ACTION:** Открой `01_classes.png` и `02_learning_type.png` из [пакета](./MELETO_REFERENCE.md), соответствующие записи `screen_specs.json`, затем адресно проверь `platform/teacher.html`, `platform/teacher-data.mjs`, `platform/src/Platform.Api/Persistence/PlatformDbContext.cs` и teacher endpoints. Выясни, можно ли представить отдельный «класс» текущими моделями, **не предполагая**, что `LearningProgram` уже равен классу. Реализуй первый рабочий срез UI-01: Meleto shell/навигация и список классов своего workspace с поиском, состояниями загрузки/пусто/ошибка и переходом в класс; выбор формата `02` открывается и закрывается без записи. Если для списка нужны новые модели/API, добавь совместимую минимальную миграцию и адресные проверки на synthetic данных. В конце сравни desktop с PNG, обнови этот HANDOFF и соответствующие галочки чеклиста. Не внедряй в этой задаче доски, платежи или AI.
+**VERIFICATION:** это только перепланирование. Meleto UI не реализован, новые UI/DB тесты NOT_RUN. Предыдущий кабинет/health проверялись отдельно (ссылки в старой истории и [RELEASE_PLAN.md](./RELEASE_PLAN.md)).
 
-## Non-negotiable context
-- Existing Timeweb **App Platform** deployment with private managed PostgreSQL; do not create VPS/Compose infrastructure, re-import owner-confirmed students/homework/lessons or request manual migration after code deploy.
-- Owner confirmed previous import and health; no independent current production deploy check. Live student submit and teacher grade NOT_RUN by owner decision (M04-06 deferred); do not block product work. Production restore NOT_RUN, only isolated restore with separate permission/cost approval.
-- **Do not change** `EGA/config/manage.html`, GAS, public URLs, live student data, secrets or old history in this branch. Switching writer to PG later requires explicit owner approval.
-- Teacher UI/API source: `platform/teacher.html`, `platform/teacher-data.mjs`, `platform/teacher-report.mjs`, `platform/student.html`, `platform/src/Platform.Api/Program.cs`. Read only relevant lines/tests.
-- New phase order and acceptance rules are in `RELEASE_PLAN.md`; `TASK_BOARD.md` is an archive. No extra project-management commits or microtasks. Preserve last 8 lesson report, 80/20 weights and null scores.
+## Правило продолжения
+
+1. Читать этот файл на `main`. Если `ACTIVE_BRANCH` не `none`, сверить её HEAD и читать её более новый HANDOFF; продолжать от `NEXT_STEP` и фактического кода, не создавать параллельную задачу.
+2. Если ветки нет, работать над `NEXT_ACTION`. Для большой работы создать `tas/UI-01-meleto-classes`, записать ветку и первый checkpoint с конкретным `NEXT_STEP`; после merge очистить `ACTIVE_BRANCH` и выбрать следующий пункт плана. Уточнять устаревшие записи по Git.
+3. Адресно открыть [индекс экранов](./MELETO_SCREEN_INDEX.md), нужные PNG/JSON, [чеклист](./PHASE_CHECKLISTS.md), [карту кода](../CONTEXT_MAP.md) и только связанные исходники. `AGENTS.md` задаёт правила реализации и соразмерной проверки.
+
+## Сохранить при работе
+
+- Реальные ученики, доски, пароли и существующие связи с преподавателем не удалять/не менять; импорт не повторять. Работать с синтетическими данными для новых сценариев.
+- Существующий Timeweb App Platform + managed PostgreSQL, API auth и tenant isolation использовать; новую инфраструктуру не создавать без отдельной причины.
+- Production GAS/`EGA/config/manage.html` может ещё обслуживать действующие данные. Не переключать writer и не запускать production restore в рамках UI-01.
+- Операционный долг старого релиза: Timeweb backup/retention и running revision не подтверждены; live submit/grade не запускались. Это `RELEASE_SAFETY`, а не NEXT_ACTION. Если появится срочная проблема эксплуатации, зафиксировать отдельный блокер без подмены плана.

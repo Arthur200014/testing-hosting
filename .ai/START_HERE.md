@@ -1,20 +1,20 @@
 # AI project entry point
 
-This is an existing education repository. Do not start by scanning it.
+This repository contains existing educational interactives and the TEACHER AI STUDENT platform. Start with the task pointer, not a whole-repository scan.
 
-## Quick start
-1. For TEACHER AI STUDENT, read `.ai/tas/HANDOFF.md` on `main`. If `ACTIVE_BRANCH` is set, resume that branch and read its newer HANDOFF; otherwise take `NEXT_ACTION`.
-2. Use `.ai/CONTEXT_MAP.md` to locate the relevant code, tests and dependencies. Read specific paths and bounded ranges, not complete directories.
-3. The canonical three-outcome roadmap is `.ai/tas/RELEASE_PLAN.md`; consult the old `.ai/tas/TASK_BOARD.md` only for historical context. Skip documents that do not affect the implementation.
-4. Follow `AGENTS.md`: implement the requested result, test proportionately, commit, and record a minimal handoff.
+## TEACHER AI STUDENT — current route
+
+1. Read `AGENTS.md` and `.ai/tas/HANDOFF.md` on `main`. Resume `ACTIVE_BRANCH` if set, otherwise execute `NEXT_ACTION`. Verify the actual branch HEAD and affected code before changing files.
+2. [RELEASE_PLAN.md](tas/RELEASE_PLAN.md) defines the UI-01…UI-08 Meleto roadmap; [PHASE_CHECKLISTS.md](tas/PHASE_CHECKLISTS.md) defines acceptance. The owner chose teacher cabinet first and maximum visual fidelity. Old Mxx/Pxx task boards and the previous three-result release plan are historical.
+3. [MELETO_REFERENCE.md](tas/MELETO_REFERENCE.md) links the visual archive/PDF. Use [MELETO_SCREEN_INDEX.md](tas/MELETO_SCREEN_INDEX.md) to open only the relevant PNGs/JSON. If the archive is unavailable, request it; do not invent visual evidence.
+4. Use [CONTEXT_MAP.md](CONTEXT_MAP.md) to locate only relevant code, models, routes and tests. Build one working scenario, verify it proportionately, commit, and update HANDOFF with one concrete next step.
 
 ## Source precedence
-Current Git code > accepted architectural decisions > active task card / HANDOFF > old notes or external semantic memory.
 
-## Where detailed history lives
-- `.ai/tasks/` — task-specific implementation history (read one relevant item, not all).
-- `docs/architecture/` — stable design and migration decisions.
-- `.ai/tas/RELEASE_PLAN.md` — current three-outcome roadmap and acceptance conditions; `TASK_BOARD.md` and `PHASE_CHECKLISTS.md` are historical references.
-- `.ai/tas/NEW_CHAT_PROMPT.md` — short continuation prompt.
+Actual code and Git state > safety and architecture decisions > current HANDOFF/active task > active release plan and reference images > old notes and semantic memory. If they disagree, verify and repair stale pointers.
 
-Planning commits, exhaustive test matrices, repeated full diffs, multi-agent orchestration and broad folder scans are not required. Never assume a planned feature is absent without checking its actual module. Existing GAS/Firebase pages remain in use unless a task explicitly migrates them.
+Existing ASP.NET Core/PostgreSQL and the teacher/student pages should be reused. Existing GAS/Firebase pages may still be active; UI tasks do not silently switch the production writer. Preserve imported students and relationships; do not rerun imports, delete students/boards or change passwords.
+
+## Other areas
+
+`.ai/tasks/` contains task-specific history; `docs/architecture/` contains stable design decisions; `EGA/` and `OGA/` contain educational interactives. Search only relevant files. The continuation text to paste is [NEW_CHAT_PROMPT.md](tas/NEW_CHAT_PROMPT.md).

@@ -64,22 +64,13 @@ For a new shared realtime/data integration, reuse the public entry points in
 These are search terms, not claims that every feature exists in every page. Open
 only the files that the task and search results make relevant.
 
-## TEACHER AI STUDENT — текущий маршрут
+## TEACHER AI STUDENT — действующий Meleto UI
 
-- Current order: `.ai/tas/HANDOFF.md` → `.ai/tas/RELEASE_PLAN.md` → relevant code. `TASK_BOARD.md`/`PHASE_CHECKLISTS.md` are archived granularity.
-- **M01-01 DONE:** `docs/architecture/manage-postgres-coverage.md`; **M01-02**: модель `platform/src/Platform.Api/Persistence/PlatformDbContext.cs` и student/homework importer. Источник контракта: `EGA/config/manage.html` (только связанный API/блоки), `docs/architecture/gas-postgres-migration-audit.md`, `.ai/tasks/{gas-postgres-audit,student-directory-import,homework-migration-slice,teacher-lesson-write-integrity,timeweb-deployment}.md`.
-- Backend: `platform/src/Platform.Api/`, `platform/src/Platform.StudentImport/`, `platform/src/Platform.HomeworkImport/`, `compose.yaml`, `platform/README.md`.
-- Старый 92-ID roadmap в `.ai/tas/TASK_BOARD_LEGACY.md`, не NEXT_ACTION.
-- Продукт универсальный для предметов и разных teacher/tenant; `manage` сейчас основной клиент, AI/интерактивы — позже.
+- Start: `.ai/tas/HANDOFF.md` → `.ai/tas/RELEASE_PLAN.md` → relevant stage in `.ai/tas/PHASE_CHECKLISTS.md`. Old Mxx/Pxx boards and `FOCUS_FIRST.md` from 11 November no longer set NEXT_ACTION.
+- Reference: `.ai/tas/MELETO_REFERENCE.md` → `.ai/tas/MELETO_SCREEN_INDEX.md` → only the needed PNGs and `screen_specs.json` entries in the Library archive.
+- Current teacher UI: `platform/teacher.html`, `platform/teacher-data.mjs`, `platform/teacher-mutation.mjs`, `platform/teacher-report.mjs`. Student UI: `platform/student.html`. Reuse existing session/auth and data patterns; these pages are not already Meleto-complete.
+- Backend: `platform/src/Platform.Api/Program.cs`, `platform/src/Platform.Api/Persistence/PlatformDbContext.cs` and the relevant model/migration files. `LearningProgram` is not assumed to be a Meleto class; check its semantics before reusing it.
+- Teacher and browser tests: relevant `platform/tests/` and `platform/*.test.mjs` only. Timeweb deployment behavior: `docs/ops/timeweb-autodeploy.md`. Existing API/schema foundations: `docs/architecture/platform-foundation.md`.
+- Legacy `EGA/config/manage.html`/GAS remain separate. For data migration questions, use `docs/architecture/gas-postgres-migration-audit.md` and importer task notes; no new production import as part of UI work.
 
-## TEACHER AI STUDENT roadmap (архивная навигация)
-
-- Start: `.ai/tas/HANDOFF.md`, then three-outcome `.ai/tas/RELEASE_PLAN.md` (do not infer NEXT_ACTION from archived **Mxx** task IDs).
-- Product scope: `.ai/tas/MASTER_TZ.md`, implementation priorities: `.ai/tas/FOCUS_FIRST.md`.
-- Current stage checklist: `.ai/tas/PHASE_CHECKLISTS.md` (one stage only).
-- New-chat instruction: `.ai/tas/NEW_CHAT_PROMPT.md`.
-- Existing ASP.NET Core: `platform/`, `platform/README.md`, `docs/architecture/platform-foundation.md`.
-- Shared interactive runtime: `shared/interactive/v1/`, `docs/architecture/ega6-shared-runtime.md`.
-- Existing educational examples: only the relevant `EGA/<number>/` or `OGA/<number>/` directory.
-
-Do not assume all new-platform components are absent: audit targeted files and their tests before coding.
+For UI-01 specifically: inspect the teacher page's navigation/rendering, data fetch, teacher read endpoints, workspace and program/student relations, then the two reference states `01_classes` / `02_learning_type`. Do not scan all of `platform/` or all 74 images.

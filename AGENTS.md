@@ -4,7 +4,7 @@
 Deliver working changes to the existing repository with the least necessary context, tool calls, documentation, and tests. The actual Git code is the source of truth. Prefer implementation over planning paperwork. Do not mistake a committed change for a verified one.
 
 ## Scope and context
-- For TEACHER AI STUDENT (TAS), first read `.ai/tas/HANDOFF.md` on `main`; resume `ACTIVE_BRANCH` if present, otherwise use `NEXT_ACTION`. Read the relevant task card if it exists.
+- For TEACHER AI STUDENT (TAS), first read `.ai/tas/HANDOFF.md` on `main`; resume `ACTIVE_BRANCH` if present, otherwise use `NEXT_ACTION`. The active product queue is `.ai/tas/RELEASE_PLAN.md`; old Mxx/Pxx boards are historical. For Meleto UI work, use `.ai/tas/MELETO_REFERENCE.md` and only the relevant screen IDs.
 - Use `.ai/CONTEXT_MAP.md` to find files; read only related code, dependencies, and existing tests. Never scan all `EGA/`, `OGA/`, or `platform/` just to start.
 - Prefer symbol searches and bounded line ranges. Do not print large source files, full logs, JSON API responses, or whole diffs into chat. Fetch/process large files inside a tool call and return only findings.
 - Avoid rereading unchanged code. If source or instructions disagree with a stale handoff, verify in Git and correct the pointer.
@@ -35,4 +35,4 @@ Additional research, architecture review, independent review, and agents are **o
 - Use a short task card only for a complicated, multi-stage task that benefits from checkpointing. Detailed background stays in the relevant task/architecture document, not in HANDOFF.
 
 ## Safety and public compatibility
-Do not change public URLs, unrelated lessons, UI styling, Firebase, Google Apps Script, database schemas, production configs, or live student data unless the task requires it. Never commit secrets or personal student records. Preserve existing behavior and avoid production test writes. Do not claim tests, browser checks, deployment, or push succeeded without verifying them.
+Do not change public URLs, unrelated lessons, UI styling, Firebase, Google Apps Script, database schemas, production configs, or live student data unless the task requires it. Never commit secrets or personal student records. Preserve existing behavior and avoid production test writes. During the Meleto UI rebuild, never delete live students or boards, change passwords, rerun completed imports, or switch the production writer as an incidental UI task. Do not claim tests, browser checks, deployment, or push succeeded without verifying them.
