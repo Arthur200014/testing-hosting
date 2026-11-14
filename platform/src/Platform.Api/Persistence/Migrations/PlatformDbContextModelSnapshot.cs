@@ -29,6 +29,12 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     b.Property<bool>("AllowLessonChat").ValueGeneratedOnAdd().HasColumnType("boolean").HasDefaultValue(false);
                     b.Property<bool>("AllowPrivateMessages").ValueGeneratedOnAdd().HasColumnType("boolean").HasDefaultValue(false);
                     b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
+                    b.Property<string>("CoverStyle").IsRequired().ValueGeneratedOnAdd().HasMaxLength(16).HasColumnType("character varying(16)").HasDefaultValue("lavender");
+                    b.Property<DateTimeOffset?>("InvitationAcceptedAt").HasColumnType("timestamp with time zone");
+                    b.Property<byte[]>("InvitationCodeHash").HasColumnType("bytea");
+                    b.Property<DateTimeOffset?>("InvitationExpiresAt").HasColumnType("timestamp with time zone");
+                    b.Property<DateTimeOffset?>("InvitationIssuedAt").HasColumnType("timestamp with time zone");
+                    b.Property<string>("InvitationStatus").HasMaxLength(16).HasColumnType("character varying(16)");
                     b.Property<string>("Description").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
                     b.Property<int?>("DurationMinutes").HasColumnType("integer");
                     b.Property<bool>("IsArchived").HasColumnType("boolean");
@@ -49,6 +55,8 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     b.ToTable("TeacherClasses", "platform", t =>
                         {
                             t.HasCheckConstraint("CK_TeacherClasses_Duration", "\"DurationMinutes\" IS NULL OR (\"DurationMinutes\" BETWEEN 15 AND 240 AND \"DurationMinutes\" % 5 = 0)");
+                            t.HasCheckConstraint("CK_TeacherClasses_Cover", "\"CoverStyle\" IN ('lavender', 'sky', 'peach', 'mint')");
+                            t.HasCheckConstraint("CK_TeacherClasses_Invitation", "\"InvitationStatus\" IS NULL OR \"InvitationStatus\" IN ('pending', 'accepted', 'revoked')");
                             t.HasCheckConstraint("CK_TeacherClasses_Kind", "\"Kind\" = 'individual'");
                             t.HasCheckConstraint("CK_TeacherClasses_Price", "(\"PriceAmount\" IS NULL AND \"PriceCurrency\" IS NULL AND \"PriceBasis\" IS NULL) OR (\"PriceAmount\" BETWEEN 0 AND 10000000 AND \"PriceCurrency\" IN ('RUB', 'EUR', 'USD') AND \"PriceBasis\" IN ('lesson', 'month'))");
                             t.HasCheckConstraint("CK_TeacherClasses_Title_NotEmpty", "length(\"Title\") > 0");

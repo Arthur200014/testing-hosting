@@ -9,12 +9,15 @@ public sealed record TeacherClassView(
     string StudentName, Guid ProgramId, string ProgramName,
     bool IsArchived, DateTimeOffset CreatedAt,
     int? DurationMinutes, decimal? PriceAmount, string? PriceCurrency, string? PriceBasis,
-    bool AllowLessonChat, bool AllowPrivateMessages, int Revision);
+    bool AllowLessonChat, bool AllowPrivateMessages, int Revision,
+    string CoverStyle, string? InvitationStatus, DateTimeOffset? InvitationExpiresAt,
+    DateTimeOffset? InvitationAcceptedAt);
 
 public sealed record TeacherCreateClassRequest(
     Guid RequestId, Guid StudentMembershipId, string? Title, string? Description = null,
     int? DurationMinutes = null, decimal? PriceAmount = null, string? PriceCurrency = null,
-    string? PriceBasis = null, bool AllowLessonChat = false, bool AllowPrivateMessages = false);
+    string? PriceBasis = null, bool AllowLessonChat = false, bool AllowPrivateMessages = false,
+    string? CoverStyle = null);
 
 public enum TeacherCreateClassStatus
 {
@@ -29,7 +32,8 @@ public sealed record TeacherCreateClassResult(
 public sealed record TeacherUpdateClassRequest(
     int ExpectedRevision, string? Title, string? Description = null,
     int? DurationMinutes = null, decimal? PriceAmount = null, string? PriceCurrency = null,
-    string? PriceBasis = null, bool AllowLessonChat = false, bool AllowPrivateMessages = false);
+    string? PriceBasis = null, bool AllowLessonChat = false, bool AllowPrivateMessages = false,
+    string? CoverStyle = null);
 
 public sealed record TeacherClassRevisionRequest(int ExpectedRevision);
 public enum TeacherClassMutationStatus { Updated, Unchanged, NotFound, Conflict, InvalidRequest }
@@ -59,6 +63,8 @@ public sealed class TeacherClassService(PlatformDbContext db, TimeProvider clock
         var description = request.Description?.Trim() ?? string.Empty;
         if (description.Length > 200)
             errors["description"] = ["Description must not exceed 200 characters."];
+        var coverStyle = NormalizeCover(request.CoverStyle);
+        if (!AllowedCover(coverStyle)) errors["coverStyle"] = ["Unknown cover style."];
         if (request.DurationMinutes is int minutes && (minutes < 15 || minutes > 240 || minutes % 5 != 0))
             errors["durationMinutes"] = ["Duration must be 15–240 minutes in 5-minute increments."];
         var priceCurrency = string.IsNullOrWhiteSpace(request.PriceCurrency)
@@ -83,7 +89,7 @@ public sealed class TeacherClassService(PlatformDbContext db, TimeProvider clock
         if (existing is not null)
             return Compare(existing, request.StudentMembershipId, title!, description,
                 request.DurationMinutes, request.PriceAmount, priceCurrency, priceBasis,
-                request.AllowLessonChat, request.AllowPrivateMessages);
+                request.AllowLessonChat, request.AllowPrivateMessages, coverStyle!);
 
         var member = await db.WorkspaceStudentMemberships.AsNoTracking()
             .Where(x => x.WorkspaceId == workspaceId && x.Id == request.StudentMembershipId &&
@@ -97,7 +103,7 @@ public sealed class TeacherClassService(PlatformDbContext db, TimeProvider clock
         {
             Id = Guid.NewGuid(), WorkspaceId = workspaceId, RequestId = request.RequestId,
             StudentMembershipId = request.StudentMembershipId, StudentId = member.StudentId,
-            Title = title!, Description = description,
+            Title = title!, Description = description, CoverStyle = coverStyle!,
             DurationMinutes = request.DurationMinutes, PriceAmount = request.PriceAmount,
             PriceCurrency = priceCurrency, PriceBasis = priceBasis,
             AllowLessonChat = request.AllowLessonChat, AllowPrivateMessages = request.AllowPrivateMessages,
@@ -118,7 +124,7 @@ public sealed class TeacherClassService(PlatformDbContext db, TimeProvider clock
             if (winner is null) throw;
             return Compare(winner, request.StudentMembershipId, title!, description,
                 request.DurationMinutes, request.PriceAmount, priceCurrency, priceBasis,
-                request.AllowLessonChat, request.AllowPrivateMessages);
+                request.AllowLessonChat, request.AllowPrivateMessages, coverStyle!);
         }
 
         var created = await FindByRequestAsync(workspaceId, request.RequestId, cancellationToken)
@@ -139,8 +145,11 @@ public sealed class TeacherClassService(PlatformDbContext db, TimeProvider clock
         if (item is null) return new(TeacherClassMutationStatus.NotFound);
         if (item.IsArchived || item.Revision != request.ExpectedRevision)
             return new(TeacherClassMutationStatus.Conflict);
+        // Older clients that do not send the new cover field must not reset an existing choice.
+        var coverStyle = request.CoverStyle is null ? item.CoverStyle : NormalizeCover(request.CoverStyle);
         var errors = ValidateClassFields(request.Title, request.Description, request.DurationMinutes,
             request.PriceAmount, request.PriceCurrency, request.PriceBasis);
+        if (!AllowedCover(coverStyle)) errors["coverStyle"] = ["Unknown cover style."];
         // Imported/legacy titles can exceed the new limit until their title actually changes.
         if (item.Title.Length > 50 && item.Title == request.Title?.Trim())
             errors.Remove("title");
@@ -154,8 +163,9 @@ public sealed class TeacherClassService(PlatformDbContext db, TimeProvider clock
             item.DurationMinutes == request.DurationMinutes && item.PriceAmount == request.PriceAmount &&
             item.PriceCurrency == currency && item.PriceBasis == basis &&
             item.AllowLessonChat == request.AllowLessonChat &&
-            item.AllowPrivateMessages == request.AllowPrivateMessages)
+            item.AllowPrivateMessages == request.AllowPrivateMessages && item.CoverStyle == coverStyle)
             return new(TeacherClassMutationStatus.Unchanged, ToView(item));
+        item.CoverStyle = coverStyle!;
         item.Title = title;
         item.Description = description;
         item.DurationMinutes = request.DurationMinutes;
@@ -190,6 +200,10 @@ public sealed class TeacherClassService(PlatformDbContext db, TimeProvider clock
         if (item.IsArchived == archived)
             return new(TeacherClassMutationStatus.Unchanged, ToView(item));
         item.IsArchived = archived;
+        if (archived && item.InvitationStatus == "pending") {
+            item.InvitationStatus = "revoked";
+            item.InvitationCodeHash = null;
+        }
         item.Revision++;
         try
         {
@@ -209,6 +223,10 @@ public sealed class TeacherClassService(PlatformDbContext db, TimeProvider clock
             .Include(x => x.StudentMembership).ThenInclude(x => x.Program)
             .SingleOrDefaultAsync(x => x.WorkspaceId == workspaceId && x.Id == classId,
                 cancellationToken);
+
+    public static string NormalizeCover(string? style) => string.IsNullOrWhiteSpace(style)
+        ? "lavender" : style.Trim().ToLowerInvariant();
+    public static bool AllowedCover(string? style) => style is "lavender" or "sky" or "peach" or "mint";
 
     private static Dictionary<string, string[]> ValidateClassFields(
         string? title, string? description, int? duration, decimal? price,
@@ -252,25 +270,27 @@ public sealed class TeacherClassService(PlatformDbContext db, TimeProvider clock
             x.StudentMembership.Student.DisplayName, x.StudentMembership.ProgramId,
             x.StudentMembership.Program.DisplayName, x.IsArchived, x.CreatedAt,
             x.DurationMinutes, x.PriceAmount, x.PriceCurrency, x.PriceBasis,
-            x.AllowLessonChat, x.AllowPrivateMessages, x.Revision));
+            x.AllowLessonChat, x.AllowPrivateMessages, x.Revision,
+            x.CoverStyle, x.InvitationStatus, x.InvitationExpiresAt, x.InvitationAcceptedAt));
 
     private static TeacherClassView ToView(TeacherClass item) => new(
         item.Id, item.Title, item.Description, item.Kind, item.StudentMembershipId,
         item.StudentMembership.Student.DisplayName, item.StudentMembership.ProgramId,
         item.StudentMembership.Program.DisplayName, item.IsArchived, item.CreatedAt,
         item.DurationMinutes, item.PriceAmount, item.PriceCurrency, item.PriceBasis,
-        item.AllowLessonChat, item.AllowPrivateMessages, item.Revision);
+        item.AllowLessonChat, item.AllowPrivateMessages, item.Revision,
+        item.CoverStyle, item.InvitationStatus, item.InvitationExpiresAt, item.InvitationAcceptedAt);
 
     private static TeacherCreateClassResult Compare(
         TeacherClass existing, Guid studentMembershipId, string title, string description,
         int? durationMinutes, decimal? priceAmount, string? priceCurrency, string? priceBasis,
-        bool allowLessonChat, bool allowPrivateMessages) =>
+        bool allowLessonChat, bool allowPrivateMessages, string coverStyle) =>
         existing.Kind == "individual" && !existing.IsArchived &&
         existing.StudentMembershipId == studentMembershipId && existing.Title == title &&
         existing.Description == description && existing.DurationMinutes == durationMinutes &&
         existing.PriceAmount == priceAmount && existing.PriceCurrency == priceCurrency &&
         existing.PriceBasis == priceBasis && existing.AllowLessonChat == allowLessonChat &&
-        existing.AllowPrivateMessages == allowPrivateMessages
+        existing.AllowPrivateMessages == allowPrivateMessages && existing.CoverStyle == coverStyle
             ? new(TeacherCreateClassStatus.Duplicate, ToView(existing))
             : new(TeacherCreateClassStatus.Conflict);
 }
