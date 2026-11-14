@@ -64,8 +64,9 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
 
         var replay = await client.PostAsJsonAsync("/api/v1/teacher/classes", request);
         Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
-        Assert.Equal(created.Id, (await replay.Content.ReadFromJsonAsync<TeacherClassView>())!.Id);
-        Assert.Equal("Описание класса", (await replay.Content.ReadFromJsonAsync<TeacherClassView>())!.Description);
+        var replayed = (await replay.Content.ReadFromJsonAsync<TeacherClassView>())!;
+        Assert.Equal(created.Id, replayed.Id);
+        Assert.Equal("Описание класса", replayed.Description);
         Assert.Equal(HttpStatusCode.Conflict,
             (await client.PostAsJsonAsync("/api/v1/teacher/classes", request with { Title = "Other" })).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict,
