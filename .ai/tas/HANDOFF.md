@@ -5,7 +5,7 @@
 **ACTIVE_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — Meleto UI, UI-01…UI-08
 **ACTIVE_TASK:** UI-01 — каркас кабинета и список классов
 **ACTIVE_BRANCH:** none
-**CONTEXT_MODE:** GPT-6.1 Sol Medium; только файлы из NEXT_ACTION, поиск + ограниченные диапазоны; только `01–02`; без полных файлов/диффов/логов
+**CONTEXT_MODE:** только файлы из NEXT_ACTION, поиск + ограниченные диапазоны; только `01–02`; без полных файлов/диффов/логов; после задачи — отчёт в чат о результате, проблемах и следующем шаге
 **LAST_IMPLEMENTATION_COMMIT:** main до этого обновления плана; новый Meleto UI ещё не реализован
 **NEXT_ACTION:** Открой `01_classes.png` и `02_learning_type.png` из [пакета](./MELETO_REFERENCE.md), соответствующие записи `screen_specs.json`, затем адресно проверь `platform/teacher.html`, `platform/teacher-data.mjs`, `platform/src/Platform.Api/Persistence/PlatformDbContext.cs` и teacher endpoints. Выясни, можно ли представить отдельный «класс» текущими моделями, **не предполагая**, что `LearningProgram` уже равен классу. Реализуй первый рабочий срез UI-01: Meleto shell/навигация и список классов своего workspace с поиском, состояниями загрузки/пусто/ошибка и переходом в класс; выбор формата `02` открывается и закрывается без записи. Если для списка нужны новые модели/API, добавь совместимую минимальную миграцию и адресные проверки на synthetic данных. В конце сравни desktop с PNG, обнови этот HANDOFF и соответствующие галочки чеклиста. Не внедряй в этой задаче доски, платежи или AI.
 **VERIFICATION:** это только перепланирование. Meleto UI не реализован, новые UI/DB тесты NOT_RUN. Предыдущий кабинет/health проверялись отдельно (ссылки в старой истории и [RELEASE_PLAN.md](./RELEASE_PLAN.md)).

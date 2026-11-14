@@ -10,7 +10,6 @@ Deliver working changes to the existing repository with the least necessary cont
 - Avoid rereading unchanged code. If source or instructions disagree with a stale handoff, verify in Git and correct the pointer.
 
 ## Context budget — mandatory
-- Recommended interactive setting: `GPT-6.1 Sol` with `medium` reasoning. Use higher reasoning only for a concrete migration, authorization, concurrency, or architecture risk; do not spend it on routine HTML/CSS.
 - Start with `AGENTS.md` + `HANDOFF.md`. Read the plan/checklist only for the active stage and open architecture/history documents only when the current code leaves a real question. Do not preload background “just in case”.
 - Search first (`rg`, symbols, route names, selectors), then read bounded regions around matches. For a large HTML/JS/C# file, never request the whole file when the relevant component/function can be located. Initial discovery should normally touch only the files named by `NEXT_ACTION`.
 - For Meleto, open only the current 1–2 PNGs and their JSON records. Do not load the 74 screenshots, the whole PDF, or the complete screen catalog into a model turn.
@@ -25,7 +24,7 @@ Deliver working changes to the existing repository with the least necessary cont
 3. Use existing patterns/components; preserve compatibility. Do not refactor unrelated features.
 4. Inspect only the changed regions and affected interfaces; check for accidental changes, secrets, and sensitive data.
 5. Run the minimum *relevant* verification described below, fix actual failures, and publish a coherent commit. For simple complete work, one commit on `main` is fine.
-6. Report the outcome, actual checks (PASS / FAIL / NOT_RUN), commit link, and next step. Do not reproduce code or diffs already stored in Git.
+6. After every completed task, send a concise chat report with: what was done, changed paths, actual checks (PASS / FAIL / NOT_RUN), problems or limitations, commit link, and the next step written to HANDOFF. Do not reproduce code or diffs already stored in Git.
 
 Additional research, architecture review, independent review, and agents are **optional** and justified only by genuine complexity or risk. Never attempt a missing SDK integration merely to satisfy process.
 
