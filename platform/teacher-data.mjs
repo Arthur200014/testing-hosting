@@ -8,7 +8,7 @@ export const teacherPaths = {
 };
 
 export const teacherNeeds = {
-  overview: ['students', 'lessons', 'assignments', 'nativeAssignments', 'subscriptions'],
+  overview: ['students', 'lessons'],
   students: ['students', 'programs'],
   lessons: ['students', 'programs', 'lessons', 'catalog'],
   homework: ['students', 'programs', 'catalog', 'assignments', 'submissions', 'nativeTasks', 'nativeAssignments'],

@@ -74,12 +74,17 @@ async function login(workspace) {
 try {
   await page.goto(base + '/platform/teacher.html');
   await login('north');
-  await page.locator('#content .metric').first().filter({ hasText: /^1$/ }).waitFor();
+  await page.locator('[data-open-class="11111111-1111-4111-8111-111111111111"]').waitFor();
   assert.equal(northLessonsStarted, true);
+  await page.locator('[data-open-learning]').click();
+  await page.locator('.learning-modal').waitFor();
+  await page.locator('.modal-close').click();
+  await page.locator('.learning-modal').waitFor({ state: 'detached' });
   await page.locator('#logout').click();
   await page.locator('#loginScreen:not([hidden])').waitFor();
   await login('south');
-  await page.locator('#content .metric').first().filter({ hasText: /^2$/ }).waitFor();
+  await page.locator('[data-open-class]').first().waitFor();
+  assert.equal(await page.locator('[data-open-class]').count(), 2);
   await page.waitForTimeout(500); // previous North lesson response has now arrived
   await page.locator('[data-view="students"]').click();
   await page.locator('#studentRows').getByText('South learner A').waitFor();
@@ -102,7 +107,7 @@ try {
   await page.locator('#notice').filter({ hasText: 'Synthetic network error' }).waitFor();
   assert.match(await page.locator('#studentRows').innerText(), /South learner A/);
   await page.locator('#refresh').click();
-  await page.locator('#notice').filter({ hasText: 'Данные обновлены' }).waitFor();
+  await page.locator('#notice').waitFor({ state: 'hidden' });
   assert.match(await page.locator('#studentRows').innerText(), /South learner B/);
 
   forceExpiry = true;

@@ -1,14 +1,24 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **REPO:** `Arthur200014/testing-hosting`
-**STATE_UPDATED:** 2026-11-14
+**STATE_UPDATED:** 2026-11-15
 **ACTIVE_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — Meleto UI, UI-01…UI-08
-**ACTIVE_TASK:** UI-01 — каркас кабинета и список классов
-**ACTIVE_BRANCH:** none
+**ACTIVE_TASK:** UI-01 — каркас кабинета и список классов (complete, PR ready)
+**ACTIVE_BRANCH:** `tas/UI-01-meleto-classes`
 **CONTEXT_MODE:** только файлы из NEXT_ACTION, поиск + ограниченные диапазоны; только `01–02`; без полных файлов/диффов/логов; после задачи — отчёт в чат о результате, проблемах и следующем шаге
-**LAST_IMPLEMENTATION_COMMIT:** main до этого обновления плана; новый Meleto UI ещё не реализован
-**NEXT_ACTION:** Открой `01_classes.png` и `02_learning_type.png` из [пакета](./MELETO_REFERENCE.md), соответствующие записи `screen_specs.json`, затем адресно проверь `platform/teacher.html`, `platform/teacher-data.mjs`, `platform/src/Platform.Api/Persistence/PlatformDbContext.cs` и teacher endpoints. Выясни, можно ли представить отдельный «класс» текущими моделями, **не предполагая**, что `LearningProgram` уже равен классу. Реализуй первый рабочий срез UI-01: Meleto shell/навигация и список классов своего workspace с поиском, состояниями загрузки/пусто/ошибка и переходом в класс; выбор формата `02` открывается и закрывается без записи. Если для списка нужны новые модели/API, добавь совместимую минимальную миграцию и адресные проверки на synthetic данных. В конце сравни desktop с PNG, обнови этот HANDOFF и соответствующие галочки чеклиста. Не внедряй в этой задаче доски, платежи или AI.
-**VERIFICATION:** это только перепланирование. Meleto UI не реализован, новые UI/DB тесты NOT_RUN. Предыдущий кабинет/health проверялись отдельно (ссылки в старой истории и [RELEASE_PLAN.md](./RELEASE_PLAN.md)).
+**LAST_IMPLEMENTATION_COMMIT:** [`056c6c8`](https://github.com/Arthur200014/testing-hosting/commit/056c6c82a884bef693d3f01e8a5251fca3663bd5) — финальная UI-01 правка после screenshot review; успешная загрузка больше не сдвигает экран служебной плашкой
+**NEXT_ACTION:** Проверить зелёные checks и merge готового [PR #47](https://github.com/Arthur200014/testing-hosting/pull/47) в `main`. После merge очистить `ACTIVE_BRANCH` и начать только первый небольшой сценарий UI-02 из `03–06`: постоянная модель индивидуального класса и форма создания, без групп, расписания, досок и платежей в одном заходе.
+**VERIFICATION:** PASS — `node --test platform/teacher-data.test.mjs` (6/6), inline/browser script syntax, `git diff --check`. PASS — synthetic Chromium [`43641528907`](https://github.com/Arthur200014/testing-hosting/actions/runs/43641528907) при `1348×926`: screenshots `01_classes`/`02_learning_type`, поиск/нет результатов, класс open/back, modal open/close без write; tenant isolation/retry/logout и прежние сценарии также зелёные. PNG сравнены с референсами `01–02`: устранена лишняя success-плашка; собственный бренд и отсутствие фиктивных bonus/help действий сохранены намеренно. Реальный backend/production не вызывались; ученики/доски/пароли/import не изменялись.
+
+## UI-01 checkpoint
+
+- Новый светлый shell/навигация, классы и панель «Сегодня» собраны по `01`; Onest подключён из Google Fonts с системным fallback.
+- Overview читает только `teacher/students` и `teacher/lessons`; показывает загрузку, ошибку с retry, пустой результат, поиск, статистику и честный архив-заглушку.
+- Карточка открывает детали legacy individual class. `LearningProgram` намеренно не используется как class entity; постоянная модель/настройки класса остаются UI-02.
+- Modal `02` открывается/закрывается/Escape без записи. Индивидуальное и разовое обучение ведут в действующие формы, групповое честно отмечено как UI-02.
+- Браузерные проверки обновлены под новый overview: `platform/native-homework-browser.mjs`, `platform/teacher-session-browser.mjs`; checkpoint [`26543eb`](https://github.com/Arthur200014/testing-hosting/commit/26543eb85939f0c1236b3fa012f3771aa112ee2c).
+- Детерминированные screenshot-кадры создаёт `platform/meleto-ui-browser.mjs`; workflow сохраняет их как `meleto-ui01-screenshots`.
+- Изменены: `platform/teacher.html`, `platform/teacher-data.mjs`, `platform/teacher-data.test.mjs`, браузерные сценарии, workflow и `.ai/tas/PHASE_CHECKLISTS.md`.
 
 ## Правило продолжения
 

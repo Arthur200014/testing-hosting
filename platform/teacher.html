@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <title>Teacher AI Student — кабинет преподавателя</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
   <style>
     :root { font: 15px/1.45 Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #e8edf7; background: #0a1020; }
     * { box-sizing: border-box; }
@@ -86,19 +89,127 @@
     th, td { padding: 11px 9px; border-bottom: 1px solid #293a55; vertical-align: top; }
     th { color: #91a2bc; font-size: .78rem; font-weight: 700; }
     td { font-size: .9rem; }
-    @media (max-width: 1000px) { .four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    /* Meleto-inspired teacher shell. Existing forms keep their behavior while
+       the shared surface moves to the new light visual system. */
+    :root { font-family: Onest, Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #292a43; background: #f5f5f6; }
+    body { color: #292a43; background: #f5f5f6; }
+    input, select, textarea { color: #292a43; background: #fff; border-color: #dedee8; }
+    input:focus, select:focus, textarea:focus { border-color: #7968f8; box-shadow: 0 0 0 3px #7968f822; }
+    label, label > span, .muted, .subtitle, .metric-note, .item small { color: #74758b; }
+    .shell { grid-template-columns: 214px minmax(0, 1fr); background: #f5f5f6; }
+    aside { border: 0; color: #fff; background: linear-gradient(180deg, #7c69f7 0%, #6d5cf2 100%); padding: 24px 14px 20px; gap: 23px; }
+    .brand { color: #fff; padding: 0 9px 10px; font-size: .98rem; }
+    .brand-mark { width: 36px; height: 36px; border-radius: 8px; color: #7968f8; background: #fff; }
+    .brand small { color: #ded9ff; font-size: .65rem; }
+    .nav { gap: 4px; }
+    .nav button { display: flex; align-items: center; gap: 11px; min-height: 42px; color: #eeeaff; border-radius: 22px; padding: 10px 13px; font-weight: 500; }
+    .nav button.active, .nav button:hover { color: #fff; background: #ffffff20; }
+    .nav-icon { display: inline-grid; place-items: center; width: 20px; color: #fff; font-size: 1.05rem; }
+    .nav-extra { margin-top: 8px; }
+    .side-foot { color: #fff; padding: 8px; }
+    .side-foot .muted { color: #e5e0ff; }
+    .side-foot .secondary { width: 100%; color: #fff; border-color: #ffffff44; background: #ffffff16; }
+    main { max-width: none; margin: 0; padding: 0 24px 46px; background: #f5f5f6; }
+    .top { min-height: 72px; align-items: center; justify-content: flex-end; margin: 0 -24px 0; padding: 0 24px; border-bottom: 1px solid #ebebf0; background: #fff; }
+    .top-heading { margin-right: auto; }
+    .top .eyebrow { display: none; }
+    .top h1 { font-size: 1.1rem; letter-spacing: -.02em; }
+    .top .subtitle { display: none; }
+    .teacher-chip { display: flex; align-items: center; gap: 10px; min-width: 190px; padding: 7px 10px; border-radius: 10px; background: #f5f3ff; }
+    .teacher-avatar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: #fff; background: #7968f8; font-weight: 700; }
+    .teacher-chip strong, .teacher-chip small { display: block; }
+    .teacher-chip small { color: #86869a; font-size: .72rem; }
+    .primary { color: #fff; border-color: #7968f8; background: #7968f8; }
+    .primary:hover { background: #6856ec; }
+    .secondary { color: #4d4e65; border-color: #dedee8; background: #fff; }
+    .secondary:hover { background: #f2f0ff; }
+    .card { color: #292a43; border-color: #e6e6ec; background: #fff; box-shadow: none; }
+    .item { color: #292a43; border-color: #e6e6ec; background: #fff; }
+    .empty { color: #88899d; border-color: #c9c3fb; background: #fff; }
+    .banner { margin-top: 16px; border-color: #c9c3fb; color: #4f4693; background: #efedff; }
+    .banner.error { border-color: #efb5ba; color: #9c2f3b; background: #fff0f1; }
+    .pill { color: #5f51d7; background: #efedff; }
+    .pill.warn { color: #9a6628; background: #fff2df; }
+    .classes-layout { display: grid; grid-template-columns: minmax(520px, 1fr) 332px; gap: 24px; padding-top: 16px; }
+    .classes-main { min-width: 0; padding: 8px 0 24px; }
+    .classes-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 16px; }
+    .classes-heading h1 { font-size: 1.65rem; }
+    .classes-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid #dedee8; }
+    .class-tabs { display: inline-flex; gap: 3px; padding: 3px; border-radius: 22px; background: #ebe8fe; }
+    .class-tabs button { border: 0; border-radius: 18px; padding: 7px 14px; color: #7a6ce0; background: transparent; }
+    .class-tabs button.active { color: #6553db; background: #fff; box-shadow: 0 1px 4px #5d50aa1c; }
+    .class-search { display: flex; align-items: center; gap: 8px; width: min(260px, 42%); }
+    .class-search input { height: 38px; padding: 8px 12px; border-radius: 9px; }
+    .access-chip { display: inline-flex; align-items: center; gap: 7px; margin: 16px 0; padding: 8px 13px; border-radius: 18px; color: #9b6a22; background: #fff5e7; }
+    .class-list { display: grid; gap: 22px; }
+    .class-card { overflow: hidden; border: 1px solid #e2e2eb; border-radius: 10px; background: #fff; }
+    .class-card-head { position: relative; display: flex; align-items: center; gap: 14px; min-height: 86px; padding: 14px 22px; background: #ebe8fe; }
+    .class-card-head::after { content: ""; position: absolute; inset: 0 0 0 auto; width: 31%; background: radial-gradient(circle at 75% 50%, #fff9 0 8%, transparent 9%), linear-gradient(135deg, transparent, #d3cffc 48%, #fff7 49%, #d8d4fb 62%, transparent 63%); opacity: .7; }
+    .class-avatar { z-index: 1; display: grid; place-items: center; flex: 0 0 54px; width: 54px; height: 54px; border-radius: 50%; color: #fff; background: var(--avatar, #7968f8); font-weight: 700; }
+    .class-card-title { z-index: 1; min-width: 0; }
+    .class-card-title strong { display: block; overflow: hidden; color: #292a43; font-size: 1.05rem; text-overflow: ellipsis; white-space: nowrap; }
+    .class-card-title small { display: block; margin-top: 3px; color: #6f7084; }
+    .class-card-body { display: flex; align-items: center; gap: 12px; min-height: 80px; padding: 12px 16px; }
+    .class-date { min-width: 108px; padding: 8px; border: 1px dashed #dedee8; border-radius: 8px; text-align: center; color: #77788d; }
+    .class-date strong { display: block; color: #5f6075; font-size: .85rem; }
+    .class-action { display: grid; gap: 3px; }
+    .class-action span { color: #77788d; }
+    .class-action button { border: 0; padding: 0; color: #7968f8; background: transparent; font-weight: 650; text-align: left; }
+    .class-open { margin-left: auto; border: 0; padding: 8px 10px; color: #7968f8; background: transparent; font-weight: 650; }
+    .today-panel { min-height: calc(100vh - 88px); padding: 0 0 24px 0; border-left: 1px solid #ebebf0; }
+    .today-inner { position: sticky; top: 88px; padding-left: 24px; }
+    .today-title { display: flex; align-items: center; justify-content: space-between; margin: 0 0 18px; }
+    .today-title h2 { font-size: 1.5rem; }
+    .today-title button { border: 0; color: #7968f8; background: transparent; }
+    .today-count { display: flex; justify-content: space-between; margin-bottom: 14px; padding: 10px; border-radius: 8px; background: #fff; }
+    .today-plan { width: 100%; min-height: 100px; border: 1px dashed #7968f8; border-radius: 9px; color: #7968f8; background: #fff; font-weight: 650; }
+    .today-lessons { display: grid; gap: 8px; margin-bottom: 12px; }
+    .today-lesson { padding: 11px; border-radius: 9px; background: #fff; }
+    .today-lesson strong, .today-lesson small { display: block; }
+    .today-lesson small { margin-top: 3px; color: #77788d; }
+    .class-detail { margin-top: 24px; }
+    .class-detail-banner { display: flex; align-items: center; gap: 16px; padding: 22px; border-radius: 16px; background: #ebe8fe; }
+    .class-detail-banner h2 { font-size: 1.45rem; }
+    .class-detail-actions { margin-left: auto; display: flex; gap: 8px; }
+    .modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: #272844a8; }
+    .learning-modal { width: min(610px, 100%); padding: 24px; border-radius: 16px; background: #fff; box-shadow: 0 24px 70px #1b1b313d; }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .modal-head h2 { font-size: 1.5rem; }
+    .modal-close { border: 0; color: #292a43; background: transparent; font-size: 1.8rem; line-height: 1; }
+    .learning-types { display: grid; gap: 12px; }
+    .learning-type { display: grid; grid-template-columns: 80px 1fr; align-items: center; gap: 14px; width: 100%; min-height: 92px; padding: 8px; border: 1px solid #d9d9e3; border-radius: 9px; color: #292a43; background: #fff; text-align: left; }
+    .learning-type:hover { border-color: #7968f8; background: #fbfaff; }
+    .learning-type-icon { display: grid; place-items: center; height: 76px; border-radius: 7px; color: #fff; background: linear-gradient(135deg, #9a8cff, #6978f3); font-size: 1.8rem; }
+    .learning-type:last-child .learning-type-icon { color: #7968f8; background: #f0edff; }
+    .learning-type strong, .learning-type span { display: block; }
+    .learning-type strong { font-size: 1.08rem; }
+    .learning-type span { margin-top: 3px; color: #87889c; line-height: 1.35; }
+    @media (max-width: 1100px) {
+      .four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .classes-layout { grid-template-columns: 1fr; }
+      .today-panel { min-height: auto; padding-top: 20px; border-top: 1px solid #ebebf0; border-left: 0; }
+      .today-inner { position: static; padding-left: 0; }
+    }
     @media (max-width: 760px) {
       .shell { display: block; }
-      aside { position: sticky; top: 0; z-index: 5; padding: 10px 14px; display: block; border-right: 0; border-bottom: 1px solid #293a55; }
+      aside { position: sticky; top: 0; z-index: 5; padding: 10px 14px; display: block; border-right: 0; border-bottom: 0; }
       aside .brand, .side-foot span { display: none; }
       .side-foot { display: block; margin-top: 7px; padding: 0; }
       .side-foot button { padding: 6px 10px; }
       .nav { display: flex; overflow-x: auto; gap: 5px; }
       .nav button { width: auto; white-space: nowrap; padding: 9px 12px; }
-      main { padding: 21px 16px 40px; }
+      main { padding: 0 16px 40px; }
       .top { align-items: center; }
       .two, .three, .four, .form-row, .form-row.three { grid-template-columns: 1fr; }
       .card { padding: 17px; }
+      .classes-heading, .classes-toolbar, .class-card-body { align-items: stretch; flex-direction: column; }
+      .class-search { width: 100%; }
+      .class-date { width: 100%; }
+      .class-open { margin-left: 0; text-align: left; }
+      .teacher-chip { min-width: 0; }
+      .teacher-chip div { display: none; }
+      .learning-type { grid-template-columns: 62px 1fr; }
+      .learning-type-icon { height: 58px; }
     }
     @media print {
       :root, body { color: #172033; background: #fff; }
@@ -141,40 +252,47 @@
 
   <div id="app" class="shell" hidden>
     <aside>
-      <div class="brand"><span class="brand-mark">✦</span><span>Teacher AI Student<small>КАБИНЕТ ПРЕПОДАВАТЕЛЯ</small></span></div>
+      <div class="brand"><span class="brand-mark">T</span><span>Teacher AI Student<small>ОБРАЗОВАНИЕ</small></span></div>
       <nav class="nav" aria-label="Разделы">
-        <button type="button" data-view="overview" class="active">Обзор</button>
-        <button type="button" data-view="students">Ученики</button>
-        <button type="button" data-view="lessons">Занятия</button>
-        <button type="button" data-view="homework">Домашние задания</button>
-        <button type="button" data-view="subscriptions">Абонементы</button>
-        <button type="button" data-view="results">Результаты</button>
-        <button type="button" data-view="report">Отчёт</button>
+        <button type="button" data-view="overview" class="active"><span class="nav-icon">▦</span>Мои классы</button>
+        <button type="button" data-view="homework"><span class="nav-icon">✓</span>Задания</button>
+        <button type="button" data-view="lessons"><span class="nav-icon">▣</span>Календарь</button>
+        <button type="button" data-coming="Доски"><span class="nav-icon">▭</span>Доски</button>
+        <button type="button" data-coming="Чат"><span class="nav-icon">◌</span>Чат</button>
+        <button type="button" data-coming="Библиотека"><span class="nav-icon">□</span>Библиотека</button>
+        <button type="button" data-view="students"><span class="nav-icon">◇</span>Ученики</button>
+        <button type="button" data-view="subscriptions"><span class="nav-icon">▤</span>Оплата</button>
+        <button type="button" data-view="results" class="nav-extra"><span class="nav-icon">↗</span>Результаты</button>
+        <button type="button" data-view="report"><span class="nav-icon">≋</span>Отчёт</button>
       </nav>
-      <div class="side-foot"><span id="workspaceName" class="muted small"></span><button id="logout" class="secondary small-button" type="button">Выйти</button></div>
+      <div class="side-foot"><button id="logout" class="secondary small-button" type="button">Выйти</button></div>
     </aside>
     <main>
-      <div class="top"><div><p class="eyebrow">Teacher AI Student</p><h1 id="viewTitle">Обзор</h1><p id="viewSubtitle" class="subtitle"></p></div><button id="refresh" class="secondary" type="button">Обновить</button></div>
+      <div class="top">
+        <div class="top-heading"><p class="eyebrow">Teacher AI Student</p><h1 id="viewTitle">Мои классы</h1><p id="viewSubtitle" class="subtitle"></p></div>
+        <button id="refresh" class="secondary" type="button" title="Обновить данные">Обновить</button>
+        <div class="teacher-chip"><span class="teacher-avatar">T</span><div><strong id="workspaceName"></strong><small>Преподаватель</small></div></div>
+      </div>
       <div id="notice" class="banner" role="status" hidden></div>
       <div id="content"></div>
     </main>
   </div>
 
   <script type="module">
-    import { buildTeacherReport, collectTeacherHomework } from './teacher-report.mjs';
+    import { buildTeacherReport } from './teacher-report.mjs';
     import { teacherNeeds, teacherMutationKeys, invalidateTeacherData, invalidateTeacherKeys, loadTeacherKey } from './teacher-data.mjs';
     import { performTeacherMutation } from './teacher-mutation.mjs';
     import { nativeHomeworkDeadlineStatus } from './homework-deadline.mjs';
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
-      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null };
+      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', selectedClass: '', learningModal: false };
       const $ = id => document.getElementById(id);
       const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const date = value => value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
       const money = value => value == null ? '—' : new Intl.NumberFormat('ru-RU').format(Number(value)) + ' ₽';
       const nowLocal = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
-      const names = { overview: ['Обзор', 'Все важное на сегодня'], students: ['Ученики', 'Список, программы и новые ученики'], lessons: ['Занятия', 'Парные уроки и отдельная посещаемость'], homework: ['Домашние задания', 'Каталог и назначения'], subscriptions: ['Абонементы', 'Текущее состояние без выдуманных платежей'], results: ['Результаты', 'Доступная история тестов и пробников'], report: ['Отчёт ученика', 'Последние восемь занятий и результаты за этот период'] };
+      const names = { overview: ['Мои классы', 'Обучения, расписание и быстрые действия'], students: ['Ученики', 'Список, программы и новые ученики'], lessons: ['Календарь', 'Парные уроки и отдельная посещаемость'], homework: ['Задания', 'Каталог и назначения'], subscriptions: ['Оплата', 'Текущее состояние без выдуманных платежей'], results: ['Результаты', 'Доступная история тестов и пробников'], report: ['Отчёт ученика', 'Последние восемь занятий и результаты за этот период'] };
       const needs = teacherNeeds;
       const list = (items, empty, item) => items.length ? `<div class="list">${items.map(item).join('')}</div>` : `<div class="empty">${safe(empty)}</div>`;
       const studentName = id => state.data.students?.find(x => x.membershipId === id)?.studentName || 'Ученик';
@@ -186,7 +304,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
-        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null;
+        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.selectedClass = ''; state.learningModal = false;
         $('app').hidden = true; $('loginScreen').hidden = false;
         $('loginError').textContent = message; $('loginError').hidden = !message;
       }
@@ -230,9 +348,9 @@
         if (!state.token || loadId !== state.viewLoadId) return;
         $('refresh').disabled = false;
         const failed = results.find(result => result.status === 'rejected');
-        showNotice(failed ? failed.reason.message : state.inviteCode
-          ? 'Ученик создан. Код доступа: ' + state.inviteCode + ' — скопируйте его сейчас.'
-          : 'Данные обновлены · ' + date(new Date()), !!failed);
+        if (failed) showNotice(failed.reason.message, true);
+        else if (state.inviteCode) showNotice('Ученик создан. Код доступа: ' + state.inviteCode + ' — скопируйте его сейчас.');
+        else $('notice').hidden = true;
         render();
       }
       async function mutation(kind, path, build) {
@@ -241,27 +359,109 @@
       }
       function setView(view) {
         state.view = view;
+        if (view !== 'overview') { state.selectedClass = ''; state.learningModal = false; }
         document.querySelectorAll('[data-view]').forEach(x => x.classList.toggle('active', x.dataset.view === view));
         $('viewTitle').textContent = names[view][0]; $('viewSubtitle').textContent = names[view][1];
         return refresh();
       }
+      const dayKey = value => new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit'
+      }).format(new Date(value));
+      const lessonLabel = value => {
+        if (!value) return ['Дата не задана', ''];
+        const source = new Date(value);
+        return [
+          new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: 'numeric', month: 'long' }).format(source),
+          new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' }).format(source)
+        ];
+      };
+      const initials = value => String(value || '?').trim().split(/\s+/).slice(0, 2).map(x => x[0]).join('').toUpperCase();
+      const avatarColor = value => {
+        const palette = ['#ef5a3c', '#4054b7', '#f2c640', '#43a899', '#8a67d5'];
+        const hash = [...String(value)].reduce((total, char) => total + char.charCodeAt(0), 0);
+        return palette[hash % palette.length];
+      };
+      const participantLesson = (membershipId, futureOnly = false) => (state.data.lessons || [])
+        .filter(x => (!futureOnly || new Date(x.lessonAt) >= new Date())
+          && (x.participants || []).some(p => p.membershipId === membershipId))
+        .sort((a, b) => new Date(a.lessonAt) - new Date(b.lessonAt))[0];
+      // Until UI-02 adds persistent class settings, each imported active membership is
+      // exposed as a stable legacy individual class. LearningProgram remains a subject
+      // program and is deliberately not treated as the class entity.
+      const legacyClasses = () => (state.data.students || []).map(student => ({
+        id: student.membershipId,
+        title: [student.studentName, student.grade, student.targetScore].filter(Boolean).join(' · '),
+        student,
+        nextLesson: participantLesson(student.membershipId, true)
+      }));
+      function learningModal() {
+        if (!state.learningModal) return '';
+        return `<div class="modal-backdrop" data-close-learning>
+          <section class="learning-modal" role="dialog" aria-modal="true" aria-labelledby="learningTitle">
+            <div class="modal-head"><h2 id="learningTitle">Новое обучение</h2><button class="modal-close" type="button" data-close-learning aria-label="Закрыть">×</button></div>
+            <div class="learning-types">
+              <button class="learning-type" type="button" data-learning-type="individual"><span class="learning-type-icon">♙</span><span><strong>Индивидуальное</strong><span>Создайте персональное обучение, занимайтесь с учеником и назначайте ему задания</span></span></button>
+              <button class="learning-type" type="button" data-learning-type="group"><span class="learning-type-icon">♧</span><span><strong>Групповое</strong><span>Планируйте групповые занятия, делитесь материалами и давайте задания классу</span></span></button>
+              <button class="learning-type" type="button" data-learning-type="one-time"><span class="learning-type-icon">▣</span><span><strong>Разовое занятие</strong><span>Организуйте пробное занятие с возможностью продолжить обучение</span></span></button>
+            </div>
+          </section>
+        </div>`;
+      }
+      function classDetail(item) {
+        const lessons = (state.data.lessons || [])
+          .filter(x => (x.participants || []).some(p => p.membershipId === item.id))
+          .sort((a, b) => new Date(b.lessonAt) - new Date(a.lessonAt));
+        return `<div class="class-detail">
+          <button class="secondary small-button" type="button" data-back-classes>← Все классы</button>
+          <div class="class-detail-banner" style="margin-top:14px">
+            <span class="class-avatar" style="--avatar:${avatarColor(item.id)}">${safe(initials(item.student.studentName))}</span>
+            <div><p class="muted small">Индивидуальное обучение · ${safe(item.student.programName)}</p><h2>${safe(item.title)}</h2></div>
+            <div class="class-detail-actions"><button class="secondary" type="button" data-open-student="${safe(item.id)}">Карточка ученика</button><button class="primary" type="button" data-schedule-class="${safe(item.id)}">Запланировать</button></div>
+          </div>
+          <div class="grid two" style="margin-top:18px">
+            <div class="card stack"><div class="section-head"><h2>Последние занятия</h2><span class="muted small">${lessons.length}</span></div>
+              ${list(lessons.slice(0, 5), 'Занятий пока нет.', x => `<div class="item"><div><strong>${safe(date(x.lessonAt))}</strong><small>${safe(x.participants?.find(p => p.membershipId === item.id)?.topicComment || 'Тема не указана')}</small></div></div>`)}
+            </div>
+            <div class="card stack"><h2>Об обучении</h2><p><span class="muted">Ученик:</span> ${safe(item.student.studentName)}</p><p><span class="muted">Программа:</span> ${safe(item.student.programName)}</p><p><span class="muted">Цель:</span> ${safe(item.student.targetScore || item.student.targetGrade || 'не указана')}</p></div>
+          </div>
+        </div>${learningModal()}`;
+      }
       function overview() {
         const d = state.data;
-        const upcoming = (d.lessons || []).slice(0, 5);
-        const pending = d.assignments && d.nativeAssignments
-          ? collectTeacherHomework(d).filter(x => !x.isSubmitted) : null;
-        const overdue = (d.nativeAssignments || []).filter(x =>
-          nativeHomeworkDeadlineStatus(x).key === 'overdue').length;
-        const pendingSources = pending
-          ? `из каталога ${pending.filter(x => x.source === 'catalog').length} · встроенных ${pending.filter(x => x.source === 'native').length} · просрочено ${overdue}`
-          : 'включая встроенные ДЗ';
-        return `<div class="grid four" style="margin-bottom:18px">
-          <div class="card"><span class="muted">Ученики</span><div class="metric">${d.students?.length ?? '—'}</div><div class="metric-note">активных в пространстве</div></div>
-          <div class="card"><span class="muted">Занятия</span><div class="metric">${d.lessons?.length ?? '—'}</div><div class="metric-note">в истории</div></div>
-          <div class="card"><span class="muted">ДЗ ожидают сдачи</span><div class="metric">${pending?.length ?? '—'}</div><div class="metric-note">${pendingSources}</div></div>
-          <div class="card"><span class="muted">Абонементы</span><div class="metric">${d.subscriptions?.length ?? '—'}</div><div class="metric-note">сохранённых состояний</div></div>
-        </div><div class="grid two"><div class="card"><div class="section-head"><h2>Последние занятия</h2></div>${d.lessons ? list(upcoming, 'Занятий пока нет.', x => `<div class="item"><div><strong>${safe(date(x.lessonAt))}</strong><small>${safe((x.participants || []).map(p => studentName(p.membershipId)).join(', '))}</small></div><span class="pill">${x.participants?.length || 0} уч.</span></div>`) : '<div class="empty">Загружаем занятия…</div>'}</div>
-        <div class="card"><div class="section-head"><h2>Что уже доступно</h2></div><div class="stack muted"><p>Учеников, занятия, ДЗ и абонементы можно просматривать в своих разделах.</p><p>История тестов и пробников доступна в «Результатах». Финансовые суммы выводятся только там, где они сохранены.</p></div></div></div>`;
+        if (!d.students || !d.lessons) {
+          const failed = !$('notice').hidden && $('notice').classList.contains('error');
+          return `<div class="classes-layout"><div class="classes-main"><div class="classes-heading"><h1>Мои классы</h1></div><div class="empty">${failed
+            ? 'Не удалось загрузить классы и расписание.<br><button class="secondary" type="button" data-retry-overview style="margin-top:14px">Повторить</button>'
+            : 'Загружаем классы и расписание…'}</div></div></div>${learningModal()}`;
+        }
+        const classes = legacyClasses();
+        const selected = classes.find(x => x.id === state.selectedClass);
+        if (selected) return classDetail(selected);
+        const query = state.classSearch.toLocaleLowerCase('ru-RU');
+        const visible = classes.filter(x => !query || `${x.title} ${x.student.programName}`.toLocaleLowerCase('ru-RU').includes(query));
+        const today = dayKey(new Date());
+        const todayLessons = d.lessons.filter(x => dayKey(x.lessonAt) === today)
+          .sort((a, b) => new Date(a.lessonAt) - new Date(b.lessonAt));
+        const completed = todayLessons.filter(x => new Date(x.lessonAt) < new Date()).length;
+        const cards = state.classTab === 'classes'
+          ? (visible.length ? `<div class="class-list">${visible.map(item => {
+              const [lessonDay, lessonTime] = lessonLabel(item.nextLesson?.lessonAt);
+              return `<article class="class-card">
+                <div class="class-card-head"><span class="class-avatar" style="--avatar:${avatarColor(item.id)}">${safe(initials(item.student.studentName))}</span><div class="class-card-title"><strong>${safe(item.title)}</strong><small>${safe(item.student.studentName)} · ${safe(item.student.programName)}</small></div></div>
+                <div class="class-card-body"><div class="class-date"><strong>${safe(lessonDay)}</strong>${safe(lessonTime)}</div><div class="class-action"><span>${item.nextLesson ? 'Занятие по расписанию' : 'Следующее занятие'}</span><button type="button" data-schedule-class="${safe(item.id)}">${item.nextLesson ? 'Изменить план' : 'Запланировать'}</button></div><button class="class-open" type="button" data-open-class="${safe(item.id)}">Открыть →</button></div>
+              </article>`;
+            }).join('')}</div>` : `<div class="empty">${query ? 'По запросу ничего не найдено.' : 'Активных классов пока нет.'}</div>`)
+          : state.classTab === 'statistics'
+            ? `<div class="grid three"><div class="card"><span class="muted">Активные классы</span><div class="metric">${classes.length}</div></div><div class="card"><span class="muted">Занятия сегодня</span><div class="metric">${todayLessons.length}</div></div><div class="card"><span class="muted">Завершено сегодня</span><div class="metric">${completed}</div></div></div>`
+            : '<div class="empty">Архив классов появится вместе с постоянной моделью класса в UI-02. Ученики и история сейчас не изменяются.</div>';
+        return `<div class="classes-layout"><section class="classes-main">
+          <div class="classes-heading"><h1>Мои классы</h1><button class="primary" type="button" data-open-learning>＋ Начать новое обучение</button></div>
+          <div class="classes-toolbar"><div class="class-tabs"><button type="button" data-class-tab="classes" class="${state.classTab === 'classes' ? 'active' : ''}">Мои классы</button><button type="button" data-class-tab="statistics" class="${state.classTab === 'statistics' ? 'active' : ''}">Статистика</button><button type="button" data-class-tab="archive" class="${state.classTab === 'archive' ? 'active' : ''}">Архив</button></div>
+            <label class="class-search"><span class="small">Поиск</span><input id="classSearch" type="search" value="${safe(state.classSearch)}" placeholder="Название или ученик"></label></div>
+          <div class="access-chip">♙ Допуск <strong>${classes.length}</strong></div>${cards}
+        </section><section class="today-panel"><div class="today-inner"><div class="today-title"><h2>Сегодня</h2><button type="button" data-view-calendar>Календарь ›</button></div><div class="today-count"><span>Завершено: ${completed}</span><span>${todayLessons.length} всего</span></div>
+          <div class="today-lessons">${todayLessons.map(x => `<div class="today-lesson"><strong>${safe(lessonLabel(x.lessonAt).join(' · '))}</strong><small>${safe((x.participants || []).map(p => studentName(p.membershipId)).join(', ') || 'Без участников')}</small></div>`).join('')}</div>
+          <button class="today-plan" type="button" data-view-calendar>▣ Запланировать занятие</button></div></section></div>${learningModal()}`;
       }
       const studentProfileFields = ['grade', 'groupId', 'targetScore', 'targetGrade',
         'initialScore', 'initialPrimaryScore', 'initialGrade', 'parentName', 'notes'];
@@ -522,6 +722,8 @@
         } finally { setBusy(form, false); }
       });
       document.querySelector('.nav').addEventListener('click', event => {
+        const coming = event.target.closest('[data-coming]');
+        if (coming) { showNotice('Раздел «' + coming.dataset.coming + '» будет подключён на своём этапе. Данные не изменены.'); return; }
         const button = event.target.closest('[data-view]'); if (button) setView(button.dataset.view);
       });
       $('refresh').addEventListener('click', () => refresh(true));
@@ -531,6 +733,13 @@
       });
       $('content').addEventListener('input', event => {
         if (event.target.id === 'studentSearch') studentRows(event.target.value.trim());
+        if (event.target.id === 'classSearch') {
+          const position = event.target.selectionStart;
+          state.classSearch = event.target.value;
+          render();
+          const input = $('classSearch');
+          if (input) { input.focus(); input.setSelectionRange(position, position); }
+        }
       });
       $('content').addEventListener('change', event => {
         if (event.target.id === 'resultStudent') { state.resultStudent = event.target.value; render(); }
@@ -546,6 +755,46 @@
       });
       $('content').addEventListener('click', async event => {
         if (event.target.id === 'printReport') { window.print(); return; }
+        if (event.target.closest('[data-retry-overview]')) { await refresh(true); return; }
+        if (event.target.matches('.modal-backdrop[data-close-learning]') || event.target.closest('.modal-close[data-close-learning]')) {
+          state.learningModal = false; render(); return;
+        }
+        if (event.target.closest('[data-open-learning]')) {
+          state.learningModal = true; render(); document.querySelector('.modal-close')?.focus(); return;
+        }
+        const learningType = event.target.closest('[data-learning-type]');
+        if (learningType) {
+          const type = learningType.dataset.learningType;
+          state.learningModal = false;
+          if (type === 'individual') {
+            await setView('students');
+            showNotice('Открыта действующая форма нового ученика. Настройки отдельного класса будут добавлены в UI-02.');
+          } else if (type === 'one-time') {
+            await setView('lessons');
+            showNotice('Открыта действующая форма занятия. Расширенная форма разового занятия будет добавлена в UI-03.');
+          } else {
+            render();
+            showNotice('Групповое обучение будет доступно после добавления постоянной модели класса в UI-02. Данные не изменены.');
+          }
+          return;
+        }
+        const classTab = event.target.closest('[data-class-tab]');
+        if (classTab) { state.classTab = classTab.dataset.classTab; render(); return; }
+        const openClass = event.target.closest('[data-open-class]');
+        if (openClass) { state.selectedClass = openClass.dataset.openClass; render(); return; }
+        if (event.target.closest('[data-back-classes]')) { state.selectedClass = ''; render(); return; }
+        if (event.target.closest('[data-view-calendar]') || event.target.closest('[data-schedule-class]')) {
+          await setView('lessons');
+          showNotice('Открыт календарь и действующая форма занятия.');
+          return;
+        }
+        const openStudent = event.target.closest('[data-open-student]');
+        if (openStudent) {
+          const selected = state.data.students?.find(x => x.membershipId === openStudent.dataset.openStudent);
+          await setView('students');
+          if (selected) { const input = $('studentSearch'); if (input) { input.value = selected.studentName; studentRows(selected.studentName); } }
+          return;
+        }
         if (event.target.closest('[data-cancel-lesson]')) {
           state.editLesson = null; render(); return;
         }
@@ -579,6 +828,9 @@
           try { await api('teacher/students/' + encodeURIComponent(student.membershipId) + '/archive', { method: 'POST' }); invalidate(['students']); await refresh(); }
           catch (error) { showNotice(error.message, true); archive.disabled = false; }
         }
+      });
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && state.learningModal) { state.learningModal = false; render(); }
       });
       $('content').addEventListener('submit', event => {
         event.preventDefault(); const form = event.target;
