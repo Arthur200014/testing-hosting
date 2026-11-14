@@ -9,13 +9,23 @@ Deliver working changes to the existing repository with the least necessary cont
 - Prefer symbol searches and bounded line ranges. Do not print large source files, full logs, JSON API responses, or whole diffs into chat. Fetch/process large files inside a tool call and return only findings.
 - Avoid rereading unchanged code. If source or instructions disagree with a stale handoff, verify in Git and correct the pointer.
 
+## Context budget — mandatory
+- Recommended interactive setting: `GPT-6.1 Sol` with `medium` reasoning. Use higher reasoning only for a concrete migration, authorization, concurrency, or architecture risk; do not spend it on routine HTML/CSS.
+- Start with `AGENTS.md` + `HANDOFF.md`. Read the plan/checklist only for the active stage and open architecture/history documents only when the current code leaves a real question. Do not preload background “just in case”.
+- Search first (`rg`, symbols, route names, selectors), then read bounded regions around matches. For a large HTML/JS/C# file, never request the whole file when the relevant component/function can be located. Initial discovery should normally touch only the files named by `NEXT_ACTION`.
+- For Meleto, open only the current 1–2 PNGs and their JSON records. Do not load the 74 screenshots, the whole PDF, or the complete screen catalog into a model turn.
+- Never paste an entire file, generated site, repository tree, diff, test log, database response, network trace, or screenshot manifest into chat or a handoff. Process it in the tool/runtime and report paths plus a short finding. Use `git diff --stat`/`--name-only` and targeted hunks instead of a full diff.
+- One turn targets one reviewable scenario, not the whole site. Reuse existing components and perform the edit before optional research. Do not create parallel agents, broad audits, speculative refactors, duplicate documentation, or plan-only commits for an ordinary UI task.
+- Run the smallest relevant check once; expand or rerun only after a failure or a material risk. Do not run the whole repository suite, build new test infrastructure, or create cosmetic tests for a scoped UI change.
+- Keep progress updates, commit messages, HANDOFF and the final report compact. Save only information needed to resume: outcome, changed paths, actual checks, blocker if any, and one concrete next step.
+
 ## Implementation
 1. Identify one concrete outcome and the minimal files required.
 2. For ordinary changes, implement directly. No mandatory task packet, Jev call, subagent, architectural report, detailed test matrix, or planning commit.
 3. Use existing patterns/components; preserve compatibility. Do not refactor unrelated features.
 4. Inspect only the changed regions and affected interfaces; check for accidental changes, secrets, and sensitive data.
 5. Run the minimum *relevant* verification described below, fix actual failures, and publish a coherent commit. For simple complete work, one commit on `main` is fine.
-6. Report the outcome, actual checks (PASS / FAIL / NOT_RUN), commit link, and next step. Keep the answer concise.
+6. Report the outcome, actual checks (PASS / FAIL / NOT_RUN), commit link, and next step. Do not reproduce code or diffs already stored in Git.
 
 Additional research, architecture review, independent review, and agents are **optional** and justified only by genuine complexity or risk. Never attempt a missing SDK integration merely to satisfy process.
 

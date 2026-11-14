@@ -8,6 +8,7 @@ This repository contains existing educational interactives and the TEACHER AI ST
 2. [RELEASE_PLAN.md](tas/RELEASE_PLAN.md) defines the UI-01…UI-08 Meleto roadmap; [PHASE_CHECKLISTS.md](tas/PHASE_CHECKLISTS.md) defines acceptance. The owner chose teacher cabinet first and maximum visual fidelity. Old Mxx/Pxx task boards and the previous three-result release plan are historical.
 3. [MELETO_REFERENCE.md](tas/MELETO_REFERENCE.md) links the visual archive/PDF. Use [MELETO_SCREEN_INDEX.md](tas/MELETO_SCREEN_INDEX.md) to open only the relevant PNGs/JSON. If the archive is unavailable, request it; do not invent visual evidence.
 4. Use [CONTEXT_MAP.md](CONTEXT_MAP.md) to locate only relevant code, models, routes and tests. Build one working scenario, verify it proportionately, commit, and update HANDOFF with one concrete next step.
+5. Work in context-saving mode from `AGENTS.md`: search before reading, use bounded line ranges, open only the current 1–2 reference images, and never send whole files/site sources/diffs/logs to chat. The normal model setting is GPT-6.1 Sol with medium reasoning.
 
 ## Source precedence
 
@@ -17,4 +18,4 @@ Existing ASP.NET Core/PostgreSQL and the teacher/student pages should be reused.
 
 ## Other areas
 
-`.ai/tasks/` contains task-specific history; `docs/architecture/` contains stable design decisions; `EGA/` and `OGA/` contain educational interactives. Search only relevant files. The continuation text to paste is [NEW_CHAT_PROMPT.md](tas/NEW_CHAT_PROMPT.md).
+`.ai/tasks/` contains task-specific history; `docs/architecture/` contains stable design decisions; `EGA/` and `OGA/` contain educational interactives. Search only relevant files. Do not read or summarize these collections unless `NEXT_ACTION` names a dependency. The continuation text to paste is [NEW_CHAT_PROMPT.md](tas/NEW_CHAT_PROMPT.md).
