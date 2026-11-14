@@ -189,7 +189,11 @@ try {
   await page.screenshot({ path: output + '/03_individual_create.png' });
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   const chats = await page.locator('#classForm .class-chats-section').boundingBox();
+  const toolbar = await page.locator('.top').boundingBox();
+  const brand = await page.locator('aside .brand').boundingBox();
   assert.ok(chats && chats.y < 926 && chats.y + chats.height > 0, 'screen 04 must show the bottom chat settings');
+  assert.ok(toolbar && toolbar.y >= -1 && toolbar.y <= 2, 'top toolbar should remain visible while scrolling');
+  assert.ok(brand && brand.y >= 0 && brand.y < 70, 'sidebar brand should stay visible while scrolling');
   await page.screenshot({ path: output + '/04_individual_settings.png' });
   await page.locator('#classForm button[type="submit"]').click();
   const createdCard = page.locator(`[data-open-class="${createdClassId}"]`);
