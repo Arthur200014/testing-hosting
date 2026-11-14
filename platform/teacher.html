@@ -316,14 +316,14 @@
   </div>
 
   <script type="module">
-    import { buildTeacherReport } from './teacher-report.mjs';
+    import { buildTeacherReport, collectTeacherHomework } from './teacher-report.mjs';
     import { teacherNeeds, teacherMutationKeys, invalidateTeacherData, invalidateTeacherKeys, loadTeacherKey } from './teacher-data.mjs';
     import { performTeacherMutation } from './teacher-mutation.mjs';
     import { nativeHomeworkDeadlineStatus } from './homework-deadline.mjs';
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
-      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', selectedClass: '', classEdit: '', lastClassInvitation: null, learningModal: false, classCreate: false };
+      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', lastClassInvitation: null, learningModal: false, classCreate: false };
       const $ = id => document.getElementById(id);
       const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const date = value => value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
@@ -379,7 +379,7 @@
         const view = state.view, loadId = ++state.viewLoadId;
         $('refresh').disabled = true;
         showNotice('Загружаем ' + names[view][0].toLowerCase() + '…');
-        const loading = needs[view].map(key => loadKey(key, force));
+        const loading = [...needs[view], ...(view === 'overview' && state.classTab === 'statistics' ? ['assignments', 'nativeAssignments'] : [])].map(key => loadKey(key, force));
         render();
         const results = await Promise.allSettled(loading);
         if (!state.token || loadId !== state.viewLoadId) return;
@@ -475,35 +475,87 @@
             ${rawStatus === 'pending' ? `<button class="secondary" type="button" data-revoke-class-invite="${safe(item.id)}">Отозвать</button>` : ''}</div>`}
         </section>`;
       }
+      const classDetailTabs = [
+        ['summary','Сводка'], ['schedule','Расписание'], ['materials','Материалы'],
+        ['program','Программа'], ['homework','Задания'], ['payment','Оплата'], ['information','Информация']
+      ];
       function classDetail(item) {
-        const lessons = (state.data.lessons || [])
-          .filter(x => (x.participants || []).some(p => p.membershipId === item.studentMembershipId))
+        const lessons = (state.data.lessons || []).filter(x =>
+          (x.participants || []).some(p => p.membershipId === item.studentMembershipId))
           .sort((a, b) => new Date(b.lessonAt) - new Date(a.lessonAt));
-        return `<div class="class-detail">
-          <button class="secondary small-button" type="button" data-back-classes>← Все классы</button>
-          <div class="class-detail-banner cover-${safe(item.coverStyle || 'lavender')}" style="margin-top:14px">
-            <span class="class-avatar" style="--avatar:${avatarColor(item.id)}">${safe(initials(item.student.studentName))}</span>
-            <div><p class="muted small">Индивидуальное обучение · ${safe(item.student.programName)}</p><h2>${safe(item.title)}</h2>${item.description ? `<p class="muted small">${safe(item.description)}</p>` : ''}</div>
-            <div class="class-detail-actions"><button class="secondary" type="button" data-open-student="${safe(item.studentMembershipId)}">Карточка ученика</button>${item.isArchived ? '<span class="pill warn">В архиве</span>' : `<button class="primary" type="button" data-schedule-class="${safe(item.id)}">Запланировать</button>`}</div>
+        const upcoming = lessons.filter(x => new Date(x.lessonAt) >= new Date()).sort((a,b) => new Date(a.lessonAt)-new Date(b.lessonAt))[0];
+        const tab = classDetailTabs.some(x => x[0] === state.classDetailTab) ? state.classDetailTab : 'summary';
+        const metadata = `<div class="class-info-grid">
+          <div class="class-info-panel"><h3>Об обучении</h3>
+            <p><span class="muted">Ученик:</span> <button type="button" class="class-text-link" data-open-student="${safe(item.studentMembershipId)}">${safe(item.student.studentName)}</button></p>
+            <p><span class="muted">Программа:</span> ${safe(item.student.programName)}</p>
+            <p><span class="muted">Цель:</span> ${safe(item.student.targetScore || item.student.targetGrade || 'не указана')}</p>
+            ${item.description ? `<p><span class="muted">Описание:</span> ${safe(item.description)}</p>` : ''}
           </div>
-          ${item.persistent ? `<div class="class-management-actions">
-            ${item.isArchived
-              ? `<button class="primary" type="button" data-restore-class="${safe(item.id)}">Восстановить класс</button>`
-              : `<button class="secondary" type="button" data-edit-class="${safe(item.id)}">Редактировать</button><button class="danger" type="button" data-archive-class="${safe(item.id)}">В архив</button>`}
-          </div><p class="class-archive-note">Архивирование класса не затрагивает ученика, занятия или историю.</p>` : ''}
-          <div class="grid two" style="margin-top:18px">
-            <div class="card stack"><div class="section-head"><h2>Последние занятия</h2><span class="muted small">${lessons.length}</span></div>
-              ${list(lessons.slice(0, 5), 'Занятий пока нет.', x => `<div class="item"><div><strong>${safe(date(x.lessonAt))}</strong><small>${safe(x.participants?.find(p => p.membershipId === item.studentMembershipId)?.topicComment || 'Тема не указана')}</small></div></div>`)}
+          <div class="class-info-panel"><h3>Настройки класса</h3>
+            <p><span class="muted">Длительность:</span> ${item.durationMinutes != null ? safe(item.durationMinutes) + ' мин' : 'не задана'}</p>
+            <p><span class="muted">Стоимость (условие):</span> ${item.priceAmount != null ? safe(Number(item.priceAmount).toLocaleString('ru-RU', { maximumFractionDigits: 2 })) + ' ' + safe(item.priceCurrency) + ' / ' + (item.priceBasis === 'month' ? 'месяц' : 'занятие') : 'не задана'}</p>
+            <p><span class="muted">Чат занятия:</span> ${item.allowLessonChat ? 'разрешён в настройках' : 'запрещён'}</p>
+            <p><span class="muted">Личные сообщения:</span> ${item.allowPrivateMessages ? 'разрешены в настройках' : 'запрещены'}</p>
+            <p class="muted small">Оплата и чаты пока не подключены, сохранены только параметры класса.</p>
+          </div>
+        </div>`;
+        const tabs = {
+          summary: `<section class="class-summary">
+            <div class="class-schedule-slots"><span class="muted small">Слоты регулярного расписания ещё не настроены.</span>
+              <button type="button" class="class-gear" data-view-calendar aria-label="Открыть календарь">⚙</button></div>
+            <p class="class-caption">Ближайшее занятие</p>
+            <div class="class-nearest"><span class="class-nearest-icon">▣</span>
+              <div><strong>${upcoming ? 'Запланированное занятие' : 'Занятие не запланировано'}</strong>
+                <small>${upcoming ? safe(date(upcoming.lessonAt)) : 'Для создания занятия откройте календарь'}</small></div>
+              <button type="button" class="primary" data-schedule-class="${safe(item.id)}">${upcoming ? 'Календарь' : 'Запланировать'}</button>
             </div>
-            <div class="card stack"><h2>Об обучении</h2><p><span class="muted">Ученик:</span> ${safe(item.student.studentName)}</p><p><span class="muted">Программа:</span> ${safe(item.student.programName)}</p><p><span class="muted">Цель:</span> ${safe(item.student.targetScore || item.student.targetGrade || 'не указана')}</p>
-              <h3>Настройки класса</h3>
-              <p><span class="muted">Длительность:</span> ${item.durationMinutes ? safe(item.durationMinutes) + ' мин' : 'не задана'}</p>
-              <p><span class="muted">Стоимость (условие):</span> ${item.priceAmount != null ? safe(Number(item.priceAmount).toLocaleString('ru-RU', { maximumFractionDigits: 2 })) + ' ' + safe(item.priceCurrency) + ' / ' + (item.priceBasis === 'month' ? 'месяц' : 'занятие') : 'не задана'}</p>
-              <p><span class="muted">Чат занятия:</span> ${item.allowLessonChat ? 'разрешён в настройках' : 'запрещён'}</p>
-              <p><span class="muted">Личные сообщения:</span> ${item.allowPrivateMessages ? 'разрешены в настройках' : 'запрещены'}</p>
-              <p class="muted small">Оплата и чаты пока не подключены: здесь сохранены только параметры класса.</p></div>
+          </section>`,
+          schedule: `<section class="class-subsection"><h3>Занятия класса</h3>
+            ${list(lessons.slice(0, 15), 'Занятий по этому классу пока нет.', x => `<div class="item">
+                <div><strong>${safe(date(x.lessonAt))}</strong><small>${safe(x.participants?.find(p => p.membershipId === item.studentMembershipId)?.topicComment || 'Тема не указана')}</small></div>
+                <span class="pill">${new Date(x.lessonAt) > new Date() ? 'Запланировано' : 'Прошло'}</span>
+              </div>`)}
+            <button class="secondary" type="button" data-view-calendar>Открыть календарь</button></section>`,
+          materials: `<section class="class-subsection class-feature-note"><h3>Материалы класса</h3>
+            <p>Привязка материалов к конкретному классу пока не подключена. Существующие файлы и задания не изменены.</p></section>`,
+          program: `<section class="class-subsection"><h3>Программа обучения</h3>
+            <p>${safe(item.student.programName)}</p><p class="muted small">Содержание программы класса будет доступно после подключения отдельного редактора.</p></section>`,
+          homework: `<section class="class-subsection class-feature-note"><h3>Задания</h3>
+            <p>Назначения этому ученику доступны в существующем разделе заданий.</p>
+            <button type="button" class="secondary" data-class-section="homework">Перейти к заданиям</button></section>`,
+          payment: `<section class="class-subsection class-feature-note"><h3>Оплата</h3>
+            <p>${item.priceAmount == null ? 'Стоимость не задана.' : 'Условие: ' + safe(item.priceAmount) + ' ' + safe(item.priceCurrency) + (item.priceBasis === 'month' ? ' в месяц' : ' за занятие')}</p>
+            <p class="muted small">Здесь не создаются счета и платежи.</p>
+            <button type="button" class="secondary" data-class-section="subscriptions">Открыть абонементы</button></section>`,
+          information: `<section class="class-subsection">${metadata}
+            ${item.persistent ? classInvitePanel(item) : '<p class="muted small">Этот класс отображается из существующей карточки ученика.</p>'}
+            <p class="class-archive-note">Архивирование класса не удаляет ученика, занятия и историю.</p></section>`
+        };
+        return `<div class="class-detail">
+          <div class="class-detail-banner cover-${safe(item.coverStyle || 'lavender')}">
+            <button type="button" class="class-back" data-back-classes aria-label="Назад ко всем классам">‹</button>
+            <div class="class-detail-banner-body"><p class="class-detail-kind">Индивидуальное обучение</p>
+              <h2>${safe(item.title)}</h2>
+              <div class="class-banner-buttons">
+                <button type="button" class="primary" data-class-detail-tab="materials">＋ Добавить содержимое</button>
+                <button type="button" class="secondary" disabled title="Доски класса ещё не подключены">▣ Перейти к доске</button>
+              </div>
+            </div>
+            <div class="class-detail-banner-art" aria-hidden="true"></div>
+            ${item.persistent ? `<details class="class-detail-menu"><summary aria-label="Действия с классом" title="Действия с классом">⋮</summary>
+              <div class="class-detail-menu-actions">
+                ${item.isArchived ? `<button type="button" data-restore-class="${safe(item.id)}">Восстановить класс</button>` :
+                  `<button type="button" data-edit-class="${safe(item.id)}">Редактировать</button>
+                    <button type="button" data-archive-class="${safe(item.id)}">В архив</button>`}
+              </div></details>` : ''}
           </div>
-        </div>${classInvitePanel(item)}${learningModal()}`;
+          <nav class="class-detail-tabs" aria-label="Разделы класса">
+            ${classDetailTabs.map(([id,label]) => `<button type="button" data-class-detail-tab="${id}" class="${id === tab ? 'active' : ''}" aria-current="${id === tab ? 'page' : 'false'}">${label}</button>`).join('')}
+          </nav>
+          ${item.isArchived ? '<p class="class-archived-state">Класс в архиве. Доступ к истории и сохранённым настройкам остаётся.</p>' : ''}
+          ${tabs[tab]}
+        </div>${learningModal()}`;
       }
       function individualClassCreate() {
         const students = state.data.students || [];
@@ -593,8 +645,10 @@
         for (const option of form.querySelectorAll('[name="coverStyle"]')) option.defaultChecked = option.value === (item.coverStyle || 'lavender');
         const preview = form.querySelector('[data-cover-display]');
         preview.className = 'class-cover-display cover-' + (item.coverStyle || 'lavender');
-        form.querySelector('[data-choose-student]')?.remove();
-        form.elements.inviteEnabled.checked = false;
+        // Editing cannot reassign a student. The actual invite workflow is in the Information tab.
+        const inviteSection = form.querySelector('.class-invitation-section');
+        inviteSection.innerHTML = '<div class="class-section-top"><label class="class-switch"><input type="checkbox" disabled><span>Пригласить ученика</span></label>' +
+          '<p class="class-setting-note">Список приглашений и управление участниками доступны на вкладке «Информация» в карточке класса.</p></div>';
         form.querySelectorAll('.class-field').forEach(label => {
           const counter = label.querySelector('[data-char-count]');
           if (!counter) return;
