@@ -205,6 +205,21 @@
     .class-create input:disabled, .class-create select:disabled { opacity: .6; }
     .class-management-actions { display: flex; flex-wrap: wrap; gap: 9px; margin: 16px 0 0; }
     .class-archive-note { margin: 14px 0; color: #91a2bc; font-size: .84rem; }
+    .class-detail-banner.cover-lavender { background: linear-gradient(110deg,#e4ddff,#f5eafb); }
+    .class-detail-banner.cover-sky { background: linear-gradient(110deg,#b6dafa,#e3f3ff); }
+    .class-detail-banner.cover-peach { background: linear-gradient(110deg,#fbd2b6,#ffede1); }
+    .class-detail-banner.cover-mint { background: linear-gradient(110deg,#b5e9da,#e3f9e8); }
+    .class-cover-options { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 9px; }
+    .class-cover-choice { cursor:pointer; padding: 6px; border: 1px solid #dadbe7; border-radius: 9px; text-align: center; color: #45465b; }
+    .class-cover-choice input { width: 17px; height: 17px; margin: 6px 0 0; accent-color: #7968f8; }
+    .class-cover-preview { display: block; height: 46px; border-radius: 6px; }
+    .class-cover-preview.cover-lavender { background: linear-gradient(130deg,#9e82ef,#ddd5fc); }
+    .class-cover-preview.cover-sky { background: linear-gradient(130deg,#78bdf1,#dcf2ff); }
+    .class-cover-preview.cover-peach { background: linear-gradient(130deg,#f4ac86,#ffe4d8); }
+    .class-cover-preview.cover-mint { background: linear-gradient(130deg,#81cdb0,#e0f5e1); }
+    .class-invite-card { margin-top: 18px; }
+    .class-invite-code { display:block; padding: 12px; border: 1px dashed #a298d5; border-radius: 9px; word-break: break-all; font-family: ui-monospace,monospace; font-size: .89rem; background: #f7f5ff; color: #2b2943; user-select: all; }
+    @media (max-width: 600px) { .class-cover-options { grid-template-columns: repeat(2,minmax(0,1fr)); } }
     @media (max-width: 1100px) {
       .four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .classes-layout { grid-template-columns: 1fr; }
@@ -307,7 +322,7 @@
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
-      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', selectedClass: '', classEdit: '', learningModal: false, classCreate: false };
+      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', selectedClass: '', classEdit: '', lastClassInvitation: null, learningModal: false, classCreate: false };
       const $ = id => document.getElementById(id);
       const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const date = value => value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
@@ -325,7 +340,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
-        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.selectedClass = ''; state.classEdit = ''; state.learningModal = false; state.classCreate = false;
+        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.selectedClass = ''; state.classEdit = ''; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false;
         $('app').hidden = true; $('loginScreen').hidden = false;
         $('loginError').textContent = message; $('loginError').hidden = !message;
       }
@@ -380,7 +395,7 @@
       }
       function setView(view) {
         state.view = view;
-        if (view !== 'overview') { state.selectedClass = ''; state.classEdit = ''; state.learningModal = false; state.classCreate = false; }
+        if (view !== 'overview') { state.selectedClass = ''; state.classEdit = ''; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; }
         document.querySelectorAll('[data-view]').forEach(x => x.classList.toggle('active', x.dataset.view === view));
         $('viewTitle').textContent = names[view][0]; $('viewSubtitle').textContent = names[view][1];
         return refresh();
@@ -438,13 +453,34 @@
           </section>
         </div>`;
       }
+      const classCoverNames = { lavender: 'Лаванда', sky: 'Небо', peach: 'Персик', mint: 'Мята' };
+      function classCoverChoices(selected = 'lavender') {
+        return Object.entries(classCoverNames).map(([value,label]) =>
+          `<label class="class-cover-choice"><span class="class-cover-preview cover-${value}" aria-hidden="true"></span><span>${label}</span><input type="radio" name="coverStyle" value="${value}" ${selected === value ? 'checked' : ''}></label>`).join('');
+      }
+      function classInvitePanel(item) {
+        if (!item.persistent) return '';
+        const rawStatus = item.invitationStatus;
+        const expired = rawStatus === 'pending' && item.invitationExpiresAt && new Date(item.invitationExpiresAt) <= new Date();
+        const status = rawStatus === 'accepted' ? 'Принято учеником'
+          : rawStatus === 'revoked' ? 'Отозвано'
+          : expired ? 'Срок истёк' : rawStatus === 'pending' ? 'Ожидает подтверждения' : 'Не создано';
+        const issued = state.lastClassInvitation?.id === item.id ? state.lastClassInvitation : null;
+        return `<section class="card stack class-invite-card"><h3>Приглашение ученика</h3><p class="muted">Статус: <strong>${status}</strong>${item.invitationExpiresAt && rawStatus === 'pending' ? ` · до ${safe(new Date(item.invitationExpiresAt).toLocaleDateString('ru-RU'))}` : ''}</p>
+          <p class="muted small">Ученик уже привязан к этому классу. Это отдельный одноразовый код подтверждения, а не код входа. Передайте его вручную; сообщения автоматически не отправляются.</p>
+          ${issued ? `<code class="class-invite-code" data-invite-code>${safe(issued.code)}</code><button class="secondary" type="button" data-copy-class-invite>Скопировать код</button><p class="muted small">Код показывается только сейчас. При перезагрузке получить его повторно нельзя — можно выпустить новый.</p>` : ''}
+          ${item.isArchived ? '<p class="muted small">Для приглашения восстановите класс из архива.</p>'
+            : `<div class="row"><button class="primary" type="button" data-issue-class-invite="${safe(item.id)}">${rawStatus === 'pending' ? 'Выпустить новый код' : 'Создать приглашение'}</button>
+            ${rawStatus === 'pending' ? `<button class="secondary" type="button" data-revoke-class-invite="${safe(item.id)}">Отозвать</button>` : ''}</div>`}
+        </section>`;
+      }
       function classDetail(item) {
         const lessons = (state.data.lessons || [])
           .filter(x => (x.participants || []).some(p => p.membershipId === item.studentMembershipId))
           .sort((a, b) => new Date(b.lessonAt) - new Date(a.lessonAt));
         return `<div class="class-detail">
           <button class="secondary small-button" type="button" data-back-classes>← Все классы</button>
-          <div class="class-detail-banner" style="margin-top:14px">
+          <div class="class-detail-banner cover-${safe(item.coverStyle || 'lavender')}" style="margin-top:14px">
             <span class="class-avatar" style="--avatar:${avatarColor(item.id)}">${safe(initials(item.student.studentName))}</span>
             <div><p class="muted small">Индивидуальное обучение · ${safe(item.student.programName)}</p><h2>${safe(item.title)}</h2>${item.description ? `<p class="muted small">${safe(item.description)}</p>` : ''}</div>
             <div class="class-detail-actions"><button class="secondary" type="button" data-open-student="${safe(item.studentMembershipId)}">Карточка ученика</button>${item.isArchived ? '<span class="pill warn">В архиве</span>' : `<button class="primary" type="button" data-schedule-class="${safe(item.id)}">Запланировать</button>`}</div>
@@ -466,7 +502,7 @@
               <p><span class="muted">Личные сообщения:</span> ${item.allowPrivateMessages ? 'разрешены в настройках' : 'запрещены'}</p>
               <p class="muted small">Оплата и чаты пока не подключены: здесь сохранены только параметры класса.</p></div>
           </div>
-        </div>${learningModal()}`;
+        </div>${classInvitePanel(item)}${learningModal()}`;
       }
       function individualClassCreate() {
         const students = state.data.students || [];
@@ -475,6 +511,7 @@
           <div class="card stack">
             <form id="classForm" class="stack">
               <label class="class-field"><span class="class-field-head"><span>Название класса</span><span class="class-count" data-char-count>0 / 50</span></span><input name="title" maxlength="50" required placeholder="Название класса" autocomplete="off"></label>
+              <div class="class-field"><span>Обложка класса</span><div class="class-cover-options">${classCoverChoices()}</div><p class="muted small">Выберите оформление из безопасных готовых вариантов.</p></div>
               <label class="class-field"><span class="class-field-head"><span>Описание</span><span class="class-count" data-char-count>0 / 200</span></span><textarea name="description" maxlength="200" rows="4" placeholder="Краткое описание обучения (необязательно)"></textarea></label>
               <label><span>Ученик</span><select name="studentMembershipId" required>${choices}</select></label>
               <section class="class-settings" data-settings>
@@ -519,6 +556,7 @@
         form.elements.title.defaultValue = item.title;
         if (item.title.length > 50) form.elements.title.maxLength = 200; // Existing legacy titles.
         form.elements.description.defaultValue = item.description || '';
+        for (const option of form.querySelectorAll('[name="coverStyle"]')) option.defaultChecked = option.value === (item.coverStyle || 'lavender');
         form.querySelectorAll('.class-field').forEach(label => {
           const field = label.querySelector('input, textarea');
           label.querySelector('[data-char-count]').textContent = field.value.length + ' / ' + field.maxLength;
@@ -936,8 +974,31 @@
         const classTab = event.target.closest('[data-class-tab]');
         if (classTab) { state.classTab = classTab.dataset.classTab; state.selectedClass = ''; state.classEdit = ''; render(); return; }
         const openClass = event.target.closest('[data-open-class]');
-        if (openClass) { state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; render(); return; }
-        if (event.target.closest('[data-back-classes]')) { state.selectedClass = ''; state.classEdit = ''; render(); return; }
+        if (openClass) { state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; state.lastClassInvitation = null; render(); return; }
+        if (event.target.closest('[data-back-classes]')) { state.selectedClass = ''; state.classEdit = ''; state.lastClassInvitation = null; render(); return; }
+        if (event.target.closest('[data-copy-class-invite]')) {
+          const code = state.lastClassInvitation?.code;
+          if (!code) return;
+          try { await navigator.clipboard.writeText(code); showNotice('Код скопирован. Передайте его ученику вручную.'); }
+          catch (_) { showNotice('Скопируйте код вручную из поля.', true); }
+          return;
+        }
+        const issueInvite = event.target.closest('[data-issue-class-invite], [data-revoke-class-invite]');
+        if (issueInvite) {
+          const id = issueInvite.dataset.issueClassInvite || issueInvite.dataset.revokeClassInvite;
+          const item = (state.data.classes || []).find(x => x.id === id);
+          if (!item || item.isArchived) return;
+          const revoke = issueInvite.hasAttribute('data-revoke-class-invite');
+          if (!confirm(revoke ? 'Отозвать приглашение? Этот код больше нельзя будет использовать.' : 'Выпустить одноразовый код для текущего ученика? Прежний код перестанет действовать.')) return;
+          issueInvite.disabled = true;
+          try {
+            const result = await api('teacher/classes/' + encodeURIComponent(id) + (revoke ? '/invitation/revoke' : '/invitation'), { method: 'POST', body: { expectedRevision: item.revision } });
+            state.lastClassInvitation = revoke ? null : { id, code: result.code };
+            invalidate(['classes']);
+            await refresh(true);
+          } catch (error) { showNotice(error.message, true); if (issueInvite.isConnected) issueInvite.disabled = false; }
+          return;
+        }
         const statusButton = event.target.closest('[data-archive-class], [data-restore-class]');
         if (statusButton) {
           const id = statusButton.dataset.archiveClass || statusButton.dataset.restoreClass;
@@ -1018,6 +1079,7 @@
         event.preventDefault(); const form = event.target;
         const classFields = form => ({
           title: formValue(form, 'title'),
+          coverStyle: form.querySelector('input[name="coverStyle"]:checked')?.value || 'lavender',
           description: formValue(form, 'description'),
           durationMinutes: form.elements.durationEnabled.checked ? Number(formValue(form, 'durationMinutes')) : null,
           priceAmount: form.elements.priceEnabled.checked ? Number(formValue(form, 'priceAmount')) : null,

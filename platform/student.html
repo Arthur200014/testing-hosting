@@ -30,6 +30,7 @@
         <label>Код ученика<input name="code" required autocomplete="off"></label><button type="submit">Войти</button></form>
     </section>
     <section id="dashboard" hidden><p><span id="studentName"></span> · <button id="logout" type="button">Выйти</button></p>
+      <section class="card"><h2>Приглашение в класс</h2><p class="muted">После входа введите полученный от преподавателя код приглашения. Это не код доступа к кабинету.</p><form id="classInvitationForm"><label>Одноразовый код приглашения<input name="code" maxlength="64" minlength="64" pattern="[A-Fa-f0-9]{64}" autocomplete="off" required></label><button type="submit">Подтвердить приглашение</button></form></section>
       <div id="assignments"></div></section>
   </main>
   <script type="module">
@@ -67,7 +68,16 @@
       } catch (error) { message(error.message, true); } finally { button.disabled = false; }
     });
     $('dashboard').addEventListener('submit', async event => {
-      event.preventDefault(); const form = event.target; const id = form.dataset.assignment;
+      event.preventDefault(); const form = event.target;
+      if (form.id === 'classInvitationForm') {
+        const button = form.querySelector('button'); button.disabled = true;
+        try { await api('student/classes/invitations/accept', { code: form.elements.code.value.trim() });
+          form.elements.code.value = ''; message('Приглашение в класс подтверждено.'); }
+        catch (error) { message(error.message, true); }
+        finally { button.disabled = false; }
+        return;
+      }
+      const id = form.dataset.assignment;
       const answer = form.elements.answer.value.trim(); if (!answer) return;
       const button = form.querySelector('button'); button.disabled = true;
       const previous = pending.get(id);
