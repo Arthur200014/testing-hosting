@@ -89,7 +89,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(x => x.Title).HasMaxLength(200);
             entity.Property(x => x.Kind).HasMaxLength(32);
             entity.HasIndex(x => new { x.WorkspaceId, x.RequestId }).IsUnique();
-            entity.HasIndex(x => new { x.WorkspaceId, x.StudentMembershipId });
+            entity.HasIndex(x => new { x.WorkspaceId, x.StudentMembershipId, x.StudentId });
             entity.HasOne(x => x.Workspace).WithMany().HasForeignKey(x => x.WorkspaceId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.StudentMembership).WithMany()

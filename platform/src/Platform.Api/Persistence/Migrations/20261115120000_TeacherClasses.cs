@@ -56,10 +56,10 @@ public sealed class TeacherClasses : Migration
             unique: true);
 
         migrationBuilder.CreateIndex(
-            name: "IX_TeacherClasses_WorkspaceId_StudentMembershipId",
+            name: "IX_TeacherClasses_WorkspaceId_StudentMembershipId_StudentId",
             schema: "platform",
             table: "TeacherClasses",
-            columns: new[] { "WorkspaceId", "StudentMembershipId" });
+            columns: new[] { "WorkspaceId", "StudentMembershipId", "StudentId" });
     }
 
     protected override void Down(MigrationBuilder migrationBuilder) =>

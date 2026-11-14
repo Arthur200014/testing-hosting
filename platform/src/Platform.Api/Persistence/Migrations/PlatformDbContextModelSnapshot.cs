@@ -37,7 +37,7 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     b.HasKey("Id");
                     b.HasAlternateKey("WorkspaceId", "Id");
                     b.HasIndex("WorkspaceId", "RequestId").IsUnique();
-                    b.HasIndex("WorkspaceId", "StudentMembershipId");
+                    b.HasIndex("WorkspaceId", "StudentMembershipId", "StudentId");
                     b.ToTable("TeacherClasses", "platform", t =>
                         {
                             t.HasCheckConstraint("CK_TeacherClasses_Kind", "\"Kind\" = 'individual'");
