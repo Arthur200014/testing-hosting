@@ -134,6 +134,95 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
                 new TeacherCreateClassRequest(Guid.NewGuid(), northStudent, "North from south"))).StatusCode);
     }
 
+
+    [Fact]
+    public async Task IndividualClassEditArchiveRestorePreservesStudentAndBlocksStaleRevisions()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "manage-north", "manage-north@example.invalid", "owner");
+        var south = await SeedAsync(factory, "manage-south", "manage-south@example.invalid", "owner");
+        var studentId = await SeedStudentAsync(factory, north.WorkspaceId, "Synthetic class learner", true);
+        using var client = factory.CreateClient();
+        var login = (await (await LoginAsync(client, "manage-north", "manage-north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login.AccessToken);
+        var create = await client.PostAsJsonAsync("/api/v1/teacher/classes",
+            new TeacherCreateClassRequest(Guid.NewGuid(), studentId, "Edit me", "Initial",
+                DurationMinutes: 60, PriceAmount: 250m, PriceCurrency: "RUB", PriceBasis: "lesson"));
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        var original = (await create.Content.ReadFromJsonAsync<TeacherClassView>())!;
+        Assert.Equal(1, original.Revision);
+        var path = $"/api/v1/teacher/classes/{original.Id}";
+
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PatchAsJsonAsync(path, new TeacherUpdateClassRequest(0, "Invalid"))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PatchAsJsonAsync(path,
+                new TeacherUpdateClassRequest(1, "Invalid", PriceAmount: 2.001m, PriceCurrency: "RUB", PriceBasis: "lesson"))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PatchAsJsonAsync(path,
+                new TeacherUpdateClassRequest(1, "Invalid", DurationMinutes: 14))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,
+            (await client.PatchAsJsonAsync(path,
+                new TeacherUpdateClassRequest(1, original.Title, original.Description,
+                    DurationMinutes: 60, PriceAmount: 250m, PriceCurrency: "RUB", PriceBasis: "lesson"))).StatusCode);
+        var unchanged = Assert.Single((await client.GetFromJsonAsync<List<TeacherClassView>>("/api/v1/teacher/classes"))!);
+        Assert.Equal(1, unchanged.Revision);
+
+        var editedResponse = await client.PatchAsJsonAsync(path,
+            new TeacherUpdateClassRequest(1, "Updated title", "Updated description",
+                DurationMinutes: 120, AllowLessonChat: true));
+        Assert.Equal(HttpStatusCode.OK, editedResponse.StatusCode);
+        var edited = (await editedResponse.Content.ReadFromJsonAsync<TeacherClassView>())!;
+        Assert.Equal(2, edited.Revision);
+        Assert.Equal("Updated title", edited.Title);
+        Assert.Equal("Updated description", edited.Description);
+        Assert.Equal(120, edited.DurationMinutes);
+        Assert.Null(edited.PriceAmount);
+        Assert.True(edited.AllowLessonChat);
+        Assert.Equal(studentId, edited.StudentMembershipId);
+
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PatchAsJsonAsync(path, new TeacherUpdateClassRequest(1, "Stale"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync(path + "/archive", new TeacherClassRevisionRequest(1))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsJsonAsync(path + "/archive", new TeacherClassRevisionRequest(0))).StatusCode);
+
+        var archivedResponse = await client.PostAsJsonAsync(path + "/archive", new TeacherClassRevisionRequest(2));
+        Assert.Equal(HttpStatusCode.OK, archivedResponse.StatusCode);
+        var archived = (await archivedResponse.Content.ReadFromJsonAsync<TeacherClassView>())!;
+        Assert.True(archived.IsArchived);
+        Assert.Equal(3, archived.Revision);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PatchAsJsonAsync(path, new TeacherUpdateClassRequest(3, "Cannot edit archive"))).StatusCode);
+        var repeatArchive = await client.PostAsJsonAsync(path + "/archive", new TeacherClassRevisionRequest(3));
+        Assert.Equal(HttpStatusCode.OK, repeatArchive.StatusCode);
+        Assert.Equal(3, (await repeatArchive.Content.ReadFromJsonAsync<TeacherClassView>())!.Revision);
+
+        var restoredResponse = await client.PostAsJsonAsync(path + "/restore", new TeacherClassRevisionRequest(3));
+        Assert.Equal(HttpStatusCode.OK, restoredResponse.StatusCode);
+        var restored = (await restoredResponse.Content.ReadFromJsonAsync<TeacherClassView>())!;
+        Assert.False(restored.IsArchived);
+        Assert.Equal(4, restored.Revision);
+        Assert.Equal("Updated title", restored.Title);
+        var listed = Assert.Single((await client.GetFromJsonAsync<List<TeacherClassView>>("/api/v1/teacher/classes"))!);
+        Assert.Equal(restored.Id, listed.Id);
+        Assert.Equal(4, listed.Revision);
+        Assert.Contains((await client.GetFromJsonAsync<List<TeacherStudentView>>("/api/v1/teacher/students"))!,
+            item => item.MembershipId == studentId);
+
+        var southLogin = (await (await LoginAsync(client, "manage-south", "manage-south@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", southLogin.AccessToken);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PatchAsJsonAsync(path, new TeacherUpdateClassRequest(4, "Foreign"))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync(path + "/archive", new TeacherClassRevisionRequest(4))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync(path + "/restore", new TeacherClassRevisionRequest(4))).StatusCode);
+    }
+
     [Fact]
     public async Task NativeHomeworkIsTenantScopedAndTextAnswerIsIdempotentWithoutInventedScore()
     {
