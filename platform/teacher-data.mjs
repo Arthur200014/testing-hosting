@@ -1,5 +1,5 @@
 export const teacherPaths = {
-  programs: 'programs', students: 'students', lessons: 'lessons',
+  classes: 'classes', programs: 'programs', students: 'students', lessons: 'lessons',
   catalog: 'homework/catalog', assignments: 'homework/assignments',
   submissions: 'homework/submissions', subscriptions: 'subscriptions',
   nativeTasks: 'homework/native/tasks', nativeAssignments: 'homework/native/assignments',
@@ -8,7 +8,7 @@ export const teacherPaths = {
 };
 
 export const teacherNeeds = {
-  overview: ['students', 'lessons'],
+  overview: ['classes', 'students', 'lessons'],
   students: ['students', 'programs'],
   lessons: ['students', 'programs', 'lessons', 'catalog'],
   homework: ['students', 'programs', 'catalog', 'assignments', 'submissions', 'nativeTasks', 'nativeAssignments'],
@@ -18,6 +18,7 @@ export const teacherNeeds = {
 };
 
 export const teacherMutationKeys = {
+  classForm: ['classes'],
   studentForm: ['students'], studentEditForm: ['students'],
   lessonForm: ['lessons', 'assignments'], lessonCorrectionForm: ['lessons'],
   nativeTaskForm: ['nativeTasks'], nativeAssignForm: ['nativeAssignments'],

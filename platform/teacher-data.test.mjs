@@ -4,24 +4,24 @@ import { teacherNeeds, teacherMutationKeys, invalidateTeacherData, invalidateTea
 
 const freshState = () => ({ data: {}, loadedAt: {}, inflight: {}, generation: 0 });
 
-test('opens Meleto class overview with two reads and loads other tabs on demand', async () => {
+test('opens Meleto class overview with three reads and loads other tabs on demand', async () => {
   const state = freshState(), calls = [];
   let time = 1000;
   const request = async path => { calls.push(path); return [path]; };
   const open = view => Promise.all(teacherNeeds[view].map(key =>
     loadTeacherKey(state, key, request, () => {}, false, () => time)));
   await open('overview');
-  assert.deepEqual(calls.sort(), ['lessons', 'students']);
+  assert.deepEqual(calls.sort(), ['classes', 'lessons', 'students']);
   await open('results');
-  assert.equal(calls.length, 6); // students already loaded; tests/mocks are fetched now.
+  assert.equal(calls.length, 7); // students already loaded; tests/mocks are fetched now.
   await open('overview');
-  assert.equal(calls.length, 6); // returning to a fresh tab uses memory cache.
+  assert.equal(calls.length, 7); // returning to a fresh tab uses memory cache.
   await Promise.all(teacherNeeds.overview.map(key =>
     loadTeacherKey(state, key, request, () => {}, true, () => time)));
-  assert.equal(calls.length, 8); // explicit refresh reads only the active tab.
+  assert.equal(calls.length, 10); // explicit refresh reads only the active tab.
   time += 30001;
   await open('overview');
-  assert.equal(calls.length, 10); // stale data is refreshed on the next visit.
+  assert.equal(calls.length, 13); // stale data is refreshed on the next visit.
 });
 
 test('old responses cannot overwrite data after session change or mutation', async () => {
@@ -88,6 +88,7 @@ test('a successful mutation refetches only its modified resource instead of the 
     loadTeacherKey(state, key, request, () => {})));
   assert.equal(calls.length, 7);
   assert.deepEqual(teacherMutationKeys.nativeAssignForm, ['nativeAssignments']);
+  assert.deepEqual(teacherMutationKeys.classForm, ['classes']);
   assert.deepEqual(teacherMutationKeys.nativeTaskForm, ['nativeTasks']);
   assert.deepEqual(teacherMutationKeys.lessonForm, ['lessons', 'assignments']);
   assert.deepEqual(teacherMutationKeys.lessonCorrectionForm, ['lessons']);

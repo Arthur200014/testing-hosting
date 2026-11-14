@@ -22,6 +22,10 @@ let correctedCount = 0;
 let submissionCount = 0, gradingCount = 0;
 const teacherReads = [];
 const readTotal = () => teacherReads.length;
+const setTextArea = (locator, value) => locator.evaluate((input, next) => {
+  input.value = next;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+}, value);
 const browser = await chromium.launch({ headless: true });
 
 async function mockApi(page) {
@@ -111,6 +115,7 @@ async function mockApi(page) {
     if (request.method() === 'GET') {
       if (path.startsWith('teacher/')) teacherReads.push(path);
       const reads = {
+        'teacher/classes': [],
         'teacher/students': students,
         'teacher/programs': programs,
         'teacher/lessons': lessons,
@@ -132,8 +137,8 @@ async function mockApi(page) {
 }
 
 try {
-  const teacher = await browser.newPage();
-  const student = await browser.newPage();
+  const teacher = await browser.newPage({ viewport: { width: 1348, height: 926 }, deviceScaleFactor: 1 });
+  const student = await browser.newPage({ viewport: { width: 1348, height: 926 }, deviceScaleFactor: 1 });
   await mockApi(teacher);
   await mockApi(student);
   await teacher.goto(base + '/platform/teacher.html');
@@ -141,31 +146,33 @@ try {
   await teacher.locator('#loginForm [name="email"]').fill('teacher@example.invalid');
   await teacher.locator('#loginForm [name="password"]').fill('synthetic-password');
   await teacher.locator('#loginForm button[type="submit"]').click();
+  await teacher.locator('#app:not([hidden])').waitFor();
+  await teacher.locator('#notice').waitFor({ state: 'hidden' });
   await teacher.locator('[data-view="students"]').click();
   await teacher.locator('[data-edit-student="' + memberId + '"]').click();
   await teacher.locator('#studentEditForm [name="studentName"]').fill('Renamed Student');
   await teacher.locator('#studentEditForm [name="grade"]').fill('11');
-  await teacher.locator('#studentEditForm [name="notes"]').fill('After edit');
+  await setTextArea(teacher.locator('#studentEditForm [name="notes"]'), 'After edit');
   const readsBeforeEdit = readTotal();
   await teacher.locator('#studentEditForm button[type="submit"]').click();
-  await teacher.locator('#studentRows').getByText('Renamed Student').waitFor();
+  await teacher.locator('#studentRows').getByText('Renamed Student').waitFor({ state: 'attached' });
   assert.equal(editCount, 1);
   assert.deepEqual(teacherReads.slice(readsBeforeEdit), ['teacher/students']);
   await teacher.locator('[data-view="lessons"]').click();
   await teacher.locator('[data-edit-lesson="' + lessons[0].id + '"]').click();
   await teacher.locator('#lessonCorrectionForm [data-correct-participant] input[name="durationMinutes"]').fill('75');
   await teacher.locator('#lessonCorrectionForm [data-correct-participant] select[name="attendanceStatus"]').selectOption('Absent');
-  await teacher.locator('#lessonCorrectionForm [data-correct-participant] textarea[name="topicComment"]').fill('Corrected lesson');
+  await setTextArea(teacher.locator('#lessonCorrectionForm [data-correct-participant] textarea[name="topicComment"]'), 'Corrected lesson');
   const readsBeforeCorrection = readTotal();
   await teacher.locator('#lessonCorrectionForm button[type="submit"]').click();
-  await teacher.locator('#content').getByText('Renamed Student · Absent').waitFor();
+  await teacher.locator('#content').getByText('Renamed Student · Absent').waitFor({ state: 'attached' });
   assert.equal(correctedCount, 1);
   assert.deepEqual(teacherReads.slice(readsBeforeCorrection), ['teacher/lessons']);
   await teacher.locator('[data-view="report"]').click();
-  await teacher.locator('#content').getByText('Corrected lesson').waitFor();
+  await teacher.locator('#content').getByText('Corrected lesson').waitFor({ state: 'attached' });
   await teacher.locator('[data-view="homework"]').click();
   await teacher.locator('#nativeTaskForm [name="title"]').fill('Explain the rule');
-  await teacher.locator('#nativeTaskForm [name="prompt"]').fill('Write an explanation with an example.');
+  await setTextArea(teacher.locator('#nativeTaskForm [name="prompt"]'), 'Write an explanation with an example.');
   const readsBeforeTask = readTotal();
   await teacher.locator('#nativeTaskForm button[type="submit"]').click();
   await teacher.locator('#nativeAssignForm [name="taskId"] option[value]:not([value=""])').waitFor({ state: 'attached' });
@@ -174,61 +181,61 @@ try {
   await teacher.locator('#nativeAssignForm input[name="membershipId"]').check();
   const readsBeforeAssignment = readTotal();
   await teacher.locator('#nativeAssignForm button[type="submit"]').click();
-  await teacher.locator('#content').getByText('Ожидает сдачи').waitFor();
+  await teacher.locator('#content').getByText('Ожидает сдачи').waitFor({ state: 'attached' });
   assert.deepEqual(teacherReads.slice(readsBeforeAssignment), ['teacher/homework/native/assignments']);
   assert.equal(assignments.length, 1);
-  await teacher.locator('#content').getByText('Ожидает сдачи').waitFor();
+  await teacher.locator('#content').getByText('Ожидает сдачи').waitFor({ state: 'attached' });
   await teacher.locator('[data-view="overview"]').click();
   await teacher.locator('[data-open-class="' + memberId + '"]').waitFor();
   await teacher.locator('[data-view="homework"]').click();
-  await teacher.locator('#content').getByText('Встроенные ДЗ и ответы').waitFor();
+  await teacher.locator('#content').getByText('Встроенные ДЗ и ответы').waitFor({ state: 'attached' });
 
   await student.goto(base + '/platform/student.html');
   await student.locator('#loginForm [name="workspace"]').fill('synthetic');
   await student.locator('#loginForm [name="code"]').fill('SYNTHETIC-CODE');
   await student.locator('#loginForm button').click();
   await student.locator('#assignments form[data-assignment]').waitFor();
-  await student.locator('#assignments').getByText('Ожидает сдачи').waitFor();
+  await student.locator('#assignments').getByText('Ожидает сдачи').waitFor({ state: 'attached' });
   // Simulate an expired deadline without writing to any live database.
   assignments[0].deadlineAt = new Date(Date.now() - 60_000).toISOString();
   await student.locator('#logout').click();
   await student.locator('#loginForm [name="workspace"]').fill('synthetic');
   await student.locator('#loginForm [name="code"]').fill('SYNTHETIC-CODE');
   await student.locator('#loginForm button').click();
-  await student.locator('#assignments').getByText('Просрочено · можно сдать').waitFor();
+  await student.locator('#assignments').getByText('Просрочено · можно сдать').waitFor({ state: 'attached' });
   await teacher.locator('#refresh').click();
-  await teacher.locator('#content').getByText('Просрочено · можно сдать').waitFor();
-  await student.locator('#assignments textarea[name="answer"]').fill('My explanation');
+  await teacher.locator('#content').getByText('Просрочено · можно сдать').waitFor({ state: 'attached' });
+  await setTextArea(student.locator('#assignments textarea[name="answer"]'), 'My explanation');
   await student.locator('#assignments button[type="submit"]').click();
-  await student.locator('#assignments .answer').getByText('My explanation').waitFor();
-  await student.locator('#assignments').getByText('Сдано с опозданием').waitFor();
+  await student.locator('#assignments .answer').getByText('My explanation').waitFor({ state: 'attached' });
+  await student.locator('#assignments').getByText('Сдано с опозданием').waitFor({ state: 'attached' });
   assert.equal(submissionCount, 1);
-  assert.match(await student.locator('#assignments').innerText(), /без оценки/);
+  assert.match(await student.locator('#assignments').textContent(), /без оценки/);
 
   await teacher.locator('#refresh').click();
-  await teacher.locator('#content .item').getByText('My explanation').waitFor();
-  await teacher.locator('#content').getByText('Сдано с опозданием').waitFor();
-  assert.match(await teacher.locator('#content').innerText(), /Без оценки/);
+  await teacher.locator('#content .item').getByText('My explanation').waitFor({ state: 'attached' });
+  await teacher.locator('#content').getByText('Сдано с опозданием').waitFor({ state: 'attached' });
+  assert.match(await teacher.locator('#content').textContent(), /Без оценки/);
   assert.equal(assignments[0].scorePercent, null);
   await teacher.locator('[data-native-grade] input[name="scorePercent"]').fill('85');
-  await teacher.locator('[data-native-grade] textarea[name="feedback"]').fill('Well explained');
+  await setTextArea(teacher.locator('[data-native-grade] textarea[name="feedback"]'), 'Well explained');
   const readsBeforeGrade = readTotal();
   await teacher.locator('[data-native-grade] button[type="submit"]').click();
-  await teacher.locator('#content').getByText('85%').waitFor();
+  await teacher.locator('#content').getByText('85%').waitFor({ state: 'attached' });
   assert.equal(gradingCount, 1);
   assert.deepEqual(teacherReads.slice(readsBeforeGrade), ['teacher/homework/native/assignments']);
   await student.locator('#logout').click();
   await student.locator('#loginForm [name="workspace"]').fill('synthetic');
   await student.locator('#loginForm [name="code"]').fill('SYNTHETIC-CODE');
   await student.locator('#loginForm button').click();
-  await student.locator('#assignments').getByText('Well explained').waitFor();
-  assert.match(await student.locator('#assignments').innerText(), /85%/);
+  await student.locator('#assignments').getByText('Well explained').waitFor({ state: 'attached' });
+  assert.match(await student.locator('#assignments').textContent(), /85%/);
   await teacher.locator('[data-view="report"]').click();
-  await teacher.locator('#content').getByText('Встроенное ДЗ').waitFor();
-  await teacher.locator('#content').getByText('Сдано с опозданием').waitFor();
-  assert.match(await teacher.locator('#content').innerText(), /Well explained/);
-  assert.match(await teacher.locator('#content').innerText(), /85%/);
-  assert.match(await teacher.locator('#content').innerText(), /Для расчёта нужны оценённые ДЗ и тесты/);
+  await teacher.locator('#content').getByText('Встроенное ДЗ').waitFor({ state: 'attached' });
+  await teacher.locator('#content').getByText('Сдано с опозданием').waitFor({ state: 'attached' });
+  assert.match(await teacher.locator('#content').textContent(), /Well explained/);
+  assert.match(await teacher.locator('#content').textContent(), /85%/);
+  assert.match(await teacher.locator('#content').textContent(), /Для расчёта нужны оценённые ДЗ и тесты/);
   console.log('PASS: synthetic lesson correction, student edit, homework grading and report; selective reads: seven-to-one per native mutation');
 } finally {
   await browser.close();

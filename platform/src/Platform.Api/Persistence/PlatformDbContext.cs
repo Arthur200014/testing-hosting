@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TestingHosting.Platform.Classes;
 using TestingHosting.Platform.Homework;
 using TestingHosting.Platform.IdentityAccess;
 using TestingHosting.Platform.Lessons;
@@ -34,6 +35,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<Lesson> Lessons => Set<Lesson>();
     public DbSet<LessonParticipant> LessonParticipants => Set<LessonParticipant>();
     public DbSet<SubscriptionSnapshot> SubscriptionSnapshots => Set<SubscriptionSnapshot>();
+    public DbSet<TeacherClass> TeacherClasses => Set<TeacherClass>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -78,6 +80,27 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Slug).HasMaxLength(63);
             entity.HasIndex(x => x.Slug).IsUnique();
+        });
+
+        modelBuilder.Entity<TeacherClass>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id });
+            entity.Property(x => x.Title).HasMaxLength(200);
+            entity.Property(x => x.Kind).HasMaxLength(32);
+            entity.HasIndex(x => new { x.WorkspaceId, x.RequestId }).IsUnique();
+            entity.HasIndex(x => new { x.WorkspaceId, x.StudentMembershipId });
+            entity.HasOne(x => x.Workspace).WithMany().HasForeignKey(x => x.WorkspaceId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.StudentMembership).WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.StudentMembershipId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_TeacherClasses_Title_NotEmpty", "length(\"Title\") > 0");
+                table.HasCheckConstraint("CK_TeacherClasses_Kind", "\"Kind\" = 'individual'");
+            });
         });
 
         modelBuilder.Entity<TeacherUser>(entity =>
