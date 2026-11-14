@@ -24,6 +24,9 @@ let classWrites = 0;
 let classEdits = 0;
 let archiveWrites = 0;
 let restoreWrites = 0;
+let inviteWrites = 0;
+let revokeWrites = 0;
+const syntheticInviteCode = 'B'.repeat(64);
 const classes = [];
 const createdClassId = '55555555-5555-4555-8555-555555555555';
 const setClassSearch = value => page.locator('#classSearch').evaluate((input, next) => {
@@ -48,10 +51,12 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
     assert.equal(body.priceBasis, 'month');
     assert.equal(body.allowLessonChat, true);
     assert.equal(body.allowPrivateMessages, true);
+    assert.equal(body.coverStyle, 'sky');
     const student = students.find(x => x.membershipId === body.studentMembershipId);
     assert.ok(student);
     const item = {
       id: createdClassId, revision: 1, title: body.title, description: body.description, kind: 'individual',
+      coverStyle: body.coverStyle, invitationStatus: null, invitationExpiresAt: null,
       durationMinutes: body.durationMinutes, priceAmount: body.priceAmount,
       priceCurrency: body.priceCurrency, priceBasis: body.priceBasis,
       allowLessonChat: body.allowLessonChat, allowPrivateMessages: body.allowPrivateMessages,
@@ -63,12 +68,25 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
     classWrites++;
     return send(item, 201);
   }
-  const classRoute = path.match(/^teacher\/classes\/([^/]+)(?:\/(archive|restore))?$/);
+  const classRoute = path.match(/^teacher\/classes\/([^/]+)(?:\/(archive|restore|invitation(?:\/revoke)?))?$/);
   if (classRoute) {
     const body = request.postDataJSON();
     const item = classes.find(x => x.id === classRoute[1]);
     if (!item) return send({ title: 'Not found' }, 404);
     if (body.expectedRevision !== item.revision) return send({ title: 'Conflict' }, 409);
+    if (request.method() === 'POST' && classRoute[2] === 'invitation') {
+      item.invitationStatus = 'pending';
+      item.invitationExpiresAt = new Date(Date.now() + 7 * 86400000).toISOString();
+      item.revision++;
+      inviteWrites++;
+      return send({ code: syntheticInviteCode, expiresAt: item.invitationExpiresAt, revision: item.revision });
+    }
+    if (request.method() === 'POST' && classRoute[2] === 'invitation/revoke') {
+      item.invitationStatus = 'revoked';
+      item.revision++;
+      revokeWrites++;
+      return send({ status: 'revoked', revision: item.revision, acceptedAt: null });
+    }
     if (request.method() === 'PATCH' && !classRoute[2]) {
       if (item.isArchived) return send({ title: 'Archived' }, 409);
       Object.assign(item, body, { revision: item.revision + 1 });
@@ -76,7 +94,7 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
       classEdits++;
       return send(item);
     }
-    if (request.method() === 'POST' && classRoute[2]) {
+    if (request.method() === 'POST' && ['archive', 'restore'].includes(classRoute[2])) {
       const desired = classRoute[2] === 'archive';
       if (item.isArchived !== desired) {
         item.isArchived = desired;
@@ -139,6 +157,7 @@ try {
   const description = 'Подготовка к профильному ЕГЭ';
   await page.locator('#classForm [name="title"]').fill(title);
   await page.locator('#classForm [name="description"]').fill(description);
+  await page.locator('#classForm [name="coverStyle"][value="sky"]').check();
   assert.equal(await page.locator('#classForm [name="title"]').getAttribute('maxlength'), '50');
   assert.equal(await page.locator('#classForm [name="description"]').getAttribute('maxlength'), '200');
   assert.equal(await page.locator('#classForm [name="title"]').locator('xpath=parent::label').locator('[data-char-count]').textContent(), title.length + ' / 50');
@@ -191,6 +210,7 @@ try {
   assert.equal(await edit.locator('[name="priceCurrency"]').inputValue(), 'EUR');
   assert.equal(await edit.locator('[name="priceBasis"]').inputValue(), 'month');
   assert.equal(await edit.locator('[name="allowLessonChat"]').isChecked(), true);
+  assert.equal(await edit.locator('[name="coverStyle"]:checked').inputValue(), 'sky');
   await edit.locator('[name="title"]').fill('Не сохранять');
   await page.locator('[data-cancel-class-edit]').click();
   assert.equal(classEdits, 0);
@@ -203,6 +223,7 @@ try {
   await editAgain.locator('[name="priceEnabled"]').uncheck();
   await editAgain.locator('[name="allowLessonChat"]').uncheck();
   await editAgain.locator('[name="allowPrivateMessages"]').check();
+  await editAgain.locator('[name="coverStyle"][value="mint"]').check();
   await page.screenshot({ path: output + '/31_class_edit.png' });
   await editAgain.locator('[type="submit"]').click();
   await page.getByText('Класс после редактирования', { exact: true }).waitFor();
@@ -212,6 +233,7 @@ try {
   assert.equal(classes[0].studentMembershipId, students[0].membershipId);
   assert.equal(classes[0].revision, 2);
   assert.equal(classes[0].priceAmount, null);
+  assert.equal(classes[0].coverStyle, 'mint');
 
   page.once('dialog', dialog => dialog.dismiss());
   await page.locator('[data-archive-class]').click();
@@ -243,8 +265,33 @@ try {
   await page.locator(`[data-open-class="${createdClassId}"]`).click();
   await page.getByText('Класс после редактирования', { exact: true }).waitFor();
   await page.getByText(/120 мин/).waitFor();
+  assert.equal(await page.locator('.class-detail-banner.cover-mint').count(), 1);
+
+  page.once('dialog', dialog => dialog.dismiss());
+  await page.locator('[data-issue-class-invite]').click();
+  assert.equal(inviteWrites, 0, 'cancelled invitation should not write');
+  page.once('dialog', dialog => dialog.accept());
+  await page.locator('[data-issue-class-invite]').click();
+  const codeField = page.locator('[data-invite-code]');
+  await codeField.waitFor();
+  assert.equal(await codeField.textContent(), syntheticInviteCode);
+  assert.equal(inviteWrites, 1);
+  await page.screenshot({ path: output + '/03_class_cover_invite.png' });
+
+  await page.reload();
+  await page.locator('#loginForm [name="workspace"]').fill('synthetic');
+  await page.locator('#loginForm [name="email"]').fill('teacher@example.invalid');
+  await page.locator('#loginForm [name="password"]').fill('synthetic-password');
+  await page.locator('#loginForm button[type="submit"]').click();
+  await page.locator(`[data-open-class="${createdClassId}"]`).click();
+  await page.getByText('Ожидает подтверждения').waitFor();
+  assert.equal(await page.locator('[data-invite-code]').count(), 0, 'secret never returned on read');
+  page.once('dialog', dialog => dialog.accept());
+  await page.locator('[data-revoke-class-invite]').click();
+  await page.getByText('Отозвано', { exact: true }).waitFor();
+  assert.equal(revokeWrites, 1);
   assert.equal(unexpectedWrites, 0);
-  console.log('PASS: UI-02 class edit/archive/restore/cancel/reload at 1348x926');
+  console.log('PASS: UI-02 cover and one-time invite issue/revoke plus class management at 1348x926');
 } finally {
   await browser.close();
 }
