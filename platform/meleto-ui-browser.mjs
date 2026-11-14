@@ -291,7 +291,44 @@ try {
   await page.getByText('Отозвано', { exact: true }).waitFor();
   assert.equal(revokeWrites, 1);
   assert.equal(unexpectedWrites, 0);
-  console.log('PASS: UI-02 cover and one-time invite issue/revoke plus class management at 1348x926');
+
+  // Student-facing flow: a separate login is required before confirming an invite.
+  const studentPage = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  let acceptedByStudent = 0;
+  await studentPage.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**', async route => {
+    const request = route.request();
+    const routePath = new URL(request.url()).pathname.replace('/api/v1/', '');
+    const headers = {
+      'access-control-allow-origin': '*',
+      'access-control-allow-headers': 'authorization,content-type',
+      'access-control-allow-methods': 'GET,POST,OPTIONS'
+    };
+    const respond = (data, status = 200) => route.fulfill({ status, headers, contentType: 'application/json', body: JSON.stringify(data) });
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    if (routePath === 'student-sessions' && request.method() === 'POST')
+      return respond({ accessToken: 'synthetic-student-token', student: { displayName: 'Алексей Смирнов' } });
+    if (routePath === 'homework/native/assignments' && request.method() === 'GET')
+      return respond([]);
+    if (routePath === 'student/classes/invitations/accept' && request.method() === 'POST') {
+      assert.equal(request.headers().authorization, 'Bearer synthetic-student-token');
+      assert.equal(request.postDataJSON().code, syntheticInviteCode);
+      acceptedByStudent++;
+      return respond({ status: 'accepted', revision: 7, acceptedAt: new Date().toISOString() });
+    }
+    throw new Error('Unexpected student request: ' + routePath);
+  });
+  await studentPage.goto(base + '/platform/student.html');
+  await studentPage.locator('#loginForm [name="workspace"]').fill('synthetic');
+  await studentPage.locator('#loginForm [name="code"]').fill('synthetic-login-code');
+  await studentPage.locator('#loginForm [type="submit"]').click();
+  await studentPage.locator('#classInvitationForm').waitFor();
+  await studentPage.locator('#classInvitationForm [name="code"]').fill(syntheticInviteCode);
+  await studentPage.locator('#classInvitationForm [type="submit"]').click();
+  await studentPage.getByText('Приглашение в класс подтверждено.').waitFor();
+  assert.equal(acceptedByStudent, 1);
+  assert.equal(await studentPage.locator('#classInvitationForm [name="code"]').inputValue(), '');
+  await studentPage.close();
+  console.log('PASS: UI-02 cover and authenticated teacher/student invitation lifecycle at 1348x926');
 } finally {
   await browser.close();
 }
