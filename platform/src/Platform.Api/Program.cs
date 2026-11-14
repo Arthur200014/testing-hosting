@@ -87,7 +87,7 @@ builder.Services.AddAuthorization(options =>
 });
 builder.Services.AddCors(options => options.AddPolicy("browser", policy =>
     policy.WithOrigins(StartupConfiguration.GetAllowedOrigins(builder.Configuration))
-        .WithMethods("GET", "POST").WithHeaders("Content-Type", "Authorization")));
+        .WithMethods("GET", "POST", "PATCH").WithHeaders("Content-Type", "Authorization")));
 builder.Services.AddRateLimiter(options =>
 {
     var studentSessionOptions = StartupConfiguration.GetStudentSessionOptions(builder.Configuration);

@@ -203,6 +203,8 @@
     .class-setting-note { font-size: .8rem; color: #77798b; line-height: 1.4; }
     .class-create-actions { position: sticky; bottom: 0; z-index: 2; background: #fff; padding-bottom: 10px; }
     .class-create input:disabled, .class-create select:disabled { opacity: .6; }
+    .class-management-actions { display: flex; flex-wrap: wrap; gap: 9px; margin: 16px 0 0; }
+    .class-archive-note { margin: 14px 0; color: #91a2bc; font-size: .84rem; }
     @media (max-width: 1100px) {
       .four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .classes-layout { grid-template-columns: 1fr; }
@@ -305,7 +307,7 @@
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
-      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', selectedClass: '', learningModal: false, classCreate: false };
+      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', selectedClass: '', classEdit: '', learningModal: false, classCreate: false };
       const $ = id => document.getElementById(id);
       const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const date = value => value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
@@ -323,7 +325,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
-        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.selectedClass = ''; state.learningModal = false; state.classCreate = false;
+        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.selectedClass = ''; state.classEdit = ''; state.learningModal = false; state.classCreate = false;
         $('app').hidden = true; $('loginScreen').hidden = false;
         $('loginError').textContent = message; $('loginError').hidden = !message;
       }
@@ -378,7 +380,7 @@
       }
       function setView(view) {
         state.view = view;
-        if (view !== 'overview') { state.selectedClass = ''; state.learningModal = false; state.classCreate = false; }
+        if (view !== 'overview') { state.selectedClass = ''; state.classEdit = ''; state.learningModal = false; state.classCreate = false; }
         document.querySelectorAll('[data-view]').forEach(x => x.classList.toggle('active', x.dataset.view === view));
         $('viewTitle').textContent = names[view][0]; $('viewSubtitle').textContent = names[view][1];
         return refresh();
@@ -445,8 +447,13 @@
           <div class="class-detail-banner" style="margin-top:14px">
             <span class="class-avatar" style="--avatar:${avatarColor(item.id)}">${safe(initials(item.student.studentName))}</span>
             <div><p class="muted small">Индивидуальное обучение · ${safe(item.student.programName)}</p><h2>${safe(item.title)}</h2>${item.description ? `<p class="muted small">${safe(item.description)}</p>` : ''}</div>
-            <div class="class-detail-actions"><button class="secondary" type="button" data-open-student="${safe(item.studentMembershipId)}">Карточка ученика</button><button class="primary" type="button" data-schedule-class="${safe(item.id)}">Запланировать</button></div>
+            <div class="class-detail-actions"><button class="secondary" type="button" data-open-student="${safe(item.studentMembershipId)}">Карточка ученика</button>${item.isArchived ? '<span class="pill warn">В архиве</span>' : `<button class="primary" type="button" data-schedule-class="${safe(item.id)}">Запланировать</button>`}</div>
           </div>
+          ${item.persistent ? `<div class="class-management-actions">
+            ${item.isArchived
+              ? `<button class="primary" type="button" data-restore-class="${safe(item.id)}">Восстановить класс</button>`
+              : `<button class="secondary" type="button" data-edit-class="${safe(item.id)}">Редактировать</button><button class="danger" type="button" data-archive-class="${safe(item.id)}">В архив</button>`}
+          </div><p class="class-archive-note">Архивирование класса не затрагивает ученика, занятия или историю.</p>` : ''}
           <div class="grid two" style="margin-top:18px">
             <div class="card stack"><div class="section-head"><h2>Последние занятия</h2><span class="muted small">${lessons.length}</span></div>
               ${list(lessons.slice(0, 5), 'Занятий пока нет.', x => `<div class="item"><div><strong>${safe(date(x.lessonAt))}</strong><small>${safe(x.participants?.find(p => p.membershipId === item.studentMembershipId)?.topicComment || 'Тема не указана')}</small></div></div>`)}
@@ -500,6 +507,54 @@
               <div class="class-create-actions"><button class="primary" type="submit" ${students.length ? '' : 'disabled'}>Создать</button><button class="secondary" type="button" data-cancel-class>Отменить</button></div>
             </form>${students.length ? '' : '<p class="muted small">Сначала добавьте активного ученика.</p>'}</div></section>`;
       }
+      // Reuse the exact create controls and validation semantics when editing a class.
+      function individualClassEdit(item) {
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = individualClassCreate();
+        const form = wrapper.querySelector('#classForm');
+        form.id = 'classEditForm';
+        form.dataset.classId = item.id;
+        form.dataset.revision = item.revision;
+        wrapper.querySelector('h1').textContent = 'Редактирование индивидуального класса';
+        form.elements.title.value = item.title;
+        if (item.title.length > 50) form.elements.title.maxLength = 200; // Existing legacy titles.
+        form.elements.description.value = item.description || '';
+        form.querySelectorAll('.class-field').forEach(label => {
+          const field = label.querySelector('input, textarea');
+          label.querySelector('[data-char-count]').textContent = field.value.length + ' / ' + field.maxLength;
+        });
+        const membershipLabel = form.elements.studentMembershipId.closest('label');
+        membershipLabel.textContent = '';
+        const membershipCaption = document.createElement('span');
+        membershipCaption.textContent = 'Ученик (не меняется)';
+        const readonly = document.createElement('input');
+        readonly.disabled = true;
+        readonly.value = item.student.studentName + ' · ' + item.student.programName;
+        membershipLabel.append(membershipCaption, readonly);
+        const settings = [
+          ['duration', item.durationMinutes != null],
+          ['price', item.priceAmount != null]
+        ];
+        for (const [name, enabled] of settings) {
+          const toggle = form.querySelector('[data-settings-toggle="' + name + '"]');
+          const group = form.querySelector('[data-settings-group="' + name + '"]');
+          toggle.checked = enabled;
+          group.hidden = !enabled;
+          group.querySelectorAll('input, select').forEach(input => { input.disabled = !enabled; });
+        }
+        form.elements.durationMinutes.value = item.durationMinutes ?? 60;
+        form.elements.priceAmount.value = item.priceAmount ?? 0;
+        form.elements.priceCurrency.value = item.priceCurrency || 'RUB';
+        form.elements.priceBasis.value = item.priceBasis || 'lesson';
+        form.elements.allowLessonChat.checked = !!item.allowLessonChat;
+        form.elements.allowPrivateMessages.checked = !!item.allowPrivateMessages;
+        form.querySelector('[type="submit"]').textContent = 'Сохранить изменения';
+        const cancel = form.querySelector('[data-cancel-class]');
+        cancel.removeAttribute('data-cancel-class');
+        cancel.setAttribute('data-cancel-class-edit', '');
+        form.querySelector('p.muted.small').textContent = 'Изменяются только параметры класса. Ученик и его история не затрагиваются.';
+        return wrapper.innerHTML;
+      }
       function overview() {
         const d = state.data;
         if (!d.classes || !d.students || !d.lessons) {
@@ -511,10 +566,16 @@
         if (state.classCreate) return individualClassCreate();
         const allClasses = teacherClasses();
         const classes = allClasses.filter(x => !x.isArchived);
-        const selected = classes.find(x => x.id === state.selectedClass);
+        const archivedClasses = allClasses.filter(x => x.isArchived);
+        const selected = allClasses.find(x => x.id === state.selectedClass &&
+          (state.classTab === 'archive' ? x.isArchived : !x.isArchived));
+        if (selected && !selected.isArchived && state.classEdit === selected.id)
+          return individualClassEdit(selected);
         if (selected) return classDetail(selected);
         const query = state.classSearch.toLocaleLowerCase('ru-RU');
-        const visible = classes.filter(x => !query || `${x.title} ${x.student.studentName} ${x.student.programName}`.toLocaleLowerCase('ru-RU').includes(query));
+        const matches = x => !query || `${x.title} ${x.student.studentName} ${x.student.programName}`.toLocaleLowerCase('ru-RU').includes(query);
+        const visible = classes.filter(matches);
+        const visibleArchived = archivedClasses.filter(matches);
         const today = dayKey(new Date());
         const todayLessons = d.lessons.filter(x => dayKey(x.lessonAt) === today)
           .sort((a, b) => new Date(a.lessonAt) - new Date(b.lessonAt));
@@ -529,7 +590,9 @@
             }).join('')}</div>` : `<div class="empty">${query ? 'По запросу ничего не найдено.' : 'Активных классов пока нет.'}</div>`)
           : state.classTab === 'statistics'
             ? `<div class="grid three"><div class="card"><span class="muted">Активные классы</span><div class="metric">${classes.length}</div></div><div class="card"><span class="muted">Занятия сегодня</span><div class="metric">${todayLessons.length}</div></div><div class="card"><span class="muted">Завершено сегодня</span><div class="metric">${completed}</div></div></div>`
-            : `<div class="empty">${allClasses.some(x => x.isArchived) ? 'Архивированные классы будут доступны после сценария управления классом.' : 'В архиве пока нет классов.'}</div>`;
+            : (visibleArchived.length
+              ? `<div class="class-list">${visibleArchived.map(item => `<article class="class-card"><div class="class-card-head"><span class="class-avatar" style="--avatar:${avatarColor(item.id)}">${safe(initials(item.student.studentName))}</span><div class="class-card-title"><strong>${safe(item.title)}</strong><small>${safe(item.student.studentName)} · В архиве</small></div></div><div class="class-card-body"><span class="muted small">История ученика сохранена</span><button class="class-open" type="button" data-open-class="${safe(item.id)}">Открыть</button><button class="primary" type="button" data-restore-class="${safe(item.id)}">Восстановить</button></div></article>`).join('')}</div>`
+              : `<div class="empty">${query ? 'По запросу ничего не найдено.' : 'В архиве пока нет классов.'}</div>`);
         return `<div class="classes-layout"><section class="classes-main">
           <div class="classes-heading"><h1>Мои классы</h1><button class="primary" type="button" data-open-learning>＋ Начать новое обучение</button></div>
           <div class="classes-toolbar"><div class="class-tabs"><button type="button" data-class-tab="classes" class="${state.classTab === 'classes' ? 'active' : ''}">Мои классы</button><button type="button" data-class-tab="statistics" class="${state.classTab === 'statistics' ? 'active' : ''}">Статистика</button><button type="button" data-class-tab="archive" class="${state.classTab === 'archive' ? 'active' : ''}">Архив</button></div>
@@ -819,7 +882,7 @@
       });
       $('content').addEventListener('change', event => {
         const toggle = event.target;
-        if (toggle.matches('#classForm [data-settings-toggle]')) {
+        if (toggle.matches('#classForm [data-settings-toggle], #classEditForm [data-settings-toggle]')) {
           const group = toggle.form.querySelector('[data-settings-group="' + toggle.dataset.settingsToggle + '"]');
           if (group) {
             group.hidden = !toggle.checked;
@@ -865,11 +928,35 @@
           return;
         }
         if (event.target.closest('[data-cancel-class]')) { state.classCreate = false; render(); return; }
+        if (event.target.closest('[data-cancel-class-edit]')) { state.classEdit = ''; render(); return; }
+        const editClass = event.target.closest('[data-edit-class]');
+        if (editClass) { state.classEdit = editClass.dataset.editClass; render(); return; }
         const classTab = event.target.closest('[data-class-tab]');
-        if (classTab) { state.classTab = classTab.dataset.classTab; render(); return; }
+        if (classTab) { state.classTab = classTab.dataset.classTab; state.selectedClass = ''; state.classEdit = ''; render(); return; }
         const openClass = event.target.closest('[data-open-class]');
-        if (openClass) { state.selectedClass = openClass.dataset.openClass; render(); return; }
-        if (event.target.closest('[data-back-classes]')) { state.selectedClass = ''; render(); return; }
+        if (openClass) { state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; render(); return; }
+        if (event.target.closest('[data-back-classes]')) { state.selectedClass = ''; state.classEdit = ''; render(); return; }
+        const statusButton = event.target.closest('[data-archive-class], [data-restore-class]');
+        if (statusButton) {
+          const id = statusButton.dataset.archiveClass || statusButton.dataset.restoreClass;
+          const archived = statusButton.hasAttribute('data-archive-class');
+          const item = (state.data.classes || []).find(x => x.id === id);
+          if (!item || item.isArchived === archived) return;
+          if (!confirm(archived
+            ? `Перенести класс «${item.title}» в архив? Ученик и история занятий останутся без изменений.`
+            : `Восстановить класс «${item.title}» в активный список?`)) return;
+          statusButton.disabled = true;
+          try {
+            await api('teacher/classes/' + encodeURIComponent(id) + (archived ? '/archive' : '/restore'), {
+              method: 'POST', body: { expectedRevision: item.revision }
+            });
+            state.selectedClass = ''; state.classEdit = '';
+            state.classTab = archived ? 'archive' : 'classes';
+            invalidate(['classes']);
+            await refresh(true);
+          } catch (error) { showNotice(error.message, true); if (statusButton.isConnected) statusButton.disabled = false; }
+          return;
+        }
         if (event.target.closest('[data-view-calendar]') || event.target.closest('[data-schedule-class]')) {
           await setView('lessons');
           showNotice('Открыт календарь и действующая форма занятия.');
@@ -921,26 +1008,38 @@
       });
       $('content').addEventListener('input', event => {
         const field = event.target;
-        if (!field.matches('#classForm [name="title"], #classForm [name="description"]')) return;
+        if (!field.matches('#classForm [name="title"], #classForm [name="description"], #classEditForm [name="title"], #classEditForm [name="description"]')) return;
         const counter = field.closest('.class-field')?.querySelector('[data-char-count]');
         if (counter) counter.textContent = field.value.length + ' / ' + field.maxLength;
       });
       $('content').addEventListener('submit', event => {
         event.preventDefault(); const form = event.target;
+        const classFields = form => ({
+          title: formValue(form, 'title'),
+          description: formValue(form, 'description'),
+          durationMinutes: form.elements.durationEnabled.checked ? Number(formValue(form, 'durationMinutes')) : null,
+          priceAmount: form.elements.priceEnabled.checked ? Number(formValue(form, 'priceAmount')) : null,
+          priceCurrency: form.elements.priceEnabled.checked ? formValue(form, 'priceCurrency') : null,
+          priceBasis: form.elements.priceEnabled.checked ? formValue(form, 'priceBasis') : null,
+          allowLessonChat: form.elements.allowLessonChat.checked,
+          allowPrivateMessages: form.elements.allowPrivateMessages.checked
+        });
         if (form.id === 'classForm') onForm(form, async () => {
           await mutation('class', 'classes', () => ({
-            title: formValue(form, 'title'),
-            description: formValue(form, 'description'),
-            studentMembershipId: formValue(form, 'studentMembershipId'),
-            durationMinutes: form.elements.durationEnabled.checked ? Number(formValue(form, 'durationMinutes')) : null,
-            priceAmount: form.elements.priceEnabled.checked ? Number(formValue(form, 'priceAmount')) : null,
-            priceCurrency: form.elements.priceEnabled.checked ? formValue(form, 'priceCurrency') : null,
-            priceBasis: form.elements.priceEnabled.checked ? formValue(form, 'priceBasis') : null,
-            allowLessonChat: form.elements.allowLessonChat.checked,
-            allowPrivateMessages: form.elements.allowPrivateMessages.checked
+            ...classFields(form),
+            studentMembershipId: formValue(form, 'studentMembershipId')
           }));
           state.classCreate = false;
           state.selectedClass = '';
+        });
+        if (form.id === 'classEditForm') onForm(form, async () => {
+          const item = (state.data.classes || []).find(x => x.id === form.dataset.classId);
+          const revision = Number(form.dataset.revision);
+          if (!item || item.isArchived || item.revision !== revision) throw new Error('Класс изменился. Обновите данные.');
+          await api('teacher/classes/' + encodeURIComponent(item.id), {
+            method: 'PATCH', body: { expectedRevision: revision, ...classFields(form) }
+          });
+          state.classEdit = '';
         });
         if (form.id === 'lessonCorrectionForm') onForm(form, async () => {
           const source = state.editLesson;
