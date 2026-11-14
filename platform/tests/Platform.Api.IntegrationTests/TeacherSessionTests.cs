@@ -223,6 +223,125 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
             (await client.PostAsJsonAsync(path + "/restore", new TeacherClassRevisionRequest(4))).StatusCode);
     }
 
+
+    [Fact]
+    public async Task ClassCoverAndOneTimeInvitesRequireRightWorkspaceAndStudent()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "invite-north", "invite-north@example.invalid", "owner");
+        await SeedAsync(factory, "invite-south", "invite-south@example.invalid", "owner");
+        var program = await SeedProgramAsync(factory, north.WorkspaceId);
+        using var teacher = factory.CreateClient();
+        var northSession = (await (await LoginAsync(teacher, "invite-north", "invite-north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        teacher.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", northSession.AccessToken);
+        var studentCreate = await teacher.PostAsJsonAsync("/api/v1/teacher/students",
+            new TeacherCreateStudentRequest(Guid.NewGuid(), program, "Synthetic invited student"));
+        Assert.Equal(HttpStatusCode.Created, studentCreate.StatusCode);
+        var student = (await studentCreate.Content.ReadFromJsonAsync<TeacherCreateStudentResponse>())!;
+        var otherCreate = await teacher.PostAsJsonAsync("/api/v1/teacher/students",
+            new TeacherCreateStudentRequest(Guid.NewGuid(), program, "Synthetic other student"));
+        var other = (await otherCreate.Content.ReadFromJsonAsync<TeacherCreateStudentResponse>())!;
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await teacher.PostAsJsonAsync("/api/v1/teacher/classes",
+                new TeacherCreateClassRequest(Guid.NewGuid(), student.MembershipId, "Invalid", CoverStyle: "external://url"))).StatusCode);
+        var createdResponse = await teacher.PostAsJsonAsync("/api/v1/teacher/classes",
+            new TeacherCreateClassRequest(Guid.NewGuid(), student.MembershipId, "Test class", CoverStyle: "Sky"));
+        Assert.Equal(HttpStatusCode.Created, createdResponse.StatusCode);
+        var created = (await createdResponse.Content.ReadFromJsonAsync<TeacherClassView>())!;
+        Assert.Equal("sky", created.CoverStyle);
+        Assert.Equal(1, created.Revision);
+        Assert.Null(created.InvitationStatus);
+        var path = $"/api/v1/teacher/classes/{created.Id}";
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await teacher.PatchAsJsonAsync(path,
+                new TeacherUpdateClassRequest(1, "Change", CoverStyle: "https://invalid.example"))).StatusCode);
+        var edit = await teacher.PatchAsJsonAsync(path,
+            new TeacherUpdateClassRequest(1, "Test class", CoverStyle: "mint"));
+        Assert.Equal(HttpStatusCode.OK, edit.StatusCode);
+        var edited = (await edit.Content.ReadFromJsonAsync<TeacherClassView>())!;
+        Assert.Equal("mint", edited.CoverStyle);
+        Assert.Equal(2, edited.Revision);
+
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await teacher.PostAsJsonAsync(path + "/invitation", new TeacherClassRevisionRequest(0))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await teacher.PostAsJsonAsync(path + "/invitation", new TeacherClassRevisionRequest(1))).StatusCode);
+        var issuedResponse = await teacher.PostAsJsonAsync(path + "/invitation", new TeacherClassRevisionRequest(2));
+        Assert.Equal(HttpStatusCode.OK, issuedResponse.StatusCode);
+        var issued = (await issuedResponse.Content.ReadFromJsonAsync<ClassInviteIssueResponse>())!;
+        Assert.Equal(64, issued.Code.Length);
+        Assert.Equal(3, issued.Revision);
+        var listed = Assert.Single((await teacher.GetFromJsonAsync<List<TeacherClassView>>("/api/v1/teacher/classes"))!);
+        Assert.Equal("pending", listed.InvitationStatus);
+        Assert.Equal(3, listed.Revision);
+        Assert.DoesNotContain(issued.Code, await (await teacher.GetAsync("/api/v1/teacher/classes")).Content.ReadAsStringAsync());
+
+        using var learner = factory.CreateClient();
+        var login = await learner.PostAsJsonAsync("/api/v1/student-sessions",
+            new { workspace = "invite-north", code = student.InviteCode });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        var studentSession = (await login.Content.ReadFromJsonAsync<TestingHosting.Platform.StudentSessions.StudentSessionResponse>())!;
+        learner.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", studentSession.AccessToken);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await learner.PostAsJsonAsync("/api/v1/student/classes/invitations/accept",
+                new AcceptClassInvitationRequest("invalid"))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await learner.PostAsJsonAsync("/api/v1/student/classes/invitations/accept",
+                new AcceptClassInvitationRequest(new string('A', 64)))).StatusCode);
+        using var otherLearner = factory.CreateClient();
+        var otherLogin = await otherLearner.PostAsJsonAsync("/api/v1/student-sessions",
+            new { workspace = "invite-north", code = other.InviteCode });
+        var otherSession = (await otherLogin.Content.ReadFromJsonAsync<TestingHosting.Platform.StudentSessions.StudentSessionResponse>())!;
+        otherLearner.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", otherSession.AccessToken);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await otherLearner.PostAsJsonAsync("/api/v1/student/classes/invitations/accept",
+                new AcceptClassInvitationRequest(issued.Code))).StatusCode);
+
+        Assert.Equal(HttpStatusCode.OK,
+            (await learner.PostAsJsonAsync("/api/v1/student/classes/invitations/accept",
+                new AcceptClassInvitationRequest(issued.Code))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await learner.PostAsJsonAsync("/api/v1/student/classes/invitations/accept",
+                new AcceptClassInvitationRequest(issued.Code))).StatusCode);
+        listed = Assert.Single((await teacher.GetFromJsonAsync<List<TeacherClassView>>("/api/v1/teacher/classes"))!);
+        Assert.Equal("accepted", listed.InvitationStatus);
+        Assert.Equal(4, listed.Revision);
+        Assert.NotNull(listed.InvitationAcceptedAt);
+
+        var renewed = (await (await teacher.PostAsJsonAsync(path + "/invitation",
+            new TeacherClassRevisionRequest(4))).Content.ReadFromJsonAsync<ClassInviteIssueResponse>())!;
+        Assert.NotEqual(issued.Code, renewed.Code);
+        Assert.Equal(HttpStatusCode.OK,
+            (await teacher.PostAsJsonAsync(path + "/invitation/revoke",
+                new TeacherClassRevisionRequest(5))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await learner.PostAsJsonAsync("/api/v1/student/classes/invitations/accept",
+                new AcceptClassInvitationRequest(renewed.Code))).StatusCode);
+        var third = (await (await teacher.PostAsJsonAsync(path + "/invitation",
+            new TeacherClassRevisionRequest(6))).Content.ReadFromJsonAsync<ClassInviteIssueResponse>())!;
+        Assert.Equal(HttpStatusCode.OK,
+            (await teacher.PostAsJsonAsync(path + "/archive", new TeacherClassRevisionRequest(7))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await learner.PostAsJsonAsync("/api/v1/student/classes/invitations/accept",
+                new AcceptClassInvitationRequest(third.Code))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await teacher.PostAsJsonAsync(path + "/invitation", new TeacherClassRevisionRequest(8))).StatusCode);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            Assert.Equal(2, await db.Students.CountAsync());
+            var row = await db.TeacherClasses.SingleAsync(x => x.Id == created.Id);
+            Assert.Null(row.InvitationCodeHash);
+            Assert.Equal("revoked", row.InvitationStatus);
+        }
+        var southSession = (await (await LoginAsync(teacher, "invite-south", "invite-south@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        teacher.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", southSession.AccessToken);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await teacher.PostAsJsonAsync(path + "/invitation", new TeacherClassRevisionRequest(8))).StatusCode);
+    }
+
     [Fact]
     public async Task NativeHomeworkIsTenantScopedAndTextAnswerIsIdempotentWithoutInventedScore()
     {
