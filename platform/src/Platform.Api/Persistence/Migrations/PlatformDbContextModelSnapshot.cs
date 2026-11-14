@@ -37,6 +37,7 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     b.Property<string>("PriceBasis").HasMaxLength(16).HasColumnType("character varying(16)");
                     b.Property<string>("PriceCurrency").HasMaxLength(3).HasColumnType("character varying(3)");
                     b.Property<Guid>("RequestId").HasColumnType("uuid");
+                    b.Property<int>("Revision").ValueGeneratedOnAdd().IsConcurrencyToken().HasColumnType("integer").HasDefaultValue(1);
                     b.Property<Guid>("StudentMembershipId").HasColumnType("uuid");
                     b.Property<Guid>("StudentId").HasColumnType("uuid");
                     b.Property<string>("Title").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");

@@ -18,7 +18,7 @@ export const teacherNeeds = {
 };
 
 export const teacherMutationKeys = {
-  classForm: ['classes'],
+  classForm: ['classes'], classEditForm: ['classes'],
   studentForm: ['students'], studentEditForm: ['students'],
   lessonForm: ['lessons', 'assignments'], lessonCorrectionForm: ['lessons'],
   nativeTaskForm: ['nativeTasks'], nativeAssignForm: ['nativeAssignments'],

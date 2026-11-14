@@ -94,6 +94,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(x => x.AllowLessonChat).HasDefaultValue(false);
             entity.Property(x => x.AllowPrivateMessages).HasDefaultValue(false);
             entity.Property(x => x.Kind).HasMaxLength(32);
+            entity.Property(x => x.Revision).IsConcurrencyToken().HasDefaultValue(1);
             entity.HasIndex(x => new { x.WorkspaceId, x.RequestId }).IsUnique();
             entity.HasIndex(x => new { x.WorkspaceId, x.StudentMembershipId, x.StudentId });
             entity.HasOne(x => x.Workspace).WithMany().HasForeignKey(x => x.WorkspaceId)
