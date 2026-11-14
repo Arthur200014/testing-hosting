@@ -135,14 +135,17 @@ public sealed class TeacherClassService(PlatformDbContext db, TimeProvider clock
         if (request.ExpectedRevision < 1)
             return new(TeacherClassMutationStatus.InvalidRequest,
                 Errors: new() { ["expectedRevision"] = ["A positive revision is required."] });
-        var errors = ValidateClassFields(request.Title, request.Description, request.DurationMinutes,
-            request.PriceAmount, request.PriceCurrency, request.PriceBasis);
-        if (errors.Count > 0)
-            return new(TeacherClassMutationStatus.InvalidRequest, Errors: errors);
         var item = await LoadTrackedAsync(workspaceId, classId, cancellationToken);
         if (item is null) return new(TeacherClassMutationStatus.NotFound);
         if (item.IsArchived || item.Revision != request.ExpectedRevision)
             return new(TeacherClassMutationStatus.Conflict);
+        var errors = ValidateClassFields(request.Title, request.Description, request.DurationMinutes,
+            request.PriceAmount, request.PriceCurrency, request.PriceBasis);
+        // Imported/legacy titles can exceed the new limit until their title actually changes.
+        if (item.Title.Length > 50 && item.Title == request.Title?.Trim())
+            errors.Remove("title");
+        if (errors.Count > 0)
+            return new(TeacherClassMutationStatus.InvalidRequest, Errors: errors);
         var title = request.Title!.Trim();
         var description = request.Description?.Trim() ?? string.Empty;
         var currency = request.PriceAmount is null ? null : request.PriceCurrency!.Trim().ToUpperInvariant();

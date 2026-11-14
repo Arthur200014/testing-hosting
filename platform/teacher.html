@@ -516,9 +516,9 @@
         form.dataset.classId = item.id;
         form.dataset.revision = item.revision;
         wrapper.querySelector('h1').textContent = 'Редактирование индивидуального класса';
-        form.elements.title.value = item.title;
+        form.elements.title.defaultValue = item.title;
         if (item.title.length > 50) form.elements.title.maxLength = 200; // Existing legacy titles.
-        form.elements.description.value = item.description || '';
+        form.elements.description.defaultValue = item.description || '';
         form.querySelectorAll('.class-field').forEach(label => {
           const field = label.querySelector('input, textarea');
           label.querySelector('[data-char-count]').textContent = field.value.length + ' / ' + field.maxLength;
@@ -529,7 +529,7 @@
         membershipCaption.textContent = 'Ученик (не меняется)';
         const readonly = document.createElement('input');
         readonly.disabled = true;
-        readonly.value = item.student.studentName + ' · ' + item.student.programName;
+        readonly.defaultValue = item.student.studentName + ' · ' + item.student.programName;
         membershipLabel.append(membershipCaption, readonly);
         const settings = [
           ['duration', item.durationMinutes != null],
@@ -538,16 +538,18 @@
         for (const [name, enabled] of settings) {
           const toggle = form.querySelector('[data-settings-toggle="' + name + '"]');
           const group = form.querySelector('[data-settings-group="' + name + '"]');
-          toggle.checked = enabled;
+          toggle.defaultChecked = enabled;
           group.hidden = !enabled;
           group.querySelectorAll('input, select').forEach(input => { input.disabled = !enabled; });
         }
-        form.elements.durationMinutes.value = item.durationMinutes ?? 60;
-        form.elements.priceAmount.value = item.priceAmount ?? 0;
-        form.elements.priceCurrency.value = item.priceCurrency || 'RUB';
-        form.elements.priceBasis.value = item.priceBasis || 'lesson';
-        form.elements.allowLessonChat.checked = !!item.allowLessonChat;
-        form.elements.allowPrivateMessages.checked = !!item.allowPrivateMessages;
+        form.elements.durationMinutes.defaultValue = item.durationMinutes ?? 60;
+        form.elements.priceAmount.defaultValue = item.priceAmount ?? 0;
+        for (const [select, value] of [[form.elements.priceCurrency, item.priceCurrency || 'RUB'],
+                                      [form.elements.priceBasis, item.priceBasis || 'lesson']]) {
+          [...select.options].forEach(option => { option.defaultSelected = option.value === value; });
+        }
+        form.elements.allowLessonChat.defaultChecked = !!item.allowLessonChat;
+        form.elements.allowPrivateMessages.defaultChecked = !!item.allowPrivateMessages;
         form.querySelector('[type="submit"]').textContent = 'Сохранить изменения';
         const cancel = form.querySelector('[data-cancel-class]');
         cancel.removeAttribute('data-cancel-class');
