@@ -38,10 +38,19 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
   if (path === 'teacher/classes' && request.method() === 'POST') {
     const body = request.postDataJSON();
     assert.ok(body.requestId);
+    assert.equal(body.durationMinutes, 90);
+    assert.equal(body.priceAmount, 1750.5);
+    assert.equal(body.priceCurrency, 'EUR');
+    assert.equal(body.priceBasis, 'month');
+    assert.equal(body.allowLessonChat, true);
+    assert.equal(body.allowPrivateMessages, true);
     const student = students.find(x => x.membershipId === body.studentMembershipId);
     assert.ok(student);
     const item = {
       id: createdClassId, title: body.title, description: body.description, kind: 'individual',
+      durationMinutes: body.durationMinutes, priceAmount: body.priceAmount,
+      priceCurrency: body.priceCurrency, priceBasis: body.priceBasis,
+      allowLessonChat: body.allowLessonChat, allowPrivateMessages: body.allowPrivateMessages,
       studentMembershipId: student.membershipId, studentName: student.studentName,
       programName: student.programName, programId: '66666666-6666-4666-8666-666666666666',
       isArchived: false, createdAt: new Date().toISOString()
@@ -88,6 +97,10 @@ try {
   await page.locator('[data-learning-type="individual"]').click();
   await page.locator('#classForm').waitFor();
   await page.locator('#classForm [name="description"]').fill('Отменённое описание');
+  await page.locator('#classForm [name="durationEnabled"]').check();
+  await page.locator('#classForm [name="priceEnabled"]').check();
+  await page.locator('#classForm [name="priceAmount"]').fill('999');
+  await page.locator('#classForm [name="allowLessonChat"]').check();
   await page.locator('[data-cancel-class]').click();
   assert.equal(classWrites, 0, 'cancel must not create a class');
 
@@ -101,7 +114,20 @@ try {
   assert.equal(await page.locator('#classForm [name="description"]').getAttribute('maxlength'), '200');
   assert.equal(await page.locator('#classForm [name="title"]').locator('xpath=parent::label').locator('[data-char-count]').textContent(), title.length + ' / 50');
   assert.equal(await page.locator('#classForm [name="description"]').locator('xpath=parent::label').locator('[data-char-count]').textContent(), description.length + ' / 200');
+  const form = page.locator('#classForm');
+  assert.equal(await form.locator('[data-settings-group="duration"]').isVisible(), false);
+  assert.equal(await form.locator('[name="durationMinutes"]').isDisabled(), true);
+  await form.locator('[name="durationEnabled"]').check();
+  await form.locator('[name="durationMinutes"]').fill('90');
+  await form.locator('[name="priceEnabled"]').check();
+  await form.locator('[name="priceAmount"]').fill('1750.50');
+  await form.locator('[name="priceCurrency"]').selectOption('EUR');
+  await form.locator('[name="priceBasis"]').selectOption('month');
+  await form.locator('[name="allowLessonChat"]').check();
+  await form.locator('[name="allowPrivateMessages"]').check();
   await page.screenshot({ path: output + '/03_individual_create.png' });
+  await form.locator('.class-create-actions').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: output + '/04_individual_settings.png' });
   await page.locator('#classForm button[type="submit"]').click();
   const createdCard = page.locator(`[data-open-class="${createdClassId}"]`);
   await createdCard.waitFor({ state: 'attached' });
@@ -110,6 +136,8 @@ try {
   assert.equal(unexpectedWrites, 0);
   await createdCard.click();
   await page.getByText(description, { exact: true }).waitFor();
+  await page.getByText(/90 мин/).waitFor();
+  await page.getByText(/EUR/).waitFor();
   await page.locator('[data-back-classes]').click();
   await page.reload();
   await page.locator('#loginForm [name="workspace"]').fill('synthetic');
@@ -120,7 +148,9 @@ try {
   assert.equal(await page.locator('[data-open-class]').count(), 3, 'persisted class replaces its legacy projection');
   await page.locator(`[data-open-class="${createdClassId}"]`).click();
   await page.getByText(description, { exact: true }).waitFor();
-  console.log('PASS: UI-01 screenshots plus UI-02 individual class cancel/create/reload at 1348x926');
+  await page.getByText(/90 мин/).waitFor();
+  await page.getByText(/EUR/).waitFor();
+  console.log('PASS: UI-02 class settings duration/price/chat cancel/create/readback at 1348x926');
 } finally {
   await browser.close();
 }
