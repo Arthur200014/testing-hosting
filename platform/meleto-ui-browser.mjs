@@ -187,7 +187,9 @@ try {
   await form.locator('[name="allowPrivateMessages"]').check();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: output + '/03_individual_create.png' });
-  await form.locator('.class-create-actions').scrollIntoViewIfNeeded();
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  const chats = await page.locator('#classForm .class-chats-section').boundingBox();
+  assert.ok(chats && chats.y < 926 && chats.y + chats.height > 0, 'screen 04 must show the bottom chat settings');
   await page.screenshot({ path: output + '/04_individual_settings.png' });
   await page.locator('#classForm button[type="submit"]').click();
   const createdCard = page.locator(`[data-open-class="${createdClassId}"]`);
