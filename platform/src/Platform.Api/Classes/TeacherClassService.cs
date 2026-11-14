@@ -46,16 +46,19 @@ public sealed class TeacherClassService(PlatformDbContext db, TimeProvider clock
         if (existing is not null)
             return Compare(existing, request.StudentMembershipId, title!);
 
-        var memberExists = await db.WorkspaceStudentMemberships.AsNoTracking().AnyAsync(x =>
-            x.WorkspaceId == workspaceId && x.Id == request.StudentMembershipId &&
-            x.IsActive && x.Student.IsActive && x.Program.IsActive, cancellationToken);
-        if (!memberExists)
+        var member = await db.WorkspaceStudentMemberships.AsNoTracking()
+            .Where(x => x.WorkspaceId == workspaceId && x.Id == request.StudentMembershipId &&
+                x.IsActive && x.Student.IsActive && x.Program.IsActive)
+            .Select(x => new { x.StudentId })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (member is null)
             return new(TeacherCreateClassStatus.MembershipNotFound);
 
         var item = new TeacherClass
         {
             Id = Guid.NewGuid(), WorkspaceId = workspaceId, RequestId = request.RequestId,
-            StudentMembershipId = request.StudentMembershipId, Title = title!,
+            StudentMembershipId = request.StudentMembershipId, StudentId = member.StudentId,
+            Title = title!,
             CreatedAt = clock.GetUtcNow()
         };
         db.TeacherClasses.Add(item);

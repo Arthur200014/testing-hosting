@@ -20,6 +20,7 @@ public sealed class TeacherClasses : Migration
                 WorkspaceId = table.Column<Guid>(type: "uuid", nullable: false),
                 RequestId = table.Column<Guid>(type: "uuid", nullable: false),
                 StudentMembershipId = table.Column<Guid>(type: "uuid", nullable: false),
+                StudentId = table.Column<Guid>(type: "uuid", nullable: false),
                 Title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                 Kind = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
                 IsArchived = table.Column<bool>(type: "boolean", nullable: false),
@@ -32,11 +33,11 @@ public sealed class TeacherClasses : Migration
                 table.CheckConstraint("CK_TeacherClasses_Kind", "\"Kind\" = 'individual'");
                 table.CheckConstraint("CK_TeacherClasses_Title_NotEmpty", "length(\"Title\") > 0");
                 table.ForeignKey(
-                    name: "FK_TeacherClasses_WorkspaceStudentMemberships_WorkspaceId_StudentMembershipId",
-                    columns: x => new { x.WorkspaceId, x.StudentMembershipId },
+                    name: "FK_TeacherClasses_StudentMembershipIdentity",
+                    columns: x => new { x.WorkspaceId, x.StudentMembershipId, x.StudentId },
                     principalSchema: "platform",
                     principalTable: "WorkspaceStudentMemberships",
-                    principalColumns: new[] { "WorkspaceId", "Id" },
+                    principalColumns: new[] { "WorkspaceId", "Id", "StudentId" },
                     onDelete: ReferentialAction.Restrict);
                 table.ForeignKey(
                     name: "FK_TeacherClasses_Workspaces_WorkspaceId",

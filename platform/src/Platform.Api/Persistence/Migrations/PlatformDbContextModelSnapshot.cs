@@ -31,6 +31,7 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     b.Property<string>("Kind").IsRequired().HasMaxLength(32).HasColumnType("character varying(32)");
                     b.Property<Guid>("RequestId").HasColumnType("uuid");
                     b.Property<Guid>("StudentMembershipId").HasColumnType("uuid");
+                    b.Property<Guid>("StudentId").HasColumnType("uuid");
                     b.Property<string>("Title").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
                     b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
                     b.HasKey("Id");
@@ -989,8 +990,8 @@ namespace TestingHosting.Platform.Persistence.Migrations
                 {
                     b.HasOne("TestingHosting.Platform.Students.WorkspaceStudentMembership", "StudentMembership")
                         .WithMany()
-                        .HasForeignKey("WorkspaceId", "StudentMembershipId")
-                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .HasForeignKey("WorkspaceId", "StudentMembershipId", "StudentId")
+                        .HasPrincipalKey("WorkspaceId", "Id", "StudentId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 

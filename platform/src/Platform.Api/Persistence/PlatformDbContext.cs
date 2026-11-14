@@ -93,8 +93,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasOne(x => x.Workspace).WithMany().HasForeignKey(x => x.WorkspaceId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.StudentMembership).WithMany()
-                .HasForeignKey(x => new { x.WorkspaceId, x.StudentMembershipId })
-                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .HasForeignKey(x => new { x.WorkspaceId, x.StudentMembershipId, x.StudentId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.StudentId })
                 .OnDelete(DeleteBehavior.Restrict);
             entity.ToTable(table =>
             {

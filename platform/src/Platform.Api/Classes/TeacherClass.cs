@@ -9,6 +9,7 @@ public sealed class TeacherClass
     public Guid WorkspaceId { get; set; }
     public Guid RequestId { get; set; }
     public Guid StudentMembershipId { get; set; }
+    public Guid StudentId { get; set; }
     public required string Title { get; set; }
     public string Kind { get; set; } = "individual";
     public bool IsArchived { get; set; }
