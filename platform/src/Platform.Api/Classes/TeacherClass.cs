@@ -21,6 +21,7 @@ public sealed class TeacherClass
     public bool AllowPrivateMessages { get; set; }
     public string Kind { get; set; } = "individual";
     public bool IsArchived { get; set; }
+    public int Revision { get; set; } = 1;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public Workspace Workspace { get; set; } = null!;
     public WorkspaceStudentMembership StudentMembership { get; set; } = null!;

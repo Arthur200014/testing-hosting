@@ -233,6 +233,58 @@ app.MapPost("/api/v1/teacher/classes", async (
     };
 }).RequireAuthorization("teacher");
 
+
+app.MapPatch("/api/v1/teacher/classes/{classId:guid}", async (
+    Guid classId, TeacherUpdateClassRequest request, ClaimsPrincipal principal,
+    TeacherClassService classes, CancellationToken cancellationToken) =>
+{
+    var outcome = await classes.UpdateAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), classId, request, cancellationToken);
+    return outcome.Status switch
+    {
+        TeacherClassMutationStatus.Updated or TeacherClassMutationStatus.Unchanged => Results.Ok(outcome.Response),
+        TeacherClassMutationStatus.NotFound => Results.NotFound(),
+        TeacherClassMutationStatus.Conflict => Results.Problem(statusCode: 409,
+            title: "Class changed or is archived. Refresh and retry."),
+        TeacherClassMutationStatus.InvalidRequest => Results.ValidationProblem(outcome.Errors!),
+        _ => throw new InvalidOperationException("Unexpected class edit result.")
+    };
+}).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/classes/{classId:guid}/archive", async (
+    Guid classId, TeacherClassRevisionRequest request, ClaimsPrincipal principal,
+    TeacherClassService classes, CancellationToken cancellationToken) =>
+{
+    var outcome = await classes.SetArchivedAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), classId, request, true, cancellationToken);
+    return outcome.Status switch
+    {
+        TeacherClassMutationStatus.Updated or TeacherClassMutationStatus.Unchanged => Results.Ok(outcome.Response),
+        TeacherClassMutationStatus.NotFound => Results.NotFound(),
+        TeacherClassMutationStatus.Conflict => Results.Problem(statusCode: 409,
+            title: "Class changed. Refresh and retry."),
+        TeacherClassMutationStatus.InvalidRequest => Results.ValidationProblem(outcome.Errors!),
+        _ => throw new InvalidOperationException("Unexpected class archive result.")
+    };
+}).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/classes/{classId:guid}/restore", async (
+    Guid classId, TeacherClassRevisionRequest request, ClaimsPrincipal principal,
+    TeacherClassService classes, CancellationToken cancellationToken) =>
+{
+    var outcome = await classes.SetArchivedAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), classId, request, false, cancellationToken);
+    return outcome.Status switch
+    {
+        TeacherClassMutationStatus.Updated or TeacherClassMutationStatus.Unchanged => Results.Ok(outcome.Response),
+        TeacherClassMutationStatus.NotFound => Results.NotFound(),
+        TeacherClassMutationStatus.Conflict => Results.Problem(statusCode: 409,
+            title: "Class changed. Refresh and retry."),
+        TeacherClassMutationStatus.InvalidRequest => Results.ValidationProblem(outcome.Errors!),
+        _ => throw new InvalidOperationException("Unexpected class restore result.")
+    };
+}).RequireAuthorization("teacher");
+
 app.MapPost("/api/v1/teacher/students", async (
     TeacherCreateStudentRequest request, ClaimsPrincipal principal,
     TeacherStudentCreator students, CancellationToken cancellationToken) =>
