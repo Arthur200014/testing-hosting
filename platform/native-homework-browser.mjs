@@ -179,7 +179,7 @@ try {
   assert.equal(assignments.length, 1);
   await teacher.locator('#content').getByText('Ожидает сдачи').waitFor();
   await teacher.locator('[data-view="overview"]').click();
-  await teacher.locator('#content').getByText('из каталога 0 · встроенных 1').waitFor();
+  await teacher.locator('[data-open-class="' + memberId + '"]').waitFor();
   await teacher.locator('[data-view="homework"]').click();
   await teacher.locator('#content').getByText('Встроенные ДЗ и ответы').waitFor();
 
