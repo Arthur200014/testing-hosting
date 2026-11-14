@@ -88,6 +88,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id });
             entity.Property(x => x.Title).HasMaxLength(200);
             entity.Property(x => x.Description).HasMaxLength(200);
+            entity.Property(x => x.CoverStyle).HasMaxLength(16).HasDefaultValue("lavender");
+            entity.Property(x => x.InvitationStatus).HasMaxLength(16);
             entity.Property(x => x.PriceAmount).HasPrecision(12, 2);
             entity.Property(x => x.PriceCurrency).HasMaxLength(3);
             entity.Property(x => x.PriceBasis).HasMaxLength(16);
@@ -107,6 +109,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             {
                 table.HasCheckConstraint("CK_TeacherClasses_Title_NotEmpty", "length(\"Title\") > 0");
                 table.HasCheckConstraint("CK_TeacherClasses_Kind", "\"Kind\" = 'individual'");
+                table.HasCheckConstraint("CK_TeacherClasses_Cover", "\"CoverStyle\" IN ('lavender', 'sky', 'peach', 'mint')");
+                table.HasCheckConstraint("CK_TeacherClasses_Invitation", "\"InvitationStatus\" IS NULL OR \"InvitationStatus\" IN ('pending', 'accepted', 'revoked')");
                 table.HasCheckConstraint("CK_TeacherClasses_Duration",
                     "\"DurationMinutes\" IS NULL OR (\"DurationMinutes\" BETWEEN 15 AND 240 AND \"DurationMinutes\" % 5 = 0)");
                 table.HasCheckConstraint("CK_TeacherClasses_Price",

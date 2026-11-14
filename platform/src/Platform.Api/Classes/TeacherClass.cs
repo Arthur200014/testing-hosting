@@ -12,6 +12,12 @@ public sealed class TeacherClass
     public Guid StudentId { get; set; }
     public required string Title { get; set; }
     public string Description { get; set; } = string.Empty;
+    public string CoverStyle { get; set; } = "lavender";
+    public byte[]? InvitationCodeHash { get; set; }
+    public string? InvitationStatus { get; set; }
+    public DateTimeOffset? InvitationIssuedAt { get; set; }
+    public DateTimeOffset? InvitationExpiresAt { get; set; }
+    public DateTimeOffset? InvitationAcceptedAt { get; set; }
     // Preferences only; do not create lessons, invoices or chat sessions.
     public int? DurationMinutes { get; set; }
     public decimal? PriceAmount { get; set; }
