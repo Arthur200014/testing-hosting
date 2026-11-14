@@ -262,6 +262,13 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         var edited = (await edit.Content.ReadFromJsonAsync<TeacherClassView>())!;
         Assert.Equal("mint", edited.CoverStyle);
         Assert.Equal(2, edited.Revision);
+        // Old clients may omit CoverStyle without resetting the teacher's selected cover.
+        var oldClientEdit = await teacher.PatchAsJsonAsync(path,
+            new TeacherUpdateClassRequest(2, "Test class"));
+        Assert.Equal(HttpStatusCode.OK, oldClientEdit.StatusCode);
+        var oldClientResult = (await oldClientEdit.Content.ReadFromJsonAsync<TeacherClassView>())!;
+        Assert.Equal("mint", oldClientResult.CoverStyle);
+        Assert.Equal(2, oldClientResult.Revision);
 
         Assert.Equal(HttpStatusCode.BadRequest,
             (await teacher.PostAsJsonAsync(path + "/invitation", new TeacherClassRevisionRequest(0))).StatusCode);
