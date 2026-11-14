@@ -3,21 +3,21 @@
 **REPO:** `Arthur200014/testing-hosting`
 **STATE_UPDATED:** 2026-11-15
 **ACTIVE_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — Meleto UI, UI-01…UI-08
-**ACTIVE_TASK:** UI-02 — индивидуальный класс, второй срез (описание и счётчики) завершён и слит
+**ACTIVE_TASK:** UI-02 — индивидуальный класс: создание + длительность + цена + политики чата завершены, [PR #50](https://github.com/Arthur200014/testing-hosting/pull/50) слит
 **ACTIVE_BRANCH:** `none`
-**LAST_IMPLEMENTATION_COMMIT:** [`0cd96d7`](https://github.com/Arthur200014/testing-hosting/commit/0cd96d7dfb72bfab63b4b690f7cf825d568f1f29) — [PR #49](https://github.com/Arthur200014/testing-hosting/pull/49), описание класса, валидация и форма.
-**NEXT_ACTION:** UI-02, один небольшой функциональный срез экрана `04_individual_create_bottom`: настройка длительности индивидуального занятия как свойства класса (сохранение/чтение/отмена, проверка границ и tenant isolation). Не создавать реальные занятия, не менять расписание и платежи. Затем отдельными задачами стоимость и чаты, обложка/приглашения экрана `03`, групповые классы, редактирование/архив.
-**CONTEXT_MODE:** читать `AGENTS.md` и этот файл на `main`, затем только релевантные символы и референс `04` (Library PDF `Meleto_Design_Reference_and_Build_Brief.pdf`, стр. 22); не открывать все 74 кадра/архив и не сканировать EGA/OGA/platform.
-**VERIFICATION:** PASS — [TAS task CI 43647169099](https://github.com/Arthur200014/testing-hosting/actions/runs/43647169099) и [Homework import integration 43647169123](https://github.com/Arthur200014/testing-hosting/actions/runs/43647169123) на коммите `bb5d704`; PASS — [Native homework browser 43647112818](https://github.com/Arthur200014/testing-hosting/actions/runs/43647112818) на UI-коде `f24d51e` (последующий коммит менял только .NET-тест). Chromium 1348×926: создание/отмена/reload, счётчики, показ описания. Скриншот `03_individual_create.png` из artifact браузерного CI просмотрен; отличие от полного Meleto ожидаемо — отсутствуют обложка, приглашение и остальные настройки. NOT_RUN — проверки на реальном Timeweb/production; локального .NET SDK нет, использован CI.
+**LAST_IMPLEMENTATION_COMMIT:** [`145169a`](https://github.com/Arthur200014/testing-hosting/commit/145169aebd05655b1d322d9bba3f65e8ed261c41)
+**NEXT_ACTION:** UI-02 — одним связанным пакетом реализовать **редактирование существующего индивидуального класса, архивирование и возврат из архива**, включая tenant-scoped API, совместимые миграции только при реальной необходимости, форму/карточку по релевантным экранам `09–10, 31–33`, подтверждение действий, отмену без записи, синтетические backend/browser regression и реальную проверку reload. Не архивировать/удалять ученика и его историю; архив класса — отдельное свойство. После этого перейти к обложке/приглашениям `03` и групповым классам `05–06`.
+**CONTEXT_MODE:** читать `AGENTS.md` и HANDOFF на `main`; смотреть только нужные символы, миграции и 2–3 референс-кадра, не сканировать все EGA/OGA/platform и 74 экрана.
+**VERIFICATION:** PASS — [TAS task CI 43648149949](https://github.com/Arthur200014/testing-hosting/actions/runs/43648149949), [Homework import integration 43648149862](https://github.com/Arthur200014/testing-hosting/actions/runs/43648149862), [Native homework browser 43648149874](https://github.com/Arthur200014/testing-hosting/actions/runs/43648149874) на `93114d9`; Chromium 1348×926: cancel/create/readback/reload, duration/price/chat toggles, screenshot `04_individual_settings.png` просмотрен. NOT_RUN — production/Timeweb, live writes. Визуальное соответствие всего UI-02 ещё не завершено.
 
-## Выполненные срезы UI-02
+## Выполнено
 
-- Первый ([PR #48](https://github.com/Arthur200014/testing-hosting/pull/48)): `TeacherClass`, tenant-scoped `GET/POST /teacher/classes`, idempotent create, PostgreSQL миграция; legacy-проекция без дублей, отмена без записи.
-- Второй ([PR #49](https://github.com/Arthur200014/testing-hosting/pull/49)): `Description` до 200 символов (аддитивная миграция с пустым значением для старых записей), новые названия до 50 символов на API/UI. Старый DB varchar(200) для `Title` оставлен ради совместимости. Счётчики и поля формы, отображение описания, idempotency с учётом описания, синтетические browser/integration regression.
-- Изменены: `platform/src/Platform.Api/Classes/{TeacherClass.cs,TeacherClassService.cs}`, `Persistence/{PlatformDbContext.cs,Migrations/PlatformDbContextModelSnapshot.cs,Migrations/20261115130000_TeacherClassDescription.cs}`, `platform/teacher.html`, `platform/meleto-ui-browser.mjs`, `platform/tests/Platform.Api.IntegrationTests/TeacherSessionTests.cs`.
+- [PR #48](https://github.com/Arthur200014/testing-hosting/pull/48): самостоятельная tenant-scoped `TeacherClass`, GET/POST, idempotent create и legacy membership projection.
+- [PR #49](https://github.com/Arthur200014/testing-hosting/pull/49): название до 50 для новых классов, описание до 200, счётчики, аддитивная миграция.
+- [PR #50](https://github.com/Arthur200014/testing-hosting/pull/50): объединённый срез экрана `04`: необязательная длительность 15–240 минут/шаг 5, необязательные стоимость 0–10000000 (2 знака), RUB/EUR/USD, за занятие или месяц, два флага разрешения чата. Одно сохранение через API; цена — только условие обучения без счетов/платежей, флаги чата — только настройки до UI-06. Совместимая добавочная миграция `20261115140000_TeacherClassSettings` (старым классам null/false), проверка входа, idempotency, tenant isolation, defaults старых клиентов. Путь: `platform/src/Platform.Api/Classes/*`, `Persistence/PlatformDbContext.cs`, `Persistence/Migrations/{PlatformDbContextModelSnapshot.cs,20261115140000_TeacherClassSettings.cs}`, `platform/teacher.html`, `platform/meleto-ui-browser.mjs`, `platform/tests/Platform.Api.IntegrationTests/TeacherSessionTests.cs`.
 
-## Ограничения безопасности
+## Ограничения
 
-- Не изменять production API/БД, реальные данные учеников, пароли, доски, импорты, GAS или writer в рамках UI-02; тестировать только синтетические данные.
-- Полное визуальное соответствие Meleto по `03–04` ещё не достигнуто; PDF доступен, исходный ZIP/PNG пакет всё ещё недоступен в Library.
-- Старый RELEASE_SAFETY (Timeweb backup/retention и running revision) — отдельный операционный долг, не NEXT_ACTION.
+- Не трогать реальные записи учеников, архив/историю их занятий, доски, пароли, импорты, GAS и production writer. Все проверки только на synthetic данных.
+- Существующий Timeweb/managed PostgreSQL не менялся вручную. Реальные миграции и production deployment этим PR не подтверждены, бэкапы/retention остаются отдельным `RELEASE_SAFETY`.
+- Полная визуальная точность Meleto пока не достигнута; доступный PDF референсов `Meleto_Design_Reference_and_Build_Brief.pdf` содержит кадры `03–04`. В браузерном артефакте `03` снят после прокрутки, `04` корректно показывает нижние настройки; при следующей доработке screenshot runner отдельно фиксировать прокрутку к верху перед `03`.
