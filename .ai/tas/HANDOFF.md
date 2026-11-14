@@ -1,14 +1,14 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **REPO:** `Arthur200014/testing-hosting`
-**STATE_UPDATED:** 2026-11-14
+**STATE_UPDATED:** 2026-11-15
 **ACTIVE_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — Meleto UI, UI-01…UI-08
-**ACTIVE_TASK:** UI-01 — каркас кабинета и список классов (implementation complete, visual review pending)
+**ACTIVE_TASK:** UI-01 — каркас кабинета и список классов (complete, PR ready)
 **ACTIVE_BRANCH:** `tas/UI-01-meleto-classes`
 **CONTEXT_MODE:** только файлы из NEXT_ACTION, поиск + ограниченные диапазоны; только `01–02`; без полных файлов/диффов/логов; после задачи — отчёт в чат о результате, проблемах и следующем шаге
-**LAST_IMPLEMENTATION_COMMIT:** [`937ca47`](https://github.com/Arthur200014/testing-hosting/commit/937ca47f17ef252ecf0b1323c449dae22543c113) — Meleto shell, real class projection, search/states/detail and no-write learning-type modal
-**NEXT_ACTION:** На этой же ветке выполнить визуальную проверку `platform/teacher.html` в Chromium при desktop viewport `1348×926` с полностью перехваченным synthetic API: сравнить список и modal с `01_classes.png`/`02_learning_type.png`, проверить поиск, пусто/ошибку/retry, открытие/возврат и отсутствие POST при открытии/закрытии modal. Исправить только найденные расхождения UI-01, затем отметить оставшиеся пункты UI-01 и подготовить ветку к merge. Не начинать UI-02 до этого контроля.
-**VERIFICATION:** PASS — inline module syntax; `node --test platform/teacher-data.test.mjs` (6/6); `git diff --check`; synthetic GitHub Chromium run [`43640630170`](https://github.com/Arthur200014/testing-hosting/actions/runs/43640630170) проверил shell, классы двух изолированных workspace, modal без записи, переходы прежнего кабинета, stale response/retry/logout. PASS — TAS task CI на implementation commit [`43640284006`](https://github.com/Arthur200014/testing-hosting/actions/runs/43640284006). PARTIAL — модели/API проверены: `LearningProgram` является программой/предметом, не классом; активный `WorkspaceStudentMembership` безопасно проецируется как legacy individual class без новых записей. NOT_RUN — только визуальное сравнение screenshot-to-PNG в равном viewport: локальный Chromium заблокирован системным sandbox; реальный backend и production данные не вызывались. Ученики/доски/пароли/import не изменялись.
+**LAST_IMPLEMENTATION_COMMIT:** [`056c6c8`](https://github.com/Arthur200014/testing-hosting/commit/056c6c82a884bef693d3f01e8a5251fca3663bd5) — финальная UI-01 правка после screenshot review; успешная загрузка больше не сдвигает экран служебной плашкой
+**NEXT_ACTION:** Проверить зелёные checks и merge готового [PR #47](https://github.com/Arthur200014/testing-hosting/pull/47) в `main`. После merge очистить `ACTIVE_BRANCH` и начать только первый небольшой сценарий UI-02 из `03–06`: постоянная модель индивидуального класса и форма создания, без групп, расписания, досок и платежей в одном заходе.
+**VERIFICATION:** PASS — `node --test platform/teacher-data.test.mjs` (6/6), inline/browser script syntax, `git diff --check`. PASS — synthetic Chromium [`43641528907`](https://github.com/Arthur200014/testing-hosting/actions/runs/43641528907) при `1348×926`: screenshots `01_classes`/`02_learning_type`, поиск/нет результатов, класс open/back, modal open/close без write; tenant isolation/retry/logout и прежние сценарии также зелёные. PNG сравнены с референсами `01–02`: устранена лишняя success-плашка; собственный бренд и отсутствие фиктивных bonus/help действий сохранены намеренно. Реальный backend/production не вызывались; ученики/доски/пароли/import не изменялись.
 
 ## UI-01 checkpoint
 
@@ -17,7 +17,8 @@
 - Карточка открывает детали legacy individual class. `LearningProgram` намеренно не используется как class entity; постоянная модель/настройки класса остаются UI-02.
 - Modal `02` открывается/закрывается/Escape без записи. Индивидуальное и разовое обучение ведут в действующие формы, групповое честно отмечено как UI-02.
 - Браузерные проверки обновлены под новый overview: `platform/native-homework-browser.mjs`, `platform/teacher-session-browser.mjs`; checkpoint [`26543eb`](https://github.com/Arthur200014/testing-hosting/commit/26543eb85939f0c1236b3fa012f3771aa112ee2c).
-- Изменены: `platform/teacher.html`, `platform/teacher-data.mjs`, `platform/teacher-data.test.mjs`, `.ai/tas/PHASE_CHECKLISTS.md`.
+- Детерминированные screenshot-кадры создаёт `platform/meleto-ui-browser.mjs`; workflow сохраняет их как `meleto-ui01-screenshots`.
+- Изменены: `platform/teacher.html`, `platform/teacher-data.mjs`, `platform/teacher-data.test.mjs`, браузерные сценарии, workflow и `.ai/tas/PHASE_CHECKLISTS.md`.
 
 ## Правило продолжения
 
