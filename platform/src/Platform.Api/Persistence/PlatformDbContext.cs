@@ -87,6 +87,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(x => x.Id);
             entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id });
             entity.Property(x => x.Title).HasMaxLength(200);
+            entity.Property(x => x.Description).HasMaxLength(200);
             entity.Property(x => x.Kind).HasMaxLength(32);
             entity.HasIndex(x => new { x.WorkspaceId, x.RequestId }).IsUnique();
             entity.HasIndex(x => new { x.WorkspaceId, x.StudentMembershipId, x.StudentId });

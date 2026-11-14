@@ -5,11 +5,11 @@ using TestingHosting.Platform.Persistence;
 namespace TestingHosting.Platform.Classes;
 
 public sealed record TeacherClassView(
-    Guid Id, string Title, string Kind, Guid StudentMembershipId,
+    Guid Id, string Title, string Description, string Kind, Guid StudentMembershipId,
     string StudentName, Guid ProgramId, string ProgramName,
     bool IsArchived, DateTimeOffset CreatedAt);
 
-public sealed record TeacherCreateClassRequest(Guid RequestId, Guid StudentMembershipId, string? Title);
+public sealed record TeacherCreateClassRequest(Guid RequestId, Guid StudentMembershipId, string? Title, string? Description = null);
 
 public enum TeacherCreateClassStatus
 {
@@ -37,14 +37,17 @@ public sealed class TeacherClassService(PlatformDbContext db, TimeProvider clock
         if (request.StudentMembershipId == Guid.Empty)
             errors["studentMembershipId"] = ["An active student is required."];
         var title = request.Title?.Trim();
-        if (string.IsNullOrWhiteSpace(title) || title.Length > 200)
-            errors["title"] = ["Title must be between 1 and 200 characters."];
+        if (string.IsNullOrWhiteSpace(title) || title.Length > 50)
+            errors["title"] = ["Title must be between 1 and 50 characters."];
+        var description = request.Description?.Trim() ?? string.Empty;
+        if (description.Length > 200)
+            errors["description"] = ["Description must not exceed 200 characters."];
         if (errors.Count > 0)
             return new(TeacherCreateClassStatus.InvalidRequest, Errors: errors);
 
         var existing = await FindByRequestAsync(workspaceId, request.RequestId, cancellationToken);
         if (existing is not null)
-            return Compare(existing, request.StudentMembershipId, title!);
+            return Compare(existing, request.StudentMembershipId, title!, description);
 
         var member = await db.WorkspaceStudentMemberships.AsNoTracking()
             .Where(x => x.WorkspaceId == workspaceId && x.Id == request.StudentMembershipId &&
@@ -58,7 +61,7 @@ public sealed class TeacherClassService(PlatformDbContext db, TimeProvider clock
         {
             Id = Guid.NewGuid(), WorkspaceId = workspaceId, RequestId = request.RequestId,
             StudentMembershipId = request.StudentMembershipId, StudentId = member.StudentId,
-            Title = title!,
+            Title = title!, Description = description,
             CreatedAt = clock.GetUtcNow()
         };
         db.TeacherClasses.Add(item);
@@ -74,7 +77,7 @@ public sealed class TeacherClassService(PlatformDbContext db, TimeProvider clock
             db.ChangeTracker.Clear();
             var winner = await FindByRequestAsync(workspaceId, request.RequestId, cancellationToken);
             if (winner is null) throw;
-            return Compare(winner, request.StudentMembershipId, title!);
+            return Compare(winner, request.StudentMembershipId, title!, description);
         }
 
         var created = await FindByRequestAsync(workspaceId, request.RequestId, cancellationToken)
@@ -92,19 +95,20 @@ public sealed class TeacherClassService(PlatformDbContext db, TimeProvider clock
 
     private static IQueryable<TeacherClassView> Project(IQueryable<TeacherClass> classes) =>
         classes.Select(x => new TeacherClassView(
-            x.Id, x.Title, x.Kind, x.StudentMembershipId,
+            x.Id, x.Title, x.Description, x.Kind, x.StudentMembershipId,
             x.StudentMembership.Student.DisplayName, x.StudentMembership.ProgramId,
             x.StudentMembership.Program.DisplayName, x.IsArchived, x.CreatedAt));
 
     private static TeacherClassView ToView(TeacherClass item) => new(
-        item.Id, item.Title, item.Kind, item.StudentMembershipId,
+        item.Id, item.Title, item.Description, item.Kind, item.StudentMembershipId,
         item.StudentMembership.Student.DisplayName, item.StudentMembership.ProgramId,
         item.StudentMembership.Program.DisplayName, item.IsArchived, item.CreatedAt);
 
     private static TeacherCreateClassResult Compare(
-        TeacherClass existing, Guid studentMembershipId, string title) =>
+        TeacherClass existing, Guid studentMembershipId, string title, string description) =>
         existing.Kind == "individual" && !existing.IsArchived &&
-        existing.StudentMembershipId == studentMembershipId && existing.Title == title
+        existing.StudentMembershipId == studentMembershipId && existing.Title == title &&
+        existing.Description == description
             ? new(TeacherCreateClassStatus.Duplicate, ToView(existing))
             : new(TeacherCreateClassStatus.Conflict);
 }

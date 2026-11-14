@@ -46,21 +46,33 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
             (await client.PostAsJsonAsync("/api/v1/teacher/classes",
                 new TeacherCreateClassRequest(Guid.NewGuid(), southStudent, "Foreign"))).StatusCode);
 
-        var request = new TeacherCreateClassRequest(Guid.NewGuid(), northStudent, "  ЕГЭ 2027  ");
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsJsonAsync("/api/v1/teacher/classes",
+                new TeacherCreateClassRequest(Guid.NewGuid(), northStudent, new string('X', 51)))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsJsonAsync("/api/v1/teacher/classes",
+                new TeacherCreateClassRequest(Guid.NewGuid(), northStudent, "Valid title", new string('Y', 201)))).StatusCode);
+
+        var request = new TeacherCreateClassRequest(Guid.NewGuid(), northStudent, "  ЕГЭ 2027  ", "  Описание класса  ");
         var createdResponse = await client.PostAsJsonAsync("/api/v1/teacher/classes", request);
         Assert.Equal(HttpStatusCode.Created, createdResponse.StatusCode);
         var created = (await createdResponse.Content.ReadFromJsonAsync<TeacherClassView>())!;
         Assert.Equal("ЕГЭ 2027", created.Title);
+        Assert.Equal("Описание класса", created.Description);
         Assert.Equal(northStudent, created.StudentMembershipId);
         Assert.Equal("individual", created.Kind);
 
         var replay = await client.PostAsJsonAsync("/api/v1/teacher/classes", request);
         Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
         Assert.Equal(created.Id, (await replay.Content.ReadFromJsonAsync<TeacherClassView>())!.Id);
+        Assert.Equal("Описание класса", (await replay.Content.ReadFromJsonAsync<TeacherClassView>())!.Description);
         Assert.Equal(HttpStatusCode.Conflict,
             (await client.PostAsJsonAsync("/api/v1/teacher/classes", request with { Title = "Other" })).StatusCode);
-        Assert.Equal(created.Id,
-            Assert.Single((await client.GetFromJsonAsync<List<TeacherClassView>>("/api/v1/teacher/classes"))!).Id);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync("/api/v1/teacher/classes", request with { Description = "Другое описание" })).StatusCode);
+        var listed = Assert.Single((await client.GetFromJsonAsync<List<TeacherClassView>>("/api/v1/teacher/classes"))!);
+        Assert.Equal(created.Id, listed.Id);
+        Assert.Equal("Описание класса", listed.Description);
 
         var southLogin = (await (await LoginAsync(client, "class-south", "class-south@example.invalid", Password))
             .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
