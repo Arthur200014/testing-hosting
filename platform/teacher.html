@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="light">
   <title>Teacher AI Student — кабинет преподавателя</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -257,6 +257,7 @@
       .pill { color: #172033; background: #e2e8f0; }
     }
   </style>
+  <link rel="stylesheet" href="./meleto-fidelity.css">
 </head>
 <body>
   <div id="loginScreen" class="login-screen">
@@ -446,9 +447,9 @@
           <section class="learning-modal" role="dialog" aria-modal="true" aria-labelledby="learningTitle">
             <div class="modal-head"><h2 id="learningTitle">Новое обучение</h2><button class="modal-close" type="button" data-close-learning aria-label="Закрыть">×</button></div>
             <div class="learning-types">
-              <button class="learning-type" type="button" data-learning-type="individual"><span class="learning-type-icon">♙</span><span><strong>Индивидуальное</strong><span>Создайте персональное обучение, занимайтесь с учеником и назначайте ему задания</span></span></button>
-              <button class="learning-type" type="button" data-learning-type="group"><span class="learning-type-icon">♧</span><span><strong>Групповое</strong><span>Планируйте групповые занятия, делитесь материалами и давайте задания классу</span></span></button>
-              <button class="learning-type" type="button" data-learning-type="one-time"><span class="learning-type-icon">▣</span><span><strong>Разовое занятие</strong><span>Организуйте пробное занятие с возможностью продолжить обучение</span></span></button>
+              <button class="learning-type" type="button" data-learning-type="individual"><span class="learning-type-icon"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="11" r="6"></circle><path d="M9 34v-6a11 11 0 0 1 22 0v6"></path></svg></span><span><strong>Индивидуальное</strong><span>Создайте персональное обучение, занимайтесь с учеником и назначайте ему задания</span></span></button>
+              <button class="learning-type" type="button" data-learning-type="group"><span class="learning-type-icon"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="11" r="5"></circle><path d="M11 31v-3a9 9 0 0 1 18 0v3M9 15a4 4 0 0 0-4 5M31 15a4 4 0 0 1 4 5M4 33v-7a6 6 0 0 1 5-6M36 33v-7a6 6 0 0 0-5-6"></path></svg></span><span><strong>Групповое</strong><span>Планируйте групповые занятия, делитесь материалами и давайте задания классу</span></span></button>
+              <button class="learning-type" type="button" data-learning-type="one-time"><span class="learning-type-icon"><svg viewBox="0 0 40 40" aria-hidden="true"><rect x="4" y="10" width="23" height="20" rx="4"></rect><path d="m27 17 9-5v16l-9-5"></path></svg></span><span><strong>Разовое занятие</strong><span>Организуйте пробное занятие с возможностью продолжить обучение</span></span></button>
             </div>
           </section>
         </div>`;
@@ -507,42 +508,69 @@
       function individualClassCreate() {
         const students = state.data.students || [];
         const choices = students.map(x => `<option value="${safe(x.membershipId)}">${safe(x.studentName)} · ${safe(x.programName)}</option>`).join('');
-        return `<section class="class-create"><div class="class-create-head"><div><p class="eyebrow">Индивидуальное обучение</p><h1>Новое индивидуальное обучение</h1></div></div>
-          <div class="card stack">
-            <form id="classForm" class="stack">
-              <label class="class-field"><span class="class-field-head"><span>Название класса</span><span class="class-count" data-char-count>0 / 50</span></span><input name="title" maxlength="50" required placeholder="Название класса" autocomplete="off"></label>
-              <div class="class-field"><span>Обложка класса</span><div class="class-cover-options">${classCoverChoices()}</div><p class="muted small">Выберите оформление из безопасных готовых вариантов.</p></div>
-              <label class="class-field"><span class="class-field-head"><span>Описание</span><span class="class-count" data-char-count>0 / 200</span></span><textarea name="description" maxlength="200" rows="4" placeholder="Краткое описание обучения (необязательно)"></textarea></label>
-              <label><span>Ученик</span><select name="studentMembershipId" required>${choices}</select></label>
-              <section class="class-settings" data-settings>
-                <h3>Длительность</h3>
-                <label class="class-switch"><input type="checkbox" name="durationEnabled" data-settings-toggle="duration"><span>Установить длительность занятия</span></label>
-                <div class="class-setting-options" data-settings-group="duration" hidden>
-                  <label><span>Минут на занятие</span><input name="durationMinutes" type="number" value="60" min="15" max="240" step="5" required disabled></label>
-                  <p class="class-setting-note">От 15 до 240 минут, шаг 5 минут. Занятия не создаются автоматически.</p>
+        return `<section class="class-create"><div class="class-create-head"><h1>Новое индивидуальное обучение</h1></div>
+          <form id="classForm" class="class-create-form">
+            <div class="class-create-intro">
+              <div class="class-create-fields">
+                <label class="class-field"><span class="class-field-head"><span>Название класса</span><span class="class-count" data-char-count>0 / 50</span></span><input name="title" maxlength="50" required placeholder="Название*" autocomplete="off"></label>
+                <label class="class-field"><span class="class-field-head"><span>Описание</span><span class="class-count" data-char-count>0 / 200</span></span><textarea name="description" maxlength="200" rows="4" placeholder="Описание"></textarea></label>
+              </div>
+              <div class="class-cover-picker">
+                <div class="class-cover-display cover-lavender" data-cover-display><button type="button" data-toggle-covers>▧ Изменить обложку</button></div>
+                <div class="class-cover-options" data-cover-options hidden>${classCoverChoices()}</div>
+              </div>
+            </div>
+            <section class="class-ref-section class-invitation-section">
+              <div class="class-section-top">
+                <label class="class-switch"><input type="checkbox" name="inviteEnabled" checked><span>Пригласить ученика</span></label>
+                <p class="class-setting-note">ⓘ Приглашение создаётся вручную после сохранения класса. Оно не отправляется автоматически.</p>
+              </div>
+              <div class="class-section-contents">
+                <div data-invite-display>
+                  <div class="class-section-label">Приглашение по ссылке</div>
+                  <div class="class-invite-link"><input type="text" aria-label="Ссылка приглашения" value="Код приглашения будет доступен после создания класса" disabled><button class="secondary" type="button" disabled>Скопировать ссылку</button></div>
                 </div>
-              </section>
-              <section class="class-settings">
-                <h3>Стоимость</h3>
-                <label class="class-switch"><input type="checkbox" name="priceEnabled" data-settings-toggle="price"><span>Указать стоимость обучения</span></label>
-                <div class="class-setting-options" data-settings-group="price" hidden>
-                  <div class="form-row three">
-                    <label><span>Сумма</span><input type="number" name="priceAmount" min="0" max="10000000" step="0.01" value="0" required disabled></label>
-                    <label><span>Валюта</span><select name="priceCurrency" disabled><option value="RUB">RUB — ₽</option><option value="EUR">EUR — €</option><option value="USD">USD — $</option></select></label>
-                    <label><span>Основание</span><select name="priceBasis" disabled><option value="lesson">За занятие</option><option value="month">За месяц</option></select></label>
-                  </div>
-                  <p class="class-setting-note">Это условие обучения, не счёт и не операция оплаты.</p>
+                <div class="class-student-picker">
+                  <div class="class-section-label">Приглашения</div>
+                  <div class="class-student-select"><label><span class="visually-hidden">Выберите ученика</span><select name="studentMembershipId" required>${choices}</select></label><button class="primary" type="button" data-choose-student>Добавить</button></div>
+                  <p class="class-selected-student" data-selected-student>Ученик будет привязан к классу при создании.</p>
                 </div>
-              </section>
-              <section class="class-settings">
-                <h3>Настройки чата</h3>
-                <label class="class-switch"><input type="checkbox" name="allowLessonChat"><span>Разрешить чат занятия</span></label>
-                <label class="class-switch"><input type="checkbox" name="allowPrivateMessages"><span>Разрешить личные сообщения</span></label>
-                <p class="class-setting-note">Параметры сохраняются сейчас, но заработают только после подключения чатов на этапе UI-06.</p>
-              </section>
-              <p class="muted small">Класс и выбранная обложка сохраняются вместе. После создания можно вручную выдать ученику отдельный одноразовый код приглашения. При отмене ничего не записывается.</p>
-              <div class="class-create-actions"><button class="primary" type="submit" ${students.length ? '' : 'disabled'}>Создать</button><button class="secondary" type="button" data-cancel-class>Отменить</button></div>
-            </form>${students.length ? '' : '<p class="muted small">Сначала добавьте активного ученика.</p>'}</div></section>`;
+              </div>
+            </section>
+            <section class="class-ref-section class-record-section">
+              <div class="class-section-top"><label class="class-switch"><input type="checkbox" name="recordEnabled" disabled><span>Записывать занятия</span></label>
+                <p class="class-rec-note">ⓘ Запись занятий пока не подключена. Политика хранения и доступ к записям появятся в соответствующем модуле.</p>
+              </div>
+            </section>
+            <section class="class-ref-section">
+              <div class="class-section-top"><label class="class-switch"><input type="checkbox" name="priceEnabled" data-settings-toggle="price"><span>Стоимость</span></label>
+                <p class="class-setting-note">ⓘ Указанная стоимость — условие обучения, не автоматически выставленный счёт.</p>
+              </div>
+              <div class="class-setting-options" data-settings-group="price" hidden>
+                <div class="form-row three">
+                  <label><span>Сумма</span><input type="number" name="priceAmount" min="0" max="10000000" step="0.01" value="0" required disabled></label>
+                  <label><span>Валюта</span><select name="priceCurrency" disabled><option value="RUB">RUB — ₽</option><option value="EUR">EUR — €</option><option value="USD">USD — $</option></select></label>
+                  <label><span>Основание</span><select name="priceBasis" disabled><option value="lesson">За занятие</option><option value="month">За месяц</option></select></label>
+                </div>
+              </div>
+            </section>
+            <section class="class-ref-section">
+              <div class="class-section-top"><label class="class-switch"><input type="checkbox" name="durationEnabled" data-settings-toggle="duration"><span>Длительность</span></label>
+                <p class="class-setting-note">Это ориентир для ученика, а не ограничение по времени занятия.</p>
+              </div>
+              <div class="class-setting-options" data-settings-group="duration" hidden>
+                <label><span>Минут на занятие</span><input name="durationMinutes" type="number" value="60" min="15" max="240" step="5" required disabled></label>
+              </div>
+            </section>
+            <section class="class-ref-section class-chats-section">
+              <h3>Настройка чатов</h3>
+              <label class="class-switch"><input type="checkbox" name="allowLessonChat"><span>Разрешить чат занятия</span></label>
+              <p class="class-info">ⓘ Политика чата сохраняется, сам чат будет подключён позже.</p>
+              <label class="class-switch"><input type="checkbox" name="allowPrivateMessages"><span>Разрешить личные сообщения</span></label>
+            </section>
+            <p class="muted small class-end-note">Нажатие «Создать» сохранит класс и его настройки. При отмене ни приглашения, ни платежи, ни занятия не создаются.</p>
+            <div class="class-create-actions"><button class="primary" type="submit" ${students.length ? '' : 'disabled'}>Создать</button><button class="secondary" type="button" data-cancel-class>Отменить</button></div>
+          </form>${students.length ? '' : '<p class="muted small">Сначала добавьте активного ученика.</p>'}</section>`;
       }
       // Reuse the exact create controls and validation semantics when editing a class.
       function individualClassEdit(item) {
@@ -557,6 +585,10 @@
         if (item.title.length > 50) form.elements.title.maxLength = 200; // Existing legacy titles.
         form.elements.description.defaultValue = item.description || '';
         for (const option of form.querySelectorAll('[name="coverStyle"]')) option.defaultChecked = option.value === (item.coverStyle || 'lavender');
+        const preview = form.querySelector('[data-cover-display]');
+        preview.className = 'class-cover-display cover-' + (item.coverStyle || 'lavender');
+        form.querySelector('[data-choose-student]')?.remove();
+        form.elements.inviteEnabled.checked = false;
         form.querySelectorAll('.class-field').forEach(label => {
           const counter = label.querySelector('[data-char-count]');
           if (!counter) return;
@@ -626,14 +658,14 @@
           ? (visible.length ? `<div class="class-list">${visible.map(item => {
               const [lessonDay, lessonTime] = lessonLabel(item.nextLesson?.lessonAt);
               return `<article class="class-card">
-                <div class="class-card-head"><span class="class-avatar" style="--avatar:${avatarColor(item.id)}">${safe(initials(item.student.studentName))}</span><div class="class-card-title"><strong>${safe(item.title)}</strong><small>${safe(item.student.studentName)} · ${safe(item.student.programName)}</small></div></div>
+                <div class="class-card-head cover-${safe(item.coverStyle || 'lavender')}"><span class="class-avatar" style="--avatar:${avatarColor(item.id)}">${safe(initials(item.student.studentName))}</span><div class="class-card-title"><strong>${safe(item.title)}</strong><small>${safe(item.student.studentName)} · ${safe(item.student.programName)}</small></div></div>
                 <div class="class-card-body"><div class="class-date"><strong>${safe(lessonDay)}</strong>${safe(lessonTime)}</div><div class="class-action"><span>${item.nextLesson ? 'Занятие по расписанию' : 'Следующее занятие'}</span><button type="button" data-schedule-class="${safe(item.id)}">${item.nextLesson ? 'Изменить план' : 'Запланировать'}</button></div><button class="class-open" type="button" data-open-class="${safe(item.id)}">Открыть →</button></div>
               </article>`;
             }).join('')}</div>` : `<div class="empty">${query ? 'По запросу ничего не найдено.' : 'Активных классов пока нет.'}</div>`)
           : state.classTab === 'statistics'
             ? `<div class="grid three"><div class="card"><span class="muted">Активные классы</span><div class="metric">${classes.length}</div></div><div class="card"><span class="muted">Занятия сегодня</span><div class="metric">${todayLessons.length}</div></div><div class="card"><span class="muted">Завершено сегодня</span><div class="metric">${completed}</div></div></div>`
             : (visibleArchived.length
-              ? `<div class="class-list">${visibleArchived.map(item => `<article class="class-card"><div class="class-card-head"><span class="class-avatar" style="--avatar:${avatarColor(item.id)}">${safe(initials(item.student.studentName))}</span><div class="class-card-title"><strong>${safe(item.title)}</strong><small>${safe(item.student.studentName)} · В архиве</small></div></div><div class="class-card-body"><span class="muted small">История ученика сохранена</span><button class="class-open" type="button" data-open-class="${safe(item.id)}">Открыть</button><button class="primary" type="button" data-restore-class="${safe(item.id)}">Восстановить</button></div></article>`).join('')}</div>`
+              ? `<div class="class-list">${visibleArchived.map(item => `<article class="class-card"><div class="class-card-head cover-${safe(item.coverStyle || 'lavender')}"><span class="class-avatar" style="--avatar:${avatarColor(item.id)}">${safe(initials(item.student.studentName))}</span><div class="class-card-title"><strong>${safe(item.title)}</strong><small>${safe(item.student.studentName)} · В архиве</small></div></div><div class="class-card-body"><span class="muted small">История ученика сохранена</span><button class="class-open" type="button" data-open-class="${safe(item.id)}">Открыть</button><button class="primary" type="button" data-restore-class="${safe(item.id)}">Восстановить</button></div></article>`).join('')}</div>`
               : `<div class="empty">${query ? 'По запросу ничего не найдено.' : 'В архиве пока нет классов.'}</div>`);
         return `<div class="classes-layout"><section class="classes-main">
           <div class="classes-heading"><h1>Мои классы</h1><button class="primary" type="button" data-open-learning>＋ Начать новое обучение</button></div>
@@ -923,6 +955,16 @@
         }
       });
       $('content').addEventListener('change', event => {
+        if (event.target.matches('#classForm [name="coverStyle"], #classEditForm [name="coverStyle"]')) {
+          const preview = event.target.closest('form')?.querySelector('[data-cover-display]');
+          if (preview) preview.className = 'class-cover-display cover-' + event.target.value;
+          return;
+        }
+        if (event.target.matches('#classForm [name="inviteEnabled"], #classEditForm [name="inviteEnabled"]')) {
+          const link = event.target.closest('form')?.querySelector('[data-invite-display]');
+          if (link) link.hidden = !event.target.checked;
+          return;
+        }
         const toggle = event.target;
         if (toggle.matches('#classForm [data-settings-toggle], #classEditForm [data-settings-toggle]')) {
           const group = toggle.form.querySelector('[data-settings-group="' + toggle.dataset.settingsToggle + '"]');
@@ -971,6 +1013,22 @@
         }
         if (event.target.closest('[data-cancel-class]')) { state.classCreate = false; render(); return; }
         if (event.target.closest('[data-cancel-class-edit]')) { state.classEdit = ''; render(); return; }
+        const coverButton = event.target.closest('[data-toggle-covers]');
+        if (coverButton) {
+          const picker = coverButton.closest('.class-cover-picker');
+          const choices = picker?.querySelector('[data-cover-options]');
+          if (choices) { choices.hidden = !choices.hidden; coverButton.setAttribute('aria-expanded', String(!choices.hidden)); }
+          return;
+        }
+        const selectStudent = event.target.closest('[data-choose-student]');
+        if (selectStudent) {
+          const form = selectStudent.closest('form');
+          const id = form?.elements.studentMembershipId?.value;
+          const name = (state.data.students || []).find(x => x.membershipId === id)?.studentName;
+          const target = form?.querySelector('[data-selected-student]');
+          if (target && name) target.textContent = 'Выбран ученик: ' + name + '. Он будет добавлен при создании класса.';
+          return;
+        }
         const editClass = event.target.closest('[data-edit-class]');
         if (editClass) { state.classEdit = editClass.dataset.editClass; render(); return; }
         const classTab = event.target.closest('[data-class-tab]');
