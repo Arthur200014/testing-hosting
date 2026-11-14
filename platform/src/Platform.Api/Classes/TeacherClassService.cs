@@ -145,7 +145,8 @@ public sealed class TeacherClassService(PlatformDbContext db, TimeProvider clock
         if (item is null) return new(TeacherClassMutationStatus.NotFound);
         if (item.IsArchived || item.Revision != request.ExpectedRevision)
             return new(TeacherClassMutationStatus.Conflict);
-        var coverStyle = NormalizeCover(request.CoverStyle);
+        // Older clients that do not send the new cover field must not reset an existing choice.
+        var coverStyle = request.CoverStyle is null ? item.CoverStyle : NormalizeCover(request.CoverStyle);
         var errors = ValidateClassFields(request.Title, request.Description, request.DurationMinutes,
             request.PriceAmount, request.PriceCurrency, request.PriceBasis);
         if (!AllowedCover(coverStyle)) errors["coverStyle"] = ["Unknown cover style."];
