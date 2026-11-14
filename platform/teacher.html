@@ -185,9 +185,15 @@
     .learning-type strong, .learning-type span { display: block; }
     .learning-type strong { font-size: 1.08rem; }
     .learning-type span { margin-top: 3px; color: #87889c; line-height: 1.35; }
-    .class-create { max-width: 760px; margin: 0 auto; }
+    .class-create { width: min(100%, 760px); margin: 0; }
     .class-create-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
-    .class-create .card { padding: 28px; }
+    .class-create .card { padding: 24px; }
+    .class-field { display: grid; gap: 7px; }
+    .class-field-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+    .class-count { color: #85889b; font-size: .78rem; font-variant-numeric: tabular-nums; }
+    .class-create textarea { resize: vertical; min-height: 96px; }
+    .class-create-actions { display: flex; gap: 10px; padding-top: 16px; border-top: 1px solid #e5e6ee; }
+    .class-create-actions .secondary { order: 1; }
     @media (max-width: 1100px) {
       .four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .classes-layout { grid-template-columns: 1fr; }
@@ -429,7 +435,7 @@
           <button class="secondary small-button" type="button" data-back-classes>← Все классы</button>
           <div class="class-detail-banner" style="margin-top:14px">
             <span class="class-avatar" style="--avatar:${avatarColor(item.id)}">${safe(initials(item.student.studentName))}</span>
-            <div><p class="muted small">Индивидуальное обучение · ${safe(item.student.programName)}</p><h2>${safe(item.title)}</h2></div>
+            <div><p class="muted small">Индивидуальное обучение · ${safe(item.student.programName)}</p><h2>${safe(item.title)}</h2>${item.description ? `<p class="muted small">${safe(item.description)}</p>` : ''}</div>
             <div class="class-detail-actions"><button class="secondary" type="button" data-open-student="${safe(item.studentMembershipId)}">Карточка ученика</button><button class="primary" type="button" data-schedule-class="${safe(item.id)}">Запланировать</button></div>
           </div>
           <div class="grid two" style="margin-top:18px">
@@ -443,13 +449,14 @@
       function individualClassCreate() {
         const students = state.data.students || [];
         const choices = students.map(x => `<option value="${safe(x.membershipId)}">${safe(x.studentName)} · ${safe(x.programName)}</option>`).join('');
-        return `<section class="class-create"><div class="class-create-head"><div><p class="eyebrow">Индивидуальное обучение</p><h1>Новый класс</h1></div><button class="secondary" type="button" data-cancel-class>Отмена</button></div>
-          <div class="card stack"><p class="muted">Создайте отдельный класс для действующего ученика. Ученик, его программа и история занятий останутся без изменений.</p>
+        return `<section class="class-create"><div class="class-create-head"><div><p class="eyebrow">Индивидуальное обучение</p><h1>Новое индивидуальное обучение</h1></div></div>
+          <div class="card stack">
             <form id="classForm" class="stack">
-              <label><span>Название класса</span><input name="title" maxlength="200" required placeholder="Например, Алексей · ЕГЭ 2027"></label>
+              <label class="class-field"><span class="class-field-head"><span>Название класса</span><span class="class-count" data-char-count>0 / 50</span></span><input name="title" maxlength="50" required placeholder="Название класса" autocomplete="off"></label>
+              <label class="class-field"><span class="class-field-head"><span>Описание</span><span class="class-count" data-char-count>0 / 200</span></span><textarea name="description" maxlength="200" rows="4" placeholder="Краткое описание обучения (необязательно)"></textarea></label>
               <label><span>Ученик</span><select name="studentMembershipId" required>${choices}</select></label>
-              <p class="muted small">На этом шаге сохраняются название и участник. Расписание, стоимость, чат и обложка будут добавлены следующими срезами UI‑02.</p>
-              <button class="primary" type="submit" ${students.length ? '' : 'disabled'}>Создать класс</button>
+              <p class="muted small">На этом шаге сохраняются название, описание и участник. Приглашение, обложка и настройки занятия будут добавлены позже.</p>
+              <div class="class-create-actions"><button class="primary" type="submit" ${students.length ? '' : 'disabled'}>Создать</button><button class="secondary" type="button" data-cancel-class>Отменить</button></div>
             </form>${students.length ? '' : '<p class="muted small">Сначала добавьте активного ученика.</p>'}</div></section>`;
       }
       function overview() {
@@ -862,11 +869,18 @@
       document.addEventListener('keydown', event => {
         if (event.key === 'Escape' && state.learningModal) { state.learningModal = false; render(); }
       });
+      $('content').addEventListener('input', event => {
+        const field = event.target;
+        if (!field.matches('#classForm [name="title"], #classForm [name="description"]')) return;
+        const counter = field.closest('.class-field')?.querySelector('[data-char-count]');
+        if (counter) counter.textContent = field.value.length + ' / ' + field.maxLength;
+      });
       $('content').addEventListener('submit', event => {
         event.preventDefault(); const form = event.target;
         if (form.id === 'classForm') onForm(form, async () => {
           await mutation('class', 'classes', () => ({
             title: formValue(form, 'title'),
+            description: formValue(form, 'description'),
             studentMembershipId: formValue(form, 'studentMembershipId')
           }));
           state.classCreate = false;

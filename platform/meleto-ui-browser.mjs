@@ -41,7 +41,7 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
     const student = students.find(x => x.membershipId === body.studentMembershipId);
     assert.ok(student);
     const item = {
-      id: createdClassId, title: body.title, kind: 'individual',
+      id: createdClassId, title: body.title, description: body.description, kind: 'individual',
       studentMembershipId: student.membershipId, studentName: student.studentName,
       programName: student.programName, programId: '66666666-6666-4666-8666-666666666666',
       isArchived: false, createdAt: new Date().toISOString()
@@ -87,12 +87,20 @@ try {
   await page.locator('[data-open-learning]').click();
   await page.locator('[data-learning-type="individual"]').click();
   await page.locator('#classForm').waitFor();
+  await page.locator('#classForm [name="description"]').fill('Отменённое описание');
   await page.locator('[data-cancel-class]').click();
   assert.equal(classWrites, 0, 'cancel must not create a class');
 
   await page.locator('[data-open-learning]').click();
   await page.locator('[data-learning-type="individual"]').click();
-  await page.locator('#classForm [name="title"]').fill('Алексей · ЕГЭ 2027');
+  const title = 'Алексей · ЕГЭ 2027';
+  const description = 'Подготовка к профильному ЕГЭ';
+  await page.locator('#classForm [name="title"]').fill(title);
+  await page.locator('#classForm [name="description"]').fill(description);
+  assert.equal(await page.locator('#classForm [name="title"]').getAttribute('maxlength'), '50');
+  assert.equal(await page.locator('#classForm [name="description"]').getAttribute('maxlength'), '200');
+  assert.equal(await page.locator('#classForm [name="title"]').locator('xpath=parent::label').locator('[data-char-count]').textContent(), title.length + ' / 50');
+  assert.equal(await page.locator('#classForm [name="description"]').locator('xpath=parent::label').locator('[data-char-count]').textContent(), description.length + ' / 200');
   await page.screenshot({ path: output + '/03_individual_create.png' });
   await page.locator('#classForm button[type="submit"]').click();
   const createdCard = page.locator(`[data-open-class="${createdClassId}"]`);
@@ -100,6 +108,9 @@ try {
   assert.match(await createdCard.locator('xpath=ancestor::article').textContent(), /Алексей · ЕГЭ 2027/);
   assert.equal(classWrites, 1);
   assert.equal(unexpectedWrites, 0);
+  await createdCard.click();
+  await page.getByText(description, { exact: true }).waitFor();
+  await page.locator('[data-back-classes]').click();
   await page.reload();
   await page.locator('#loginForm [name="workspace"]').fill('synthetic');
   await page.locator('#loginForm [name="email"]').fill('teacher@example.invalid');
@@ -107,6 +118,8 @@ try {
   await page.locator('#loginForm button[type="submit"]').click();
   await page.locator(`[data-open-class="${createdClassId}"]`).waitFor({ state: 'attached' });
   assert.equal(await page.locator('[data-open-class]').count(), 3, 'persisted class replaces its legacy projection');
+  await page.locator(`[data-open-class="${createdClassId}"]`).click();
+  await page.getByText(description, { exact: true }).waitFor();
   console.log('PASS: UI-01 screenshots plus UI-02 individual class cancel/create/reload at 1348x926');
 } finally {
   await browser.close();

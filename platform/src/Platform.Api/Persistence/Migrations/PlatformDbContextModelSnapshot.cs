@@ -27,6 +27,7 @@ namespace TestingHosting.Platform.Persistence.Migrations
                 {
                     b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
                     b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
+                    b.Property<string>("Description").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
                     b.Property<bool>("IsArchived").HasColumnType("boolean");
                     b.Property<string>("Kind").IsRequired().HasMaxLength(32).HasColumnType("character varying(32)");
                     b.Property<Guid>("RequestId").HasColumnType("uuid");

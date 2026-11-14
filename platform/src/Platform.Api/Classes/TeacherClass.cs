@@ -11,6 +11,7 @@ public sealed class TeacherClass
     public Guid StudentMembershipId { get; set; }
     public Guid StudentId { get; set; }
     public required string Title { get; set; }
+    public string Description { get; set; } = string.Empty;
     public string Kind { get; set; } = "individual";
     public bool IsArchived { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
