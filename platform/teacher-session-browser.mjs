@@ -5,7 +5,7 @@ import { chromium } from 'playwright';
 // No requests are sent to any real backend: the API host is fully intercepted.
 const base = process.env.TAS_BROWSER_BASE || 'http://127.0.0.1:8766';
 const browser = await chromium.launch({ headless: true });
-const page = await browser.newPage();
+const page = await browser.newPage({ viewport: { width: 1348, height: 926 }, deviceScaleFactor: 1 });
 
 const fixtures = {
   north: { students: [
@@ -51,6 +51,7 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
     await new Promise(resolve => setTimeout(resolve, 450));
   }
   const data = {
+    'teacher/classes': [],
     'teacher/students': fixtures[workspace].students,
     'teacher/lessons': [],
     'teacher/homework/assignments': [],
@@ -69,7 +70,7 @@ async function login(workspace) {
   await page.locator('#loginForm [name="password"]').fill('synthetic-password');
   await page.locator('#loginForm button[type="submit"]').click();
   await page.locator('#app:not([hidden])').waitFor();
-  assert.equal(await page.locator('#workspaceName').innerText(), workspace);
+  assert.equal(await page.locator('#workspaceName').textContent(), workspace);
 }
 try {
   await page.goto(base + '/platform/teacher.html');
@@ -87,8 +88,8 @@ try {
   assert.equal(await page.locator('[data-open-class]').count(), 2);
   await page.waitForTimeout(500); // previous North lesson response has now arrived
   await page.locator('[data-view="students"]').click();
-  await page.locator('#studentRows').getByText('South learner A').waitFor();
-  const text = await page.locator('#studentRows').innerText();
+  await page.locator('#studentRows').getByText('South learner A').waitFor({ state: 'attached' });
+  const text = await page.locator('#studentRows').textContent();
   assert.match(text, /South learner A/);
   assert.doesNotMatch(text, /North learner/);
   assert.equal(getReads.filter(x => x.workspace === 'south' && x.path === 'teacher/students').length, 1);
@@ -105,10 +106,10 @@ try {
     });
   await page.locator('#refresh').click();
   await page.locator('#notice').filter({ hasText: 'Synthetic network error' }).waitFor();
-  assert.match(await page.locator('#studentRows').innerText(), /South learner A/);
+  assert.match(await page.locator('#studentRows').textContent(), /South learner A/);
   await page.locator('#refresh').click();
   await page.locator('#notice').waitFor({ state: 'hidden' });
-  assert.match(await page.locator('#studentRows').innerText(), /South learner B/);
+  assert.match(await page.locator('#studentRows').textContent(), /South learner B/);
 
   forceExpiry = true;
   await page.locator('#refresh').click();

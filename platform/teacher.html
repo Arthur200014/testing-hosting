@@ -169,8 +169,9 @@
     .today-lesson small { margin-top: 3px; color: #77788d; }
     .class-detail { margin-top: 24px; }
     .class-detail-banner { display: flex; align-items: center; gap: 16px; padding: 22px; border-radius: 16px; background: #ebe8fe; }
+    .class-detail-banner > div:not(.class-detail-actions) { flex: 1; min-width: 0; }
     .class-detail-banner h2 { font-size: 1.45rem; }
-    .class-detail-actions { margin-left: auto; display: flex; gap: 8px; }
+    .class-detail-actions { flex-shrink: 0; margin-left: auto; display: flex; gap: 8px; }
     .modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: #272844a8; }
     .learning-modal { width: min(610px, 100%); padding: 24px; border-radius: 16px; background: #fff; box-shadow: 0 24px 70px #1b1b313d; }
     .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
@@ -184,6 +185,9 @@
     .learning-type strong, .learning-type span { display: block; }
     .learning-type strong { font-size: 1.08rem; }
     .learning-type span { margin-top: 3px; color: #87889c; line-height: 1.35; }
+    .class-create { max-width: 760px; margin: 0 auto; }
+    .class-create-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+    .class-create .card { padding: 28px; }
     @media (max-width: 1100px) {
       .four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .classes-layout { grid-template-columns: 1fr; }
@@ -286,7 +290,7 @@
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
-      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', selectedClass: '', learningModal: false };
+      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', selectedClass: '', learningModal: false, classCreate: false };
       const $ = id => document.getElementById(id);
       const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const date = value => value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
@@ -304,7 +308,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
-        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.selectedClass = ''; state.learningModal = false;
+        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.selectedClass = ''; state.learningModal = false; state.classCreate = false;
         $('app').hidden = true; $('loginScreen').hidden = false;
         $('loginError').textContent = message; $('loginError').hidden = !message;
       }
@@ -359,7 +363,7 @@
       }
       function setView(view) {
         state.view = view;
-        if (view !== 'overview') { state.selectedClass = ''; state.learningModal = false; }
+        if (view !== 'overview') { state.selectedClass = ''; state.learningModal = false; state.classCreate = false; }
         document.querySelectorAll('[data-view]').forEach(x => x.classList.toggle('active', x.dataset.view === view));
         $('viewTitle').textContent = names[view][0]; $('viewSubtitle').textContent = names[view][1];
         return refresh();
@@ -385,15 +389,25 @@
         .filter(x => (!futureOnly || new Date(x.lessonAt) >= new Date())
           && (x.participants || []).some(p => p.membershipId === membershipId))
         .sort((a, b) => new Date(a.lessonAt) - new Date(b.lessonAt))[0];
-      // Until UI-02 adds persistent class settings, each imported active membership is
-      // exposed as a stable legacy individual class. LearningProgram remains a subject
-      // program and is deliberately not treated as the class entity.
-      const legacyClasses = () => (state.data.students || []).map(student => ({
-        id: student.membershipId,
-        title: [student.studentName, student.grade, student.targetScore].filter(Boolean).join(' · '),
-        student,
-        nextLesson: participantLesson(student.membershipId, true)
-      }));
+      // Persisted classes are separate from subject programs. Existing imported memberships
+      // stay visible through a legacy projection until a persisted class is created for them.
+      const teacherClasses = () => {
+        const persisted = (state.data.classes || []).map(item => {
+          const student = (state.data.students || []).find(x => x.membershipId === item.studentMembershipId) || {
+            membershipId: item.studentMembershipId, studentName: item.studentName,
+            programId: item.programId, programName: item.programName
+          };
+          return { ...item, student, nextLesson: participantLesson(item.studentMembershipId, true), persistent: true };
+        });
+        const assigned = new Set(persisted.map(x => x.studentMembershipId));
+        const legacy = (state.data.students || []).filter(x => !assigned.has(x.membershipId)).map(student => ({
+          id: student.membershipId,
+          title: [student.studentName, student.grade, student.targetScore].filter(Boolean).join(' · '),
+          studentMembershipId: student.membershipId, student,
+          nextLesson: participantLesson(student.membershipId, true), persistent: false, isArchived: false
+        }));
+        return [...persisted, ...legacy];
+      };
       function learningModal() {
         if (!state.learningModal) return '';
         return `<div class="modal-backdrop" data-close-learning>
@@ -409,36 +423,50 @@
       }
       function classDetail(item) {
         const lessons = (state.data.lessons || [])
-          .filter(x => (x.participants || []).some(p => p.membershipId === item.id))
+          .filter(x => (x.participants || []).some(p => p.membershipId === item.studentMembershipId))
           .sort((a, b) => new Date(b.lessonAt) - new Date(a.lessonAt));
         return `<div class="class-detail">
           <button class="secondary small-button" type="button" data-back-classes>← Все классы</button>
           <div class="class-detail-banner" style="margin-top:14px">
             <span class="class-avatar" style="--avatar:${avatarColor(item.id)}">${safe(initials(item.student.studentName))}</span>
             <div><p class="muted small">Индивидуальное обучение · ${safe(item.student.programName)}</p><h2>${safe(item.title)}</h2></div>
-            <div class="class-detail-actions"><button class="secondary" type="button" data-open-student="${safe(item.id)}">Карточка ученика</button><button class="primary" type="button" data-schedule-class="${safe(item.id)}">Запланировать</button></div>
+            <div class="class-detail-actions"><button class="secondary" type="button" data-open-student="${safe(item.studentMembershipId)}">Карточка ученика</button><button class="primary" type="button" data-schedule-class="${safe(item.id)}">Запланировать</button></div>
           </div>
           <div class="grid two" style="margin-top:18px">
             <div class="card stack"><div class="section-head"><h2>Последние занятия</h2><span class="muted small">${lessons.length}</span></div>
-              ${list(lessons.slice(0, 5), 'Занятий пока нет.', x => `<div class="item"><div><strong>${safe(date(x.lessonAt))}</strong><small>${safe(x.participants?.find(p => p.membershipId === item.id)?.topicComment || 'Тема не указана')}</small></div></div>`)}
+              ${list(lessons.slice(0, 5), 'Занятий пока нет.', x => `<div class="item"><div><strong>${safe(date(x.lessonAt))}</strong><small>${safe(x.participants?.find(p => p.membershipId === item.studentMembershipId)?.topicComment || 'Тема не указана')}</small></div></div>`)}
             </div>
             <div class="card stack"><h2>Об обучении</h2><p><span class="muted">Ученик:</span> ${safe(item.student.studentName)}</p><p><span class="muted">Программа:</span> ${safe(item.student.programName)}</p><p><span class="muted">Цель:</span> ${safe(item.student.targetScore || item.student.targetGrade || 'не указана')}</p></div>
           </div>
         </div>${learningModal()}`;
       }
+      function individualClassCreate() {
+        const students = state.data.students || [];
+        const choices = students.map(x => `<option value="${safe(x.membershipId)}">${safe(x.studentName)} · ${safe(x.programName)}</option>`).join('');
+        return `<section class="class-create"><div class="class-create-head"><div><p class="eyebrow">Индивидуальное обучение</p><h1>Новый класс</h1></div><button class="secondary" type="button" data-cancel-class>Отмена</button></div>
+          <div class="card stack"><p class="muted">Создайте отдельный класс для действующего ученика. Ученик, его программа и история занятий останутся без изменений.</p>
+            <form id="classForm" class="stack">
+              <label><span>Название класса</span><input name="title" maxlength="200" required placeholder="Например, Алексей · ЕГЭ 2027"></label>
+              <label><span>Ученик</span><select name="studentMembershipId" required>${choices}</select></label>
+              <p class="muted small">На этом шаге сохраняются название и участник. Расписание, стоимость, чат и обложка будут добавлены следующими срезами UI‑02.</p>
+              <button class="primary" type="submit" ${students.length ? '' : 'disabled'}>Создать класс</button>
+            </form>${students.length ? '' : '<p class="muted small">Сначала добавьте активного ученика.</p>'}</div></section>`;
+      }
       function overview() {
         const d = state.data;
-        if (!d.students || !d.lessons) {
+        if (!d.classes || !d.students || !d.lessons) {
           const failed = !$('notice').hidden && $('notice').classList.contains('error');
           return `<div class="classes-layout"><div class="classes-main"><div class="classes-heading"><h1>Мои классы</h1></div><div class="empty">${failed
             ? 'Не удалось загрузить классы и расписание.<br><button class="secondary" type="button" data-retry-overview style="margin-top:14px">Повторить</button>'
             : 'Загружаем классы и расписание…'}</div></div></div>${learningModal()}`;
         }
-        const classes = legacyClasses();
+        if (state.classCreate) return individualClassCreate();
+        const allClasses = teacherClasses();
+        const classes = allClasses.filter(x => !x.isArchived);
         const selected = classes.find(x => x.id === state.selectedClass);
         if (selected) return classDetail(selected);
         const query = state.classSearch.toLocaleLowerCase('ru-RU');
-        const visible = classes.filter(x => !query || `${x.title} ${x.student.programName}`.toLocaleLowerCase('ru-RU').includes(query));
+        const visible = classes.filter(x => !query || `${x.title} ${x.student.studentName} ${x.student.programName}`.toLocaleLowerCase('ru-RU').includes(query));
         const today = dayKey(new Date());
         const todayLessons = d.lessons.filter(x => dayKey(x.lessonAt) === today)
           .sort((a, b) => new Date(a.lessonAt) - new Date(b.lessonAt));
@@ -453,7 +481,7 @@
             }).join('')}</div>` : `<div class="empty">${query ? 'По запросу ничего не найдено.' : 'Активных классов пока нет.'}</div>`)
           : state.classTab === 'statistics'
             ? `<div class="grid three"><div class="card"><span class="muted">Активные классы</span><div class="metric">${classes.length}</div></div><div class="card"><span class="muted">Занятия сегодня</span><div class="metric">${todayLessons.length}</div></div><div class="card"><span class="muted">Завершено сегодня</span><div class="metric">${completed}</div></div></div>`
-            : '<div class="empty">Архив классов появится вместе с постоянной моделью класса в UI-02. Ученики и история сейчас не изменяются.</div>';
+            : `<div class="empty">${allClasses.some(x => x.isArchived) ? 'Архивированные классы будут доступны после сценария управления классом.' : 'В архиве пока нет классов.'}</div>`;
         return `<div class="classes-layout"><section class="classes-main">
           <div class="classes-heading"><h1>Мои классы</h1><button class="primary" type="button" data-open-learning>＋ Начать новое обучение</button></div>
           <div class="classes-toolbar"><div class="class-tabs"><button type="button" data-class-tab="classes" class="${state.classTab === 'classes' ? 'active' : ''}">Мои классы</button><button type="button" data-class-tab="statistics" class="${state.classTab === 'statistics' ? 'active' : ''}">Статистика</button><button type="button" data-class-tab="archive" class="${state.classTab === 'archive' ? 'active' : ''}">Архив</button></div>
@@ -767,8 +795,9 @@
           const type = learningType.dataset.learningType;
           state.learningModal = false;
           if (type === 'individual') {
-            await setView('students');
-            showNotice('Открыта действующая форма нового ученика. Настройки отдельного класса будут добавлены в UI-02.');
+            state.classCreate = true;
+            render();
+            document.querySelector('#classForm input')?.focus();
           } else if (type === 'one-time') {
             await setView('lessons');
             showNotice('Открыта действующая форма занятия. Расширенная форма разового занятия будет добавлена в UI-03.');
@@ -778,6 +807,7 @@
           }
           return;
         }
+        if (event.target.closest('[data-cancel-class]')) { state.classCreate = false; render(); return; }
         const classTab = event.target.closest('[data-class-tab]');
         if (classTab) { state.classTab = classTab.dataset.classTab; render(); return; }
         const openClass = event.target.closest('[data-open-class]');
@@ -834,6 +864,14 @@
       });
       $('content').addEventListener('submit', event => {
         event.preventDefault(); const form = event.target;
+        if (form.id === 'classForm') onForm(form, async () => {
+          await mutation('class', 'classes', () => ({
+            title: formValue(form, 'title'),
+            studentMembershipId: formValue(form, 'studentMembershipId')
+          }));
+          state.classCreate = false;
+          state.selectedClass = '';
+        });
         if (form.id === 'lessonCorrectionForm') onForm(form, async () => {
           const source = state.editLesson;
           if (!source || form.dataset.lessonId !== source.id) throw new Error('Повторно выберите занятие.');

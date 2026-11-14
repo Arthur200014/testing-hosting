@@ -23,6 +23,28 @@ namespace TestingHosting.Platform.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherClass", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
+                    b.Property<bool>("IsArchived").HasColumnType("boolean");
+                    b.Property<string>("Kind").IsRequired().HasMaxLength(32).HasColumnType("character varying(32)");
+                    b.Property<Guid>("RequestId").HasColumnType("uuid");
+                    b.Property<Guid>("StudentMembershipId").HasColumnType("uuid");
+                    b.Property<Guid>("StudentId").HasColumnType("uuid");
+                    b.Property<string>("Title").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                    b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                    b.HasKey("Id");
+                    b.HasAlternateKey("WorkspaceId", "Id");
+                    b.HasIndex("WorkspaceId", "RequestId").IsUnique();
+                    b.HasIndex("WorkspaceId", "StudentMembershipId", "StudentId");
+                    b.ToTable("TeacherClasses", "platform", t =>
+                        {
+                            t.HasCheckConstraint("CK_TeacherClasses_Kind", "\"Kind\" = 'individual'");
+                            t.HasCheckConstraint("CK_TeacherClasses_Title_NotEmpty", "length(\"Title\") > 0");
+                        });
+                });
+
             modelBuilder.Entity("TestingHosting.Platform.Homework.NativeHomeworkTask", b =>
                 {
                     b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
@@ -962,6 +984,25 @@ namespace TestingHosting.Platform.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_TestAttempts_TimestampsAndDuration", "\"CompletedAt\" >= \"StartedAt\" AND \"DurationSeconds\" BETWEEN 0 AND 86400 AND \"CompletedAt\" - \"StartedAt\" <= interval '1 day' AND \"DurationSeconds\" = round(extract(epoch from (\"CompletedAt\" - \"StartedAt\")))::integer");
                         });
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherClass", b =>
+                {
+                    b.HasOne("TestingHosting.Platform.Students.WorkspaceStudentMembership", "StudentMembership")
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "StudentMembershipId", "StudentId")
+                        .HasPrincipalKey("WorkspaceId", "Id", "StudentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TestingHosting.Platform.IdentityAccess.Workspace", "Workspace")
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("StudentMembership");
+                    b.Navigation("Workspace");
                 });
 
             modelBuilder.Entity("TestingHosting.Platform.Homework.NativeHomeworkTask", b =>
