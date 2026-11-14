@@ -123,6 +123,10 @@ try {
   await page.locator('#notice').waitFor({ state: 'hidden' });
   assert.equal(await page.locator('[data-open-class]').count(), 3);
   await page.evaluate(() => document.fonts.ready);
+  const classesArea = await page.locator('.classes-main').boundingBox();
+  const todayArea = await page.locator('.today-panel').boundingBox();
+  assert.ok(classesArea.width > 650 && classesArea.width < 740, 'classes column should match Meleto ~700px');
+  assert.ok(todayArea.x > 955 && todayArea.x < 1020, 'today column should start near reference x=980');
   await page.screenshot({ path: output + '/01_classes.png' });
 
   await setClassSearch('нет такого класса');
@@ -135,6 +139,8 @@ try {
 
   await page.locator('[data-open-learning]').click();
   await page.locator('.learning-modal').waitFor();
+  const modal = await page.locator('.learning-modal').boundingBox();
+  assert.ok(modal.width > 620 && modal.width < 645, 'reference modal should be ~632px wide');
   await page.screenshot({ path: output + '/02_learning_type.png' });
   await page.locator('.modal-close').click();
   await page.locator('.learning-modal').waitFor({ state: 'detached' });
@@ -157,6 +163,12 @@ try {
   const description = 'Подготовка к профильному ЕГЭ';
   await page.locator('#classForm [name="title"]').fill(title);
   await page.locator('#classForm [name="description"]').fill(description);
+  const createBounds = await page.locator('#classForm').boundingBox();
+  const titleBounds = await page.locator('#classForm [name="title"]').boundingBox();
+  const coverBounds = await page.locator('#classForm [data-cover-display]').boundingBox();
+  assert.ok(createBounds.width > 1000, 'create form must occupy the full content column');
+  assert.ok(coverBounds.x > titleBounds.x + titleBounds.width, 'cover belongs to the right of the fields');
+  await page.locator('#classForm [data-toggle-covers]').click();
   await page.locator('#classForm [name="coverStyle"][value="sky"]').check();
   assert.equal(await page.locator('#classForm [name="title"]').getAttribute('maxlength'), '50');
   assert.equal(await page.locator('#classForm [name="description"]').getAttribute('maxlength'), '200');
@@ -224,6 +236,7 @@ try {
   await editAgain.locator('[name="priceEnabled"]').uncheck();
   await editAgain.locator('[name="allowLessonChat"]').uncheck();
   await editAgain.locator('[name="allowPrivateMessages"]').check();
+  await editAgain.locator('[data-toggle-covers]').click();
   await editAgain.locator('[name="coverStyle"][value="mint"]').check();
   await page.screenshot({ path: output + '/31_class_edit.png' });
   await editAgain.locator('[type="submit"]').click();
