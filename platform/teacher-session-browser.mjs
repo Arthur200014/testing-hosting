@@ -107,7 +107,7 @@ try {
   await page.locator('#notice').filter({ hasText: 'Synthetic network error' }).waitFor();
   assert.match(await page.locator('#studentRows').innerText(), /South learner A/);
   await page.locator('#refresh').click();
-  await page.locator('#notice').filter({ hasText: 'Данные обновлены' }).waitFor();
+  await page.locator('#notice').waitFor({ state: 'hidden' });
   assert.match(await page.locator('#studentRows').innerText(), /South learner B/);
 
   forceExpiry = true;
