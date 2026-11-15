@@ -339,10 +339,13 @@
       const studentChoices = (programId = '') => (state.data.students || []).filter(x => !programId || x.programId === programId);
 
       function showNotice(message, error = false) {
+        const modalError=document.querySelector('[data-calendar-plan-error]');
+        if (modalError) { modalError.textContent=error?message:''; modalError.hidden=!error || !message; if (error && message) modalError.scrollIntoView({block:'nearest'}); }
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
         state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.classDetailTab = 'summary'; state.classStatsMonth = new Date().toISOString().slice(0,7); state.classStatsExpanded = ''; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; state.lessonPlan = null; state.scheduleEdit = null; state.calendarDate = calendarDay(); state.calendarMode = 'day';
+        document.body.classList.remove('calendar-plan-open');
         $('app').hidden = true; $('loginScreen').hidden = false;
         $('loginError').textContent = message; $('loginError').hidden = !message;
       }
@@ -700,7 +703,7 @@
           </section>`,
           schedule: `<section class="class-subsection">${classScheduleRules(item)}<h3>Занятия класса</h3>
             ${list(lessons.slice(0, 15), 'Занятий по этому классу пока нет.', x => `<div class="item">
-                <div><strong>${safe(date(x.lessonAt))}</strong><small>${safe(x.participants?.find(p => p.membershipId === item.studentMembershipId)?.topicComment || 'Тема не указана')}</small></div>
+                <div><strong>${safe(x.title || 'Занятие')} · ${safe(date(x.lessonAt))}</strong><small>${safe(x.participants?.find(p => p.membershipId === item.studentMembershipId)?.topicComment || 'Тема не указана')}</small></div>
                 <span class="pill">${new Date(x.lessonAt) > new Date() ? 'Запланировано' : 'Прошло'}</span>
               </div>`)}
             <button class="primary" type="button" data-schedule-class="${safe(item.id)}">＋ Добавить занятие</button></section>`,
@@ -1221,6 +1224,66 @@
         </section>`;
       }
 
+      function captureCalendarPlanDraft(form) {
+        const plan=state.lessonPlan;
+        if (!plan?.fromCalendar || !form) return;
+        const draft={...(plan.draft || {}),dirty:form.dataset.dirty==='1'};
+        for (const name of ['title','description','topics','lessonDate','lessonStart','lessonEnd'])
+          if (form.elements.namedItem(name)) draft[name]=form.elements.namedItem(name).value;
+        draft.memberIds=[...form.querySelectorAll('[name="planMember"]:checked')].map(x=>x.value);
+        plan.draft=draft;
+      }
+      function cancelLessonPlan() {
+        if (document.querySelector('#lessonPlannerForm[data-dirty="1"]') &&
+            !confirm('Отменить несохранённое занятие?')) return;
+        const calendar=state.lessonPlan?.fromCalendar;
+        state.lessonPlan=null; render();
+        if (calendar) document.querySelector('[data-calendar-new]')?.focus();
+      }
+      function calendarLessonDialog() {
+        const plan=state.lessonPlan, draft=plan.draft || {}, classMode=plan.createKind==='class';
+        const choices=teacherClasses().filter(item=>item.persistent && !item.isArchived);
+        const item=classMode ? choices.find(item=>item.id===plan.classId) : null;
+        const memberIds=item?.kind==='group' ? item.members.filter(m=>m.isApproved).map(m=>m.membershipId)
+          : item ? [item.studentMembershipId] : draft.memberIds || [];
+        const available=(state.data.students || []).filter(st=>classMode ? item && memberIds.includes(st.membershipId) : true);
+        const checked=classMode ? (draft.memberIds || memberIds) : draft.memberIds || [];
+        const startAt=plan.startAt || localSlotInstant(state.calendarDate,9*60,calendarZone);
+        const endAt=startAt+(item?.durationMinutes || 60)*60000;
+        const title=draft.title ?? (item?'Занятие':'');
+        return `<div class="calendar-plan-backdrop" data-calendar-plan-backdrop>
+          <section class="calendar-plan-dialog" id="calendarLessonDialog" role="dialog" aria-modal="true" aria-labelledby="calendarPlanTitle">
+            <header class="calendar-plan-head"><h2 id="calendarPlanTitle">Новое занятие</h2>
+              <button type="button" data-cancel-lesson-plan aria-label="Закрыть окно занятия">×</button></header>
+            <div class="calendar-plan-body"><form id="lessonPlannerForm" class="calendar-plan-form" data-class-id="${safe(item?.id || '')}" data-class-kind="${safe(item?.kind || '')}" data-dirty="${draft.dirty?'1':'0'}">
+              <div class="calendar-modes" role="group" aria-label="Формат занятия">
+                <button type="button" data-calendar-plan-kind="one-time" aria-pressed="${!classMode}">Разовое занятие</button>
+                <button type="button" data-calendar-plan-kind="class" aria-pressed="${classMode}">Занятие класса</button></div>
+              <p class="banner error" role="alert" data-calendar-plan-error hidden></p>
+              ${classMode?`<label>Класс<select id="calendarPlanClass" name="calendarClass" required><option value="">Выберите класс</option>
+                ${choices.map(c=>`<option value="${safe(c.kind+':'+c.id)}" ${item?.id===c.id?'selected':''}>${safe(c.title)} · ${c.kind==='group'?'Групповое':'Индивидуальное'}</option>`).join('')}</select></label>
+                ${!choices.length?'<p class="muted small">Нет доступных классов. Создайте класс в разделе «Мои классы».</p>':''}`:''}
+              <label>Название<span class="calendar-title-input"><input name="title" maxlength="50" required value="${safe(title)}" placeholder="Название*" autocomplete="off">
+                <small data-char-count>${title.length} / 50</small></span></label>
+              ${!classMode?`<div class="lesson-title-suggestions">${['Пробное занятие','Разовое занятие','Пробный урок','Встреча'].map(t=>`<button type="button" data-plan-title="${safe(t)}">${safe(t)}</button>`).join('')}</div>
+                <label>Описание<textarea name="description" maxlength="1000" rows="3" placeholder="Описание">${safe(draft.description || '')}</textarea></label>`:''}
+              <section class="calendar-plan-date"><h3>Дата и время</h3><div class="lesson-time-fields">
+                <label>Дата<input name="lessonDate" type="date" value="${safe(draft.lessonDate || calendarDay(startAt))}" required></label>
+                <label>Начало<input name="lessonStart" type="time" value="${safe(draft.lessonStart || calendarTime(startAt))}" required></label>
+                <label>Окончание<input name="lessonEnd" type="time" value="${safe(draft.lessonEnd || calendarTime(endAt))}" required></label></div>
+                <div class="lesson-duration-options">${[30,60,90,120].map(n=>`<button type="button" data-plan-duration="${n}">${n===90?'1 ч 30 мин':n===120?'2 ч':n+' мин'}</button>`).join('')}</div>
+                <p class="muted small">Время по Москве (${calendarZone}). Сохранится одно занятие.</p>
+                ${item?`<p class="small" data-calendar-class-policy>Длительность класса: ${item.durationMinutes || 60} мин · Подтверждённых участников: ${memberIds.length}</p>`:''}</section>
+              ${classMode?`<details><summary>Описание занятия</summary><label>Описание<textarea name="description" maxlength="1000" rows="3">${safe(draft.description || '')}</textarea></label></details>`:''}
+              <details ${!classMode?'open':''}><summary>Участники${classMode?' класса':''}</summary>
+                ${classMode&&!item?'<p class="muted small">Сначала выберите класс.</p>':''}
+                <div class="lesson-member-choices">${available.map(st=>`<label><input type="checkbox" name="planMember" value="${safe(st.membershipId)}" ${checked.includes(st.membershipId)?'checked':''}>
+                  <span>${safe(st.studentName)}<small>${safe(st.programName)}</small></span></label>`).join('')||'<p class="muted small">Нет доступных участников.</p>'}</div></details>
+              <section class="calendar-plan-record"><h3>${classMode?'Доступ к записи занятия':'Записывать занятие'}</h3><p class="muted small">Запись видео пока не подключена.</p></section>
+              <div class="calendar-plan-actions"><button type="submit" class="primary" ${available.length&&(!classMode||item)?'':'disabled'}>Запланировать</button>
+                <button type="button" class="secondary" data-cancel-lesson-plan>Отменить</button></div>
+            </form></div></section></div>`;
+      }
       function calendarCard(entry) {
         const clock = value => safe(calendarTime(value));
         return entry.kind === 'lesson' ? `<article class="calendar-event calendar-lesson" data-calendar-lesson="${safe(entry.id)}">
@@ -1325,7 +1388,7 @@
       }
 
       function lessons() {
-        if (state.lessonPlan) return lessonPlanner();
+        if (state.lessonPlan) return state.lessonPlan.fromCalendar ? `<div inert aria-hidden="true">${calendarView()}</div>${calendarLessonDialog()}` : lessonPlanner();
         const d = state.data;
         return calendarView() + `<details class="calendar-history"><summary>Журнал и посещаемость</summary><div class="grid two"><div class="card stack"><div class="section-head"><h2>Провести занятие</h2></div><form id="lessonForm" class="stack">
           <label><span>Дата и время</span><input name="lessonAt" type="datetime-local" value="${nowLocal()}" required></label>
@@ -1419,6 +1482,8 @@
           </div>`;
       }
       function render() {
+        const calendarDialogWasOpen=!!document.getElementById('calendarLessonDialog');
+        document.body.classList.toggle('calendar-plan-open',state.view==='lessons' && !!state.lessonPlan?.fromCalendar);
         if (state.view !== 'overview') {
           const missing = needs[state.view].filter(key => !Object.hasOwn(state.data, key));
           if (missing.length) {
@@ -1428,6 +1493,7 @@
         }
         $('content').innerHTML = ({ overview, students, lessons, homework, subscriptions, results, report })[state.view]();
         if (state.view === 'students') studentRows();
+        if (!calendarDialogWasOpen) document.querySelector('#calendarLessonDialog [name="title"]')?.focus();
         updateCalendarClock();
       }
       const formValue = (form, name) => form.elements.namedItem(name)?.value?.trim() || '';
@@ -1531,6 +1597,7 @@
           const label = draft.querySelector('[data-char-count]');
           if (label) label.textContent = event.target.value.length + ' / 50';
         }
+        if (draft && state.lessonPlan?.fromCalendar) captureCalendarPlanDraft(draft);
         if (event.target.id === 'studentSearch') studentRows(event.target.value.trim());
         if (event.target.id === 'classSearch') {
           const position = event.target.selectionStart;
@@ -1547,6 +1614,21 @@
         }
         const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm');
         if (editor) editor.dataset.dirty = '1';
+        if (event.target.id==='calendarPlanClass') {
+          captureCalendarPlanDraft(event.target.form);
+          const plan=state.lessonPlan;
+          const item=teacherClasses().find(c=>c.persistent && !c.isArchived && c.kind+':'+c.id===event.target.value);
+          plan.classId=item?.id || null;
+          plan.draft.memberIds=undefined;
+          if (item) {
+            plan.durationMinutes=item.durationMinutes || 60;
+            const [h,m]=plan.draft.lessonStart.split(':').map(Number);
+            plan.draft.lessonEnd=scheduleTime((h*60+m+plan.durationMinutes)%1440);
+            if (!plan.draft.title) plan.draft.title='Занятие';
+          }
+          render(); document.querySelector('#calendarPlanClass')?.focus(); return;
+        }
+        if (editor?.id==='lessonPlannerForm' && state.lessonPlan?.fromCalendar) captureCalendarPlanDraft(editor);
         if (event.target.matches('#lessonPlannerForm [name="startNow"]') && event.target.checked) {
           const form = event.target.form;
           const date = new Date();
@@ -1804,6 +1886,16 @@
           } catch(error) { showNotice(error.message,true); if(disableRule.isConnected) disableRule.disabled=false; }
           return;
         }
+        const calendarKind=event.target.closest('[data-calendar-plan-kind]');
+        if (calendarKind && state.lessonPlan?.fromCalendar) {
+          if (state.lessonPlan.createKind===calendarKind.dataset.calendarPlanKind) return;
+          captureCalendarPlanDraft(calendarKind.closest('form'));
+          state.lessonPlan.createKind=calendarKind.dataset.calendarPlanKind;
+          state.lessonPlan.classId=null;
+          if (state.lessonPlan.createKind==='class') state.lessonPlan.draft.memberIds=undefined;
+          render(); document.querySelector('#calendarPlanClass, #lessonPlannerForm [name="title"]')?.focus(); return;
+        }
+        if (event.target.matches('[data-calendar-plan-backdrop]')) { cancelLessonPlan(); return; }
         const calendarMode = event.target.closest('[data-calendar-mode]');
         if (calendarMode) { state.calendarMode = calendarMode.dataset.calendarMode; render(); return; }
         const openCalendarDay = event.target.closest('[data-calendar-open-day]');
@@ -1811,7 +1903,7 @@
         const addCalendarDay = event.target.closest('[data-calendar-add-day]');
         if (addCalendarDay) {
           state.calendarDate = addCalendarDay.dataset.calendarAddDay;
-          state.lessonPlan = {kind:'one-time',startAt:localSlotInstant(state.calendarDate,9*60,calendarZone),timeZone:calendarZone};
+          state.lessonPlan = {kind:'one-time',fromCalendar:true,createKind:'one-time',startAt:localSlotInstant(state.calendarDate,9*60,calendarZone),timeZone:calendarZone};
           render(); return;
         }
         const calendarShift = event.target.closest('[data-calendar-shift]');
@@ -1830,9 +1922,9 @@
         const createOneTime = event.target.closest('[data-create-one-time]');
         if (createOneTime) {
           state.lessonPlan = createOneTime.hasAttribute('data-calendar-new')
-            ? {kind:'one-time',startAt:localSlotInstant(state.calendarDate,9*60,calendarZone),timeZone:calendarZone}
+            ? {kind:'one-time',fromCalendar:true,createKind:'one-time',startAt:localSlotInstant(state.calendarDate,9*60,calendarZone),timeZone:calendarZone}
             : {kind:'one-time'};
-          render(); return;
+          render(); document.querySelector('#calendarLessonDialog [name="title"]')?.focus(); return;
         }
         const scheduleClass = event.target.closest('[data-schedule-class]');
         if (scheduleClass) {
@@ -1847,11 +1939,7 @@
           return;
         }
         if (event.target.closest('[data-view-calendar]')) { await setView('lessons'); return; }
-        if (event.target.closest('[data-cancel-lesson-plan]')) {
-          if (document.querySelector('#lessonPlannerForm[data-dirty="1"]') &&
-              !confirm('Отменить несохранённое занятие?')) return;
-          state.lessonPlan = null; render(); return;
-        }
+        if (event.target.closest('[data-cancel-lesson-plan]')) { cancelLessonPlan(); return; }
         const titleSuggestion = event.target.closest('[data-plan-title]');
         if (titleSuggestion) {
           const form = titleSuggestion.closest('form');
@@ -1859,6 +1947,7 @@
           form.dataset.dirty = '1';
           const count = form.querySelector('[data-char-count]');
           if (count) count.textContent = form.elements.title.value.length + ' / 50';
+          captureCalendarPlanDraft(form);
           return;
         }
         const preset = event.target.closest('[data-plan-duration]');
@@ -1869,6 +1958,7 @@
           form.elements.lessonEnd.value = String(Math.floor(value/60)%24).padStart(2,'0') + ':' +
             String(value%60).padStart(2,'0');
           form.dataset.dirty = '1';
+          captureCalendarPlanDraft(form);
           return;
         }
         const openStudent = event.target.closest('[data-open-student]');
@@ -1915,6 +2005,16 @@
         }
       });
       document.addEventListener('keydown', event => {
+        const dialog=document.getElementById('calendarLessonDialog');
+        if (dialog) {
+          if (event.key==='Escape') { event.preventDefault(); cancelLessonPlan(); return; }
+          if (event.key==='Tab') {
+            const fields=[...dialog.querySelectorAll('button,input,select,textarea,summary')].filter(el=>!el.disabled && el.offsetParent!==null);
+            const first=fields[0], last=fields.at(-1);
+            if (event.shiftKey && document.activeElement===first) { event.preventDefault(); last?.focus(); }
+            else if (!event.shiftKey && document.activeElement===last) { event.preventDefault(); first?.focus(); }
+          }
+        }
         if (event.key === 'Escape' && state.learningModal) { state.learningModal = false; render(); }
       });
       $('content').addEventListener('input', event => {
@@ -2064,6 +2164,7 @@
           state.scheduleEdit = null;
         });
         if (form.id === 'lessonPlannerForm') onForm(form, async () => {
+          if (state.lessonPlan?.fromCalendar && state.lessonPlan.createKind==='class' && !form.dataset.classId) throw new Error('Выберите доступный класс.');
           const ids = [...form.querySelectorAll('[name="planMember"]:checked')].map(x=>x.value);
           if (!ids.length) throw new Error('Выберите хотя бы одного участника.');
           const dateValue = formValue(form,'lessonDate');
