@@ -256,6 +256,14 @@
       .muted, .subtitle, .metric-note, .item small { color: #475569; }
       .pill { color: #172033; background: #e2e8f0; }
     }
+    [data-library], [data-library] label, .library-layout > *, .library-layout form { min-width:0; }
+    [data-library] .section-head { flex-wrap:wrap; }
+    [data-library] .section-head > div { min-width:0; }
+    [data-library] select { max-width:100%; }
+    .library-layout { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); gap:20px; align-items:start; }
+    .library-layout .item { gap:12px; flex-wrap:wrap; }
+    @media(max-width:760px) { main:has([data-library]) > .top { margin-left:-16px; margin-right:-16px; padding-left:16px; padding-right:16px; } }
+    @media(max-width:900px) { .library-layout { grid-template-columns:minmax(0,1fr); } }
   </style>
   <link rel="stylesheet" href="./meleto-fidelity.css">
 </head>
@@ -296,7 +304,7 @@
         <button type="button" data-view="lessons"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="15" rx="2"/><path d="M7 3v5M17 3v5M3.5 10h17"/></svg></span>Календарь</button>
         <button type="button" data-coming="Доски"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="13" rx="2"/><path d="M9 20.5h6M12 17.5v3"/></svg></span>Доски</button>
         <button type="button" data-coming="Чат"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a8 8 0 0 1-8 8c-1.6 0-2.8-.3-4.3-1.1L3 20l1.5-4.7A8 8 0 1 1 20 11.5z"/></svg></span>Чат</button>
-        <button type="button" data-coming="Библиотека"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v11H3z"/></svg></span>Библиотека</button>
+        <button type="button" data-view="library"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v11H3z"/></svg></span>Библиотека</button>
         <button type="button" data-view="students"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m2 9 10-5 10 5-10 5z"/><path d="M6 12.5v4c4 3 8 3 12 0v-4M21 9v7"/></svg></span>Ученики</button>
         <button type="button" data-view="subscriptions"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18M17 14h2"/></svg></span>Оплата</button>
         <button type="button" data-view="results" class="nav-extra"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18 19 5M9 5h10v10"/></svg></span>Результаты</button>
@@ -324,6 +332,7 @@
     import { groupHomeworkKey, contextHomeworkKey } from './teacher-data.mjs';
     import { individualClassNativeHomework, taskMatchesClass, renderGroupHomework, renderContextHomework, homeworkAudience, updateGroupAssignmentChoices } from './class-native-homework.mjs';
     import { renderClassMaterials } from './class-materials-ui.mjs';
+    import { newLibraryState, libraryEntries, libraryTargets, libraryAttachment, renderLibrary, renderLibraryResults } from './teacher-library.mjs';
     import { renderClassProgram, topicsForClass } from './class-program-ui.mjs';
     import { renderLessonTopics, lessonBelongsToClass, lessonTopicChange } from './lesson-topics-ui.mjs';
     import { renderLessonMaterials } from './lesson-materials-ui.mjs';
@@ -331,12 +340,13 @@
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
       const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', topicFilter: 'all', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', groupEdit: '', groupCreate: false, lastClassInvitation: null, learningModal: false, classCreate: false, lessonPlan: null, scheduleEdit: null, calendarDate: calendarDay(), calendarMode: 'day', periodPreview: null };
+      state.library = newLibraryState();
       const $ = id => document.getElementById(id);
       const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const date = value => value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
       const money = value => value == null ? '—' : new Intl.NumberFormat('ru-RU').format(Number(value)) + ' ₽';
       const nowLocal = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
-      const names = { overview: ['Мои классы', 'Обучения, расписание и быстрые действия'], students: ['Ученики', 'Список, программы и новые ученики'], lessons: ['Календарь', 'Парные уроки и отдельная посещаемость'], homework: ['Задания', 'Каталог и назначения'], subscriptions: ['Оплата', 'Текущее состояние без выдуманных платежей'], results: ['Результаты', 'Доступная история тестов и пробников'], report: ['Отчёт ученика', 'Последние восемь занятий и результаты за этот период'] };
+      const names = { library: ['Библиотека','Шаблоны заданий и материалы'], overview: ['Мои классы', 'Обучения, расписание и быстрые действия'], students: ['Ученики', 'Список, программы и новые ученики'], lessons: ['Календарь', 'Парные уроки и отдельная посещаемость'], homework: ['Задания', 'Каталог и назначения'], subscriptions: ['Оплата', 'Текущее состояние без выдуманных платежей'], results: ['Результаты', 'Доступная история тестов и пробников'], report: ['Отчёт ученика', 'Последние восемь занятий и результаты за этот период'] };
       const needs = teacherNeeds;
       const list = (items, empty, item) => items.length ? `<div class="list">${items.map(item).join('')}</div>` : `<div class="empty">${safe(empty)}</div>`;
       const studentName = id => state.data.students?.find(x => x.membershipId === id)?.studentName || 'Ученик';
@@ -350,6 +360,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
+        state.library=newLibraryState();
         state.resultDraft=null;
         state.selectedLesson=null; state.lessonFilter='all';
         state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.classDetailTab = 'summary'; state.classStatsMonth = new Date().toISOString().slice(0,7); state.classStatsExpanded = ''; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; state.lessonPlan = null; state.scheduleEdit = null; state.calendarDate = calendarDay(); state.calendarMode = 'day'; state.periodPreview=null;
@@ -419,6 +430,7 @@
           body => api('teacher/' + path, { method: 'POST', body }));
       }
       function setView(view) {
+        if(state.view!==view && !canLeaveLibraryDraft()) return Promise.resolve();
         if (state.view !== view && document.querySelector('#classEditForm[data-dirty="1"]') &&
             !confirm('Есть несохранённые изменения класса. Покинуть редактор без сохранения?')) return Promise.resolve();
         if (state.view !== view && document.querySelector('#classScheduleRuleForm[data-dirty="1"]') &&
@@ -1588,10 +1600,11 @@
             <div class="card stack"><h2>Пробники</h2>${list(r.mocks, 'В выбранном периоде пробников нет.', x => `<div class="item"><div><strong>${safe(x.variantName)}</strong><small>${safe(x.mockDate)} · первичные ${safe(x.primaryScore)}/${safe(x.maxPrimaryScore)}</small></div><span class="pill">${percent(x.scorePercent)}</span></div>`)}</div>
           </div>`;
       }
+      function library() { return renderLibrary(state.data,state.library,safe); }
       function render() {
         // Related reads may finish while the teacher is already typing in a lesson form.
-        const drafts=[...document.querySelectorAll('[data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"]')].map(form=>({
-          id:form.id, classId:form.dataset.classId, lessonId:form.dataset.lessonId,
+        const drafts=[...document.querySelectorAll('[data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"], #libraryAttachForm[data-dirty="1"]')].map(form=>({
+          id:form.id, classId:form.dataset.classId, lessonId:form.dataset.lessonId, libraryItem:form.dataset.libraryItem,
           fields:[...form.querySelectorAll('input[name],textarea[name],select[name]')].map(input=>({
             name:input.name,type:input.type,value:input.value,checked:input.checked
           }))
@@ -1605,10 +1618,10 @@
             return;
           }
         }
-        $('content').innerHTML = ({ overview, students, lessons, homework, subscriptions, results, report })[state.view]();
+        $('content').innerHTML = ({ overview, students, lessons, homework, library, subscriptions, results, report })[state.view]();
         for(const draft of drafts) {
           const form=document.getElementById(draft.id);
-          if(!form || form.dataset.classId!==draft.classId || form.dataset.lessonId!==draft.lessonId) continue;
+          if(!form || form.dataset.classId!==draft.classId || form.dataset.lessonId!==draft.lessonId || form.dataset.libraryItem!==draft.libraryItem) continue;
           for(const field of draft.fields) {
             const input=[...form.querySelectorAll('input[name],textarea[name],select[name]')].find(x=>x.name===field.name &&
               (field.type!=='checkbox' || x.value===field.value));
@@ -1653,6 +1666,20 @@
           throw new Error('Класс или занятие больше недоступны.');
         return {item,lesson};
       }
+      function canLeaveLibraryDraft() {
+        const form=document.querySelector('#libraryAttachForm[data-dirty="1"]');
+        if(!form) return true;
+        if(!confirm('Отменить несохранённую привязку?')) return false;
+        form.reset();delete form.dataset.dirty;return true;
+      }
+      function updateLibraryResults() {
+        const results=document.getElementById('libraryResults');
+        if(results) results.innerHTML=renderLibraryResults(state.data,state.library,safe);
+        document.querySelectorAll('[data-library-type]').forEach(button=>{
+          const active=button.dataset.libraryType===state.library.kind;
+          button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));
+        });
+      }
       async function onForm(form, callback) {
         if (!canLeaveProgramDrafts(form)) return;
         setBusy(form, true); showNotice('Сохраняем…');
@@ -1660,10 +1687,10 @@
           await callback();
           delete form.dataset.dirty;
           const savedForm=document.getElementById(form.id);
-          if(savedForm && savedForm.dataset.classId===form.dataset.classId && savedForm.dataset.lessonId===form.dataset.lessonId)
+          if(savedForm && savedForm.dataset.classId===form.dataset.classId && savedForm.dataset.lessonId===form.dataset.lessonId && savedForm.dataset.libraryItem===form.dataset.libraryItem)
             delete savedForm.dataset.dirty;
-          const keys = form.matches('[data-native-grade]')
-            ? ['nativeAssignments'] : teacherMutationKeys[form.id];
+          const keys = form.libraryKeys || (form.matches('[data-native-grade]')
+            ? ['nativeAssignments'] : teacherMutationKeys[form.id]);
           invalidate(keys);
           if (form.matches('[data-context-assign], [data-native-grade]'))
             invalidate([...new Set([...Object.keys(state.data),...Object.keys(state.inflight)])].filter(key => /^(group|class|lesson)Homework:/.test(key)));
@@ -1739,7 +1766,8 @@
         logout();
       });
       $('content').addEventListener('input', event => {
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, [data-context-task], [data-context-assign]');
+        if(event.target.id==='librarySearch') {state.library.query=event.target.value;updateLibraryResults();return;}
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, #libraryAttachForm, [data-context-task], [data-context-assign]');
         if (editor) editor.dataset.dirty = '1';
         const draft = event.target.closest('#lessonPlannerForm');
         if (draft && event.target.name === 'title') {
@@ -1757,6 +1785,10 @@
         }
       });
       $('content').addEventListener('change', event => {
+        if(event.target.matches('[data-library-program], [data-library-sort]')) {
+          state.library[event.target.matches('[data-library-program]')?'programId':'sort']=event.target.value;
+          updateLibraryResults();return;
+        }
         if (event.target.id === 'calendarDate') {
           if (shiftCalendarDay(event.target.value, 0)) state.calendarDate = event.target.value;
           render(); return;
@@ -1768,7 +1800,7 @@
           section.querySelector('[data-group-homework-empty]').hidden=rows.some(row=>!row.hidden);
         }
         if(event.target.closest('[data-context-assign]')) updateGroupAssignmentChoices(event.target.closest('form'),state.data);
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, [data-context-task], [data-context-assign]');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, #libraryAttachForm, [data-context-task], [data-context-assign]');
         if (editor) editor.dataset.dirty = '1';
         if (event.target.id==='calendarPlanClass') {
           captureCalendarPlanDraft(event.target.form);
@@ -1831,6 +1863,18 @@
         }
       });
       $('content').addEventListener('click', async event => {
+        const libraryType=event.target.closest('[data-library-type]');
+        if(libraryType) {state.library.kind=libraryType.dataset.libraryType;updateLibraryResults();return;}
+        const libraryPreview=event.target.closest('[data-library-preview]');
+        if(libraryPreview || event.target.closest('[data-library-close]')) {
+          if(!canLeaveLibraryDraft()) return;
+          state.library.selected=libraryPreview?.dataset.libraryPreview || '';render();return;
+        }
+        if(event.target.closest('[data-library-cancel]')) {
+          const form=event.target.closest('form');form.reset();delete form.dataset.dirty;showNotice('');return;
+        }
+        if(event.target.closest('[data-library-create]')) {await setView('homework');return;}
+
         const resultButton=event.target.closest('[data-open-lesson-result]');
         if (resultButton) {
           const lesson=state.data.lessons?.find(x=>x.id===resultButton.dataset.lessonId);
@@ -2358,6 +2402,30 @@
       });
       $('content').addEventListener('submit', async event => {
         event.preventDefault(); const form = event.target;
+        if(form.id==='libraryAttachForm') onForm(form,async()=>{
+          const entry=libraryEntries(state.data).find(x=>x.key===form.dataset.libraryItem && x.key===state.library.selected);
+          if(!entry) throw new Error('Повторно выберите объект библиотеки.');
+          const action=libraryAttachment(entry,formValue(form,'target'),state.data);
+          form.libraryKeys=action.keys;
+          await mutation('libraryAttach:'+entry.key,action.path,()=>action.body);
+        });
+        if(form.id==='libraryAssignJumpForm') {
+          if(!canLeaveLibraryDraft()) return;
+          try {
+            const entry=libraryEntries(state.data).find(x=>x.key===form.dataset.libraryItem && x.kind==='task');
+            const target=entry && libraryTargets(entry,state.data,true).find(x=>x.key===formValue(form,'target'));
+            if(!target) throw new Error('Выберите доступный класс или занятие.');
+            state.selectedClass=target.classId;state.classDetailTab='homework';state.selectedLesson=target.lessonId || null;
+            await setView('overview');
+            const assign=document.querySelector('[data-context-assign]');
+            if(!assign || ![...assign.elements.taskId.options].some(x=>x.value===entry.id))
+              throw new Error('Откройте задания класса и выберите шаблон повторно.');
+            assign.elements.taskId.value=entry.id;updateGroupAssignmentChoices(assign,state.data);assign.dataset.dirty='1';
+            assign.scrollIntoView({block:'center'});
+          } catch(error) {showNotice(error.message,true);}
+          return;
+        }
+
         if (form.id==='lessonResultForm') {
           const draft=state.resultDraft, token=state.token;
           if (!draft || draft.saving) return;

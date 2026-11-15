@@ -27,6 +27,7 @@ export const teacherNeeds = {
   students: ['students', 'programs'],
   lessons: ['classes', 'groups', 'scheduleRules', 'students', 'programs', 'lessons', 'catalog'],
   homework: ['students', 'programs', 'catalog', 'assignments', 'submissions', 'nativeTasks', 'nativeAssignments'],
+  library: ['programs','students','classes','groups','lessons','nativeTasks','materials','classMaterialLinks','lessonMaterialLinks','classTopics','topicMaterialLinks','topicTaskLinks'],
   subscriptions: ['students', 'subscriptions'],
   results: ['students', 'tests', 'liveTests', 'mocks', 'mockSessions'],
   report: ['students', 'lessons', 'assignments', 'nativeAssignments', 'tests', 'liveTests', 'mocks']
@@ -50,6 +51,7 @@ export const teacherMutationKeys = {
 
 // This full reset is required on logout, login or a different workspace.
 export function invalidateTeacherData(state) {
+  state.library = {query:'',kind:'all',programId:'',sort:'newest',selected:''};
   state.generation++;
   state.data = {};
   state.loadedAt = {};
