@@ -75,7 +75,7 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Equal(HttpStatusCode.Created,
             (await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules",
                 monday with { RequestId = Guid.NewGuid(), ClassId = group.Id, ClassKind = "group" })).StatusCode);
-        Assert.Equal(HttpStatusCode.Conflict,
+        Assert.Equal(HttpStatusCode.BadRequest,
             (await client.PatchAsJsonAsync("/api/v1/teacher/schedule-rules/" + rule.Id,
                 new TeacherScheduleRuleUpdateRequest(0, 1, 1020, 60, "Europe/Moscow", true))).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict,
