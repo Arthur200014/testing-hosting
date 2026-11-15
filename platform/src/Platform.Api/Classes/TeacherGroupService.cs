@@ -204,11 +204,15 @@ public sealed class TeacherGroupService(PlatformDbContext db, TimeProvider clock
         foreach (var member in group.Members.Where(m => !wanted.Contains(m.MembershipId)).ToList())
         { group.Members.Remove(member); db.TeacherGroupEnrollments.Remove(member); }
         foreach (var memberId in ids.Where(memberId => !previous.Contains(memberId)))
-            group.Members.Add(new TeacherGroupEnrollment {
+        {
+            var enrollment = new TeacherGroupEnrollment {
                 Id = Guid.NewGuid(), WorkspaceId = workspaceId, GroupClassId = group.Id,
                 MembershipId = memberId, StudentId = newMembers[memberId],
                 JoinedAt = clock.GetUtcNow(), IsApproved = true
-            });
+            };
+            group.Members.Add(enrollment);
+            db.TeacherGroupEnrollments.Add(enrollment);
+        }
         group.Revision++;
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException) { return new(TeacherGroupStatus.Conflict); }
@@ -282,11 +286,13 @@ public sealed class TeacherGroupService(PlatformDbContext db, TimeProvider clock
             return new(TeacherGroupStatus.Unchanged, new { status = existing.IsApproved ? "approved" : "pending" });
         if (group.Members.Count >= group.Capacity)
             return new(TeacherGroupStatus.Conflict);
-        group.Members.Add(new TeacherGroupEnrollment {
+        var enrollment = new TeacherGroupEnrollment {
             Id = Guid.NewGuid(), WorkspaceId = workspaceId, GroupClassId = group.Id,
             MembershipId = membershipId, StudentId = studentId,
             IsApproved = group.AutoApproveInvites, JoinedAt = clock.GetUtcNow()
-        });
+        };
+        group.Members.Add(enrollment);
+        db.TeacherGroupEnrollments.Add(enrollment);
         group.Revision++;
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException) { return new(TeacherGroupStatus.Conflict); }
