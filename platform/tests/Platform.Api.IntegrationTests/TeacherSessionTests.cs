@@ -89,7 +89,7 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Equal("Synthetic group answer",scoped.Answer);
         Assert.DoesNotContain((await client.GetFromJsonAsync<List<NativeAssignmentView>>("/api/v1/teacher/homework/native/assignments"))!,x=>x.Id==assignment.Id);
         var grade=new GradeNativeAnswerRequest(Guid.NewGuid(),assignment.Id,0,"Needs work");
-        Assert.Equal(HttpStatusCode.OK,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/grades",grade)).StatusCode);
+        Assert.Equal(HttpStatusCode.Created,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/grades",grade)).StatusCode);
         var graded=Assert.Single((await client.GetFromJsonAsync<List<NativeAssignmentView>>(groupPath))!);
         Assert.Equal(0,graded.ScorePercent);Assert.Equal("Needs work",graded.TeacherFeedback);
         var other=(await (await LoginAsync(client,"ghw-south","ghw-south@example.invalid",Password))
