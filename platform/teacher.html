@@ -1268,7 +1268,7 @@
         logout();
       });
       $('content').addEventListener('input', event => {
-        const editor = event.target.closest('#classEditForm');
+        const editor = event.target.closest('#classEditForm, #groupEditForm');
         if (editor) editor.dataset.dirty = '1';
         if (event.target.id === 'studentSearch') studentRows(event.target.value.trim());
         if (event.target.id === 'classSearch') {
@@ -1280,9 +1280,9 @@
         }
       });
       $('content').addEventListener('change', event => {
-        const editor = event.target.closest('#classEditForm');
+        const editor = event.target.closest('#classEditForm, #groupEditForm');
         if (editor) editor.dataset.dirty = '1';
-        if (event.target.matches('#classForm [name="coverStyle"], #classEditForm [name="coverStyle"]')) {
+        if (event.target.matches('#classForm [name="coverStyle"], #classEditForm [name="coverStyle"], #groupForm [name="coverStyle"], #groupEditForm [name="coverStyle"]')) {
           const preview = event.target.closest('form')?.querySelector('[data-cover-display]');
           if (preview) preview.className = 'class-cover-display cover-' + event.target.value;
           const picker = event.target.closest('.class-cover-picker');
@@ -1291,13 +1291,13 @@
           picker?.querySelector('[data-toggle-covers]')?.setAttribute('aria-expanded', 'false');
           return;
         }
-        if (event.target.matches('#classForm [name="inviteEnabled"], #classEditForm [name="inviteEnabled"]')) {
+        if (event.target.matches('#classForm [name="inviteEnabled"], #classEditForm [name="inviteEnabled"], #groupForm [name="inviteEnabled"], #groupEditForm [name="inviteEnabled"]')) {
           const link = event.target.closest('form')?.querySelector('[data-invite-display]');
           if (link) link.hidden = !event.target.checked;
           return;
         }
         const toggle = event.target;
-        if (toggle.matches('#classForm [data-settings-toggle], #classEditForm [data-settings-toggle]')) {
+        if (toggle.matches('#classForm [data-settings-toggle], #classEditForm [data-settings-toggle], #groupForm [data-settings-toggle], #groupEditForm [data-settings-toggle]')) {
           const group = toggle.form.querySelector('[data-settings-group="' + toggle.dataset.settingsToggle + '"]');
           if (group) {
             group.hidden = !toggle.checked;
@@ -1337,13 +1337,45 @@
           } else if (type === 'one-time') {
             await setView('lessons');
             showNotice('Открыта действующая форма занятия. Расширенная форма разового занятия будет добавлена в UI-03.');
+          } else if (type === 'group') {
+            state.groupCreate = true;
+            render();
+            document.querySelector('#groupForm [name="title"]')?.focus();
           } else {
             render();
-            showNotice('Групповое обучение будет доступно после добавления постоянной модели класса в UI-02. Данные не изменены.');
           }
           return;
         }
-        if (event.target.closest('[data-cancel-class]')) { state.classCreate = false; render(); return; }
+        if (event.target.closest('[data-cancel-class]')) { state.classCreate = false; state.groupCreate = false; render(); return; }
+        if (event.target.closest('[data-cancel-group-edit]')) {
+          if (document.querySelector('#groupEditForm[data-dirty="1"]') &&
+              !confirm('Отменить изменения группового класса без сохранения?')) return;
+          state.groupEdit = ''; render(); return;
+        }
+        const addGroupMember = event.target.closest('[data-add-group-member]');
+        if (addGroupMember) {
+          const form = addGroupMember.closest('form');
+          const id = form?.elements.candidateMember?.value;
+          const area = form?.querySelector('[data-group-members]');
+          if (!area || !id) return;
+          if (area.querySelector('[name="groupMember"][value="' + id + '"]')) {
+            showNotice('Этот ученик уже добавлен.', true); return;
+          }
+          if (area.querySelectorAll('[name="groupMember"]').length >= Number(form.elements.capacity.value)) {
+            showNotice('Лимит участников группы исчерпан.', true); return;
+          }
+          area.insertAdjacentHTML('beforeend', groupStudentChip(id));
+          if (form.id === 'groupEditForm') form.dataset.dirty = '1';
+          showNotice('');
+          return;
+        }
+        const removeGroupMember = event.target.closest('[data-remove-group-member]');
+        if (removeGroupMember) {
+          const form = removeGroupMember.closest('form');
+          removeGroupMember.closest('[data-group-member-chip]')?.remove();
+          if (form?.id === 'groupEditForm') form.dataset.dirty = '1';
+          return;
+        }
         if (event.target.closest('[data-cancel-class-edit]')) {
           if (document.querySelector('#classEditForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённые изменения класса?')) return;
@@ -1379,6 +1411,22 @@
           if (target && name) target.textContent = 'Выбран ученик: ' + name + '. Он будет добавлен при создании класса.';
           return;
         }
+        const editGroup = event.target.closest('[data-edit-group]');
+        if (editGroup) { state.groupEdit = editGroup.dataset.editGroup; render(); return; }
+        const approveGroup = event.target.closest('[data-approve-group]');
+        if (approveGroup) {
+          const item = (state.data.groups || []).find(x => x.id === approveGroup.dataset.groupId);
+          if (!item || item.isArchived) return;
+          approveGroup.disabled = true;
+          try {
+            await api('teacher/groups/' + encodeURIComponent(item.id) + '/members/' +
+              encodeURIComponent(approveGroup.dataset.approveGroup) + '/approve', {
+                method: 'POST', body: { expectedRevision: item.revision }
+              });
+            invalidate(['groups']); await refresh(true);
+          } catch (error) { showNotice(error.message, true); if (approveGroup.isConnected) approveGroup.disabled = false; }
+          return;
+        }
         const editClass = event.target.closest('[data-edit-class]');
         if (editClass) { state.classEdit = editClass.dataset.editClass; render(); return; }
         const classTab = event.target.closest('[data-class-tab]');
@@ -1388,8 +1436,8 @@
           return;
         }
         const openClass = event.target.closest('[data-open-class]');
-        if (openClass) { state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
-        if (event.target.closest('[data-back-classes]')) { state.selectedClass = ''; state.classEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
+        if (openClass) { state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
+        if (event.target.closest('[data-back-classes]')) { state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
         if (event.target.closest('[data-copy-class-invite]')) {
           const code = state.lastClassInvitation?.code;
           if (!code) return;
@@ -1400,15 +1448,18 @@
         const issueInvite = event.target.closest('[data-issue-class-invite], [data-revoke-class-invite]');
         if (issueInvite) {
           const id = issueInvite.dataset.issueClassInvite || issueInvite.dataset.revokeClassInvite;
-          const item = (state.data.classes || []).find(x => x.id === id);
+          const individual = (state.data.classes || []).find(x => x.id === id);
+          const groupItem = (state.data.groups || []).find(x => x.id === id);
+          const item = individual || groupItem;
           if (!item || item.isArchived) return;
+          const root = groupItem ? 'groups' : 'classes';
           const revoke = issueInvite.hasAttribute('data-revoke-class-invite');
           if (!confirm(revoke ? 'Отозвать приглашение? Этот код больше нельзя будет использовать.' : 'Выпустить одноразовый код для текущего ученика? Прежний код перестанет действовать.')) return;
           issueInvite.disabled = true;
           try {
-            const result = await api('teacher/classes/' + encodeURIComponent(id) + (revoke ? '/invitation/revoke' : '/invitation'), { method: 'POST', body: { expectedRevision: item.revision } });
+            const result = await api('teacher/' + root + '/' + encodeURIComponent(id) + (revoke ? '/invitation/revoke' : '/invitation'), { method: 'POST', body: { expectedRevision: item.revision } });
             state.lastClassInvitation = revoke ? null : { id, code: result.code };
-            invalidate(['classes']);
+            invalidate([root]);
             await refresh(true);
           } catch (error) { showNotice(error.message, true); if (issueInvite.isConnected) issueInvite.disabled = false; }
           return;
@@ -1417,19 +1468,22 @@
         if (statusButton) {
           const id = statusButton.dataset.archiveClass || statusButton.dataset.restoreClass;
           const archived = statusButton.hasAttribute('data-archive-class');
-          const item = (state.data.classes || []).find(x => x.id === id);
+          const individual = (state.data.classes || []).find(x => x.id === id);
+          const groupItem = (state.data.groups || []).find(x => x.id === id);
+          const item = individual || groupItem;
+          const root = groupItem ? 'groups' : 'classes';
           if (!item || item.isArchived === archived) return;
           if (!confirm(archived
             ? `Перенести класс «${item.title}» в архив? Ученик и история занятий останутся без изменений.`
             : `Восстановить класс «${item.title}» в активный список?`)) return;
           statusButton.disabled = true;
           try {
-            await api('teacher/classes/' + encodeURIComponent(id) + (archived ? '/archive' : '/restore'), {
+            await api('teacher/' + root + '/' + encodeURIComponent(id) + (archived ? '/archive' : '/restore'), {
               method: 'POST', body: { expectedRevision: item.revision }
             });
-            state.selectedClass = ''; state.classEdit = '';
+            state.selectedClass = ''; state.classEdit = ''; state.groupEdit = '';
             state.classTab = archived ? 'archive' : 'classes';
-            invalidate(['classes']);
+            invalidate([root]);
             await refresh(true);
           } catch (error) { showNotice(error.message, true); if (statusButton.isConnected) statusButton.disabled = false; }
           return;
@@ -1501,6 +1555,25 @@
           priceBasis: form.elements.priceEnabled.checked ? formValue(form, 'priceBasis') : null,
           allowLessonChat: form.elements.allowLessonChat.checked,
           allowPrivateMessages: form.elements.allowPrivateMessages.checked
+        });
+        const groupFields = form => ({
+          ...classFields(form),
+          memberIds: [...form.querySelectorAll('[name="groupMember"]')].map(input => input.value),
+          capacity: Number(formValue(form, 'capacity')),
+          autoApproveInvites: form.elements.autoApproveInvites.checked
+        });
+        if (form.id === 'groupForm') onForm(form, async () => {
+          await mutation('group', 'groups', () => groupFields(form));
+          state.groupCreate = false; state.selectedClass = '';
+        });
+        if (form.id === 'groupEditForm') onForm(form, async () => {
+          const item = (state.data.groups || []).find(x => x.id === form.dataset.classId);
+          const revision = Number(form.dataset.revision);
+          if (!item || item.isArchived || item.revision !== revision) throw new Error('Группа изменилась. Обновите данные.');
+          await api('teacher/groups/' + encodeURIComponent(item.id), {
+            method: 'PATCH', body: { expectedRevision: revision, ...groupFields(form) }
+          });
+          state.groupEdit = '';
         });
         if (form.id === 'classForm') onForm(form, async () => {
           await mutation('class', 'classes', () => ({
