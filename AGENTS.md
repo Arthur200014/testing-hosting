@@ -33,6 +33,7 @@ Additional research, architecture review, independent review, and agents are **o
 - **UI controls, mathematical graphs, local JavaScript:** test the changed scenario and any directly related existing behavior; reuse existing tests. For math, validate representative values/constraints where relevant.
 - **Backend, API, storage, data migrations:** run focused existing tests and add a small regression test when logic changes and the test can be run.
 - **Auth, student scores, concurrency, realtime, Firebase/GAS integrations:** verify high-risk success/failure paths and focused regression/integration behavior; use isolated synthetic data, not live student records.
+- **TAS data-backed UI flows:** reuse `platform/scripts/calendar-real-browser.sh` / `platform/calendar-real-browser.mjs` for browser checks against an actual isolated API/PostgreSQL with dedicated test teachers and persisted records. Mocked UI checks supplement this; they do not establish persistence. Never use an existing production owner's settings, students or lessons as test-write targets.
 - Do not run a whole repository suite for a local change. Do not build new test infrastructure unless needed to establish correctness for the actual task.
 - Record unavailable checks as NOT_RUN. For a low-risk change, a documented limitation need not block publishing. For a high-risk, unverified change, keep it on a task branch and report the blocker; do not call it production-verified.
 
