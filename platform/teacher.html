@@ -323,7 +323,7 @@
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
-      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', lastClassInvitation: null, learningModal: false, classCreate: false };
+      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', groupEdit: '', groupCreate: false, lastClassInvitation: null, learningModal: false, classCreate: false };
       const $ = id => document.getElementById(id);
       const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const date = value => value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
@@ -341,7 +341,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
-        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.classDetailTab = 'summary'; state.classStatsMonth = new Date().toISOString().slice(0,7); state.classStatsExpanded = ''; state.selectedClass = ''; state.classEdit = ''; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false;
+        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.classDetailTab = 'summary'; state.classStatsMonth = new Date().toISOString().slice(0,7); state.classStatsExpanded = ''; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false;
         $('app').hidden = true; $('loginScreen').hidden = false;
         $('loginError').textContent = message; $('loginError').hidden = !message;
       }
@@ -398,7 +398,7 @@
         if (state.view !== view && document.querySelector('#classEditForm[data-dirty="1"]') &&
             !confirm('Есть несохранённые изменения класса. Покинуть редактор без сохранения?')) return Promise.resolve();
         state.view = view;
-        if (view !== 'overview') { state.selectedClass = ''; state.classEdit = ''; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; }
+        if (view !== 'overview') { state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; }
         document.querySelectorAll('[data-view]').forEach(x => x.classList.toggle('active', x.dataset.view === view));
         $('viewTitle').textContent = names[view][0]; $('viewSubtitle').textContent = names[view][1];
         return refresh();
@@ -441,7 +441,12 @@
           studentMembershipId: student.membershipId, student,
           nextLesson: participantLesson(student.membershipId, true), persistent: false, isArchived: false
         }));
-        return [...persisted, ...legacy];
+        const groups = (state.data.groups || []).map(item => ({
+          ...item, persistent: true, studentMembershipId: null, nextLesson: null,
+          student: { studentName: item.members.length + ' участников',
+            programName: 'Групповое обучение', targetScore: '' }
+        }));
+        return [...persisted, ...legacy, ...groups];
       };
       function learningModal() {
         if (!state.learningModal) return '';
@@ -693,6 +698,96 @@
         form.querySelector('.class-create-actions').previousElementSibling.textContent = 'Изменяются только параметры класса. Ученик и его история не затрагиваются.';
         return wrapper.innerHTML;
       }
+      function groupStudentChip(membershipId) {
+        const student = (state.data.students || []).find(x => x.membershipId === membershipId);
+        if (!student) return '';
+        return `<span class="group-student-chip" data-group-member-chip="${safe(membershipId)}">
+          <input type="hidden" name="groupMember" value="${safe(membershipId)}">
+          <span>${safe(student.studentName)}</span><button type="button" data-remove-group-member="${safe(membershipId)}" aria-label="Убрать ученика">×</button>
+        </span>`;
+      }
+      function groupClassCreate() {
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = individualClassCreate();
+        wrapper.querySelector('h1').textContent = 'Новое групповое обучение';
+        const form = wrapper.querySelector('#classForm');
+        form.id = 'groupForm';
+        form.querySelector('.class-invitation-section').innerHTML = `
+          <div class="class-section-top">
+            <label class="class-switch"><input type="checkbox" name="inviteEnabled" checked><span>Пригласить учеников</span></label>
+            <p class="class-setting-note">ⓘ Приглашение формируется вручную после создания группы. Автоматическая отправка сообщений не выполняется.</p>
+          </div>
+          <div class="class-section-contents">
+            <div data-invite-display><div class="class-section-label">Приглашение по коду</div>
+              <div class="class-invite-link"><input type="text" value="Код появится после создания группы" disabled aria-label="Приглашение будет после создания"><button class="secondary" type="button" disabled>Скопировать</button></div>
+            </div>
+            <div class="class-student-picker">
+              <div class="class-section-label">Добавить существующих учеников</div>
+              <div class="class-student-select"><label><span class="visually-hidden">Ученик</span>
+                <select name="candidateMember" aria-label="Выберите ученика">
+                  ${(state.data.students || []).map(st => `<option value="${safe(st.membershipId)}">${safe(st.studentName)} · ${safe(st.programName)}</option>`).join('')}
+                </select></label>
+                <button class="primary" type="button" data-add-group-member>Добавить</button></div>
+              <div class="group-student-chips" data-group-members></div>
+              <p class="class-selected-student">Выбранные ученики будут добавлены при сохранении класса. Повторное добавление невозможно.</p>
+            </div>
+          </div>`;
+        const formEl = wrapper.querySelector('#groupForm');
+        const beforeChat = formEl.querySelector('.class-chats-section');
+        beforeChat.insertAdjacentHTML('beforebegin', `<section class="group-settings" aria-label="Настройки участников">
+          <h3>Участники</h3><p>Лимит мест в группе — от 1 до 20. Учитываются все заявки, включая ожидающие подтверждения.</p>
+          <label class="group-capacity-label">Принимать не больше
+            <input type="number" name="capacity" value="20" min="1" max="20" required> учеников</label>
+          <label class="group-auto-label"><input type="checkbox" name="autoApproveInvites" checked> Автоматически подтверждать допуск по приглашению</label>
+        </section>`);
+        formEl.querySelector('[type="submit"]').disabled = false;
+        formEl.querySelector('.class-end-note').textContent = 'Группа и выбранные участники сохраняются одновременно. При отмене ничего не создаётся.';
+        return wrapper.innerHTML;
+      }
+      function groupClassEdit(item) {
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = groupClassCreate();
+        const form = wrapper.querySelector('#groupForm');
+        form.id = 'groupEditForm';
+        form.dataset.classId = item.id;
+        form.dataset.revision = item.revision;
+        wrapper.querySelector('h1').textContent = 'Редактирование группового обучения';
+        form.elements.title.defaultValue = item.title;
+        form.elements.description.defaultValue = item.description || '';
+        for (const option of form.querySelectorAll('[name="coverStyle"]'))
+          option.defaultChecked = option.value === (item.coverStyle || 'lavender');
+        form.querySelector('[data-cover-display]').className = 'class-cover-display cover-' + (item.coverStyle || 'lavender');
+        form.querySelector('.group-student-chips').innerHTML =
+          (item.members || []).map(member => groupStudentChip(member.membershipId)).join('');
+        form.elements.capacity.defaultValue = item.capacity;
+        form.elements.autoApproveInvites.defaultChecked = !!item.autoApproveInvites;
+        for (const name of ['duration', 'price']) {
+          const enabled = name === 'duration' ? item.durationMinutes != null : item.priceAmount != null;
+          const toggle = form.querySelector('[data-settings-toggle="' + name + '"]');
+          toggle.defaultChecked = enabled;
+          const group = form.querySelector('[data-settings-group="' + name + '"]');
+          group.hidden = !enabled;
+          group.querySelectorAll('input, select').forEach(input => { input.disabled = !enabled; });
+        }
+        form.elements.durationMinutes.defaultValue = item.durationMinutes ?? 60;
+        form.elements.priceAmount.defaultValue = item.priceAmount ?? 0;
+        for (const [el, value] of [[form.elements.priceCurrency, item.priceCurrency || 'RUB'],
+                                    [form.elements.priceBasis, item.priceBasis || 'lesson']])
+          [...el.options].forEach(option => { option.defaultSelected = option.value === value; });
+        form.elements.allowLessonChat.defaultChecked = !!item.allowLessonChat;
+        form.elements.allowPrivateMessages.defaultChecked = !!item.allowPrivateMessages;
+        form.querySelectorAll('.class-field').forEach(label => {
+          const count = label.querySelector('[data-char-count]');
+          const input = label.querySelector('input,textarea');
+          if (count && input) count.textContent = input.value.length + ' / ' + input.maxLength;
+        });
+        form.querySelector('[type="submit"]').textContent = 'Сохранить изменения';
+        const cancel = form.querySelector('[data-cancel-class]');
+        cancel.removeAttribute('data-cancel-class');
+        cancel.setAttribute('data-cancel-group-edit', '');
+        form.querySelector('.class-end-note').textContent = 'Меняется только группа и её состав. Индивидуальные занятия учеников и история не удаляются.';
+        return wrapper.innerHTML;
+      }
       function classStatistics(activeClasses) {
         const month = state.classStatsMonth;
         const monthStart = new Date(month + '-01T12:00:00Z');
@@ -763,18 +858,21 @@
       }
       function overview() {
         const d = state.data;
-        if (!d.classes || !d.students || !d.lessons) {
+        if (!d.classes || !d.groups || !d.students || !d.lessons) {
           const failed = !$('notice').hidden && $('notice').classList.contains('error');
           return `<div class="classes-layout"><div class="classes-main"><div class="classes-heading"><h1>Мои классы</h1></div><div class="empty">${failed
             ? 'Не удалось загрузить классы и расписание.<br><button class="secondary" type="button" data-retry-overview style="margin-top:14px">Повторить</button>'
             : 'Загружаем классы и расписание…'}</div></div></div>${learningModal()}`;
         }
         if (state.classCreate) return individualClassCreate();
+        if (state.groupCreate) return groupClassCreate();
         const allClasses = teacherClasses();
         const classes = allClasses.filter(x => !x.isArchived);
         const archivedClasses = allClasses.filter(x => x.isArchived);
         const selected = allClasses.find(x => x.id === state.selectedClass &&
           (state.classTab === 'archive' ? x.isArchived : !x.isArchived));
+        if (selected && !selected.isArchived && selected.kind === 'group' && state.groupEdit === selected.id)
+          return groupClassEdit(selected);
         if (selected && !selected.isArchived && state.classEdit === selected.id)
           return individualClassEdit(selected);
         if (selected) return classDetail(selected);
