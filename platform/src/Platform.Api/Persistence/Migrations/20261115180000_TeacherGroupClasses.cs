@@ -39,8 +39,9 @@ public sealed class TeacherGroupClasses : Migration
             {
                 t.PrimaryKey("PK_TeacherGroupClasses", x => x.Id);
                 t.UniqueConstraint("AK_TeacherGroupClasses_WorkspaceId_Id", x => new { x.WorkspaceId, x.Id });
-                t.ForeignKey("FK_TeacherGroupClasses_Workspaces_WorkspaceId",
-                    x => x.WorkspaceId, "Workspaces", "platform", "Id", onDelete: ReferentialAction.Restrict);
+                t.ForeignKey(name: "FK_TeacherGroupClasses_Workspaces_WorkspaceId",
+                    column: x => x.WorkspaceId, principalTable: "Workspaces", principalColumn: "Id",
+                    principalSchema: "platform", onDelete: ReferentialAction.Restrict);
                 t.CheckConstraint("CK_TeacherGroupClasses_Capacity", "\"Capacity\" BETWEEN 1 AND 20");
                 t.CheckConstraint("CK_TeacherGroupClasses_Title", "length(\"Title\") > 0");
                 t.CheckConstraint("CK_TeacherGroupClasses_Cover", "\"CoverStyle\" IN ('lavender','sky','peach','mint')");
@@ -48,8 +49,8 @@ public sealed class TeacherGroupClasses : Migration
                 t.CheckConstraint("CK_TeacherGroupClasses_Price", "(\"PriceAmount\" IS NULL AND \"PriceCurrency\" IS NULL AND \"PriceBasis\" IS NULL) OR (\"PriceAmount\" BETWEEN 0 AND 10000000 AND \"PriceCurrency\" IN ('RUB','EUR','USD') AND \"PriceBasis\" IN ('lesson','month'))");
                 t.CheckConstraint("CK_TeacherGroupClasses_Invite", "\"InvitationStatus\" IS NULL OR \"InvitationStatus\" IN ('pending','revoked')");
             });
-        m.CreateIndex("IX_TeacherGroupClasses_WorkspaceId_RequestId",
-            "TeacherGroupClasses", "platform", new[] { "WorkspaceId", "RequestId" }, unique: true);
+        m.CreateIndex(name: "IX_TeacherGroupClasses_WorkspaceId_RequestId", table: "TeacherGroupClasses",
+            schema: "platform", columns: new[] { "WorkspaceId", "RequestId" }, unique: true);
         m.CreateTable(name: "TeacherGroupEnrollments", schema: "platform",
             columns: t => new
             {
@@ -64,21 +65,21 @@ public sealed class TeacherGroupClasses : Migration
             constraints: t =>
             {
                 t.PrimaryKey("PK_TeacherGroupEnrollments", x => x.Id);
-                t.ForeignKey("FK_TeacherGroupEnrollments_GroupClass",
-                    x => new { x.WorkspaceId, x.GroupClassId },
-                    "TeacherGroupClasses", "platform", new[] { "WorkspaceId", "Id" },
-                    onDelete: ReferentialAction.Cascade);
-                t.ForeignKey("FK_TeacherGroupEnrollments_Membership",
-                    x => new { x.WorkspaceId, x.MembershipId, x.StudentId },
-                    "WorkspaceStudentMemberships", "platform",
-                    new[] { "WorkspaceId", "Id", "StudentId" },
+                t.ForeignKey(name: "FK_TeacherGroupEnrollments_GroupClass",
+                    columns: x => new { x.WorkspaceId, x.GroupClassId },
+                    principalTable: "TeacherGroupClasses", principalSchema: "platform",
+                    principalColumns: new[] { "WorkspaceId", "Id" }, onDelete: ReferentialAction.Cascade);
+                t.ForeignKey(name: "FK_TeacherGroupEnrollments_Membership",
+                    columns: x => new { x.WorkspaceId, x.MembershipId, x.StudentId },
+                    principalTable: "WorkspaceStudentMemberships", principalSchema: "platform",
+                    principalColumns: new[] { "WorkspaceId", "Id", "StudentId" },
                     onDelete: ReferentialAction.Restrict);
             });
-        m.CreateIndex("IX_TeacherGroupEnrollments_WorkspaceId_GroupClassId_MembershipId",
-            "TeacherGroupEnrollments", "platform",
-            new[] { "WorkspaceId", "GroupClassId", "MembershipId" }, unique: true);
-        m.CreateIndex("IX_TeacherGroupEnrollments_WorkspaceId_MembershipId_StudentId",
-            "TeacherGroupEnrollments", "platform", new[] { "WorkspaceId", "MembershipId", "StudentId" });
+        m.CreateIndex(name: "IX_TeacherGroupEnrollments_WorkspaceId_GroupClassId_MembershipId",
+            table: "TeacherGroupEnrollments", schema: "platform",
+            columns: new[] { "WorkspaceId", "GroupClassId", "MembershipId" }, unique: true);
+        m.CreateIndex(name: "IX_TeacherGroupEnrollments_WorkspaceId_MembershipId_StudentId",
+            table: "TeacherGroupEnrollments", schema: "platform", columns: new[] { "WorkspaceId", "MembershipId", "StudentId" });
     }
 
     protected override void Down(MigrationBuilder m)
