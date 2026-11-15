@@ -105,8 +105,8 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         var concurrent = await Task.WhenAll(
             client.PostAsJsonAsync("/api/v1/teacher/lesson-topics",new TeacherLessonTopicRequest(concurrentLesson,0,[first.Id])),
             client.PostAsJsonAsync("/api/v1/teacher/lesson-topics",new TeacherLessonTopicRequest(concurrentLesson,0,[second.Id])));
-        Assert.Single(concurrent.Where(x=>x.StatusCode==HttpStatusCode.OK));
-        Assert.Single(concurrent.Where(x=>x.StatusCode==HttpStatusCode.Conflict));
+        Assert.Single(concurrent,x=>x.StatusCode==HttpStatusCode.OK);
+        Assert.Single(concurrent,x=>x.StatusCode==HttpStatusCode.Conflict);
         Assert.Equal(beforeLessons,await client.GetStringAsync("/api/v1/teacher/lessons"));
         Assert.Equal(beforeTopics,await client.GetStringAsync("/api/v1/teacher/class-topics"));
         var otherSession = (await (await LoginAsync(client,"lesson-topics-south","lt-south@example.invalid",Password))
