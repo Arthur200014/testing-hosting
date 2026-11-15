@@ -198,6 +198,11 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         modelBuilder.Entity<NativeHomeworkAssignment>(entity =>
         {
             entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.WorkspaceId, x.GroupClassId });
+            entity.HasOne<TeacherGroupClass>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.GroupClassId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id }).OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_NativeAssignments_Group");
             entity.HasIndex(x => new { x.WorkspaceId, x.RequestId, x.MembershipId }).IsUnique();
             entity.HasIndex(x => new { x.WorkspaceId, x.MembershipId, x.AssignedAt });
             entity.Property(x => x.Answer).HasMaxLength(10000);

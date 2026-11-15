@@ -321,7 +321,7 @@
     import { performTeacherMutation } from './teacher-mutation.mjs';
     import { calendarZone, calendarDay, calendarTime, shiftCalendarDay, calendarEntries, localSlotInstant, calendarWeek, calendarWeekDays, calendarMonth, calendarMonthDays, shiftCalendarMonth, previewClassPeriod } from './teacher-calendar.mjs';
     import { nativeHomeworkDeadlineStatus } from './homework-deadline.mjs';
-    import { individualClassNativeHomework, taskMatchesClass } from './class-native-homework.mjs';
+    import { individualClassNativeHomework, taskMatchesClass, renderGroupHomework, updateGroupAssignmentChoices } from './class-native-homework.mjs';
     import { renderClassMaterials } from './class-materials-ui.mjs';
     import { renderClassProgram, topicsForClass } from './class-program-ui.mjs';
     import { renderLessonTopics, lessonBelongsToClass, lessonTopicChange } from './lesson-topics-ui.mjs';
@@ -391,7 +391,7 @@
         $('refresh').disabled = true;
         showNotice('Загружаем ' + names[view][0].toLowerCase() + '…');
         const classTasks = view === 'overview' && state.selectedClass && state.classDetailTab === 'homework' &&
-          teacherClasses().some(item => item.id === state.selectedClass && item.kind !== 'group');
+          teacherClasses().some(item => item.id === state.selectedClass);
         const selectedMaterialClass = view === 'overview' && state.selectedClass && state.classDetailTab === 'materials' &&
           teacherClasses().some(item => item.id === state.selectedClass && item.persistent);
         const selectedLessonDetail = view === 'overview' && !!state.selectedClass && !!state.selectedLesson;
@@ -424,7 +424,7 @@
             !confirm('Отменить несохранённое расписание?')) return Promise.resolve();
         if (state.view !== view && document.querySelector('#lessonPlannerForm[data-dirty="1"]') &&
             !confirm('Отменить планирование занятия без сохранения?')) return Promise.resolve();
-        if (state.view !== view && document.querySelector('#classNativeTaskForm[data-dirty="1"], #classNativeAssignForm[data-dirty="1"]') &&
+        if (state.view !== view && document.querySelector('#classNativeTaskForm[data-dirty="1"], #classNativeAssignForm[data-dirty="1"], #groupNativeAssignForm[data-dirty="1"]') &&
             !confirm('Отменить несохранённое задание?')) return Promise.resolve();
         if (state.view !== view && document.querySelector('#classMaterialLinkForm[data-dirty="1"], #classMaterialAttachForm[data-dirty="1"]') &&
             !confirm('Отменить несохранённый материал?')) return Promise.resolve();
@@ -679,6 +679,7 @@
             ? renderClassMaterials(item, state.data, safe, list)
           : tab === 'program'
             ? renderClassProgram(item, state.data, safe, list, state.topicFilter)
+          : tab === 'homework' ? renderGroupHomework(item,state.data,safe,date,list)
           : tab === 'schedule'
             ? `<section class="class-subsection">${classScheduleRules(item)}<h3>Занятия группы</h3>
                 <div class="class-tabs"><button type="button" data-class-lessons-filter="all">Все занятия</button><button type="button" data-class-lessons-filter="completed">Завершённые</button></div>
@@ -1745,7 +1746,7 @@
         logout();
       });
       $('content').addEventListener('input', event => {
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm');
         if (editor) editor.dataset.dirty = '1';
         const draft = event.target.closest('#lessonPlannerForm');
         if (draft && event.target.name === 'title') {
@@ -1767,7 +1768,8 @@
           if (shiftCalendarDay(event.target.value, 0)) state.calendarDate = event.target.value;
           render(); return;
         }
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm');
+        if(event.target.closest('#groupNativeAssignForm')) updateGroupAssignmentChoices(event.target.closest('form'),state.data);
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm');
         if (editor) editor.dataset.dirty = '1';
         if (event.target.id==='calendarPlanClass') {
           captureCalendarPlanDraft(event.target.form);
@@ -1958,6 +1960,7 @@
         if (cancelClassTask) {
           const form = cancelClassTask.closest('form');
           form?.reset();
+          if(form?.id==='groupNativeAssignForm') updateGroupAssignmentChoices(form,state.data);
           if (form) delete form.dataset.dirty;
           showNotice('');
           return;
@@ -2038,7 +2041,7 @@
         if (detailTab) {
           if (document.querySelector('#classScheduleRuleForm[data-dirty="1"]') &&
               !confirm('Отменить изменения расписания без сохранения?')) return;
-          if (document.querySelector('#classNativeTaskForm[data-dirty="1"], #classNativeAssignForm[data-dirty="1"]') &&
+          if (document.querySelector('#classNativeTaskForm[data-dirty="1"], #classNativeAssignForm[data-dirty="1"], #groupNativeAssignForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённое задание?')) return;
           if (document.querySelector('#classMaterialLinkForm[data-dirty="1"], #classMaterialAttachForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённый материал?')) return;
@@ -2103,7 +2106,7 @@
         const openClass = event.target.closest('[data-open-class]');
         if (openClass) { state.selectedLesson=null; state.editLesson=null; state.lessonFilter='all'; state.scheduleEdit = null; state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
         if (event.target.closest('[data-back-classes]')) {
-          if (document.querySelector('#classNativeTaskForm[data-dirty="1"], #classNativeAssignForm[data-dirty="1"]') &&
+          if (document.querySelector('#classNativeTaskForm[data-dirty="1"], #classNativeAssignForm[data-dirty="1"], #groupNativeAssignForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённое задание?')) return;
           if (document.querySelector('#classMaterialLinkForm[data-dirty="1"], #classMaterialAttachForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённый материал?')) return;
@@ -2554,6 +2557,15 @@
             throw new Error('Класс больше не доступен для создания задания.');
           await mutation('classNativeTask:'+item.id,'homework/native/tasks', () => ({
             programId:item.student.programId, title:formValue(form,'title'), prompt:formValue(form,'prompt')
+          }));
+        });
+        if(form.id==='groupNativeAssignForm') onForm(form,async()=>{
+          const group=teacherClasses().find(x=>x.id===form.dataset.groupId && x.kind==='group' && !x.isArchived);
+          const task=(state.data.nativeTasks || []).find(x=>x.id===formValue(form,'taskId'));
+          const membershipIds=[...form.querySelectorAll('input[name="groupMember"]:checked:not(:disabled)')].map(x=>x.value);
+          if(!group || group.id!==state.selectedClass || !task || !membershipIds.length) throw new Error('Выберите шаблон и участников группы.');
+          await mutation('groupNativeAssign:'+group.id,'homework/native/assignments',()=>({
+            groupClassId:group.id,taskId:task.id,membershipIds,deadlineHours:Number(formValue(form,'deadlineHours'))
           }));
         });
         if (form.id === 'classNativeAssignForm') onForm(form, async () => {

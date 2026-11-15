@@ -62,7 +62,21 @@ try {
     await page.locator('#loginForm [name="workspace"]').fill(account.workspace);
     await page.locator('#loginForm [name="email"]').fill(account.email);
     await page.locator('#loginForm [name="password"]').fill(password);
-    await page.locator('#loginForm button[type="submit"]').click();
+    async function submitLogin() {
+      const response=page.waitForResponse(r=>r.url()===api+'/api/v1/teacher-sessions' && r.request().method()==='POST');
+      await page.locator('#loginForm button[type="submit"]').click();
+      return response;
+    }
+    let response=await submitLogin();
+    // The expanded real-browser flow may legitimately consume the configured 5 logins/minute.
+    // Respect that production-equivalent limit; do not weaken it for the test.
+    if(response.status()===429) {
+      const retryAfter=Number(response.headers()['retry-after']);
+      await page.waitForTimeout((Number.isFinite(retryAfter) && retryAfter>0 ? Math.min(retryAfter,60) : 60)*1000);
+      await page.locator('#loginForm [name="password"]').fill(password);
+      response=await submitLogin();
+    }
+    assert.equal(response.status(),200,'Synthetic teacher login must succeed after respecting the rate window');
     await page.locator('#app:not([hidden])').waitFor();
     await page.locator('#notice').waitFor({state:'hidden'});
   }
@@ -564,6 +578,29 @@ try {
   await page.locator('[data-class-lessons-filter="completed"]').click();
   assert.equal(await page.locator('[data-open-class-lesson]').count(),1);
   await page.screenshot({path:output+'/23_completed_lessons_real.png'});
+  // Smaller UI-04 milestone: assign an existing task only to chosen group members.
+  await page.locator('[data-back-classes]').click();
+  await page.locator('[data-open-class="'+group.id+'"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="homework"]').click();
+  await page.locator('#groupNativeAssignForm [name="taskId"]').selectOption(created[0].id);
+  await page.locator('#groupNativeAssignForm [name="groupMember"][value="'+north.students[0].membershipId+'"]').check();
+  await page.locator('#groupNativeAssignForm [data-class-task-cancel]').click();
+  assert.equal(await page.locator('#groupNativeAssignForm [name="taskId"]').inputValue(),'');
+  assert.equal((await call('teacher/homework/native/assignments',north.token)).filter(x=>x.groupClassId===group.id).length,0);
+  await page.locator('#groupNativeAssignForm [name="taskId"]').selectOption(created[0].id);
+  await page.locator('#groupNativeAssignForm [name="deadlineHours"]').selectOption('72');
+  await page.locator('#groupNativeAssignForm [name="groupMember"][value="'+north.students[0].membershipId+'"]').check();
+  await page.locator('#groupNativeAssignForm button[type="submit"]').click();
+  await page.locator('[data-group-assignment]').waitFor();
+  const groupRows=(await call('teacher/homework/native/assignments',north.token)).filter(x=>x.groupClassId===group.id);
+  assert.equal(groupRows.length,1); assert.equal(groupRows[0].membershipId,north.students[0].membershipId);
+  assert.equal(Date.parse(groupRows[0].deadlineAt)-Date.parse(groupRows[0].assignedAt),72*3600000);
+  await page.reload(); await login(north);
+  await page.locator('[data-open-class="'+group.id+'"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="homework"]').click();
+  await page.locator('[data-group-assignment="'+groupRows[0].id+'"]').waitFor();
+  assert.equal(await page.locator('[data-group-assignment]').count(),1);
+  await page.screenshot({path:output+'/18_group_assignment_real.png'});
   await page.locator('#logout').click(); await login(south); await month();
   await page.locator('[data-calendar-month-day="2026-11-16"] .calendar-month-event.is-saved').filter({hasText:'Чужое контрольное занятие'}).waitFor();
   assert.equal(await page.getByText('Урок через настоящий браузер',{exact:true}).count(),0);

@@ -30,3 +30,19 @@ test('assignment selection cannot use a template from another program', () => {
   assert.equal(taskMatchesClass(null, 'math'), false);
   assert.equal(taskMatchesClass({ programId: 'math' }, ''), false);
 });
+
+test('group choices use approved members and assignments keep explicit class context',async()=>{
+  const {groupClassNativeHomework,renderGroupHomework}=await import('./class-native-homework.mjs');
+  const item={id:'g',members:[{membershipId:'a',isApproved:true},{membershipId:'b',isApproved:false}]};
+  const data={students:[{membershipId:'a',programId:'p',studentName:'<A>'},{membershipId:'b',programId:'q',studentName:'Pending'}],
+    nativeTasks:[{id:'t',programId:'p',title:'Task'},{id:'bad',programId:'q',title:'Other'}],
+    nativeAssignments:[{id:'one',groupClassId:'g',membershipId:'a',title:'Task'},{id:'unrelated',groupClassId:null,membershipId:'a'}]};
+  const view=groupClassNativeHomework(data,item);
+  assert.deepEqual(view.members.map(x=>x.membershipId),['a']);
+  assert.deepEqual(view.tasks.map(x=>x.id),['t']);
+  assert.deepEqual(view.assignments.map(x=>x.id),['one']);
+  const safe=x=>String(x??'').replaceAll('<','&lt;').replaceAll('>','&gt;');
+  const list=(xs,empty,f)=>xs.length?xs.map(f).join(''):empty;
+  assert.match(renderGroupHomework(item,data,safe,()=>'',list),/&lt;A&gt;/);
+  assert.doesNotMatch(renderGroupHomework({...item,isArchived:true},data,safe,()=>'',list),/groupNativeAssignForm/);
+});
