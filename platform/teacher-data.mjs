@@ -3,6 +3,7 @@ export const teacherPaths = {
   catalog: 'homework/catalog', assignments: 'homework/assignments',
   submissions: 'homework/submissions', subscriptions: 'subscriptions',
   nativeTasks: 'homework/native/tasks', nativeAssignments: 'homework/native/assignments',
+  materials: 'materials', classMaterialLinks: 'class-materials',
   tests: 'tests/history', liveTests: 'tests/attempts',
   mocks: 'mocks/results', mockSessions: 'mocks/sessions'
 };
@@ -24,6 +25,7 @@ export const teacherMutationKeys = {
   lessonForm: ['lessons', 'assignments'], lessonCorrectionForm: ['lessons'], lessonPlannerForm: ['lessons'],
   nativeTaskForm: ['nativeTasks'], nativeAssignForm: ['nativeAssignments'],
   classNativeTaskForm: ['nativeTasks'], classNativeAssignForm: ['nativeAssignments'],
+  classMaterialLinkForm: ['materials','classMaterialLinks'], classMaterialAttachForm: ['classMaterialLinks'],
   catalogForm: ['catalog'], homeworkForm: ['assignments'],
   subscriptionForm: ['subscriptions']
 };

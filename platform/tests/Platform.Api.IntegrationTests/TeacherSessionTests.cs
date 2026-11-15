@@ -26,6 +26,60 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     private const string ClaimCode = "synthetic-claim-code-for-integration-tests-only-2026";
 
     [Fact]
+    public async Task MaterialsPersistReuseInGroupAndRejectForeignTenants()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "materials-check-north", "mat-north@example.invalid", "owner");
+        await SeedAsync(factory, "materials-check-south", "mat-south@example.invalid", "owner");
+        var member = await SeedStudentAsync(factory, north.WorkspaceId, "Material student", true);
+        using var client = factory.CreateClient();
+        var northSession = (await (await LoginAsync(client, "materials-check-north",
+            "mat-north@example.invalid", Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", northSession.AccessToken);
+        var individual = (await (await client.PostAsJsonAsync("/api/v1/teacher/classes",
+            new TeacherCreateClassRequest(Guid.NewGuid(), member, "Materials test class")))
+            .Content.ReadFromJsonAsync<TeacherClassView>())!;
+        var group = (await (await client.PostAsJsonAsync("/api/v1/teacher/groups",
+            new TeacherCreateGroupRequest(Guid.NewGuid(), "Materials test group", [member])))
+            .Content.ReadFromJsonAsync<TeacherGroupClassView>())!;
+        var write = new TeacherClassMaterialWriteRequest(Guid.NewGuid(), individual.Id, "individual",
+            Title: "Lesson reference", Url: "https://example.org/lesson");
+        var first = await client.PostAsJsonAsync("/api/v1/teacher/class-materials", write);
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+        var material = (await first.Content.ReadFromJsonAsync<TeacherClassMaterialView>())!;
+        Assert.Equal(individual.Id, material.IndividualClassId);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/class-materials", write)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/class-materials", write with { Title = "Another" })).StatusCode);
+        foreach (var invalid in new[] { "javascript:alert(1)", "http://example.org", "https://user:pass@example.org" })
+            Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(
+                "/api/v1/teacher/class-materials", write with { RequestId = Guid.NewGuid(), Url = invalid })).StatusCode);
+        var reuse = new TeacherClassMaterialWriteRequest(Guid.NewGuid(), group.Id, "group",
+            MaterialId: material.MaterialId);
+        Assert.Equal(HttpStatusCode.Created,
+            (await client.PostAsJsonAsync("/api/v1/teacher/class-materials", reuse)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync("/api/v1/teacher/class-materials",
+                reuse with { RequestId = Guid.NewGuid() })).StatusCode);
+        Assert.Single((await client.GetFromJsonAsync<List<TeacherMaterialView>>("/api/v1/teacher/materials"))!);
+        var links = (await client.GetFromJsonAsync<List<TeacherClassMaterialView>>(
+            "/api/v1/teacher/class-materials"))!;
+        Assert.Equal(2, links.Count);
+        Assert.Contains(links, x => x.GroupClassId == group.Id && x.MaterialId == material.MaterialId);
+        var southSession = (await (await LoginAsync(client, "materials-check-south",
+            "mat-south@example.invalid", Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", southSession.AccessToken);
+        Assert.Empty((await client.GetFromJsonAsync<List<TeacherMaterialView>>("/api/v1/teacher/materials"))!);
+        Assert.Empty((await client.GetFromJsonAsync<List<TeacherClassMaterialView>>("/api/v1/teacher/class-materials"))!);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/class-materials", write with { RequestId = Guid.NewGuid() })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/class-materials",
+            reuse with { RequestId = Guid.NewGuid() })).StatusCode);
+    }
+
+    [Fact]
     public async Task PeriodPreviewUsesPersistedRulesAndLinkedStartsWithoutMutations()
     {
         await ResetAsync(factory);

@@ -76,6 +76,28 @@ try {
   // reload, then confirm tenant isolation. No fixtures or route interception.
   await login(north);
   await page.locator('[data-open-class="'+north.item.id+'"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="materials"]').click();
+  await page.locator('#classMaterialLinkForm [name="title"]').fill('Конспект к занятию');
+  await page.locator('#classMaterialLinkForm [name="url"]').fill('https://example.org/study-notes');
+  await page.locator('#classMaterialLinkForm button[type="submit"]').click();
+  await page.locator('[data-class-materials] a[href="https://example.org/study-notes"]').waitFor();
+  const createdMaterial = await call('teacher/materials', north.token);
+  const createdMaterialLinks = await call('teacher/class-materials', north.token);
+  assert.equal(createdMaterial.length,1);
+  assert.equal(createdMaterialLinks.length,1);
+  assert.equal(createdMaterialLinks[0].individualClassId,north.item.id);
+  // Attach the same library resource to a group; do not duplicate the URL record.
+  const groupMaterialLink={requestId:randomUUID(),classId:group.id,classKind:'group',materialId:createdMaterial[0].id};
+  await call('teacher/class-materials',north.token,groupMaterialLink,201);
+  await call('teacher/class-materials',north.token,groupMaterialLink,200);
+  assert.equal((await call('teacher/materials',north.token)).length,1);
+  assert.equal((await call('teacher/class-materials',north.token)).length,2);
+  assert.deepEqual(await call('teacher/materials',south.token),[]);
+  assert.deepEqual(await call('teacher/class-materials',south.token),[]);
+  await page.locator('#classMaterialLinkForm [name="title"]').fill('Не сохранено');
+  await page.locator('#classMaterialLinkForm [data-class-material-cancel]').click();
+  assert.equal(await page.locator('#classMaterialLinkForm [name="title"]').inputValue(),'');
+  await page.screenshot({path:output+'/16_class_materials_real.png'});
   await page.locator('.class-detail-tabs [data-class-detail-tab="homework"]').click();
   await page.locator('#classNativeTaskForm [name="title"]').fill('UI-04 проверка задания');
   await page.locator('#classNativeTaskForm [name="prompt"]').fill('Решите 2 + 2');
@@ -128,9 +150,13 @@ try {
   assert.equal(saved.length,4);
   assert.equal(saved.find(l=>l.title==='Урок через настоящий браузер').lessonAt.slice(0,19),'2026-11-16T06:00:00');
   await page.reload(); await login(north);
-  // Reuse the existing authenticated reload to check the UI-04 persisted record;
-  // avoid an extra login that would alter auth-rate-limit coverage.
+  // Class link and homework both survive reload against the isolated API/PostgreSQL.
   await page.locator('[data-open-class="'+north.item.id+'"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="materials"]').click();
+  await page.locator('[data-class-materials] a[href="https://example.org/study-notes"]').waitFor();
+  const restoredLinks=await call('teacher/class-materials',north.token);
+  assert.equal(restoredLinks.filter(x=>x.individualClassId===north.item.id &&
+    x.url==='https://example.org/study-notes').length,1);
   await page.locator('.class-detail-tabs [data-class-detail-tab="homework"]').click();
   await page.locator('.class-subsection .section-head .pill').filter({hasText:'1 назначений'}).waitFor();
   assert.equal(await page.locator('.class-subsection .card .item').filter({hasText:'UI-04 проверка задания'}).count()>=1,true);

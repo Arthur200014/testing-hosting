@@ -44,6 +44,7 @@ builder.Services.AddScoped<TeacherStudentArchiver>();
 builder.Services.AddScoped<TeacherStudentEditor>();
 builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddScoped<TeacherClassService>();
+builder.Services.AddScoped<TeacherMaterialService>();
 builder.Services.AddScoped<TeacherGroupService>();
 builder.Services.AddScoped<TeacherScheduleRuleService>();
 builder.Services.AddScoped<TeacherPeriodPreviewService>();
@@ -427,6 +428,35 @@ app.MapPost("/api/v1/teacher/schedule-rules/{ruleId:guid}/disable", async (
         TeacherScheduleRuleStatus.Conflict => Results.Problem(statusCode: 409,
             title: "Schedule changed. Refresh and retry."),
         _ => throw new InvalidOperationException("Unexpected schedule disable status.")
+    };
+}).RequireAuthorization("teacher");
+
+// Workspace-bound reusable materials and their class attachments.
+app.MapGet("/api/v1/teacher/materials", async (
+    ClaimsPrincipal principal, TeacherMaterialService materials, CancellationToken ct) =>
+    Results.Ok(await materials.LibraryAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), ct))
+).RequireAuthorization("teacher");
+
+app.MapGet("/api/v1/teacher/class-materials", async (
+    ClaimsPrincipal principal, TeacherMaterialService materials, CancellationToken ct) =>
+    Results.Ok(await materials.LinksAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), ct))
+).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/class-materials", async (
+    TeacherClassMaterialWriteRequest request, ClaimsPrincipal principal,
+    TeacherMaterialService materials, CancellationToken ct) =>
+{
+    var result = await materials.CreateAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), request, ct);
+    return result.Status switch
+    {
+        TeacherClassMaterialStatus.Created => Results.Created(
+            "/api/v1/teacher/class-materials", result.Response),
+        TeacherClassMaterialStatus.Duplicate => Results.Ok(result.Response),
+        TeacherClassMaterialStatus.Invalid => Results.ValidationProblem(result.Errors!),
+        TeacherClassMaterialStatus.NotFound => Results.NotFound(),
+        TeacherClassMaterialStatus.Conflict => Results.Problem(
+            statusCode: 409, title: "Material is already attached or request ID conflicts."),
+        _ => throw new InvalidOperationException("Unexpected class material write result.")
     };
 }).RequireAuthorization("teacher");
 
