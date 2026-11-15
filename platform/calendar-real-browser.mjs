@@ -227,6 +227,8 @@ try {
   assert.equal(planResult.createdLessonIds.length,2);
   assert.equal(planResult.skippedCount,1);
   await page.getByText('Создано занятий: 2. Уже были: 1.').waitFor();
+  await page.setViewportSize({width:1363,height:936});
+  await page.screenshot({path:output+'/73_period_saved_real.png'});
   assert.equal((await call('teacher/lessons',north.token)).length,beforePreview.length+2);
   const repeated=await call('teacher/schedule-rules/period-plan',north.token,planResponse.request().postDataJSON());
   assert.deepEqual(repeated,planResult);
