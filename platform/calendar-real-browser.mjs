@@ -763,7 +763,7 @@ try {
   await page.setViewportSize({width:390,height:844});
   await page.screenshot({path:output+'/48_library_reuse_real_mobile.png'});
   const libraryOverflow=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,
-    elements:[...document.querySelectorAll('[data-library], [data-library] *')].filter(x=>x.getBoundingClientRect().right>innerWidth+1).slice(0,8).map(x=>({tag:x.tagName,class:x.className,right:x.getBoundingClientRect().right}))}));
+    elements:[...document.querySelectorAll('body *')].filter(x=>x.getBoundingClientRect().right>innerWidth+1).slice(0,8).map(x=>({tag:x.tagName,class:x.className,right:x.getBoundingClientRect().right}))}));
   assert.equal(libraryOverflow.scroll>libraryOverflow.width,false,'library fits mobile: '+JSON.stringify(libraryOverflow));
   await page.setViewportSize({width:1348,height:926});
   await page.locator('#logout').click(); await login(south);
