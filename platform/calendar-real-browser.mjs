@@ -291,7 +291,9 @@ try {
   await page.locator('#lessonResultForm [name="feedback"]').fill('Уверенно решает задачи');
   await page.screenshot({path:output+'/26_lesson_result_real.png'});
   await page.setViewportSize({width:390,height:844});
-  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'result dialog fits mobile');
+  const resultOverflow=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,
+    elements:[...document.querySelectorAll('.top,.class-lesson-detail,.lesson-result-modal,.lesson-detail-side')].map(x=>({class:x.className,right:x.getBoundingClientRect().right,width:x.getBoundingClientRect().width}))}));
+  assert.equal(resultOverflow.scroll>resultOverflow.width,false,'result dialog fits mobile: '+JSON.stringify(resultOverflow));
   await page.locator('#lessonResultForm button[type="submit"]').click();
   await page.locator('.lesson-result-modal').waitFor({state:'detached'});
   await page.locator('[data-student-feedback]').filter({hasText:'Уверенно решает задачи'}).waitFor();
