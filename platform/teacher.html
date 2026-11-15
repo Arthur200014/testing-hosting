@@ -323,6 +323,7 @@
     import { nativeHomeworkDeadlineStatus } from './homework-deadline.mjs';
     import { individualClassNativeHomework, taskMatchesClass } from './class-native-homework.mjs';
     import { renderClassMaterials } from './class-materials-ui.mjs';
+    import { renderClassProgram, topicsForClass } from './class-program-ui.mjs';
     import { renderLessonMaterials } from './lesson-materials-ui.mjs';
     (() => {
       'use strict';
@@ -393,7 +394,10 @@
         const selectedMaterialClass = view === 'overview' && state.selectedClass && state.classDetailTab === 'materials' &&
           teacherClasses().some(item => item.id === state.selectedClass && item.persistent);
         const selectedLessonDetail = view === 'overview' && !!state.selectedClass && !!state.selectedLesson;
+        const selectedProgramClass = view === 'overview' && state.selectedClass && state.classDetailTab === 'program' &&
+          teacherClasses().some(item => item.id === state.selectedClass && item.persistent);
         const extra = selectedLessonDetail ? ['materials','lessonMaterialLinks'] :
+          selectedProgramClass ? ['classTopics','topicMaterialLinks','materials'] :
           selectedMaterialClass ? ['materials','classMaterialLinks'] :
           classTasks ? ['nativeTasks','nativeAssignments'] :
           view === 'overview' && state.classTab === 'statistics' ? ['assignments','nativeAssignments'] : [];
@@ -425,6 +429,8 @@
             !confirm('Отменить несохранённый материал?')) return Promise.resolve();
         if (state.view !== view && document.querySelector('#lessonMaterialAttachForm[data-dirty="1"]') &&
             !confirm('Отменить несохранённое прикрепление материала?')) return Promise.resolve();
+        if (state.view !== view && document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"]') &&
+            !confirm('Отменить несохранённую тему или материал программы?')) return Promise.resolve();
         state.view = view;
         if (view !== 'lessons') state.lessonPlan = null;
         if (view !== 'overview') state.scheduleEdit = null;
@@ -670,6 +676,8 @@
             ? `<section class="class-subsection">${metadata}${roster}${groupInvitePanel(item)}</section>`
           : tab === 'materials'
             ? renderClassMaterials(item, state.data, safe, list)
+          : tab === 'program'
+            ? renderClassProgram(item, state.data, safe, list)
           : tab === 'schedule'
             ? `<section class="class-subsection">${classScheduleRules(item)}<h3>Занятия группы</h3>
                 <div class="class-tabs"><button type="button" data-class-lessons-filter="all">Все занятия</button><button type="button" data-class-lessons-filter="completed">Завершённые</button></div>
@@ -850,8 +858,7 @@
               </div>`)}
             <button class="primary" type="button" data-schedule-class="${safe(item.id)}">＋ Добавить занятие</button></section>`,
           materials: renderClassMaterials(item, state.data, safe, list),
-          program: `<section class="class-subsection"><h3>Программа обучения</h3>
-            <p>${safe(item.student.programName)}</p><p class="muted small">Содержание программы класса будет доступно после подключения отдельного редактора.</p></section>`,
+          program: renderClassProgram(item, state.data, safe, list),
           homework: classNativeTasksTab(item),
           payment: `<section class="class-subsection class-feature-note"><h3>Оплата</h3>
             <p>${item.priceAmount == null ? 'Стоимость не задана.' : 'Условие: ' + safe(item.priceAmount) + ' ' + safe(item.priceCurrency) + (item.priceBasis === 'month' ? ' в месяц' : ' за занятие')}</p>
@@ -1730,7 +1737,7 @@
         logout();
       });
       $('content').addEventListener('input', event => {
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm');
         if (editor) editor.dataset.dirty = '1';
         const draft = event.target.closest('#lessonPlannerForm');
         if (draft && event.target.name === 'title') {
@@ -1752,7 +1759,7 @@
           if (shiftCalendarDay(event.target.value, 0)) state.calendarDate = event.target.value;
           render(); return;
         }
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm');
         if (editor) editor.dataset.dirty = '1';
         if (event.target.id==='calendarPlanClass') {
           captureCalendarPlanDraft(event.target.form);
@@ -1950,6 +1957,28 @@
           form?.reset(); if (form) delete form.dataset.dirty;
           showNotice(''); return;
         }
+        const cancelTopicForm = event.target.closest('[data-topic-form-cancel]');
+        if (cancelTopicForm) {
+          const form=cancelTopicForm.closest('form');
+          form?.reset(); if (form) delete form.dataset.dirty;
+          showNotice(''); return;
+        }
+        const moveTopic = event.target.closest('[data-move-topic]');
+        if (moveTopic) {
+          const item=teacherClasses().find(x=>x.id===state.selectedClass && x.persistent && !x.isArchived);
+          const order=item ? topicsForClass(item,state.data).map(x=>x.id) : [];
+          if (!item || !order.includes(moveTopic.dataset.moveTopic)) return;
+          if (document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"]') &&
+              !confirm('Отменить несохранённые изменения перед перестановкой?')) return;
+          moveTopic.disabled=true;
+          try {
+            await api('teacher/class-topics/move',{method:'POST',body:{
+              topicId:moveTopic.dataset.moveTopic,direction:moveTopic.dataset.direction,expectedOrder:order
+            }});
+            invalidate(['classTopics']); await refresh();
+          } catch(error) { showNotice(error.message,true); if(moveTopic.isConnected) moveTopic.disabled=false; }
+          return;
+        }
         const cancelMaterial = event.target.closest('[data-class-material-cancel]');
         if (cancelMaterial) {
           const form = cancelMaterial.closest('form');
@@ -1964,8 +1993,10 @@
               !confirm('Отменить несохранённое задание?')) return;
           if (document.querySelector('#classMaterialLinkForm[data-dirty="1"], #classMaterialAttachForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённый материал?')) return;
+          if (document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"]') &&
+              !confirm('Отменить несохранённые изменения программы?')) return;
           state.scheduleEdit = null; state.classDetailTab = detailTab.dataset.classDetailTab;
-          if (state.classDetailTab === 'homework' || state.classDetailTab === 'materials') await refresh(); else render();
+          if (state.classDetailTab === 'homework' || state.classDetailTab === 'materials' || state.classDetailTab === 'program') await refresh(); else render();
           return;
         }
         const sectionLink = event.target.closest('[data-class-section]');
@@ -2027,6 +2058,8 @@
               !confirm('Отменить несохранённое задание?')) return;
           if (document.querySelector('#classMaterialLinkForm[data-dirty="1"], #classMaterialAttachForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённый материал?')) return;
+          if (document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"]') &&
+              !confirm('Отменить несохранённые изменения программы?')) return;
           if (document.querySelector('#classScheduleRuleForm[data-dirty="1"]') &&
               !confirm('Отменить изменения расписания без сохранения?')) return;
           state.scheduleEdit = null; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
@@ -2406,6 +2439,23 @@
           if (!(state.data.materials || []).some(x=>x.id===materialId))
             throw new Error('Выберите материал из библиотеки.');
           await mutation('lessonMaterial:'+lessonId,'lesson-materials',()=>({lessonId,materialId}));
+        });
+        if (form.id === 'classTopicForm') onForm(form, async () => {
+          const item=teacherClasses().find(x=>x.id===form.dataset.classId && x.kind===form.dataset.kind &&
+            x.persistent && !x.isArchived);
+          if (!item || item.id!==state.selectedClass) throw new Error('Класс недоступен.');
+          await mutation('classTopic:'+item.id,'class-topics',()=>({
+            classId:item.id,classKind:item.kind,title:formValue(form,'title'),plan:formValue(form,'plan')
+          }));
+        });
+        if (form.id === 'topicMaterialAttachForm') onForm(form, async () => {
+          const item=teacherClasses().find(x=>x.id===form.dataset.classId && x.persistent && !x.isArchived);
+          const topicId=formValue(form,'topicId'), materialId=formValue(form,'materialId');
+          if (!item || item.id!==state.selectedClass ||
+              !topicsForClass(item,state.data).some(x=>x.id===topicId) ||
+              !(state.data.materials || []).some(x=>x.id===materialId))
+            throw new Error('Выберите тему и материал своего класса.');
+          await mutation('topicMaterial:'+topicId,'topic-materials',()=>({topicId,materialId}));
         });
         if (form.id === 'classMaterialLinkForm' || form.id === 'classMaterialAttachForm') onForm(form, async () => {
           const item = teacherClasses().find(x => x.persistent && x.id === form.dataset.classId &&
