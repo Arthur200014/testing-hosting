@@ -14,6 +14,7 @@ spec.loader.exec_module(mod)
 class Handler(http.server.BaseHTTPRequestHandler):
     calls = []
     unauthorized = True
+    new_preview_route = True
 
     def do_GET(self):
         Handler.calls.append((self.command, self.path))
@@ -23,6 +24,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
             code = 200
         else:
             code = 404
+        self.send_response(code)
+        self.end_headers()
+        self.wfile.write(b"synthetic")
+
+    def do_POST(self):
+        Handler.calls.append((self.command, self.path))
+        code = 401 if (self.path == mod.NEW_API_PROBE and Handler.new_preview_route) else 405
         self.send_response(code)
         self.end_headers()
         self.wfile.write(b"synthetic")
@@ -47,14 +55,23 @@ class ReadOnlyProbeTests(unittest.TestCase):
     def setUp(self):
         Handler.calls = []
         Handler.unauthorized = True
+        Handler.new_preview_route = True
 
-    def test_four_safe_gets_return_health_and_no_anonymous_data(self):
+    def test_four_gets_and_anonymous_preview_without_writes(self):
         results = mod.check_all(self.origin)
-        self.assertEqual(len(results), 4)
+        self.assertEqual(len(results), 5)
         self.assertTrue(all(item.ok for item in results))
         self.assertEqual(results[-1].status, 401)
         self.assertGreaterEqual(results[0].total_ms, 0)
-        self.assertEqual(Handler.calls, [("GET", path) for path, _ in mod.CHECKS])
+        expected_calls = [("GET", path) for path, _ in mod.CHECKS]
+        expected_calls.append(("POST", mod.NEW_API_PROBE))
+        self.assertEqual(Handler.calls, expected_calls)
+
+    def test_old_api_missing_post_route_is_detected(self):
+        Handler.new_preview_route = False
+        result = mod.probe(self.origin, mod.NEW_API_PROBE, {401, 403}, method="POST")
+        self.assertFalse(result.ok)
+        self.assertEqual(result.status, 405)
 
     def test_unprotected_teacher_endpoint_is_detected(self):
         Handler.unauthorized = False
