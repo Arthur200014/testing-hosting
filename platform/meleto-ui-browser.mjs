@@ -770,7 +770,10 @@ try {
   await page.evaluate(()=>window.scrollTo(0,0));
   await page.screenshot({path:output+'/37_calendar_day.png',fullPage:true});
   await page.setViewportSize({width:390,height:844});
-  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'calendar fits mobile width');
+  const overflow = await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,
+    elements:[...document.querySelectorAll('body *')].filter(el=>{const r=el.getBoundingClientRect();return r.width && (r.right>innerWidth+1 || r.left < -1);})
+      .slice(0,12).map(el=>({tag:el.tagName,class:el.className,width:el.getBoundingClientRect().width}))}));
+  assert.equal(overflow.scroll>overflow.width,false,'calendar fits mobile width: '+JSON.stringify(overflow));
   await page.screenshot({path:output+'/37_calendar_day_mobile.png'});
   assert.equal(unexpectedWrites,0);
   console.log('PASS: day calendar reload, navigation, separate lesson/rule states and timezone-safe planner');
