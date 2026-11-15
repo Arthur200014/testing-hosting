@@ -2,13 +2,20 @@
 
 **UPDATED:** 2026-11-15
 **ACTIVE_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — Meleto UI-01…UI-08
-**ACTIVE_TASK:** UI-04 IN_PROGRESS — reusable class and lesson HTTPS materials shipped. Next: program topics, ordering and attaching library materials to topics (ref 17). Owner requested no Timeweb checks.
-**ACTIVE_BRANCH:** main — [PR #69](https://github.com/Arthur200014/testing-hosting/pull/69) merged; no open implementation branch.
-**LAST_IMPLEMENTATION_COMMIT:** `980bb5ac457a6dc1838a158186384aa646d13f19` (UI-04 lesson material links).
+**ACTIVE_TASK:** UI-04 IN_PROGRESS — class program topics, ordered plans and links from reusable material library shipped to main (Meleto ref 17). Next: topic completion/progress filters. Owner requested no Timeweb checks.
+**ACTIVE_BRANCH:** main — [PR #70](https://github.com/Arthur200014/testing-hosting/pull/70) merged; no open implementation branch.
+**LAST_IMPLEMENTATION_COMMIT:** `ca67374713dd85ff13af9528ac23b9fb9caa5ba4` (UI-04 class program topics).
 **MERGED_SHA (UI-03):** `1ff449cc1e36bee31973c8229bd9e5279ea25020`.
 **RELEASE_PROBE_SHA (earlier UI-03):** `11e0a92ea4eada6db6b670a9b8e8983fb5509edc`.
-**MERGED_SHA (UI-04 lesson materials):** `980bb5ac457a6dc1838a158186384aa646d13f19`.
-**NEXT_ACTION:** Continue UI-04: implement **program topics / topic order / attached existing library material** in the class program tab (Meleto ref 17; inspect topic model, existing Program semantics and one reference). One scoped create/list/reorder or attachment flow at a time with tenant-safe API/DB, isolated PostgreSQL+browser acceptance, merge and Pages release. Keep existing teacher data/imports untouched. Backend API revision and additive migrations on Timeweb remain **NOT_VERIFIED** per owner's explicit request to skip checking; no designated live test workspace so **LIVE_WRITE_NOT_RUN**. No claim of full UI-04 completion, file upload or recordings.
+**MERGED_SHA (UI-04 topics):** `ca67374713dd85ff13af9528ac23b9fb9caa5ba4`.
+**NEXT_ACTION:** Continue UI-04 Meleto ref 17: topic progress/completion and filters for **unassigned / completed**, with scoped status updates and regression check; subsequently link existing topics to particular lessons without conflating a Topic with a Lesson or the legacy LearningProgram. Inspect current API/lesson model and only relevant reference PNG; keep synthetic isolated PostgreSQL/Chromium verification. Backend API revision and additive migrations on Timeweb remain **NOT_VERIFIED** per owner's request not to check; **LIVE_WRITE_NOT_RUN** without designated test workspace. No claim of full UI-04, file uploads, recording, real billing or chat completion.
+
+## UI-04 class program topics milestone (2026-11-15)
+
+- **PR #70 MERGED:** `ca67374713dd85ff13af9528ac23b9fb9caa5ba4`. A distinct workspace-bound `TeacherClassTopics` model and `TeacherTopicMaterialLinks` (not `LearningProgram`) are created by additive migration `20261116030000_TeacherClassProgramTopics`. Individual/group classes have ordered topics with editable position, title, plan and reusable library links; auth/tenant FKs, request ID idempotency, conflict detection and archive read-only. No historic import and no existing records changed.
+- **FRONTEND_DEPLOY PASS:** merged-code GitHub Pages [43752078529](https://github.com/Arthur200014/testing-hosting/actions/runs/43752078529), published `https://arthur200014.github.io/testing-hosting/platform/teacher.html`.
+- **BRANCH TESTS PASS:** [TAS CI 43751717400](https://github.com/Arthur200014/testing-hosting/actions/runs/43751717400), [PostgreSQL integration 43751717802](https://github.com/Arthur200014/testing-hosting/actions/runs/43751717802), [isolated Chromium + API/PostgreSQL 43751717398](https://github.com/Arthur200014/testing-hosting/actions/runs/43751717398). Scenarios: create/replay/cancel, multi-topic order and move, material link without duplication, reload, group ownership, foreign workspace 404/empty; screenshot `17_class_program_real.png`.
+- **VISUAL MATCH: PARTIAL:** functional Meleto ref 17 program cards implemented, but completion/progress filters, lesson-topic relationship, assignment association and final pixel-matched view remain incomplete. **TIMEWEB API/MIGRATION: NOT_VERIFIED** per owner; real deployment might require existing automatic API migration. **LIVE_WRITE_NOT_RUN** (no dedicated test workspace).
 
 ## UI-04 lesson material attachment milestone (2026-11-15)
 
