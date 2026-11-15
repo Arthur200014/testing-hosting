@@ -31,6 +31,10 @@ public sealed class TeacherLessonTopicService(PlatformDbContext db, TimeProvider
             byLesson[x.Id].Order().ToArray())).ToList();
     }
 
+    private static bool IsWriteConflict(Exception error) => error is PostgresException pg
+        ? pg.SqlState is "40001" or "40P01" or "23505"
+        : error.InnerException is { } inner && IsWriteConflict(inner);
+
     public async Task<TeacherLessonTopicResult> ReplaceAsync(
         Guid workspaceId, TeacherLessonTopicRequest request, CancellationToken ct)
     {
@@ -80,11 +84,7 @@ public sealed class TeacherLessonTopicService(PlatformDbContext db, TimeProvider
             await tx.CommitAsync(ct);
             return new(TeacherLessonTopicStatus.Updated, new(lesson.Id, lesson.TopicRevision + 1, desired));
         }
-        catch (PostgresException ex) when (ex.SqlState is "40001" or "40P01" or "23505")
-        {
-            return new(TeacherLessonTopicStatus.Conflict);
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg && pg.SqlState is "40001" or "40P01" or "23505")
+        catch (Exception ex) when (IsWriteConflict(ex))
         {
             return new(TeacherLessonTopicStatus.Conflict);
         }

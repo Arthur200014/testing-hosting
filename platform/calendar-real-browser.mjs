@@ -218,6 +218,11 @@ try {
   await page.locator('#topicLessonAttachForm [name="lessonId"]').selectOption(linkedLessonId);
   await page.locator('#topicLessonAttachForm button[type="submit"]').click();
   await page.locator('[data-topic-lessons="'+firstTopic+'"] [data-open-class-lesson="'+linkedLessonId+'"]').waitFor();
+  await page.locator('#classTopicForm [name="title"]').fill('Несохранённый план');
+  page.once('dialog',dialog=>dialog.dismiss());
+  await page.locator('[data-topic-lessons="'+firstTopic+'"] [data-open-class-lesson="'+linkedLessonId+'"]').click();
+  assert.equal(await page.locator('#classTopicForm [name="title"]').inputValue(),'Несохранённый план');
+  await page.locator('#classTopicForm [data-topic-form-cancel]').click();
   await page.locator('[data-topic-lessons="'+firstTopic+'"] [data-open-class-lesson="'+linkedLessonId+'"]').click();
   await page.locator('[data-lesson-topic="'+firstTopic+'"] a[href="https://example.org/study-notes"]').waitFor();
   await page.locator('[data-lesson-topic="'+firstTopic+'"]').getByText('UI-04 проверка задания',{exact:true}).waitFor();
