@@ -81,8 +81,16 @@ public sealed class NativeHomeworkService(PlatformDbContext db, TimeProvider clo
         return (201, items.Select(x => x.Id).ToArray());
     }
 
-    public async Task<List<NativeAssignmentView>> TeacherAssignmentsAsync(Guid workspace, CancellationToken ct) =>
-        await Query(workspace).OrderByDescending(x => x.AssignedAt).Take(300)
+    public async Task<List<NativeAssignmentView>?> GroupAssignmentsAsync(Guid workspace, Guid groupId, CancellationToken ct)
+    {
+        if (!await db.TeacherGroupClasses.AsNoTracking().AnyAsync(x => x.WorkspaceId == workspace && x.Id == groupId, ct))
+            return null;
+        return await TeacherAssignmentsAsync(workspace, ct, groupId);
+    }
+
+    public async Task<List<NativeAssignmentView>> TeacherAssignmentsAsync(Guid workspace, CancellationToken ct, Guid? groupId = null) =>
+        await Query(workspace).Where(x => groupId == null || x.GroupClassId == groupId)
+            .OrderByDescending(x => x.AssignedAt).ThenByDescending(x => x.Id).Take(300)
             .Select(x => new NativeAssignmentView(x.Id, x.TaskId, x.MembershipId, x.ProgramId,
                 db.NativeHomeworkTasks.Where(t => t.Id == x.TaskId && t.WorkspaceId == workspace).Select(t => t.Title).First(),
                 db.NativeHomeworkTasks.Where(t => t.Id == x.TaskId && t.WorkspaceId == workspace).Select(t => t.Prompt).First(),

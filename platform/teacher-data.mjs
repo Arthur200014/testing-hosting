@@ -9,6 +9,15 @@ export const teacherPaths = {
   mocks: 'mocks/results', mockSessions: 'mocks/sessions'
 };
 
+// Cache each group independently; never fall back to the truncated workspace feed.
+export function groupHomeworkKey(id) { return 'groupHomework:' + id; }
+export function teacherResourcePath(key) {
+  if (Object.hasOwn(teacherPaths, key)) return teacherPaths[key];
+  const match = /^groupHomework:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(key);
+  if (match) return 'groups/' + match[1] + '/homework';
+  throw new Error('Unknown teacher resource: ' + key);
+}
+
 export const teacherNeeds = {
   overview: ['classes', 'groups', 'students', 'lessons', 'scheduleRules'],
   students: ['students', 'programs'],
@@ -47,7 +56,7 @@ export function invalidateTeacherData(state) {
 // Per-key versions also reject older in-flight responses from before the write.
 export function invalidateTeacherKeys(state, keys) {
   for (const key of keys) {
-    if (!Object.hasOwn(teacherPaths, key)) throw new Error('Unknown teacher resource: ' + key);
+    teacherResourcePath(key);
     state.keyVersions ||= {};
     state.keyVersions[key] = (state.keyVersions[key] || 0) + 1;
     delete state.data[key];
@@ -65,7 +74,7 @@ export function loadTeacherKey(state, key, request, onUpdate, force = false, now
   // invalidateTeacherData, preventing cross-session or post-write stale data.
   const generation = state.generation;
   const keyVersion = state.keyVersions?.[key] || 0;
-  const promise = Promise.resolve().then(() => request(teacherPaths[key])).then(value => {
+  const promise = Promise.resolve().then(() => request(teacherResourcePath(key))).then(value => {
     if (generation !== state.generation || keyVersion !== (state.keyVersions?.[key] || 0)) return;
     state.data[key] = value;
     state.loadedAt[key] = now();

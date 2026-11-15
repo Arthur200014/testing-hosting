@@ -36,7 +36,7 @@ test('group choices use approved members and assignments keep explicit class con
   const item={id:'g',members:[{membershipId:'a',isApproved:true},{membershipId:'b',isApproved:false}]};
   const data={students:[{membershipId:'a',programId:'p',studentName:'<A>'},{membershipId:'b',programId:'q',studentName:'Pending'}],
     nativeTasks:[{id:'t',programId:'p',title:'Task'},{id:'bad',programId:'q',title:'Other'}],
-    nativeAssignments:[{id:'one',groupClassId:'g',membershipId:'a',title:'Task'},{id:'unrelated',groupClassId:null,membershipId:'a'}]};
+    'groupHomework:g':[{id:'one',groupClassId:'g',membershipId:'a',title:'Task'},{id:'unrelated',groupClassId:null,membershipId:'a'}]};
   const view=groupClassNativeHomework(data,item);
   assert.deepEqual(view.members.map(x=>x.membershipId),['a']);
   assert.deepEqual(view.tasks.map(x=>x.id),['t']);
@@ -45,4 +45,14 @@ test('group choices use approved members and assignments keep explicit class con
   const list=(xs,empty,f)=>xs.length?xs.map(f).join(''):empty;
   assert.match(renderGroupHomework(item,data,safe,()=>'',list),/&lt;A&gt;/);
   assert.doesNotMatch(renderGroupHomework({...item,isArchived:true},data,safe,()=>'',list),/groupNativeAssignForm/);
+});
+
+
+test('group history never falls back to workspace feed; status handles zero grades', async () => {
+  const { groupClassNativeHomework, groupHomeworkStatus } = await import('./class-native-homework.mjs');
+  assert.deepEqual(groupClassNativeHomework({nativeAssignments:[{groupClassId:'g'}]}, {id:'g'}).assignments, []);
+  assert.equal(groupHomeworkStatus({scorePercent:0,submittedAt:'2026-01-01'}),'graded');
+  assert.equal(groupHomeworkStatus({submittedAt:'2026-01-01'}),'submitted');
+  assert.equal(groupHomeworkStatus({deadlineAt:'2000-01-01'}),'overdue');
+  assert.equal(groupHomeworkStatus({deadlineAt:'2100-01-01'}),'awaiting');
 });
