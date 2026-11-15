@@ -183,7 +183,7 @@ try {
   await page.locator('#classNativeAssignForm [name="taskId"]').selectOption({label:'UI-04 проверка задания'});
   await page.locator('#classNativeAssignForm [name="deadlineHours"]').selectOption('48');
   await page.locator('#classNativeAssignForm button[type="submit"]').click();
-  await page.locator('.class-subsection .section-head .pill').filter({hasText:'1 назначений'}).waitFor();
+  await page.locator('[data-group-assignment]').waitFor();
   const assigned=await call('teacher/homework/native/assignments',north.token);
   assert.equal(assigned.filter(x=>x.membershipId===north.students[0].membershipId && x.title==='UI-04 проверка задания').length,1);
   const created=await call('teacher/homework/native/tasks',north.token);
@@ -284,8 +284,10 @@ try {
   assert.equal(await page.locator('[data-lesson-participant]').count(),2);
   await page.locator('#lessonMaterialAttachForm [name="materialId"]').selectOption(createdMaterial[0].id);
   await page.locator('#lessonTopicSetForm input[value="'+pairTopic.id+'"]').uncheck();
-  page.once('dialog',dialog=>dialog.dismiss());
-  await page.locator('#lessonMaterialAttachForm button[type="submit"]').click();
+  await Promise.all([
+    page.waitForEvent('dialog').then(dialog=>dialog.dismiss()),
+    page.locator('#lessonMaterialAttachForm button[type="submit"]').click()
+  ]);
   assert.equal(await page.locator('#lessonTopicSetForm input[value="'+pairTopic.id+'"]').isChecked(),false);
   assert.equal((await call('teacher/lesson-materials',north.token)).length,1);
   await page.locator('#lessonMaterialAttachForm [data-lesson-material-cancel]').click();
@@ -367,8 +369,8 @@ try {
   assert.equal(restoredLinks.filter(x=>x.individualClassId===north.item.id &&
     x.url==='https://example.org/study-notes').length,1);
   await page.locator('.class-detail-tabs [data-class-detail-tab="homework"]').click();
-  await page.locator('.class-subsection .section-head .pill').filter({hasText:'1 назначений'}).waitFor();
-  assert.equal(await page.locator('.class-subsection .card .item').filter({hasText:'UI-04 проверка задания'}).count()>=1,true);
+  await page.locator('[data-group-assignment]').waitFor();
+  assert.equal(await page.locator('[data-context-homework] [data-group-assignment]').filter({hasText:'UI-04 проверка задания'}).count(),1);
   await month();
   assert.equal(await page.locator('[data-calendar-month-day="2026-11-16"] [data-calendar-more]').innerText(),'ещё 3');
   await page.screenshot({path:output+'/39_calendar_month_real.png'});
@@ -632,6 +634,71 @@ try {
   const reviewed=(await call(groupPath,north.token))[0];
   assert.equal(reviewed.scorePercent,85);assert.equal(reviewed.teacherFeedback,'Верный ход решения');
   await page.screenshot({path:output+'/18_group_review_real.png'});
+  // Related UI-04 block: shared templates and persisted lesson context, both class formats.
+  await page.locator('#groupNativeTaskForm [name="title"]').fill('Групповой шаблон из класса');
+  await page.locator('#groupNativeTaskForm [name="prompt"]').fill('Общее условие для пары');
+  await page.locator('#groupNativeTaskForm button[type="submit"]').click();
+  await page.locator('#groupNativeAssignForm [name="taskId"] option').filter({hasText:'Групповой шаблон из класса'}).waitFor({state:'attached'});
+  assert.equal((await call(groupPath,north.token)).length,1,'creating a template must not assign it');
+  const groupTask=(await call('teacher/homework/native/tasks',north.token)).find(t=>t.title==='Групповой шаблон из класса');
+  await page.locator('.class-detail-tabs [data-class-detail-tab="schedule"]').click();
+  await page.locator('[data-class-lessons-filter="all"]').click();
+  await page.locator('[data-open-class-lesson="'+grouped.id+'"]').click();
+  await page.locator('#lessonNativeAssignForm [name="taskId"]').selectOption(groupTask.id);
+  await page.locator('#lessonNativeAssignForm [name="groupMember"][value="'+north.students[0].membershipId+'"]').check();
+  await page.locator('#lessonNativeAssignForm button[type="submit"]').click();
+  await page.locator('[data-context-homework] [data-group-assignment]').waitFor();
+  const groupLessonRows=await call('teacher/lessons/'+grouped.id+'/homework',north.token);
+  assert.equal(groupLessonRows.length,1);assert.equal(groupLessonRows[0].groupClassId,group.id);
+  assert.equal(groupLessonRows[0].lessonId,grouped.id);assert.equal(groupLessonRows[0].taskId,groupTask.id);
+  assert.equal((await call(groupPath,north.token)).length,2);
+  await call('teacher/lessons/'+grouped.id+'/homework',south.token,undefined,404);
+  await page.locator('[data-back-classes]').click();
+  await page.locator('[data-open-class="'+north.item.id+'"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="homework"]').click();
+  await page.locator('#classNativeAssignForm [name="taskId"] option[value="'+groupTask.id+'"]').waitFor({state:'attached'});
+  assert.equal((await call('teacher/classes/'+north.item.id+'/homework',north.token)).some(x=>x.groupClassId===group.id),false);
+  await page.locator('.class-detail-tabs [data-class-detail-tab="schedule"]').click();
+  await page.locator('[data-class-lessons-filter="all"]').click();
+  await page.locator('[data-open-class-lesson="'+linkedLessonId+'"]').click();
+  await page.locator('#lessonNativeTaskForm [name="title"]').fill('Задание из индивидуального урока');
+  await page.locator('#lessonNativeTaskForm [name="prompt"]').fill('Решите 3 + 3');
+  await page.locator('#refresh').click(); await page.locator('#notice').waitFor({state:'hidden'});
+  assert.equal(await page.locator('#lessonNativeTaskForm [name="title"]').inputValue(),'Задание из индивидуального урока');
+  assert.equal(await page.locator('#lessonNativeTaskForm [name="prompt"]').inputValue(),'Решите 3 + 3');
+  await page.locator('#lessonNativeTaskForm [data-class-task-cancel]').click();
+  assert.equal((await call('teacher/homework/native/tasks',north.token)).some(t=>t.title==='Задание из индивидуального урока'),false);
+  await page.locator('#lessonNativeTaskForm [name="title"]').fill('Задание из индивидуального урока');
+  await page.locator('#lessonNativeTaskForm [name="prompt"]').fill('Решите 3 + 3');
+  await page.locator('#lessonNativeTaskForm button[type="submit"]').click();
+  await page.locator('#lessonNativeAssignForm [name="taskId"] option').filter({hasText:'Задание из индивидуального урока'}).waitFor({state:'attached'});
+  const individualTask=(await call('teacher/homework/native/tasks',north.token)).find(t=>t.title==='Задание из индивидуального урока');
+  await page.locator('#lessonNativeAssignForm [name="taskId"]').selectOption(individualTask.id);
+  await page.locator('#lessonNativeAssignForm [data-class-task-cancel]').click();
+  assert.deepEqual(await call('teacher/lessons/'+linkedLessonId+'/homework',north.token),[]);
+  await page.locator('#lessonNativeAssignForm [name="taskId"]').selectOption(individualTask.id);
+  await page.locator('#lessonNativeAssignForm [name="deadlineHours"]').selectOption('48');
+  await page.locator('#lessonNativeAssignForm button[type="submit"]').click();
+  await page.locator('[data-context-homework] [data-group-assignment]').waitFor();
+  const [lessonHomework]=await call('teacher/lessons/'+linkedLessonId+'/homework',north.token);
+  assert.equal(lessonHomework.individualClassId,north.item.id);assert.equal(lessonHomework.lessonId,linkedLessonId);
+  assert.equal(lessonHomework.taskId,individualTask.id);
+  await page.reload();await login(north);
+  await page.locator('[data-open-class="'+north.item.id+'"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="homework"]').click();
+  await page.locator('[data-group-assignment="'+lessonHomework.id+'"]').waitFor();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="schedule"]').click();
+  await page.locator('[data-class-lessons-filter="all"]').click();
+  await page.locator('[data-open-class-lesson="'+linkedLessonId+'"]').click();
+  await page.locator('[data-group-assignment="'+lessonHomework.id+'"]').waitFor();
+  assert.equal((await call('teacher/lessons/'+linkedLessonId+'/homework',north.token)).length,1);
+  await page.setViewportSize({width:390,height:844});
+  const homeworkOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);
+  assert.equal(homeworkOverflow,false,'context homework fits mobile');
+  await page.setViewportSize({width:1348,height:926});
+  await page.locator('[data-context-homework]').scrollIntoViewIfNeeded();
+  await page.screenshot({path:output+'/18_individual_lesson_homework_real.png'});
+
 
   await page.locator('#logout').click(); await login(south); await month();
   await page.locator('[data-calendar-month-day="2026-11-16"] .calendar-month-event.is-saved').filter({hasText:'Чужое контрольное занятие'}).waitFor();

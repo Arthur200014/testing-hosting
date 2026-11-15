@@ -40,6 +40,7 @@ export function renderClassProgram(item, data, safe, list, filter = 'all') {
   });
   return `<section class="class-subsection stack" data-class-program="${safe(item.id)}">
     <div class="section-head"><h3>Программа класса</h3><span class="pill">Пройдено ${completed} из ${topics.length}</span></div>
+    <button type="button" class="secondary" data-class-detail-tab="homework">Шаблоны и назначения ДЗ</button>
     <div class="row" role="group" aria-label="Фильтр тем">
       <button type="button" class="secondary small-button" data-topic-filter="all" aria-pressed="${filter==='all'}">Все темы</button>
       <button type="button" class="secondary small-button" data-topic-filter="without-task" aria-pressed="${filter==='without-task'}">Без задания</button>

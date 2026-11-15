@@ -203,6 +203,15 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 .HasForeignKey(x => new { x.WorkspaceId, x.GroupClassId })
                 .HasPrincipalKey(x => new { x.WorkspaceId, x.Id }).OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("FK_NativeAssignments_Group");
+            entity.HasIndex(x => new { x.WorkspaceId, x.IndividualClassId });
+            entity.HasOne<TeacherClass>().WithMany().HasForeignKey(x => new { x.WorkspaceId, x.IndividualClassId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id }).OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_NativeAssignments_Class");
+            entity.HasIndex(x => new { x.WorkspaceId, x.LessonId });
+            entity.HasOne<Lesson>().WithMany().HasForeignKey(x => new { x.WorkspaceId, x.LessonId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id }).OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_NativeAssignments_Lesson");
+            entity.ToTable(t => t.HasCheckConstraint("CK_NativeAssignments_ClassContext", "\"GroupClassId\" IS NULL OR \"IndividualClassId\" IS NULL"));
             entity.HasIndex(x => new { x.WorkspaceId, x.RequestId, x.MembershipId }).IsUnique();
             entity.HasIndex(x => new { x.WorkspaceId, x.MembershipId, x.AssignedAt });
             entity.Property(x => x.Answer).HasMaxLength(10000);
