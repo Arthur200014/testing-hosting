@@ -126,3 +126,23 @@ test('an old response cannot overwrite a targeted post-write refresh, but unrela
   assert.equal(Object.keys(state.data).length, 0);
   assert.equal(Object.keys(state.keyVersions).length, 0);
 });
+
+
+test('group cache keys use scoped endpoint and reject stale post-write responses', async () => {
+  const { groupHomeworkKey, teacherResourcePath } = await import('./teacher-data.mjs');
+  const id='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', other='bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+  const key=groupHomeworkKey(id), state=freshState();
+  assert.equal(teacherResourcePath(key),'groups/'+id+'/homework');
+  assert.throws(()=>teacherResourcePath('groupHomework:../students'));
+  let resolveOld;
+  const old=loadTeacherKey(state,key,()=>new Promise(resolve=>resolveOld=resolve),()=>{});
+  await Promise.resolve();
+  await loadTeacherKey(state,groupHomeworkKey(other),async()=>['other'],()=>{});
+  invalidateTeacherKeys(state,[key]);
+  await loadTeacherKey(state,key,async()=>['saved'],()=>{});
+  resolveOld(['old']); await old;
+  assert.deepEqual(state.data[key],['saved']);
+  assert.deepEqual(state.data[groupHomeworkKey(other)],['other']);
+  invalidateTeacherData(state);
+  assert.equal(state.data[key],undefined);
+});

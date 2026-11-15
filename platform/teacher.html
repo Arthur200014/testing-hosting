@@ -321,6 +321,7 @@
     import { performTeacherMutation } from './teacher-mutation.mjs';
     import { calendarZone, calendarDay, calendarTime, shiftCalendarDay, calendarEntries, localSlotInstant, calendarWeek, calendarWeekDays, calendarMonth, calendarMonthDays, shiftCalendarMonth, previewClassPeriod } from './teacher-calendar.mjs';
     import { nativeHomeworkDeadlineStatus } from './homework-deadline.mjs';
+    import { groupHomeworkKey } from './teacher-data.mjs';
     import { individualClassNativeHomework, taskMatchesClass, renderGroupHomework, updateGroupAssignmentChoices } from './class-native-homework.mjs';
     import { renderClassMaterials } from './class-materials-ui.mjs';
     import { renderClassProgram, topicsForClass } from './class-program-ui.mjs';
@@ -400,7 +401,7 @@
         const extra = selectedLessonDetail ? ['materials','lessonMaterialLinks','classTopics','topicMaterialLinks','topicTaskLinks','lessonTopicSets'] :
           selectedProgramClass ? ['classTopics','topicMaterialLinks','materials','topicTaskLinks','nativeTasks','lessonTopicSets'] :
           selectedMaterialClass ? ['materials','classMaterialLinks'] :
-          classTasks ? ['nativeTasks','nativeAssignments'] :
+          classTasks ? ['nativeTasks', teacherClasses().some(x=>x.id===state.selectedClass && x.kind==='group') ? groupHomeworkKey(state.selectedClass) : 'nativeAssignments'] :
           view === 'overview' && state.classTab === 'statistics' ? ['assignments','nativeAssignments'] : [];
         const loading = [...new Set([...needs[view], ...extra])].map(key => loadKey(key, force));
         render();
@@ -679,7 +680,7 @@
             ? renderClassMaterials(item, state.data, safe, list)
           : tab === 'program'
             ? renderClassProgram(item, state.data, safe, list, state.topicFilter)
-          : tab === 'homework' ? renderGroupHomework(item,state.data,safe,date,list)
+          : tab === 'homework' ? renderGroupHomework(item,state.data,safe,date,list,nativeGradeControls)
           : tab === 'schedule'
             ? `<section class="class-subsection">${classScheduleRules(item)}<h3>Занятия группы</h3>
                 <div class="class-tabs"><button type="button" data-class-lessons-filter="all">Все занятия</button><button type="button" data-class-lessons-filter="completed">Завершённые</button></div>
@@ -1553,7 +1554,7 @@
       function nativeGradeControls(x) {
         if (!x.submittedAt) return "";
         if (x.scorePercent != null) return x.teacherFeedback ? `<p class="muted small" style="white-space:pre-wrap;margin-top:9px">Комментарий: ${safe(x.teacherFeedback)}</p>` : "";
-        return `<form class="stack" data-native-grade="${safe(x.id)}" style="margin-top:12px"><div class="form-row"><label><span>Оценка, %</span><input name="scorePercent" type="number" min="0" max="100" required></label><label><span>Комментарий</span><textarea name="feedback" maxlength="2000" placeholder="Что получилось и что исправить"></textarea></label></div><button class="primary small-button" type="submit">Оценить ответ</button></form>`;
+        return `<form class="stack" data-native-grade="${safe(x.id)}" style="margin-top:12px"><div class="form-row"><label><span>Оценка, %</span><input name="scorePercent" type="number" min="0" max="100" required></label><label><span>Комментарий</span><textarea name="feedback" maxlength="2000" placeholder="Что получилось и что исправить"></textarea></label></div><button class="primary small-button" type="submit">Оценить ответ</button><button class="secondary small-button" type="reset">Отмена</button></form>`;
       }
       function homework() {
         const d = state.data;
@@ -1674,6 +1675,8 @@
           const keys = form.matches('[data-native-grade]')
             ? ['nativeAssignments'] : teacherMutationKeys[form.id];
           invalidate(keys);
+          if (form.id === 'groupNativeAssignForm' || form.matches('[data-native-grade]'))
+            invalidate(Object.keys(state.data).filter(key => key.startsWith('groupHomework:')));
           await refresh();
         }
         catch (error) {
@@ -1767,6 +1770,12 @@
         if (event.target.id === 'calendarDate') {
           if (shiftCalendarDay(event.target.value, 0)) state.calendarDate = event.target.value;
           render(); return;
+        }
+        if (event.target.matches('[data-group-homework-filter]')) {
+          const section=event.target.closest('[data-group-homework]');
+          const rows=[...section.querySelectorAll('[data-group-assignment]')];
+          for(const row of rows) row.hidden=event.target.value!=='all' && row.dataset.homeworkStatus!==event.target.value;
+          section.querySelector('[data-group-homework-empty]').hidden=rows.some(row=>!row.hidden);
         }
         if(event.target.closest('#groupNativeAssignForm')) updateGroupAssignmentChoices(event.target.closest('form'),state.data);
         const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm');

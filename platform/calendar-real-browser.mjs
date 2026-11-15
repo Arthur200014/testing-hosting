@@ -601,6 +601,38 @@ try {
   await page.locator('[data-group-assignment="'+groupRows[0].id+'"]').waitFor();
   assert.equal(await page.locator('[data-group-assignment]').count(),1);
   await page.screenshot({path:output+'/18_group_assignment_real.png'});
+  // Group-scoped read, persisted student submission and teacher grading, with no production writes.
+  const groupPath='teacher/groups/'+group.id+'/homework';
+  assert.equal((await call(groupPath,north.token)).length,1);
+  await call(groupPath,south.token,undefined,404);
+  const learner=await call('student-sessions',null,{workspace:north.workspace,code:north.students[0].inviteCode});
+  await call('homework/native/submissions',learner.accessToken,{submissionId:randomUUID(),assignmentId:groupRows[0].id,answer:'Ответ группы: 4 < 5'},201);
+  await page.locator('#refresh').click(); await page.locator('#notice').waitFor({state:'hidden'});
+  await page.locator('[data-group-homework-filter]').selectOption('submitted');
+  const answer=page.locator('[data-group-assignment="'+groupRows[0].id+'"]');
+  await answer.locator('summary').click();
+  await answer.getByText('Ответ группы: 4 < 5',{exact:true}).waitFor();
+  const gradeForm=answer.locator('[data-native-grade]');
+  await gradeForm.locator('[name="scorePercent"]').fill('50');
+  await gradeForm.locator('button[type="reset"]').click();
+  assert.equal(await gradeForm.locator('[name="scorePercent"]').inputValue(),'');
+  assert.equal((await call(groupPath,north.token))[0].scorePercent,null);
+  await gradeForm.locator('[name="scorePercent"]').fill('85');
+  await gradeForm.locator('[name="feedback"]').fill('Верный ход решения');
+  await gradeForm.locator('button[type="submit"]').click();
+  await page.locator('[data-group-assignment][data-homework-status="graded"]').waitFor();
+  await page.reload(); await login(north);
+  await page.locator('[data-open-class="'+group.id+'"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="homework"]').click();
+  await page.locator('[data-group-homework-filter]').selectOption('submitted');
+  await page.locator('[data-group-homework-empty]:visible').waitFor();
+  await page.locator('[data-group-homework-filter]').selectOption('graded');
+  await page.locator('[data-group-assignment][data-homework-status="graded"] summary').click();
+  await page.getByText('Комментарий: Верный ход решения',{exact:true}).waitFor();
+  const reviewed=(await call(groupPath,north.token))[0];
+  assert.equal(reviewed.scorePercent,85);assert.equal(reviewed.teacherFeedback,'Верный ход решения');
+  await page.screenshot({path:output+'/18_group_review_real.png'});
+
   await page.locator('#logout').click(); await login(south); await month();
   await page.locator('[data-calendar-month-day="2026-11-16"] .calendar-month-event.is-saved').filter({hasText:'Чужое контрольное занятие'}).waitFor();
   assert.equal(await page.getByText('Урок через настоящий браузер',{exact:true}).count(),0);

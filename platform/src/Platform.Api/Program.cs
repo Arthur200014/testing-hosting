@@ -916,6 +916,11 @@ app.MapGet("/api/v1/teacher/homework/native/assignments", async (ClaimsPrincipal
     NativeHomeworkService homework, CancellationToken ct) =>
     Results.Ok(await homework.TeacherAssignmentsAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), ct)))
     .RequireAuthorization("teacher");
+app.MapGet("/api/v1/teacher/groups/{groupId:guid}/homework", async (Guid groupId, ClaimsPrincipal principal,
+    NativeHomeworkService homework, CancellationToken ct) =>
+    await homework.GroupAssignmentsAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), groupId, ct) is { } rows
+        ? Results.Ok(rows) : Results.NotFound())
+    .RequireAuthorization("teacher");
 app.MapPost("/api/v1/teacher/homework/native/group-assignments", async (AssignNativeTaskRequest request,
     ClaimsPrincipal principal, NativeHomeworkService service, CancellationToken ct) =>
     request.GroupClassId is null

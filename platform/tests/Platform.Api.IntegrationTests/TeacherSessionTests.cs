@@ -69,16 +69,42 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Equal(group.Id,assignment.GroupClassId); Assert.Equal(first,assignment.MembershipId);
         Assert.Equal(48,(assignment.DeadlineAt-assignment.AssignedAt).TotalHours);
         Assert.Single((await client.GetFromJsonAsync<List<NativeTaskView>>("/api/v1/teacher/homework/native/tasks"))!);
+        var groupPath="/api/v1/teacher/groups/"+group.Id+"/homework";
+        Assert.Single((await client.GetFromJsonAsync<List<NativeAssignmentView>>(groupPath))!);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.GetAsync("/api/v1/teacher/groups/"+Guid.NewGuid()+"/homework")).StatusCode);
+        // More than a workspace page of newer unrelated rows must not hide this group's history.
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var source=await db.NativeHomeworkAssignments.AsNoTracking().SingleAsync(x=>x.Id==assignment.Id);
+            db.NativeHomeworkAssignments.AddRange(Enumerable.Range(0,301).Select(i=>new NativeHomeworkAssignment {
+                Id=Guid.NewGuid(),WorkspaceId=source.WorkspaceId,TaskId=source.TaskId,ProgramId=source.ProgramId,
+                MembershipId=source.MembershipId,StudentId=source.StudentId,RequestId=Guid.NewGuid(),
+                AssignedAt=source.AssignedAt.AddMinutes(i+1),DeadlineAt=source.DeadlineAt.AddMinutes(i+1)
+            }));
+            var saved=await db.NativeHomeworkAssignments.SingleAsync(x=>x.Id==assignment.Id);
+            saved.Answer="Synthetic group answer";saved.SubmissionId=Guid.NewGuid();saved.SubmittedAt=source.AssignedAt.AddHours(1);
+            await db.SaveChangesAsync();
+        }
+        var scoped=Assert.Single((await client.GetFromJsonAsync<List<NativeAssignmentView>>(groupPath))!);
+        Assert.Equal("Synthetic group answer",scoped.Answer);
+        Assert.DoesNotContain((await client.GetFromJsonAsync<List<NativeAssignmentView>>("/api/v1/teacher/homework/native/assignments"))!,x=>x.Id==assignment.Id);
+        var grade=new GradeNativeAnswerRequest(Guid.NewGuid(),assignment.Id,0,"Needs work");
+        Assert.Equal(HttpStatusCode.OK,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/grades",grade)).StatusCode);
+        var graded=Assert.Single((await client.GetFromJsonAsync<List<NativeAssignmentView>>(groupPath))!);
+        Assert.Equal(0,graded.ScorePercent);Assert.Equal("Needs work",graded.TeacherFeedback);
         var other=(await (await LoginAsync(client,"ghw-south","ghw-south@example.invalid",Password))
             .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
         client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",other.AccessToken);
         Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/group-assignments",request)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.GetAsync(groupPath)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/grades",grade)).StatusCode);
         Assert.Empty((await client.GetFromJsonAsync<List<NativeAssignmentView>>("/api/v1/teacher/homework/native/assignments"))!);
         client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",session.AccessToken);
         Assert.Equal(HttpStatusCode.OK,(await client.PostAsJsonAsync("/api/v1/teacher/groups/"+group.Id+"/archive",
             new TeacherClassRevisionRequest(group.Revision))).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/group-assignments",
             request with { RequestId=Guid.NewGuid() })).StatusCode);
+        Assert.Single((await client.GetFromJsonAsync<List<NativeAssignmentView>>(groupPath))!);
     }
 
     [Fact]
