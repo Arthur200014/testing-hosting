@@ -14,7 +14,8 @@ await mkdir(output,{recursive:true});
 async function call(path,token,body,expected=200,method=body?'POST':'GET') {
   const res=await fetch(api+'/api/v1/'+path,{method,headers:{...(token?{Authorization:'Bearer '+token}:{}),...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});
   assert.equal(res.status,expected,method+' '+path+' status');
-  return res.status===204?null:res.json();
+  const text=await res.text();
+  return text?JSON.parse(text):null;
 }
 const accounts={};
 for(const side of ['north','south']) {
