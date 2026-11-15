@@ -70,12 +70,12 @@ public sealed class TeacherClassTopicService(PlatformDbContext db, TimeProvider 
             .Select(x => new TeacherClassTopicView(x.Id, x.IndividualClassId, x.GroupClassId,
                 x.Title, x.Plan, x.SortOrder, x.CreatedAt, x.CompletedAt, x.CompletionRevision));
 
-    private IQueryable<TeacherTopicTaskView> TaskLinks(Guid workspaceId) =>
+    private IQueryable<TeacherTopicTaskView> TaskLinks(Guid workspaceId, Guid? linkId = null) =>
         from link in db.TeacherTopicTaskLinks.AsNoTracking()
         join task in db.NativeHomeworkTasks.AsNoTracking()
             on new { link.WorkspaceId, link.TaskId, link.ProgramId }
             equals new { task.WorkspaceId, TaskId = task.Id, task.ProgramId }
-        where link.WorkspaceId == workspaceId
+        where link.WorkspaceId == workspaceId && (linkId == null || link.Id == linkId)
         orderby link.CreatedAt, link.Id
         select new TeacherTopicTaskView(link.Id, link.TopicId, link.TaskId, link.ProgramId,
             task.Title, task.Prompt, link.CreatedAt);
@@ -103,7 +103,7 @@ public sealed class TeacherClassTopicService(PlatformDbContext db, TimeProvider 
             if (prior is not null)
                 return prior.TopicId == request.TopicId && prior.TaskId == request.TaskId
                     ? new(TeacherTopicStatus.Duplicate, TaskLink:
-                        await TaskLinks(workspaceId).SingleAsync(x => x.Id == prior.Id, ct))
+                        await TaskLinks(workspaceId, prior.Id).SingleAsync(ct))
                     : new(TeacherTopicStatus.Conflict);
             var task = await db.NativeHomeworkTasks.AsNoTracking().SingleOrDefaultAsync(
                 x => x.WorkspaceId == workspaceId && x.Id == request.TaskId, ct);
@@ -119,7 +119,7 @@ public sealed class TeacherClassTopicService(PlatformDbContext db, TimeProvider 
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
             return new(TeacherTopicStatus.Created, TaskLink:
-                await TaskLinks(workspaceId).SingleAsync(x => x.Id == link.Id, ct));
+                await TaskLinks(workspaceId, link.Id).SingleAsync(ct));
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg && pg.SqlState == "23505")
         {
@@ -129,7 +129,7 @@ public sealed class TeacherClassTopicService(PlatformDbContext db, TimeProvider 
                 x => x.WorkspaceId == workspaceId && x.RequestId == request.RequestId, ct);
             return prior is not null && prior.TopicId == request.TopicId && prior.TaskId == request.TaskId
                 ? new(TeacherTopicStatus.Duplicate, TaskLink:
-                    await TaskLinks(workspaceId).SingleAsync(x => x.Id == prior.Id, ct))
+                    await TaskLinks(workspaceId, prior.Id).SingleAsync(ct))
                 : new(TeacherTopicStatus.Conflict);
         }
         catch (PostgresException ex) when (ex.SqlState is "40001" or "40P01")
