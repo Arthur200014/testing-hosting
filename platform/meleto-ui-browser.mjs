@@ -480,13 +480,13 @@ try {
   await groupForm.locator('[name="candidateMember"]').selectOption(students[1].membershipId);
   await groupForm.locator('[data-add-group-member]').click();
   assert.equal(await groupForm.locator('[name="groupMember"]').count(), 2);
-  await groupForm.locator('[name="candidateMember"]').selectOption(students[0].membershipId);
-  await groupForm.locator('[data-add-group-member]').click();
-  assert.equal(await groupForm.locator('[name="groupMember"]').count(), 2, 'duplicate student must not be added');
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({path:output+'/05_group_create_top.png'});
   await groupForm.locator('.group-settings').scrollIntoViewIfNeeded();
   await page.screenshot({path:output+'/06_group_create_bottom.png'});
+  await groupForm.locator('[name="candidateMember"]').selectOption(students[0].membershipId);
+  await groupForm.locator('[data-add-group-member]').click();
+  assert.equal(await groupForm.locator('[name="groupMember"]').count(), 2, 'duplicate student must not be added');
   await groupForm.locator('button[type="submit"]').click();
   await page.locator(`[data-open-class="${createdGroupId}"]`).waitFor();
   assert.equal(groupWrites,1);
