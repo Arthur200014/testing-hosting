@@ -98,6 +98,25 @@ try {
   await page.locator('#classMaterialLinkForm [data-class-material-cancel]').click();
   assert.equal(await page.locator('#classMaterialLinkForm [name="title"]').inputValue(),'');
   await page.screenshot({path:output+'/16_class_materials_real.png'});
+  // Reuse the existing library entry in a persisted lesson; do not create a copy.
+  await page.locator('.class-detail-tabs [data-class-detail-tab="schedule"]').click();
+  const lessonOpen=page.locator('[data-open-class-lesson]').first();
+  const linkedLessonId=await lessonOpen.getAttribute('data-open-class-lesson');
+  await lessonOpen.click();
+  await page.locator('#lessonMaterialAttachForm [name="materialId"]').selectOption(createdMaterial[0].id);
+  await page.locator('#lessonMaterialAttachForm [data-lesson-material-cancel]').click();
+  assert.equal(await page.locator('#lessonMaterialAttachForm [name="materialId"]').inputValue(),'');
+  assert.deepEqual(await call('teacher/lesson-materials',north.token),[]);
+  await page.locator('#lessonMaterialAttachForm [name="materialId"]').selectOption(createdMaterial[0].id);
+  await page.locator('#lessonMaterialAttachForm button[type="submit"]').click();
+  await page.locator('[data-lesson-materials] a[href="https://example.org/study-notes"]').waitFor();
+  const lessonLinkRecords=await call('teacher/lesson-materials',north.token);
+  assert.equal(lessonLinkRecords.length,1);
+  assert.equal(lessonLinkRecords[0].lessonId,linkedLessonId);
+  assert.equal(lessonLinkRecords[0].materialId,createdMaterial[0].id);
+  assert.deepEqual(await call('teacher/lesson-materials',south.token),[]);
+  await page.screenshot({path:output+'/25_lesson_materials_real.png'});
+  await page.locator('[data-back-class-lessons]').click();
   await page.locator('.class-detail-tabs [data-class-detail-tab="homework"]').click();
   await page.locator('#classNativeTaskForm [name="title"]').fill('UI-04 проверка задания');
   await page.locator('#classNativeTaskForm [name="prompt"]').fill('Решите 2 + 2');
@@ -152,6 +171,11 @@ try {
   await page.reload(); await login(north);
   // Class link and homework both survive reload against the isolated API/PostgreSQL.
   await page.locator('[data-open-class="'+north.item.id+'"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="schedule"]').click();
+  await page.locator('[data-open-class-lesson="'+linkedLessonId+'"]').click();
+  await page.locator('[data-lesson-materials] a[href="https://example.org/study-notes"]').waitFor();
+  assert.equal((await call('teacher/lesson-materials',north.token)).length,1);
+  await page.locator('[data-back-class-lessons]').click();
   await page.locator('.class-detail-tabs [data-class-detail-tab="materials"]').click();
   await page.locator('[data-class-materials] a[href="https://example.org/study-notes"]').waitFor();
   const restoredLinks=await call('teacher/class-materials',north.token);
