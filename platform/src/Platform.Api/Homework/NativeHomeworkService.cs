@@ -41,14 +41,16 @@ public sealed class NativeHomeworkService(PlatformDbContext db, TimeProvider clo
     {
         var ids = request.MembershipIds?.Distinct().Order().ToArray() ?? [];
         if (request.RequestId == Guid.Empty || request.TaskId == Guid.Empty || ids.Length is < 1 or > 100 ||
-            ids.Any(x => x == Guid.Empty) || request.GroupClassId == Guid.Empty || request.DeadlineHours is not (24 or 48 or 72))
+            ids.Any(x => x == Guid.Empty) || request.GroupClassId == Guid.Empty || request.IndividualClassId == Guid.Empty || request.LessonId == Guid.Empty ||
+            (request.GroupClassId != null && request.IndividualClassId != null) ||
+            (request.LessonId != null && request.GroupClassId == null && request.IndividualClassId == null) || request.DeadlineHours is not (24 or 48 or 72))
             return (400, "Choose a task, students and a 24/48/72 hour deadline.");
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await LockAsync(workspace, request.RequestId, ct);
         var existing = await db.NativeHomeworkAssignments.AsNoTracking()
             .Where(x => x.WorkspaceId == workspace && x.RequestId == request.RequestId).ToListAsync(ct);
         if (existing.Count > 0)
-            return existing.Count == ids.Length && existing.All(x => x.GroupClassId == request.GroupClassId && x.TaskId == request.TaskId &&
+            return existing.Count == ids.Length && existing.All(x => x.GroupClassId == request.GroupClassId && x.IndividualClassId == request.IndividualClassId && x.LessonId == request.LessonId && x.TaskId == request.TaskId &&
                 ids.Contains(x.MembershipId) && (x.DeadlineAt - x.AssignedAt).TotalHours == request.DeadlineHours)
                 ? (200, existing.Select(x => x.Id).ToArray()) : (409, "Request ID already used for another assignment.");
         if (request.GroupClassId is { } groupId)
@@ -62,18 +64,39 @@ public sealed class NativeHomeworkService(PlatformDbContext db, TimeProvider clo
                 .SingleOrDefaultAsync(ct);
             if (approved is null || ids.Any(id => !approved.Contains(id))) return (404, null);
         }
+        if (request.IndividualClassId is { } classId)
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT 1 FROM platform.\"TeacherClasses\" WHERE \"WorkspaceId\" = {workspace} AND \"Id\" = {classId} FOR SHARE", ct);
+            var member = await db.TeacherClasses.AsNoTracking()
+                .Where(x => x.WorkspaceId == workspace && x.Id == classId && !x.IsArchived)
+                .Select(x => (Guid?)x.StudentMembershipId).SingleOrDefaultAsync(ct);
+            if (member is null || ids.Length != 1 || ids[0] != member) return (404, null);
+        }
+        if (request.LessonId is { } lessonId)
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT 1 FROM platform.\"Lessons\" WHERE \"WorkspaceId\" = {workspace} AND \"Id\" = {lessonId} FOR SHARE", ct);
+            var lesson = await db.Lessons.AsNoTracking().SingleOrDefaultAsync(x => x.WorkspaceId == workspace && x.Id == lessonId, ct);
+            if (lesson is null || lesson.IndividualClassId != request.IndividualClassId || lesson.GroupClassId != request.GroupClassId)
+                return (404, null);
+            var participants = await db.LessonParticipants.Where(x => x.WorkspaceId == workspace && x.LessonId == lessonId)
+                .Select(x => x.MembershipId).ToListAsync(ct);
+            if (ids.Any(id => !participants.Contains(id))) return (404, null);
+        }
         var task = await db.NativeHomeworkTasks.AsNoTracking().SingleOrDefaultAsync(x =>
             x.WorkspaceId == workspace && x.Id == request.TaskId, ct);
         if (task is null) return (404, null);
         var members = await db.WorkspaceStudentMemberships.AsNoTracking().Where(x =>
             x.WorkspaceId == workspace && x.ProgramId == task.ProgramId && x.IsActive && ids.Contains(x.Id) &&
-            (request.GroupClassId == null || (x.Student.IsActive && x.Program.IsActive)))
+            ((request.GroupClassId == null && request.IndividualClassId == null) || (x.Student.IsActive && x.Program.IsActive)))
             .Select(x => new { x.Id, x.StudentId }).ToListAsync(ct);
         if (members.Count != ids.Length) return (404, null);
         var now = clock.GetUtcNow();
         var items = members.Select(m => new NativeHomeworkAssignment { Id = Guid.NewGuid(),
             WorkspaceId = workspace, TaskId = task.Id, ProgramId = task.ProgramId,
             MembershipId = m.Id, StudentId = m.StudentId, RequestId = request.RequestId, GroupClassId = request.GroupClassId,
+            IndividualClassId = request.IndividualClassId, LessonId = request.LessonId,
             AssignedAt = now, DeadlineAt = now.AddHours(request.DeadlineHours) }).ToArray();
         db.NativeHomeworkAssignments.AddRange(items);
         await db.SaveChangesAsync(ct);
@@ -88,13 +111,29 @@ public sealed class NativeHomeworkService(PlatformDbContext db, TimeProvider clo
         return await TeacherAssignmentsAsync(workspace, ct, groupId);
     }
 
-    public async Task<List<NativeAssignmentView>> TeacherAssignmentsAsync(Guid workspace, CancellationToken ct, Guid? groupId = null) =>
-        await Query(workspace).Where(x => groupId == null || x.GroupClassId == groupId)
+    public async Task<List<NativeAssignmentView>?> ClassAssignmentsAsync(Guid workspace, Guid classId, CancellationToken ct)
+    {
+        var member = await db.TeacherClasses.AsNoTracking().Where(x => x.WorkspaceId == workspace && x.Id == classId)
+            .Select(x => (Guid?)x.StudentMembershipId).SingleOrDefaultAsync(ct);
+        return member is null ? null : await TeacherAssignmentsAsync(workspace, ct, individualId: classId, memberId: member);
+    }
+
+    public async Task<List<NativeAssignmentView>?> LessonAssignmentsAsync(Guid workspace, Guid lessonId, CancellationToken ct)
+    {
+        if (!await db.Lessons.AsNoTracking().AnyAsync(x => x.WorkspaceId == workspace && x.Id == lessonId, ct)) return null;
+        return await TeacherAssignmentsAsync(workspace, ct, lessonId: lessonId);
+    }
+
+    public async Task<List<NativeAssignmentView>> TeacherAssignmentsAsync(Guid workspace, CancellationToken ct, Guid? groupId = null, Guid? individualId = null, Guid? lessonId = null, Guid? memberId = null) =>
+        await Query(workspace).Where(x => (groupId == null || x.GroupClassId == groupId) &&
+                (lessonId == null || x.LessonId == lessonId) &&
+                (individualId == null || x.IndividualClassId == individualId ||
+                    (x.IndividualClassId == null && x.GroupClassId == null && x.MembershipId == memberId)))
             .OrderByDescending(x => x.AssignedAt).ThenByDescending(x => x.Id).Take(300)
             .Select(x => new NativeAssignmentView(x.Id, x.TaskId, x.MembershipId, x.ProgramId,
                 db.NativeHomeworkTasks.Where(t => t.Id == x.TaskId && t.WorkspaceId == workspace).Select(t => t.Title).First(),
                 db.NativeHomeworkTasks.Where(t => t.Id == x.TaskId && t.WorkspaceId == workspace).Select(t => t.Prompt).First(),
-                x.AssignedAt, x.DeadlineAt, x.Answer, x.SubmittedAt, x.ScorePercent, x.TeacherFeedback, x.GradedAt, x.GroupClassId)).ToListAsync(ct);
+                x.AssignedAt, x.DeadlineAt, x.Answer, x.SubmittedAt, x.ScorePercent, x.TeacherFeedback, x.GradedAt, x.GroupClassId, x.IndividualClassId, x.LessonId)).ToListAsync(ct);
 
     public async Task<List<NativeAssignmentView>?> StudentAssignmentsAsync(ClaimsPrincipal principal, CancellationToken ct)
     {
@@ -106,7 +145,7 @@ public sealed class NativeHomeworkService(PlatformDbContext db, TimeProvider clo
             .Select(x => new NativeAssignmentView(x.Id, x.TaskId, x.MembershipId, x.ProgramId,
                 db.NativeHomeworkTasks.Where(t => t.Id == x.TaskId && t.WorkspaceId == x.WorkspaceId).Select(t => t.Title).First(),
                 db.NativeHomeworkTasks.Where(t => t.Id == x.TaskId && t.WorkspaceId == x.WorkspaceId).Select(t => t.Prompt).First(),
-                x.AssignedAt, x.DeadlineAt, x.Answer, x.SubmittedAt, x.ScorePercent, x.TeacherFeedback, x.GradedAt, x.GroupClassId)).ToListAsync(ct);
+                x.AssignedAt, x.DeadlineAt, x.Answer, x.SubmittedAt, x.ScorePercent, x.TeacherFeedback, x.GradedAt, x.GroupClassId, x.IndividualClassId, x.LessonId)).ToListAsync(ct);
     }
 
     public async Task<(int Status, object? Value)> SubmitAsync(ClaimsPrincipal principal, SubmitNativeAnswerRequest request, CancellationToken ct)

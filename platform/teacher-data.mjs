@@ -11,10 +11,14 @@ export const teacherPaths = {
 
 // Cache each group independently; never fall back to the truncated workspace feed.
 export function groupHomeworkKey(id) { return 'groupHomework:' + id; }
+export function contextHomeworkKey(item, lesson = null) {
+  if (item.persistent === false && !lesson) return 'nativeAssignments';
+  return lesson ? 'lessonHomework:' + lesson.id : item.kind === 'group' ? groupHomeworkKey(item.id) : 'classHomework:' + item.id;
+}
 export function teacherResourcePath(key) {
   if (Object.hasOwn(teacherPaths, key)) return teacherPaths[key];
-  const match = /^groupHomework:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(key);
-  if (match) return 'groups/' + match[1] + '/homework';
+  const match = /^(groupHomework|classHomework|lessonHomework):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(key);
+  if (match) return ({groupHomework:'groups',classHomework:'classes',lessonHomework:'lessons'})[match[1]] + '/' + match[2] + '/homework';
   throw new Error('Unknown teacher resource: ' + key);
 }
 
@@ -34,6 +38,7 @@ export const teacherMutationKeys = {
   studentForm: ['students'], studentEditForm: ['students'],
   lessonForm: ['lessons', 'assignments'], lessonCorrectionForm: ['lessons'], lessonPlannerForm: ['lessons','lessonTopicSets'],
   nativeTaskForm: ['nativeTasks'], nativeAssignForm: ['nativeAssignments'],
+  groupNativeTaskForm: ['nativeTasks'], lessonNativeTaskForm: ['nativeTasks'], lessonNativeAssignForm: ['nativeAssignments'],
   classNativeTaskForm: ['nativeTasks'], classNativeAssignForm: ['nativeAssignments'], groupNativeAssignForm: ['nativeAssignments'],
   classMaterialLinkForm: ['materials','classMaterialLinks'], classMaterialAttachForm: ['classMaterialLinks'],
   lessonMaterialAttachForm: ['lessonMaterialLinks'],

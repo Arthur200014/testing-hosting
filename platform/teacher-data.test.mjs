@@ -146,3 +146,11 @@ test('group cache keys use scoped endpoint and reject stale post-write responses
   invalidateTeacherData(state);
   assert.equal(state.data[key],undefined);
 });
+
+
+test('individual class and lesson have separate scoped cache routes',async()=>{
+ const {contextHomeworkKey,teacherResourcePath}=await import('./teacher-data.mjs');
+ const id='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',lessonId='bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+ assert.equal(teacherResourcePath(contextHomeworkKey({id,kind:'individual'})),'classes/'+id+'/homework');
+ assert.equal(teacherResourcePath(contextHomeworkKey({id,kind:'group'},{id:lessonId})),'lessons/'+lessonId+'/homework');
+});

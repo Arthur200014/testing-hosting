@@ -56,3 +56,16 @@ test('group history never falls back to workspace feed; status handles zero grad
   assert.equal(groupHomeworkStatus({deadlineAt:'2000-01-01'}),'overdue');
   assert.equal(groupHomeworkStatus({deadlineAt:'2100-01-01'}),'awaiting');
 });
+
+
+test('shared context limits templates and lesson recipients to approved active participants', async () => {
+  const {homeworkAudience,renderContextHomework}=await import('./class-native-homework.mjs');
+  const item={id:'g',kind:'group',members:[{membershipId:'a',isApproved:true},{membershipId:'b',isApproved:true},{membershipId:'c',isApproved:false}]};
+  const lesson={id:'l',participants:[{membershipId:'a'},{membershipId:'c'}]};
+  const data={students:[{membershipId:'a',programId:'p',studentName:'A'},{membershipId:'b',programId:'q'},{membershipId:'c',programId:'p'}],nativeTasks:[{id:'t',programId:'p',title:'Own'},{id:'other',programId:'q',title:'Other program'}],'lessonHomework:l':[]};
+  assert.deepEqual(homeworkAudience(item,data,lesson).map(x=>x.membershipId),['a']);
+  const html=renderContextHomework(item,data,String,()=>'',(xs,empty,f)=>xs.map(f).join(''),()=>'',lesson);
+  assert.match(html,/lessonNativeTaskForm/);assert.match(html,/lessonNativeAssignForm/);
+  assert.doesNotMatch(html,/Other program/);assert.doesNotMatch(html,/value="b"/);
+  assert.doesNotMatch(renderContextHomework({...item,isArchived:true},data,String,()=>'',()=>'',()=>'',lesson),/lessonNativeTaskForm/);
+});

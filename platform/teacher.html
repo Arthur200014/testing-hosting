@@ -321,8 +321,8 @@
     import { performTeacherMutation } from './teacher-mutation.mjs';
     import { calendarZone, calendarDay, calendarTime, shiftCalendarDay, calendarEntries, localSlotInstant, calendarWeek, calendarWeekDays, calendarMonth, calendarMonthDays, shiftCalendarMonth, previewClassPeriod } from './teacher-calendar.mjs';
     import { nativeHomeworkDeadlineStatus } from './homework-deadline.mjs';
-    import { groupHomeworkKey } from './teacher-data.mjs';
-    import { individualClassNativeHomework, taskMatchesClass, renderGroupHomework, updateGroupAssignmentChoices } from './class-native-homework.mjs';
+    import { groupHomeworkKey, contextHomeworkKey } from './teacher-data.mjs';
+    import { individualClassNativeHomework, taskMatchesClass, renderGroupHomework, renderContextHomework, homeworkAudience, updateGroupAssignmentChoices } from './class-native-homework.mjs';
     import { renderClassMaterials } from './class-materials-ui.mjs';
     import { renderClassProgram, topicsForClass } from './class-program-ui.mjs';
     import { renderLessonTopics, lessonBelongsToClass, lessonTopicChange } from './lesson-topics-ui.mjs';
@@ -398,10 +398,10 @@
         const selectedLessonDetail = view === 'overview' && !!state.selectedClass && !!state.selectedLesson;
         const selectedProgramClass = view === 'overview' && state.selectedClass && state.classDetailTab === 'program' &&
           teacherClasses().some(item => item.id === state.selectedClass && item.persistent);
-        const extra = selectedLessonDetail ? ['materials','lessonMaterialLinks','classTopics','topicMaterialLinks','topicTaskLinks','lessonTopicSets'] :
+        const extra = selectedLessonDetail ? ['materials','lessonMaterialLinks','classTopics','topicMaterialLinks','topicTaskLinks','lessonTopicSets','programs','nativeTasks',contextHomeworkKey(teacherClasses().find(x=>x.id===state.selectedClass),(state.data.lessons || []).find(x=>x.id===state.selectedLesson))] :
           selectedProgramClass ? ['classTopics','topicMaterialLinks','materials','topicTaskLinks','nativeTasks','lessonTopicSets'] :
           selectedMaterialClass ? ['materials','classMaterialLinks'] :
-          classTasks ? ['nativeTasks', teacherClasses().some(x=>x.id===state.selectedClass && x.kind==='group') ? groupHomeworkKey(state.selectedClass) : 'nativeAssignments'] :
+          classTasks ? ['programs','nativeTasks',contextHomeworkKey(teacherClasses().find(x=>x.id===state.selectedClass))] :
           view === 'overview' && state.classTab === 'statistics' ? ['assignments','nativeAssignments'] : [];
         const loading = [...new Set([...needs[view], ...extra])].map(key => loadKey(key, force));
         render();
@@ -425,7 +425,7 @@
             !confirm('Отменить несохранённое расписание?')) return Promise.resolve();
         if (state.view !== view && document.querySelector('#lessonPlannerForm[data-dirty="1"]') &&
             !confirm('Отменить планирование занятия без сохранения?')) return Promise.resolve();
-        if (state.view !== view && document.querySelector('#classNativeTaskForm[data-dirty="1"], #classNativeAssignForm[data-dirty="1"], #groupNativeAssignForm[data-dirty="1"]') &&
+        if (state.view !== view && document.querySelector('#classNativeTaskForm[data-dirty="1"], #classNativeAssignForm[data-dirty="1"], #groupNativeAssignForm[data-dirty="1"], [data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"]') &&
             !confirm('Отменить несохранённое задание?')) return Promise.resolve();
         if (state.view !== view && document.querySelector('#classMaterialLinkForm[data-dirty="1"], #classMaterialAttachForm[data-dirty="1"]') &&
             !confirm('Отменить несохранённый материал?')) return Promise.resolve();
@@ -737,6 +737,7 @@
             <section class="card stack"><h2>Темы и комментарии</h2>${list(participants.filter(p=>p.topicComment),'Темы пока не указаны.',p=>`<div><strong>${safe(studentName(p.membershipId))}</strong><p>${safe(p.topicComment)}</p></div>`)}</section>
             ${renderLessonTopics(lesson, item, state.data, safe, list)}
             ${renderLessonMaterials(lesson, state.data, item.isArchived, safe, list)}
+            ${renderContextHomework(item,state.data,safe,date,list,nativeGradeControls,lesson)}
           </div><aside class="lesson-detail-side"><section class="card stack"><button class="primary" disabled title="Доска занятия пока недоступна">Перейти к доске</button></section>
             <section class="card stack"><div class="section-head"><h2>Участники</h2><button type="button" class="secondary" data-edit-lesson="${safe(lesson.id)}">Посещаемость и завершение</button></div>
               ${participants.map(p=>`<div class="item" data-lesson-participant="${safe(p.membershipId)}"><div><strong>${safe(studentName(p.membershipId))}</strong><small>${safe(labels[p.attendanceStatus] || p.attendanceStatus)} · ${p.durationMinutes} мин</small>
@@ -765,52 +766,7 @@
       // Reuse the existing native homework API. A template belongs to a program;
       // only an assignment belongs to this one student's membership.
       function classNativeTasksTab(item) {
-        const programId = item.student?.programId, membershipId = item.studentMembershipId;
-        const d = state.data;
-        if (!programId || !membershipId)
-          return '<section class="class-subsection"><h3>Задания</h3><p class="muted">Для этого ученика не указана программа.</p></section>';
-        if (!Array.isArray(d.nativeTasks) || !Array.isArray(d.nativeAssignments))
-          return '<section class="class-subsection"><h3>Задания</h3><p role="status">Загружаем задания…</p><button class="secondary" type="button" data-retry-overview>Повторить загрузку</button></section>';
-        const { tasks, assignments } = individualClassNativeHomework(d, membershipId, programId);
-        return `<section class="class-subsection stack">
-          <div class="section-head"><div><h3>Задания ученика</h3>
-            <p class="muted small">${safe(item.student.studentName)} · Шаблоны переиспользуются в программе, назначения ограничены этим учеником.</p></div>
-            <span class="pill">${assignments.length} назначений</span></div>
-          ${item.isArchived ? '<p class="muted">Класс в архиве: новые задания недоступны, история сохранена.</p>' : `
-          <div class="grid two">
-            <section class="card stack"><h3>Новый шаблон</h3>
-              <form id="classNativeTaskForm" data-class-id="${safe(item.id)}" class="stack">
-                <label>Название<input name="title" maxlength="200" required placeholder="Название задания"></label>
-                <label>Условие<textarea name="prompt" maxlength="10000" required placeholder="Текст задания"></textarea></label>
-                <div class="row"><button type="submit" class="primary">Создать шаблон</button>
-                  <button type="button" class="secondary" data-class-task-cancel>Отмена</button></div></form>
-              <p class="muted small">Шаблон сохраняется без автоматического назначения.</p>
-            </section>
-            <section class="card stack"><h3>Назначить из шаблонов</h3>
-              <form id="classNativeAssignForm" data-class-id="${safe(item.id)}" class="stack">
-                <label>Шаблон<select name="taskId" required><option value="">Выберите задание</option>
-                  ${tasks.map(t => `<option value="${safe(t.id)}">${safe(t.title)}</option>`).join('')}</select></label>
-                <label>Срок<select name="deadlineHours"><option value="24">24 часа</option><option value="48">48 часов</option><option value="72">72 часа</option></select></label>
-                <div class="row"><button type="submit" class="primary" ${tasks.length?'':'disabled'}>Назначить ученику</button>
-                  <button type="button" class="secondary" data-class-task-cancel>Отмена</button></div></form>
-              ${tasks.length?'':'<p class="muted small">Сначала создайте шаблон.</p>'}
-            </section>
-          </div>`}
-          <section class="card stack"><div class="section-head"><h3>История заданий</h3>
-            <span class="muted small">${assignments.length}</span></div>
-            ${list(assignments, 'Назначенных встроенных заданий пока нет.', x => `
-              <div class="item"><div><strong>${safe(x.title || 'Задание')}</strong>
-                <small>Срок: ${safe(date(x.deadlineAt))} · ${safe(nativeHomeworkDeadlineStatus(x).label)}</small>
-                ${x.submittedAt?`<small>Сдано ${safe(date(x.submittedAt))}</small>`:''}
-              </div><span class="pill ${x.submittedAt?'':'warn'}">
-                ${x.scorePercent == null ? x.submittedAt ? 'На проверке' : 'Ожидается' : safe(x.scorePercent)+'%'}
-              </span></div>`)}
-          </section>
-          <section class="card stack"><h3>Шаблоны программы</h3>
-            ${list(tasks, 'Шаблонов пока нет.', t => `<div class="item"><div><strong>${safe(t.title)}</strong>
-              <small>${safe(t.prompt || '')}</small></div></div>`)}
-          </section>
-        </section>`;
+        return renderContextHomework(item,state.data,safe,date,list,nativeGradeControls);
       }
       function classDetail(item) {
         if (state.selectedLesson) {
@@ -1663,9 +1619,17 @@
         return setView('overview');
       }
       function canLeaveProgramDrafts(exceptForm = null) {
-        const selectors='#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"], #topicLessonAttachForm[data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"]';
+        const selectors='[data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"], #topicLessonAttachForm[data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"]';
         return ![...document.querySelectorAll(selectors)].some(form=>form!==exceptForm) ||
           confirm('Отменить несохранённые изменения программы или материалов?');
+      }
+      function homeworkContext(form) {
+        const item=teacherClasses().find(x=>x.id===form.dataset.classId && !x.isArchived);
+        const lesson=form.dataset.lessonId ? (state.data.lessons || []).find(x=>x.id===form.dataset.lessonId) : null;
+        if(!item || item.id!==state.selectedClass || (form.dataset.lessonId &&
+          (!lesson || state.selectedLesson!==lesson.id || !lessonBelongsToClass(lesson,item))))
+          throw new Error('Класс или занятие больше недоступны.');
+        return {item,lesson};
       }
       async function onForm(form, callback) {
         if (!canLeaveProgramDrafts(form)) return;
@@ -1675,8 +1639,8 @@
           const keys = form.matches('[data-native-grade]')
             ? ['nativeAssignments'] : teacherMutationKeys[form.id];
           invalidate(keys);
-          if (form.id === 'groupNativeAssignForm' || form.matches('[data-native-grade]'))
-            invalidate(Object.keys(state.data).filter(key => key.startsWith('groupHomework:')));
+          if (form.matches('[data-context-assign], [data-native-grade]'))
+            invalidate([...new Set([...Object.keys(state.data),...Object.keys(state.inflight)])].filter(key => /^(group|class|lesson)Homework:/.test(key)));
           await refresh();
         }
         catch (error) {
@@ -1749,7 +1713,7 @@
         logout();
       });
       $('content').addEventListener('input', event => {
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, [data-context-task], [data-context-assign]');
         if (editor) editor.dataset.dirty = '1';
         const draft = event.target.closest('#lessonPlannerForm');
         if (draft && event.target.name === 'title') {
@@ -1777,8 +1741,8 @@
           for(const row of rows) row.hidden=event.target.value!=='all' && row.dataset.homeworkStatus!==event.target.value;
           section.querySelector('[data-group-homework-empty]').hidden=rows.some(row=>!row.hidden);
         }
-        if(event.target.closest('#groupNativeAssignForm')) updateGroupAssignmentChoices(event.target.closest('form'),state.data);
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm');
+        if(event.target.closest('[data-context-assign]')) updateGroupAssignmentChoices(event.target.closest('form'),state.data);
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, [data-context-task], [data-context-assign]');
         if (editor) editor.dataset.dirty = '1';
         if (event.target.id==='calendarPlanClass') {
           captureCalendarPlanDraft(event.target.form);
@@ -1856,6 +1820,7 @@
         const lessonFilter=event.target.closest('[data-class-lessons-filter]');
         if (lessonFilter) { state.lessonFilter=lessonFilter.dataset.classLessonsFilter; render(); return; }
         if (event.target.closest('[data-back-class-lessons]')) {
+          if (!canLeaveProgramDrafts()) return;
           if (document.querySelector('#lessonTopicSetForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённые темы занятия?')) return;
           if (document.querySelector('#lessonMaterialAttachForm[data-dirty="1"]') &&
@@ -1969,7 +1934,7 @@
         if (cancelClassTask) {
           const form = cancelClassTask.closest('form');
           form?.reset();
-          if(form?.id==='groupNativeAssignForm') updateGroupAssignmentChoices(form,state.data);
+          if(form?.matches('[data-context-assign]')) updateGroupAssignmentChoices(form,state.data);
           if (form) delete form.dataset.dirty;
           showNotice('');
           return;
@@ -2050,7 +2015,7 @@
         if (detailTab) {
           if (document.querySelector('#classScheduleRuleForm[data-dirty="1"]') &&
               !confirm('Отменить изменения расписания без сохранения?')) return;
-          if (document.querySelector('#classNativeTaskForm[data-dirty="1"], #classNativeAssignForm[data-dirty="1"], #groupNativeAssignForm[data-dirty="1"]') &&
+          if (document.querySelector('#classNativeTaskForm[data-dirty="1"], #classNativeAssignForm[data-dirty="1"], #groupNativeAssignForm[data-dirty="1"], [data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"]') &&
               !confirm('Отменить несохранённое задание?')) return;
           if (document.querySelector('#classMaterialLinkForm[data-dirty="1"], #classMaterialAttachForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённый материал?')) return;
@@ -2115,7 +2080,7 @@
         const openClass = event.target.closest('[data-open-class]');
         if (openClass) { state.selectedLesson=null; state.editLesson=null; state.lessonFilter='all'; state.scheduleEdit = null; state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
         if (event.target.closest('[data-back-classes]')) {
-          if (document.querySelector('#classNativeTaskForm[data-dirty="1"], #classNativeAssignForm[data-dirty="1"], #groupNativeAssignForm[data-dirty="1"]') &&
+          if (document.querySelector('#classNativeTaskForm[data-dirty="1"], #classNativeAssignForm[data-dirty="1"], #groupNativeAssignForm[data-dirty="1"], [data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"]') &&
               !confirm('Отменить несохранённое задание?')) return;
           if (document.querySelector('#classMaterialLinkForm[data-dirty="1"], #classMaterialAttachForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённый материал?')) return;
@@ -2560,33 +2525,24 @@
             ...(reuse ? {materialId} : {title:formValue(form,'title'),url:formValue(form,'url')})
           }));
         });
-        if (form.id === 'classNativeTaskForm') onForm(form, async () => {
-          const item=teacherClasses().find(x => x.id === form.dataset.classId && x.kind !== 'group');
-          if (!item || item.id!==state.selectedClass || item.isArchived || !item.student?.programId)
-            throw new Error('Класс больше не доступен для создания задания.');
-          await mutation('classNativeTask:'+item.id,'homework/native/tasks', () => ({
-            programId:item.student.programId, title:formValue(form,'title'), prompt:formValue(form,'prompt')
+        if (form.matches('[data-context-task]')) onForm(form, async () => {
+          const {item,lesson}=homeworkContext(form);
+          const programId=formValue(form,'programId');
+          if(!homeworkAudience(item,state.data,lesson).some(m=>m.programId===programId)) throw new Error('Выберите программу участников.');
+          await mutation('contextTask:'+item.id+':'+(lesson?.id || ''),'homework/native/tasks',()=>({
+            programId,title:formValue(form,'title'),prompt:formValue(form,'prompt')
           }));
         });
-        if(form.id==='groupNativeAssignForm') onForm(form,async()=>{
-          const group=teacherClasses().find(x=>x.id===form.dataset.groupId && x.kind==='group' && !x.isArchived);
+        if (form.matches('[data-context-assign]')) onForm(form,async()=>{
+          const {item,lesson}=homeworkContext(form);
           const task=(state.data.nativeTasks || []).find(x=>x.id===formValue(form,'taskId'));
           const membershipIds=[...form.querySelectorAll('input[name="groupMember"]:checked:not(:disabled)')].map(x=>x.value);
-          if(!group || group.id!==state.selectedClass || !task || !membershipIds.length) throw new Error('Выберите шаблон и участников группы.');
-          await mutation('groupNativeAssign:'+group.id,'homework/native/group-assignments',()=>({
-            groupClassId:group.id,taskId:task.id,membershipIds,deadlineHours:Number(formValue(form,'deadlineHours'))
-          }));
-        });
-        if (form.id === 'classNativeAssignForm') onForm(form, async () => {
-          const item=teacherClasses().find(x => x.id === form.dataset.classId && x.kind !== 'group');
-          if (!item || item.id!==state.selectedClass || item.isArchived || !item.student?.programId)
-            throw new Error('Класс больше не доступен для назначения.');
-          const task=(state.data.nativeTasks || []).find(x => x.id===formValue(form,'taskId'));
-          if (!taskMatchesClass(task,item.student.programId))
-            throw new Error('Выберите шаблон программы ученика.');
-          await mutation('classNativeAssign:'+item.id,'homework/native/assignments', () => ({
-            taskId:task.id, membershipIds:[item.studentMembershipId],
-            deadlineHours:Number(formValue(form,'deadlineHours'))
+          const audience=homeworkAudience(item,state.data,lesson);
+          if(!task || !membershipIds.length || membershipIds.some(id=>!audience.some(m=>m.membershipId===id && m.programId===task.programId)))
+            throw new Error('Выберите шаблон и подходящих участников.');
+          await mutation('contextAssign:'+item.id+':'+(lesson?.id || ''),item.persistent===false?'homework/native/assignments':'homework/native/context-assignments',()=>({
+            ...(item.kind==='group'?{groupClassId:item.id}:item.persistent===false?{}:{individualClassId:item.id}),
+            ...(lesson?{lessonId:lesson.id}:{}),taskId:task.id,membershipIds,deadlineHours:Number(formValue(form,'deadlineHours'))
           }));
         });
         if (form.id === 'nativeTaskForm') onForm(form, async () => {

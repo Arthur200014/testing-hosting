@@ -921,6 +921,22 @@ app.MapGet("/api/v1/teacher/groups/{groupId:guid}/homework", async (Guid groupId
     await homework.GroupAssignmentsAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), groupId, ct) is { } rows
         ? Results.Ok(rows) : Results.NotFound())
     .RequireAuthorization("teacher");
+app.MapGet("/api/v1/teacher/classes/{classId:guid}/homework", async (Guid classId, ClaimsPrincipal principal,
+    NativeHomeworkService homework, CancellationToken ct) =>
+    await homework.ClassAssignmentsAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), classId, ct) is { } rows
+        ? Results.Ok(rows) : Results.NotFound())
+    .RequireAuthorization("teacher");
+app.MapGet("/api/v1/teacher/lessons/{lessonId:guid}/homework", async (Guid lessonId, ClaimsPrincipal principal,
+    NativeHomeworkService homework, CancellationToken ct) =>
+    await homework.LessonAssignmentsAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), lessonId, ct) is { } rows
+        ? Results.Ok(rows) : Results.NotFound())
+    .RequireAuthorization("teacher");
+app.MapPost("/api/v1/teacher/homework/native/context-assignments", async (AssignNativeTaskRequest request,
+    ClaimsPrincipal principal, NativeHomeworkService homework, CancellationToken ct) =>
+    request.GroupClassId is null && request.IndividualClassId is null
+        ? NativeWrite((400, "Class context is required."))
+        : NativeWrite(await homework.AssignAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), request, ct)))
+    .RequireAuthorization("teacher");
 app.MapPost("/api/v1/teacher/homework/native/group-assignments", async (AssignNativeTaskRequest request,
     ClaimsPrincipal principal, NativeHomeworkService service, CancellationToken ct) =>
     request.GroupClassId is null
