@@ -2,18 +2,19 @@
 
 **UPDATED:** 2026-11-15
 **ACTIVE_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — Meleto UI-01…UI-08
-**ACTIVE_TASK:** UI-03 calendar creation dialog / class selection (40–41) — implemented, CI pending.
-**ACTIVE_BRANCH:** `tas/UI-03-calendar-create`
-**LAST_IMPLEMENTATION_COMMIT:** current branch head (base `5d4362d`; month/real-account runner PR #62).
-**NEXT_ACTION:** Finish browser/real API PostgreSQL checks and inspect captures 40/41; fix actual failures and merge. Next product slice: UI-03 bulk planning by period (`73_bulk_lessons_period`); count-based 74 remains separate. Do not mark all UI-03 complete.
-**VERIFICATION:** PASS — JS syntax and diff checks. CI pending. Source PNGs 40/41 + JSON inspected. NOT_RUN — production writes / Timeweb deployment.
+**ACTIVE_TASK:** UI-03 calendar creation / class selection (40–41) — functional slice complete; fidelity PARTIAL.
+**ACTIVE_BRANCH:** `none`
+**LAST_IMPLEMENTATION_COMMIT:** [`2e1d92a`](https://github.com/Arthur200014/testing-hosting/commit/2e1d92a4f3e9741faaf1d2ab60e96d9ffb7c64dd) ([merged PR #63](https://github.com/Arthur200014/testing-hosting/pull/63)).
+**NEXT_ACTION:** UI-03 — first **bulk planning by period** slice (`73_bulk_lessons_period`). Read that PNG/JSON; use 74 only if needed for shared form behavior, count-based creation later. Inspect existing Lesson writer/idempotency and ScheduleRule semantics before adding the smallest compatible authenticated batch flow. Must prevent duplicate Lessons on replay, enforce workspace/class/participant access, preserve existing history, and verify with real isolated API/PostgreSQL teachers.
+**VERIFICATION:** PASS — [Chromium + 23 Node tests + REAL API/PostgreSQL browser](https://github.com/Arthur200014/testing-hosting/actions/runs/43721802031), [PostgreSQL integration/startup/isolated restore](https://github.com/Arthur200014/testing-hosting/actions/runs/43721802018), [TAS CI](https://github.com/Arthur200014/testing-hosting/actions/runs/43721802041), source `fa06661` merged unchanged. JS syntax/diff pass. Source PNGs 40/41 + JSON and actual desktop/mobile captures inspected. NOT_RUN — production writes / Timeweb deployment.
 
-## Current slice
+## Completed slice
 
-- `platform/teacher.html`, `meleto-fidelity.css`: reference-style scrollable calendar modal with One-time/Class tabs, active persisted individual/group class picker, title/date draft preservation, class duration/confirmed participants, dirty cancel/Escape, focus handling/inert background, local server-error alert. Shared `lessonPlannerForm` validation, idempotent mutation and existing teacher Lesson API reused. Calendar mode/date background retained. Existing class/rule full-page planner unchanged.
-- Individual class schedule now shows saved Lesson titles alongside dates, matching group schedule visibility. Supported class defaults are duration and eligible participants; recording remains explicitly unavailable. No API/schema or production changes.
-- `calendar-real-browser.mjs`: actual isolated test teachers (not fixture API): one-time modal, individual/group save, date/time/duration/membership links, class schedules, empty/foreign class exclusion, declined dirty cancellation, archive while form is open → visible error/no Lesson → restore/retry, clean close/no write and mobile width. Uses prior real API/PostgreSQL runner and supplementary synthetic UI checks.
+- `platform/teacher.html`, `meleto-fidelity.css`: scrollable calendar modal with One-time/Class tabs, active own persisted individual/group picker, title/date draft preservation, class duration and confirmed participants, dirty cancel/Escape, focus/inert background, server-error alert scrolled into view. Reuses `lessonPlannerForm` validation/idempotent mutation and existing teacher APIs. Calendar date/mode retained; existing class/rule full-page planner preserved. Individual class schedule now includes Lesson titles.
+- `calendar-real-browser.mjs`: actual isolated test teachers/API/PostgreSQL verify one-time/individual/group saves, initial date and duration/member defaults, class schedules, empty/foreign class exclusion, declined dirty cancellation, archive while open → error/no Lesson → restore/retry, clean close/no write and mobile width. `meleto-ui-browser.mjs` supplementary selector updated for shared modal/full-page description.
+- No API/schema or production config changes; existing owner, student and lesson data never used as test-write targets. Dedicated test accounts/data are created and cleaned in isolated runs.
+- Fidelity PARTIAL: modal structure compared with 40/41; typography/spacing/native input appearance differ. Recording remains explicitly unavailable; only supported class defaults (duration/eligible participants) are applied. Do not mark all UI-03 complete.
 
 ## References and safety
 
-Use `.ai/tas/references/meleto/screens/40_calendar_create.png`, `41_calendar_class_create.png` and matching JSON. Compare actual captures; no pixel-fidelity claim before inspection. Follow `AGENTS.md`: new data-backed scenarios must use dedicated real API/PostgreSQL test teachers. Never test writes against the existing production owner or their students/lessons. No live imports, GAS/Sheets writer switch or credential changes. Green isolated CI does not verify Timeweb deployment.
+Use `.ai/tas/references/meleto/screens/` and matching `screen_specs.json`, only 1–2 relevant screens. Follow `AGENTS.md`: data-backed UI acceptance includes dedicated real API/PostgreSQL test teachers, mocked checks are supplementary. No production owner/student test writes, live imports, GAS/Sheets writer switch or credential changes. Green isolated CI does not verify Timeweb deployment.
