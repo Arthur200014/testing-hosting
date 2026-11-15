@@ -1,18 +1,25 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-16
-**ACTIVE_TASK:** UI-04 IN_PROGRESS — ready-template group assignment finished.
-**ACTIVE_BRANCH:** main; PRs [#74](https://github.com/Arthur200014/testing-hosting/pull/74) and [#75](https://github.com/Arthur200014/testing-hosting/pull/75) merged.
+**ACTIVE_TASK:** UI-04 IN_PROGRESS — group homework history, submissions and grading.
+**ACTIVE_BRANCH:** `tas/ui04-group-homework-review`; [PR #76](https://github.com/Arthur200014/testing-hosting/pull/76), implementation `5e1ac2166dba55d2adff4e4dfe7eca33dfba6248`, CI pending.
 **LAST_IMPLEMENTATION_COMMIT / MERGED_SHA:** `77daa923cae7369cc94bc12a9bc8bfc49b1cda6a`.
-**RELEASE_STATE:** MERGED; all relevant CI PASS. Latest Pages publication PENDING verification after urgent owner request to commit/push now. Timeweb native main auto-deploy owner-confirmed; independent API revision UNKNOWN.
-**NEXT_ACTION:** First confirm Pages for the merged SHA. Then a moderate UI-04 step: group-scoped homework read/status view (filter by group on the server before any result limit); keep submission/grade editing separate until that view is verified.
+**RELEASE_STATE:** Previous group assignment published: [Pages 43769328267](https://github.com/Arthur200014/testing-hosting/actions/runs/43769328267) PASS at `98b06a7` (contains #74/#75). Current #76 NOT_MERGED; isolated CI pending. Timeweb native main auto-deploy configured; independent revision UNKNOWN.
+**NEXT_ACTION:** Finish #76 isolated PostgreSQL/real Chromium checks, fix actual failures, merge after green, confirm Pages, then record outcome. No Timeweb checks or live writes per latest owner instruction.
 
 ## Standing owner instructions
 
 Timeweb automatically deploys latest main. Isolated API/PostgreSQL/Chromium testing is authorized; do not request production credentials or reopen the blocked panel. LIVE_WRITE_NOT_RUN and independent API revision UNKNOWN are limitations, not blockers.
-Latest owner preference supersedes the earlier large-block request: take a **smaller bounded step**, not the entire group homework module. The final steering was urgent commit/push.
+Latest owner instruction: take several consecutive related tasks together. Current block: server-scoped group history → submission/status/detail UI → existing grade/comment flow → save/cancel/reload. Verify everything in isolated environments; do not check Timeweb or request production access.
 
-## Group assignment — scope and evidence
+## Current #76 block
+
+- Added group-owned read route with filter before limit, independent per-group cache, status filtering, condition/answer detail and existing grading controls with cancel.
+- LOCAL PASS: 15 focused Node tests, module/inline JS syntax, diff check. Backend and real browser CI pending (local host lacks Docker/.NET).
+- Regression: 301 newer unrelated rows cannot hide group history; foreign workspace gets 404; archived history remains readable; grade 0 and feedback persist. Browser extends existing isolated assignment flow with student submit, cancel grade, save 85/comment and reload.
+- Paths: `platform/{teacher.html,teacher-data*,class-native-homework*,calendar-real-browser.mjs}`, native service/routes, `TeacherSessionTests.cs`. No schema change.
+
+## Previous group assignment — scope and evidence
 
 - Group → Homework now assigns an existing template to chosen approved members with 24/48/72h deadline; cancel and reload verified. Recent group rows use explicit GroupClassId, not inferred student membership. Templates are not copied.
 - Additive migration `20261116070000_NativeGroupAssignments` adds nullable GroupClassId + workspace/group FK; existing assignments stay null. Service validates active group, approval, student/program activity and task compatibility, checks group during replay, and locks the group with FOR SHARE during new assignment.
