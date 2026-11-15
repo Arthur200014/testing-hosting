@@ -27,6 +27,99 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
 
 
     [Fact]
+    public async Task RecurringRulesPersistWithoutLessonsAndEnforceTenantConflictsAndRevision()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "rules-north", "rules-north@example.invalid", "owner");
+        await SeedAsync(factory, "rules-south", "rules-south@example.invalid", "owner");
+        var member = await SeedStudentAsync(factory, north.WorkspaceId, "Synthetic schedule student", true);
+        using var client = factory.CreateClient();
+        var northLogin = (await (await LoginAsync(client, "rules-north",
+            "rules-north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", northLogin.AccessToken);
+        var classResult = await client.PostAsJsonAsync("/api/v1/teacher/classes",
+            new TeacherCreateClassRequest(Guid.NewGuid(), member, "Schedule individual"));
+        Assert.Equal(HttpStatusCode.Created, classResult.StatusCode);
+        var cls = (await classResult.Content.ReadFromJsonAsync<TeacherClassView>())!;
+        var groupResult = await client.PostAsJsonAsync("/api/v1/teacher/groups",
+            new TeacherCreateGroupRequest(Guid.NewGuid(), "Schedule group", [member]));
+        Assert.Equal(HttpStatusCode.Created, groupResult.StatusCode);
+        var group = (await groupResult.Content.ReadFromJsonAsync<TeacherGroupClassView>())!;
+        var monday = new TeacherScheduleRuleCreateRequest(
+            Guid.NewGuid(), cls.Id, "individual", 1, 900, 60, "Europe/Moscow");
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules",
+                monday with { RequestId = Guid.NewGuid(), DaysMask = 0 })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules",
+                monday with { RequestId = Guid.NewGuid(), StartMinute = 1380, DurationMinutes = 120 })).StatusCode);
+        var created = await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules", monday);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var rule = (await created.Content.ReadFromJsonAsync<TeacherScheduleRuleView>())!;
+        Assert.Equal(HttpStatusCode.OK,
+            (await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules", monday)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules",
+                monday with { StartMinute = 1000 })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules",
+                monday with { RequestId = Guid.NewGuid(), StartMinute = 930 })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules",
+                monday with { RequestId = Guid.NewGuid(), TimeZoneId = "Europe/Berlin" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Created,
+            (await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules",
+                monday with { RequestId = Guid.NewGuid(), StartMinute = 960 })).StatusCode);
+        Assert.Equal(HttpStatusCode.Created,
+            (await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules",
+                monday with { RequestId = Guid.NewGuid(), ClassId = group.Id, ClassKind = "group" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PatchAsJsonAsync("/api/v1/teacher/schedule-rules/" + rule.Id,
+                new TeacherScheduleRuleUpdateRequest(0, 1, 1020, 60, "Europe/Moscow", true))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PatchAsJsonAsync("/api/v1/teacher/schedule-rules/" + rule.Id,
+                new TeacherScheduleRuleUpdateRequest(1, 1, 970, 60, "Europe/Moscow", true))).StatusCode);
+        var changed = await client.PatchAsJsonAsync("/api/v1/teacher/schedule-rules/" + rule.Id,
+            new TeacherScheduleRuleUpdateRequest(1, 5, 840, 60, "Europe/Moscow", true));
+        Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
+        var updated = (await changed.Content.ReadFromJsonAsync<TeacherScheduleRuleView>())!;
+        Assert.Equal(2, updated.Revision);
+        Assert.Equal(5, updated.DaysMask);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PatchAsJsonAsync("/api/v1/teacher/schedule-rules/" + rule.Id,
+                new TeacherScheduleRuleUpdateRequest(1, 5, 840, 60, "Europe/Moscow", true))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,
+            (await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules/" + rule.Id + "/disable",
+                new TeacherClassRevisionRequest(updated.Revision))).StatusCode);
+        var rules = (await client.GetFromJsonAsync<List<TeacherScheduleRuleView>>(
+            "/api/v1/teacher/schedule-rules"))!;
+        Assert.Equal(3, rules.Count);
+        Assert.Single(rules, x => x.Id == rule.Id && !x.IsActive && x.Revision == 3);
+        Assert.Empty((await client.GetFromJsonAsync<List<TeacherLessonView>>("/api/v1/teacher/lessons"))!);
+        Assert.Equal(HttpStatusCode.OK,
+            (await client.PostAsJsonAsync("/api/v1/teacher/classes/" + cls.Id + "/archive",
+                new TeacherClassRevisionRequest(cls.Revision))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PatchAsJsonAsync("/api/v1/teacher/schedule-rules/" + rule.Id,
+                new TeacherScheduleRuleUpdateRequest(3, 5, 840, 60, "Europe/Moscow", true))).StatusCode);
+        var southLogin = (await (await LoginAsync(client, "rules-south",
+            "rules-south@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", southLogin.AccessToken);
+        Assert.Empty((await client.GetFromJsonAsync<List<TeacherScheduleRuleView>>(
+            "/api/v1/teacher/schedule-rules"))!);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules",
+                monday with { RequestId = Guid.NewGuid() })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules/" + rule.Id + "/disable",
+                new TeacherClassRevisionRequest(3))).StatusCode);
+    }
+
+    [Fact]
     public async Task ScheduledLessonLinksOneClassAndRespectsMembersTenantAndIdempotency()
     {
         await ResetAsync(factory);

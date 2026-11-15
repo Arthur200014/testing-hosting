@@ -117,6 +117,7 @@ async function mockApi(page) {
       const reads = {
         'teacher/classes': [],
         'teacher/groups': [],
+        'teacher/schedule-rules': [],
         'teacher/students': students,
         'teacher/programs': programs,
         'teacher/lessons': lessons,
