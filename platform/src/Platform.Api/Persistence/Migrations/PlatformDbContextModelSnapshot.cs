@@ -137,6 +137,8 @@ namespace TestingHosting.Platform.Persistence.Migrations
                 b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
                 b.HasKey("Id");
                 b.HasIndex("WorkspaceId", "RequestId").IsUnique();
+                b.HasIndex("WorkspaceId", "IndividualClassId");
+                b.HasIndex("WorkspaceId", "GroupClassId");
                 b.HasIndex("WorkspaceId", "MaterialId", "IndividualClassId").IsUnique();
                 b.HasIndex("WorkspaceId", "MaterialId", "GroupClassId").IsUnique();
                 b.ToTable("TeacherClassMaterialLinks", "platform", t => t.HasCheckConstraint(

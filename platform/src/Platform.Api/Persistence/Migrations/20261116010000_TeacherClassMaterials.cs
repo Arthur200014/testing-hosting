@@ -58,6 +58,10 @@ public sealed class TeacherClassMaterials : Migration
             new[] { "WorkspaceId", "CreatedAt" }, schema: "platform");
         m.CreateIndex("IX_TeacherClassMaterialLinks_WorkspaceId_RequestId", "TeacherClassMaterialLinks",
             new[] { "WorkspaceId", "RequestId" }, schema: "platform", unique: true);
+        m.CreateIndex("IX_TeacherClassMaterialLinks_WorkspaceId_IndividualClassId", "TeacherClassMaterialLinks",
+            new[] { "WorkspaceId", "IndividualClassId" }, schema: "platform");
+        m.CreateIndex("IX_TeacherClassMaterialLinks_WorkspaceId_GroupClassId", "TeacherClassMaterialLinks",
+            new[] { "WorkspaceId", "GroupClassId" }, schema: "platform");
         m.CreateIndex("IX_TeacherClassMaterialLinks_WorkspaceId_MaterialId_IndividualClassId", "TeacherClassMaterialLinks",
             new[] { "WorkspaceId", "MaterialId", "IndividualClassId" }, schema: "platform", unique: true);
         m.CreateIndex("IX_TeacherClassMaterialLinks_WorkspaceId_MaterialId_GroupClassId", "TeacherClassMaterialLinks",
