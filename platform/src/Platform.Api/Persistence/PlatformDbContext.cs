@@ -45,6 +45,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<TeacherClassTopic> TeacherClassTopics => Set<TeacherClassTopic>();
     public DbSet<TeacherTopicMaterialLink> TeacherTopicMaterialLinks => Set<TeacherTopicMaterialLink>();
 
+    public DbSet<TeacherTopicTaskLink> TeacherTopicTaskLinks => Set<TeacherTopicTaskLink>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("platform");
@@ -103,6 +105,22 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 .HasForeignKey(x => new { x.WorkspaceId, x.MaterialId })
                 .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<TeacherTopicTaskLink>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.WorkspaceId, x.RequestId }).IsUnique();
+            entity.HasIndex(x => new { x.WorkspaceId, x.TopicId, x.TaskId }).IsUnique();
+            entity.HasIndex(x => new { x.WorkspaceId, x.TaskId, x.ProgramId });
+            entity.HasOne<TeacherClassTopic>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.TopicId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_TopicTasks_Topic");
+            entity.HasOne<NativeHomeworkTask>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.TaskId, x.ProgramId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.ProgramId })
+                .OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_TopicTasks_Task");
         });
 
         modelBuilder.Entity<TeacherMaterial>(entity =>

@@ -182,6 +182,32 @@ try {
   await page.locator('#classNativeTaskForm [data-class-task-cancel]').click();
   assert.equal(await page.locator('#classNativeTaskForm [name="title"]').inputValue(),'');
   await page.screenshot({path:output+'/43_class_homework_real.png'});
+  await page.locator('.class-detail-tabs [data-class-detail-tab="program"]').click();
+  await page.locator('#topicTaskAttachForm [name="topicId"]').selectOption(firstTopic);
+  await page.locator('#topicTaskAttachForm [name="taskId"]').selectOption(created[0].id);
+  await page.locator('#topicTaskAttachForm [data-topic-form-cancel]').click();
+  assert.equal(await page.locator('#topicTaskAttachForm [name="taskId"]').inputValue(),'');
+  assert.deepEqual(await call('teacher/topic-tasks',north.token),[]);
+  await page.locator('[data-topic-filter="without-task"]').click();
+  assert.equal(await page.locator('[data-class-topic]').count(),2);
+  await page.locator('[data-topic-filter="all"]').click();
+  await page.locator('#topicTaskAttachForm [name="topicId"]').selectOption(firstTopic);
+  await page.locator('#topicTaskAttachForm [name="taskId"]').selectOption(created[0].id);
+  await page.locator('#topicTaskAttachForm button[type="submit"]').click();
+  await page.locator('[data-topic-tasks="'+firstTopic+'"]').getByText('UI-04 проверка задания',{exact:true}).waitFor();
+  const taskLinks=await call('teacher/topic-tasks',north.token);
+  assert.equal(taskLinks.length,1);
+  assert.equal(taskLinks[0].taskId,created[0].id);
+  assert.deepEqual(await call('teacher/homework/native/assignments',north.token),assigned);
+  assert.equal((await call('teacher/homework/native/tasks',north.token)).length,created.length);
+  assert.deepEqual(await call('teacher/topic-tasks',south.token),[]);
+  await page.locator('[data-topic-tasks="'+firstTopic+'"]').scrollIntoViewIfNeeded();
+  await page.screenshot({path:output+'/17_topic_tasks_real.png'});
+  await page.locator('[data-topic-filter="without-task"]').click();
+  assert.equal(await page.locator('[data-class-topic]').count(),1);
+  assert.equal(await page.locator('[data-class-topic="'+firstTopic+'"]').count(),0);
+  await page.locator('[data-topic-filter="all"]').click();
+
   await month();
   const cell=page.locator('[data-calendar-month-day="2026-11-16"]');
   assert.equal(await cell.locator('.calendar-month-event').count(),2);
@@ -225,6 +251,11 @@ try {
   assert.equal(persistedTopic.completionRevision,3);
   await page.locator('[data-topic-filter="all"]').click();
 
+  await page.locator('[data-topic-tasks="'+firstTopic+'"]').getByText('UI-04 проверка задания',{exact:true}).waitFor();
+  assert.deepEqual(await call('teacher/topic-tasks',north.token),taskLinks);
+  await page.locator('[data-topic-filter="without-task"]').click();
+  assert.equal(await page.locator('[data-class-topic]').count(),1);
+  await page.locator('[data-topic-filter="all"]').click();
   assert.equal((await call('teacher/topic-materials',north.token)).length,1);
   await page.locator('.class-detail-tabs [data-class-detail-tab="schedule"]').click();
   await page.locator('[data-open-class-lesson="'+linkedLessonId+'"]').click();

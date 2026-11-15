@@ -397,7 +397,7 @@
         const selectedProgramClass = view === 'overview' && state.selectedClass && state.classDetailTab === 'program' &&
           teacherClasses().some(item => item.id === state.selectedClass && item.persistent);
         const extra = selectedLessonDetail ? ['materials','lessonMaterialLinks'] :
-          selectedProgramClass ? ['classTopics','topicMaterialLinks','materials'] :
+          selectedProgramClass ? ['classTopics','topicMaterialLinks','materials','topicTaskLinks','nativeTasks'] :
           selectedMaterialClass ? ['materials','classMaterialLinks'] :
           classTasks ? ['nativeTasks','nativeAssignments'] :
           view === 'overview' && state.classTab === 'statistics' ? ['assignments','nativeAssignments'] : [];
@@ -429,7 +429,7 @@
             !confirm('Отменить несохранённый материал?')) return Promise.resolve();
         if (state.view !== view && document.querySelector('#lessonMaterialAttachForm[data-dirty="1"]') &&
             !confirm('Отменить несохранённое прикрепление материала?')) return Promise.resolve();
-        if (state.view !== view && document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"]') &&
+        if (state.view !== view && document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"]') &&
             !confirm('Отменить несохранённую тему или материал программы?')) return Promise.resolve();
         state.view = view;
         if (view !== 'lessons') state.lessonPlan = null;
@@ -1737,7 +1737,7 @@
         logout();
       });
       $('content').addEventListener('input', event => {
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm');
         if (editor) editor.dataset.dirty = '1';
         const draft = event.target.closest('#lessonPlannerForm');
         if (draft && event.target.name === 'title') {
@@ -1759,7 +1759,7 @@
           if (shiftCalendarDay(event.target.value, 0)) state.calendarDate = event.target.value;
           render(); return;
         }
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm');
         if (editor) editor.dataset.dirty = '1';
         if (event.target.id==='calendarPlanClass') {
           captureCalendarPlanDraft(event.target.form);
@@ -1966,7 +1966,7 @@
         const topicFilter = event.target.closest('[data-topic-filter]');
         const completeTopic = event.target.closest('[data-complete-topic]');
         if (topicFilter || completeTopic) {
-          if (document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"]') &&
+          if (document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённые изменения программы?')) return;
           if (topicFilter) { state.topicFilter=topicFilter.dataset.topicFilter; render(); return; }
           const item=teacherClasses().find(x=>x.id===state.selectedClass && x.persistent && !x.isArchived);
@@ -1989,7 +1989,7 @@
           const item=teacherClasses().find(x=>x.id===state.selectedClass && x.persistent && !x.isArchived);
           const order=item ? topicsForClass(item,state.data).map(x=>x.id) : [];
           if (!item || !order.includes(moveTopic.dataset.moveTopic)) return;
-          if (document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"]') &&
+          if (document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённые изменения перед перестановкой?')) return;
           moveTopic.disabled=true;
           try {
@@ -2014,7 +2014,7 @@
               !confirm('Отменить несохранённое задание?')) return;
           if (document.querySelector('#classMaterialLinkForm[data-dirty="1"], #classMaterialAttachForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённый материал?')) return;
-          if (document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"]') &&
+          if (document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённые изменения программы?')) return;
           state.scheduleEdit = null; state.classDetailTab = detailTab.dataset.classDetailTab;
           if (state.classDetailTab === 'homework' || state.classDetailTab === 'materials' || state.classDetailTab === 'program') await refresh(); else render();
@@ -2079,7 +2079,7 @@
               !confirm('Отменить несохранённое задание?')) return;
           if (document.querySelector('#classMaterialLinkForm[data-dirty="1"], #classMaterialAttachForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённый материал?')) return;
-          if (document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"]') &&
+          if (document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённые изменения программы?')) return;
           if (document.querySelector('#classScheduleRuleForm[data-dirty="1"]') &&
               !confirm('Отменить изменения расписания без сохранения?')) return;
@@ -2468,6 +2468,15 @@
           await mutation('classTopic:'+item.id,'class-topics',()=>({
             classId:item.id,classKind:item.kind,title:formValue(form,'title'),plan:formValue(form,'plan')
           }));
+        });
+        if (form.id === 'topicTaskAttachForm') onForm(form, async () => {
+          const item=teacherClasses().find(x=>x.id===form.dataset.classId && x.persistent && !x.isArchived);
+          const topicId=formValue(form,'topicId'), taskId=formValue(form,'taskId');
+          if (!item || item.id!==state.selectedClass ||
+              !topicsForClass(item,state.data).some(x=>x.id===topicId) ||
+              !(state.data.nativeTasks || []).some(x=>x.id===taskId))
+            throw new Error('Выберите тему своего класса и шаблон задания.');
+          await mutation('topicTask:'+topicId,'topic-tasks',()=>({topicId,taskId}));
         });
         if (form.id === 'topicMaterialAttachForm') onForm(form, async () => {
           const item=teacherClasses().find(x=>x.id===form.dataset.classId && x.persistent && !x.isArchived);

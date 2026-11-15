@@ -445,6 +445,27 @@ app.MapGet("/api/v1/teacher/topic-materials", async (
     Results.Ok(await service.MaterialsAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), ct))
 ).RequireAuthorization("teacher");
 
+app.MapGet("/api/v1/teacher/topic-tasks", async (
+    ClaimsPrincipal principal, TeacherClassTopicService service, CancellationToken ct) =>
+    Results.Ok(await service.TasksAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), ct))
+).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/topic-tasks", async (
+    TeacherTopicTaskRequest request, ClaimsPrincipal principal,
+    TeacherClassTopicService service, CancellationToken ct) =>
+{
+    var result = await service.AttachTaskAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), request, ct);
+    return result.Status switch
+    {
+        TeacherTopicStatus.Created => Results.Created("/api/v1/teacher/topic-tasks", result.TaskLink),
+        TeacherTopicStatus.Duplicate => Results.Ok(result.TaskLink),
+        TeacherTopicStatus.Invalid => Results.ValidationProblem(result.Errors!),
+        TeacherTopicStatus.NotFound => Results.NotFound(),
+        TeacherTopicStatus.Conflict => Results.Problem(statusCode:409, title:"Task already attached or request conflicts."),
+        _ => throw new InvalidOperationException("Unexpected topic task status.")
+    };
+}).RequireAuthorization("teacher");
+
 app.MapPost("/api/v1/teacher/class-topics", async (
     TeacherClassTopicCreateRequest request, ClaimsPrincipal principal,
     TeacherClassTopicService service, CancellationToken ct) =>

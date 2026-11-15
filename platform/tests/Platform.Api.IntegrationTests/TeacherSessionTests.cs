@@ -26,6 +26,81 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     private const string ClaimCode = "synthetic-claim-code-for-integration-tests-only-2026";
 
     [Fact]
+    public async Task TopicTaskTemplatesPersistReuseAndRejectForeignOrArchivedWrites()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "topic-tasks-north", "tasks-north@example.invalid", "owner");
+        var south = await SeedAsync(factory, "topic-tasks-south", "tasks-south@example.invalid", "owner");
+        var member = await SeedStudentAsync(factory, north.WorkspaceId, "Topic task student", true);
+        var programId = await SeedProgramAsync(factory, north.WorkspaceId);
+        var southProgramId = await SeedProgramAsync(factory, south.WorkspaceId);
+        using var client = factory.CreateClient();
+        var northSession = (await (await LoginAsync(client, "topic-tasks-north",
+            "tasks-north@example.invalid", Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", northSession.AccessToken);
+        var individual = (await (await client.PostAsJsonAsync("/api/v1/teacher/classes",
+            new TeacherCreateClassRequest(Guid.NewGuid(), member, "Topic tasks class")))
+            .Content.ReadFromJsonAsync<TeacherClassView>())!;
+        var group = (await (await client.PostAsJsonAsync("/api/v1/teacher/groups",
+            new TeacherCreateGroupRequest(Guid.NewGuid(), "Topic tasks group", [member])))
+            .Content.ReadFromJsonAsync<TeacherGroupClassView>())!;
+        var topic = (await (await client.PostAsJsonAsync("/api/v1/teacher/class-topics",
+            new TeacherClassTopicCreateRequest(Guid.NewGuid(), individual.Id, "individual", "Functions")))
+            .Content.ReadFromJsonAsync<TeacherClassTopicView>())!;
+        var groupTopic = (await (await client.PostAsJsonAsync("/api/v1/teacher/class-topics",
+            new TeacherClassTopicCreateRequest(Guid.NewGuid(), group.Id, "group", "Group topic")))
+            .Content.ReadFromJsonAsync<TeacherClassTopicView>())!;
+        var taskPost = await client.PostAsJsonAsync("/api/v1/teacher/homework/native/tasks",
+            new CreateNativeTaskRequest(Guid.NewGuid(), programId, "Reusable task", "Solve 2+2"));
+        Assert.Equal(HttpStatusCode.Created, taskPost.StatusCode);
+        var task = (await taskPost.Content.ReadFromJsonAsync<NativeTaskView>())!;
+        var request = new TeacherTopicTaskRequest(Guid.NewGuid(), topic.Id, task.Id);
+        var saved = await client.PostAsJsonAsync("/api/v1/teacher/topic-tasks", request);
+        Assert.Equal(HttpStatusCode.Created, saved.StatusCode);
+        var link = (await saved.Content.ReadFromJsonAsync<TeacherTopicTaskView>())!;
+        Assert.Equal(task.Id, link.TaskId);
+        Assert.Equal(programId, link.ProgramId);
+        var replay = await client.PostAsJsonAsync("/api/v1/teacher/topic-tasks", request);
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        Assert.Equal(link, await replay.Content.ReadFromJsonAsync<TeacherTopicTaskView>());
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/v1/teacher/topic-tasks",
+            request with { RequestId = Guid.NewGuid() })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/v1/teacher/topic-tasks",
+            request with { TaskId = Guid.NewGuid() })).StatusCode);
+        foreach (var invalid in new[] { request with { RequestId = Guid.Empty },
+            request with { TopicId = Guid.Empty }, request with { TaskId = Guid.Empty } })
+            Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(
+                "/api/v1/teacher/topic-tasks", invalid)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync("/api/v1/teacher/topic-tasks",
+            request with { RequestId = Guid.NewGuid(), TaskId = Guid.NewGuid() })).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/v1/teacher/topic-tasks",
+            request with { RequestId = Guid.NewGuid(), TopicId = groupTopic.Id })).StatusCode);
+        var persisted = (await client.GetFromJsonAsync<List<TeacherTopicTaskView>>("/api/v1/teacher/topic-tasks"))!;
+        Assert.Equal(2, persisted.Count);
+        Assert.Single((await client.GetFromJsonAsync<List<NativeTaskView>>("/api/v1/teacher/homework/native/tasks"))!);
+        Assert.Empty((await client.GetFromJsonAsync<List<NativeAssignmentView>>("/api/v1/teacher/homework/native/assignments"))!);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/groups/" + group.Id + "/archive", new TeacherClassRevisionRequest(group.Revision))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync("/api/v1/teacher/topic-tasks",
+            request with { RequestId = Guid.NewGuid(), TopicId = groupTopic.Id })).StatusCode);
+        var southSession = (await (await LoginAsync(client, "topic-tasks-south",
+            "tasks-south@example.invalid", Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", southSession.AccessToken);
+        Assert.Empty((await client.GetFromJsonAsync<List<TeacherTopicTaskView>>("/api/v1/teacher/topic-tasks"))!);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync("/api/v1/teacher/topic-tasks", request)).StatusCode);
+        var foreignTask = (await (await client.PostAsJsonAsync("/api/v1/teacher/homework/native/tasks",
+            new CreateNativeTaskRequest(Guid.NewGuid(), southProgramId, "Foreign task", "Foreign prompt")))
+            .Content.ReadFromJsonAsync<NativeTaskView>())!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", northSession.AccessToken);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync("/api/v1/teacher/topic-tasks",
+            request with { RequestId = Guid.NewGuid(), TaskId = foreignTask.Id })).StatusCode);
+        Assert.Equal(persisted, await client.GetFromJsonAsync<List<TeacherTopicTaskView>>("/api/v1/teacher/topic-tasks"));
+        client.DefaultRequestHeaders.Authorization = null;
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/v1/teacher/topic-tasks")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync("/api/v1/teacher/topic-tasks", request)).StatusCode);
+    }
+
+    [Fact]
     public async Task MaterialsPersistReuseInGroupAndRejectForeignTenants()
     {
         await ResetAsync(factory);
