@@ -86,6 +86,12 @@ try {
   assert.equal(createdMaterial.length,1);
   assert.equal(createdMaterialLinks.length,1);
   assert.equal(createdMaterialLinks[0].individualClassId,north.item.id);
+  // Attach the same library resource to a group; do not duplicate the URL record.
+  const groupMaterialLink={requestId:randomUUID(),classId:group.id,classKind:'group',materialId:createdMaterial[0].id};
+  await call('teacher/class-materials',north.token,groupMaterialLink,201);
+  await call('teacher/class-materials',north.token,groupMaterialLink,200);
+  assert.equal((await call('teacher/materials',north.token)).length,1);
+  assert.equal((await call('teacher/class-materials',north.token)).length,2);
   assert.deepEqual(await call('teacher/materials',south.token),[]);
   assert.deepEqual(await call('teacher/class-materials',south.token),[]);
   await page.locator('#classMaterialLinkForm [name="title"]').fill('Не сохранено');
