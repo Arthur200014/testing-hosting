@@ -257,6 +257,7 @@ namespace TestingHosting.Platform.Persistence.Migrations
 
             modelBuilder.Entity("TestingHosting.Platform.Homework.NativeHomeworkAssignment", b =>
                 {
+                    b.Property<Guid?>("GroupClassId").HasColumnType("uuid");
                     b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
                     b.Property<string>("Answer").HasMaxLength(10000).HasColumnType("character varying(10000)");
                     b.Property<DateTimeOffset>("AssignedAt").HasColumnType("timestamp with time zone");
@@ -274,6 +275,7 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     b.Property<string>("TeacherFeedback").HasMaxLength(2000).HasColumnType("character varying(2000)");
                     b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
                     b.HasKey("Id");
+                    b.HasIndex("WorkspaceId", "GroupClassId");
                     b.HasIndex("WorkspaceId", "MembershipId", "AssignedAt");
                     b.HasIndex("WorkspaceId", "MembershipId", "StudentId", "ProgramId");
                     b.HasIndex("WorkspaceId", "RequestId", "MembershipId").IsUnique();
@@ -1701,6 +1703,14 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     .WithMany().HasForeignKey("WorkspaceId", "TopicId")
                     .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict)
                     .IsRequired().HasConstraintName("FK_LessonTopics_Topic");
+            });
+
+            modelBuilder.Entity("TestingHosting.Platform.Homework.NativeHomeworkAssignment", b =>
+            {
+                b.HasOne("TestingHosting.Platform.Classes.TeacherGroupClass", null)
+                    .WithMany().HasForeignKey("WorkspaceId", "GroupClassId")
+                    .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict)
+                    .HasConstraintName("FK_NativeAssignments_Group");
             });
 
 #pragma warning restore 612, 618

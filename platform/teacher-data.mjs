@@ -25,7 +25,7 @@ export const teacherMutationKeys = {
   studentForm: ['students'], studentEditForm: ['students'],
   lessonForm: ['lessons', 'assignments'], lessonCorrectionForm: ['lessons'], lessonPlannerForm: ['lessons','lessonTopicSets'],
   nativeTaskForm: ['nativeTasks'], nativeAssignForm: ['nativeAssignments'],
-  classNativeTaskForm: ['nativeTasks'], classNativeAssignForm: ['nativeAssignments'],
+  classNativeTaskForm: ['nativeTasks'], classNativeAssignForm: ['nativeAssignments'], groupNativeAssignForm: ['nativeAssignments'],
   classMaterialLinkForm: ['materials','classMaterialLinks'], classMaterialAttachForm: ['classMaterialLinks'],
   lessonMaterialAttachForm: ['lessonMaterialLinks'],
   lessonTopicSetForm: ['lessonTopicSets'], topicLessonAttachForm: ['lessonTopicSets'],
