@@ -381,11 +381,27 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(x => x.Id);
             entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id });
             entity.Property(x => x.LegacyLessonId).HasMaxLength(128);
+            entity.Property(x => x.Title).HasMaxLength(50);
+            entity.Property(x => x.Description).HasMaxLength(1000);
             entity.HasIndex(x => new { x.WorkspaceId, x.LegacyLessonId }).IsUnique();
+            entity.HasIndex(x => new { x.WorkspaceId, x.IndividualClassId });
+            entity.HasIndex(x => new { x.WorkspaceId, x.GroupClassId });
+            entity.HasOne<TeacherClass>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.IndividualClassId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<TeacherGroupClass>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.GroupClassId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Workspace).WithMany().HasForeignKey(x => x.WorkspaceId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.ToTable(table =>
-                table.HasCheckConstraint("CK_Lessons_LegacyId", "length(\"LegacyLessonId\") > 0"));
+            {
+                table.HasCheckConstraint("CK_Lessons_LegacyId", "length(\"LegacyLessonId\") > 0");
+                table.HasCheckConstraint("CK_Lessons_ClassLink",
+                    "\"IndividualClassId\" IS NULL OR \"GroupClassId\" IS NULL");
+            });
         });
 
         modelBuilder.Entity<LessonParticipant>(entity =>
