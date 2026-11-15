@@ -1174,6 +1174,25 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         var afterRead = Assert.Single((await client.GetFromJsonAsync<List<TeacherLessonView>>(route))!);
         Assert.Equal(current.Revision, afterRead.Revision);
         Assert.Equal(current.CompletedAt, afterRead.CompletedAt);
+        var resultPath = route + id + "/participants/" + first + "/result";
+        var feedback = new TeacherLessonFeedbackRequest(afterRead.Revision, "positive", "  Хорошая работа  ");
+        var feedbackResponse = await client.PostAsJsonAsync(resultPath, feedback);
+        Assert.Equal(HttpStatusCode.OK, feedbackResponse.StatusCode);
+        var withFeedback = (await feedbackResponse.Content.ReadFromJsonAsync<TeacherLessonView>())!;
+        Assert.Equal("Хорошая работа", withFeedback.Participants.Single(x => x.MembershipId == first).Feedback);
+        Assert.Equal("positive", withFeedback.Participants.Single(x => x.MembershipId == first).Reaction);
+        Assert.Equal(afterRead.Participants.Single(x => x.MembershipId == second), withFeedback.Participants.Single(x => x.MembershipId == second));
+        Assert.Equal(afterRead.CompletedAt, withFeedback.CompletedAt);
+        Assert.Equal(afterRead.Participants.Single(x => x.MembershipId == first).AttendanceStatus,
+            withFeedback.Participants.Single(x => x.MembershipId == first).AttendanceStatus);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(resultPath, feedback)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(resultPath, feedback with { Feedback = "Stale update" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(resultPath, feedback with { Reaction = "invalid" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(resultPath, feedback with { Feedback = new string('a', 2001) })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(route + foreignLesson + "/participants/" + first + "/result", feedback)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(route + id + "/participants/" + Guid.NewGuid() + "/result", feedback)).StatusCode);
+        var persistedResult = Assert.Single((await client.GetFromJsonAsync<List<TeacherLessonView>>(route))!);
+        Assert.Equal(withFeedback.Revision, persistedResult.Revision);
         var afterAssignments = (await client.GetFromJsonAsync<List<TeacherHomeworkAssignmentView>>(
             "/api/v1/teacher/homework/assignments"))!;
         Assert.Equal(initialAssignments.Select(x => x.Id).Order(),

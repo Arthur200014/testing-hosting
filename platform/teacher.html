@@ -344,6 +344,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
+        state.resultDraft=null;
         state.selectedLesson=null; state.lessonFilter='all';
         state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.classDetailTab = 'summary'; state.classStatsMonth = new Date().toISOString().slice(0,7); state.classStatsExpanded = ''; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; state.lessonPlan = null; state.scheduleEdit = null; state.calendarDate = calendarDay(); state.calendarMode = 'day'; state.periodPreview=null;
         document.body.classList.remove('calendar-plan-open');
@@ -705,11 +706,29 @@
             <section class="card stack"><h2>Темы и комментарии</h2>${list(participants.filter(p=>p.topicComment),'Темы пока не указаны.',p=>`<div><strong>${safe(studentName(p.membershipId))}</strong><p>${safe(p.topicComment)}</p></div>`)}</section>
             <section class="card stack"><h2>Материалы</h2><p class="muted">Материалы к этому занятию не добавлены.</p></section>
           </div><aside class="lesson-detail-side"><section class="card stack"><button class="primary" disabled title="Доска занятия пока недоступна">Перейти к доске</button></section>
-            <section class="card stack"><div class="section-head"><h2>Участники</h2><button type="button" class="secondary" data-edit-lesson="${safe(lesson.id)}">Изменить результаты</button></div>
-              ${participants.map(p=>`<div class="item" data-lesson-participant="${safe(p.membershipId)}"><div><strong>${safe(studentName(p.membershipId))}</strong><small>${safe(labels[p.attendanceStatus] || p.attendanceStatus)} · ${p.durationMinutes} мин</small></div></div>`).join('')}
+            <section class="card stack"><div class="section-head"><h2>Участники</h2><button type="button" class="secondary" data-edit-lesson="${safe(lesson.id)}">Посещаемость и завершение</button></div>
+              ${participants.map(p=>`<div class="item" data-lesson-participant="${safe(p.membershipId)}"><div><strong>${safe(studentName(p.membershipId))}</strong><small>${safe(labels[p.attendanceStatus] || p.attendanceStatus)} · ${p.durationMinutes} мин</small>
+                ${p.reaction?`<p data-student-reaction>${safe({positive:'😊',neutral:'😐',negative:'🙁'}[p.reaction] || p.reaction)}</p>`:''}${p.feedback?`<p data-student-feedback>${safe(p.feedback)}</p>`:''}</div>
+                <button type="button" class="class-text-link" data-open-lesson-result="${safe(p.membershipId)}" data-lesson-id="${safe(lesson.id)}">Изменить результат</button></div>`).join('')}
               ${!lesson.completedAt?'<p class="small muted">Для завершения занятия откройте результаты и подтвердите завершение при сохранении.</p>':''}
-            </section>${state.editLesson?.id===lesson.id?lessonCorrectionForm():''}</aside></div>
-        </section>`;
+            </section>${state.editLesson?.id===lesson.id?lessonCorrectionForm():''}
+            <section class="card stack lesson-history"><h2>История занятия</h2>
+              ${lesson.createdAt?`<div class="lesson-history-event"><strong>Занятие создано</strong><small>${safe(date(lesson.createdAt))}</small></div>`:''}
+              ${lesson.completedAt?`<div class="lesson-history-event"><strong>Занятие завершено</strong><small>${safe(date(lesson.completedAt))}</small></div>`:'<p class="muted">Завершение ещё не подтверждено.</p>'}
+              <p class="muted small">Чат занятия недоступен.</p></section></aside></div>
+        </section>${lessonResultDialog(lesson)}`;
+      }
+      function lessonResultDialog(lesson) {
+        const draft=state.resultDraft;
+        if (!draft || draft.lessonId!==lesson.id) return '';
+        return `<div class="modal-backdrop"><section class="learning-modal lesson-result-modal" role="dialog" aria-modal="true" aria-labelledby="lessonResultTitle">
+          <div class="modal-head"><h2 id="lessonResultTitle">Результаты</h2><button type="button" class="modal-close" data-close-lesson-result ${draft.saving?'disabled':''} aria-label="Закрыть результаты">×</button></div>
+          <form id="lessonResultForm" class="stack"><strong>${safe(studentName(draft.membershipId))}</strong>
+            <label>Реакция<select name="reaction" ${draft.saving?'disabled':''}><option value="">Не выбрана</option>${[['positive','😊 Хорошо'],['neutral','😐 Обычно'],['negative','🙁 Требуется помощь']].map(([id,title])=>`<option value="${id}" ${draft.reaction===id?'selected':''}>${title}</option>`).join('')}</select></label>
+            <label>Комментарий<textarea name="feedback" maxlength="2000" placeholder="Комментарий" ${draft.saving?'disabled':''}>${safe(draft.feedback)}</textarea></label>
+            ${draft.error?`<p role="alert" class="banner error">${safe(draft.error)}</p>`:''}
+            <div class="row"><button type="submit" class="primary" ${draft.saving?'disabled':''}>${draft.saving?'Сохраняем…':'Готово'}</button><button type="button" class="secondary" data-close-lesson-result ${draft.saving?'disabled':''}>Отмена</button></div>
+          </form></section></div>`;
       }
       function classDetail(item) {
         if (state.selectedLesson) {
@@ -1729,6 +1748,18 @@
         }
       });
       $('content').addEventListener('click', async event => {
+        const resultButton=event.target.closest('[data-open-lesson-result]');
+        if (resultButton) {
+          const lesson=state.data.lessons?.find(x=>x.id===resultButton.dataset.lessonId);
+          const participant=lesson?.participants.find(x=>x.membershipId===resultButton.dataset.openLessonResult);
+          if (!participant) return;
+          state.resultDraft={lessonId:lesson.id,membershipId:participant.membershipId,revision:lesson.revision,reaction:participant.reaction || '',feedback:participant.feedback || '',error:'',saving:false};
+          render(); document.querySelector('#lessonResultForm textarea')?.focus(); return;
+        }
+        if (event.target.closest('[data-close-lesson-result]')) {
+          if (state.resultDraft?.saving) return;
+          state.resultDraft=null; render(); document.querySelector('[data-open-lesson-result]')?.focus(); return;
+        }
         const lessonFilter=event.target.closest('[data-class-lessons-filter]');
         if (lessonFilter) { state.lessonFilter=lessonFilter.dataset.classLessonsFilter; render(); return; }
         if (event.target.closest('[data-back-class-lessons]')) { state.selectedLesson=null; state.editLesson=null; render(); return; }
@@ -2098,6 +2129,14 @@
         }
       });
       document.addEventListener('keydown', event => {
+        if (state.resultDraft) {
+          if (event.key==='Escape' && !state.resultDraft.saving) { event.preventDefault(); state.resultDraft=null; render(); document.querySelector('[data-open-lesson-result]')?.focus(); return; }
+          if (event.key==='Tab') {
+            const controls=[...document.querySelectorAll('.lesson-result-modal button:not([disabled]), .lesson-result-modal select:not([disabled]), .lesson-result-modal textarea:not([disabled])')];
+            if (event.shiftKey && document.activeElement===controls[0]) { event.preventDefault(); controls.at(-1)?.focus(); }
+            else if (!event.shiftKey && document.activeElement===controls.at(-1)) { event.preventDefault(); controls[0]?.focus(); }
+          }
+        }
         if (state.periodPreview?.modal) {
           if (event.key==='Escape') { event.preventDefault(); state.periodPreview=null; render(); document.querySelector('[data-open-count-plan]')?.focus(); return; }
           if (event.key==='Tab') {
@@ -2130,6 +2169,24 @@
       });
       $('content').addEventListener('submit', async event => {
         event.preventDefault(); const form = event.target;
+        if (form.id==='lessonResultForm') {
+          const draft=state.resultDraft, token=state.token;
+          if (!draft || draft.saving) return;
+          draft.reaction=formValue(form,'reaction'); draft.feedback=formValue(form,'feedback'); draft.error=''; draft.saving=true; render();
+          try {
+            const saved=await api('teacher/lessons/'+encodeURIComponent(draft.lessonId)+'/participants/'+encodeURIComponent(draft.membershipId)+'/result',{
+              method:'POST',body:{expectedRevision:draft.revision,reaction:draft.reaction || null,feedback:draft.feedback || null}});
+            if (state.token!==token) return;
+            state.data.lessons=(state.data.lessons || []).map(x=>x.id===saved.id?saved:x);
+            if (state.resultDraft===draft) state.resultDraft=null;
+            render();
+            invalidate(['lessons']); await loadKey('lessons',true);
+          } catch(error) {
+            if (state.token!==token || state.resultDraft!==draft) return;
+            draft.error=error.message; draft.saving=false; render();
+          }
+          return;
+        }
         if (form.id==='classPeriodPreviewForm') {
           const mode=form.dataset.mode || 'period';
           const preview={classId:form.dataset.classId,classKind:form.dataset.classKind,mode,modal:form.dataset.modal==='true',count:mode==='count'?Number(formValue(form,'count')):null,

@@ -6,6 +6,7 @@ namespace TestingHosting.Platform.Lessons;
 public sealed record TeacherLessonCorrectionRequest(
     string? ExpectedRevision, DateTimeOffset? LessonAt,
     List<TeacherLessonParticipantRequest>? Participants, bool Complete = false);
+public sealed record TeacherLessonFeedbackRequest(string? ExpectedRevision, string? Reaction, string? Feedback);
 public enum TeacherLessonCorrectionStatus { Updated, Unchanged, Conflict, NotFound, InvalidRequest }
 public sealed record TeacherLessonCorrectionResult(
     TeacherLessonCorrectionStatus Status, TeacherLessonView? Response = null,
@@ -13,6 +14,34 @@ public sealed record TeacherLessonCorrectionResult(
 
 public sealed class TeacherLessonCorrectionService(PlatformDbContext db, TimeProvider clock)
 {
+    public async Task<TeacherLessonCorrectionResult> FeedbackAsync(Guid workspaceId, Guid lessonId,
+        Guid membershipId, TeacherLessonFeedbackRequest request, CancellationToken ct)
+    {
+        var reaction = Clean(request.Reaction);
+        var feedback = Clean(request.Feedback);
+        if (request.ExpectedRevision is null || request.ExpectedRevision.Length != 64 ||
+            !request.ExpectedRevision.All(Uri.IsHexDigit) ||
+            reaction is not (null or "positive" or "neutral" or "negative") || feedback?.Length > 2000)
+            return new(TeacherLessonCorrectionStatus.InvalidRequest, Errors: new()
+            { ["result"] = ["Проверьте реакцию, комментарий (до 2000 символов) и обновите занятие."] });
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var workspaceKey = "lesson-workspace:" + workspaceId.ToString("N");
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({workspaceKey}, 0))", ct);
+        var lesson = await db.Lessons.Include(x => x.Participants)
+            .SingleOrDefaultAsync(x => x.WorkspaceId == workspaceId && x.Id == lessonId, ct);
+        var participant = lesson?.Participants.SingleOrDefault(x => x.MembershipId == membershipId);
+        if (lesson is null || participant is null) return new(TeacherLessonCorrectionStatus.NotFound);
+        var current = TeacherLessonRevision.FromEntity(lesson);
+        if (participant.Reaction == reaction && participant.Feedback == feedback)
+            return new(TeacherLessonCorrectionStatus.Unchanged, current);
+        if (!string.Equals(request.ExpectedRevision, current.Revision, StringComparison.OrdinalIgnoreCase))
+            return new(TeacherLessonCorrectionStatus.Conflict);
+        participant.Reaction = reaction; participant.Feedback = feedback;
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return new(TeacherLessonCorrectionStatus.Updated, TeacherLessonRevision.FromEntity(lesson));
+    }
+
     public async Task<TeacherLessonCorrectionResult> CorrectAsync(
         Guid workspaceId, Guid lessonId, TeacherLessonCorrectionRequest request, CancellationToken ct)
     {

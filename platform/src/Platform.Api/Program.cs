@@ -623,6 +623,20 @@ app.MapGet("/api/v1/teacher/lessons", async (
         Guid.Parse(principal.FindFirstValue("workspace_id")!), cancellationToken)))
     .RequireAuthorization("teacher");
 
+app.MapPost("/api/v1/teacher/lessons/{lessonId:guid}/participants/{membershipId:guid}/result", async (
+    Guid lessonId, Guid membershipId, TeacherLessonFeedbackRequest request, ClaimsPrincipal principal,
+    TeacherLessonCorrectionService lessons, CancellationToken ct) =>
+{
+    var result = await lessons.FeedbackAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), lessonId, membershipId, request, ct);
+    return result.Status switch
+    {
+        TeacherLessonCorrectionStatus.Updated or TeacherLessonCorrectionStatus.Unchanged => Results.Ok(result.Response),
+        TeacherLessonCorrectionStatus.NotFound => Results.NotFound(),
+        TeacherLessonCorrectionStatus.InvalidRequest => Results.ValidationProblem(result.Errors!),
+        _ => Results.Problem(statusCode: 409, title: "Результаты изменились. Обновите занятие и повторите изменение.")
+    };
+}).RequireAuthorization("teacher");
+
 app.MapPost("/api/v1/teacher/lessons/{lessonId:guid}/correct", async (
     Guid lessonId, TeacherLessonCorrectionRequest request, ClaimsPrincipal principal,
     TeacherLessonCorrectionService lessons, CancellationToken cancellationToken) =>

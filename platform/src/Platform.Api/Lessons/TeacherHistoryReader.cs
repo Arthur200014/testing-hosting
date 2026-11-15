@@ -6,13 +6,14 @@ namespace TestingHosting.Platform.Lessons;
 
 public sealed record TeacherLessonParticipantView(
     Guid MembershipId, Guid StudentId, Guid ProgramId,
-    int DurationMinutes, string? TaskNumbers, string? TopicComment, string AttendanceStatus);
+    int DurationMinutes, string? TaskNumbers, string? TopicComment, string AttendanceStatus,
+    string? Reaction = null, string? Feedback = null);
 
 public sealed record TeacherLessonView(
     Guid Id, string LegacyLessonId, DateTimeOffset LessonAt,
     List<TeacherLessonParticipantView> Participants, string Revision,
     Guid? IndividualClassId = null, Guid? GroupClassId = null,
-    string? Title = null, string? Description = null, DateTimeOffset? CompletedAt = null);
+    string? Title = null, string? Description = null, DateTimeOffset? CompletedAt = null, DateTimeOffset? CreatedAt = null);
 
 public sealed class TeacherHistoryReader(PlatformDbContext db)
 {
@@ -23,7 +24,7 @@ public sealed class TeacherHistoryReader(PlatformDbContext db)
             .Where(x => x.WorkspaceId == workspaceId)
             .OrderByDescending(x => x.LessonAt).ThenBy(x => x.Id)
             .Select(x => new { x.Id, x.LegacyLessonId, x.LessonAt,
-                x.IndividualClassId, x.GroupClassId, x.Title, x.Description, x.CompletedAt })
+                x.IndividualClassId, x.GroupClassId, x.Title, x.Description, x.CompletedAt, x.CreatedAt })
             .ToListAsync(cancellationToken);
 
         var participants = await db.LessonParticipants.AsNoTracking()
@@ -34,7 +35,7 @@ public sealed class TeacherHistoryReader(PlatformDbContext db)
                 x.LessonId,
                 View = new TeacherLessonParticipantView(
                     x.MembershipId, x.StudentId, x.ProgramId,
-                    x.DurationMinutes, x.TaskNumbers, x.TopicComment, x.AttendanceStatus)
+                    x.DurationMinutes, x.TaskNumbers, x.TopicComment, x.AttendanceStatus, x.Reaction, x.Feedback)
             })
             .ToListAsync(cancellationToken);
         var byLesson = participants.ToLookup(x => x.LessonId, x => x.View);
@@ -43,7 +44,7 @@ public sealed class TeacherHistoryReader(PlatformDbContext db)
             var rows = byLesson[x.Id].ToList();
             return new TeacherLessonView(x.Id, x.LegacyLessonId, x.LessonAt,
                 rows, TeacherLessonRevision.Compute(x.LessonAt, rows, x.CompletedAt),
-                x.IndividualClassId, x.GroupClassId, x.Title, x.Description, x.CompletedAt);
+                x.IndividualClassId, x.GroupClassId, x.Title, x.Description, x.CompletedAt, x.CreatedAt);
         }).ToList();
     }
 

@@ -839,6 +839,8 @@ namespace TestingHosting.Platform.Persistence.Migrations
 
             modelBuilder.Entity("TestingHosting.Platform.Lessons.LessonParticipant", b =>
                 {
+                    b.Property<string>("Reaction").HasMaxLength(16).HasColumnType("character varying(16)");
+                    b.Property<string>("Feedback").HasMaxLength(2000).HasColumnType("character varying(2000)");
                     b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
                     b.Property<string>("AttendanceStatus").IsRequired().HasMaxLength(128).HasColumnType("character varying(128)");
                     b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");

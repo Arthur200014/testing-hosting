@@ -33,6 +33,8 @@ public sealed class LessonParticipant
     public string? TaskNumbers { get; set; }
     public string? TopicComment { get; set; }
     public required string AttendanceStatus { get; set; }
+    public string? Reaction { get; set; }
+    public string? Feedback { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public Lesson Lesson { get; set; } = null!;
     public WorkspaceStudentMembership Membership { get; set; } = null!;
