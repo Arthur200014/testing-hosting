@@ -268,6 +268,14 @@ try {
   await page.locator('[data-lesson-topic="'+pairTopic.id+'"] a[href="https://example.org/study-notes"]').waitFor();
   await page.locator('[data-lesson-topic="'+pairTopic.id+'"]').getByText('UI-04 проверка задания',{exact:true}).waitFor();
   assert.equal(await page.locator('[data-lesson-participant]').count(),2);
+  await page.locator('#lessonMaterialAttachForm [name="materialId"]').selectOption(createdMaterial[0].id);
+  await page.locator('#lessonTopicSetForm input[value="'+pairTopic.id+'"]').uncheck();
+  page.once('dialog',dialog=>dialog.dismiss());
+  await page.locator('#lessonMaterialAttachForm button[type="submit"]').click();
+  assert.equal(await page.locator('#lessonTopicSetForm input[value="'+pairTopic.id+'"]').isChecked(),false);
+  assert.equal((await call('teacher/lesson-materials',north.token)).length,1);
+  await page.locator('#lessonMaterialAttachForm [data-lesson-material-cancel]').click();
+  await page.locator('#lessonTopicSetForm [data-lesson-topics-cancel]').click();
   await page.locator('#lessonTopicSetForm input[value="'+pairTopic.id+'"]').uncheck();
   await page.locator('#lessonTopicSetForm button[type="submit"]').click();
   await page.getByText('Темы к занятию пока не добавлены.',{exact:true}).waitFor();
