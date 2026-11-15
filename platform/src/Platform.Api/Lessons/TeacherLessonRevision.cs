@@ -8,14 +8,14 @@ namespace TestingHosting.Platform.Lessons;
 // Include every editable field and the exact (workspace-scoped) participant set.
 public static class TeacherLessonRevision
 {
-    public static string Compute(DateTimeOffset lessonAt, IEnumerable<TeacherLessonParticipantView> participants)
+    public static string Compute(DateTimeOffset lessonAt, IEnumerable<TeacherLessonParticipantView> participants, DateTimeOffset? completedAt = null)
     {
         var rows = participants.OrderBy(x => x.MembershipId).Select(x => new
         {
             x.MembershipId, x.StudentId, x.ProgramId, x.DurationMinutes,
             x.TaskNumbers, x.TopicComment, x.AttendanceStatus
         }).ToArray();
-        var payload = JsonSerializer.Serialize(new { Ticks = lessonAt.ToUniversalTime().Ticks, Rows = rows });
+        var payload = JsonSerializer.Serialize(new { Ticks = lessonAt.ToUniversalTime().Ticks, Rows = rows, CompletedTicks = completedAt?.ToUniversalTime().Ticks });
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(payload)));
     }
 
@@ -26,6 +26,7 @@ public static class TeacherLessonRevision
                 x.MembershipId, x.StudentId, x.ProgramId, x.DurationMinutes,
                 x.TaskNumbers, x.TopicComment, x.AttendanceStatus)).ToList();
         return new(lesson.Id, lesson.LegacyLessonId, lesson.LessonAt,
-            rows, Compute(lesson.LessonAt, rows));
+            rows, Compute(lesson.LessonAt, rows, lesson.CompletedAt), lesson.IndividualClassId,
+            lesson.GroupClassId, lesson.Title, lesson.Description, lesson.CompletedAt);
     }
 }

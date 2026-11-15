@@ -10,6 +10,7 @@ public sealed class Lesson
     public Guid WorkspaceId { get; set; }
     public required string LegacyLessonId { get; set; }
     public DateTimeOffset LessonAt { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
     // Optional class link; existing imported lessons retain null links.
     public Guid? IndividualClassId { get; set; }
     public Guid? GroupClassId { get; set; }

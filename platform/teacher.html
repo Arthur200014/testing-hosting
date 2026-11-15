@@ -344,6 +344,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
+        state.selectedLesson=null; state.lessonFilter='all';
         state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.classDetailTab = 'summary'; state.classStatsMonth = new Date().toISOString().slice(0,7); state.classStatsExpanded = ''; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; state.lessonPlan = null; state.scheduleEdit = null; state.calendarDate = calendarDay(); state.calendarMode = 'day'; state.periodPreview=null;
         document.body.classList.remove('calendar-plan-open');
         $('app').hidden = true; $('loginScreen').hidden = false;
@@ -650,10 +651,12 @@
             ? `<section class="class-subsection">${metadata}${roster}${groupInvitePanel(item)}</section>`
           : tab === 'schedule'
             ? `<section class="class-subsection">${classScheduleRules(item)}<h3>Занятия группы</h3>
-                ${list(linkedLessons, 'Запланированных занятий пока нет.', x => `<div class="item">
+                <div class="class-tabs"><button type="button" data-class-lessons-filter="all">Все занятия</button><button type="button" data-class-lessons-filter="completed">Завершённые</button></div>
+                ${list(linkedLessons.filter(x=>state.lessonFilter!=='completed'||x.completedAt), 'Занятий пока нет.', x => `<div class="item">
                   <div><strong>${safe(x.title || 'Занятие')} · ${safe(date(x.lessonAt))}</strong>
                     <small>${safe((x.participants || []).length)} учеников · ${safe(x.description || 'Без описания')}</small></div>
-                  <span class="pill">${new Date(x.lessonAt) > new Date() ? 'Запланировано' : 'Дата прошла'}</span>
+                  <span class="pill">${x.completedAt?'Завершено':new Date(x.lessonAt) > new Date() ? 'Запланировано' : 'Дата прошла'}</span>
+                  <button type="button" class="secondary" data-open-class-lesson="${safe(x.id)}">Открыть занятие</button>
                 </div>`)}
                 ${item.isArchived ? '' : `<button type="button" class="primary" data-schedule-class="${safe(item.id)}">＋ Добавить занятие</button>`}
                 <p class="muted small">Правила повторения показаны выше; здесь — только отдельно созданные занятия группы.</p>
@@ -688,7 +691,33 @@
           ${body}
         </div>`;
       }
+      function classLessonDetail(item,lesson) {
+        const participants=lesson.participants || [];
+        const labels={Present:'Присутствовал',Absent:'Отсутствовал',Unknown:'Не отмечено'};
+        const duration=Math.max(...participants.map(p=>p.durationMinutes),0);
+        return `<section class="class-lesson-detail">
+          <nav class="lesson-planner-breadcrumb" aria-label="Путь к занятию"><button type="button" data-back-classes>Классы</button><span>›</span>
+            <button type="button" data-back-class-lessons>${safe(item.title)}</button><span>›</span><span>${safe(lesson.title || 'Занятие')}</span></nav>
+          <div class="lesson-detail-grid"><div class="stack">
+            <header class="lesson-detail-hero"><p>${safe(date(lesson.lessonAt))} · ${duration} мин</p><h1>${safe(lesson.title || 'Занятие')}</h1>
+              <div class="lesson-detail-status">${lesson.completedAt?'Завершено · '+safe(date(lesson.completedAt)):new Date(lesson.lessonAt)>new Date()?'Запланировано':'Дата прошла · ещё не завершено'}</div></header>
+            <section class="card stack"><h2>Доступ к записи</h2><p class="muted">Запись занятия недоступна.</p></section>
+            <section class="card stack"><h2>Темы и комментарии</h2>${list(participants.filter(p=>p.topicComment),'Темы пока не указаны.',p=>`<div><strong>${safe(studentName(p.membershipId))}</strong><p>${safe(p.topicComment)}</p></div>`)}</section>
+            <section class="card stack"><h2>Материалы</h2><p class="muted">Материалы к этому занятию не добавлены.</p></section>
+          </div><aside class="lesson-detail-side"><section class="card stack"><button class="primary" disabled title="Доска занятия пока недоступна">Перейти к доске</button></section>
+            <section class="card stack"><div class="section-head"><h2>Участники</h2><button type="button" class="secondary" data-edit-lesson="${safe(lesson.id)}">Изменить результаты</button></div>
+              ${participants.map(p=>`<div class="item" data-lesson-participant="${safe(p.membershipId)}"><div><strong>${safe(studentName(p.membershipId))}</strong><small>${safe(labels[p.attendanceStatus] || p.attendanceStatus)} · ${p.durationMinutes} мин</small></div></div>`).join('')}
+              ${!lesson.completedAt?'<p class="small muted">Для завершения занятия откройте результаты и подтвердите завершение при сохранении.</p>':''}
+            </section>${state.editLesson?.id===lesson.id?lessonCorrectionForm():''}</aside></div>
+        </section>`;
+      }
       function classDetail(item) {
+        if (state.selectedLesson) {
+          const lesson=(state.data.lessons || []).find(x=>x.id===state.selectedLesson &&
+            (item.kind==='group'?x.groupClassId===item.id:x.individualClassId===item.id ||
+              (!x.individualClassId && !x.groupClassId && x.participants?.some(p=>p.membershipId===item.studentMembershipId))));
+          if (lesson) return classLessonDetail(item,lesson);
+        }
         if (item.kind === 'group') return groupClassDetail(item);
         const lessons = (state.data.lessons || []).filter(x =>
           x.individualClassId === item.id ||
@@ -724,9 +753,11 @@
             </div>
           </section>`,
           schedule: `<section class="class-subsection">${classScheduleRules(item)}<h3>Занятия класса</h3>
-            ${list(lessons.slice(0, 15), 'Занятий по этому классу пока нет.', x => `<div class="item">
+            <div class="class-tabs"><button type="button" data-class-lessons-filter="all">Все занятия</button><button type="button" data-class-lessons-filter="completed">Завершённые</button></div>
+            ${list(lessons.filter(x=>state.lessonFilter!=='completed'||x.completedAt).slice(0, 15), 'Занятий по этому классу пока нет.', x => `<div class="item">
                 <div><strong>${safe(x.title || 'Занятие')} · ${safe(date(x.lessonAt))}</strong><small>${safe(x.participants?.find(p => p.membershipId === item.studentMembershipId)?.topicComment || 'Тема не указана')}</small></div>
-                <span class="pill">${new Date(x.lessonAt) > new Date() ? 'Запланировано' : 'Прошло'}</span>
+                <span class="pill">${x.completedAt?'Завершено':new Date(x.lessonAt) > new Date() ? 'Запланировано' : 'Прошло'}</span>
+                <button type="button" class="secondary" data-open-class-lesson="${safe(x.id)}">Открыть занятие</button>
               </div>`)}
             <button class="primary" type="button" data-schedule-class="${safe(item.id)}">＋ Добавить занятие</button></section>`,
           materials: `<section class="class-subsection class-feature-note"><h3>Материалы класса</h3>
@@ -1181,6 +1212,7 @@
           <form id="lessonCorrectionForm" class="stack" data-lesson-id="${safe(lesson.id)}">
             <label><span>Дата и время</span><input name="lessonAt" type="datetime-local" step="1" value="${safe(localLessonTime(lesson.lessonAt))}" required></label>
             ${participants}
+            ${!lesson.completedAt?'<label class="row"><input type="checkbox" name="complete" style="width:auto">Завершить занятие при сохранении</label>':`<p class="muted small">Завершено: ${safe(date(lesson.completedAt))}</p>`}
             <button class="primary" type="submit">Сохранить исправления</button>
           </form>
         </div>`;
@@ -1697,6 +1729,11 @@
         }
       });
       $('content').addEventListener('click', async event => {
+        const lessonFilter=event.target.closest('[data-class-lessons-filter]');
+        if (lessonFilter) { state.lessonFilter=lessonFilter.dataset.classLessonsFilter; render(); return; }
+        if (event.target.closest('[data-back-class-lessons]')) { state.selectedLesson=null; state.editLesson=null; render(); return; }
+        const lessonLink=event.target.closest('[data-open-class-lesson]');
+        if (lessonLink) { state.selectedLesson=lessonLink.dataset.openClassLesson; state.editLesson=null; render(); window.scrollTo(0,0); return; }
         const countOpener=event.target.closest('[data-open-count-plan]');
         if (countOpener) {
           state.periodPreview={classId:countOpener.dataset.openCountPlan,classKind:countOpener.dataset.classKind,modal:true,mode:'count',count:''};
@@ -1853,7 +1890,7 @@
           return;
         }
         const openClass = event.target.closest('[data-open-class]');
-        if (openClass) { state.scheduleEdit = null; state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
+        if (openClass) { state.selectedLesson=null; state.editLesson=null; state.lessonFilter='all'; state.scheduleEdit = null; state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
         if (event.target.closest('[data-back-classes]')) {
           if (document.querySelector('#classScheduleRuleForm[data-dirty="1"]') &&
               !confirm('Отменить изменения расписания без сохранения?')) return;
@@ -2176,7 +2213,7 @@
             topicComment: valueOf(row, 'topicComment') || null
           }));
           await mutation('lessonCorrection:' + source.id, 'lessons/' + encodeURIComponent(source.id) + '/correct',
-            () => ({ expectedRevision: source.revision, lessonAt, participants }));
+            () => ({ expectedRevision: source.revision, lessonAt, participants, complete:!!form.elements.namedItem('complete')?.checked }));
           state.editLesson = null;
         });
         if (form.matches('[data-native-grade]')) onForm(form, async () => {

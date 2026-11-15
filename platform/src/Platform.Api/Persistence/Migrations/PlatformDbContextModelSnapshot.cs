@@ -816,6 +816,7 @@ namespace TestingHosting.Platform.Persistence.Migrations
             modelBuilder.Entity("TestingHosting.Platform.Lessons.Lesson", b =>
                 {
                     b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<DateTimeOffset?>("CompletedAt").HasColumnType("timestamp with time zone");
                     b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
                     b.Property<string>("LegacyLessonId").IsRequired().HasMaxLength(128).HasColumnType("character varying(128)");
                     b.Property<DateTimeOffset>("LessonAt").HasColumnType("timestamp with time zone");

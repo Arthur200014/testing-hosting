@@ -5,13 +5,13 @@ namespace TestingHosting.Platform.Lessons;
 
 public sealed record TeacherLessonCorrectionRequest(
     string? ExpectedRevision, DateTimeOffset? LessonAt,
-    List<TeacherLessonParticipantRequest>? Participants);
+    List<TeacherLessonParticipantRequest>? Participants, bool Complete = false);
 public enum TeacherLessonCorrectionStatus { Updated, Unchanged, Conflict, NotFound, InvalidRequest }
 public sealed record TeacherLessonCorrectionResult(
     TeacherLessonCorrectionStatus Status, TeacherLessonView? Response = null,
     Dictionary<string, string[]>? Errors = null);
 
-public sealed class TeacherLessonCorrectionService(PlatformDbContext db)
+public sealed class TeacherLessonCorrectionService(PlatformDbContext db, TimeProvider clock)
 {
     public async Task<TeacherLessonCorrectionResult> CorrectAsync(
         Guid workspaceId, Guid lessonId, TeacherLessonCorrectionRequest request, CancellationToken ct)
@@ -75,7 +75,7 @@ public sealed class TeacherLessonCorrectionService(PlatformDbContext db)
             request.LessonAt!.Value.ToUniversalTime().Ticks -
             request.LessonAt.Value.ToUniversalTime().Ticks % 10, TimeSpan.Zero);
         var byId = normalized.ToDictionary(x => x.MembershipId);
-        var identical = lesson.LessonAt == date && lesson.Participants.All(x =>
+        var identical = (!request.Complete || lesson.CompletedAt is not null) && lesson.LessonAt == date && lesson.Participants.All(x =>
         {
             var p = byId[x.MembershipId];
             return x.DurationMinutes == p.DurationMinutes &&
@@ -88,6 +88,11 @@ public sealed class TeacherLessonCorrectionService(PlatformDbContext db)
             return new(TeacherLessonCorrectionStatus.Conflict);
 
         lesson.LessonAt = date;
+        if (request.Complete && lesson.CompletedAt is null)
+        {
+            var now = clock.GetUtcNow().ToUniversalTime();
+            lesson.CompletedAt = new DateTimeOffset(now.Ticks - now.Ticks % 10, TimeSpan.Zero);
+        }
         foreach (var row in lesson.Participants)
         {
             var p = byId[row.MembershipId];

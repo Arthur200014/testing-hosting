@@ -1142,7 +1142,7 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         [
             new(first, 75, " 6, 7 ", " Revised topic ", "Absent"),
             new(second, 45, "13", "Other topic", "Present")
-        ]);
+        ], Complete: true);
         Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(
             route + foreignLesson + "/correct", correction)).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(
@@ -1158,6 +1158,7 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
         var current = (await saved.Content.ReadFromJsonAsync<TeacherLessonView>())!;
         Assert.Equal(id, current.Id);
+        Assert.NotNull(current.CompletedAt);
         Assert.Equal(source.LegacyLessonId, current.LegacyLessonId);
         Assert.NotEqual(source.Revision, current.Revision);
         Assert.Equal(source.LessonAt.AddMinutes(45), current.LessonAt);
@@ -1172,6 +1173,7 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
             correction with { LessonAt = source.LessonAt.AddDays(3) })).StatusCode);
         var afterRead = Assert.Single((await client.GetFromJsonAsync<List<TeacherLessonView>>(route))!);
         Assert.Equal(current.Revision, afterRead.Revision);
+        Assert.Equal(current.CompletedAt, afterRead.CompletedAt);
         var afterAssignments = (await client.GetFromJsonAsync<List<TeacherHomeworkAssignmentView>>(
             "/api/v1/teacher/homework/assignments"))!;
         Assert.Equal(initialAssignments.Select(x => x.Id).Order(),
