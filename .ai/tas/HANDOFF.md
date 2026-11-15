@@ -1,17 +1,24 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-16
-**ACTIVE_TASK:** UI-04 IN_PROGRESS — group homework review block complete.
-**ACTIVE_BRANCH:** none; [PR #76](https://github.com/Arthur200014/testing-hosting/pull/76) merged.
+**ACTIVE_TASK:** UI-04 IN_PROGRESS — unified templates/assignments for individual classes, groups and lesson cards.
+**ACTIVE_BRANCH:** `tas/ui04-context-homework`; [PR #77](https://github.com/Arthur200014/testing-hosting/pull/77), implementation `793d9d6cc728a0954576485d355bb775b2372d23`, isolated CI pending.
 **MERGED_SHA:** `21701f100606af632386ae5dfd5033166bb71127`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43770756849](https://github.com/Arthur200014/testing-hosting/actions/runs/43770756849) PASS. Published teacher.html, teacher-data.mjs and class-native-homework.mjs fetched and byte-compared with main: PASS. Timeweb native main auto-deploy is owner-confirmed; API deployment/revision independently NOT_VERIFIED / UNKNOWN.
-**NEXT_ACTION:** Next related UI-04 block: create/reuse homework templates directly from a group and its program, with compatible program/member selection, cancel/save/reload and isolated tenant checks. Reuse existing task/assignment APIs; do not introduce uploads/storage infrastructure incidentally.
+**NEXT_ACTION:** Finish #77 isolated API/PostgreSQL/real Chromium acceptance, fix actual failures, merge after green and confirm Pages. Related block includes template creation/reuse, compatible recipients, lesson context, individual submission/status/grading and reload. Do not check Timeweb.
 
 ## Standing owner instructions
 
 - Take several consecutive related tasks together, not a tiny standalone step (latest instruction supersedes the earlier smaller-step preference).
 - Verify API/PostgreSQL/browser persistence in isolated synthetic environments only. **Do not check Timeweb** or request production access. Native auto-deploy from main remains configured; independent Timeweb revision and live writes are not blockers in this owner-approved mode.
 - Production students, lessons, scores, credentials and settings are not test-write targets. Never retarget reset/seed/import/calendar-real-browser.sh to production; do not rerun completed imports or switch writer.
+
+## Current #77 block
+
+- Shared template creation/selection and assignment in individual classes, groups and lesson cards; common status/answer/grading UI and program-tab navigation. Legacy imported pupil flow retained.
+- Additive `20261116090000_NativeHomeworkContexts` stores nullable IndividualClassId/LessonId with workspace FKs; class and lesson reads filter before limiting; context route validates active class, lesson participants and replay identity.
+- LOCAL PASS: 21 focused Node tests, JS syntax/diff. Isolated backend/migration/browser CI pending. No production writes or Timeweb checks.
+- Changed shared homework UI/data, teacher page, program link; native models/service/routes, persistence model/migration/snapshot; focused API/browser tests. Full paths in PR #77.
 
 ## Completed block #76
 
