@@ -324,6 +324,7 @@
     import { individualClassNativeHomework, taskMatchesClass } from './class-native-homework.mjs';
     import { renderClassMaterials } from './class-materials-ui.mjs';
     import { renderClassProgram, topicsForClass } from './class-program-ui.mjs';
+    import { renderLessonTopics, lessonBelongsToClass, lessonTopicChange } from './lesson-topics-ui.mjs';
     import { renderLessonMaterials } from './lesson-materials-ui.mjs';
     (() => {
       'use strict';
@@ -396,8 +397,8 @@
         const selectedLessonDetail = view === 'overview' && !!state.selectedClass && !!state.selectedLesson;
         const selectedProgramClass = view === 'overview' && state.selectedClass && state.classDetailTab === 'program' &&
           teacherClasses().some(item => item.id === state.selectedClass && item.persistent);
-        const extra = selectedLessonDetail ? ['materials','lessonMaterialLinks'] :
-          selectedProgramClass ? ['classTopics','topicMaterialLinks','materials','topicTaskLinks','nativeTasks'] :
+        const extra = selectedLessonDetail ? ['materials','lessonMaterialLinks','classTopics','topicMaterialLinks','topicTaskLinks','lessonTopicSets'] :
+          selectedProgramClass ? ['classTopics','topicMaterialLinks','materials','topicTaskLinks','nativeTasks','lessonTopicSets'] :
           selectedMaterialClass ? ['materials','classMaterialLinks'] :
           classTasks ? ['nativeTasks','nativeAssignments'] :
           view === 'overview' && state.classTab === 'statistics' ? ['assignments','nativeAssignments'] : [];
@@ -429,7 +430,7 @@
             !confirm('Отменить несохранённый материал?')) return Promise.resolve();
         if (state.view !== view && document.querySelector('#lessonMaterialAttachForm[data-dirty="1"]') &&
             !confirm('Отменить несохранённое прикрепление материала?')) return Promise.resolve();
-        if (state.view !== view && document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"]') &&
+        if (state.view !== view && document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"], #topicLessonAttachForm[data-dirty="1"], #lessonTopicSetForm[data-dirty="1"]') &&
             !confirm('Отменить несохранённую тему или материал программы?')) return Promise.resolve();
         state.view = view;
         if (view !== 'lessons') state.lessonPlan = null;
@@ -732,6 +733,7 @@
               <div class="lesson-detail-status">${lesson.completedAt?'Завершено · '+safe(date(lesson.completedAt)):new Date(lesson.lessonAt)>new Date()?'Запланировано':'Дата прошла · ещё не завершено'}</div></header>
             <section class="card stack"><h2>Доступ к записи</h2><p class="muted">Запись занятия недоступна.</p></section>
             <section class="card stack"><h2>Темы и комментарии</h2>${list(participants.filter(p=>p.topicComment),'Темы пока не указаны.',p=>`<div><strong>${safe(studentName(p.membershipId))}</strong><p>${safe(p.topicComment)}</p></div>`)}</section>
+            ${renderLessonTopics(lesson, item, state.data, safe, list)}
             ${renderLessonMaterials(lesson, state.data, item.isArchived, safe, list)}
           </div><aside class="lesson-detail-side"><section class="card stack"><button class="primary" disabled title="Доска занятия пока недоступна">Перейти к доске</button></section>
             <section class="card stack"><div class="section-head"><h2>Участники</h2><button type="button" class="secondary" data-edit-lesson="${safe(lesson.id)}">Посещаемость и завершение</button></div>
@@ -1658,7 +1660,13 @@
         $('workspaceName').textContent = workspace; $('loginScreen').hidden = true; $('app').hidden = false;
         return setView('overview');
       }
+      function canLeaveProgramDrafts(exceptForm = null) {
+        const selectors='#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"], #topicLessonAttachForm[data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"]';
+        return ![...document.querySelectorAll(selectors)].some(form=>form!==exceptForm) ||
+          confirm('Отменить несохранённые изменения программы или материалов?');
+      }
       async function onForm(form, callback) {
+        if (!canLeaveProgramDrafts(form)) return;
         setBusy(form, true); showNotice('Сохраняем…');
         try {
           await callback();
@@ -1737,7 +1745,7 @@
         logout();
       });
       $('content').addEventListener('input', event => {
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm');
         if (editor) editor.dataset.dirty = '1';
         const draft = event.target.closest('#lessonPlannerForm');
         if (draft && event.target.name === 'title') {
@@ -1759,7 +1767,7 @@
           if (shiftCalendarDay(event.target.value, 0)) state.calendarDate = event.target.value;
           render(); return;
         }
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm');
         if (editor) editor.dataset.dirty = '1';
         if (event.target.id==='calendarPlanClass') {
           captureCalendarPlanDraft(event.target.form);
@@ -1837,12 +1845,15 @@
         const lessonFilter=event.target.closest('[data-class-lessons-filter]');
         if (lessonFilter) { state.lessonFilter=lessonFilter.dataset.classLessonsFilter; render(); return; }
         if (event.target.closest('[data-back-class-lessons]')) {
+          if (document.querySelector('#lessonTopicSetForm[data-dirty="1"]') &&
+              !confirm('Отменить несохранённые темы занятия?')) return;
           if (document.querySelector('#lessonMaterialAttachForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённое прикрепление материала?')) return;
           state.selectedLesson=null; state.editLesson=null; render(); return;
         }
         const lessonLink=event.target.closest('[data-open-class-lesson]');
         if (lessonLink) {
+          if (!canLeaveProgramDrafts()) return;
           state.selectedLesson=lessonLink.dataset.openClassLesson; state.editLesson=null;
           await refresh(); window.scrollTo(0,0); return;
         }
@@ -1866,7 +1877,7 @@
             const result=await api('teacher/schedule-rules/period-plan',{method:'POST',body:{requestId:preview.requestId,
               period:{classId:preview.classId,classKind:preview.classKind,from:preview.startDate,to:preview.endDate,count:preview.mode==='count'?preview.count:null},expectedCandidates:preview.candidates}});
             if (state.token!==token) return;
-            invalidate(['lessons']);
+            invalidate(['lessons','lessonTopicSets']);
             if (state.periodPreview===preview) {
               preview.saved=result;
               preview.rows=preview.rows.map(row=>({...row,isScheduled:true}));
@@ -1966,7 +1977,7 @@
         const topicFilter = event.target.closest('[data-topic-filter]');
         const completeTopic = event.target.closest('[data-complete-topic]');
         if (topicFilter || completeTopic) {
-          if (document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"]') &&
+          if (document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"], #topicLessonAttachForm[data-dirty="1"], #lessonTopicSetForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённые изменения программы?')) return;
           if (topicFilter) { state.topicFilter=topicFilter.dataset.topicFilter; render(); return; }
           const item=teacherClasses().find(x=>x.id===state.selectedClass && x.persistent && !x.isArchived);
@@ -1984,12 +1995,29 @@
           }
           return;
         }
+        if (event.target.closest('[data-lesson-topics-cancel]')) {
+          const form=event.target.closest('form'); form?.reset(); if(form) delete form.dataset.dirty;
+          showNotice(''); return;
+        }
+        const unlinkTopic=event.target.closest('[data-unlink-lesson-topic]');
+        if (unlinkTopic) {
+          const item=teacherClasses().find(x=>x.id===state.selectedClass && x.persistent && !x.isArchived);
+          const lesson=(state.data.lessons || []).find(x=>x.id===unlinkTopic.dataset.lessonId);
+          if (!item || !lesson || !lessonBelongsToClass(lesson,item)) return;
+          if (!canLeaveProgramDrafts()) return;
+          unlinkTopic.disabled=true;
+          try {
+            await api('teacher/lesson-topics',{method:'POST',body:lessonTopicChange(state.data,lesson.id,unlinkTopic.dataset.unlinkLessonTopic,false)});
+            invalidate(['lessonTopicSets']); await refresh();
+          } catch(error) { showNotice(error.message,true); if(unlinkTopic.isConnected) unlinkTopic.disabled=false; }
+          return;
+        }
         const moveTopic = event.target.closest('[data-move-topic]');
         if (moveTopic) {
           const item=teacherClasses().find(x=>x.id===state.selectedClass && x.persistent && !x.isArchived);
           const order=item ? topicsForClass(item,state.data).map(x=>x.id) : [];
           if (!item || !order.includes(moveTopic.dataset.moveTopic)) return;
-          if (document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"]') &&
+          if (document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"], #topicLessonAttachForm[data-dirty="1"], #lessonTopicSetForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённые изменения перед перестановкой?')) return;
           moveTopic.disabled=true;
           try {
@@ -2014,7 +2042,7 @@
               !confirm('Отменить несохранённое задание?')) return;
           if (document.querySelector('#classMaterialLinkForm[data-dirty="1"], #classMaterialAttachForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённый материал?')) return;
-          if (document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"]') &&
+          if (document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"], #topicLessonAttachForm[data-dirty="1"], #lessonTopicSetForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённые изменения программы?')) return;
           state.scheduleEdit = null; state.classDetailTab = detailTab.dataset.classDetailTab;
           if (state.classDetailTab === 'homework' || state.classDetailTab === 'materials' || state.classDetailTab === 'program') await refresh(); else render();
@@ -2079,7 +2107,7 @@
               !confirm('Отменить несохранённое задание?')) return;
           if (document.querySelector('#classMaterialLinkForm[data-dirty="1"], #classMaterialAttachForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённый материал?')) return;
-          if (document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"]') &&
+          if (document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"], #topicLessonAttachForm[data-dirty="1"], #lessonTopicSetForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённые изменения программы?')) return;
           if (document.querySelector('#classScheduleRuleForm[data-dirty="1"]') &&
               !confirm('Отменить изменения расписания без сохранения?')) return;
@@ -2338,7 +2366,7 @@
             state.data.lessons=(state.data.lessons || []).map(x=>x.id===saved.id?saved:x);
             if (state.resultDraft===draft) state.resultDraft=null;
             render();
-            invalidate(['lessons']); await loadKey('lessons',true);
+            invalidate(['lessons','lessonTopicSets']); await loadKey('lessons',true);
           } catch(error) {
             if (state.token!==token || state.resultDraft!==draft) return;
             draft.error=error.message; draft.saving=false; render();
@@ -2468,6 +2496,25 @@
           await mutation('classTopic:'+item.id,'class-topics',()=>({
             classId:item.id,classKind:item.kind,title:formValue(form,'title'),plan:formValue(form,'plan')
           }));
+        });
+        if (form.id === 'topicLessonAttachForm' || form.id === 'lessonTopicSetForm') onForm(form, async () => {
+          const item=teacherClasses().find(x=>x.id===state.selectedClass && x.persistent && !x.isArchived);
+          const lessonId=form.dataset.lessonId || formValue(form,'lessonId');
+          const lesson=(state.data.lessons || []).find(x=>x.id===lessonId);
+          if (!item || !lesson || !lessonBelongsToClass(lesson,item)) throw new Error('Выберите занятие этого класса.');
+          let body;
+          if(form.id==='topicLessonAttachForm') {
+            const topicId=formValue(form,'topicId');
+            if(item.id!==form.dataset.classId || !topicsForClass(item,state.data).some(x=>x.id===topicId))
+              throw new Error('Выберите тему этого класса.');
+            body=lessonTopicChange(state.data,lessonId,topicId,true);
+          } else {
+            if(state.selectedLesson!==lessonId) throw new Error('Занятие больше не открыто.');
+            const topicIds=[...form.querySelectorAll('input[name="topicId"]:checked')].map(x=>x.value);
+            if(topicIds.length>50) throw new Error('Выберите не более 50 тем.');
+            body={lessonId,expectedRevision:Number(form.dataset.revision),topicIds};
+          }
+          await api('teacher/lesson-topics',{method:'POST',body});
         });
         if (form.id === 'topicTaskAttachForm') onForm(form, async () => {
           const item=teacherClasses().find(x=>x.id===form.dataset.classId && x.persistent && !x.isArchived);

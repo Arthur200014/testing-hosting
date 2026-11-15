@@ -927,6 +927,7 @@ namespace TestingHosting.Platform.Persistence.Migrations
 
             modelBuilder.Entity("TestingHosting.Platform.Lessons.Lesson", b =>
                 {
+                    b.Property<int>("TopicRevision").HasColumnType("integer");
                     b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
                     b.Property<DateTimeOffset?>("CompletedAt").HasColumnType("timestamp with time zone");
                     b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
@@ -1682,6 +1683,25 @@ namespace TestingHosting.Platform.Persistence.Migrations
                 {
                     b.Navigation("Participants");
                 });
+
+            modelBuilder.Entity("TestingHosting.Platform.Lessons.TeacherLessonTopicLink", b =>
+            {
+                b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                b.Property<Guid>("LessonId").HasColumnType("uuid");
+                b.Property<Guid>("TopicId").HasColumnType("uuid");
+                b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
+                b.HasKey("WorkspaceId", "LessonId", "TopicId");
+                b.HasIndex("WorkspaceId", "TopicId");
+                b.ToTable("TeacherLessonTopicLinks", "platform");
+                b.HasOne("TestingHosting.Platform.Lessons.Lesson", null)
+                    .WithMany().HasForeignKey("WorkspaceId", "LessonId")
+                    .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict)
+                    .IsRequired().HasConstraintName("FK_LessonTopics_Lesson");
+                b.HasOne("TestingHosting.Platform.Classes.TeacherClassTopic", null)
+                    .WithMany().HasForeignKey("WorkspaceId", "TopicId")
+                    .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict)
+                    .IsRequired().HasConstraintName("FK_LessonTopics_Topic");
+            });
 
 #pragma warning restore 612, 618
         }

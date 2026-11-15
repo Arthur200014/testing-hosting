@@ -47,6 +47,7 @@ builder.Services.AddScoped<TeacherClassService>();
 builder.Services.AddScoped<TeacherMaterialService>();
 builder.Services.AddScoped<TeacherClassTopicService>();
 builder.Services.AddScoped<TeacherLessonMaterialService>();
+builder.Services.AddScoped<TeacherLessonTopicService>();
 builder.Services.AddScoped<TeacherGroupService>();
 builder.Services.AddScoped<TeacherScheduleRuleService>();
 builder.Services.AddScoped<TeacherPeriodPreviewService>();
@@ -525,6 +526,26 @@ app.MapPost("/api/v1/teacher/class-topics/move", async (
         TeacherTopicStatus.NotFound => Results.NotFound(),
         TeacherTopicStatus.Conflict => Results.Problem(statusCode:409, title:"Topics changed. Reload before moving."),
         _ => throw new InvalidOperationException("Unexpected topic move status.")
+    };
+}).RequireAuthorization("teacher");
+
+app.MapGet("/api/v1/teacher/lesson-topics", async (
+    ClaimsPrincipal principal, TeacherLessonTopicService service, CancellationToken ct) =>
+    Results.Ok(await service.ListAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), ct))
+).RequireAuthorization("teacher");
+app.MapPost("/api/v1/teacher/lesson-topics", async (
+    TeacherLessonTopicRequest request, ClaimsPrincipal principal,
+    TeacherLessonTopicService service, CancellationToken ct) =>
+{
+    var result = await service.ReplaceAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), request, ct);
+    return result.Status switch {
+        TeacherLessonTopicStatus.Updated => Results.Ok(result.Value),
+        TeacherLessonTopicStatus.Invalid => Results.ValidationProblem(new Dictionary<string,string[]> {
+            ["topics"] = ["Укажите занятие, ревизию и до 50 разных тем."] }),
+        TeacherLessonTopicStatus.NotFound => Results.NotFound(),
+        TeacherLessonTopicStatus.Conflict => Results.Problem(statusCode:409,
+            title:"Темы занятия изменены. Обновите данные перед сохранением."),
+        _ => throw new InvalidOperationException("Unexpected lesson topics status.")
     };
 }).RequireAuthorization("teacher");
 

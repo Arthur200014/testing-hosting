@@ -47,9 +47,25 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<TeacherTopicTaskLink> TeacherTopicTaskLinks => Set<TeacherTopicTaskLink>();
 
+    public DbSet<TeacherLessonTopicLink> TeacherLessonTopicLinks => Set<TeacherLessonTopicLink>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("platform");
+        modelBuilder.Entity<TeacherLessonTopicLink>(entity =>
+        {
+            entity.HasKey(x => new { x.WorkspaceId, x.LessonId, x.TopicId });
+            entity.HasIndex(x => new { x.WorkspaceId, x.TopicId });
+            entity.HasOne<Lesson>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.LessonId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_LessonTopics_Lesson");
+            entity.HasOne<TeacherClassTopic>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.TopicId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_LessonTopics_Topic");
+        });
+
         modelBuilder.Entity<TeacherLessonMaterialLink>(entity =>
         {
             entity.HasKey(x => x.Id);
