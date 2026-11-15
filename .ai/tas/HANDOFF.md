@@ -1,44 +1,35 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-16
-**ACTIVE_TASK:** UI-04 IN_PROGRESS — searchable library and reuse block.
-**ACTIVE_BRANCH:** `tas/ui04-library-reuse`; [PR #78](https://github.com/Arthur200014/testing-hosting/pull/78), implementation `8153641d4da2934c1c69f475d1a00af944298c6f`, isolated CI pending.
-**MERGED_SHA:** `70a5d105fe61ca614574b8cc8b5ea79c92a17247`.
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43773632077](https://github.com/Arthur200014/testing-hosting/actions/runs/43773632077) PASS; published teacher.html, teacher-data.mjs, class-native-homework.mjs and class-program-ui.mjs fetched and byte-compared with main: PASS. Timeweb native main auto-deploy configured/owner-confirmed; API deployment/revision independently NOT_VERIFIED / UNKNOWN.
-**NEXT_ACTION:** Finish #78 isolated real Chromium/API/PostgreSQL checks, fix actual failures, merge after green and confirm Pages. No Timeweb checks. Current block: library search/filter/preview → reuse materials in class/topic/lesson → attach templates to topics and jump to existing assignment flow → cancel/reload/no-copy checks.
+**ACTIVE_TASK:** UI-04 IN_PROGRESS — searchable library/reuse block complete.
+**ACTIVE_BRANCH:** none; [PR #78](https://github.com/Arthur200014/testing-hosting/pull/78) merged.
+**MERGED_SHA:** `3774a94857dacd33b4342314a739ba2c08b748dc`.
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43777340175](https://github.com/Arthur200014/testing-hosting/actions/runs/43777340175) PASS; published teacher.html, teacher-data.mjs and teacher-library.mjs fetched and byte-compared with main: PASS. API/schema unchanged in this block. Timeweb native main auto-deploy owner-confirmed; independent API revision UNKNOWN.
+**NEXT_ACTION:** Next related UI-04 block: real binary attachments. Inspect existing storage/config/access code only, then implement isolated upload → protected download/access → reuse attachment in class/lesson with cancel/reload and tenant checks. Do not invent uploads, provision new production infrastructure, or expose files publicly. Production activation must use actual durable storage configuration; report any missing configuration honestly. Recordings remain separate until file access works.
 
 ## Standing owner instructions
 
-- Take several consecutive related steps together. Include **individual classes, groups and lessons**, not groups alone.
-- Verify persistence through isolated synthetic API/PostgreSQL/browser environments only. **Do not check Timeweb** or request production access. Independent Timeweb revision/live writes are not blockers in this owner-approved mode.
-- Never use real students/lessons/scores/settings/credentials as test-write targets; never retarget reset/seed/import/calendar-real-browser.sh to production. Do not rerun imports or switch writer.
+- Take several consecutive related steps together; cover individual classes, groups and lessons.
+- Verify persistence only in isolated synthetic API/PostgreSQL/browser environments. **Do not check Timeweb** or request production access. Independent Timeweb revision/live writes are not blockers in this approved mode.
+- Real students/lessons/scores/settings/credentials are not test-write targets. Never retarget reset/seed/import/calendar-real-browser.sh to production, rerun imports or switch writer.
 
-## Current #78 block
+## Completed #78
 
-- Library nav now opens shared templates/link materials with search, type/program filters, sorting and preview. Material programs derive from existing associations; no new metadata is invented.
-- Reuse via existing class-materials/topic-materials/lesson-materials/topic-tasks APIs; available targets exclude archive, incompatible template programs and already-linked objects. Task jump opens existing class/lesson assignment with no write until its explicit save.
-- Drafts survive refresh, cancel writes nothing, workspace changes clear library filters/selection. No new schema/backend/storage config.
-- LOCAL PASS: 13 focused Node tests + inline/module/browser syntax/diff. Real browser CI pending. Reference 48 read; final screenshot comparison pending.
-- Paths: teacher-library.mjs/test, teacher.html, teacher-data.mjs; existing calendar browser runner/script and its workflow.
+- Library nav opens templates and link materials: title/condition/URL search, type/program filters, sorting, preview and usage counts. Link programs derive from existing class/topic associations and actual lesson participants; not new material ownership metadata.
+- Materials reuse existing IDs in active classes/topics/lessons; templates attach to compatible topics. Assignment jump opens the existing class/lesson homework form with the selected template and writes nothing until explicit save there. Lesson picker includes date/time.
+- Existing/archived/incompatible targets are excluded. Draft attachment selection survives refresh; cancel writes nothing; changing workspace clears library search/filters/selection. No source-object copies.
+- Fixed narrow-screen wrapping and library header margins; preview does not inherit sidebar behavior.
+- Paths: platform/teacher-library.mjs/test, teacher.html, teacher-data.mjs, calendar-real-browser.mjs, scripts/calendar-real-browser.sh; .github/workflows/native-homework-browser.yml. Existing backend/schema/storage configs unchanged.
+- Reference 48 and final desktop/mobile 48_library_reuse_real*.png inspected: visual fidelity PARTIAL; implemented template/link catalog, not binary files, folders or recordings. No fake storage quota/upload state.
 
-## Completed #77 block
+## Verification
 
-- Shared template creation and program-compatible selection in individual class, group and lesson cards. Templates are reused across classes; creation does not auto-assign. Groups choose recipients, individual class selects its pupil. Program tab links to templates/assignments.
-- Lesson assignments persist class + LessonId and appear as the **same assignment** in lesson and class history. Both class formats share statuses, filters, condition/answer detail and existing grade/comment controls.
-- Additive `20261116090000_NativeHomeworkContexts`: nullable IndividualClassId/LessonId, workspace FKs/indexes and mutually exclusive class-context check; existing rows preserved. Scoped class/lesson GETs filter before limit. New context POST route prevents older APIs silently dropping context. Server checks active class, approval, actual lesson participants, program compatibility and exact idempotent replay.
-- Imported pupils without a persisted class retain the old personal-assignment flow. Persisted individual history also includes legacy ungrouped personal assignments, explicitly labelled; group work stays in its group. Scoped history is latest 300, not complete pagination; legacy fallback retains the old workspace-feed limit.
-- Late reads preserve unsaved lesson topic/material/homework forms only for the same context; successful writes clear drafts. Browser refresh explicitly verifies typed lesson-template content survives.
-- Paths: teacher.html, teacher-data.mjs/test, class-native-homework.mjs/test, class-program-ui.mjs, calendar-real-browser.mjs; native models/service/routes, DbContext/migration/snapshot and TeacherSessionTests.cs. Full diff in #77.
-- Reference 18 and generated 18_individual_lesson_homework_real.png inspected: visual fidelity PARTIAL; shared forms use existing TAS cards, not a complete Meleto reproduction.
-
-## Evidence
-
-- LOCAL PASS: 21 focused Node tests; inline/module/browser JS syntax and diff checks.
-- FINAL CI at `0c308db23417f0bafce50cd1323eb5de0f35f7fe`: [TAS gate/backend 43773237722](https://github.com/Arthur200014/testing-hosting/actions/runs/43773237722), [PostgreSQL 43773237806](https://github.com/Arthur200014/testing-hosting/actions/runs/43773237806), [real Chromium/API/PostgreSQL 43773237496](https://github.com/Arthur200014/testing-hosting/actions/runs/43773237496): PASS.
-- PostgreSQL: 101/101 tests, migration/model match, startup/ready/auth and isolated restore PASS. Context replay/foreign workspace/wrong recipient/wrong lesson/archive tested; 301 newer unrelated rows cannot hide class history.
-- Real browser: individual/group template reuse and lesson assignment, cancel/no write, save/relogin/reload, draft refresh, existing group submit/grade flow, tenant boundary and 390px overflow check PASS. Screenshots retained in browser-run artifact `meleto-ui02-screenshots`.
-- Earlier browser failures were fixed: obsolete history selector, then late-read form replacement/unconsumed dialog. Final run PASS.
-- Production API/migration state NOT_VERIFIED; LIVE_WRITE_NOT_RUN per owner instruction. No production acceptance writes, invitations, notifications or writer changes.
+- LOCAL PASS: 13 focused Node tests; inline/module/browser syntax and diff checks.
+- FINAL CI at `00e9aa887d1fa00dc7bed3390a4f5cf6f6dcc15a`: [TAS CI 43776922984](https://github.com/Arthur200014/testing-hosting/actions/runs/43776922984), [PostgreSQL 43776922982](https://github.com/Arthur200014/testing-hosting/actions/runs/43776922982), [real Chromium/API/PostgreSQL 43776923008](https://github.com/Arthur200014/testing-hosting/actions/runs/43776923008): PASS.
+- PostgreSQL: 101/101 tests. Browser: search/preview, class/topic/lesson reuse, cancel/no write, no copies, task assignment jump/save, relogin/reload, draft refresh, foreign workspace empty/filter reset and 390px overflow PASS.
+- Screenshot artifact `meleto-ui02-screenshots` retained in browser run; workflow now uploads diagnostic screenshots on failures too. Earlier mobile overflow failures were fixed; final run PASS.
+- LIVE_WRITE_NOT_RUN; API production deployment NOT_VERIFIED per isolated-only instruction. No production data, invitations, notifications or writer changes.
+- Previous unified individual/group/lesson homework release #77 remains intact. Existing latest-300 histories and immutable grading remain; no regrading introduced.
 
 Published interface: https://arthur200014.github.io/testing-hosting/platform/teacher.html.
-UI-04 remains IN_PROGRESS: broader library UX, binary uploads and recordings remain. Existing grading is final/immutable; regrading was not introduced.
+UI-04 remains IN_PROGRESS: binary files/access, recordings and remaining library/reference details.
