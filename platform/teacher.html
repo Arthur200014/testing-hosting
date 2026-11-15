@@ -435,7 +435,11 @@
             membershipId: item.studentMembershipId, studentName: item.studentName,
             programId: item.programId, programName: item.programName
           };
-          return { ...item, student, nextLesson: participantLesson(item.studentMembershipId, true), persistent: true };
+          return { ...item, student,
+            nextLesson:(state.data.lessons || []).filter(l => l.individualClassId === item.id &&
+              new Date(l.lessonAt) >= new Date()).sort((a,b)=>new Date(a.lessonAt)-new Date(b.lessonAt))[0] ||
+              participantLesson(item.studentMembershipId, true),
+            persistent: true };
         });
         const assigned = new Set(persisted.map(x => x.studentMembershipId));
         const legacy = (state.data.students || []).filter(x => !assigned.has(x.membershipId)).map(student => ({
@@ -445,7 +449,9 @@
           nextLesson: participantLesson(student.membershipId, true), persistent: false, isArchived: false
         }));
         const groups = (state.data.groups || []).map(item => ({
-          ...item, persistent: true, studentMembershipId: null, nextLesson: null,
+          ...item, persistent: true, studentMembershipId: null,
+          nextLesson:(state.data.lessons || []).filter(l => l.groupClassId === item.id &&
+            new Date(l.lessonAt) >= new Date()).sort((a,b)=>new Date(a.lessonAt)-new Date(b.lessonAt))[0] || null,
           student: { studentName: item.members.length + ' участников',
             programName: 'Групповое обучение', targetScore: '' }
         }));
@@ -510,6 +516,9 @@
       function groupClassDetail(item) {
         const tab = classDetailTabs.some(x => x[0] === state.classDetailTab) ? state.classDetailTab : 'summary';
         const members = item.members || [];
+        const linkedLessons = (state.data.lessons || []).filter(l => l.groupClassId === item.id)
+          .sort((a,b)=>new Date(a.lessonAt)-new Date(b.lessonAt));
+        const nextLesson = linkedLessons.find(l => new Date(l.lessonAt) >= new Date());
         const roster = `<section class="class-subsection group-roster">
           <div class="section-head"><h3>Участники</h3><span class="muted">${members.length} из ${item.capacity}</span></div>
           ${members.length ? members.map(member => `<div class="group-roster-member">
@@ -537,7 +546,7 @@
           </div>
         </div>`;
         const placeholders = {
-          schedule: ['Расписание', 'Календарь групповых занятий откроется в действующем разделе. Привязка занятия к группе ещё не реализована.'],
+          schedule: ['Расписание', 'Повторяющиеся правила расписания будут доступны отдельно.'],
           materials: ['Материалы', 'Материалы и библиотека пока не привязаны к группе.'],
           program: ['Программа', 'Редактор программы для группового класса будет подключён позднее.'],
           homework: ['Задания', 'Задания ученикам доступны в общем разделе, группового назначения пока нет.'],
@@ -546,11 +555,22 @@
         const body = tab === 'summary'
           ? `<section class="class-summary"><p class="class-caption">Обучение</p>
               <div class="class-nearest"><span class="class-nearest-icon">◯</span>
-                <div><strong>Группа создана</strong><small>Расписание группы пока не настроено</small></div>
-                <button class="secondary" type="button" data-class-detail-tab="information">Участники</button>
+                <div><strong>${nextLesson ? safe(nextLesson.title || 'Запланированное занятие') : 'Группа создана'}</strong>
+                  <small>${nextLesson ? safe(date(nextLesson.lessonAt)) : 'Ближайшее занятие не запланировано'}</small></div>
+                <button class="secondary" type="button" data-schedule-class="${safe(item.id)}">Запланировать</button>
               </div></section>${roster}`
           : tab === 'information'
             ? `<section class="class-subsection">${metadata}${roster}${groupInvitePanel(item)}</section>`
+          : tab === 'schedule'
+            ? `<section class="class-subsection"><h3>Занятия группы</h3>
+                ${list(linkedLessons, 'Запланированных занятий пока нет.', x => `<div class="item">
+                  <div><strong>${safe(x.title || 'Занятие')} · ${safe(date(x.lessonAt))}</strong>
+                    <small>${safe((x.participants || []).length)} учеников · ${safe(x.description || 'Без описания')}</small></div>
+                  <span class="pill">${new Date(x.lessonAt) > new Date() ? 'Запланировано' : 'Дата прошла'}</span>
+                </div>`)}
+                ${item.isArchived ? '' : `<button type="button" class="primary" data-schedule-class="${safe(item.id)}">＋ Добавить занятие</button>`}
+                <p class="muted small">Повторяющиеся слоты расписания не настроены. Здесь отображаются сохранённые занятия именно этой группы.</p>
+              </section>`
             : `<section class="class-subsection"><h3>${placeholders[tab]?.[0]}</h3>
                 <p class="muted">${placeholders[tab]?.[1]}</p>
                 ${tab === 'schedule' ? '<button type="button" class="secondary" data-view-calendar>Открыть календарь</button>' : ''}
@@ -584,7 +604,9 @@
       function classDetail(item) {
         if (item.kind === 'group') return groupClassDetail(item);
         const lessons = (state.data.lessons || []).filter(x =>
-          (x.participants || []).some(p => p.membershipId === item.studentMembershipId))
+          x.individualClassId === item.id ||
+          (!x.individualClassId && !x.groupClassId &&
+            (x.participants || []).some(p => p.membershipId === item.studentMembershipId)))
           .sort((a, b) => new Date(b.lessonAt) - new Date(a.lessonAt));
         const upcoming = lessons.filter(x => new Date(x.lessonAt) >= new Date()).sort((a,b) => new Date(a.lessonAt)-new Date(b.lessonAt))[0];
         const tab = classDetailTabs.some(x => x[0] === state.classDetailTab) ? state.classDetailTab : 'summary';
@@ -619,7 +641,7 @@
                 <div><strong>${safe(date(x.lessonAt))}</strong><small>${safe(x.participants?.find(p => p.membershipId === item.studentMembershipId)?.topicComment || 'Тема не указана')}</small></div>
                 <span class="pill">${new Date(x.lessonAt) > new Date() ? 'Запланировано' : 'Прошло'}</span>
               </div>`)}
-            <button class="secondary" type="button" data-view-calendar>Открыть календарь</button></section>`,
+            <button class="primary" type="button" data-schedule-class="${safe(item.id)}">＋ Добавить занятие</button></section>`,
           materials: `<section class="class-subsection class-feature-note"><h3>Материалы класса</h3>
             <p>Привязка материалов к конкретному классу пока не подключена. Существующие файлы и задания не изменены.</p></section>`,
           program: `<section class="class-subsection"><h3>Программа обучения</h3>
@@ -641,7 +663,7 @@
             <div class="class-detail-banner-body"><p class="class-detail-kind">Индивидуальное обучение</p>
               <h2>${safe(item.title)}</h2>
               <div class="class-banner-buttons">
-                <button type="button" class="primary" data-class-detail-tab="materials">＋ Добавить содержимое</button>
+                <button type="button" class="primary" data-schedule-class="${safe(item.id)}">＋ Добавить занятие</button>
                 <button type="button" class="secondary" disabled title="Доски класса ещё не подключены">▣ Перейти к доске</button>
               </div>
             </div>
