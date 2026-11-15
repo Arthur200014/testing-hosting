@@ -4,15 +4,16 @@
 
 ## Где материалы
 
-- [Meleto_Reference_Pack.zip](https://chatgpt.com/library?file_id=libfile_2a4feb1037c08191997ce235ce5fd686&account_id=personal) — 74 PNG, `screen_specs.json`, `index.html`, `BUILD_PROMPT_RU.md`.
-- [Meleto_Design_Reference_and_Build_Brief.pdf](https://chatgpt.com/library?file_id=libfile_ccc37577a6288191a70a64fad74f0d67&account_id=personal) — подробный документ на 92 страницы.
-- [MELETO_SCREEN_INDEX.md](./MELETO_SCREEN_INDEX.md) — все 74 ID, имена PNG и этапы работы. Это индекс в Git, а не копия архива.
+- **[Все референсы в GitHub](./references/meleto/README.md)** — исходные 74 PNG в [папке screens](./references/meleto/screens), без доступа к ChatGPT Library.
+- **[screen_specs.json](./references/meleto/screen_specs.json)** — визуальные и поведенческие требования по экрану; [BUILD_PROMPT_RU.md](./references/meleto/BUILD_PROMPT_RU.md) — дизайн-система и инструкция.
+- [MELETO_SCREEN_INDEX.md](./MELETO_SCREEN_INDEX.md) — кликабельный каталог всех 74 PNG и этапы работы.
+- [index.html](./references/meleto/index.html) — локальный каталог. Исходный ZIP и отдельный 92-страничный PDF остаются архивными источниками; они **не нужны для обычной работы в новом аккаунте**.
 
-В новом чате найти архив в Library по точному имени, открыть только нужные PNG и соответствующие записи JSON. Если Library недоступна, попросить пользователя прикрепить ZIP. Не заявлять о визуальной точности, пока изображения не доступны. Не читать PDF целиком при каждом продолжении.
+**Для нового чата и другого аккаунта:** читать PNG и `screen_specs.json` непосредственно из GitHub по указанным путям. Открывать только 1–2 PNG и соответствующие JSON-записи за задачу (см. `AGENTS.md`). Наличие файлов не означает, что визуальная точность уже проверена.
 
 ## Что наблюдалось и что выводится
 
-Снимки сделаны 2026-11-13 в доступном кабинете преподавателя. Цвета и измерения в `BUILD_PROMPT_RU.md`: primary `#7968F8`, текст `#292A43`, фон `#F5F5F6`, лавандовый фон класса `#EBE8FE`, шрифт Onest; sidebar ~214–216 px, header 72 px, внутреннее поле 24 px. Сравнивать desktop около 1360 × 930 px. Это ориентиры, уточняемые по PNG. Затем адаптировать под другие размеры; мобильный образец не отснят.
+Снимки сделаны 2026-11-13 в доступном кабинете преподавателя. Цвета и измерения в [BUILD_PROMPT_RU.md](./references/meleto/BUILD_PROMPT_RU.md): primary `#7968F8`, текст `#292A43`, фон `#F5F5F6`, лавандовый фон класса `#EBE8FE`, шрифт Onest; sidebar ~214–216 px, header 72 px, внутреннее поле 24 px. Сравнивать desktop около 1360 × 930 px. Это ориентиры, уточняемые по PNG. Затем адаптировать под другие размеры; мобильный образец не отснят.
 
 Модель БД из пакета — **проектное предложение**, не схема Meleto. Сначала сверять с `platform/src/Platform.Api/Persistence/PlatformDbContext.cs` и существующими миграциями; новые сущности или адаптеры добавлять без повторного импорта и потери связей. Не переносить в UI чёрные маски персональных данных со снимков.
 
