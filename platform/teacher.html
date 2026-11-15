@@ -321,6 +321,7 @@
     import { performTeacherMutation } from './teacher-mutation.mjs';
     import { calendarZone, calendarDay, calendarTime, shiftCalendarDay, calendarEntries, localSlotInstant, calendarWeek, calendarWeekDays, calendarMonth, calendarMonthDays, shiftCalendarMonth, previewClassPeriod } from './teacher-calendar.mjs';
     import { nativeHomeworkDeadlineStatus } from './homework-deadline.mjs';
+    import { individualClassNativeHomework, taskMatchesClass } from './class-native-homework.mjs';
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
@@ -385,7 +386,11 @@
         const view = state.view, loadId = ++state.viewLoadId;
         $('refresh').disabled = true;
         showNotice('Загружаем ' + names[view][0].toLowerCase() + '…');
-        const loading = [...needs[view], ...(view === 'overview' && state.classTab === 'statistics' ? ['assignments', 'nativeAssignments'] : [])].map(key => loadKey(key, force));
+        const classTasks = view === 'overview' && state.selectedClass && state.classDetailTab === 'homework' &&
+          teacherClasses().some(item => item.id === state.selectedClass && item.kind !== 'group');
+        const extra = classTasks ? ['nativeTasks','nativeAssignments'] :
+          view === 'overview' && state.classTab === 'statistics' ? ['assignments','nativeAssignments'] : [];
+        const loading = [...new Set([...needs[view], ...extra])].map(key => loadKey(key, force));
         render();
         const results = await Promise.allSettled(loading);
         if (!state.token || loadId !== state.viewLoadId) return;
@@ -407,6 +412,8 @@
             !confirm('Отменить несохранённое расписание?')) return Promise.resolve();
         if (state.view !== view && document.querySelector('#lessonPlannerForm[data-dirty="1"]') &&
             !confirm('Отменить планирование занятия без сохранения?')) return Promise.resolve();
+        if (state.view !== view && document.querySelector('#classNativeTaskForm[data-dirty="1"], #classNativeAssignForm[data-dirty="1"]') &&
+            !confirm('Отменить несохранённое задание?')) return Promise.resolve();
         state.view = view;
         if (view !== 'lessons') state.lessonPlan = null;
         if (view !== 'overview') state.scheduleEdit = null;
@@ -730,6 +737,56 @@
             <div class="row"><button type="submit" class="primary" ${draft.saving?'disabled':''}>${draft.saving?'Сохраняем…':'Готово'}</button><button type="button" class="secondary" data-close-lesson-result ${draft.saving?'disabled':''}>Отмена</button></div>
           </form></section></div>`;
       }
+      // Reuse the existing native homework API. A template belongs to a program;
+      // only an assignment belongs to this one student's membership.
+      function classNativeTasksTab(item) {
+        const programId = item.student?.programId, membershipId = item.studentMembershipId;
+        const d = state.data;
+        if (!programId || !membershipId)
+          return '<section class="class-subsection"><h3>Задания</h3><p class="muted">Для этого ученика не указана программа.</p></section>';
+        if (!Array.isArray(d.nativeTasks) || !Array.isArray(d.nativeAssignments))
+          return '<section class="class-subsection"><h3>Задания</h3><p role="status">Загружаем задания…</p><button class="secondary" type="button" data-retry-overview>Повторить загрузку</button></section>';
+        const { tasks, assignments } = individualClassNativeHomework(d, membershipId, programId);
+        return `<section class="class-subsection stack">
+          <div class="section-head"><div><h3>Задания ученика</h3>
+            <p class="muted small">${safe(item.student.studentName)} · Шаблоны переиспользуются в программе, назначения ограничены этим учеником.</p></div>
+            <span class="pill">${assignments.length} назначений</span></div>
+          ${item.isArchived ? '<p class="muted">Класс в архиве: новые задания недоступны, история сохранена.</p>' : `
+          <div class="grid two">
+            <section class="card stack"><h3>Новый шаблон</h3>
+              <form id="classNativeTaskForm" data-class-id="${safe(item.id)}" class="stack">
+                <label>Название<input name="title" maxlength="200" required placeholder="Название задания"></label>
+                <label>Условие<textarea name="prompt" maxlength="10000" required placeholder="Текст задания"></textarea></label>
+                <div class="row"><button type="submit" class="primary">Создать шаблон</button>
+                  <button type="button" class="secondary" data-class-task-cancel>Отмена</button></div></form>
+              <p class="muted small">Шаблон сохраняется без автоматического назначения.</p>
+            </section>
+            <section class="card stack"><h3>Назначить из шаблонов</h3>
+              <form id="classNativeAssignForm" data-class-id="${safe(item.id)}" class="stack">
+                <label>Шаблон<select name="taskId" required><option value="">Выберите задание</option>
+                  ${tasks.map(t => `<option value="${safe(t.id)}">${safe(t.title)}</option>`).join('')}</select></label>
+                <label>Срок<select name="deadlineHours"><option value="24">24 часа</option><option value="48">48 часов</option><option value="72">72 часа</option></select></label>
+                <div class="row"><button type="submit" class="primary" ${tasks.length?'':'disabled'}>Назначить ученику</button>
+                  <button type="button" class="secondary" data-class-task-cancel>Отмена</button></div></form>
+              ${tasks.length?'':'<p class="muted small">Сначала создайте шаблон.</p>'}
+            </section>
+          </div>`}
+          <section class="card stack"><div class="section-head"><h3>История заданий</h3>
+            <span class="muted small">${assignments.length}</span></div>
+            ${list(assignments, 'Назначенных встроенных заданий пока нет.', x => `
+              <div class="item"><div><strong>${safe(x.title || 'Задание')}</strong>
+                <small>Срок: ${safe(date(x.deadlineAt))} · ${safe(nativeHomeworkDeadlineStatus(x).label)}</small>
+                ${x.submittedAt?`<small>Сдано ${safe(date(x.submittedAt))}</small>`:''}
+              </div><span class="pill ${x.submittedAt?'':'warn'}">
+                ${x.scorePercent == null ? x.submittedAt ? 'На проверке' : 'Ожидается' : safe(x.scorePercent)+'%'}
+              </span></div>`)}
+          </section>
+          <section class="card stack"><h3>Шаблоны программы</h3>
+            ${list(tasks, 'Шаблонов пока нет.', t => `<div class="item"><div><strong>${safe(t.title)}</strong>
+              <small>${safe(t.prompt || '')}</small></div></div>`)}
+          </section>
+        </section>`;
+      }
       function classDetail(item) {
         if (state.selectedLesson) {
           const lesson=(state.data.lessons || []).find(x=>x.id===state.selectedLesson &&
@@ -783,9 +840,7 @@
             <p>Привязка материалов к конкретному классу пока не подключена. Существующие файлы и задания не изменены.</p></section>`,
           program: `<section class="class-subsection"><h3>Программа обучения</h3>
             <p>${safe(item.student.programName)}</p><p class="muted small">Содержание программы класса будет доступно после подключения отдельного редактора.</p></section>`,
-          homework: `<section class="class-subsection class-feature-note"><h3>Задания</h3>
-            <p>Назначения этому ученику доступны в существующем разделе заданий.</p>
-            <button type="button" class="secondary" data-class-section="homework">Перейти к заданиям</button></section>`,
+          homework: classNativeTasksTab(item),
           payment: `<section class="class-subsection class-feature-note"><h3>Оплата</h3>
             <p>${item.priceAmount == null ? 'Стоимость не задана.' : 'Условие: ' + safe(item.priceAmount) + ' ' + safe(item.priceCurrency) + (item.priceBasis === 'month' ? ' в месяц' : ' за занятие')}</p>
             <p class="muted small">Здесь не создаются счета и платежи.</p>
@@ -1663,7 +1718,7 @@
         logout();
       });
       $('content').addEventListener('input', event => {
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm');
         if (editor) editor.dataset.dirty = '1';
         const draft = event.target.closest('#lessonPlannerForm');
         if (draft && event.target.name === 'title') {
@@ -1685,7 +1740,7 @@
           if (shiftCalendarDay(event.target.value, 0)) state.calendarDate = event.target.value;
           render(); return;
         }
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm');
         if (editor) editor.dataset.dirty = '1';
         if (event.target.id==='calendarPlanClass') {
           captureCalendarPlanDraft(event.target.form);
@@ -1862,11 +1917,23 @@
               !confirm('Отменить несохранённые изменения класса?')) return;
           state.classEdit = ''; render(); return;
         }
+        const cancelClassTask = event.target.closest('[data-class-task-cancel]');
+        if (cancelClassTask) {
+          const form = cancelClassTask.closest('form');
+          form?.reset();
+          if (form) delete form.dataset.dirty;
+          showNotice('');
+          return;
+        }
         const detailTab = event.target.closest('[data-class-detail-tab]');
         if (detailTab) {
           if (document.querySelector('#classScheduleRuleForm[data-dirty="1"]') &&
               !confirm('Отменить изменения расписания без сохранения?')) return;
-          state.scheduleEdit = null; state.classDetailTab = detailTab.dataset.classDetailTab; render(); return;
+          if (document.querySelector('#classNativeTaskForm[data-dirty="1"], #classNativeAssignForm[data-dirty="1"]') &&
+              !confirm('Отменить несохранённое задание?')) return;
+          state.scheduleEdit = null; state.classDetailTab = detailTab.dataset.classDetailTab;
+          if (state.classDetailTab === 'homework') await refresh(); else render();
+          return;
         }
         const sectionLink = event.target.closest('[data-class-section]');
         if (sectionLink) { await setView(sectionLink.dataset.classSection); return; }
@@ -1923,6 +1990,8 @@
         const openClass = event.target.closest('[data-open-class]');
         if (openClass) { state.selectedLesson=null; state.editLesson=null; state.lessonFilter='all'; state.scheduleEdit = null; state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
         if (event.target.closest('[data-back-classes]')) {
+          if (document.querySelector('#classNativeTaskForm[data-dirty="1"], #classNativeAssignForm[data-dirty="1"]') &&
+              !confirm('Отменить несохранённое задание?')) return;
           if (document.querySelector('#classScheduleRuleForm[data-dirty="1"]') &&
               !confirm('Отменить изменения расписания без сохранения?')) return;
           state.scheduleEdit = null; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
@@ -2290,6 +2359,26 @@
             expectedStudentName: snapshot.studentName, expectedProfile: studentProfile(snapshot)
           }));
           state.editStudent = ''; state.editSnapshot = null;
+        });
+        if (form.id === 'classNativeTaskForm') onForm(form, async () => {
+          const item=teacherClasses().find(x => x.id === form.dataset.classId && x.kind !== 'group');
+          if (!item || item.id!==state.selectedClass || item.isArchived || !item.student?.programId)
+            throw new Error('Класс больше не доступен для создания задания.');
+          await mutation('classNativeTask:'+item.id,'homework/native/tasks', () => ({
+            programId:item.student.programId, title:formValue(form,'title'), prompt:formValue(form,'prompt')
+          }));
+        });
+        if (form.id === 'classNativeAssignForm') onForm(form, async () => {
+          const item=teacherClasses().find(x => x.id === form.dataset.classId && x.kind !== 'group');
+          if (!item || item.id!==state.selectedClass || item.isArchived || !item.student?.programId)
+            throw new Error('Класс больше не доступен для назначения.');
+          const task=(state.data.nativeTasks || []).find(x => x.id===formValue(form,'taskId'));
+          if (!taskMatchesClass(task,item.student.programId))
+            throw new Error('Выберите шаблон программы ученика.');
+          await mutation('classNativeAssign:'+item.id,'homework/native/assignments', () => ({
+            taskId:task.id, membershipIds:[item.studentMembershipId],
+            deadlineHours:Number(formValue(form,'deadlineHours'))
+          }));
         });
         if (form.id === 'nativeTaskForm') onForm(form, async () => {
           await mutation('nativeTask', 'homework/native/tasks', () => ({

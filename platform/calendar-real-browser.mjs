@@ -72,7 +72,33 @@ try {
     await page.locator('#calendarDate').dispatchEvent('change');
     await page.locator('[data-calendar-mode="month"]').click();
   }
-  await login(north); await month();
+  // UI-04: use the real isolated API/DB to create and assign a class task,
+  // reload, then confirm tenant isolation. No fixtures or route interception.
+  await login(north);
+  await page.locator('[data-open-class="'+north.item.id+'"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="homework"]').click();
+  await page.locator('#classNativeTaskForm [name="title"]').fill('UI-04 проверка задания');
+  await page.locator('#classNativeTaskForm [name="prompt"]').fill('Решите 2 + 2');
+  await page.locator('#classNativeTaskForm button[type="submit"]').click();
+  await page.locator('#classNativeAssignForm [name="taskId"] option')
+    .filter({hasText:'UI-04 проверка задания'}).waitFor({state:'attached'});
+  await page.locator('#classNativeAssignForm [name="taskId"]').selectOption({label:'UI-04 проверка задания'});
+  await page.locator('#classNativeAssignForm [name="deadlineHours"]').selectOption('48');
+  await page.locator('#classNativeAssignForm button[type="submit"]').click();
+  await page.locator('.class-subsection .section-head .pill').filter({hasText:'1 назначений'}).waitFor();
+  const assigned=await call('teacher/homework/native/assignments',north.token);
+  assert.equal(assigned.filter(x=>x.membershipId===north.students[0].membershipId && x.title==='UI-04 проверка задания').length,1);
+  const created=await call('teacher/homework/native/tasks',north.token);
+  assert.equal(created.filter(x=>x.title==='UI-04 проверка задания').length,1);
+  const foreignTasks=await call('teacher/homework/native/tasks',south.token);
+  const foreignAssignments=await call('teacher/homework/native/assignments',south.token);
+  assert.equal(foreignTasks.some(x=>x.title==='UI-04 проверка задания'),false);
+  assert.equal(foreignAssignments.some(x=>x.title==='UI-04 проверка задания'),false);
+  await page.locator('#classNativeTaskForm [name="title"]').fill('Несохранённый шаблон');
+  await page.locator('#classNativeTaskForm [data-class-task-cancel]').click();
+  assert.equal(await page.locator('#classNativeTaskForm [name="title"]').inputValue(),'');
+  await page.screenshot({path:output+'/43_class_homework_real.png'});
+  await month();
   const cell=page.locator('[data-calendar-month-day="2026-11-16"]');
   assert.equal(await cell.locator('.calendar-month-event').count(),2);
   assert.equal(await cell.locator('[data-calendar-more]').innerText(),'ещё 2');
@@ -101,7 +127,14 @@ try {
   const saved=await call('teacher/lessons',north.token);
   assert.equal(saved.length,4);
   assert.equal(saved.find(l=>l.title==='Урок через настоящий браузер').lessonAt.slice(0,19),'2026-11-16T06:00:00');
-  await page.reload(); await login(north); await month();
+  await page.reload(); await login(north);
+  // Reuse the existing authenticated reload to check the UI-04 persisted record;
+  // avoid an extra login that would alter auth-rate-limit coverage.
+  await page.locator('[data-open-class="'+north.item.id+'"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="homework"]').click();
+  await page.locator('.class-subsection .section-head .pill').filter({hasText:'1 назначений'}).waitFor();
+  assert.equal(await page.locator('.class-subsection .card .item').filter({hasText:'UI-04 проверка задания'}).count()>=1,true);
+  await month();
   assert.equal(await page.locator('[data-calendar-month-day="2026-11-16"] [data-calendar-more]').innerText(),'ещё 3');
   await page.screenshot({path:output+'/39_calendar_month_real.png'});
   await page.locator('[data-calendar-shift="1"]').click();

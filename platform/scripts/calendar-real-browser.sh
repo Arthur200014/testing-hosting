@@ -44,7 +44,7 @@ SELECT gen_random_uuid(),"Id",'TEST-MATH','Учебная математика',
 FROM platform."Workspaces" WHERE "Slug" IN ('tas-calendar-north','tas-calendar-south');
 SQL
 mkdir -p "$task_dir/site/platform"
-for file in teacher.html teacher-report.mjs teacher-data.mjs teacher-mutation.mjs teacher-calendar.mjs homework-deadline.mjs meleto-fidelity.css; do
+for file in teacher.html teacher-report.mjs teacher-data.mjs teacher-mutation.mjs teacher-calendar.mjs homework-deadline.mjs class-native-homework.mjs meleto-fidelity.css; do
   cp "platform/$file" "$task_dir/site/platform/$file"
 done
 # Rewrite ONLY the disposable copy. Published source and production settings stay untouched.

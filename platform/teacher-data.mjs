@@ -23,6 +23,7 @@ export const teacherMutationKeys = {
   studentForm: ['students'], studentEditForm: ['students'],
   lessonForm: ['lessons', 'assignments'], lessonCorrectionForm: ['lessons'], lessonPlannerForm: ['lessons'],
   nativeTaskForm: ['nativeTasks'], nativeAssignForm: ['nativeAssignments'],
+  classNativeTaskForm: ['nativeTasks'], classNativeAssignForm: ['nativeAssignments'],
   catalogForm: ['catalog'], homeworkForm: ['assignments'],
   subscriptionForm: ['subscriptions']
 };
