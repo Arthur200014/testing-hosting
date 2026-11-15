@@ -224,6 +224,144 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     }
 
 
+
+    [Fact]
+    public async Task GroupClassesPersistIndependentEnrollmentAndEnforceCapacityAndWorkspace()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "group-north", "group-north@example.invalid", "owner");
+        await SeedAsync(factory, "group-south", "group-south@example.invalid", "owner");
+        var first = await SeedStudentAsync(factory, north.WorkspaceId, "Synthetic group learner one", true);
+        var second = await SeedStudentAsync(factory, north.WorkspaceId, "Synthetic group learner two", true);
+        using var teacher = factory.CreateClient();
+        var auth = (await (await LoginAsync(teacher, "group-north", "group-north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        teacher.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+
+        var program = await SeedProgramAsync(factory, north.WorkspaceId);
+        var newStudentResponse = await teacher.PostAsJsonAsync("/api/v1/teacher/students",
+            new TeacherCreateStudentRequest(Guid.NewGuid(), program, "Synthetic invited group learner"));
+        Assert.Equal(HttpStatusCode.Created, newStudentResponse.StatusCode);
+        var invited = (await newStudentResponse.Content.ReadFromJsonAsync<TeacherCreateStudentResponse>())!;
+
+        var create = new TeacherCreateGroupRequest(Guid.NewGuid(), "  ЕГЭ групповое  ",
+            [first, second], "Описание группы", "mint", Capacity: 3, AutoApproveInvites: false,
+            DurationMinutes: 90, PriceAmount: 1900m, PriceCurrency: "RUB", PriceBasis: "month");
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await teacher.PostAsJsonAsync("/api/v1/teacher/groups",
+                create with { RequestId = Guid.NewGuid(), MemberIds = [first, first] })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await teacher.PostAsJsonAsync("/api/v1/teacher/groups",
+                create with { RequestId = Guid.NewGuid(), Capacity = 1 })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await teacher.PostAsJsonAsync("/api/v1/teacher/groups",
+                create with { RequestId = Guid.NewGuid(), Capacity = 21 })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await teacher.PostAsJsonAsync("/api/v1/teacher/groups",
+                create with { RequestId = Guid.NewGuid(), MemberIds = [first, Guid.NewGuid()] })).StatusCode);
+        var result = await teacher.PostAsJsonAsync("/api/v1/teacher/groups", create);
+        Assert.Equal(HttpStatusCode.Created, result.StatusCode);
+        var group = (await result.Content.ReadFromJsonAsync<TeacherGroupClassView>())!;
+        Assert.Equal("group", group.Kind);
+        Assert.Equal("ЕГЭ групповое", group.Title);
+        Assert.Equal(3, group.Capacity);
+        Assert.False(group.AutoApproveInvites);
+        Assert.Equal(2, group.Members.Count);
+        Assert.All(group.Members, p => Assert.True(p.IsApproved));
+        Assert.Equal(1, group.Revision);
+        var groupPath = "/api/v1/teacher/groups/" + group.Id;
+        var replay = await teacher.PostAsJsonAsync("/api/v1/teacher/groups", create);
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        Assert.Equal(group.Id, (await replay.Content.ReadFromJsonAsync<TeacherGroupClassView>())!.Id);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await teacher.PostAsJsonAsync("/api/v1/teacher/groups", create with { Title = "Other" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await teacher.PatchAsJsonAsync(groupPath,
+                new TeacherUpdateGroupRequest(0, "Invalid"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await teacher.PatchAsJsonAsync(groupPath,
+                new TeacherUpdateGroupRequest(999, "Stale"))).StatusCode);
+
+        var edit = await teacher.PatchAsJsonAsync(groupPath,
+            new TeacherUpdateGroupRequest(1, "ЕГЭ группа обновлена", [first, second], "Описание группы",
+                "sky", Capacity: 3, AutoApproveInvites: false, DurationMinutes: 90,
+                PriceAmount: 1900m, PriceCurrency: "RUB", PriceBasis: "month"));
+        Assert.Equal(HttpStatusCode.OK, edit.StatusCode);
+        var edited = (await edit.Content.ReadFromJsonAsync<TeacherGroupClassView>())!;
+        Assert.Equal(2, edited.Revision);
+        Assert.Equal("sky", edited.CoverStyle);
+        Assert.Equal(2, edited.Members.Count);
+
+        var issuedResponse = await teacher.PostAsJsonAsync(groupPath + "/invitation",
+            new TeacherClassRevisionRequest(2));
+        Assert.Equal(HttpStatusCode.OK, issuedResponse.StatusCode);
+        var issued = (await issuedResponse.Content.ReadFromJsonAsync<ClassInviteIssueResponse>())!;
+        Assert.Equal(64, issued.Code.Length);
+        Assert.Equal(3, issued.Revision);
+        Assert.DoesNotContain(issued.Code,
+            await (await teacher.GetAsync("/api/v1/teacher/groups")).Content.ReadAsStringAsync());
+
+        using var student = factory.CreateClient();
+        var studentLogin = await student.PostAsJsonAsync("/api/v1/student-sessions",
+            new { workspace = "group-north", code = invited.InviteCode });
+        Assert.Equal(HttpStatusCode.OK, studentLogin.StatusCode);
+        var token = (await studentLogin.Content.ReadFromJsonAsync<TestingHosting.Platform.StudentSessions.StudentSessionResponse>())!;
+        student.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await student.PostAsJsonAsync("/api/v1/student/groups/invitations/accept",
+                new AcceptClassInvitationRequest("wrong"))).StatusCode);
+        var join = await student.PostAsJsonAsync("/api/v1/student/groups/invitations/accept",
+            new AcceptClassInvitationRequest(issued.Code));
+        Assert.Equal(HttpStatusCode.OK, join.StatusCode);
+        group = Assert.Single((await teacher.GetFromJsonAsync<List<TeacherGroupClassView>>("/api/v1/teacher/groups"))!);
+        Assert.Equal(4, group.Revision);
+        Assert.Equal(3, group.Members.Count);
+        Assert.False(group.Members.Single(x => x.MembershipId == invited.MembershipId).IsApproved);
+
+        var approvedResponse = await teacher.PostAsJsonAsync(groupPath + "/members/" + invited.MembershipId + "/approve",
+            new TeacherClassRevisionRequest(4));
+        Assert.Equal(HttpStatusCode.OK, approvedResponse.StatusCode);
+        group = (await approvedResponse.Content.ReadFromJsonAsync<TeacherGroupClassView>())!;
+        Assert.Equal(5, group.Revision);
+        Assert.True(group.Members.Single(x => x.MembershipId == invited.MembershipId).IsApproved);
+
+        Assert.Equal(HttpStatusCode.OK,
+            (await teacher.PostAsJsonAsync(groupPath + "/invitation/revoke",
+                new TeacherClassRevisionRequest(5))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await student.PostAsJsonAsync("/api/v1/student/groups/invitations/accept",
+                new AcceptClassInvitationRequest(issued.Code))).StatusCode);
+        var archive = await teacher.PostAsJsonAsync(groupPath + "/archive", new TeacherClassRevisionRequest(6));
+        Assert.Equal(HttpStatusCode.OK, archive.StatusCode);
+        Assert.True((await archive.Content.ReadFromJsonAsync<TeacherGroupClassView>())!.IsArchived);
+        var restore = await teacher.PostAsJsonAsync(groupPath + "/restore", new TeacherClassRevisionRequest(7));
+        Assert.Equal(HttpStatusCode.OK, restore.StatusCode);
+        Assert.False((await restore.Content.ReadFromJsonAsync<TeacherGroupClassView>())!.IsArchived);
+
+        var resized = await teacher.PatchAsJsonAsync(groupPath,
+            new TeacherUpdateGroupRequest(8, "Осталась пара", [first, invited.MembershipId],
+                "Описание", Capacity: 2, AutoApproveInvites: true));
+        Assert.Equal(HttpStatusCode.OK, resized.StatusCode);
+        group = (await resized.Content.ReadFromJsonAsync<TeacherGroupClassView>())!;
+        Assert.Equal(2, group.Members.Count);
+        Assert.DoesNotContain(group.Members, x => x.MembershipId == second);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            Assert.Equal(1, await db.TeacherGroupClasses.CountAsync());
+            Assert.Equal(2, await db.TeacherGroupEnrollments.CountAsync());
+            Assert.Equal(0, await db.TeacherClasses.CountAsync());
+            Assert.Equal(3, await db.WorkspaceStudentMemberships.CountAsync());
+        }
+        var southAuth = (await (await LoginAsync(teacher, "group-south", "group-south@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        teacher.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", southAuth.AccessToken);
+        Assert.Empty((await teacher.GetFromJsonAsync<List<TeacherGroupClassView>>("/api/v1/teacher/groups"))!);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await teacher.PostAsJsonAsync(groupPath + "/archive",
+                new TeacherClassRevisionRequest(9))).StatusCode);
+    }
+
     [Fact]
     public async Task ClassCoverAndOneTimeInvitesRequireRightWorkspaceAndStudent()
     {
