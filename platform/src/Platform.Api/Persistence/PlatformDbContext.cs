@@ -36,6 +36,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<LessonParticipant> LessonParticipants => Set<LessonParticipant>();
     public DbSet<SubscriptionSnapshot> SubscriptionSnapshots => Set<SubscriptionSnapshot>();
     public DbSet<TeacherClass> TeacherClasses => Set<TeacherClass>();
+    public DbSet<TeacherGroupClass> TeacherGroupClasses => Set<TeacherGroupClass>();
+    public DbSet<TeacherGroupEnrollment> TeacherGroupEnrollments => Set<TeacherGroupEnrollment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -118,6 +120,53 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                     "(\"PriceAmount\" BETWEEN 0 AND 10000000 AND \"PriceCurrency\" IN ('RUB', 'EUR', 'USD') " +
                     "AND \"PriceBasis\" IN ('lesson', 'month'))");
             });
+        });
+
+
+        modelBuilder.Entity<TeacherGroupClass>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id });
+            entity.Property(x => x.Title).HasMaxLength(200);
+            entity.Property(x => x.Description).HasMaxLength(200);
+            entity.Property(x => x.CoverStyle).HasMaxLength(16).HasDefaultValue("lavender");
+            entity.Property(x => x.PriceAmount).HasPrecision(12, 2);
+            entity.Property(x => x.PriceCurrency).HasMaxLength(3);
+            entity.Property(x => x.PriceBasis).HasMaxLength(16);
+            entity.Property(x => x.InvitationStatus).HasMaxLength(16);
+            entity.Property(x => x.Capacity).HasDefaultValue(20);
+            entity.Property(x => x.AutoApproveInvites).HasDefaultValue(true);
+            entity.Property(x => x.Revision).IsConcurrencyToken().HasDefaultValue(1);
+            entity.HasIndex(x => new { x.WorkspaceId, x.RequestId }).IsUnique();
+            entity.HasOne(x => x.Workspace).WithMany().HasForeignKey(x => x.WorkspaceId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_TeacherGroupClasses_Capacity", "\"Capacity\" BETWEEN 1 AND 20");
+                table.HasCheckConstraint("CK_TeacherGroupClasses_Title", "length(\"Title\") > 0");
+                table.HasCheckConstraint("CK_TeacherGroupClasses_Cover", "\"CoverStyle\" IN ('lavender','sky','peach','mint')");
+                table.HasCheckConstraint("CK_TeacherGroupClasses_Duration",
+                    "\"DurationMinutes\" IS NULL OR (\"DurationMinutes\" BETWEEN 15 AND 240 AND \"DurationMinutes\" % 5 = 0)");
+                table.HasCheckConstraint("CK_TeacherGroupClasses_Price",
+                    "(\"PriceAmount\" IS NULL AND \"PriceCurrency\" IS NULL AND \"PriceBasis\" IS NULL) OR " +
+                    "(\"PriceAmount\" BETWEEN 0 AND 10000000 AND \"PriceCurrency\" IN ('RUB','EUR','USD') " +
+                    "AND \"PriceBasis\" IN ('lesson','month'))");
+                table.HasCheckConstraint("CK_TeacherGroupClasses_Invite",
+                    "\"InvitationStatus\" IS NULL OR \"InvitationStatus\" IN ('pending','revoked')");
+            });
+        });
+        modelBuilder.Entity<TeacherGroupEnrollment>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.WorkspaceId, x.GroupClassId, x.MembershipId }).IsUnique();
+            entity.HasOne(x => x.GroupClass).WithMany(x => x.Members)
+                .HasForeignKey(x => new { x.WorkspaceId, x.GroupClassId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Membership).WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.MembershipId, x.StudentId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id, x.StudentId })
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<TeacherUser>(entity =>
