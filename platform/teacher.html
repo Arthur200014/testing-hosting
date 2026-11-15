@@ -316,14 +316,14 @@
   </div>
 
   <script type="module">
-    import { buildTeacherReport } from './teacher-report.mjs';
+    import { buildTeacherReport, collectTeacherHomework } from './teacher-report.mjs';
     import { teacherNeeds, teacherMutationKeys, invalidateTeacherData, invalidateTeacherKeys, loadTeacherKey } from './teacher-data.mjs';
     import { performTeacherMutation } from './teacher-mutation.mjs';
     import { nativeHomeworkDeadlineStatus } from './homework-deadline.mjs';
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
-      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', selectedClass: '', classEdit: '', lastClassInvitation: null, learningModal: false, classCreate: false };
+      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', lastClassInvitation: null, learningModal: false, classCreate: false };
       const $ = id => document.getElementById(id);
       const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const date = value => value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
@@ -341,7 +341,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
-        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.selectedClass = ''; state.classEdit = ''; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false;
+        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.classDetailTab = 'summary'; state.classStatsMonth = new Date().toISOString().slice(0,7); state.classStatsExpanded = ''; state.selectedClass = ''; state.classEdit = ''; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false;
         $('app').hidden = true; $('loginScreen').hidden = false;
         $('loginError').textContent = message; $('loginError').hidden = !message;
       }
@@ -379,7 +379,7 @@
         const view = state.view, loadId = ++state.viewLoadId;
         $('refresh').disabled = true;
         showNotice('Загружаем ' + names[view][0].toLowerCase() + '…');
-        const loading = needs[view].map(key => loadKey(key, force));
+        const loading = [...needs[view], ...(view === 'overview' && state.classTab === 'statistics' ? ['assignments', 'nativeAssignments'] : [])].map(key => loadKey(key, force));
         render();
         const results = await Promise.allSettled(loading);
         if (!state.token || loadId !== state.viewLoadId) return;
@@ -395,6 +395,8 @@
           body => api('teacher/' + path, { method: 'POST', body }));
       }
       function setView(view) {
+        if (state.view !== view && document.querySelector('#classEditForm[data-dirty="1"]') &&
+            !confirm('Есть несохранённые изменения класса. Покинуть редактор без сохранения?')) return Promise.resolve();
         state.view = view;
         if (view !== 'overview') { state.selectedClass = ''; state.classEdit = ''; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; }
         document.querySelectorAll('[data-view]').forEach(x => x.classList.toggle('active', x.dataset.view === view));
@@ -475,35 +477,97 @@
             ${rawStatus === 'pending' ? `<button class="secondary" type="button" data-revoke-class-invite="${safe(item.id)}">Отозвать</button>` : ''}</div>`}
         </section>`;
       }
+      const classDetailTabs = [
+        ['summary','Сводка'], ['schedule','Расписание'], ['materials','Материалы'],
+        ['program','Программа'], ['homework','Задания'], ['payment','Оплата'], ['information','Информация']
+      ];
       function classDetail(item) {
-        const lessons = (state.data.lessons || [])
-          .filter(x => (x.participants || []).some(p => p.membershipId === item.studentMembershipId))
+        const lessons = (state.data.lessons || []).filter(x =>
+          (x.participants || []).some(p => p.membershipId === item.studentMembershipId))
           .sort((a, b) => new Date(b.lessonAt) - new Date(a.lessonAt));
-        return `<div class="class-detail">
-          <button class="secondary small-button" type="button" data-back-classes>← Все классы</button>
-          <div class="class-detail-banner cover-${safe(item.coverStyle || 'lavender')}" style="margin-top:14px">
-            <span class="class-avatar" style="--avatar:${avatarColor(item.id)}">${safe(initials(item.student.studentName))}</span>
-            <div><p class="muted small">Индивидуальное обучение · ${safe(item.student.programName)}</p><h2>${safe(item.title)}</h2>${item.description ? `<p class="muted small">${safe(item.description)}</p>` : ''}</div>
-            <div class="class-detail-actions"><button class="secondary" type="button" data-open-student="${safe(item.studentMembershipId)}">Карточка ученика</button>${item.isArchived ? '<span class="pill warn">В архиве</span>' : `<button class="primary" type="button" data-schedule-class="${safe(item.id)}">Запланировать</button>`}</div>
+        const upcoming = lessons.filter(x => new Date(x.lessonAt) >= new Date()).sort((a,b) => new Date(a.lessonAt)-new Date(b.lessonAt))[0];
+        const tab = classDetailTabs.some(x => x[0] === state.classDetailTab) ? state.classDetailTab : 'summary';
+        const metadata = `<div class="class-info-grid">
+          <div class="class-info-panel"><h3>Об обучении</h3>
+            <p><span class="muted">Ученик:</span> <button type="button" class="class-text-link" data-open-student="${safe(item.studentMembershipId)}">${safe(item.student.studentName)}</button></p>
+            <p><span class="muted">Программа:</span> ${safe(item.student.programName)}</p>
+            <p><span class="muted">Цель:</span> ${safe(item.student.targetScore || item.student.targetGrade || 'не указана')}</p>
+            ${item.description ? `<p><span class="muted">Описание:</span> <span data-class-description>${safe(item.description)}</span></p>` : ''}
           </div>
-          ${item.persistent ? `<div class="class-management-actions">
-            ${item.isArchived
-              ? `<button class="primary" type="button" data-restore-class="${safe(item.id)}">Восстановить класс</button>`
-              : `<button class="secondary" type="button" data-edit-class="${safe(item.id)}">Редактировать</button><button class="danger" type="button" data-archive-class="${safe(item.id)}">В архив</button>`}
-          </div><p class="class-archive-note">Архивирование класса не затрагивает ученика, занятия или историю.</p>` : ''}
-          <div class="grid two" style="margin-top:18px">
-            <div class="card stack"><div class="section-head"><h2>Последние занятия</h2><span class="muted small">${lessons.length}</span></div>
-              ${list(lessons.slice(0, 5), 'Занятий пока нет.', x => `<div class="item"><div><strong>${safe(date(x.lessonAt))}</strong><small>${safe(x.participants?.find(p => p.membershipId === item.studentMembershipId)?.topicComment || 'Тема не указана')}</small></div></div>`)}
+          <div class="class-info-panel"><h3>Настройки класса</h3>
+            <p><span class="muted">Длительность:</span> ${item.durationMinutes != null ? safe(item.durationMinutes) + ' мин' : 'не задана'}</p>
+            <p><span class="muted">Стоимость (условие):</span> ${item.priceAmount != null ? safe(Number(item.priceAmount).toLocaleString('ru-RU', { maximumFractionDigits: 2 })) + ' ' + safe(item.priceCurrency) + ' / ' + (item.priceBasis === 'month' ? 'месяц' : 'занятие') : 'не задана'}</p>
+            <p><span class="muted">Чат занятия:</span> ${item.allowLessonChat ? 'разрешён в настройках' : 'запрещён'}</p>
+            <p><span class="muted">Личные сообщения:</span> ${item.allowPrivateMessages ? 'разрешены в настройках' : 'запрещены'}</p>
+            <p class="muted small">Оплата и чаты пока не подключены, сохранены только параметры класса.</p>
+          </div>
+        </div>`;
+        const tabs = {
+          summary: `<section class="class-summary">
+            <div class="class-schedule-slots"><span class="muted small">Слоты регулярного расписания ещё не настроены.</span>
+              <button type="button" class="class-gear" data-view-calendar aria-label="Открыть календарь">⚙</button></div>
+            <p class="class-caption">Ближайшее занятие</p>
+            <div class="class-nearest"><span class="class-nearest-icon">▣</span>
+              <div><strong>${upcoming ? 'Запланированное занятие' : 'Занятие не запланировано'}</strong>
+                <small>${upcoming ? safe(date(upcoming.lessonAt)) : 'Для создания занятия откройте календарь'}</small></div>
+              <button type="button" class="primary" data-schedule-class="${safe(item.id)}">${upcoming ? 'Календарь' : 'Запланировать'}</button>
             </div>
-            <div class="card stack"><h2>Об обучении</h2><p><span class="muted">Ученик:</span> ${safe(item.student.studentName)}</p><p><span class="muted">Программа:</span> ${safe(item.student.programName)}</p><p><span class="muted">Цель:</span> ${safe(item.student.targetScore || item.student.targetGrade || 'не указана')}</p>
-              <h3>Настройки класса</h3>
-              <p><span class="muted">Длительность:</span> ${item.durationMinutes ? safe(item.durationMinutes) + ' мин' : 'не задана'}</p>
-              <p><span class="muted">Стоимость (условие):</span> ${item.priceAmount != null ? safe(Number(item.priceAmount).toLocaleString('ru-RU', { maximumFractionDigits: 2 })) + ' ' + safe(item.priceCurrency) + ' / ' + (item.priceBasis === 'month' ? 'месяц' : 'занятие') : 'не задана'}</p>
-              <p><span class="muted">Чат занятия:</span> ${item.allowLessonChat ? 'разрешён в настройках' : 'запрещён'}</p>
-              <p><span class="muted">Личные сообщения:</span> ${item.allowPrivateMessages ? 'разрешены в настройках' : 'запрещены'}</p>
-              <p class="muted small">Оплата и чаты пока не подключены: здесь сохранены только параметры класса.</p></div>
+          </section>`,
+          schedule: `<section class="class-subsection"><h3>Занятия класса</h3>
+            ${list(lessons.slice(0, 15), 'Занятий по этому классу пока нет.', x => `<div class="item">
+                <div><strong>${safe(date(x.lessonAt))}</strong><small>${safe(x.participants?.find(p => p.membershipId === item.studentMembershipId)?.topicComment || 'Тема не указана')}</small></div>
+                <span class="pill">${new Date(x.lessonAt) > new Date() ? 'Запланировано' : 'Прошло'}</span>
+              </div>`)}
+            <button class="secondary" type="button" data-view-calendar>Открыть календарь</button></section>`,
+          materials: `<section class="class-subsection class-feature-note"><h3>Материалы класса</h3>
+            <p>Привязка материалов к конкретному классу пока не подключена. Существующие файлы и задания не изменены.</p></section>`,
+          program: `<section class="class-subsection"><h3>Программа обучения</h3>
+            <p>${safe(item.student.programName)}</p><p class="muted small">Содержание программы класса будет доступно после подключения отдельного редактора.</p></section>`,
+          homework: `<section class="class-subsection class-feature-note"><h3>Задания</h3>
+            <p>Назначения этому ученику доступны в существующем разделе заданий.</p>
+            <button type="button" class="secondary" data-class-section="homework">Перейти к заданиям</button></section>`,
+          payment: `<section class="class-subsection class-feature-note"><h3>Оплата</h3>
+            <p>${item.priceAmount == null ? 'Стоимость не задана.' : 'Условие: ' + safe(item.priceAmount) + ' ' + safe(item.priceCurrency) + (item.priceBasis === 'month' ? ' в месяц' : ' за занятие')}</p>
+            <p class="muted small">Здесь не создаются счета и платежи.</p>
+            <button type="button" class="secondary" data-class-section="subscriptions">Открыть абонементы</button></section>`,
+          information: `<section class="class-subsection">${metadata}
+            ${item.persistent ? classInvitePanel(item) : '<p class="muted small">Этот класс отображается из существующей карточки ученика.</p>'}
+            <p class="class-archive-note">Архивирование класса не удаляет ученика, занятия и историю.</p></section>`
+        };
+        return `<div class="class-detail">
+          <div class="class-detail-banner cover-${safe(item.coverStyle || 'lavender')}">
+            <button type="button" class="class-back" data-back-classes aria-label="Назад ко всем классам">‹</button>
+            <div class="class-detail-banner-body"><p class="class-detail-kind">Индивидуальное обучение</p>
+              <h2>${safe(item.title)}</h2>
+              <div class="class-banner-buttons">
+                <button type="button" class="primary" data-class-detail-tab="materials">＋ Добавить содержимое</button>
+                <button type="button" class="secondary" disabled title="Доски класса ещё не подключены">▣ Перейти к доске</button>
+              </div>
+            </div>
+            <div class="class-detail-banner-art" aria-hidden="true"></div>
+            ${item.persistent ? `<details class="class-detail-menu"><summary aria-label="Действия с классом" title="Действия с классом">⋮</summary>
+              <div class="class-detail-menu-actions">
+                ${item.isArchived ? `<button type="button" data-restore-class="${safe(item.id)}">Восстановить класс</button>` :
+                  `<button type="button" data-edit-class="${safe(item.id)}">Редактировать</button>
+                    <button type="button" data-archive-class="${safe(item.id)}">В архив</button>`}
+              </div></details>` : ''}
           </div>
-        </div>${classInvitePanel(item)}${learningModal()}`;
+          <nav class="class-detail-tabs" aria-label="Разделы класса">
+            ${classDetailTabs.map(([id,label]) => `<button type="button" data-class-detail-tab="${id}" class="${id === tab ? 'active' : ''}" aria-current="${id === tab ? 'page' : 'false'}">${label}</button>`).join('')}
+          </nav>
+          ${item.isArchived ? '<p class="class-archived-state">Класс в архиве. Доступ к истории и сохранённым настройкам остаётся.</p>' : ''}
+          ${tabs[tab]}
+          <footer class="class-detail-footer">
+            <div class="class-foot-brand"><span class="class-foot-mark">T</span><span>Teacher AI Student<small>Платформа преподавателя</small></span></div>
+            <nav class="class-foot-links" aria-label="Быстрые разделы">
+              <button type="button" data-class-section="lessons">Календарь</button>
+              <button type="button" data-class-section="homework">Задания</button>
+              <button type="button" data-class-section="students">Ученики</button>
+              <button type="button" data-class-section="results">Результаты</button>
+            </nav>
+            <div class="class-foot-note">Данные обучения доступны только участникам вашего пространства.</div>
+          </footer>
+        </div>${learningModal()}`;
       }
       function individualClassCreate() {
         const students = state.data.students || [];
@@ -586,29 +650,23 @@
         form.id = 'classEditForm';
         form.dataset.classId = item.id;
         form.dataset.revision = item.revision;
-        wrapper.querySelector('h1').textContent = 'Редактирование индивидуального класса';
+        wrapper.querySelector('h1').textContent = 'Редактирование индивидуального обучения';
         form.elements.title.defaultValue = item.title;
         if (item.title.length > 50) form.elements.title.maxLength = 200; // Existing legacy titles.
         form.elements.description.defaultValue = item.description || '';
         for (const option of form.querySelectorAll('[name="coverStyle"]')) option.defaultChecked = option.value === (item.coverStyle || 'lavender');
         const preview = form.querySelector('[data-cover-display]');
         preview.className = 'class-cover-display cover-' + (item.coverStyle || 'lavender');
-        form.querySelector('[data-choose-student]')?.remove();
-        form.elements.inviteEnabled.checked = false;
+        // Editing cannot reassign a student. The actual invite workflow is in the Information tab.
+        const inviteSection = form.querySelector('.class-invitation-section');
+        inviteSection.innerHTML = '<div class="class-section-top"><label class="class-switch"><input type="checkbox" disabled><span>Пригласить ученика</span></label>' +
+          '<p class="class-setting-note">Список приглашений и управление участниками доступны на вкладке «Информация» в карточке класса.</p></div>';
         form.querySelectorAll('.class-field').forEach(label => {
           const counter = label.querySelector('[data-char-count]');
           if (!counter) return;
           const field = label.querySelector('input, textarea');
           counter.textContent = field.value.length + ' / ' + field.maxLength;
         });
-        const membershipLabel = form.elements.studentMembershipId.closest('label');
-        membershipLabel.textContent = '';
-        const membershipCaption = document.createElement('span');
-        membershipCaption.textContent = 'Ученик (не меняется)';
-        const readonly = document.createElement('input');
-        readonly.disabled = true;
-        readonly.defaultValue = item.student.studentName + ' · ' + item.student.programName;
-        membershipLabel.append(membershipCaption, readonly);
         const settings = [
           ['duration', item.durationMinutes != null],
           ['price', item.priceAmount != null]
@@ -634,6 +692,74 @@
         cancel.setAttribute('data-cancel-class-edit', '');
         form.querySelector('.class-create-actions').previousElementSibling.textContent = 'Изменяются только параметры класса. Ученик и его история не затрагиваются.';
         return wrapper.innerHTML;
+      }
+      function classStatistics(activeClasses) {
+        const month = state.classStatsMonth;
+        const monthStart = new Date(month + '-01T12:00:00Z');
+        const monthTitle = new Intl.DateTimeFormat('ru-RU', {month:'long',year:'numeric',timeZone:'UTC'}).format(monthStart);
+        const tasksLoaded = Array.isArray(state.data.assignments) && Array.isArray(state.data.nativeAssignments);
+        const homework = tasksLoaded ? collectTeacherHomework(state.data) : [];
+        const items = activeClasses.filter(x => state.classStatsType === 'all' || x.kind === 'individual' || !x.persistent);
+        const donut = (pct,label) => pct == null
+          ? `<span class="class-stats-missing" aria-label="${label}: нет данных">—</span>`
+          : `<span class="class-stats-donut" style="--progress:${pct}%" role="img" aria-label="${label}: ${pct}%"></span><span class="class-stats-percent">${pct}%</span>`;
+        const rows = items.map(x => {
+          const periodLessons = (state.data.lessons || []).filter(lesson =>
+            lesson.lessonAt && dayKey(lesson.lessonAt).slice(0,7) === month &&
+            new Date(lesson.lessonAt) <= new Date() &&
+            (lesson.participants || []).some(p => p.membershipId === x.studentMembershipId));
+          const marks = periodLessons.map(l => l.participants.find(p => p.membershipId === x.studentMembershipId)?.attendanceStatus)
+            .filter(status => status === 'Present' || status === 'Absent');
+          const attended = marks.filter(status => status === 'Present').length;
+          const attendancePct = marks.length ? Math.round(100 * attended / marks.length) : null;
+          const pupilTasks = tasksLoaded ? homework.filter(h =>
+            h.membershipId === x.studentMembershipId && h.assignedAt &&
+            dayKey(h.assignedAt).slice(0,7) === month) : [];
+          const submitted = pupilTasks.filter(h => h.isSubmitted).length;
+          const tasksPct = tasksLoaded && pupilTasks.length ? Math.round(submitted * 100 / pupilTasks.length) : null;
+          const expanded = state.classStatsExpanded === x.id;
+          return `<div class="class-stats-row">
+            <div class="class-stats-entry">
+              <div class="class-stats-class">
+                <span class="class-stats-avatar" style="--avatar:${avatarColor(x.id)}">${safe(initials(x.student.studentName))}</span>
+                <div><strong>${safe(x.title)}</strong><button type="button" data-stat-expand="${safe(x.id)}" aria-expanded="${expanded}" class="class-stats-expand">1 ученик ${expanded ? '⌃' : '⌄'}</button></div>
+              </div>
+              <div class="class-stats-result">${donut(attendancePct,'Посещение')}</div>
+              <div class="class-stats-result">${donut(tasksPct,'Задания')}</div>
+            </div>
+            ${expanded ? `<div class="class-stats-pupil">
+              <strong>${safe(x.student.studentName)}</strong>
+              <span>Посещение: ${marks.length ? attended + ' из ' + marks.length : 'нет отмеченной посещаемости'}</span>
+              <span>Задания: ${tasksLoaded ? (pupilTasks.length ? submitted + ' из ' + pupilTasks.length : 'не назначались за месяц') : 'загружаются'}</span>
+              <button class="class-text-link" type="button" data-open-student="${safe(x.studentMembershipId)}">Карточка ученика</button>
+            </div>` : ''}
+          </div>`;
+        }).join('');
+        return `<section class="class-statistics" aria-label="Статистика классов">
+          <div class="class-stats-filters">
+            <label class="class-stats-type"><span>Тип класса</span>
+              <select id="classStatsType"><option value="all" ${state.classStatsType==='all'?'selected':''}>Все</option>
+                <option value="individual" ${state.classStatsType==='individual'?'selected':''}>Индивидуальное обучение</option></select></label>
+            <div class="class-stats-period"><button type="button" data-stats-month="-1" aria-label="Предыдущий месяц">‹</button>
+              <button type="button" data-stats-month="1" aria-label="Следующий месяц">›</button>
+              <strong>${safe(monthTitle)}</strong><span aria-hidden="true">▦</span></div>
+          </div>
+          <div class="class-stats-head"><span>Название</span><span>Посещение</span><span>Задания</span></div>
+          <div class="class-stats-list">${rows || '<div class="empty">Классы не найдены.</div>'}</div>
+          <p class="class-stats-caption">Только занятия с отмеченной посещаемостью и ДЗ, назначенные в выбранном месяце.
+            Отсутствие данных обозначено прочерком, а не нулём.${tasksLoaded?'':' Загрузка заданий…'}</p>
+        </section>`;
+      }
+      function classArchiveCard(item) {
+        return `<article class="class-card class-archived-card">
+          <div class="class-card-head cover-${safe(item.coverStyle || 'lavender')}">
+            <span class="class-avatar" style="--avatar:${avatarColor(item.id)}">${safe(initials(item.student.studentName))}</span>
+            <div class="class-card-title"><strong>${safe(item.title)}</strong><small>${safe(item.student.studentName)} · ${safe(item.student.programName)}</small></div>
+          </div>
+          <div class="class-archived-body"><div class="class-archive-label"><span>Завершено</span><small>${item.createdAt ? 'Класс создан: '+safe(new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(item.createdAt))):'Дата завершения не сохранена'}</small></div>
+            <button type="button" class="class-open" data-open-class="${safe(item.id)}">Открыть</button>
+            <button type="button" class="secondary small-button" data-restore-class="${safe(item.id)}">Восстановить</button></div>
+        </article>`;
       }
       function overview() {
         const d = state.data;
@@ -669,15 +795,15 @@
               </article>`;
             }).join('')}</div>` : `<div class="empty">${query ? 'По запросу ничего не найдено.' : 'Активных классов пока нет.'}</div>`)
           : state.classTab === 'statistics'
-            ? `<div class="grid three"><div class="card"><span class="muted">Активные классы</span><div class="metric">${classes.length}</div></div><div class="card"><span class="muted">Занятия сегодня</span><div class="metric">${todayLessons.length}</div></div><div class="card"><span class="muted">Завершено сегодня</span><div class="metric">${completed}</div></div></div>`
+            ? classStatistics(classes)
             : (visibleArchived.length
-              ? `<div class="class-list">${visibleArchived.map(item => `<article class="class-card"><div class="class-card-head cover-${safe(item.coverStyle || 'lavender')}"><span class="class-avatar" style="--avatar:${avatarColor(item.id)}">${safe(initials(item.student.studentName))}</span><div class="class-card-title"><strong>${safe(item.title)}</strong><small>${safe(item.student.studentName)} · В архиве</small></div></div><div class="class-card-body"><span class="muted small">История ученика сохранена</span><button class="class-open" type="button" data-open-class="${safe(item.id)}">Открыть</button><button class="primary" type="button" data-restore-class="${safe(item.id)}">Восстановить</button></div></article>`).join('')}</div>`
+              ? `<div class="class-list">${visibleArchived.map(classArchiveCard).join('')}</div>`
               : `<div class="empty">${query ? 'По запросу ничего не найдено.' : 'В архиве пока нет классов.'}</div>`);
         return `<div class="classes-layout"><section class="classes-main">
           <div class="classes-heading"><h1>Мои классы</h1><button class="primary" type="button" data-open-learning>＋ Начать новое обучение</button></div>
           <div class="classes-toolbar"><div class="class-tabs"><button type="button" data-class-tab="classes" class="${state.classTab === 'classes' ? 'active' : ''}">Мои классы</button><button type="button" data-class-tab="statistics" class="${state.classTab === 'statistics' ? 'active' : ''}">Статистика</button><button type="button" data-class-tab="archive" class="${state.classTab === 'archive' ? 'active' : ''}">Архив</button></div>
             <label class="class-search"><span class="small">Поиск</span><input id="classSearch" type="search" value="${safe(state.classSearch)}" placeholder="Название или ученик"></label></div>
-          <div class="access-chip">♙ Допуск <strong>${classes.length}</strong></div>${cards}
+          ${state.classTab === 'statistics' ? '' : `<div class="access-chip">${state.classTab === 'archive' ? 'Архивировано' : 'Классов'} <strong>${state.classTab === 'archive' ? archivedClasses.length : classes.length}</strong></div>`}${cards}
         </section><section class="today-panel"><div class="today-inner"><div class="today-title"><h2>Сегодня</h2><button type="button" data-view-calendar>Календарь ›</button></div><div class="today-count"><span>Завершено: ${completed}</span><span>${todayLessons.length} всего</span></div>
           <div class="today-lessons">${todayLessons.map(x => `<div class="today-lesson"><strong>${safe(lessonLabel(x.lessonAt).join(' · '))}</strong><small>${safe((x.participants || []).map(p => studentName(p.membershipId)).join(', ') || 'Без участников')}</small></div>`).join('')}</div>
           <button class="today-plan" type="button" data-view-calendar>▣ Запланировать занятие</button></div></section></div>${learningModal()}`;
@@ -951,6 +1077,8 @@
         logout();
       });
       $('content').addEventListener('input', event => {
+        const editor = event.target.closest('#classEditForm');
+        if (editor) editor.dataset.dirty = '1';
         if (event.target.id === 'studentSearch') studentRows(event.target.value.trim());
         if (event.target.id === 'classSearch') {
           const position = event.target.selectionStart;
@@ -961,6 +1089,8 @@
         }
       });
       $('content').addEventListener('change', event => {
+        const editor = event.target.closest('#classEditForm');
+        if (editor) editor.dataset.dirty = '1';
         if (event.target.matches('#classForm [name="coverStyle"], #classEditForm [name="coverStyle"]')) {
           const preview = event.target.closest('form')?.querySelector('[data-cover-display]');
           if (preview) preview.className = 'class-cover-display cover-' + event.target.value;
@@ -984,6 +1114,7 @@
           }
           return;
         }
+        if (event.target.id === 'classStatsType') { state.classStatsType = event.target.value; state.classStatsExpanded = ''; render(); return; }
         if (event.target.id === 'resultStudent') { state.resultStudent = event.target.value; render(); }
         if (event.target.id === 'reportStudent') { state.reportStudent = event.target.value; render(); }
         if (event.target.matches('#subscriptionForm select[name="membershipId"]')) {
@@ -1022,7 +1153,25 @@
           return;
         }
         if (event.target.closest('[data-cancel-class]')) { state.classCreate = false; render(); return; }
-        if (event.target.closest('[data-cancel-class-edit]')) { state.classEdit = ''; render(); return; }
+        if (event.target.closest('[data-cancel-class-edit]')) {
+          if (document.querySelector('#classEditForm[data-dirty="1"]') &&
+              !confirm('Отменить несохранённые изменения класса?')) return;
+          state.classEdit = ''; render(); return;
+        }
+        const detailTab = event.target.closest('[data-class-detail-tab]');
+        if (detailTab) { state.classDetailTab = detailTab.dataset.classDetailTab; render(); return; }
+        const sectionLink = event.target.closest('[data-class-section]');
+        if (sectionLink) { await setView(sectionLink.dataset.classSection); return; }
+        const expanded = event.target.closest('[data-stat-expand]');
+        if (expanded) { state.classStatsExpanded = state.classStatsExpanded === expanded.dataset.statExpand ? '' : expanded.dataset.statExpand; render(); return; }
+        const monthButton = event.target.closest('[data-stats-month]');
+        if (monthButton) {
+          const [year,month] = state.classStatsMonth.split('-').map(Number);
+          const next = new Date(Date.UTC(year, month - 1 + Number(monthButton.dataset.statsMonth), 1, 12));
+          state.classStatsMonth = next.toISOString().slice(0,7);
+          state.classStatsExpanded = '';
+          render(); return;
+        }
         const coverButton = event.target.closest('[data-toggle-covers]');
         if (coverButton) {
           const picker = coverButton.closest('.class-cover-picker');
@@ -1042,10 +1191,14 @@
         const editClass = event.target.closest('[data-edit-class]');
         if (editClass) { state.classEdit = editClass.dataset.editClass; render(); return; }
         const classTab = event.target.closest('[data-class-tab]');
-        if (classTab) { state.classTab = classTab.dataset.classTab; state.selectedClass = ''; state.classEdit = ''; render(); return; }
+        if (classTab) {
+          state.classTab = classTab.dataset.classTab; state.selectedClass = ''; state.classEdit = ''; state.classDetailTab = 'summary';
+          if (state.classTab === 'statistics') await refresh(); else render();
+          return;
+        }
         const openClass = event.target.closest('[data-open-class]');
-        if (openClass) { state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; state.lastClassInvitation = null; render(); return; }
-        if (event.target.closest('[data-back-classes]')) { state.selectedClass = ''; state.classEdit = ''; state.lastClassInvitation = null; render(); return; }
+        if (openClass) { state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
+        if (event.target.closest('[data-back-classes]')) { state.selectedClass = ''; state.classEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
         if (event.target.closest('[data-copy-class-invite]')) {
           const code = state.lastClassInvitation?.code;
           if (!code) return;
