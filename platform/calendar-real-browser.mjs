@@ -368,7 +368,7 @@ try {
     x.url==='https://example.org/study-notes').length,1);
   await page.locator('.class-detail-tabs [data-class-detail-tab="homework"]').click();
   await page.locator('[data-group-assignment]').waitFor();
-  assert.equal(await page.locator('.class-subsection .card .item').filter({hasText:'UI-04 проверка задания'}).count()>=1,true);
+  assert.equal(await page.locator('[data-context-homework] [data-group-assignment]').filter({hasText:'UI-04 проверка задания'}).count(),1);
   await month();
   assert.equal(await page.locator('[data-calendar-month-day="2026-11-16"] [data-calendar-more]').innerText(),'ещё 3');
   await page.screenshot({path:output+'/39_calendar_month_real.png'});
