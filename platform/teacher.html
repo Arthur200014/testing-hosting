@@ -542,12 +542,12 @@
         const opener=`<button type="button" class="secondary" data-open-count-plan="${safe(item.id)}" data-class-kind="${safe(item.kind)}">Запланировать несколько занятий</button>`;
         return `${opener}${modal?'<div class="modal-backdrop"><section class="learning-modal count-plan-modal" role="dialog" aria-modal="true" aria-labelledby="countPlanTitle"><div class="modal-head"><h2 id="countPlanTitle">Запланировать занятия</h2><button type="button" class="modal-close" data-close-period-preview aria-label="Закрыть планирование">×</button></div><p>Запланируйте несколько занятий в рамках расписания</p>':`<details class="class-period-preview" ${selected?'open':''}><summary>Предпросмотр занятий на период</summary>`}
           ${modal?`<div class="class-rule-summary">${scheduleSummary(item)}</div><div class="class-tabs"><button type="button" data-plan-mode="period" class="${mode==='period'?'active':''}">Период</button><button type="button" data-plan-mode="count" class="${mode==='count'?'active':''}">Количество</button></div>`:''}
-          <p class="muted small">Проверьте слоты перед созданием занятий. Уже существующие занятия будут пропущены. Период — до 31 дня, время по Москве.</p>
+          <p class="muted small">Проверьте слоты перед созданием занятий. Уже существующие занятия будут пропущены. ${mode==='count'?'До 31 слота по расписанию':'Период — до 31 дня'}, время по Москве.</p>
           <form id="classPeriodPreviewForm" class="stack" data-class-id="${safe(item.id)}" data-class-kind="${safe(item.kind)}" data-mode="${mode}" data-modal="${modal?'true':'false'}">
             ${mode==='count'?`<label>Количество занятий<input name="count" type="number" min="1" max="31" step="1" placeholder="Количество занятий" value="${safe(selected?.count || '')}" required></label><p class="muted small">Следующие 1–31 слотов с сегодняшнего дня; уже созданные будут пропущены.</p>`:`<div class="form-row"><label>Дата с<input name="startDate" type="date" value="${safe(from)}" required></label><label>Дата по<input name="endDate" type="date" value="${safe(to)}" required></label></div>`}
-            <div class="row"><button type="submit" class="secondary" ${selected?.loading?'disabled':''}>${selected?.loading?'Загружаем…':'Показать слоты'}</button><button type="button" class="secondary" data-close-period-preview>Свернуть</button></div></form>
+            <div class="row"><button type="submit" class="secondary" ${selected?.loading || (mode==='count' && !selected?.count)?'disabled':''}>${selected?.loading?'Загружаем…':'Показать слоты'}</button><button type="button" class="secondary" data-close-period-preview>${modal?'Отменить':'Свернуть'}</button></div></form>
           ${selected && (selected.loading || error || selected.candidates)?`<div data-period-preview-result tabindex="-1">${selected.loading?'<p role="status">Проверяем расписание на сервере…</p>':error?`<p class="banner error" role="alert">${safe(error)}</p>`:
-            `<p class="small">${safe(from)} — ${safe(to)} · Слотов: <strong data-period-count>${rows.length}</strong> · Уже есть занятие: ${rows.filter(r=>r.isScheduled).length}</p>
+            `<p class="small">${mode==='count'?'Следующие слоты по расписанию':safe(from)+' — '+safe(to)} · Слотов: <strong data-period-count>${rows.length}</strong> · Уже есть занятие: ${rows.filter(r=>r.isScheduled).length}</p>
               ${rows.length?rows.slice(0,100).map(row=>`<div class="item" data-period-slot><div><strong>${safe(date(new Date(row.start).toISOString()))}–${safe(calendarTime(row.end))}</strong></div>
                 <span class="pill" data-period-status="${row.isScheduled?'saved':'rule'}">${row.isScheduled?'Уже есть занятие':'Слот расписания'}</span></div>`).join(''):'<p class="muted small">В этом периоде нет действующих слотов расписания.</p>'}
               ${rows.length>100?'<p class="muted small">Показаны первые 100 слотов. Сократите период для просмотра остальных.</p>':''}
@@ -2061,6 +2061,15 @@
         }
       });
       document.addEventListener('keydown', event => {
+        if (state.periodPreview?.modal) {
+          if (event.key==='Escape') { event.preventDefault(); state.periodPreview=null; render(); document.querySelector('[data-open-count-plan]')?.focus(); return; }
+          if (event.key==='Tab') {
+            const controls=[...document.querySelectorAll('.count-plan-modal button:not([disabled]), .count-plan-modal input:not([disabled])')];
+            const first=controls[0], last=controls.at(-1);
+            if (event.shiftKey && document.activeElement===first) { event.preventDefault(); last?.focus(); }
+            else if (!event.shiftKey && document.activeElement===last) { event.preventDefault(); first?.focus(); }
+          }
+        }
         const dialog=document.getElementById('calendarLessonDialog');
         if (dialog) {
           if (event.key==='Escape') { event.preventDefault(); cancelLessonPlan(); return; }
@@ -2075,6 +2084,9 @@
       });
       $('content').addEventListener('input', event => {
         const field = event.target;
+        if (field.matches('.count-plan-modal [name="count"]')) {
+          field.form.querySelector('button[type="submit"]').disabled=!field.validity.valid;
+        }
         if (!field.matches('#classForm [name="title"], #classForm [name="description"], #classEditForm [name="title"], #classEditForm [name="description"]')) return;
         const counter = field.closest('.class-field')?.querySelector('[data-char-count]');
         if (counter) counter.textContent = field.value.length + ' / ' + field.maxLength;
