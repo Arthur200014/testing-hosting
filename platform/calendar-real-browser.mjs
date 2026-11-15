@@ -133,7 +133,7 @@ try {
   assert.equal(individual.participants[0].durationMinutes,90);
   await page.locator('[data-view="overview"]').click();
   await page.locator('[data-open-class="'+north.item.id+'"]').click();
-  await page.locator('[data-class-detail-tab="schedule"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="schedule"]').click();
   await page.locator('.class-subsection').getByText('Индивидуальное из календаря',{exact:false}).waitFor();
   await page.locator('[data-view="lessons"]').click();
   await page.locator('[data-calendar-new]').click();
@@ -163,7 +163,7 @@ try {
   await page.locator('[data-calendar-month-day="2026-11-18"] .calendar-month-event').filter({hasText:'Группа из календаря'}).waitFor();
   await page.locator('[data-view="overview"]').click();
   await page.locator('[data-open-class="'+group.id+'"]').click();
-  await page.locator('[data-class-detail-tab="schedule"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="schedule"]').click();
   await page.locator('.class-subsection').getByText('Группа из календаря',{exact:false}).waitFor();
   await page.locator('[data-view="lessons"]').click();
   const countBeforeCancel=all.length;
