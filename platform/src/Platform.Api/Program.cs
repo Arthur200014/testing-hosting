@@ -45,6 +45,7 @@ builder.Services.AddScoped<TeacherStudentEditor>();
 builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddScoped<TeacherClassService>();
 builder.Services.AddScoped<TeacherGroupService>();
+builder.Services.AddScoped<TeacherScheduleRuleService>();
 builder.Services.AddScoped<TeacherClassInvitationService>();
 builder.Services.AddSingleton<IPasswordHasher<TeacherUser>, PasswordHasher<TeacherUser>>();
 builder.Services.AddSingleton<TeacherTokenIssuer>();
@@ -346,6 +347,66 @@ app.MapPost("/api/v1/student/groups/invitations/accept", async (
         _ => throw new InvalidOperationException("Unexpected group invitation accept result.")
     };
 }).RequireAuthorization("student");
+
+app.MapGet("/api/v1/teacher/schedule-rules", async (
+    ClaimsPrincipal principal, TeacherScheduleRuleService schedule, CancellationToken ct) =>
+    Results.Ok(await schedule.ListAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), ct))
+).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/schedule-rules", async (
+    TeacherScheduleRuleCreateRequest request, ClaimsPrincipal principal,
+    TeacherScheduleRuleService schedule, CancellationToken ct) =>
+{
+    var result = await schedule.CreateAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), request, ct);
+    return result.Status switch
+    {
+        TeacherScheduleRuleStatus.Created => Results.Created(
+            $"/api/v1/teacher/schedule-rules/{result.Response!.Id}", result.Response),
+        TeacherScheduleRuleStatus.Unchanged => Results.Ok(result.Response),
+        TeacherScheduleRuleStatus.NotFound => Results.NotFound(),
+        TeacherScheduleRuleStatus.Invalid => Results.ValidationProblem(result.Errors!),
+        TeacherScheduleRuleStatus.Conflict => Results.Problem(statusCode: 409,
+            title: "Schedule overlaps another active class slot, the zone differs, or request ID is reused."),
+        _ => throw new InvalidOperationException("Unexpected schedule create status.")
+    };
+}).RequireAuthorization("teacher");
+
+app.MapPatch("/api/v1/teacher/schedule-rules/{ruleId:guid}", async (
+    Guid ruleId, TeacherScheduleRuleUpdateRequest request, ClaimsPrincipal principal,
+    TeacherScheduleRuleService schedule, CancellationToken ct) =>
+{
+    var result = await schedule.UpdateAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), ruleId, request, ct);
+    return result.Status switch
+    {
+        TeacherScheduleRuleStatus.Updated or TeacherScheduleRuleStatus.Unchanged => Results.Ok(result.Response),
+        TeacherScheduleRuleStatus.NotFound => Results.NotFound(),
+        TeacherScheduleRuleStatus.Invalid => Results.ValidationProblem(result.Errors!),
+        TeacherScheduleRuleStatus.Conflict => Results.Problem(statusCode: 409,
+            title: "Schedule changed, is archived, or overlaps another active slot."),
+        _ => throw new InvalidOperationException("Unexpected schedule update status.")
+    };
+}).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/schedule-rules/{ruleId:guid}/disable", async (
+    Guid ruleId, TeacherClassRevisionRequest request, ClaimsPrincipal principal,
+    TeacherScheduleRuleService schedule, CancellationToken ct) =>
+{
+    var result = await schedule.DisableAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), ruleId,
+        request.ExpectedRevision, ct);
+    return result.Status switch
+    {
+        TeacherScheduleRuleStatus.Updated or TeacherScheduleRuleStatus.Unchanged => Results.Ok(result.Response),
+        TeacherScheduleRuleStatus.NotFound => Results.NotFound(),
+        TeacherScheduleRuleStatus.Invalid => Results.ValidationProblem(result.Errors!),
+        TeacherScheduleRuleStatus.Conflict => Results.Problem(statusCode: 409,
+            title: "Schedule changed. Refresh and retry."),
+        _ => throw new InvalidOperationException("Unexpected schedule disable status.")
+    };
+}).RequireAuthorization("teacher");
 
 app.MapGet("/api/v1/teacher/classes", async (
     ClaimsPrincipal principal, TeacherClassService classes, CancellationToken cancellationToken) =>

@@ -38,6 +38,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<TeacherClass> TeacherClasses => Set<TeacherClass>();
     public DbSet<TeacherGroupClass> TeacherGroupClasses => Set<TeacherGroupClass>();
     public DbSet<TeacherGroupEnrollment> TeacherGroupEnrollments => Set<TeacherGroupEnrollment>();
+    public DbSet<TeacherScheduleRule> TeacherScheduleRules => Set<TeacherScheduleRule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -155,6 +156,41 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                     "\"InvitationStatus\" IS NULL OR \"InvitationStatus\" IN ('pending','revoked')");
             });
         });
+        modelBuilder.Entity<TeacherScheduleRule>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.TimeZoneId).HasMaxLength(64);
+            entity.Property(x => x.IsActive).HasDefaultValue(true);
+            entity.Property(x => x.Revision).IsConcurrencyToken().HasDefaultValue(1);
+            entity.HasIndex(x => new { x.WorkspaceId, x.RequestId })
+                .IsUnique().HasDatabaseName("IX_ScheduleRules_Workspace_Request");
+            entity.HasIndex(x => new { x.WorkspaceId, x.IndividualClassId })
+                .HasDatabaseName("IX_ScheduleRules_Individual");
+            entity.HasIndex(x => new { x.WorkspaceId, x.GroupClassId })
+                .HasDatabaseName("IX_ScheduleRules_Group");
+            entity.HasOne<Workspace>().WithMany()
+                .HasForeignKey(x => x.WorkspaceId).OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_ScheduleRules_Workspaces");
+            entity.HasOne<TeacherClass>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.IndividualClassId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_ScheduleRules_IndividualClass");
+            entity.HasOne<TeacherGroupClass>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.GroupClassId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_ScheduleRules_GroupClass");
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_ScheduleRules_ExactlyOneClass",
+                    "(\"IndividualClassId\" IS NOT NULL) <> (\"GroupClassId\" IS NOT NULL)");
+                table.HasCheckConstraint("CK_ScheduleRules_Days", "\"DaysMask\" BETWEEN 1 AND 127");
+                table.HasCheckConstraint("CK_ScheduleRules_Time",
+                    "\"StartMinute\" BETWEEN 0 AND 1439 AND \"StartMinute\" % 5 = 0 AND " +
+                    "\"DurationMinutes\" BETWEEN 15 AND 240 AND \"DurationMinutes\" % 5 = 0 AND " +
+                    "\"StartMinute\" + \"DurationMinutes\" <= 1440");
+            });
+        });
+
         modelBuilder.Entity<TeacherGroupEnrollment>(entity =>
         {
             entity.HasKey(x => x.Id);
