@@ -2,29 +2,28 @@
 
 **UPDATED:** 2026-11-15
 **ACTIVE_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — Meleto UI-01…UI-08
-**ACTIVE_TASK:** RELEASE_PENDING — publish and live-verify PR #65 before developing another feature.
-**ACTIVE_BRANCH:** `tas/UI-03-server-period-preview` — [PR #65](https://github.com/Arthur200014/testing-hosting/pull/65); resume branch, not stale main.
+**ACTIVE_TASK:** RELEASE_BLOCKED — frontend published; Timeweb API deployment and authenticated live write acceptance incomplete.
+**ACTIVE_BRANCH:** main for release verification; [PR #65](https://github.com/Arthur200014/testing-hosting/pull/65) is merged. Do not resume the old task branch as unfinished code.
 **LAST_IMPLEMENTATION_COMMIT:** `38ace0a70ef52b63279f599aa9d2c10c4f0ddd1c`.
-**NEXT_ACTION:** Finish PR #65 release first under AGENTS.md: inspect exact PR head/required checks and migrations, merge into main, verify GitHub Pages interface and Timeweb API deployment, then exercise planning + group lesson completion/results through the real site. Existing real records read-only; save/cancel/reload in an identified live test workspace only. Record MERGED_SHA, frontend/API deployment evidence and live acceptance on main. If access/deployment/test account is unavailable, fix or report the exact RELEASE_BLOCKED/LIVE_WRITE_NOT_RUN condition; do not start materials/tasks instead. After successful live acceptance, resume lesson attachments (source 25, 27–29).
+**MERGED_SHA:** `1ff449cc1e36bee31973c8229bd9e5279ea25020`.
+**NEXT_ACTION:** Complete the API release, not another feature. An operator with Timeweb access must inspect the existing app deployment status/logs and deploy current main with the existing database/environment. Confirm native auto-deploy from GitHub main, or configure the already documented GitHub API fallback (docs/ops/timeweb-autodeploy.md); do not enable two competing triggers or create new infrastructure. Then verify new protected routes, migration readiness, and browser save/cancel/reload in an identified dedicated live test workspace. Obtain test-account sign-in through secure browser auth; never ask for passwords/tokens in chat. Update release evidence here after acceptance. Only then resume lesson material/task attachments (25, 27–29).
 
-## Release state
-- Implementation and isolated CI are accepted; PR #65 remains open/unmerged as last observed. Latest branch code must be rechecked before merge.
-- Frontend observed on main before these instruction edits: `ab21d17`; PR #65 features absent from published teacher.html. API health returned 200, running API revision UNKNOWN.
-- **MERGED_SHA:** NOT_MERGED. **FRONTEND_DEPLOY:** PR #65 NOT_DEPLOYED. **API_DEPLOY:** UNKNOWN for this feature set. **LIVE_ACCEPTANCE:** NOT_RUN. These are evidence states, not successful release claims.
-- This checkpoint changes instructions only; it does not merge PR #65, deploy application code or run production writes.
+## Release evidence
 
-## Current implementation
+- **PR:** #65 merged successfully with expected-head protection; branch changes were identical to green tested code except docs.
+- **FRONTEND_DEPLOY: PASS.** GitHub Pages run `43732941194` succeeded for MERGED_SHA. Published `https://arthur200014.github.io/testing-hosting/platform/teacher.html` contains count-plan, class-lesson and participant-result controls. Browser opened/reloaded the live login page.
+- **MAIN_CI: PASS.** Native homework browser `43732942161`, Homework import integration `43732942142`. Earlier code-specific TAS CI and Chromium acceptance were green.
+- **API_DEPLOY: BLOCKED / RUNNING_REVISION UNKNOWN.** Timeweb fallback run `43733174823` is skipped. New POST `/api/v1/teacher/schedule-rules/period-preview` returns 405 (Allow: PATCH); new participant-result POST using all-zero synthetic IDs/no auth returns 404. The new protected routes should reach authentication (401/403), so updated API availability is not established. Public ready/migrations health returns 200; this does not identify the running commit or prove new migrations deployed.
+- **DEPLOY_ACCESS:** browser could not open timeweb.cloud (Site Unavailable, one reload attempted); no usable Timeweb connector or GitHub secret/variable management operation available. Cannot inspect native app deploy settings or trigger a verified API rollout from current access.
+- **LIVE_ACCEPTANCE:** login page/public assets only. **LIVE_WRITE_NOT_RUN:** deployed new API is missing and no dedicated live test credentials/workspace are available. Public registration only claims an already configured ownerless workspace; it cannot safely create an arbitrary test tenant. Do not use the existing owner workspace as a test-write substitute.
+- No production student/lesson/board/credential changes, import reruns or writer switches. No reset/seed runner was aimed at production.
 
-- Period/count planning: authoritative server preview, confirmed atomic batch saving, persisted request ledger, stale/overlap checks and workspace locks shared by lesson creation/correction. Count means next 1–31 future slots within 366 days; existing linked starts count toward N and are skipped on save. Migrations: TeacherPeriodPlans (20261115210000).
-- Class lesson detail/completion: nullable CompletedAt, explicit completion through existing correction API, immutable first completion timestamp, per-participant attendance and revision/replay checks. Past dates alone do not mark completion. Migration: LessonCompletion (20261115220000).
-- Current result scenario: nullable Reaction/Feedback on LessonParticipant, migration LessonFeedback (20261115230000) + EF snapshot. Endpoint `POST /teacher/lessons/{lessonId}/participants/{membershipId}/result` validates workspace/participant/version and updates only that result. Successful same-payload replay is safe; stale changed payload conflicts. Attendance, topic, other participants, class links, homework and completion are preserved.
-- Result dialog follows 26: selected student, optional reaction/comment, Done/cancel/close/Escape and focus containment. Three reactions positive/neutral/negative are a product choice; screenshot shows the reaction control, not its complete menu. Comment max 2000 chars, escaped on output. Timeline shows actual record creation/completion; no invented actual-start event. Recordings/boards/chat/material integrations remain unavailable; source 25 is PARTIAL.
-- Changed paths: lesson model/history/revision/correction, Program.cs, DbContext + migration/snapshot, teacher.html, meleto-fidelity.css, TeacherSessionTests.cs, calendar-real-browser.mjs.
+## Implemented in merged code
 
-## Verification
+Period/count preview and atomic batch saving with persistent retry ledger; class lesson detail, explicit completion and per-student attendance; separate reaction/comment endpoint and dialog; real creation/completion history. Migrations: `20261115210000_TeacherPeriodPlans`, `20261115220000_LessonCompletion`, `20261115230000_LessonFeedback` plus model snapshot. Existing records retain nullable new fields; past dates do not infer completion.
 
-PASS on `38ace0a`: Native homework browser `43731170568`, TAS task CI `43731170606`, Homework import integration `43731170570`. Real isolated HTTP API/PostgreSQL + Chromium verified result cancel/save/refresh, mobile fit, one participant changed/other unchanged, preserved completion/class/attendance and previous planning scenarios. Integration tests cover result validation, foreign lesson/member, stale revision and replay. Local syntax + git diff --check PASS. Source 25–26 PNG/JSON and generated screenshots `25_lesson_history_real.png` / `26_lesson_result_real.png` inspected at 1348×926. First mobile header overflow fixed. Exact pixel fidelity PARTIAL. Production/Timeweb NOT_RUN.
+Isolated PostgreSQL/Chromium acceptance covers save/cancel/reload, repeat requests, stale/foreign/conflicting updates, group participant isolation, mobile layout and prior workflows. References 23–26/73–74 and generated screenshots were inspected. Pixel fidelity remains PARTIAL. Recordings, boards, chat and material/task attachments remain unavailable.
 
-## References and safety
+## Safety
 
-Use repo PNG/JSON under `.ai/tas/references/meleto/`, only current IDs. Follow AGENTS.md and isolated `platform/scripts/calendar-real-browser.sh`. No production owner/student/lesson test writes, password changes, board deletion, repeat imports or writer switches. Green isolated CI does not verify deployment.
+Read AGENTS.md release-to-live rules. Existing real user records are read-only for acceptance; writes only to explicitly identified synthetic fixtures in a designated live test workspace. Do not retarget calendar-real-browser.sh or reset/import scripts to Timeweb. Keep secrets and personal data out of Git, screenshots and chat.
