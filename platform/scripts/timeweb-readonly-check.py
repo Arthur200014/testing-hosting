@@ -15,6 +15,7 @@ CHECKS = (
     ("/health/migrations", {200}),
     ("/api/v1/teacher/students", {401, 403}),
 )
+NEW_API_PROBE = "/api/v1/teacher/schedule-rules/period-preview"
 
 @dataclass(frozen=True)
 class Probe:
@@ -24,9 +25,16 @@ class Probe:
     total_ms: float
     ok: bool
 
-def probe(origin: str, path: str, allowed: set[int], *, timeout: float = 12) -> Probe:
+def probe(origin: str, path: str, allowed: set[int], *, timeout: float = 12,
+          method: str = "GET") -> Probe:
     start = time.perf_counter()
-    request = urllib.request.Request(origin.rstrip("/") + path, method="GET")
+    # Anonymous POST to the read-only preview; authorization must reject it before any handler work.
+    request = urllib.request.Request(
+        origin.rstrip("/") + path,
+        data=b"{}" if method == "POST" else None,
+        headers={"Content-Type": "application/json"} if method == "POST" else {},
+        method=method,
+    )
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             ttfb = (time.perf_counter() - start) * 1000
@@ -44,11 +52,14 @@ def probe(origin: str, path: str, allowed: set[int], *, timeout: float = 12) -> 
     return Probe(path, status, round(ttfb, 1), round(total, 1), status in allowed)
 
 def check_all(origin: str = PRODUCTION_ORIGIN) -> list[Probe]:
-    return [probe(origin, path, expected) for path, expected in CHECKS]
+    results = [probe(origin, path, expected) for path, expected in CHECKS]
+    # The new UI-03 API must exist and require authentication (not stale 404/405).
+    results.append(probe(origin, NEW_API_PROBE, {401, 403}, method="POST"))
+    return results
 
 def main() -> int:
     results = check_all()
-    lines = ["| Read-only endpoint | HTTP | TTFB (ms) | Total (ms) | Result |",
+    lines = ["| Public health / anonymous API probe | HTTP | TTFB (ms) | Total (ms) | Result |",
              "|---|---:|---:|---:|---|"]
     for result in results:
         label = "PASS" if result.ok else "FAIL"
@@ -57,13 +68,15 @@ def main() -> int:
                      f"{result.total_ms} | {label} |")
     table = "\n".join(lines)
     print(table)
-    print("Public health/auth latency only; authenticated teacher API speed not measured.")
+    print("Anonymous UI-03 period-preview POST expects 401/403; 404/405 indicates missing or stale route.")
+    print("No login or data writes; authenticated teacher API speed and running revision remain unknown.")
     summary = os.getenv("GITHUB_STEP_SUMMARY")
     if summary:
         with open(summary, "a", encoding="utf-8") as output:
             output.write("### Timeweb read-only health and latency\n\n" + table + "\n\n")
-            output.write("No student reads/writes, no login, import, or deploy. "
-                         "Health responses cannot identify the running commit.\n")
+            output.write("No credentials, student data, imports, deploys or authenticated writes. "
+                         "UI-03 anonymous preview POST must return 401/403. "
+                         "This probe does not identify the running commit.\n")
     return 0 if all(result.ok for result in results) else 1
 
 if __name__ == "__main__":
