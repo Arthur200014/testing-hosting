@@ -14,6 +14,18 @@ const lessons = students.slice(0, 2).map((student, index) => ({
   lessonAt: new Date(Date.now() + (index + 1) * 86400000).toISOString(),
   participants: [{ membershipId: student.membershipId, topicComment: 'Практика' }],
 }));
+lessons.push(
+  { id:'77777777-7777-4777-8777-777777777771', lessonAt:new Date(Date.now()-3600000).toISOString(),
+    participants:[{membershipId:students[0].membershipId, attendanceStatus:'Present',topicComment:'Синтетика: посещено'}] },
+  { id:'77777777-7777-4777-8777-777777777772', lessonAt:new Date(Date.now()-7200000).toISOString(),
+    participants:[{membershipId:students[0].membershipId, attendanceStatus:'Absent',topicComment:'Синтетика: пропуск'}] }
+);
+const homeworkAssignments = [
+  { id:'88888888-8888-4888-8888-888888888881', membershipId:students[0].membershipId,
+    assignedAt:new Date(Date.now()-3600000).toISOString(), submittedAt:new Date().toISOString(),status:'submitted' },
+  { id:'88888888-8888-4888-8888-888888888882', membershipId:students[0].membershipId,
+    assignedAt:new Date(Date.now()-3600000).toISOString(), submittedAt:null,status:'assigned' }
+];
 
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true });
@@ -110,6 +122,8 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
   if (path === 'teacher/classes') return send(classes);
   if (path === 'teacher/students') return send(students);
   if (path === 'teacher/lessons') return send(lessons);
+  if (path === 'teacher/homework/assignments') return send(homeworkAssignments);
+  if (path === 'teacher/homework/native/assignments') return send([]);
   throw new Error('Unexpected UI-01 read: ' + path);
 });
 
@@ -134,6 +148,20 @@ try {
   await setClassSearch('Алексей');
   assert.equal(await page.locator('[data-open-class]').count(), 1);
   await setClassSearch('');
+  // Screen 32: month-scoped attendance and homework, no invented zero percentages.
+  await page.locator('[data-class-tab="statistics"]').click();
+  await page.locator('.class-statistics .class-stats-row').first().waitFor();
+  assert.equal(await page.locator('.class-stats-entry').count(), 3);
+  const statRow = page.locator('.class-stats-row').filter({ hasText:'Алексей Смирнов' });
+  await statRow.locator('[aria-label="Посещение: 50%"]').waitFor();
+  await statRow.locator('[aria-label="Задания: 50%"]').waitFor();
+  await page.screenshot({ path: output + '/32_class_statistics.png' });
+  await statRow.locator('[data-stat-expand]').click();
+  await statRow.getByText('1 из 2').first().waitFor();
+  await page.locator('[data-stats-month="-1"]').click();
+  assert.ok((await statRow.locator('[aria-label="Посещение: нет данных"]').count()) === 1);
+  await page.locator('[data-stats-month="1"]').click();
+  await page.locator('[data-class-tab="classes"]').click();
   await page.locator('[data-open-class]').first().click();
   await page.locator('[data-back-classes]').click();
 
@@ -202,6 +230,10 @@ try {
   assert.equal(classWrites, 1);
   assert.equal(unexpectedWrites, 0);
   await createdCard.click();
+  assert.equal(await page.locator('.class-detail-tabs button').count(), 7);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path: output + '/09_class_summary.png' });
+  await page.locator('[data-class-detail-tab="information"]').click();
   await page.getByText(description, { exact: true }).waitFor();
   await page.getByText(/90 мин/).waitFor();
   await page.getByText(/EUR/).waitFor();
@@ -214,11 +246,13 @@ try {
   await page.locator(`[data-open-class="${createdClassId}"]`).waitFor({ state: 'attached' });
   assert.equal(await page.locator('[data-open-class]').count(), 3, 'persisted class replaces its legacy projection');
   await page.locator(`[data-open-class="${createdClassId}"]`).click();
+  await page.locator('[data-class-detail-tab="information"]').click();
   await page.getByText(description, { exact: true }).waitFor();
   await page.getByText(/90 мин/).waitFor();
   await page.getByText(/EUR/).waitFor();
 
   // Existing details survive reload, cancel never writes, and edit preserves membership.
+  await page.locator('.class-detail-menu summary').click();
   await page.locator('[data-edit-class]').click();
   const edit = page.locator('#classEditForm');
   await edit.waitFor();
@@ -230,10 +264,13 @@ try {
   assert.equal(await edit.locator('[name="priceBasis"]').inputValue(), 'month');
   assert.equal(await edit.locator('[name="allowLessonChat"]').isChecked(), true);
   assert.equal(await edit.locator('[name="coverStyle"]:checked').inputValue(), 'sky');
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path: output + '/31_class_edit.png' });
   await edit.locator('[name="title"]').fill('Не сохранять');
   await page.locator('[data-cancel-class-edit]').click();
   assert.equal(classEdits, 0);
 
+  await page.locator('.class-detail-menu summary').click();
   await page.locator('[data-edit-class]').click();
   const editAgain = page.locator('#classEditForm');
   await editAgain.locator('[name="title"]').fill('Класс после редактирования');
@@ -244,7 +281,7 @@ try {
   await editAgain.locator('[name="allowPrivateMessages"]').check();
   await editAgain.locator('[data-toggle-covers]').click();
   await editAgain.locator('[name="coverStyle"][value="mint"]').check();
-  await page.screenshot({ path: output + '/31_class_edit.png' });
+  await page.screenshot({ path: output + '/31_class_edit_changes.png' });
   await editAgain.locator('[type="submit"]').click();
   await page.getByText('Класс после редактирования', { exact: true }).waitFor();
   await page.getByText('Настройки обновлены', { exact: true }).waitFor();
@@ -255,6 +292,7 @@ try {
   assert.equal(classes[0].priceAmount, null);
   assert.equal(classes[0].coverStyle, 'mint');
 
+  await page.locator('.class-detail-menu summary').click();
   page.once('dialog', dialog => dialog.dismiss());
   await page.locator('[data-archive-class]').click();
   assert.equal(archiveWrites, 0, 'dismissed archive confirmation must not write');
@@ -283,6 +321,7 @@ try {
   await page.locator('#loginForm [name="password"]').fill('synthetic-password');
   await page.locator('#loginForm button[type="submit"]').click();
   await page.locator(`[data-open-class="${createdClassId}"]`).click();
+  await page.locator('[data-class-detail-tab="information"]').click();
   await page.getByText('Класс после редактирования', { exact: true }).waitFor();
   await page.getByText(/120 мин/).waitFor();
   assert.equal(await page.locator('.class-detail-banner.cover-mint').count(), 1);
@@ -305,6 +344,7 @@ try {
   await page.locator('#loginForm [name="password"]').fill('synthetic-password');
   await page.locator('#loginForm button[type="submit"]').click();
   await page.locator(`[data-open-class="${createdClassId}"]`).click();
+  await page.locator('[data-class-detail-tab="information"]').click();
   await page.getByText('Ожидает подтверждения').waitFor();
   assert.equal(await page.locator('[data-invite-code]').count(), 0, 'secret never returned on read');
   page.once('dialog', dialog => dialog.accept());
