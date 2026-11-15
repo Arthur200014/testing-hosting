@@ -1,31 +1,27 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-16
-**ACTIVE_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — UI-04.
-**ACTIVE_TASK:** UI-04 IN_PROGRESS — full class-program-to-lesson workflow finished (refs 17/25).
-**ACTIVE_BRANCH:** main; [PR #73](https://github.com/Arthur200014/testing-hosting/pull/73) merged; no open implementation branch.
-**LAST_IMPLEMENTATION_COMMIT / MERGED_SHA:** `369ac3854bfff511ac690f4c6e8297240a5baf78`.
-**RELEASE_STATE:** MERGED; FRONTEND_DEPLOY PASS; isolated API/PostgreSQL/Chromium acceptance PASS. Timeweb native main auto-deploy owner-confirmed; independent running revision UNKNOWN.
-**NEXT_ACTION:** Complete a cohesive UI-04 **group homework** workflow (refs 18/27–29 as needed): class-scoped assignment of an existing template to selected approved group members, deadlines, persisted assignment/submission/grade views and save/cancel/reload. Inspect NativeHomeworkService/Models, group membership and teacher.html classNativeTasksTab/groupClassDetail before choosing schema/API changes. Preserve template vs assignment and member program compatibility; teacher-wide assignment lists alone do not establish class ownership. Reuse existing student submit/teacher grade paths where valid. Keep isolated synthetic verification, then required CI, merge, Pages and HANDOFF.
+**ACTIVE_TASK:** UI-04 IN_PROGRESS — ready-template group assignment finished.
+**ACTIVE_BRANCH:** main; PRs [#74](https://github.com/Arthur200014/testing-hosting/pull/74) and [#75](https://github.com/Arthur200014/testing-hosting/pull/75) merged.
+**LAST_IMPLEMENTATION_COMMIT / MERGED_SHA:** `77daa923cae7369cc94bc12a9bc8bfc49b1cda6a`.
+**RELEASE_STATE:** MERGED; all relevant CI PASS. Latest Pages publication PENDING verification after urgent owner request to commit/push now. Timeweb native main auto-deploy owner-confirmed; independent API revision UNKNOWN.
+**NEXT_ACTION:** First confirm Pages for the merged SHA. Then a moderate UI-04 step: group-scoped homework read/status view (filter by group on the server before any result limit); keep submission/grade editing separate until that view is verified.
 
 ## Standing owner instructions
 
-Owner confirms Timeweb deploys latest main automatically; isolated testing is authorized when its panel is inaccessible. AGENTS.md records this mode. No need for production credentials/a live workspace to continue. Timeweb revision UNKNOWN and LIVE_WRITE_NOT_RUN are limitations, not blockers. **Owner now requests larger complete user workflows, not tiny successive UI milestones**; use one cohesive scenario with its API, storage, UI, validation and publication.
+Timeweb automatically deploys latest main. Isolated API/PostgreSQL/Chromium testing is authorized; do not request production credentials or reopen the blocked panel. LIVE_WRITE_NOT_RUN and independent API revision UNKNOWN are limitations, not blockers.
+Latest owner preference supersedes the earlier large-block request: take a **smaller bounded step**, not the entire group homework module. The final steering was urgent commit/push.
 
-## Program-to-lesson workflow — PR #73
+## Group assignment — scope and evidence
 
-- **Implemented end to end:** add/remove topic links in class program, open the linked lesson, edit/save/cancel the entire selected topic set in its card; up to 50 topics. Works for individual/group classes. Program cards list their linked lessons; lesson cards display selected topic plans, materials and task templates directly from the program without copies.
-- **Storage/API:** additive `20261116060000_TeacherLessonTopics` creates TeacherLessonTopicLinks (composite workspace/lesson and workspace/topic FKs) and independent Lessons.TopicRevision=0. Teacher-only GET/POST /api/v1/teacher/lesson-topics uses exact workspace/class ownership, atomic serializable set replacement, expected revision, immediate replay and 409 for stale/concurrent writes (including wrapped PostgreSQL serialization errors). Archive writes and unlinked legacy lessons are rejected; existing lesson/topic records are not converted.
-- **Preserved semantics:** topic completion, lesson completion, attendance/results, direct lesson material links and student assignments stay separate. Selecting a topic does not issue homework or complete a topic/lesson. Existing synthetic history/assignment/material/template counts were checked unchanged.
-- **Draft/UI behavior:** guards prevent navigation or adjacent form saves from silently discarding program/material drafts; cancel resets only its form. Checkbox alignment verified visually. Modified teacher.html, teacher-data.mjs, class-program-ui.mjs + tests, new lesson-topics-ui.mjs + tests, meleto-fidelity.css; new Lessons/TeacherLessonTopicService.cs, Lesson.cs, Program.cs and persistence model/migration/snapshot; existing API and real-browser tests/workflow/copy script extended. Full paths/diff are in PR #73.
-- **LOCAL PASS:** 16 focused Node tests, JS syntax, diff check; lesson UI tests rechecked after cosmetic adjustment.
-- **FINAL CI PASS on `ebc3768cc096f27b7f0479f82479d217b60c60c4`:** [TAS CI 43765273908](https://github.com/Arthur200014/testing-hosting/actions/runs/43765273908), [PostgreSQL 43765273949](https://github.com/Arthur200014/testing-hosting/actions/runs/43765273949), [Chromium + actual isolated API/PostgreSQL 43765274008](https://github.com/Arthur200014/testing-hosting/actions/runs/43765274008). Covers both class formats, add/edit/remove/cancel/reload, inherited content without copies, draft protection, replay/stale/concurrent writes, other class/workspace, archive, legacy and anonymous rejection.
-- **FRONTEND_DEPLOY PASS:** merged-code [Pages 43765623105](https://github.com/Arthur200014/testing-hosting/actions/runs/43765623105); published [teacher UI](https://arthur200014.github.io/testing-hosting/platform/teacher.html).
-- **VISUAL PARTIAL:** refs 17/25 and generated individual/group program screenshots inspected; final group screenshot confirms checkbox alignment. Functional workflow is complete; no claim of full pixel match or whole UI-04.
-- **TIMEWEB:** existing native main auto-deploy owner-confirmed; latest completion/revision NOT_VERIFIED / UNKNOWN. **LIVE_WRITE_NOT_RUN** under approved isolated mode. No production business records, settings, passwords, notifications or invitations changed.
+- Group → Homework now assigns an existing template to chosen approved members with 24/48/72h deadline; cancel and reload verified. Recent group rows use explicit GroupClassId, not inferred student membership. Templates are not copied.
+- Additive migration `20261116070000_NativeGroupAssignments` adds nullable GroupClassId + workspace/group FK; existing assignments stay null. Service validates active group, approval, student/program activity and task compatibility, checks group during replay, and locks the group with FOR SHARE during new assignment.
+- **Important compatibility fix (#75):** UI writes to new teacher-only POST /api/v1/teacher/homework/native/group-assignments requiring GroupClassId. An older API cannot silently treat this as an ordinary unscoped assignment. Existing global route remains compatible.
+- Changed native models/service, persistence model/migration/snapshot, teacher.html/data, class-native-homework module/tests, API/browser tests and browser workflow paths. Full diff in PRs #74/#75.
+- **LOCAL PASS:** 10 focused Node tests, JS syntax and diff checks.
+- **FINAL CI PASS (#75, `3951a6e52114cad06b965205fdacb78cb922891c`):** [TAS CI 43768776480](https://github.com/Arthur200014/testing-hosting/actions/runs/43768776480), [PostgreSQL 43768776088](https://github.com/Arthur200014/testing-hosting/actions/runs/43768776088), [real Chromium/API/PostgreSQL 43768776325](https://github.com/Arthur200014/testing-hosting/actions/runs/43768776325). Earlier full feature runs #74 also passed.
+- Browser verifies cancel/no write, choose one of two, 72h deadline, save/reload and tenant boundary. API verifies replay/context conflict, missing group, outsider/unapproved member, foreign workspace and archive. Repeated synthetic browser login respects 429 with a bounded wait; application auth limit is unchanged.
+- Reference 18 and generated 18_group_assignment_real.png inspected; visual match PARTIAL. Group submissions/grades/new templates are deliberately not added in this slice.
+- Current recent list uses existing teacher feed (latest 300 across workspace), filtered by explicit group; do not describe it as complete group history. Next read endpoint must filter before limiting.
 
-## Retained scope and safety
-
-Earlier UI-04 template links #72 `577c02e`, completion #71 `e79203d`, topics #70 `ca673747`, lesson/class materials #69/#68 and individual homework #67 remain. Detailed older evidence is in Git history.
-
-Group homework, binary uploads/recordings, broader library management, billing and chat remain incomplete; UI-04 is not DONE. Existing real owner/student records remain read-only during acceptance. Never point reset/seed/import/calendar-real-browser.sh at production, repeat historical imports, change credentials/configuration or switch writers incidentally. Use synthetic isolated workspaces; keep personal data and secrets out of Git, artifacts and chat.
+Published UI: https://arthur200014.github.io/testing-hosting/platform/teacher.html. Previous program/lesson flow #73 remains intact. UI-04 is not DONE: scoped group submission/status/grade UI, binary uploads/recordings and broader library work remain. Production records, credentials, configuration, invitations and notifications were not changed by acceptance. Never retarget reset/seed/import/calendar-real-browser.sh to production; use synthetic isolated data only.
