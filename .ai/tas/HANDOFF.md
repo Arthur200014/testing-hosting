@@ -2,13 +2,20 @@
 
 **UPDATED:** 2026-11-15
 **ACTIVE_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — Meleto UI-01…UI-08
-**ACTIVE_TASK:** UI-04 IN_PROGRESS — class HTTPS materials and reusable library shipped to main; next link existing library materials to lessons. User requested no Timeweb panel checks.
-**ACTIVE_BRANCH:** main — [PR #68](https://github.com/Arthur200014/testing-hosting/pull/68) merged; no unfinished task branch.
-**LAST_IMPLEMENTATION_COMMIT:** `2418bdca337f586db76ca8fe7e202ce1dc9a8fe7` (UI-04 material links).
+**ACTIVE_TASK:** UI-04 IN_PROGRESS — reusable class and lesson HTTPS materials shipped. Next: program topics, ordering and attaching library materials to topics (ref 17). Owner requested no Timeweb checks.
+**ACTIVE_BRANCH:** main — [PR #69](https://github.com/Arthur200014/testing-hosting/pull/69) merged; no open implementation branch.
+**LAST_IMPLEMENTATION_COMMIT:** `980bb5ac457a6dc1838a158186384aa646d13f19` (UI-04 lesson material links).
 **MERGED_SHA (UI-03):** `1ff449cc1e36bee31973c8229bd9e5279ea25020`.
 **RELEASE_PROBE_SHA (earlier UI-03):** `11e0a92ea4eada6db6b670a9b8e8983fb5509edc`.
-**MERGED_SHA (UI-04 materials):** `2418bdca337f586db76ca8fe7e202ce1dc9a8fe7`.
-**NEXT_ACTION:** Continue UI-04: attach an existing reusable library material to **a specific lesson**, preserving material identity and workspace permissions (refs 25, 27–28). Inspect only lesson model/API and relevant Meleto references, add minimal scoped link/save/list/cancel/reload path, verify via isolated PostgreSQL/Chromium, merge and publish. Do not rerun historical imports, touch real student data, or claim production live-write acceptance without a dedicated test workspace. New materials API/schema on main has **not** been verified on Timeweb (per owner's request to skip Timeweb checking); do not silently record API as deployed. Studio fidelity is PARTIAL (link form uses inline cards, not reference modal).
+**MERGED_SHA (UI-04 lesson materials):** `980bb5ac457a6dc1838a158186384aa646d13f19`.
+**NEXT_ACTION:** Continue UI-04: implement **program topics / topic order / attached existing library material** in the class program tab (Meleto ref 17; inspect topic model, existing Program semantics and one reference). One scoped create/list/reorder or attachment flow at a time with tenant-safe API/DB, isolated PostgreSQL+browser acceptance, merge and Pages release. Keep existing teacher data/imports untouched. Backend API revision and additive migrations on Timeweb remain **NOT_VERIFIED** per owner's explicit request to skip checking; no designated live test workspace so **LIVE_WRITE_NOT_RUN**. No claim of full UI-04 completion, file upload or recordings.
+
+## UI-04 lesson material attachment milestone (2026-11-15)
+
+- **PR #69 MERGED:** `980bb5a` (13 scoped files; new `TeacherLessonMaterialLinks` table through additive migration `20261116020000_TeacherLessonMaterials`, teacher-only GET/POST `/api/v1/teacher/lesson-materials`; library material record reused without duplicate URL). Existing class/homework paths preserved.
+- **FRONTEND_DEPLOY: PASS.** GitHub Pages [43746325232](https://github.com/Arthur200014/testing-hosting/actions/runs/43746325232) succeeded for merged commit. Published teacher interface: `https://arthur200014.github.io/testing-hosting/platform/teacher.html`.
+- **PRE-MERGE TESTS: PASS.** [TAS CI 43745977156](https://github.com/Arthur200014/testing-hosting/actions/runs/43745977156), [PostgreSQL integration 43745977132](https://github.com/Arthur200014/testing-hosting/actions/runs/43745977132), [real Chromium/isolated PostgreSQL 43745977130](https://github.com/Arthur200014/testing-hosting/actions/runs/43745977130). Browser: attach existing class library link to a saved lesson, cancel without write, save, revisit after page reload, cross-workspace reads empty; screenshot `25_lesson_materials_real.png`. API: duplicate request replay 200, conflicting request/attachment 409, invalid ID 400, other tenant 404.
+- **TIMEWEB API/MIGRATION DEPLOY: NOT_VERIFIED** (user explicitly requested no Timeweb checking). This new backend feature requires API auto-deployment and DB migration to function live; Pages success alone does not establish server readiness. **LIVE_WRITE_NOT_RUN** (no designated synthetic live test teacher/workspace and authenticated browser); no existing records changed in tests.
 
 ## UI-04 class materials milestone (2026-11-15)
 
