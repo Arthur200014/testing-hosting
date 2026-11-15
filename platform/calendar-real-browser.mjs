@@ -98,6 +98,36 @@ try {
   await page.locator('#classMaterialLinkForm [data-class-material-cancel]').click();
   assert.equal(await page.locator('#classMaterialLinkForm [name="title"]').inputValue(),'');
   await page.screenshot({path:output+'/16_class_materials_real.png'});
+  await page.locator('.class-detail-tabs [data-class-detail-tab="program"]').click();
+  await page.locator('#classTopicForm [name="title"]').fill('Функции и графики');
+  await page.locator('#classTopicForm [name="plan"]').fill('Область определения и значения');
+  await page.locator('#classTopicForm button[type="submit"]').click();
+  await page.locator('[data-class-topic] h3').filter({hasText:'Функции и графики'}).waitFor();
+  await page.locator('#classTopicForm [name="title"]').fill('Производная');
+  await page.locator('#classTopicForm [name="plan"]').fill('Критические точки');
+  await page.locator('#classTopicForm button[type="submit"]').click();
+  await page.locator('[data-class-topic] h3').filter({hasText:'Производная'}).waitFor();
+  const savedTopics=(await call('teacher/class-topics',north.token))
+    .filter(x=>x.individualClassId===north.item.id);
+  assert.deepEqual(savedTopics.map(x=>x.title),['Функции и графики','Производная']);
+  const firstTopic=savedTopics[0].id, secondTopic=savedTopics[1].id;
+  await page.locator('#topicMaterialAttachForm [name="topicId"]').selectOption(firstTopic);
+  await page.locator('#topicMaterialAttachForm [name="materialId"]').selectOption(createdMaterial[0].id);
+  await page.locator('#topicMaterialAttachForm button[type="submit"]').click();
+  await page.locator('[data-class-topic="'+firstTopic+'"] a[href="https://example.org/study-notes"]').waitFor();
+  assert.equal((await call('teacher/topic-materials',north.token))[0].materialId,createdMaterial[0].id);
+  await page.locator('#classTopicForm [name="title"]').fill('Отменить');
+  await page.locator('#classTopicForm [data-topic-form-cancel]').click();
+  assert.equal(await page.locator('#classTopicForm [name="title"]').inputValue(),'');
+  assert.equal((await call('teacher/class-topics',north.token)).length,2);
+  await page.locator('[data-move-topic="'+secondTopic+'"][data-direction="up"]').click();
+  await page.locator('[data-class-topic]').first().filter({hasText:'Производная'}).waitFor();
+  assert.deepEqual((await call('teacher/class-topics',north.token)).filter(x=>x.individualClassId===north.item.id)
+    .map(x=>x.id),[secondTopic,firstTopic]);
+  assert.deepEqual(await call('teacher/class-topics',south.token),[]);
+  assert.deepEqual(await call('teacher/topic-materials',south.token),[]);
+  await page.screenshot({path:output+'/17_class_program_real.png'});
+  await page.locator('.class-detail-tabs [data-class-detail-tab="materials"]').click();
   // Reuse the existing library entry in a persisted lesson; do not create a copy.
   await page.locator('.class-detail-tabs [data-class-detail-tab="schedule"]').click();
   const lessonOpen=page.locator('[data-open-class-lesson]').first();
@@ -169,8 +199,12 @@ try {
   assert.equal(saved.length,4);
   assert.equal(saved.find(l=>l.title==='Урок через настоящий браузер').lessonAt.slice(0,19),'2026-11-16T06:00:00');
   await page.reload(); await login(north);
-  // Class link and homework both survive reload against the isolated API/PostgreSQL.
+  // Class program topics, order and link survive a fresh session/reload.
   await page.locator('[data-open-class="'+north.item.id+'"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="program"]').click();
+  await page.locator('[data-class-topic]').first().filter({hasText:'Производная'}).waitFor();
+  await page.locator('[data-class-topic="'+firstTopic+'"] a[href="https://example.org/study-notes"]').waitFor();
+  assert.equal((await call('teacher/topic-materials',north.token)).length,1);
   await page.locator('.class-detail-tabs [data-class-detail-tab="schedule"]').click();
   await page.locator('[data-open-class-lesson="'+linkedLessonId+'"]').click();
   await page.locator('[data-lesson-materials] a[href="https://example.org/study-notes"]').waitFor();
