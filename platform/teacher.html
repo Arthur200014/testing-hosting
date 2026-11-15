@@ -1250,6 +1250,33 @@
               ${days.map(({date,entries})=>`<td data-calendar-cell="${date}"><div class="calendar-week-events">${entries.filter(e=>Number(calendarTime(e.visibleStart).slice(0,2))===hour).map(calendarCard).join('')}</div></td>`).join('')}</tr>`).join('')}</tbody>
           </table></div>`;
       }
+      function updateCalendarClock() {
+        const grid = document.querySelector('.calendar-week-grid');
+        if (!grid) return;
+        const today = calendarDay(), time = calendarTime(Date.now());
+        grid.querySelectorAll('.calendar-now-line').forEach(el=>el.remove());
+        grid.querySelectorAll('[data-calendar-cell]').forEach(cell=>cell.classList.toggle('is-today',cell.dataset.calendarCell===today));
+        const headers = [...grid.querySelectorAll('[data-calendar-open-day]')];
+        for (const button of headers) {
+          const active = button.dataset.calendarOpenDay===today;
+          button.closest('th').classList.toggle('is-today',active);
+          if (active) button.setAttribute('aria-current','date'); else button.removeAttribute('aria-current');
+        }
+        if (!headers.some(button=>button.dataset.calendarOpenDay===today)) return;
+        const [hour,minute] = time.split(':').map(Number);
+        const row = grid.querySelector('[data-calendar-hour="'+hour+'"]');
+        for (const cell of row.querySelectorAll('[data-calendar-cell]')) {
+          if (cell.dataset.calendarCell>today) continue;
+          const line = document.createElement('span');
+          line.className = 'calendar-now-line'; line.style.top = minute/60*100+'%';
+          if (cell.dataset.calendarCell===today) {
+            line.dataset.calendarNow = '1'; line.setAttribute('role','img');
+            line.setAttribute('aria-label','Текущее время по Москве: '+time);
+          } else line.setAttribute('aria-hidden','true');
+          cell.append(line);
+        }
+      }
+      setInterval(updateCalendarClock, 60000);
       function calendarView() {
         const d = state.data;
         const day = state.calendarDate, weekMode = state.calendarMode === 'week';
@@ -1384,6 +1411,7 @@
         }
         $('content').innerHTML = ({ overview, students, lessons, homework, subscriptions, results, report })[state.view]();
         if (state.view === 'students') studentRows();
+        updateCalendarClock();
       }
       const formValue = (form, name) => form.elements.namedItem(name)?.value?.trim() || '';
       const selectedIds = form => [...form.querySelectorAll('input[name="membershipId"]:checked')];

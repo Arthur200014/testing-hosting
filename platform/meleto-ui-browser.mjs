@@ -31,6 +31,7 @@ const homeworkAssignments = [
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined });
 const page = await browser.newPage({ viewport: { width: 1348, height: 926 }, deviceScaleFactor: 1, timezoneId:'America/Los_Angeles' });
+await page.clock.install({time:new Date()});
 page.on('pageerror', error => console.error('UI PAGE ERROR:', error.stack));
 let unexpectedWrites = 0;
 let classWrites = 0;
@@ -783,7 +784,7 @@ try {
   await page.screenshot({path:output+'/37_calendar_day_mobile.png'});
   assert.equal(unexpectedWrites,0);
   // Week view reuses the day projection and existing planner, with no implicit writes.
-  await page.setViewportSize({width:1360,height:930});
+  await page.setViewportSize({width:1348,height:926});
   await page.reload();
   await page.locator('#loginForm [name="workspace"]').fill('synthetic');
   await page.locator('#loginForm [name="email"]').fill('teacher@example.invalid');
@@ -836,6 +837,17 @@ try {
   assert.equal(plannedLessonWrites,writesBeforeWeek+1);
   assert.equal(plannedLessonRequests.at(-1).lessonAt,'2026-11-22T06:00:00.000Z');
   assert.deepEqual(calendarWeekDays(await page.locator('#calendarDate').inputValue()),calendarWeekDays('2026-11-22'));
+  // Reference 38 clock marker updates without re-rendering or losing grid scroll.
+  await page.clock.setSystemTime(new Date('2026-11-18T14:00:00Z'));
+  await chooseDay('2026-11-18');
+  assert.equal(await page.locator('.calendar-week-grid td.is-today').count(),24);
+  assert.equal(await page.locator('[data-calendar-now]').getAttribute('aria-label'),'Текущее время по Москве: 17:00');
+  await page.clock.fastForward(125000);
+  assert.notEqual(await page.locator('[data-calendar-now]').getAttribute('aria-label'),'Текущее время по Москве: 17:00');
+  assert.match(await page.locator('[data-calendar-now]').getAttribute('aria-label'),/17:0[12]/);
+  await chooseDay('2026-11-25');
+  assert.equal(await page.locator('[data-calendar-now]').count(),0,'no clock marker in another week');
+  await chooseDay('2026-11-18');
   await page.locator('.calendar-week-scroll').evaluate(el=>{el.scrollTop=el.querySelector('[data-calendar-hour="9"]').offsetTop-100;});
   await page.evaluate(()=>window.scrollTo(0,0));
   await page.screenshot({path:output+'/38_calendar_week.png'});
