@@ -140,6 +140,21 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict);
             });
 
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherMaterial", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                b.Property<string>("Title").IsRequired().HasMaxLength(250).HasColumnType("character varying(250)");
+                b.Property<string>("Url").IsRequired().HasMaxLength(2048).HasColumnType("character varying(2048)");
+                b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
+                b.HasKey("Id");
+                b.HasAlternateKey("WorkspaceId", "Id");
+                b.HasIndex("WorkspaceId", "CreatedAt");
+                b.ToTable("TeacherMaterials", "platform");
+                b.HasOne("TestingHosting.Platform.IdentityAccess.Workspace", null)
+                    .WithMany().HasForeignKey("WorkspaceId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+            });
+
             modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherTopicMaterialLink", b =>
             {
                 b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
@@ -159,21 +174,6 @@ namespace TestingHosting.Platform.Persistence.Migrations
                 b.HasOne("TestingHosting.Platform.Classes.TeacherMaterial", null)
                     .WithMany().HasForeignKey("WorkspaceId", "MaterialId")
                     .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
-            });
-
-            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherMaterial", b =>
-            {
-                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
-                b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
-                b.Property<string>("Title").IsRequired().HasMaxLength(250).HasColumnType("character varying(250)");
-                b.Property<string>("Url").IsRequired().HasMaxLength(2048).HasColumnType("character varying(2048)");
-                b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
-                b.HasKey("Id");
-                b.HasAlternateKey("WorkspaceId", "Id");
-                b.HasIndex("WorkspaceId", "CreatedAt");
-                b.ToTable("TeacherMaterials", "platform");
-                b.HasOne("TestingHosting.Platform.IdentityAccess.Workspace", null)
-                    .WithMany().HasForeignKey("WorkspaceId").OnDelete(DeleteBehavior.Restrict).IsRequired();
             });
 
             modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherClassMaterialLink", b =>
