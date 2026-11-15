@@ -159,6 +159,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         {
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.WorkspaceId, x.GroupClassId, x.MembershipId }).IsUnique();
+            entity.HasIndex(x => new { x.WorkspaceId, x.MembershipId, x.StudentId });
             entity.HasOne(x => x.GroupClass).WithMany(x => x.Members)
                 .HasForeignKey(x => new { x.WorkspaceId, x.GroupClassId })
                 .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })

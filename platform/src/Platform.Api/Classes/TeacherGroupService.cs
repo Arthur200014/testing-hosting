@@ -173,10 +173,13 @@ public sealed class TeacherGroupService(PlatformDbContext db, TimeProvider clock
             request.CoverStyle ?? group.CoverStyle, request.Capacity, ids,
             request.DurationMinutes, request.PriceAmount, request.PriceCurrency, request.PriceBasis);
         if (errors.Count != 0) return new(TeacherGroupStatus.InvalidRequest, Errors: errors);
-        var newMembers = await ValidateMembersAsync(workspaceId, ids, ct);
+        // Keep already-enrolled historical students even when their membership becomes inactive.
+        // Validate active status only for newly added students.
+        var previous = group.Members.Select(x => x.MembershipId).ToHashSet();
+        var additions = ids.Where(id => !previous.Contains(id)).ToList();
+        var newMembers = await ValidateMembersAsync(workspaceId, additions, ct);
         if (newMembers is null) return new(TeacherGroupStatus.NotFound);
         var wanted = ids.ToHashSet();
-        var previous = group.Members.Select(x => x.MembershipId).ToHashSet();
         var priceCurrency = request.PriceAmount is null ? null : request.PriceCurrency!.Trim().ToUpperInvariant();
         var priceBasis = request.PriceAmount is null ? null : request.PriceBasis!.Trim().ToLowerInvariant();
         var cover = request.CoverStyle is null ? group.CoverStyle : TeacherClassService.NormalizeCover(request.CoverStyle);
