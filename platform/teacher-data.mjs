@@ -10,7 +10,7 @@ export const teacherPaths = {
 export const teacherNeeds = {
   overview: ['classes', 'groups', 'students', 'lessons', 'scheduleRules'],
   students: ['students', 'programs'],
-  lessons: ['students', 'programs', 'lessons', 'catalog'],
+  lessons: ['classes', 'groups', 'scheduleRules', 'students', 'programs', 'lessons', 'catalog'],
   homework: ['students', 'programs', 'catalog', 'assignments', 'submissions', 'nativeTasks', 'nativeAssignments'],
   subscriptions: ['students', 'subscriptions'],
   results: ['students', 'tests', 'liveTests', 'mocks', 'mockSessions'],

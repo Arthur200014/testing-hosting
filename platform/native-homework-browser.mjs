@@ -161,6 +161,7 @@ try {
   assert.equal(editCount, 1);
   assert.deepEqual(teacherReads.slice(readsBeforeEdit), ['teacher/students']);
   await teacher.locator('[data-view="lessons"]').click();
+  await teacher.locator('.calendar-history summary').click();
   await teacher.locator('[data-edit-lesson="' + lessons[0].id + '"]').click();
   await teacher.locator('#lessonCorrectionForm [data-correct-participant] input[name="durationMinutes"]').fill('75');
   await teacher.locator('#lessonCorrectionForm [data-correct-participant] select[name="attendanceStatus"]').selectOption('Absent');
