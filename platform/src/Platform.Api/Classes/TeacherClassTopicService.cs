@@ -66,6 +66,16 @@ public sealed class TeacherClassTopicService(PlatformDbContext db, TimeProvider 
     public Task<List<TeacherTopicMaterialView>> MaterialsAsync(Guid workspaceId, CancellationToken ct) =>
         Materials(workspaceId).ToListAsync(ct);
 
+    private Task<TeacherTopicMaterialView> ByLinkAsync(
+        Guid workspaceId, Guid linkId, CancellationToken ct) =>
+        (from link in db.TeacherTopicMaterialLinks.AsNoTracking()
+         join material in db.TeacherMaterials.AsNoTracking()
+             on new { link.WorkspaceId, link.MaterialId }
+             equals new { material.WorkspaceId, MaterialId = material.Id }
+         where link.WorkspaceId == workspaceId && link.Id == linkId
+         select new TeacherTopicMaterialView(link.Id, link.TopicId, link.MaterialId,
+             material.Title, material.Url, link.CreatedAt)).SingleAsync(ct);
+
     private Task<bool> ClassActiveAsync(Guid workspaceId, Guid? individual, Guid? group, CancellationToken ct) =>
         individual is { } individualId
             ? db.TeacherClasses.AsNoTracking().AnyAsync(x =>
@@ -138,8 +148,7 @@ public sealed class TeacherClassTopicService(PlatformDbContext db, TimeProvider 
             x => x.WorkspaceId == workspaceId && x.RequestId == request.RequestId, ct);
         if (prior is not null)
             return prior.TopicId == request.TopicId && prior.MaterialId == request.MaterialId
-                ? new(TeacherTopicStatus.Duplicate, Material: await Materials(workspaceId)
-                    .SingleAsync(x => x.Id == prior.Id, ct))
+                ? new(TeacherTopicStatus.Duplicate, Material: await ByLinkAsync(workspaceId, prior.Id, ct))
                 : new(TeacherTopicStatus.Conflict);
 
         var topic = await db.TeacherClassTopics.AsNoTracking().SingleOrDefaultAsync(
@@ -167,12 +176,11 @@ public sealed class TeacherClassTopicService(PlatformDbContext db, TimeProvider 
                 x => x.WorkspaceId == workspaceId && x.RequestId == request.RequestId, ct);
             return prior is not null && prior.TopicId == request.TopicId
                 && prior.MaterialId == request.MaterialId
-                ? new(TeacherTopicStatus.Duplicate, Material: await Materials(workspaceId)
-                    .SingleAsync(x => x.Id == prior.Id, ct))
+                ? new(TeacherTopicStatus.Duplicate, Material: await ByLinkAsync(workspaceId, prior.Id, ct))
                 : new(TeacherTopicStatus.Conflict);
         }
         return new(TeacherTopicStatus.Created,
-            Material: await Materials(workspaceId).SingleAsync(x => x.Id == link.Id, ct));
+            Material: await ByLinkAsync(workspaceId, link.Id, ct));
     }
 
     public async Task<TeacherTopicResult> MoveAsync(
