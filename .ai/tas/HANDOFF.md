@@ -2,13 +2,15 @@
 
 **UPDATED:** 2026-11-15
 **ACTIVE_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — Meleto UI-01…UI-08
-**ACTIVE_TASK:** UI-03 period planning — server read-only preview implemented; client integration and bulk saving remain open.
+**ACTIVE_TASK:** UI-03 period planning — server read-only preview connected to class schedule; bulk saving remains open.
 **ACTIVE_BRANCH:** `tas/UI-03-server-period-preview`; resume branch before starting new work.
-**LAST_IMPLEMENTATION_COMMIT:** `7d3b224299f730d616c8bf9fb642f74dc082f7b9` — PR #65, server preview and persisted PostgreSQL regression.
-**NEXT_ACTION:** Run/review CI for server period-preview branch, resolve failures, then wire the existing client period form to `POST /teacher/schedule-rules/period-preview` and verify through isolated real API/PostgreSQL. Server service and integration test are implemented; actual batch saving/idempotency and screen 74 remain open. Current client still calculates its own preview.
-**VERIFICATION:** PR #65 server acceptance PASS — TAS task CI `43724768550` (backend build, real PostgreSQL integration tests including PeriodPreviewUsesPersistedRulesAndLinkedStartsWithoutMutations, runtime smoke) and Homework import integration `43724768511` on `7d3b224`. `git diff --check` PASS. No UI changes in this checkpoint. Earlier PR #64 client acceptance: 12 focused calendar Node tests; complete browser workflow 25/25 Node tests + Chromium on isolated API/PostgreSQL; source 73 PNG/JSON and generated screenshot inspected. NOT_RUN — new endpoint wired into browser form, bulk writes, production/Timeweb.
+**LAST_IMPLEMENTATION_COMMIT:** `e3319751be80645cce04a0d578c30d0467979621` — PR #65, server preview + async class schedule form and real browser API assertion.
+**NEXT_ACTION:** Review PR #65 CI and merge after acceptance. Next implementation: period batch saving with server-side conflict/idempotency protection, scoped to the confirmed class and range; keep screen 74 count-based planning separate. Preview alone does not reserve slots or guarantee conflict-free writes.
+**VERIFICATION:** PR #65 server acceptance PASS — TAS task CI `43724768550` (backend build, real PostgreSQL integration test, runtime smoke) on `7d3b224`. Connected UI acceptance PASS — Native homework browser `43725661941` and Homework import integration `43725661905` on `e331975`: Chromium + isolated real API/PostgreSQL, actual preview POST/200 returns three candidates/one saved start, 31-day rejection, class open/close, mobile overflow, unchanged full Lesson/Rule responses and second teacher isolation. Local 12 calendar tests, inline/browser syntax and `git diff --check` PASS. NOT_RUN — bulk writes and production/Timeweb.
 
 ## Completed small slice
+
+- Connected client checkpoint: class period form calls the server rather than local projection. Loading/error/retry states are explicit; closed preview/session changes discard stale results. `calendar-real-browser.mjs` awaits/asserts the real endpoint response before checking rendered rows. No batch write path.
 
 - Server checkpoint (PR #65): `TeacherPeriodPreviewService.cs`, teacher route in `Program.cs`, `TeacherSessionTests.cs`. `POST /teacher/schedule-rules/period-preview` accepts class ID/kind and From/To; validates active ownership and 1–31 inclusive days, expands active IANA-zone rules, rejects DST ambiguity, returns linked existing Lesson IDs at identical starts. No writes/schema changes. Test covers persisted matching, one-day/31-day boundaries, invalid ranges, empty group, foreign owner and unchanged Lesson/Rule responses. Local `git diff --check` PASS; .NET unavailable locally; check CI for latest branch HEAD before merge. Previous VERIFICATION below/above describes PR #64, not this new server acceptance.
 
