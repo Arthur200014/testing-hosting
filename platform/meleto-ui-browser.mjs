@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
-import { calendarDay } from './teacher-calendar.mjs';
+import { calendarDay, calendarTime } from './teacher-calendar.mjs';
 
 const base = process.env.TAS_BROWSER_BASE || 'http://127.0.0.1:8766';
 const output = process.env.TAS_SCREENSHOT_DIR || 'test-results/meleto-ui02';
@@ -750,11 +750,13 @@ try {
   await page.locator('#lessonPlannerForm [data-cancel-lesson-plan]').click();
   await chooseDay('2026-11-16');
   const slot = page.locator('[data-calendar-rule]').first();
+  const slotRuleId = await slot.getAttribute('data-calendar-rule');
+  const slotRule = scheduleRules.find(r=>r.id === slotRuleId);
   await slot.locator('[data-plan-rule]').click();
   const slotPlan = page.locator('#lessonPlannerForm');
   assert.equal(await slotPlan.locator('[name="lessonDate"]').inputValue(),'2026-11-16');
   assert.equal(await slotPlan.locator('[name="lessonStart"]').inputValue(),'16:00');
-  assert.equal(await slotPlan.locator('[name="lessonEnd"]').inputValue(),'17:00');
+  assert.equal(await slotPlan.locator('[name="lessonEnd"]').inputValue(),calendarTime(Date.parse('2026-11-16T13:00:00Z')+slotRule.durationMinutes*60000));
   await slotPlan.locator('[data-cancel-lesson-plan]').click();
   assert.equal(JSON.stringify({lessons,scheduleRules}),beforeCalendar,'calendar projections never mutate persisted records');
   assert.equal(plannedLessonWrites,writesBeforeCalendar);
@@ -763,6 +765,7 @@ try {
   await page.locator('#lessonPlannerForm button[type="submit"]').click();
   await page.locator('[data-calendar-lesson]').filter({hasText:'Из слота календаря'}).waitFor();
   assert.equal(plannedLessonWrites,writesBeforeCalendar+1);
+  assert.equal(plannedLessonRequests.at(-1).participants[0].durationMinutes,slotRule.durationMinutes);
   assert.equal(plannedLessonRequests.at(-1).lessonAt,'2026-11-16T13:00:00.000Z', 'planner preserves Moscow time despite Los Angeles device zone');
   await page.evaluate(()=>window.scrollTo(0,0));
   await page.screenshot({path:output+'/37_calendar_day.png',fullPage:true});
