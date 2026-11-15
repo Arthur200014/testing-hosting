@@ -775,6 +775,32 @@ namespace TestingHosting.Platform.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherScheduleRule", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
+                    b.Property<int>("DaysMask").HasColumnType("integer");
+                    b.Property<int>("DurationMinutes").HasColumnType("integer");
+                    b.Property<Guid?>("GroupClassId").HasColumnType("uuid");
+                    b.Property<Guid?>("IndividualClassId").HasColumnType("uuid");
+                    b.Property<bool>("IsActive").ValueGeneratedOnAdd().HasColumnType("boolean").HasDefaultValue(true);
+                    b.Property<Guid>("RequestId").HasColumnType("uuid");
+                    b.Property<int>("Revision").ValueGeneratedOnAdd().IsConcurrencyToken().HasColumnType("integer").HasDefaultValue(1);
+                    b.Property<int>("StartMinute").HasColumnType("integer");
+                    b.Property<string>("TimeZoneId").IsRequired().HasMaxLength(64).HasColumnType("character varying(64)");
+                    b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                    b.HasKey("Id");
+                    b.HasIndex("WorkspaceId", "RequestId").IsUnique().HasDatabaseName("IX_ScheduleRules_Workspace_Request");
+                    b.HasIndex("WorkspaceId", "IndividualClassId").HasDatabaseName("IX_ScheduleRules_Individual");
+                    b.HasIndex("WorkspaceId", "GroupClassId").HasDatabaseName("IX_ScheduleRules_Group");
+                    b.ToTable("TeacherScheduleRules", "platform", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScheduleRules_ExactlyOneClass", "(\"IndividualClassId\" IS NOT NULL) <> (\"GroupClassId\" IS NOT NULL)");
+                            t.HasCheckConstraint("CK_ScheduleRules_Days", "\"DaysMask\" BETWEEN 1 AND 127");
+                            t.HasCheckConstraint("CK_ScheduleRules_Time", "\"StartMinute\" BETWEEN 0 AND 1439 AND \"StartMinute\" % 5 = 0 AND \"DurationMinutes\" BETWEEN 15 AND 240 AND \"DurationMinutes\" % 5 = 0 AND \"StartMinute\" + \"DurationMinutes\" <= 1440");
+                        });
+                });
+
             modelBuilder.Entity("TestingHosting.Platform.Lessons.Lesson", b =>
                 {
                     b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
@@ -1309,6 +1335,21 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     b.Navigation("Student");
 
                     b.Navigation("Workspace");
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherScheduleRule", b =>
+                {
+                    b.HasOne("TestingHosting.Platform.Classes.TeacherClass", null)
+                        .WithMany().HasForeignKey("WorkspaceId", "IndividualClassId")
+                        .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_ScheduleRules_IndividualClass");
+                    b.HasOne("TestingHosting.Platform.Classes.TeacherGroupClass", null)
+                        .WithMany().HasForeignKey("WorkspaceId", "GroupClassId")
+                        .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_ScheduleRules_GroupClass");
+                    b.HasOne("TestingHosting.Platform.IdentityAccess.Workspace", null)
+                        .WithMany().HasForeignKey("WorkspaceId").OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired().HasConstraintName("FK_ScheduleRules_Workspaces");
                 });
 
             modelBuilder.Entity("TestingHosting.Platform.Lessons.Lesson", b =>

@@ -48,6 +48,10 @@ let groupEdits = 0;
 let groupArchives = 0;
 let groupRestores = 0;
 let groupInvites = 0;
+let scheduleWrites = 0;
+let scheduleEdits = 0;
+let scheduleDisables = 0;
+const scheduleRules = [];
 let plannedLessonWrites = 0;
 const plannedLessonRequests = [];
 const createdClassId = '55555555-5555-4555-8555-555555555555';
@@ -64,6 +68,44 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
   if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
   if (path === 'teacher-sessions' && request.method() === 'POST')
     return send({ accessToken: 'synthetic-ui-token', expiresAt: new Date(Date.now() + 300000).toISOString() });
+  if (path === 'teacher/schedule-rules' && request.method() === 'POST') {
+    const body = request.postDataJSON();
+    assert.ok(body.requestId);
+    const existing = scheduleRules.find(x=>x.requestId===body.requestId);
+    if (existing) return send(existing,200);
+    const overlap = scheduleRules.some(x=>x.classId===body.classId &&
+      x.classKind===body.classKind && x.isActive && body.isActive &&
+      (x.timeZoneId!==body.timeZoneId || ((x.daysMask&body.daysMask)!==0 &&
+        x.startMinute<body.startMinute+body.durationMinutes &&
+        body.startMinute<x.startMinute+x.durationMinutes)));
+    if (overlap) return send({title:'Schedule conflict'},409);
+    scheduleWrites++;
+    const id = 'cccccccc-cccc-4ccc-8ccc-'+String(scheduleWrites).padStart(12,'0');
+    const created = {...body,id,revision:1};
+    scheduleRules.push(created);
+    return send(created,201);
+  }
+  const scheduleMatch = path.match(/^teacher\/schedule-rules\/([^/]+)(?:\/(disable))?$/);
+  if (scheduleMatch) {
+    const row = scheduleRules.find(x=>x.id===scheduleMatch[1]);
+    if (!row) return send({title:'Not found'},404);
+    const body = request.postDataJSON();
+    if (body.expectedRevision!==row.revision) return send({title:'Stale revision'},409);
+    if (scheduleMatch[2]==='disable' && request.method()==='POST') {
+      row.isActive = false; row.revision++; scheduleDisables++; return send(row);
+    }
+    if (request.method()==='PATCH' && !scheduleMatch[2]) {
+      const overlap = scheduleRules.some(x=>x!==row && x.classId===row.classId &&
+        x.classKind===row.classKind && x.isActive && body.isActive &&
+        (x.timeZoneId!==body.timeZoneId || ((x.daysMask&body.daysMask)!==0 &&
+          x.startMinute<body.startMinute+body.durationMinutes &&
+          body.startMinute<x.startMinute+x.durationMinutes)));
+      if (overlap) return send({title:'Schedule conflict'},409);
+      Object.assign(row,body); delete row.expectedRevision;
+      row.revision++; scheduleEdits++; return send(row);
+    }
+    return send({title:'Bad request'},405);
+  }
   if (path === 'teacher/lessons' && request.method() === 'POST') {
     const body = request.postDataJSON();
     assert.ok(body.requestId, 'planned lesson is idempotent');
@@ -201,6 +243,7 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
   if (request.method() !== 'GET') { unexpectedWrites++; return route.fulfill({ status: 405, headers }); }
   if (path === 'teacher/classes') return send(classes);
   if (path === 'teacher/groups') return send(groups);
+  if (path === 'teacher/schedule-rules') return send(scheduleRules);
   if (path === 'teacher/students') return send(students);
   if (path === 'teacher/programs') return send([
     {id:'66666666-6666-4666-8666-666666666666', displayName:'Профильная математика'}
@@ -611,7 +654,70 @@ try {
   assert.equal(plannedLessonRequests[2].groupClassId,createdGroupId);
   assert.deepEqual(plannedLessonRequests[2].participants.map(x=>x.membershipId),
     [students[0].membershipId,students[2].membershipId]);
+  // UI-03 reference 15: create, cancel, conflict, edit, reload, disable/re-enable.
+  await page.locator('[data-view="overview"]').click();
+  await page.locator('[data-open-class="'+createdClassId+'"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="schedule"]').click();
+  await page.locator('[data-new-schedule-rule]').click();
+  await page.locator('#classScheduleRuleForm [name="startTime"]').fill('15:30');
+  page.once('dialog',d=>d.dismiss());
+  await page.locator('[data-cancel-schedule-rule]').click();
+  await page.locator('#classScheduleRuleForm').waitFor();
+  page.once('dialog',d=>d.accept());
+  await page.locator('[data-cancel-schedule-rule]').click();
+  assert.equal(scheduleWrites,0,'cancelled schedule never writes');
+  await page.locator('[data-new-schedule-rule]').click();
+  await page.locator('#classScheduleRuleForm [name="scheduleDay"][value="1"]').check();
+  await page.locator('#classScheduleRuleForm [name="scheduleDay"][value="4"]').check();
+  await page.locator('#classScheduleRuleForm [name="startTime"]').fill('15:00');
+  await page.locator('#classScheduleRuleForm button[type="submit"]').click();
+  await page.locator('.class-rule-row').first().waitFor();
+  assert.equal(scheduleWrites,1);
+  assert.equal(scheduleRules[0].daysMask,5);
+  assert.equal(scheduleRules[0].classId,createdClassId);
+  assert.equal(scheduleRules[0].timeZoneId,'Europe/Moscow');
+  await page.locator('[data-new-schedule-rule]').click();
+  await page.locator('#classScheduleRuleForm [name="scheduleDay"][value="1"]').check();
+  await page.locator('#classScheduleRuleForm [name="startTime"]').fill('15:30');
+  await page.locator('#classScheduleRuleForm button[type="submit"]').click();
+  await page.locator('#notice').filter({hasText:'Конфликт'}).waitFor();
+  assert.equal(scheduleWrites,1,'overlapping active slot rejected');
+  page.once('dialog',d=>d.accept());
+  await page.locator('[data-cancel-schedule-rule]').click();
+  await page.locator('[data-edit-schedule-rule]').first().click();
+  await page.locator('#classScheduleRuleForm [name="startTime"]').fill('16:00');
+  await page.locator('#classScheduleRuleForm button[type="submit"]').click();
+  await page.locator('.class-rule-row').getByText(/16:00/).waitFor();
+  assert.equal(scheduleEdits,1);
+  await page.reload();
+  await page.locator('#loginForm [name="workspace"]').fill('synthetic');
+  await page.locator('#loginForm [name="email"]').fill('teacher@example.invalid');
+  await page.locator('#loginForm [name="password"]').fill('synthetic-password');
+  await page.locator('#loginForm button[type="submit"]').click();
+  await page.locator('[data-open-class="'+createdClassId+'"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="schedule"]').click();
+  await page.locator('.class-rule-row').getByText(/16:00/).waitFor();
+  page.once('dialog',d=>d.accept());
+  await page.locator('[data-disable-schedule-rule]').first().click();
+  await page.locator('.class-rule-row.is-disabled').waitFor();
+  assert.equal(scheduleDisables,1);
+  await page.locator('[data-edit-schedule-rule]').first().click();
+  await page.locator('#classScheduleRuleForm [name="isActive"]').check();
+  await page.locator('#classScheduleRuleForm button[type="submit"]').click();
+  await page.locator('.class-rule-row:not(.is-disabled)').waitFor();
+  assert.equal(scheduleEdits,2);
+  await page.locator('[data-back-classes]').click();
+  await page.locator('[data-open-class="'+createdGroupId+'"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="schedule"]').click();
+  await page.locator('[data-new-schedule-rule]').click();
+  await page.locator('#classScheduleRuleForm [name="scheduleDay"][value="1"]').check();
+  await page.locator('#classScheduleRuleForm [name="startTime"]').fill('16:00');
+  await page.locator('#classScheduleRuleForm button[type="submit"]').click();
+  assert.equal(scheduleWrites,2,'group rules are distinct from individual class');
+  assert.equal(scheduleRules[1].classKind,'group');
+  await page.screenshot({path:output+'/15_class_schedule.png'});
   assert.equal(unexpectedWrites,0);
+  console.log('PASS: Meleto 15 recurring schedule (create/edit/disable, no phantom lessons)');
   console.log('PASS: Meleto 07/12/13 lesson planning and linked individual/group classes');
   console.log('PASS: group creation/edit/enrollment/archive/restore/invitation at Meleto 1348×926');
 } finally {

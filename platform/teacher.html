@@ -323,7 +323,7 @@
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
-      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', groupEdit: '', groupCreate: false, lastClassInvitation: null, learningModal: false, classCreate: false, lessonPlan: null };
+      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', groupEdit: '', groupCreate: false, lastClassInvitation: null, learningModal: false, classCreate: false, lessonPlan: null, scheduleEdit: null };
       const $ = id => document.getElementById(id);
       const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const date = value => value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
@@ -341,7 +341,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
-        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.classDetailTab = 'summary'; state.classStatsMonth = new Date().toISOString().slice(0,7); state.classStatsExpanded = ''; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; state.lessonPlan = null;
+        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.classDetailTab = 'summary'; state.classStatsMonth = new Date().toISOString().slice(0,7); state.classStatsExpanded = ''; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; state.lessonPlan = null; state.scheduleEdit = null;
         $('app').hidden = true; $('loginScreen').hidden = false;
         $('loginError').textContent = message; $('loginError').hidden = !message;
       }
@@ -397,10 +397,13 @@
       function setView(view) {
         if (state.view !== view && document.querySelector('#classEditForm[data-dirty="1"]') &&
             !confirm('Есть несохранённые изменения класса. Покинуть редактор без сохранения?')) return Promise.resolve();
+        if (state.view !== view && document.querySelector('#classScheduleRuleForm[data-dirty="1"]') &&
+            !confirm('Отменить несохранённое расписание?')) return Promise.resolve();
         if (state.view !== view && document.querySelector('#lessonPlannerForm[data-dirty="1"]') &&
             !confirm('Отменить планирование занятия без сохранения?')) return Promise.resolve();
         state.view = view;
         if (view !== 'lessons') state.lessonPlan = null;
+        if (view !== 'overview') state.scheduleEdit = null;
         if (view !== 'overview') { state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; }
         document.querySelectorAll('[data-view]').forEach(x => x.classList.toggle('active', x.dataset.view === view));
         $('viewTitle').textContent = names[view][0]; $('viewSubtitle').textContent = names[view][1];
@@ -513,6 +516,64 @@
               ${item.invitationStatus === 'pending' ? `<button class="secondary" type="button" data-revoke-class-invite="${safe(item.id)}">Отозвать</button>` : ''}</div>`}
         </section>`;
       }
+      const scheduleDays = [['Пн',1],['Вт',2],['Ср',4],['Чт',8],['Пт',16],['Сб',32],['Вс',64]];
+      const scheduleTime = minutes => String(Math.floor(minutes/60)).padStart(2,'0') + ':' +
+        String(minutes%60).padStart(2,'0');
+      const classRules = item => (state.data.scheduleRules || [])
+        .filter(x=>x.classId===item.id && x.classKind===item.kind)
+        .sort((a,b)=>Number(b.isActive)-Number(a.isActive)||a.startMinute-b.startMinute);
+      const ruleDayNames = mask => scheduleDays.filter(([,bit])=>mask&bit).map(([day])=>day).join(' · ');
+      function scheduleSummary(item) {
+        const active = classRules(item).filter(x=>x.isActive);
+        return active.length ? active.map(x=>`<span class="class-rule-pill">${safe(ruleDayNames(x.daysMask))} ·
+          ${safe(scheduleTime(x.startMinute))}–${safe(scheduleTime(x.startMinute+x.durationMinutes))}
+          · ${safe(x.timeZoneId)}</span>`).join('') :
+          '<span class="muted small">Регулярное расписание пока не настроено.</span>';
+      }
+      function classScheduleRules(item) {
+        const rows = classRules(item);
+        const writable = !item.isArchived && item.persistent!==false;
+        const draft = state.scheduleEdit?.classId===item.id ? state.scheduleEdit : null;
+        const edit = draft?.ruleId ? rows.find(x=>x.id===draft.ruleId) : null;
+        const zones = ['Europe/Moscow','Europe/Berlin','UTC','Asia/Yekaterinburg','Asia/Novosibirsk',
+          'Asia/Omsk','Asia/Krasnoyarsk','Asia/Irkutsk','Asia/Vladivostok'];
+        const zone = edit?.timeZoneId || 'Europe/Moscow';
+        return `<section class="class-rule-section">
+          <div class="section-head"><div><h3>Регулярное расписание</h3>
+            <p class="muted small">Правила повторения не создают уроки и не отмечают посещаемость.</p></div>
+            ${writable&&!draft?`<button type="button" class="primary" data-new-schedule-rule="${safe(item.id)}">＋ Добавить слот</button>`:''}
+          </div>
+          ${rows.length ? `<div class="class-rule-list">${rows.map(x=>`<div class="class-rule-row ${x.isActive?'':'is-disabled'}">
+            <div><strong>${safe(ruleDayNames(x.daysMask))} · ${safe(scheduleTime(x.startMinute))}–${safe(scheduleTime(x.startMinute+x.durationMinutes))}</strong>
+              <small>${safe(x.durationMinutes)} мин · ${safe(x.timeZoneId)} · ${x.isActive?'Действует':'Отключено'}</small></div>
+            ${writable?`<button type="button" class="secondary small-button" data-edit-schedule-rule="${safe(x.id)}">Изменить</button>
+              ${x.isActive?`<button type="button" class="secondary small-button" data-disable-schedule-rule="${safe(x.id)}">Отключить</button>`:''}`:''}
+          </div>`).join('')}</div>` : '<div class="empty">У класса нет повторяющихся слотов.</div>'}
+          ${draft&&writable?`<form id="classScheduleRuleForm" class="class-rule-form" data-class-id="${safe(item.id)}"
+            data-class-kind="${safe(item.kind)}" data-rule-id="${safe(edit?.id||'')}">
+            <h4>${edit?'Изменить слот':'Новый слот'}</h4>
+            <fieldset class="class-rule-days"><legend>Дни недели</legend>
+              ${scheduleDays.map(([day,bit])=>`<label><input type="checkbox" name="scheduleDay" value="${bit}"
+                ${((edit?.daysMask??0)&bit)?'checked':''}>${day}</label>`).join('')}
+            </fieldset>
+            <div class="class-rule-fields">
+              <label><span>Начало</span><input type="time" name="startTime" step="300"
+                value="${safe(scheduleTime(edit?.startMinute??900))}" required></label>
+              <label><span>Длительность, мин</span><input type="number" name="durationMinutes"
+                min="15" max="240" step="5" value="${safe(edit?.durationMinutes??item.durationMinutes??60)}" required></label>
+              <label><span>Часовой пояс (IANA)</span><input name="timeZoneId" list="classScheduleZones"
+                maxlength="64" value="${safe(zone)}" required>
+                <datalist id="classScheduleZones">${zones.map(t=>`<option value="${safe(t)}"></option>`).join('')}</datalist></label>
+            </div>
+            <label class="class-rule-active"><input type="checkbox" name="isActive" ${edit?.isActive===false?'':'checked'}>Активен</label>
+            <p class="muted small">Локальное время класса; слот должен завершиться до полуночи и не пересекать другой активный слот этого класса.</p>
+            <div class="row"><button type="submit" class="primary">Сохранить слот</button>
+              <button type="button" class="secondary" data-cancel-schedule-rule>Отмена</button></div>
+          </form>`:''}
+          ${item.isArchived?'<p class="muted small">Расписание архивного класса доступно только для просмотра.</p>':''}
+        </section>`;
+      }
+
       function groupClassDetail(item) {
         const tab = classDetailTabs.some(x => x[0] === state.classDetailTab) ? state.classDetailTab : 'summary';
         const members = item.members || [];
@@ -562,14 +623,14 @@
           : tab === 'information'
             ? `<section class="class-subsection">${metadata}${roster}${groupInvitePanel(item)}</section>`
           : tab === 'schedule'
-            ? `<section class="class-subsection"><h3>Занятия группы</h3>
+            ? `<section class="class-subsection">${classScheduleRules(item)}<h3>Занятия группы</h3>
                 ${list(linkedLessons, 'Запланированных занятий пока нет.', x => `<div class="item">
                   <div><strong>${safe(x.title || 'Занятие')} · ${safe(date(x.lessonAt))}</strong>
                     <small>${safe((x.participants || []).length)} учеников · ${safe(x.description || 'Без описания')}</small></div>
                   <span class="pill">${new Date(x.lessonAt) > new Date() ? 'Запланировано' : 'Дата прошла'}</span>
                 </div>`)}
                 ${item.isArchived ? '' : `<button type="button" class="primary" data-schedule-class="${safe(item.id)}">＋ Добавить занятие</button>`}
-                <p class="muted small">Повторяющиеся слоты расписания не настроены. Здесь отображаются сохранённые занятия именно этой группы.</p>
+                <p class="muted small">Правила повторения показаны выше; здесь — только отдельно созданные занятия группы.</p>
               </section>`
             : `<section class="class-subsection"><h3>${placeholders[tab]?.[0]}</h3>
                 <p class="muted">${placeholders[tab]?.[1]}</p>
@@ -627,8 +688,8 @@
         </div>`;
         const tabs = {
           summary: `<section class="class-summary">
-            <div class="class-schedule-slots"><span class="muted small">Слоты регулярного расписания ещё не настроены.</span>
-              <button type="button" class="class-gear" data-view-calendar aria-label="Открыть календарь">⚙</button></div>
+            <div class="class-schedule-slots">${scheduleSummary(item)}
+              <button type="button" class="class-gear" data-class-detail-tab="schedule" aria-label="Настроить расписание">⚙</button></div>
             <p class="class-caption">Ближайшее занятие</p>
             <div class="class-nearest"><span class="class-nearest-icon">▣</span>
               <div><strong>${upcoming ? 'Запланированное занятие' : 'Занятие не запланировано'}</strong>
@@ -636,7 +697,7 @@
               <button type="button" class="primary" data-schedule-class="${safe(item.id)}">${upcoming ? 'Календарь' : 'Запланировать'}</button>
             </div>
           </section>`,
-          schedule: `<section class="class-subsection"><h3>Занятия класса</h3>
+          schedule: `<section class="class-subsection">${classScheduleRules(item)}<h3>Занятия класса</h3>
             ${list(lessons.slice(0, 15), 'Занятий по этому классу пока нет.', x => `<div class="item">
                 <div><strong>${safe(date(x.lessonAt))}</strong><small>${safe(x.participants?.find(p => p.membershipId === item.studentMembershipId)?.topicComment || 'Тема не указана')}</small></div>
                 <span class="pill">${new Date(x.lessonAt) > new Date() ? 'Запланировано' : 'Прошло'}</span>
@@ -979,7 +1040,7 @@
       }
       function overview() {
         const d = state.data;
-        if (!d.classes || !d.groups || !d.students || !d.lessons) {
+        if (!d.classes || !d.groups || !d.students || !d.lessons || !d.scheduleRules) {
           const failed = !$('notice').hidden && $('notice').classList.contains('error');
           return `<div class="classes-layout"><div class="classes-main"><div class="classes-heading"><h1>Мои классы</h1></div><div class="empty">${failed
             ? 'Не удалось загрузить классы и расписание.<br><button class="secondary" type="button" data-retry-overview style="margin-top:14px">Повторить</button>'
@@ -1358,7 +1419,7 @@
         logout();
       });
       $('content').addEventListener('input', event => {
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm');
         if (editor) editor.dataset.dirty = '1';
         const draft = event.target.closest('#lessonPlannerForm');
         if (draft && event.target.name === 'title') {
@@ -1375,7 +1436,7 @@
         }
       });
       $('content').addEventListener('change', event => {
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm');
         if (editor) editor.dataset.dirty = '1';
         if (event.target.matches('#lessonPlannerForm [name="startNow"]') && event.target.checked) {
           const form = event.target.form;
@@ -1488,7 +1549,11 @@
           state.classEdit = ''; render(); return;
         }
         const detailTab = event.target.closest('[data-class-detail-tab]');
-        if (detailTab) { state.classDetailTab = detailTab.dataset.classDetailTab; render(); return; }
+        if (detailTab) {
+          if (document.querySelector('#classScheduleRuleForm[data-dirty="1"]') &&
+              !confirm('Отменить изменения расписания без сохранения?')) return;
+          state.scheduleEdit = null; state.classDetailTab = detailTab.dataset.classDetailTab; render(); return;
+        }
         const sectionLink = event.target.closest('[data-class-section]');
         if (sectionLink) { await setView(sectionLink.dataset.classSection); return; }
         const expanded = event.target.closest('[data-stat-expand]');
@@ -1542,8 +1607,11 @@
           return;
         }
         const openClass = event.target.closest('[data-open-class]');
-        if (openClass) { state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
-        if (event.target.closest('[data-back-classes]')) { state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
+        if (openClass) { state.scheduleEdit = null; state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
+        if (event.target.closest('[data-back-classes]')) {
+          if (document.querySelector('#classScheduleRuleForm[data-dirty="1"]') &&
+              !confirm('Отменить изменения расписания без сохранения?')) return;
+          state.scheduleEdit = null; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
         if (event.target.closest('[data-copy-class-invite]')) {
           const code = state.lastClassInvitation?.code;
           if (!code) return;
@@ -1592,6 +1660,39 @@
             invalidate([root]);
             await refresh(true);
           } catch (error) { showNotice(error.message, true); if (statusButton.isConnected) statusButton.disabled = false; }
+          return;
+        }
+        const newRule = event.target.closest('[data-new-schedule-rule]');
+        if (newRule) {
+          const item = teacherClasses().find(x=>x.id===newRule.dataset.newScheduleRule);
+          if (!item || item.isArchived || item.persistent===false) return;
+          state.scheduleEdit = {classId:item.id,ruleId:null}; render();
+          document.querySelector('#classScheduleRuleForm [name="startTime"]')?.focus(); return;
+        }
+        const editRule = event.target.closest('[data-edit-schedule-rule]');
+        if (editRule) {
+          const rule = state.data.scheduleRules?.find(x=>x.id===editRule.dataset.editScheduleRule);
+          const item = rule && teacherClasses().find(x=>x.id===rule.classId);
+          if (!item || item.isArchived || item.persistent===false) return;
+          state.scheduleEdit = {classId:item.id,ruleId:rule.id}; render(); return;
+        }
+        if (event.target.closest('[data-cancel-schedule-rule]')) {
+          if (document.querySelector('#classScheduleRuleForm[data-dirty="1"]') &&
+              !confirm('Отменить изменения слота без сохранения?')) return;
+          state.scheduleEdit = null; render(); return;
+        }
+        const disableRule = event.target.closest('[data-disable-schedule-rule]');
+        if (disableRule) {
+          const rule = state.data.scheduleRules?.find(x=>x.id===disableRule.dataset.disableScheduleRule);
+          const item = rule && teacherClasses().find(x=>x.id===rule.classId);
+          if (!item || item.isArchived || !rule.isActive ||
+              !confirm('Отключить регулярный слот? Уже созданные уроки останутся без изменений.')) return;
+          disableRule.disabled = true;
+          try {
+            await api('teacher/schedule-rules/'+encodeURIComponent(rule.id)+'/disable',
+              {method:'POST',body:{expectedRevision:rule.revision}});
+            invalidate(['scheduleRules']); await refresh();
+          } catch(error) { showNotice(error.message,true); if(disableRule.isConnected) disableRule.disabled=false; }
           return;
         }
         const createOneTime = event.target.closest('[data-create-one-time]');
@@ -1795,6 +1896,33 @@
           const result = await mutation('student', 'students', () => ({ studentName: formValue(form, 'studentName'), programId: formValue(form, 'programId'), profile }));
           state.inviteCode = result.inviteCode;
           form.reset();
+        });
+        if (form.id === 'classScheduleRuleForm') onForm(form, async () => {
+          const item = teacherClasses().find(x=>x.id===form.dataset.classId &&
+            x.kind===form.dataset.classKind);
+          if (!item || item.isArchived || item.persistent===false)
+            throw new Error('Класс недоступен для изменения расписания.');
+          const mask = [...form.querySelectorAll('[name="scheduleDay"]:checked')]
+            .reduce((acc,x)=>acc|Number(x.value),0);
+          if (!mask) throw new Error('Выберите хотя бы один день недели.');
+          const [hours,minutes] = formValue(form,'startTime').split(':').map(Number);
+          const fields = {daysMask:mask,startMinute:hours*60+minutes,
+            durationMinutes:Number(formValue(form,'durationMinutes')),
+            timeZoneId:formValue(form,'timeZoneId'),isActive:form.elements.isActive.checked};
+          if (fields.startMinute+fields.durationMinutes>1440)
+            throw new Error('Слот должен завершиться до полуночи.');
+          const id = form.dataset.ruleId;
+          if (id) {
+            const rule = state.data.scheduleRules?.find(x=>x.id===id);
+            if (!rule || rule.classId!==item.id) throw new Error('Обновите список слотов.');
+            await api('teacher/schedule-rules/'+encodeURIComponent(id),
+              {method:'PATCH',body:{expectedRevision:rule.revision,...fields}});
+          } else {
+            form.dataset.requestId ||= crypto.randomUUID();
+            await api('teacher/schedule-rules',{method:'POST',
+              body:{requestId:form.dataset.requestId,classId:item.id,classKind:item.kind,...fields}});
+          }
+          state.scheduleEdit = null;
         });
         if (form.id === 'lessonPlannerForm') onForm(form, async () => {
           const ids = [...form.querySelectorAll('[name="planMember"]:checked')].map(x=>x.value);
