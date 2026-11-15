@@ -81,7 +81,7 @@ try {
   await page.locator('#classNativeTaskForm [name="prompt"]').fill('Решите 2 + 2');
   await page.locator('#classNativeTaskForm button[type="submit"]').click();
   await page.locator('#classNativeAssignForm [name="taskId"] option')
-    .filter({hasText:'UI-04 проверка задания'}).waitFor();
+    .filter({hasText:'UI-04 проверка задания'}).waitFor({state:'attached'});
   await page.locator('#classNativeAssignForm [name="taskId"]').selectOption({label:'UI-04 проверка задания'});
   await page.locator('#classNativeAssignForm [name="deadlineHours"]').selectOption('48');
   await page.locator('#classNativeAssignForm button[type="submit"]').click();
