@@ -1,5 +1,5 @@
 export const teacherPaths = {
-  classes: 'classes', groups: 'groups', programs: 'programs', students: 'students', lessons: 'lessons',
+  classes: 'classes', groups: 'groups', scheduleRules: 'schedule-rules', programs: 'programs', students: 'students', lessons: 'lessons',
   catalog: 'homework/catalog', assignments: 'homework/assignments',
   submissions: 'homework/submissions', subscriptions: 'subscriptions',
   nativeTasks: 'homework/native/tasks', nativeAssignments: 'homework/native/assignments',
@@ -8,7 +8,7 @@ export const teacherPaths = {
 };
 
 export const teacherNeeds = {
-  overview: ['classes', 'groups', 'students', 'lessons'],
+  overview: ['classes', 'groups', 'students', 'lessons', 'scheduleRules'],
   students: ['students', 'programs'],
   lessons: ['students', 'programs', 'lessons', 'catalog'],
   homework: ['students', 'programs', 'catalog', 'assignments', 'submissions', 'nativeTasks', 'nativeAssignments'],
@@ -19,7 +19,7 @@ export const teacherNeeds = {
 
 export const teacherMutationKeys = {
   classForm: ['classes'], classEditForm: ['classes'],
-  groupForm: ['groups'], groupEditForm: ['groups'],
+  groupForm: ['groups'], groupEditForm: ['groups'], classScheduleRuleForm: ['scheduleRules'],
   studentForm: ['students'], studentEditForm: ['students'],
   lessonForm: ['lessons', 'assignments'], lessonCorrectionForm: ['lessons'], lessonPlannerForm: ['lessons'],
   nativeTaskForm: ['nativeTasks'], nativeAssignForm: ['nativeAssignments'],
