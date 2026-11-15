@@ -31,6 +31,9 @@ public sealed class TeacherLessonHomeworkService(
         var lessonRequest = request.Lesson;
         await using var transaction = await db.Database.BeginTransactionAsync(
             IsolationLevel.ReadCommitted, cancellationToken);
+        var workspaceKey = "lesson-workspace:" + workspaceId.ToString("N");
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock(hashtextextended({workspaceKey}, 0))", cancellationToken);
         var lockKey = workspaceId.ToString("N") + ":" + lessonRequest.RequestId.ToString("N");
         await db.Database.ExecuteSqlInterpolatedAsync(
             $"SELECT pg_advisory_xact_lock(hashtextextended({lockKey}, 0))", cancellationToken);

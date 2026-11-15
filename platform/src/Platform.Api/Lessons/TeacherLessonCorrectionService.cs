@@ -49,6 +49,9 @@ public sealed class TeacherLessonCorrectionService(PlatformDbContext db)
         if (errors.Count > 0) return new(TeacherLessonCorrectionStatus.InvalidRequest, Errors: errors);
 
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var workspaceKey = "lesson-workspace:" + workspaceId.ToString("N");
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock(hashtextextended({workspaceKey}, 0))", ct);
         var key = "teacher-lesson-correction:" + workspaceId.ToString("N") + ":" + lessonId.ToString("N");
         await db.Database.ExecuteSqlInterpolatedAsync(
             $"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))", ct);

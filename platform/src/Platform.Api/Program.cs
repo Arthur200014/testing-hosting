@@ -47,6 +47,7 @@ builder.Services.AddScoped<TeacherClassService>();
 builder.Services.AddScoped<TeacherGroupService>();
 builder.Services.AddScoped<TeacherScheduleRuleService>();
 builder.Services.AddScoped<TeacherPeriodPreviewService>();
+builder.Services.AddScoped<TeacherPeriodPlanService>();
 builder.Services.AddScoped<TeacherClassInvitationService>();
 builder.Services.AddSingleton<IPasswordHasher<TeacherUser>, PasswordHasher<TeacherUser>>();
 builder.Services.AddSingleton<TeacherTokenIssuer>();
@@ -348,6 +349,15 @@ app.MapPost("/api/v1/student/groups/invitations/accept", async (
         _ => throw new InvalidOperationException("Unexpected group invitation accept result.")
     };
 }).RequireAuthorization("student");
+
+app.MapPost("/api/v1/teacher/schedule-rules/period-plan", async (
+    TeacherPeriodPlanRequest request, ClaimsPrincipal principal,
+    TeacherPeriodPlanService planner, CancellationToken ct) =>
+{
+    var result = await planner.SaveAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), request, ct);
+    return result.Status == 200 ? Results.Ok(result.Response) : Results.Problem(statusCode: result.Status,
+        title: "Период изменился, содержит конфликт или класс недоступен. Обновите предпросмотр.");
+}).RequireAuthorization("teacher");
 
 app.MapPost("/api/v1/teacher/schedule-rules/period-preview", async (
     TeacherPeriodPreviewRequest request, ClaimsPrincipal principal,

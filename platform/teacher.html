@@ -539,7 +539,7 @@
         const from=selected?.startDate || calendarDay(), to=selected?.endDate || shiftCalendarDay(from,30);
         const rows=selected?.rows || [], error=selected?.error || '';
         return `<details class="class-period-preview" ${selected?'open':''}><summary>Предпросмотр занятий на период</summary>
-          <p class="muted small">Только просмотр слотов, без создания занятий. Период — до 31 дня, время по Москве.</p>
+          <p class="muted small">Проверьте слоты перед созданием занятий. Уже существующие занятия будут пропущены. Период — до 31 дня, время по Москве.</p>
           <form id="classPeriodPreviewForm" class="stack" data-class-id="${safe(item.id)}" data-class-kind="${safe(item.kind)}">
             <div class="form-row"><label>Дата с<input name="startDate" type="date" value="${safe(from)}" required></label>
               <label>Дата по<input name="endDate" type="date" value="${safe(to)}" required></label></div>
@@ -548,7 +548,10 @@
             `<p class="small">${safe(from)} — ${safe(to)} · Слотов: <strong data-period-count>${rows.length}</strong> · Уже есть занятие: ${rows.filter(r=>r.isScheduled).length}</p>
               ${rows.length?rows.slice(0,100).map(row=>`<div class="item" data-period-slot><div><strong>${safe(date(new Date(row.start).toISOString()))}–${safe(calendarTime(row.end))}</strong></div>
                 <span class="pill" data-period-status="${row.isScheduled?'saved':'rule'}">${row.isScheduled?'Уже есть занятие':'Слот расписания'}</span></div>`).join(''):'<p class="muted small">В этом периоде нет действующих слотов расписания.</p>'}
-              ${rows.length>100?'<p class="muted small">Показаны первые 100 слотов. Сократите период для просмотра остальных.</p>':''}`}</div>`:''}</details>`;
+              ${rows.length>100?'<p class="muted small">Показаны первые 100 слотов. Сократите период для просмотра остальных.</p>':''}
+              ${selected.saved?`<p role="status">Создано занятий: ${selected.saved.createdLessonIds.length}. Уже были: ${selected.saved.skippedCount}.</p>`:
+                rows.some(r=>!r.isScheduled)?`<button type="button" class="primary" data-save-period ${selected.saving?'disabled':''}>${selected.saving?'Сохраняем…':'Создать занятия по этому предпросмотру'}</button>`:''}
+              ${selected.saveError?`<p class="banner error" role="alert">${safe(selected.saveError)} Повторная отправка с тем же запросом безопасна.</p>`:''}`}</div>`:''}</details>`;
       }
       function classScheduleRules(item) {
         const rows = classRules(item);
@@ -1692,6 +1695,25 @@
         }
       });
       $('content').addEventListener('click', async event => {
+        if (event.target.closest('[data-save-period]')) {
+          const preview=state.periodPreview, token=state.token;
+          if (!preview || preview.saving || preview.saved || !preview.candidates) return;
+          if (!confirm('Создать занятия для всех новых слотов показанного периода?')) return;
+          preview.saving=true; preview.saveError=''; render();
+          try {
+            const result=await api('teacher/schedule-rules/period-plan',{method:'POST',body:{requestId:preview.requestId,
+              period:{classId:preview.classId,classKind:preview.classKind,from:preview.startDate,to:preview.endDate},expectedCandidates:preview.candidates}});
+            if (state.token!==token) return;
+            invalidate(['lessons']);
+            if (state.periodPreview===preview) preview.saved=result;
+            await loadKey('lessons',true);
+          } catch(error) {
+            if (state.token!==token) return;
+            if (state.periodPreview===preview) preview.saveError=error.message;
+          }
+          if (state.token===token && state.periodPreview===preview) { preview.saving=false; render(); }
+          return;
+        }
         if (event.target.id === 'printReport') { window.print(); return; }
         if (event.target.closest('[data-retry-overview]')) { await refresh(true); return; }
         if (event.target.matches('.modal-backdrop[data-close-learning]') || event.target.closest('.modal-close[data-close-learning]')) {
@@ -2051,6 +2073,7 @@
             const rows=await api('teacher/schedule-rules/period-preview',{method:'POST',body:{
               classId:preview.classId,classKind:preview.classKind,from:preview.startDate,to:preview.endDate}});
             if (state.token!==token || state.periodPreview!==preview) return;
+            preview.candidates=rows; preview.requestId=crypto.randomUUID();
             preview.rows=rows.map(row=>({start:Date.parse(row.lessonAt),end:Date.parse(row.lessonAt)+row.durationMinutes*60000,
               isScheduled:row.existingLessonIds.length>0}));
           } catch(error) {

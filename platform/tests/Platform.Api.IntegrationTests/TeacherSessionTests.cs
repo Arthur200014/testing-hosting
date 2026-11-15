@@ -70,11 +70,28 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
                 "/api/v1/teacher/schedule-rules/period-preview", invalid)).StatusCode);
         Assert.Equal(lessonsBefore, await client.GetStringAsync("/api/v1/teacher/lessons"));
         Assert.Equal(rulesBefore, await client.GetStringAsync("/api/v1/teacher/schedule-rules"));
+        var plan = new TeacherPeriodPlanRequest(Guid.NewGuid(), request, candidates);
+        var saved = await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules/period-plan", plan);
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        var result = (await saved.Content.ReadFromJsonAsync<TeacherPeriodPlanResponse>())!;
+        Assert.Equal(3, result.CreatedLessonIds.Count);
+        Assert.Equal(1, result.SkippedCount);
+        var afterPlan = await client.GetStringAsync("/api/v1/teacher/lessons");
+        var retry = await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules/period-plan", plan);
+        Assert.Equal(HttpStatusCode.OK, retry.StatusCode);
+        Assert.Equal(await saved.Content.ReadAsStringAsync(), await retry.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/schedule-rules/period-plan", plan with { RequestId = Guid.NewGuid() })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/schedule-rules/period-plan", plan with { Period = request with { To = new(2026, 12, 30) } })).StatusCode);
+        Assert.Equal(afterPlan, await client.GetStringAsync("/api/v1/teacher/lessons"));
         var south = (await (await LoginAsync(client, "preview-south", "preview-south@example.invalid", Password))
             .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", south.AccessToken);
         Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(
             "/api/v1/teacher/schedule-rules/period-preview", request)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/schedule-rules/period-plan", plan)).StatusCode);
     }
 
 

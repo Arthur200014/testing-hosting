@@ -44,6 +44,9 @@ public sealed class TeacherLessonService(PlatformDbContext db, TimeProvider cloc
 
     private async Task LockRequestAsync(Guid workspaceId, Guid requestId, CancellationToken cancellationToken)
     {
+        var workspaceKey = "lesson-workspace:" + workspaceId.ToString("N");
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock(hashtextextended({workspaceKey}, 0))", cancellationToken);
         var lockKey = workspaceId.ToString("N") + ":" + requestId.ToString("N");
         await db.Database.ExecuteSqlInterpolatedAsync(
             $"SELECT pg_advisory_xact_lock(hashtextextended({lockKey}, 0))", cancellationToken);

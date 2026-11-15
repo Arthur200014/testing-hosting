@@ -43,6 +43,11 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("platform");
+        modelBuilder.Entity<TeacherPeriodPlan>(entity =>
+        {
+            entity.HasKey(x => new { x.WorkspaceId, x.Id });
+            entity.ToTable("TeacherPeriodPlans");
+        });
 
         modelBuilder.Entity<NativeHomeworkTask>(entity =>
         {
