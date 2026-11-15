@@ -2,13 +2,20 @@
 
 **UPDATED:** 2026-11-15
 **ACTIVE_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — Meleto UI-01…UI-08
-**ACTIVE_TASK:** UI-04 IN_PROGRESS — individual-class native homework templates/assignments shipped; next class materials and library links. User confirmed Timeweb deployment and explicitly asked to skip further Timeweb checks.
-**ACTIVE_BRANCH:** main — [PR #67](https://github.com/Arthur200014/testing-hosting/pull/67) merged, no open implementation branch.
-**LAST_IMPLEMENTATION_COMMIT:** `ace061b163110e203d34fda53686269204ac76c0` (UI-04 class native homework).
+**ACTIVE_TASK:** UI-04 IN_PROGRESS — class HTTPS materials and reusable library shipped to main; next link existing library materials to lessons. User requested no Timeweb panel checks.
+**ACTIVE_BRANCH:** main — [PR #68](https://github.com/Arthur200014/testing-hosting/pull/68) merged; no unfinished task branch.
+**LAST_IMPLEMENTATION_COMMIT:** `2418bdca337f586db76ca8fe7e202ce1dc9a8fe7` (UI-04 material links).
 **MERGED_SHA (UI-03):** `1ff449cc1e36bee31973c8229bd9e5279ea25020`.
 **RELEASE_PROBE_SHA (earlier UI-03):** `11e0a92ea4eada6db6b670a9b8e8983fb5509edc`.
-**MERGED_SHA (UI-04):** `ace061b163110e203d34fda53686269204ac76c0`.
-**NEXT_ACTION:** Continue UI-04 with reusable **class material HTTPS links** (screens 16, 27–28): inspect existing model and current class materials placeholder; implement one tenant-scoped save/list/reopen link flow, then focused isolated PostgreSQL/Chromium acceptance, merge and GitHub Pages publication. Do not equate homework catalog tasks with general materials without checking semantics. Do not run imports, production seeding or resets. User states Timeweb deployment is done and requests no more Timeweb panel checks; actual authenticated production write acceptance remains NOT_RUN (no designated safe live test workspace).
+**MERGED_SHA (UI-04 materials):** `2418bdca337f586db76ca8fe7e202ce1dc9a8fe7`.
+**NEXT_ACTION:** Continue UI-04: attach an existing reusable library material to **a specific lesson**, preserving material identity and workspace permissions (refs 25, 27–28). Inspect only lesson model/API and relevant Meleto references, add minimal scoped link/save/list/cancel/reload path, verify via isolated PostgreSQL/Chromium, merge and publish. Do not rerun historical imports, touch real student data, or claim production live-write acceptance without a dedicated test workspace. New materials API/schema on main has **not** been verified on Timeweb (per owner's request to skip Timeweb checking); do not silently record API as deployed. Studio fidelity is PARTIAL (link form uses inline cards, not reference modal).
+
+## UI-04 class materials milestone (2026-11-15)
+
+- **PR #68 MERGED:** `2418bdc` (13 bounded files: material service/model, DB mapping/migration/snapshot, teacher routes/UI/data, isolated API/browser tests, test workflow and browser copy). Independent `TeacherMaterials` + `TeacherClassMaterialLinks` with workspace-scoped composite keys and one class per link; **not** homework catalog data. Additive migration `20261116010000_TeacherClassMaterials`; no historic import.
+- **FRONTEND_DEPLOY PASS:** GitHub Pages [43743013167](https://github.com/Arthur200014/testing-hosting/actions/runs/43743013167) succeeded on merged SHA. UI `https://arthur200014.github.io/testing-hosting/platform/teacher.html`.
+- **PRE-MERGE TESTS PASS:** [TAS CI 43742655503](https://github.com/Arthur200014/testing-hosting/actions/runs/43742655503), [PostgreSQL integration 43742655385](https://github.com/Arthur200014/testing-hosting/actions/runs/43742655385), [real Chromium + isolated PostgreSQL 43742655400](https://github.com/Arthur200014/testing-hosting/actions/runs/43742655400). Checks: valid/invalid HTTPS, idempotent link requests, same material in group and individual class, another tenant not visible, save/cancel/reload. Synthetic `16_class_materials_real.png` in browser artifact.
+- **API DEPLOY / MIGRATION ON TIMEWEB: NOT_VERIFIED.** User stated their earlier deploy worked and explicitly requested no Timeweb checks. This new API and additive DB migration may require the existing automatic backend deployment; do not infer its completion from Pages/CI. **LIVE_WRITE_NOT_RUN:** no designated live test workspace/browser auth; no real records touched.
 
 ## UI-04 class homework milestone (2026-11-15)
 
