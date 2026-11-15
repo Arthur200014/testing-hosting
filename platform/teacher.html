@@ -395,6 +395,8 @@
           body => api('teacher/' + path, { method: 'POST', body }));
       }
       function setView(view) {
+        if (state.view !== view && document.querySelector('#classEditForm[data-dirty="1"]') &&
+            !confirm('Есть несохранённые изменения класса. Покинуть редактор без сохранения?')) return Promise.resolve();
         state.view = view;
         if (view !== 'overview') { state.selectedClass = ''; state.classEdit = ''; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; }
         document.querySelectorAll('[data-view]').forEach(x => x.classList.toggle('active', x.dataset.view === view));
@@ -1065,6 +1067,8 @@
         logout();
       });
       $('content').addEventListener('input', event => {
+        const editor = event.target.closest('#classEditForm');
+        if (editor) editor.dataset.dirty = '1';
         if (event.target.id === 'studentSearch') studentRows(event.target.value.trim());
         if (event.target.id === 'classSearch') {
           const position = event.target.selectionStart;
@@ -1075,6 +1079,8 @@
         }
       });
       $('content').addEventListener('change', event => {
+        const editor = event.target.closest('#classEditForm');
+        if (editor) editor.dataset.dirty = '1';
         if (event.target.matches('#classForm [name="coverStyle"], #classEditForm [name="coverStyle"]')) {
           const preview = event.target.closest('form')?.querySelector('[data-cover-display]');
           if (preview) preview.className = 'class-cover-display cover-' + event.target.value;
@@ -1137,7 +1143,11 @@
           return;
         }
         if (event.target.closest('[data-cancel-class]')) { state.classCreate = false; render(); return; }
-        if (event.target.closest('[data-cancel-class-edit]')) { state.classEdit = ''; render(); return; }
+        if (event.target.closest('[data-cancel-class-edit]')) {
+          if (document.querySelector('#classEditForm[data-dirty="1"]') &&
+              !confirm('Отменить несохранённые изменения класса?')) return;
+          state.classEdit = ''; render(); return;
+        }
         const detailTab = event.target.closest('[data-class-detail-tab]');
         if (detailTab) { state.classDetailTab = detailTab.dataset.classDetailTab; render(); return; }
         const sectionLink = event.target.closest('[data-class-section]');
