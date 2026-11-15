@@ -1076,9 +1076,71 @@
           </form>
         </div>`;
       }
+      function lessonPlanner() {
+        const plan = state.lessonPlan || {kind:'one-time'};
+        const item = plan.classId ? teacherClasses().find(x => x.id === plan.classId && x.persistent && !x.isArchived) : null;
+        if (plan.classId && !item) return '<p class="empty">Класс больше не доступен. Вернитесь к списку.</p><button type="button" class="secondary" data-cancel-lesson-plan>Назад</button>';
+        const memberIds = item?.kind === 'group' ? (item.members || []).filter(x => x.isApproved).map(x => x.membershipId)
+          : item ? [item.studentMembershipId] : (plan.memberIds || []);
+        const available = (state.data.students || []).filter(st => !item || memberIds.includes(st.membershipId));
+        const next = new Date(Date.now()+30*60000), p = n=>String(n).padStart(2,'0');
+        const day = next.getFullYear()+'-'+p(next.getMonth()+1)+'-'+p(next.getDate());
+        const start = p(next.getHours())+':'+p(Math.floor(next.getMinutes()/5)*5);
+        const finish = new Date(next.getTime()+60*60000);
+        const end = p(finish.getHours())+':'+p(Math.floor(finish.getMinutes()/5)*5);
+        return `<section class="class-create lesson-planner">
+          <div class="lesson-planner-breadcrumb"><button type="button" data-cancel-lesson-plan>Мои классы</button>
+            <span>›</span><span>${item ? safe(item.title) + ' › ' : ''}${item ? 'Занятие класса' : 'Разовое занятие'}</span></div>
+          <div class="class-create-head"><h1>${item ? 'Новое занятие класса' : 'Новое разовое занятие'}</h1></div>
+          <form id="lessonPlannerForm" class="class-create-form" data-class-id="${safe(item?.id || '')}" data-class-kind="${safe(item?.kind || '')}">
+            <div class="class-create-intro">
+              <div class="class-create-fields">
+                <label class="class-field"><span class="class-field-head"><span>Название занятия</span><span class="class-count" data-char-count>0 / 50</span></span>
+                  <input name="title" required maxlength="50" value="${item ? 'Занятие' : ''}" placeholder="Название*" autocomplete="off"></label>
+                <div class="lesson-title-suggestions">${['Пробное занятие','Разовое занятие','Разбор задач','Встреча'].map(t=> `<button type="button" data-plan-title="${safe(t)}">${safe(t)}</button>`).join('')}</div>
+              </div>
+              <div class="class-cover-picker"><div class="class-cover-display cover-${safe(item?.coverStyle || 'lavender')}">
+                <span>${item ? 'Обложка класса' : 'Разовое занятие'}</span></div></div>
+            </div>
+            <nav class="lesson-plan-anchors"><a href="#planDate">Дата и время</a><a href="#planDescription">Описание</a><a href="#planMembers">Участники</a></nav>
+            <section class="class-ref-section" id="planDate">
+              <h3>Дата и время</h3>
+              <label class="class-switch"><input type="checkbox" name="startNow"> Начать сейчас</label>
+              <div class="lesson-time-fields">
+                <label>Дата<input name="lessonDate" type="date" value="${day}" required></label>
+                <label>Начало<input name="lessonStart" type="time" value="${start}" required></label>
+                <label>Окончание<input name="lessonEnd" type="time" value="${end}" required></label>
+              </div>
+              <div class="lesson-duration-options">${[30,60,90,120].map(n=> `<button type="button" data-plan-duration="${n}">${n===90?'1 ч 30 мин':n===120?'2 ч':n+' мин'}</button>`).join('')}</div>
+              <p class="muted small">Время определяется часовым поясом устройства. Сохранится одно занятие, без повторяющегося расписания.</p>
+            </section>
+            <section class="class-ref-section class-record-section"><div class="class-section-top">
+              <label class="class-switch"><input type="checkbox" disabled> Записывать занятие</label>
+              <p class="class-setting-note">Запись видео пока не подключена.</p></div></section>
+            <section class="class-ref-section" id="planDescription">
+              <h3>Описание</h3>
+              <textarea name="description" rows="6" maxlength="1000" placeholder="План занятия"></textarea>
+              <label>Темы (текст)<input name="topics" maxlength="2048" placeholder="Например: №13, тригонометрия"></label>
+              <p class="muted small">Привязка материалов и заданий к темам будет реализована отдельно.</p>
+            </section>
+            <section class="class-ref-section" id="planMembers">
+              <h3>Участники</h3>
+              <p class="muted small">${item?'Доступны только подтверждённые участники этого класса.':'Выберите существующих учеников.'}</p>
+              <div class="lesson-member-choices">${available.map(st=> `<label><input type="checkbox" name="planMember" value="${safe(st.membershipId)}" ${memberIds.includes(st.membershipId)?'checked':''}>
+                <span>${safe(st.studentName)}<small>${safe(st.programName)}</small></span></label>`).join('')||'<p class="muted">Нет доступных учеников.</p>'}</div>
+            </section>
+            <div class="lesson-planner-actions">
+              <button type="button" class="secondary" data-cancel-lesson-plan>Отменить</button>
+              <button type="submit" class="primary" ${available.length?'':'disabled'}>${item?'Сохранить занятие':'Запланировать'}</button>
+            </div>
+          </form>
+        </section>`;
+      }
+
       function lessons() {
+        if (state.lessonPlan) return lessonPlanner();
         const d = state.data;
-        return `<div class="grid two"><div class="card stack"><h2>Провести занятие</h2><form id="lessonForm" class="stack">
+        return `<div class="grid two"><div class="card stack"><div class="section-head"><h2>Провести занятие</h2><button type="button" class="secondary small-button" data-create-one-time>＋ Разовое занятие</button></div><form id="lessonForm" class="stack">
           <label><span>Дата и время</span><input name="lessonAt" type="datetime-local" value="${nowLocal()}" required></label>
           <div class="form-row"><label><span>Длительность, минут</span><input name="durationMinutes" type="number" min="1" max="1440" value="60" required></label><label><span>Номера заданий</span><input name="taskNumbers" placeholder="например, 6, 13"></label></div>
           <label><span>Тема и комментарий</span><textarea name="topicComment" maxlength="4096"></textarea></label>
