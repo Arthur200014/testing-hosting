@@ -1336,8 +1336,13 @@
         logout();
       });
       $('content').addEventListener('input', event => {
-        const editor = event.target.closest('#classEditForm, #groupEditForm');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm');
         if (editor) editor.dataset.dirty = '1';
+        const draft = event.target.closest('#lessonPlannerForm');
+        if (draft && event.target.name === 'title') {
+          const label = draft.querySelector('[data-char-count]');
+          if (label) label.textContent = event.target.value.length + ' / 50';
+        }
         if (event.target.id === 'studentSearch') studentRows(event.target.value.trim());
         if (event.target.id === 'classSearch') {
           const position = event.target.selectionStart;
@@ -1348,8 +1353,18 @@
         }
       });
       $('content').addEventListener('change', event => {
-        const editor = event.target.closest('#classEditForm, #groupEditForm');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm');
         if (editor) editor.dataset.dirty = '1';
+        if (event.target.matches('#lessonPlannerForm [name="startNow"]') && event.target.checked) {
+          const form = event.target.form;
+          const date = new Date();
+          const pad = n => String(n).padStart(2, '0');
+          form.elements.lessonDate.value = date.getFullYear()+'-'+pad(date.getMonth()+1)+'-'+pad(date.getDate());
+          form.elements.lessonStart.value = pad(date.getHours())+':'+pad(date.getMinutes());
+          const end = new Date(date.getTime()+60*60000);
+          form.elements.lessonEnd.value = pad(end.getHours())+':'+pad(end.getMinutes());
+          return;
+        }
         if (event.target.matches('#classForm [name="coverStyle"], #classEditForm [name="coverStyle"], #groupForm [name="coverStyle"], #groupEditForm [name="coverStyle"]')) {
           const preview = event.target.closest('form')?.querySelector('[data-cover-display]');
           if (preview) preview.className = 'class-cover-display cover-' + event.target.value;
@@ -1768,7 +1783,9 @@
           const duration = Math.round((end-start)/60000);
           if (!Number.isFinite(duration) || duration < 15 || duration > 240)
             throw new Error('Время окончания должно быть позже начала. Длительность: 15–240 минут.');
-          if (!form.dataset.classId) oneProgram(ids.map(id=>({value:id})));
+          if (!form.dataset.classId &&
+              new Set(ids.map(id => (state.data.students || []).find(st => st.membershipId === id)?.programId)).size > 1)
+            throw new Error('Для разового занятия выберите учеников одной программы.');
           const itemId = form.dataset.classId || null;
           const lesson = {
             title:formValue(form,'title'), description:formValue(form,'description') || null,
