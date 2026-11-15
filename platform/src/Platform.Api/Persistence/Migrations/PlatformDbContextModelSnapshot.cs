@@ -111,6 +111,56 @@ namespace TestingHosting.Platform.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherClassTopic", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                b.Property<Guid>("RequestId").HasColumnType("uuid");
+                b.Property<Guid?>("IndividualClassId").HasColumnType("uuid");
+                b.Property<Guid?>("GroupClassId").HasColumnType("uuid");
+                b.Property<string>("Title").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                b.Property<string>("Plan").IsRequired().HasMaxLength(2000).HasColumnType("character varying(2000)");
+                b.Property<int>("SortOrder").HasColumnType("integer");
+                b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
+                b.HasKey("Id");
+                b.HasAlternateKey("WorkspaceId", "Id");
+                b.HasIndex("WorkspaceId", "RequestId").IsUnique();
+                b.HasIndex("WorkspaceId", "IndividualClassId", "SortOrder");
+                b.HasIndex("WorkspaceId", "GroupClassId", "SortOrder");
+                b.ToTable("TeacherClassTopics", "platform", t => {
+                    t.HasCheckConstraint("CK_ClassTopics_ExactlyOneClass",
+                        "(\"IndividualClassId\" IS NOT NULL) <> (\"GroupClassId\" IS NOT NULL)");
+                    t.HasCheckConstraint("CK_ClassTopics_Title","length(\"Title\") > 0");
+                });
+                b.HasOne("TestingHosting.Platform.Classes.TeacherClass", null)
+                    .WithMany().HasForeignKey("WorkspaceId", "IndividualClassId")
+                    .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict);
+                b.HasOne("TestingHosting.Platform.Classes.TeacherGroupClass", null)
+                    .WithMany().HasForeignKey("WorkspaceId", "GroupClassId")
+                    .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherTopicMaterialLink", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                b.Property<Guid>("RequestId").HasColumnType("uuid");
+                b.Property<Guid>("TopicId").HasColumnType("uuid");
+                b.Property<Guid>("MaterialId").HasColumnType("uuid");
+                b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
+                b.HasKey("Id");
+                b.HasIndex("WorkspaceId", "RequestId").IsUnique();
+                b.HasIndex("WorkspaceId", "TopicId", "MaterialId").IsUnique();
+                b.HasIndex("WorkspaceId", "MaterialId");
+                b.ToTable("TeacherTopicMaterialLinks", "platform");
+                b.HasOne("TestingHosting.Platform.Classes.TeacherClassTopic", null)
+                    .WithMany().HasForeignKey("WorkspaceId", "TopicId")
+                    .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                b.HasOne("TestingHosting.Platform.Classes.TeacherMaterial", null)
+                    .WithMany().HasForeignKey("WorkspaceId", "MaterialId")
+                    .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict).IsRequired();
+            });
+
             modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherMaterial", b =>
             {
                 b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");

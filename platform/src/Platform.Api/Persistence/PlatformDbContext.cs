@@ -42,6 +42,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<TeacherMaterial> TeacherMaterials => Set<TeacherMaterial>();
     public DbSet<TeacherClassMaterialLink> TeacherClassMaterialLinks => Set<TeacherClassMaterialLink>();
     public DbSet<TeacherLessonMaterialLink> TeacherLessonMaterialLinks => Set<TeacherLessonMaterialLink>();
+    public DbSet<TeacherClassTopic> TeacherClassTopics => Set<TeacherClassTopic>();
+    public DbSet<TeacherTopicMaterialLink> TeacherTopicMaterialLinks => Set<TeacherTopicMaterialLink>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -62,6 +64,45 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("FK_LessonMaterialLinks_Lesson");
+        });
+
+        modelBuilder.Entity<TeacherClassTopic>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id });
+            entity.HasIndex(x => new { x.WorkspaceId, x.RequestId }).IsUnique();
+            entity.HasIndex(x => new { x.WorkspaceId, x.IndividualClassId, x.SortOrder });
+            entity.HasIndex(x => new { x.WorkspaceId, x.GroupClassId, x.SortOrder });
+            entity.Property(x => x.Title).HasMaxLength(200);
+            entity.Property(x => x.Plan).HasMaxLength(2000);
+            entity.HasOne<TeacherClass>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.IndividualClassId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<TeacherGroupClass>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.GroupClassId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(x => {
+                x.HasCheckConstraint("CK_ClassTopics_ExactlyOneClass",
+                    "(\"IndividualClassId\" IS NOT NULL) <> (\"GroupClassId\" IS NOT NULL)");
+                x.HasCheckConstraint("CK_ClassTopics_Title", "length(\"Title\") > 0");
+            });
+        });
+        modelBuilder.Entity<TeacherTopicMaterialLink>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.WorkspaceId, x.RequestId }).IsUnique();
+            entity.HasIndex(x => new { x.WorkspaceId, x.TopicId, x.MaterialId }).IsUnique();
+            entity.HasIndex(x => new { x.WorkspaceId, x.MaterialId });
+            entity.HasOne<TeacherClassTopic>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.TopicId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<TeacherMaterial>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.MaterialId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<TeacherMaterial>(entity =>

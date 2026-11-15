@@ -45,6 +45,7 @@ builder.Services.AddScoped<TeacherStudentEditor>();
 builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddScoped<TeacherClassService>();
 builder.Services.AddScoped<TeacherMaterialService>();
+builder.Services.AddScoped<TeacherClassTopicService>();
 builder.Services.AddScoped<TeacherLessonMaterialService>();
 builder.Services.AddScoped<TeacherGroupService>();
 builder.Services.AddScoped<TeacherScheduleRuleService>();
@@ -433,6 +434,64 @@ app.MapPost("/api/v1/teacher/schedule-rules/{ruleId:guid}/disable", async (
 }).RequireAuthorization("teacher");
 
 // Workspace-bound reusable materials and their class attachments.
+// Class-scoped program topics are independent from the legacy LearningProgram directory.
+app.MapGet("/api/v1/teacher/class-topics", async (
+    ClaimsPrincipal principal, TeacherClassTopicService service, CancellationToken ct) =>
+    Results.Ok(await service.ListAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), ct))
+).RequireAuthorization("teacher");
+
+app.MapGet("/api/v1/teacher/topic-materials", async (
+    ClaimsPrincipal principal, TeacherClassTopicService service, CancellationToken ct) =>
+    Results.Ok(await service.MaterialsAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), ct))
+).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/class-topics", async (
+    TeacherClassTopicCreateRequest request, ClaimsPrincipal principal,
+    TeacherClassTopicService service, CancellationToken ct) =>
+{
+    var result = await service.CreateAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), request, ct);
+    return result.Status switch
+    {
+        TeacherTopicStatus.Created => Results.Created("/api/v1/teacher/class-topics", result.Topic),
+        TeacherTopicStatus.Duplicate => Results.Ok(result.Topic),
+        TeacherTopicStatus.Invalid => Results.ValidationProblem(result.Errors!),
+        TeacherTopicStatus.NotFound => Results.NotFound(),
+        TeacherTopicStatus.Conflict => Results.Problem(statusCode:409, title:"Topic request conflicts."),
+        _ => throw new InvalidOperationException("Unexpected topic create status.")
+    };
+}).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/topic-materials", async (
+    TeacherTopicMaterialRequest request, ClaimsPrincipal principal,
+    TeacherClassTopicService service, CancellationToken ct) =>
+{
+    var result = await service.AttachAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), request, ct);
+    return result.Status switch
+    {
+        TeacherTopicStatus.Created => Results.Created("/api/v1/teacher/topic-materials", result.Material),
+        TeacherTopicStatus.Duplicate => Results.Ok(result.Material),
+        TeacherTopicStatus.Invalid => Results.ValidationProblem(result.Errors!),
+        TeacherTopicStatus.NotFound => Results.NotFound(),
+        TeacherTopicStatus.Conflict => Results.Problem(statusCode:409, title:"Topic material already attached or request conflicts."),
+        _ => throw new InvalidOperationException("Unexpected topic material status.")
+    };
+}).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/class-topics/move", async (
+    TeacherTopicMoveRequest request, ClaimsPrincipal principal,
+    TeacherClassTopicService service, CancellationToken ct) =>
+{
+    var result = await service.MoveAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), request, ct);
+    return result.Status switch
+    {
+        TeacherTopicStatus.Updated => Results.Ok(result.Topic),
+        TeacherTopicStatus.Invalid => Results.ValidationProblem(result.Errors!),
+        TeacherTopicStatus.NotFound => Results.NotFound(),
+        TeacherTopicStatus.Conflict => Results.Problem(statusCode:409, title:"Topics changed. Reload before moving."),
+        _ => throw new InvalidOperationException("Unexpected topic move status.")
+    };
+}).RequireAuthorization("teacher");
+
 app.MapGet("/api/v1/teacher/materials", async (
     ClaimsPrincipal principal, TeacherMaterialService materials, CancellationToken ct) =>
     Results.Ok(await materials.LibraryAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), ct))
