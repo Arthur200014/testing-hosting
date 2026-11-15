@@ -67,11 +67,44 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
             "/api/v1/teacher/class-materials"))!;
         Assert.Equal(2, links.Count);
         Assert.Contains(links, x => x.GroupClassId == group.Id && x.MaterialId == material.MaterialId);
+        var lessonPost = await client.PostAsJsonAsync("/api/v1/teacher/lessons",
+            new TeacherLessonWriteRequest(Guid.NewGuid(), new DateTimeOffset(2026, 12, 8, 12, 0, 0, TimeSpan.Zero),
+                [new TeacherLessonParticipantRequest(member, 60, null, null, "Unknown")],
+                IndividualClassId: individual.Id));
+        Assert.Equal(HttpStatusCode.Created, lessonPost.StatusCode);
+        var lesson = (await lessonPost.Content.ReadFromJsonAsync<TeacherLessonWriteResponse>())!;
+        var attachLesson = new TeacherLessonMaterialWriteRequest(Guid.NewGuid(), lesson.LessonId, material.MaterialId);
+        var attached = await client.PostAsJsonAsync("/api/v1/teacher/lesson-materials", attachLesson);
+        Assert.Equal(HttpStatusCode.Created, attached.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/lesson-materials", attachLesson)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/lesson-materials", attachLesson with { MaterialId = Guid.NewGuid() })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/lesson-materials", attachLesson with { RequestId = Guid.NewGuid() })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/lesson-materials", attachLesson with {
+                RequestId = Guid.NewGuid(), LessonId = Guid.NewGuid()
+            })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/lesson-materials", attachLesson with {
+                RequestId = Guid.NewGuid(), MaterialId = Guid.NewGuid()
+            })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/lesson-materials", attachLesson with { RequestId = Guid.Empty })).StatusCode);
+        var lessonLinks = (await client.GetFromJsonAsync<List<TeacherLessonMaterialView>>(
+            "/api/v1/teacher/lesson-materials"))!;
+        Assert.Single(lessonLinks);
+        Assert.Equal(lesson.LessonId, lessonLinks[0].LessonId);
+        Assert.Equal(material.MaterialId, lessonLinks[0].MaterialId);
         var southSession = (await (await LoginAsync(client, "materials-check-south",
             "mat-south@example.invalid", Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", southSession.AccessToken);
         Assert.Empty((await client.GetFromJsonAsync<List<TeacherMaterialView>>("/api/v1/teacher/materials"))!);
         Assert.Empty((await client.GetFromJsonAsync<List<TeacherClassMaterialView>>("/api/v1/teacher/class-materials"))!);
+        Assert.Empty((await client.GetFromJsonAsync<List<TeacherLessonMaterialView>>("/api/v1/teacher/lesson-materials"))!);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/lesson-materials", attachLesson with { RequestId = Guid.NewGuid() })).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(
             "/api/v1/teacher/class-materials", write with { RequestId = Guid.NewGuid() })).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(

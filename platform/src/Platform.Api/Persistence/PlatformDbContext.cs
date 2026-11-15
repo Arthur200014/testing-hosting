@@ -41,10 +41,29 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<TeacherScheduleRule> TeacherScheduleRules => Set<TeacherScheduleRule>();
     public DbSet<TeacherMaterial> TeacherMaterials => Set<TeacherMaterial>();
     public DbSet<TeacherClassMaterialLink> TeacherClassMaterialLinks => Set<TeacherClassMaterialLink>();
+    public DbSet<TeacherLessonMaterialLink> TeacherLessonMaterialLinks => Set<TeacherLessonMaterialLink>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("platform");
+        modelBuilder.Entity<TeacherLessonMaterialLink>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.WorkspaceId, x.RequestId }).IsUnique();
+            entity.HasIndex(x => new { x.WorkspaceId, x.LessonId, x.MaterialId }).IsUnique();
+            entity.HasIndex(x => new { x.WorkspaceId, x.MaterialId });
+            entity.HasOne<TeacherMaterial>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.MaterialId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_LessonMaterialLinks_Material");
+            entity.HasOne<Lesson>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.LessonId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_LessonMaterialLinks_Lesson");
+        });
+
         modelBuilder.Entity<TeacherMaterial>(entity =>
         {
             entity.HasKey(x => x.Id);

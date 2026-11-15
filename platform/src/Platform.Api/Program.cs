@@ -45,6 +45,7 @@ builder.Services.AddScoped<TeacherStudentEditor>();
 builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddScoped<TeacherClassService>();
 builder.Services.AddScoped<TeacherMaterialService>();
+builder.Services.AddScoped<TeacherLessonMaterialService>();
 builder.Services.AddScoped<TeacherGroupService>();
 builder.Services.AddScoped<TeacherScheduleRuleService>();
 builder.Services.AddScoped<TeacherPeriodPreviewService>();
@@ -436,6 +437,28 @@ app.MapGet("/api/v1/teacher/materials", async (
     ClaimsPrincipal principal, TeacherMaterialService materials, CancellationToken ct) =>
     Results.Ok(await materials.LibraryAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), ct))
 ).RequireAuthorization("teacher");
+
+app.MapGet("/api/v1/teacher/lesson-materials", async (
+    ClaimsPrincipal principal, TeacherLessonMaterialService materials, CancellationToken ct) =>
+    Results.Ok(await materials.ListAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), ct))
+).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/lesson-materials", async (
+    TeacherLessonMaterialWriteRequest request, ClaimsPrincipal principal,
+    TeacherLessonMaterialService materials, CancellationToken ct) =>
+{
+    var result = await materials.AttachAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), request, ct);
+    return result.Status switch
+    {
+        TeacherLessonMaterialStatus.Created => Results.Created("/api/v1/teacher/lesson-materials", result.Response),
+        TeacherLessonMaterialStatus.Duplicate => Results.Ok(result.Response),
+        TeacherLessonMaterialStatus.Invalid => Results.ValidationProblem(result.Errors!),
+        TeacherLessonMaterialStatus.NotFound => Results.NotFound(),
+        TeacherLessonMaterialStatus.Conflict => Results.Problem(
+            statusCode: 409, title: "Material already attached or request ID conflicts."),
+        _ => throw new InvalidOperationException("Unexpected lesson material link status.")
+    };
+}).RequireAuthorization("teacher");
 
 app.MapGet("/api/v1/teacher/class-materials", async (
     ClaimsPrincipal principal, TeacherMaterialService materials, CancellationToken ct) =>
