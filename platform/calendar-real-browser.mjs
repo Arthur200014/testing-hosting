@@ -154,6 +154,9 @@ try {
   await page.locator('[data-open-class="'+north.item.id+'"]').click();
   await page.locator('.class-detail-tabs [data-class-detail-tab="materials"]').click();
   await page.locator('[data-class-materials] a[href="https://example.org/study-notes"]').waitFor();
+  const restoredLinks=await call('teacher/class-materials',north.token);
+  assert.equal(restoredLinks.filter(x=>x.individualClassId===north.item.id &&
+    x.url==='https://example.org/study-notes').length,1);
   await page.locator('.class-detail-tabs [data-class-detail-tab="homework"]').click();
   await page.locator('.class-subsection .section-head .pill').filter({hasText:'1 назначений'}).waitFor();
   assert.equal(await page.locator('.class-subsection .card .item').filter({hasText:'UI-04 проверка задания'}).count()>=1,true);
