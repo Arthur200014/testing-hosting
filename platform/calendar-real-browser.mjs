@@ -197,7 +197,9 @@ try {
   await page.locator('#classPeriodPreviewForm button[type="submit"]').click();
   assert.match(await page.locator('[data-period-preview-result] [role="alert"]').innerText(),/31/);
   await page.setViewportSize({width:390,height:844});
-  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'period preview fits mobile');
+  const periodOverflow=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,
+    elements:['.top','.class-detail-banner','.class-rule-section','.class-period-preview'].map(selector=>{const r=document.querySelector(selector)?.getBoundingClientRect();return {selector,width:r?.width,right:r?.right};})}));
+  assert.equal(periodOverflow.scroll>periodOverflow.width,false,'period preview fits mobile: '+JSON.stringify(periodOverflow));
   await page.locator('[data-close-period-preview]').click();
   assert.equal(await page.locator('.class-period-preview').getAttribute('open'),null);
   assert.deepEqual(await call('teacher/lessons',north.token),beforePreview);
