@@ -626,7 +626,7 @@ try {
   await page.locator('#lessonPlannerForm [name="planMember"][value="'+students[2].membershipId+'"]').check();
   await page.evaluate(()=>window.scrollTo(0,0));
   await page.screenshot({path:output+'/07_onetime_create.png'});
-  await page.locator('#planDescription').scrollIntoViewIfNeeded();
+  await page.locator('#lessonPlannerForm [name="description"]').scrollIntoViewIfNeeded();
   await page.screenshot({path:output+'/13_lesson_create_bottom.png'});
   await page.locator('#lessonPlannerForm button[type="submit"]').click();
   await page.locator('[data-create-one-time]').waitFor();
