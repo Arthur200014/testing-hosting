@@ -538,20 +538,22 @@
         const selected=state.periodPreview?.classId===item.id && state.periodPreview.classKind===item.kind ? state.periodPreview : null;
         const from=selected?.startDate || calendarDay(), to=selected?.endDate || shiftCalendarDay(from,30);
         const rows=selected?.rows || [], error=selected?.error || '';
-        return `<details class="class-period-preview" ${selected?'open':''}><summary>Предпросмотр занятий на период</summary>
+        const modal=selected?.modal, mode=selected?.mode || 'period';
+        const opener=`<button type="button" class="secondary" data-open-count-plan="${safe(item.id)}" data-class-kind="${safe(item.kind)}">Запланировать несколько занятий</button>`;
+        return `${opener}${modal?'<div class="modal-backdrop"><section class="learning-modal count-plan-modal" role="dialog" aria-modal="true" aria-labelledby="countPlanTitle"><div class="modal-head"><h2 id="countPlanTitle">Запланировать занятия</h2><button type="button" class="modal-close" data-close-period-preview aria-label="Закрыть планирование">×</button></div><p>Запланируйте несколько занятий в рамках расписания</p>':`<details class="class-period-preview" ${selected?'open':''}><summary>Предпросмотр занятий на период</summary>`}
+          ${modal?`<div class="class-rule-summary">${scheduleSummary(item)}</div><div class="class-tabs"><button type="button" data-plan-mode="period" class="${mode==='period'?'active':''}">Период</button><button type="button" data-plan-mode="count" class="${mode==='count'?'active':''}">Количество</button></div>`:''}
           <p class="muted small">Проверьте слоты перед созданием занятий. Уже существующие занятия будут пропущены. Период — до 31 дня, время по Москве.</p>
-          <form id="classPeriodPreviewForm" class="stack" data-class-id="${safe(item.id)}" data-class-kind="${safe(item.kind)}">
-            <div class="form-row"><label>Дата с<input name="startDate" type="date" value="${safe(from)}" required></label>
-              <label>Дата по<input name="endDate" type="date" value="${safe(to)}" required></label></div>
+          <form id="classPeriodPreviewForm" class="stack" data-class-id="${safe(item.id)}" data-class-kind="${safe(item.kind)}" data-mode="${mode}" data-modal="${modal?'true':'false'}">
+            ${mode==='count'?`<label>Количество занятий<input name="count" type="number" min="1" max="31" step="1" placeholder="Количество занятий" value="${safe(selected?.count || '')}" required></label><p class="muted small">Следующие 1–31 слотов с сегодняшнего дня; уже созданные будут пропущены.</p>`:`<div class="form-row"><label>Дата с<input name="startDate" type="date" value="${safe(from)}" required></label><label>Дата по<input name="endDate" type="date" value="${safe(to)}" required></label></div>`}
             <div class="row"><button type="submit" class="secondary" ${selected?.loading?'disabled':''}>${selected?.loading?'Загружаем…':'Показать слоты'}</button><button type="button" class="secondary" data-close-period-preview>Свернуть</button></div></form>
-          ${selected?`<div data-period-preview-result tabindex="-1">${selected.loading?'<p role="status">Проверяем расписание на сервере…</p>':error?`<p class="banner error" role="alert">${safe(error)}</p>`:
+          ${selected && (selected.loading || error || selected.candidates)?`<div data-period-preview-result tabindex="-1">${selected.loading?'<p role="status">Проверяем расписание на сервере…</p>':error?`<p class="banner error" role="alert">${safe(error)}</p>`:
             `<p class="small">${safe(from)} — ${safe(to)} · Слотов: <strong data-period-count>${rows.length}</strong> · Уже есть занятие: ${rows.filter(r=>r.isScheduled).length}</p>
               ${rows.length?rows.slice(0,100).map(row=>`<div class="item" data-period-slot><div><strong>${safe(date(new Date(row.start).toISOString()))}–${safe(calendarTime(row.end))}</strong></div>
                 <span class="pill" data-period-status="${row.isScheduled?'saved':'rule'}">${row.isScheduled?'Уже есть занятие':'Слот расписания'}</span></div>`).join(''):'<p class="muted small">В этом периоде нет действующих слотов расписания.</p>'}
               ${rows.length>100?'<p class="muted small">Показаны первые 100 слотов. Сократите период для просмотра остальных.</p>':''}
               ${selected.saved?`<p role="status">Создано занятий: ${selected.saved.createdLessonIds.length}. Уже были: ${selected.saved.skippedCount}.</p>`:
                 rows.some(r=>!r.isScheduled)?`<button type="button" class="primary" data-save-period ${selected.saving?'disabled':''}>${selected.saving?'Сохраняем…':'Создать занятия по этому предпросмотру'}</button>`:''}
-              ${selected.saveError?`<p class="banner error" role="alert">${safe(selected.saveError)} Повторная отправка с тем же запросом безопасна.</p>`:''}`}</div>`:''}</details>`;
+              ${selected.saveError?`<p class="banner error" role="alert">${safe(selected.saveError)} Повторная отправка с тем же запросом безопасна.</p>`:''}`}</div>`:''}${modal?'</section></div>':'</details>'}`;
       }
       function classScheduleRules(item) {
         const rows = classRules(item);
@@ -1695,6 +1697,17 @@
         }
       });
       $('content').addEventListener('click', async event => {
+        const countOpener=event.target.closest('[data-open-count-plan]');
+        if (countOpener) {
+          state.periodPreview={classId:countOpener.dataset.openCountPlan,classKind:countOpener.dataset.classKind,modal:true,mode:'count',count:''};
+          render(); document.querySelector('.count-plan-modal input')?.focus(); return;
+        }
+        const planMode=event.target.closest('[data-plan-mode]');
+        if (planMode && state.periodPreview) {
+          const p=state.periodPreview;
+          state.periodPreview={classId:p.classId,classKind:p.classKind,modal:true,mode:planMode.dataset.planMode,count:''};
+          render(); document.querySelector('.count-plan-modal input')?.focus(); return;
+        }
         if (event.target.closest('[data-save-period]')) {
           const preview=state.periodPreview, token=state.token;
           if (!preview || preview.saving || preview.saved || !preview.candidates) return;
@@ -1702,7 +1715,7 @@
           preview.saving=true; preview.saveError=''; render();
           try {
             const result=await api('teacher/schedule-rules/period-plan',{method:'POST',body:{requestId:preview.requestId,
-              period:{classId:preview.classId,classKind:preview.classKind,from:preview.startDate,to:preview.endDate},expectedCandidates:preview.candidates}});
+              period:{classId:preview.classId,classKind:preview.classKind,from:preview.startDate,to:preview.endDate,count:preview.mode==='count'?preview.count:null},expectedCandidates:preview.candidates}});
             if (state.token!==token) return;
             invalidate(['lessons']);
             if (state.periodPreview===preview) {
@@ -2069,12 +2082,14 @@
       $('content').addEventListener('submit', async event => {
         event.preventDefault(); const form = event.target;
         if (form.id==='classPeriodPreviewForm') {
-          const preview={classId:form.dataset.classId,classKind:form.dataset.classKind,startDate:formValue(form,'startDate'),endDate:formValue(form,'endDate'),loading:true,rows:[],error:''};
+          const mode=form.dataset.mode || 'period';
+          const preview={classId:form.dataset.classId,classKind:form.dataset.classKind,mode,modal:form.dataset.modal==='true',count:mode==='count'?Number(formValue(form,'count')):null,
+            startDate:mode==='count'?calendarDay():formValue(form,'startDate'),endDate:mode==='count'?calendarDay():formValue(form,'endDate'),loading:true,rows:[],error:''};
           const token=state.token;
           state.periodPreview=preview; render();
           try {
             const rows=await api('teacher/schedule-rules/period-preview',{method:'POST',body:{
-              classId:preview.classId,classKind:preview.classKind,from:preview.startDate,to:preview.endDate}});
+              classId:preview.classId,classKind:preview.classKind,from:preview.startDate,to:preview.endDate,count:preview.count}});
             if (state.token!==token || state.periodPreview!==preview) return;
             preview.candidates=rows; preview.requestId=crypto.randomUUID();
             preview.rows=rows.map(row=>({start:Date.parse(row.lessonAt),end:Date.parse(row.lessonAt)+row.durationMinutes*60000,

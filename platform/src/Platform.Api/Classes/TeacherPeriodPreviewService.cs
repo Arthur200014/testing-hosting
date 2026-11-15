@@ -3,13 +3,13 @@ using TestingHosting.Platform.Persistence;
 
 namespace TestingHosting.Platform.Classes;
 
-public sealed record TeacherPeriodPreviewRequest(Guid ClassId, string? ClassKind, DateOnly From, DateOnly To);
+public sealed record TeacherPeriodPreviewRequest(Guid ClassId, string? ClassKind, DateOnly From, DateOnly To, int? Count = null);
 public sealed record TeacherPeriodCandidate(Guid RuleId, DateTimeOffset LessonAt, int DurationMinutes,
     string TimeZoneId, Guid[] ExistingLessonIds);
 public sealed record TeacherPeriodPreviewResult(bool NotFound = false,
     Dictionary<string, string[]>? Errors = null, List<TeacherPeriodCandidate>? Candidates = null);
 
-public sealed class TeacherPeriodPreviewService(PlatformDbContext db)
+public sealed class TeacherPeriodPreviewService(PlatformDbContext db, TimeProvider clock)
 {
     public async Task<TeacherPeriodPreviewResult> PreviewAsync(Guid workspaceId,
         TeacherPeriodPreviewRequest request, CancellationToken ct)
@@ -18,8 +18,9 @@ public sealed class TeacherPeriodPreviewService(PlatformDbContext db)
         if (request.ClassId == Guid.Empty) errors["classId"] = ["Class ID is required."];
         if (request.ClassKind is not ("individual" or "group"))
             errors["classKind"] = ["Select an individual or group class."];
-        if (request.From == default || request.To == default || request.To < request.From ||
-            request.To.DayNumber - request.From.DayNumber >= 31)
+        if (request.Count is < 1 or > 31) errors["count"] = ["Укажите от 1 до 31 занятия."];
+        if (request.From == default || (request.Count is null && (request.To == default || request.To < request.From ||
+            request.To.DayNumber - request.From.DayNumber >= 31)))
             errors["range"] = ["Choose an inclusive period of 1–31 days."];
         if (errors.Count > 0) return new(Errors: errors);
 
@@ -35,7 +36,8 @@ public sealed class TeacherPeriodPreviewService(PlatformDbContext db)
             x.IsActive && (group ? x.GroupClassId == request.ClassId : x.IndividualClassId == request.ClassId))
             .OrderBy(x => x.StartMinute).ThenBy(x => x.Id).ToListAsync(ct);
         var candidates = new List<TeacherPeriodCandidate>();
-        for (var dayNumber = request.From.DayNumber; dayNumber <= request.To.DayNumber; dayNumber++)
+        var lastDay = request.Count.HasValue ? Math.Min(DateOnly.MaxValue.DayNumber, request.From.DayNumber + 365) : request.To.DayNumber;
+        for (var dayNumber = request.From.DayNumber; dayNumber <= lastDay; dayNumber++)
         {
             var day = DateOnly.FromDayNumber(dayNumber);
             var mask = 1 << (((int)day.DayOfWeek + 6) % 7);
@@ -46,9 +48,18 @@ public sealed class TeacherPeriodPreviewService(PlatformDbContext db)
                 // Do not silently guess a start when a zone changes its clocks.
                 if (zone.IsInvalidTime(local) || zone.IsAmbiguousTime(local))
                     return new(Errors: new() { ["range"] = ["A scheduled time is ambiguous or invalid in its time zone."] });
-                candidates.Add(new(rule.Id, new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(local, zone)),
+                var instant = new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(local, zone));
+                if (request.Count.HasValue && instant <= clock.GetUtcNow()) continue;
+                candidates.Add(new(rule.Id, instant,
                     rule.DurationMinutes, rule.TimeZoneId, []));
             }
+            if (request.Count.HasValue && candidates.Count >= request.Count.Value) break;
+        }
+        if (request.Count.HasValue)
+        {
+            if (candidates.Count < request.Count.Value)
+                return new(Errors: new() { ["count"] = ["Недостаточно будущих слотов в расписании на ближайшие 366 дней от выбранной даты."] });
+            candidates = candidates.OrderBy(x => x.LessonAt).ThenBy(x => x.RuleId).Take(request.Count.Value).ToList();
         }
         if (candidates.Count == 0) return new(Candidates: candidates);
         var starts = candidates.Select(x => x.LessonAt).Distinct().ToArray();

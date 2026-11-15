@@ -95,6 +95,22 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules/period-plan",
             new TeacherPeriodPlanRequest(Guid.NewGuid(), conflictPeriod, conflictRows))).StatusCode);
         Assert.Equal(beforeConflict, await client.GetStringAsync("/api/v1/teacher/lessons"));
+        var countPeriod = request with { From = new(2027, 2, 1), To = default, Count = 3 };
+        var countResponse = await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules/period-preview", countPeriod);
+        Assert.Equal(HttpStatusCode.OK, countResponse.StatusCode);
+        var countRows = (await countResponse.Content.ReadFromJsonAsync<List<TeacherPeriodCandidate>>())!;
+        Assert.Equal(3, countRows.Count);
+        Assert.Equal(new DateTimeOffset(2027, 2, 15, 12, 0, 0, TimeSpan.Zero), countRows[^1].LessonAt);
+        var countPlan = new TeacherPeriodPlanRequest(Guid.NewGuid(), countPeriod, countRows);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules/period-plan", countPlan)).StatusCode);
+        var afterCount = await client.GetStringAsync("/api/v1/teacher/lessons");
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules/period-plan", countPlan)).StatusCode);
+        Assert.Equal(afterCount, await client.GetStringAsync("/api/v1/teacher/lessons"));
+        foreach (var invalidCount in new[] { 0, 32 })
+            Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules/period-preview",
+                countPeriod with { Count = invalidCount })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules/period-preview",
+            countPeriod with { ClassId = group.Id, ClassKind = "group" })).StatusCode);
         var south = (await (await LoginAsync(client, "preview-south", "preview-south@example.invalid", Password))
             .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", south.AccessToken);
