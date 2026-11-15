@@ -25,8 +25,8 @@ public sealed class TeacherPeriodPlanService(PlatformDbContext db,
     public async Task<TeacherPeriodPlanResult> SaveAsync(Guid workspaceId, TeacherPeriodPlanRequest request, CancellationToken ct)
     {
         try { return await SaveCoreAsync(workspaceId, request, ct); }
-        catch (PostgresException e) when (e.SqlState == "40001") { return new(409); }
-        catch (DbUpdateException e) when (e.InnerException is PostgresException p && p.SqlState == "40001") { return new(409); }
+        catch (PostgresException e) when (e.SqlState is "40001" or "23505") { return new(409); }
+        catch (DbUpdateException e) when (e.InnerException is PostgresException p && p.SqlState is "40001" or "23505") { return new(409); }
     }
 
     private async Task<TeacherPeriodPlanResult> SaveCoreAsync(Guid workspaceId, TeacherPeriodPlanRequest request, CancellationToken ct)
