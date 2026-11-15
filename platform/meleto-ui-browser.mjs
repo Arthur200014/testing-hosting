@@ -267,6 +267,11 @@ try {
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: output + '/31_class_edit.png' });
   await edit.locator('[name="title"]').fill('Не сохранять');
+  page.once('dialog', dialog => dialog.dismiss());
+  await page.locator('[data-cancel-class-edit]').click();
+  await edit.waitFor();
+  assert.equal(await edit.locator('[name="title"]').inputValue(), 'Не сохранять');
+  page.once('dialog', dialog => dialog.accept());
   await page.locator('[data-cancel-class-edit]').click();
   assert.equal(classEdits, 0);
 
