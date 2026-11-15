@@ -2,10 +2,16 @@
 
 **UPDATED:** 2026-11-15
 **ACTIVE_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — Meleto UI-01…UI-08
-**ACTIVE_TASK:** UI-03 lesson participant results/history (25–26) accepted; materials/tasks remain open.
+**ACTIVE_TASK:** RELEASE_PENDING — publish and live-verify PR #65 before developing another feature.
 **ACTIVE_BRANCH:** `tas/UI-03-server-period-preview` — [PR #65](https://github.com/Arthur200014/testing-hosting/pull/65); resume branch, not stale main.
 **LAST_IMPLEMENTATION_COMMIT:** `38ace0a70ef52b63279f599aa9d2c10c4f0ddd1c`.
-**NEXT_ACTION:** Review/merge PR #65 with green checks. Then inspect only source 25 and 27–29 and implement a real workspace-scoped lesson material/task attachment scenario. Inspect existing homework assignments and lesson-with-homework paths before adding links; do not infer links from matching dates. Preserve participant IDs, completion, results and retry safety. UI-03 and exact visual fidelity are not complete.
+**NEXT_ACTION:** Finish PR #65 release first under AGENTS.md: inspect exact PR head/required checks and migrations, merge into main, verify GitHub Pages interface and Timeweb API deployment, then exercise planning + group lesson completion/results through the real site. Existing real records read-only; save/cancel/reload in an identified live test workspace only. Record MERGED_SHA, frontend/API deployment evidence and live acceptance on main. If access/deployment/test account is unavailable, fix or report the exact RELEASE_BLOCKED/LIVE_WRITE_NOT_RUN condition; do not start materials/tasks instead. After successful live acceptance, resume lesson attachments (source 25, 27–29).
+
+## Release state
+- Implementation and isolated CI are accepted; PR #65 remains open/unmerged as last observed. Latest branch code must be rechecked before merge.
+- Frontend observed on main before these instruction edits: `ab21d17`; PR #65 features absent from published teacher.html. API health returned 200, running API revision UNKNOWN.
+- **MERGED_SHA:** NOT_MERGED. **FRONTEND_DEPLOY:** PR #65 NOT_DEPLOYED. **API_DEPLOY:** UNKNOWN for this feature set. **LIVE_ACCEPTANCE:** NOT_RUN. These are evidence states, not successful release claims.
+- This checkpoint changes instructions only; it does not merge PR #65, deploy application code or run production writes.
 
 ## Current implementation
 
