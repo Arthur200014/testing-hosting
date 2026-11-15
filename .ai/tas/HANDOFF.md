@@ -6,7 +6,7 @@
 **ACTIVE_BRANCH:** `tas/UI-03-server-period-preview`; resume branch before starting new work.
 **LAST_IMPLEMENTATION_COMMIT:** `7d3b224299f730d616c8bf9fb642f74dc082f7b9` — PR #65, server preview and persisted PostgreSQL regression.
 **NEXT_ACTION:** Run/review CI for server period-preview branch, resolve failures, then wire the existing client period form to `POST /teacher/schedule-rules/period-preview` and verify through isolated real API/PostgreSQL. Server service and integration test are implemented; actual batch saving/idempotency and screen 74 remain open. Current client still calculates its own preview.
-**VERIFICATION:** PASS — 12 focused calendar Node tests; complete browser workflow 25/25 Node tests + Chromium on real isolated API/PostgreSQL with dedicated test teachers; Native homework browser run 43723479404, Homework import integration 43723479335 and TAS task CI 43723479338 all successful on PR head `1557995`. Source 73 PNG/JSON and generated screenshot visually inspected. NOT_RUN — bulk writes, production/Timeweb.
+**VERIFICATION:** PR #65 server acceptance PASS — TAS task CI `43724768550` (backend build, real PostgreSQL integration tests including PeriodPreviewUsesPersistedRulesAndLinkedStartsWithoutMutations, runtime smoke) and Homework import integration `43724768511` on `7d3b224`. `git diff --check` PASS. No UI changes in this checkpoint. Earlier PR #64 client acceptance: 12 focused calendar Node tests; complete browser workflow 25/25 Node tests + Chromium on isolated API/PostgreSQL; source 73 PNG/JSON and generated screenshot inspected. NOT_RUN — new endpoint wired into browser form, bulk writes, production/Timeweb.
 
 ## Completed small slice
 
