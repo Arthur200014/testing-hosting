@@ -85,6 +85,16 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(
             "/api/v1/teacher/schedule-rules/period-plan", plan with { Period = request with { To = new(2026, 12, 30) } })).StatusCode);
         Assert.Equal(afterPlan, await client.GetStringAsync("/api/v1/teacher/lessons"));
+        Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/v1/teacher/lessons",
+            new TeacherLessonWriteRequest(Guid.NewGuid(), new DateTimeOffset(2027, 1, 11, 12, 30, 0, TimeSpan.Zero),
+                [new TeacherLessonParticipantRequest(member, 60, null, null, "Unknown")], IndividualClassId: cls.Id))).StatusCode);
+        var conflictPeriod = request with { From = new(2027, 1, 4), To = new(2027, 1, 11) };
+        var conflictPreview = await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules/period-preview", conflictPeriod);
+        var conflictRows = (await conflictPreview.Content.ReadFromJsonAsync<List<TeacherPeriodCandidate>>())!;
+        var beforeConflict = await client.GetStringAsync("/api/v1/teacher/lessons");
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules/period-plan",
+            new TeacherPeriodPlanRequest(Guid.NewGuid(), conflictPeriod, conflictRows))).StatusCode);
+        Assert.Equal(beforeConflict, await client.GetStringAsync("/api/v1/teacher/lessons"));
         var south = (await (await LoginAsync(client, "preview-south", "preview-south@example.invalid", Password))
             .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", south.AccessToken);

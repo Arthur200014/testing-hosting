@@ -23,6 +23,18 @@ namespace TestingHosting.Platform.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherPeriodPlan", b =>
+            {
+                b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<string>("RequestJson").IsRequired().HasColumnType("text");
+                b.Property<string>("ResultJson").IsRequired().HasColumnType("text");
+                b.HasKey("WorkspaceId", "Id");
+                b.ToTable("TeacherPeriodPlans", "platform");
+                b.HasOne("TestingHosting.Platform.IdentityAccess.Workspace", null)
+                    .WithMany().HasForeignKey("WorkspaceId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+            });
+
             modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherClass", b =>
                 {
                     b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");

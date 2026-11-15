@@ -47,6 +47,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         {
             entity.HasKey(x => new { x.WorkspaceId, x.Id });
             entity.ToTable("TeacherPeriodPlans");
+            entity.HasOne<Workspace>().WithMany().HasForeignKey(x => x.WorkspaceId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<NativeHomeworkTask>(entity =>
