@@ -62,7 +62,21 @@ try {
     await page.locator('#loginForm [name="workspace"]').fill(account.workspace);
     await page.locator('#loginForm [name="email"]').fill(account.email);
     await page.locator('#loginForm [name="password"]').fill(password);
-    await page.locator('#loginForm button[type="submit"]').click();
+    async function submitLogin() {
+      const response=page.waitForResponse(r=>r.url()===api+'/api/v1/teacher-sessions' && r.request().method()==='POST');
+      await page.locator('#loginForm button[type="submit"]').click();
+      return response;
+    }
+    let response=await submitLogin();
+    // The expanded real-browser flow may legitimately consume the configured 5 logins/minute.
+    // Respect that production-equivalent limit; do not weaken it for the test.
+    if(response.status()===429) {
+      const retryAfter=Number(response.headers()['retry-after']);
+      await page.waitForTimeout((Number.isFinite(retryAfter) && retryAfter>0 ? Math.min(retryAfter,60) : 60)*1000);
+      await page.locator('#loginForm [name="password"]').fill(password);
+      response=await submitLogin();
+    }
+    assert.equal(response.status(),200,'Synthetic teacher login must succeed after respecting the rate window');
     await page.locator('#app:not([hidden])').waitFor();
     await page.locator('#notice').waitFor({state:'hidden'});
   }
