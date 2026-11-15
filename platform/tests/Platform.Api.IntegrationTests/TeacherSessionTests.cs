@@ -25,6 +25,48 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     private const string Password = "Synthetic-Teacher-Password-Only-123!";
     private const string ClaimCode = "synthetic-claim-code-for-integration-tests-only-2026";
 
+    [Fact]
+    public async Task PeriodPreviewUsesPersistedRulesAndLinkedStartsWithoutMutations()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "preview-north", "preview-north@example.invalid", "owner");
+        await SeedAsync(factory, "preview-south", "preview-south@example.invalid", "owner");
+        var member = await SeedStudentAsync(factory, north.WorkspaceId, "Preview student", true);
+        using var client = factory.CreateClient();
+        var login = (await (await LoginAsync(client, "preview-north", "preview-north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login.AccessToken);
+        var created = await client.PostAsJsonAsync("/api/v1/teacher/classes",
+            new TeacherCreateClassRequest(Guid.NewGuid(), member, "Preview class"));
+        var cls = (await created.Content.ReadFromJsonAsync<TeacherClassView>())!;
+        Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules",
+            new TeacherScheduleRuleCreateRequest(Guid.NewGuid(), cls.Id, "individual", 1, 900, 60, "Europe/Moscow"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/v1/teacher/lessons",
+            new TeacherLessonWriteRequest(Guid.NewGuid(), new DateTimeOffset(2026, 12, 7, 12, 0, 0, TimeSpan.Zero),
+                [new TeacherLessonParticipantRequest(member, 60, null, null, "Unknown")], IndividualClassId: cls.Id))).StatusCode);
+        var lessonsBefore = await client.GetStringAsync("/api/v1/teacher/lessons");
+        var rulesBefore = await client.GetStringAsync("/api/v1/teacher/schedule-rules");
+        var request = new TeacherPeriodPreviewRequest(cls.Id, "individual", new(2026, 12, 1), new(2026, 12, 31));
+        var response = await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules/period-preview", request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var candidates = (await response.Content.ReadFromJsonAsync<List<TeacherPeriodCandidate>>())!;
+        Assert.Equal(4, candidates.Count);
+        Assert.Single(candidates[0].ExistingLessonIds);
+        Assert.Equal(new DateTimeOffset(2026, 12, 7, 12, 0, 0, TimeSpan.Zero), candidates[0].LessonAt);
+        Assert.All(candidates.Skip(1), x => Assert.Empty(x.ExistingLessonIds));
+        foreach (var invalid in new[] { request with { To = new(2027, 1, 1) },
+            request with { To = new(2026, 11, 30) }, request with { ClassKind = "unknown" } })
+            Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(
+                "/api/v1/teacher/schedule-rules/period-preview", invalid)).StatusCode);
+        Assert.Equal(lessonsBefore, await client.GetStringAsync("/api/v1/teacher/lessons"));
+        Assert.Equal(rulesBefore, await client.GetStringAsync("/api/v1/teacher/schedule-rules"));
+        var south = (await (await LoginAsync(client, "preview-south", "preview-south@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", south.AccessToken);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/schedule-rules/period-preview", request)).StatusCode);
+    }
+
 
     [Fact]
     public async Task RecurringRulesPersistWithoutLessonsAndEnforceTenantConflictsAndRevision()

@@ -46,6 +46,7 @@ builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddScoped<TeacherClassService>();
 builder.Services.AddScoped<TeacherGroupService>();
 builder.Services.AddScoped<TeacherScheduleRuleService>();
+builder.Services.AddScoped<TeacherPeriodPreviewService>();
 builder.Services.AddScoped<TeacherClassInvitationService>();
 builder.Services.AddSingleton<IPasswordHasher<TeacherUser>, PasswordHasher<TeacherUser>>();
 builder.Services.AddSingleton<TeacherTokenIssuer>();
@@ -347,6 +348,17 @@ app.MapPost("/api/v1/student/groups/invitations/accept", async (
         _ => throw new InvalidOperationException("Unexpected group invitation accept result.")
     };
 }).RequireAuthorization("student");
+
+app.MapPost("/api/v1/teacher/schedule-rules/period-preview", async (
+    TeacherPeriodPreviewRequest request, ClaimsPrincipal principal,
+    TeacherPeriodPreviewService preview, CancellationToken ct) =>
+{
+    var result = await preview.PreviewAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), request, ct);
+    return result.NotFound ? Results.NotFound()
+        : result.Errors is not null ? Results.ValidationProblem(result.Errors)
+        : Results.Ok(result.Candidates);
+}).RequireAuthorization("teacher");
 
 app.MapGet("/api/v1/teacher/schedule-rules", async (
     ClaimsPrincipal principal, TeacherScheduleRuleService schedule, CancellationToken ct) =>

@@ -3,9 +3,9 @@
 **UPDATED:** 2026-11-15
 **ACTIVE_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — Meleto UI-01…UI-08
 **ACTIVE_TASK:** UI-03 period planning — small READ-ONLY preview slice complete; full bulk planning remains open.
-**ACTIVE_BRANCH:** none; continue from `main`.
+**ACTIVE_BRANCH:** `tas/UI-03-server-period-preview`; resume branch before starting new work.
 **LAST_IMPLEMENTATION_COMMIT:** `c73f60288a44d4ce9ace595afac366d6b2b0e829` — PR #64.
-**NEXT_ACTION:** Small server-side period-preview slice: validate teacher ownership, active persisted class, date range (maximum 31 inclusive days), and applicable schedule rules; return read-only candidates with linked existing-start matches. Add focused real PostgreSQL integration tests for cross-owner rejection and zero mutations. Keep actual batch saving/idempotency and count-based screen 74 separate. Current client preview is not a trusted write/deduplication guard.
+**NEXT_ACTION:** Run/review CI for server period-preview branch, resolve failures, then wire the existing client period form to `POST /teacher/schedule-rules/period-preview` and verify through isolated real API/PostgreSQL. Server service and integration test are implemented; actual batch saving/idempotency and screen 74 remain open. Current client still calculates its own preview.
 **VERIFICATION:** PASS — 12 focused calendar Node tests; complete browser workflow 25/25 Node tests + Chromium on real isolated API/PostgreSQL with dedicated test teachers; Native homework browser run 43723479404, Homework import integration 43723479335 and TAS task CI 43723479338 all successful on PR head `1557995`. Source 73 PNG/JSON and generated screenshot visually inspected. NOT_RUN — bulk writes, production/Timeweb.
 
 ## Completed small slice
