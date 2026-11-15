@@ -51,11 +51,12 @@ public sealed class TeacherMaterialService(PlatformDbContext db, TimeProvider cl
             on new { link.WorkspaceId, link.MaterialId }
             equals new { material.WorkspaceId, MaterialId = material.Id }
         where link.WorkspaceId == workspaceId
+        orderby link.CreatedAt descending
         select new TeacherClassMaterialView(link.Id, link.MaterialId,
             link.IndividualClassId, link.GroupClassId, material.Title, material.Url, link.CreatedAt);
 
     public Task<List<TeacherClassMaterialView>> LinksAsync(Guid workspaceId, CancellationToken ct) =>
-        Linked(workspaceId).OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
+        Linked(workspaceId).ToListAsync(ct);
 
     private Task<TeacherClassMaterialView?> ByRequestAsync(Guid workspaceId, Guid requestId, CancellationToken ct) =>
         (from link in db.TeacherClassMaterialLinks.AsNoTracking()
