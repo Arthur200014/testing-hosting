@@ -300,7 +300,7 @@ try {
   assert.equal(await page.locator('.class-detail-tabs button').count(), 7);
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: output + '/09_class_summary.png' });
-  await page.locator('[data-class-detail-tab="information"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="information"]').click();
   await page.getByText(description, { exact: true }).waitFor();
   await page.getByText(/90 мин/).waitFor();
   await page.getByText(/EUR/).waitFor();
@@ -313,7 +313,7 @@ try {
   await page.locator(`[data-open-class="${createdClassId}"]`).waitFor({ state: 'attached' });
   assert.equal(await page.locator('[data-open-class]').count(), 3, 'persisted class replaces its legacy projection');
   await page.locator(`[data-open-class="${createdClassId}"]`).click();
-  await page.locator('[data-class-detail-tab="information"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="information"]').click();
   await page.getByText(description, { exact: true }).waitFor();
   await page.getByText(/90 мин/).waitFor();
   await page.getByText(/EUR/).waitFor();
@@ -393,7 +393,7 @@ try {
   await page.locator('#loginForm [name="password"]').fill('synthetic-password');
   await page.locator('#loginForm button[type="submit"]').click();
   await page.locator(`[data-open-class="${createdClassId}"]`).click();
-  await page.locator('[data-class-detail-tab="information"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="information"]').click();
   await page.getByText('Класс после редактирования', { exact: true }).waitFor();
   await page.getByText(/120 мин/).waitFor();
   assert.equal(await page.locator('.class-detail-banner.cover-mint').count(), 1);
@@ -416,7 +416,7 @@ try {
   await page.locator('#loginForm [name="password"]').fill('synthetic-password');
   await page.locator('#loginForm button[type="submit"]').click();
   await page.locator(`[data-open-class="${createdClassId}"]`).click();
-  await page.locator('[data-class-detail-tab="information"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="information"]').click();
   await page.getByText('Ожидает подтверждения').waitFor();
   assert.equal(await page.locator('[data-invite-code]').count(), 0, 'secret never returned on read');
   page.once('dialog', dialog => dialog.accept());
@@ -522,7 +522,7 @@ try {
   await page.locator('[data-class-tab="classes"].active').waitFor();
   assert.equal(groupRestores,1);
   await page.locator('[data-open-class="'+createdGroupId+'"]').click();
-  await page.locator('[data-class-detail-tab="information"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="information"]').click();
   page.once('dialog',d=>d.accept());
   await page.locator('[data-issue-class-invite]').click();
   await page.locator('[data-invite-code]').waitFor();
@@ -534,7 +534,7 @@ try {
   await page.locator('#loginForm [name="password"]').fill('synthetic-password');
   await page.locator('#loginForm button[type="submit"]').click();
   await page.locator('[data-open-class="'+createdGroupId+'"]').click();
-  await page.locator('[data-class-detail-tab="information"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="information"]').click();
   assert.equal(await page.locator('[data-invite-code]').count(),0,'group invite secret must not leak on refresh');
   assert.equal(unexpectedWrites,0);
 
