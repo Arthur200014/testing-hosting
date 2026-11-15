@@ -77,3 +77,23 @@ export function calendarWeekDays(day) {
 export function calendarWeek(day, lessons, rules, classes, zone = calendarZone) {
   return calendarWeekDays(day).map(date=>({date, entries:calendarEntries(date, lessons, rules, classes, zone)}));
 }
+
+export function shiftCalendarMonth(day, delta) {
+  if (!shiftCalendarDay(day,0)) return null;
+  const target = new Date(day.slice(0,7)+'-01T12:00:00Z');
+  target.setUTCMonth(target.getUTCMonth()+delta);
+  const prefix = target.toISOString().slice(0,7);
+  target.setUTCMonth(target.getUTCMonth()+1); target.setUTCDate(0);
+  return prefix+'-'+String(Math.min(Number(day.slice(8)),target.getUTCDate())).padStart(2,'0');
+}
+export function calendarMonthDays(day) {
+  if (!shiftCalendarDay(day,0)) return [];
+  const first = day.slice(0,7)+'-01';
+  const start = calendarWeekDays(first)[0];
+  const last = shiftCalendarDay(shiftCalendarMonth(first,1),-1);
+  const count = Math.round((Date.parse(last+'T12:00Z')-Date.parse(start+'T12:00Z'))/86400000)+1;
+  return Array.from({length:Math.ceil(count/7)*7},(_,offset)=>shiftCalendarDay(start,offset));
+}
+export function calendarMonth(day, lessons, rules, classes, zone = calendarZone) {
+  return calendarMonthDays(day).map(date=>({date,entries:calendarEntries(date,lessons,rules,classes,zone)}));
+}

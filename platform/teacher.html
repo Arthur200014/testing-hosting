@@ -319,7 +319,7 @@
     import { buildTeacherReport, collectTeacherHomework } from './teacher-report.mjs';
     import { teacherNeeds, teacherMutationKeys, invalidateTeacherData, invalidateTeacherKeys, loadTeacherKey } from './teacher-data.mjs';
     import { performTeacherMutation } from './teacher-mutation.mjs';
-    import { calendarZone, calendarDay, calendarTime, shiftCalendarDay, calendarEntries, localSlotInstant, calendarWeek, calendarWeekDays } from './teacher-calendar.mjs';
+    import { calendarZone, calendarDay, calendarTime, shiftCalendarDay, calendarEntries, localSlotInstant, calendarWeek, calendarWeekDays, calendarMonth, calendarMonthDays, shiftCalendarMonth } from './teacher-calendar.mjs';
     import { nativeHomeworkDeadlineStatus } from './homework-deadline.mjs';
     (() => {
       'use strict';
@@ -1277,31 +1277,48 @@
         }
       }
       setInterval(updateCalendarClock, 60000);
+      function calendarMonthGrid(days) {
+        const today=calendarDay(), selectedMonth=state.calendarDate.slice(0,7);
+        const label=date=>new Intl.DateTimeFormat('ru-RU',{timeZone:'UTC',day:'numeric',month:'long',year:'numeric'}).format(new Date(date+'T12:00Z'));
+        const preview=(entry,date)=>`<button type="button" class="calendar-month-event ${entry.kind==='lesson'?'is-saved':'is-rule'}" data-calendar-open-day="${date}"
+          title="${safe(entry.kind==='lesson'?'Сохранённое занятие':'Регулярный слот')} · ${safe(entry.kind==='lesson'?entry.lesson.title || 'Занятие':entry.item.title)}">
+          <strong>${safe(calendarTime(entry.visibleStart))}</strong> ${safe(entry.kind==='lesson'?entry.lesson.title || 'Занятие':entry.item.title)}</button>`;
+        return `<div class="calendar-month-scroll" tabindex="0" role="region" aria-label="Календарь на месяц, прокрутка по дням">
+          <table class="calendar-month-grid"><caption>Сохранённые занятия и регулярные слоты</caption>
+            <thead><tr>${['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'].map(day=>`<th scope="col">${day}</th>`).join('')}</tr></thead>
+            <tbody>${Array.from({length:days.length/7},(_,week)=>`<tr>${days.slice(week*7,week*7+7).map(({date,entries})=>`<td data-calendar-month-day="${date}" class="${date.slice(0,7)!==selectedMonth?'is-other-month':''}">
+              <div class="calendar-month-cell"><div class="calendar-month-date"><small>${entries.length?'События: '+entries.length:''}</small>
+                <button type="button" data-calendar-open-day="${date}" aria-label="Открыть ${safe(label(date))}" ${date===today?'aria-current="date"':''}>${Number(date.slice(8))}</button></div>
+                ${entries.slice(0,2).map(entry=>preview(entry,date)).join('')}
+                ${entries.length>2?`<button type="button" class="calendar-more" data-calendar-more data-calendar-open-day="${date}">ещё ${entries.length-2}</button>`:''}
+              </div></td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+      }
       function calendarView() {
         const d = state.data;
-        const day = state.calendarDate, weekMode = state.calendarMode === 'week';
+        const day = state.calendarDate, weekMode = state.calendarMode === 'week', monthMode = state.calendarMode === 'month';
         const ready = ['lessons','scheduleRules','classes','groups'].every(key => Array.isArray(d[key]));
-        const days = weekMode ? (ready ? calendarWeek(day, d.lessons, d.scheduleRules, teacherClasses()) :
+        const days = monthMode ? (ready ? calendarMonth(day,d.lessons,d.scheduleRules,teacherClasses()) : calendarMonthDays(day).map(date=>({date,entries:[]}))) : weekMode ? (ready ? calendarWeek(day, d.lessons, d.scheduleRules, teacherClasses()) :
           calendarWeekDays(day).map(date=>({date,entries:[]}))) :
           [{date:day,entries:ready ? calendarEntries(day, d.lessons, d.scheduleRules, teacherClasses()) : []}];
         const entries = days.flatMap(d=>d.entries);
-        const titleFormat = new Intl.DateTimeFormat('ru-RU', {timeZone:'UTC', day:'numeric',month:'long',year:'numeric',...(!weekMode?{weekday:'long'}:{})});
+        const titleFormat = new Intl.DateTimeFormat('ru-RU', {timeZone:'UTC', ...(!monthMode?{day:'numeric'}:{}),month:'long',year:'numeric',...(!weekMode&&!monthMode?{weekday:'long'}:{})});
         const dayLabel = date => titleFormat.format(new Date(date+'T12:00:00Z'));
         const title = weekMode ? dayLabel(days[0].date)+' — '+dayLabel(days[6].date) : dayLabel(day);
-        return `<section class="calendar-day ${weekMode?'calendar-week':''}" aria-label="Календарь на ${weekMode?'неделю':'день'}">
-          <div class="calendar-toolbar"><div><h2>${safe(title)}</h2><p class="muted small">${weekMode?'Неделя':'День'} · время по Москве (${calendarZone})</p></div>
-            <div class="row"><button type="button" class="secondary" data-calendar-shift="-1" aria-label="${weekMode?'Предыдущая неделя':'Предыдущий день'}">‹</button>
+        return `<section class="calendar-day ${monthMode?'calendar-month':weekMode?'calendar-week':''}" aria-label="Календарь на ${monthMode?'месяц':weekMode?'неделю':'день'}">
+          <div class="calendar-toolbar"><div><h2>${safe(title)}</h2><p class="muted small">${monthMode?'Месяц':weekMode?'Неделя':'День'} · время по Москве (${calendarZone})</p></div>
+            <div class="row"><button type="button" class="secondary" data-calendar-shift="-1" aria-label="${monthMode?'Предыдущий месяц':weekMode?'Предыдущая неделя':'Предыдущий день'}">‹</button>
               <button type="button" class="secondary" data-calendar-today>Сегодня</button>
-              <button type="button" class="secondary" data-calendar-shift="1" aria-label="${weekMode?'Следующая неделя':'Следующий день'}">›</button>
+              <button type="button" class="secondary" data-calendar-shift="1" aria-label="${monthMode?'Следующий месяц':weekMode?'Следующая неделя':'Следующий день'}">›</button>
               <label class="calendar-date-label">Дата<input id="calendarDate" type="date" value="${safe(day)}" required></label>
               <button type="button" class="primary" data-create-one-time data-calendar-new>＋ Занятие</button></div></div>
           <div class="calendar-modes" role="group" aria-label="Вид календаря">
-            <button type="button" data-calendar-mode="day" aria-pressed="${!weekMode}">День</button>
-            <button type="button" data-calendar-mode="week" aria-pressed="${weekMode}">Неделя</button></div>
+            <button type="button" data-calendar-mode="day" aria-pressed="${!weekMode&&!monthMode}">День</button>
+            <button type="button" data-calendar-mode="week" aria-pressed="${weekMode}">Неделя</button>
+            <button type="button" data-calendar-mode="month" aria-pressed="${monthMode}">Месяц</button></div>
           <p class="calendar-legend"><span>● Сохранённое занятие</span><span>◌ Регулярный слот — без посещаемости</span></p>
           ${!ready ? '<p class="empty" role="status">Данные календаря ещё не загружены. При ошибке нажмите «Обновить».</p>' :
-            `${!entries.length ? `<p class="empty" data-calendar-empty>На ${weekMode?'эту неделю':'этот день'} занятий и регулярных слотов нет.</p>` : ''}
-            ${weekMode ? calendarWeekGrid(days) : `<div class="calendar-hours">${Array.from({length:24},(_,hour)=>`<div class="calendar-hour"><time>${String(hour).padStart(2,'0')}:00</time>
+            `${!entries.length ? `<p class="empty" data-calendar-empty>На ${monthMode?'этот месяц':weekMode?'эту неделю':'этот день'} занятий и регулярных слотов нет.</p>` : ''}
+            ${monthMode ? calendarMonthGrid(days) : weekMode ? calendarWeekGrid(days) : `<div class="calendar-hours">${Array.from({length:24},(_,hour)=>`<div class="calendar-hour"><time>${String(hour).padStart(2,'0')}:00</time>
               <div>${entries.filter(e=>Number(calendarTime(e.visibleStart).slice(0,2))===hour).map(calendarCard).join('')}</div></div>`).join('')}</div>`}`}
           <p class="muted small">Слоты отражают текущее расписание, а не историю проведённых занятий. При переводе часов несуществующее местное время пропускается; повторяющееся показывается один раз.</p>
         </section>`;
@@ -1799,7 +1816,7 @@
         }
         const calendarShift = event.target.closest('[data-calendar-shift]');
         if (calendarShift || event.target.closest('[data-calendar-today]')) {
-          state.calendarDate = calendarShift ? shiftCalendarDay(state.calendarDate, Number(calendarShift.dataset.calendarShift)*(state.calendarMode==='week'?7:1)) : calendarDay();
+          state.calendarDate = calendarShift ? (state.calendarMode==='month'?shiftCalendarMonth(state.calendarDate,Number(calendarShift.dataset.calendarShift)):shiftCalendarDay(state.calendarDate,Number(calendarShift.dataset.calendarShift)*(state.calendarMode==='week'?7:1))) : calendarDay();
           render(); return;
         }
         const ruleSlot = event.target.closest('[data-plan-rule]');

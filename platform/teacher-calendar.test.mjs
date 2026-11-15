@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calendarDay, calendarTime, shiftCalendarDay, localSlotInstant, calendarEntries, calendarWeekDays, calendarWeek } from './teacher-calendar.mjs';
+import { calendarDay, calendarTime, shiftCalendarDay, localSlotInstant, calendarEntries, calendarWeekDays, calendarWeek, shiftCalendarMonth, calendarMonthDays, calendarMonth } from './teacher-calendar.mjs';
 const item = {id:'class',kind:'individual',persistent:true};
 const rule = {id:'rule',classId:'class',classKind:'individual',isActive:true,daysMask:1,startMinute:15*60,durationMinutes:60,timeZoneId:'Europe/Moscow'};
 test('Moscow navigation and date boundaries are independent of device zone', () => {
@@ -57,4 +57,27 @@ test('week projection reuses day boundaries, shows overnight continuation and ne
   assert.equal(week[2].entries[0].kind,'rule');
   assert.deepEqual(week[6].entries,[]);
   assert.equal(JSON.stringify({lessons,rules}),before);
+});
+
+test('month navigation clamps dates and crosses year/leap boundaries',()=>{
+  assert.equal(shiftCalendarMonth('2026-01-31',1),'2026-02-28');
+  assert.equal(shiftCalendarMonth('2028-01-31',1),'2028-02-29');
+  assert.equal(shiftCalendarMonth('2026-12-31',1),'2027-01-31');
+  assert.equal(shiftCalendarMonth('2026-01-31',-1),'2025-12-31');
+  assert.equal(shiftCalendarMonth('invalid',1),null);
+});
+test('month grids contain whole Monday-Sunday weeks including neighbouring dates',()=>{
+  const dates=calendarMonthDays('2026-11-18');
+  assert.equal(dates.length,42); assert.equal(dates[0],'2026-10-26'); assert.equal(dates.at(-1),'2026-12-06');
+  assert.equal(calendarMonthDays('2021-02-01').length,28);
+  assert.ok(calendarMonthDays('2028-02-15').includes('2028-02-29'));
+  assert.deepEqual(calendarMonthDays('invalid'),[]);
+});
+test('month events use the same read-only day projection and preserve overnight records',()=>{
+  const lessons=[{id:'night',lessonAt:'2026-11-30T20:30Z',participants:[{durationMinutes:120}]}];
+  const before=JSON.stringify(lessons);
+  const month=calendarMonth('2026-11-18',lessons,[rule],[item]);
+  for(const day of month) assert.deepEqual(day.entries,calendarEntries(day.date,lessons,[rule],[item]));
+  assert.ok(month.find(d=>d.date==='2026-12-01').entries.some(e=>e.id==='night'));
+  assert.equal(JSON.stringify(lessons),before);
 });
