@@ -16,6 +16,8 @@ public sealed class TeacherClassTopic
     public required string Title { get; set; }
     public string Plan { get; set; } = "";
     public int SortOrder { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
+    public int CompletionRevision { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
 
@@ -31,13 +33,14 @@ public sealed class TeacherTopicMaterialLink
 
 public sealed record TeacherClassTopicView(
     Guid Id, Guid? IndividualClassId, Guid? GroupClassId, string Title,
-    string Plan, int SortOrder, DateTimeOffset CreatedAt);
+    string Plan, int SortOrder, DateTimeOffset CreatedAt, DateTimeOffset? CompletedAt, int CompletionRevision);
 public sealed record TeacherTopicMaterialView(
     Guid Id, Guid TopicId, Guid MaterialId, string Title, string Url, DateTimeOffset CreatedAt);
 public sealed record TeacherClassTopicCreateRequest(
     Guid RequestId, Guid ClassId, string ClassKind, string? Title, string? Plan = null);
 public sealed record TeacherTopicMaterialRequest(Guid RequestId, Guid TopicId, Guid MaterialId);
 public sealed record TeacherTopicMoveRequest(Guid TopicId, string Direction, List<Guid>? ExpectedOrder);
+public sealed record TeacherTopicCompletionRequest(Guid TopicId, bool? Completed, int? ExpectedRevision);
 public enum TeacherTopicStatus { Created, Duplicate, Updated, Invalid, NotFound, Conflict }
 public sealed record TeacherTopicResult(
     TeacherTopicStatus Status, TeacherClassTopicView? Topic = null,
@@ -49,7 +52,7 @@ public sealed class TeacherClassTopicService(PlatformDbContext db, TimeProvider 
         db.TeacherClassTopics.AsNoTracking().Where(x => x.WorkspaceId == workspaceId)
             .OrderBy(x => x.SortOrder).ThenBy(x => x.CreatedAt).ThenBy(x => x.Id)
             .Select(x => new TeacherClassTopicView(x.Id, x.IndividualClassId, x.GroupClassId,
-                x.Title, x.Plan, x.SortOrder, x.CreatedAt));
+                x.Title, x.Plan, x.SortOrder, x.CreatedAt, x.CompletedAt, x.CompletionRevision));
 
     private IQueryable<TeacherTopicMaterialView> Materials(Guid workspaceId) =>
         from link in db.TeacherTopicMaterialLinks.AsNoTracking()
@@ -84,7 +87,7 @@ public sealed class TeacherClassTopicService(PlatformDbContext db, TimeProvider 
                 x.WorkspaceId == workspaceId && x.Id == group && !x.IsArchived, ct);
 
     private static TeacherClassTopicView View(TeacherClassTopic x) =>
-        new(x.Id, x.IndividualClassId, x.GroupClassId, x.Title, x.Plan, x.SortOrder, x.CreatedAt);
+        new(x.Id, x.IndividualClassId, x.GroupClassId, x.Title, x.Plan, x.SortOrder, x.CreatedAt, x.CompletedAt, x.CompletionRevision);
 
     public async Task<TeacherTopicResult> CreateAsync(
         Guid workspaceId, TeacherClassTopicCreateRequest request, CancellationToken ct)
@@ -181,6 +184,49 @@ public sealed class TeacherClassTopicService(PlatformDbContext db, TimeProvider 
         }
         return new(TeacherTopicStatus.Created,
             Material: await ByLinkAsync(workspaceId, link.Id, ct));
+    }
+
+    public async Task<TeacherTopicResult> CompleteAsync(
+        Guid workspaceId, TeacherTopicCompletionRequest request, CancellationToken ct)
+    {
+        if (request.TopicId == Guid.Empty || request.Completed is null ||
+            request.ExpectedRevision is null or < 0 or int.MaxValue)
+            return new(TeacherTopicStatus.Invalid, Errors: new() {
+                ["completion"] = ["Topic, completion flag and valid expected revision are required."]
+            });
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        try
+        {
+            var topic = await db.TeacherClassTopics.AsNoTracking().SingleOrDefaultAsync(
+                x => x.WorkspaceId == workspaceId && x.Id == request.TopicId, ct);
+            if (topic is null || !await ClassActiveAsync(
+                    workspaceId, topic.IndividualClassId, topic.GroupClassId, ct))
+                return new(TeacherTopicStatus.NotFound);
+            var completed = request.Completed.Value;
+            // Replaying the immediately preceding status change is safe and preserves its timestamp.
+            if (topic.CompletionRevision != request.ExpectedRevision)
+                return topic.CompletionRevision == request.ExpectedRevision + 1 &&
+                    (topic.CompletedAt is not null) == completed
+                    ? new(TeacherTopicStatus.Updated, Topic: View(topic))
+                    : new(TeacherTopicStatus.Conflict);
+            if ((topic.CompletedAt is not null) == completed)
+                return new(TeacherTopicStatus.Updated, Topic: View(topic));
+            var completedAt = completed ? DateTimeOffset.FromUnixTimeMilliseconds(clock.GetUtcNow().ToUnixTimeMilliseconds()) : (DateTimeOffset?)null;
+            var changed = await db.TeacherClassTopics.Where(x => x.WorkspaceId == workspaceId &&
+                x.Id == request.TopicId && x.CompletionRevision == request.ExpectedRevision)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(x => x.CompletedAt, completedAt)
+                    .SetProperty(x => x.CompletionRevision, x => x.CompletionRevision + 1), ct);
+            if (changed != 1) return new(TeacherTopicStatus.Conflict);
+            await tx.CommitAsync(ct);
+            topic.CompletedAt = completedAt;
+            topic.CompletionRevision++;
+            return new(TeacherTopicStatus.Updated, Topic: View(topic));
+        }
+        catch (PostgresException e) when (e.SqlState is "40001" or "40P01")
+        {
+            return new(TeacherTopicStatus.Conflict);
+        }
     }
 
     public async Task<TeacherTopicResult> MoveAsync(

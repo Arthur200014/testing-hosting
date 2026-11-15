@@ -131,6 +131,42 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         var orderedTopics = (await client.GetFromJsonAsync<List<TeacherClassTopicView>>(
             "/api/v1/teacher/class-topics"))!.Where(x => x.IndividualClassId == individual.Id).ToList();
         Assert.Equal(new[] { second.Id, topic.Id }, orderedTopics.Select(x => x.Id));
+        var complete = new TeacherTopicCompletionRequest(topic.Id, true, 0);
+        var completionPost = await client.PostAsJsonAsync("/api/v1/teacher/class-topics/completion", complete);
+        Assert.Equal(HttpStatusCode.OK, completionPost.StatusCode);
+        var completed = (await completionPost.Content.ReadFromJsonAsync<TeacherClassTopicView>())!;
+        Assert.NotNull(completed.CompletedAt);
+        Assert.Equal(1, completed.CompletionRevision);
+        var replay = await client.PostAsJsonAsync("/api/v1/teacher/class-topics/completion", complete);
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        Assert.Equal(completed, await replay.Content.ReadFromJsonAsync<TeacherClassTopicView>());
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/class-topics/completion", complete with { Completed = false })).StatusCode);
+        var reopen = await client.PostAsJsonAsync("/api/v1/teacher/class-topics/completion",
+            complete with { Completed = false, ExpectedRevision = 1 });
+        Assert.Equal(HttpStatusCode.OK, reopen.StatusCode);
+        var reopened = (await reopen.Content.ReadFromJsonAsync<TeacherClassTopicView>())!;
+        Assert.Null(reopened.CompletedAt);
+        Assert.Equal(2, reopened.CompletionRevision);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/class-topics/completion", complete)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/class-topics/completion", complete with { ExpectedRevision = 2 })).StatusCode);
+        var reloadedTopic = (await client.GetFromJsonAsync<List<TeacherClassTopicView>>(
+            "/api/v1/teacher/class-topics"))!.Single(x => x.Id == topic.Id);
+        Assert.NotNull(reloadedTopic.CompletedAt);
+        Assert.Equal(3, reloadedTopic.CompletionRevision);
+        foreach (var invalid in new[] { complete with { Completed = null },
+            complete with { ExpectedRevision = null }, complete with { ExpectedRevision = -1 },
+            complete with { TopicId = Guid.Empty } })
+            Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(
+                "/api/v1/teacher/class-topics/completion", invalid)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/class-topics/completion", new TeacherTopicCompletionRequest(groupTopic.Id, true, 0))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/groups/" + group.Id + "/archive", new TeacherClassRevisionRequest(group.Revision))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/class-topics/completion", new TeacherTopicCompletionRequest(groupTopic.Id, false, 1))).StatusCode);
         var attachTopicMaterial = new TeacherTopicMaterialRequest(Guid.NewGuid(), topic.Id, material.MaterialId);
         Assert.Equal(HttpStatusCode.Created,
             (await client.PostAsJsonAsync("/api/v1/teacher/topic-materials", attachTopicMaterial)).StatusCode);
@@ -153,6 +189,8 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Empty((await client.GetFromJsonAsync<List<TeacherClassMaterialView>>("/api/v1/teacher/class-materials"))!);
         Assert.Empty((await client.GetFromJsonAsync<List<TeacherLessonMaterialView>>("/api/v1/teacher/lesson-materials"))!);
         Assert.Empty((await client.GetFromJsonAsync<List<TeacherClassTopicView>>("/api/v1/teacher/class-topics"))!);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/class-topics/completion", complete with { ExpectedRevision = 3 })).StatusCode);
         Assert.Empty((await client.GetFromJsonAsync<List<TeacherTopicMaterialView>>("/api/v1/teacher/topic-materials"))!);
         Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(
             "/api/v1/teacher/topic-materials",

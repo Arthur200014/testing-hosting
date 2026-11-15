@@ -23,6 +23,20 @@ test('scopes and orders topics and escapes material content',()=>{
 test('group archive is read-only',()=>{
   const markup=renderClassProgram({id:'group',kind:'group',persistent:true,isArchived:true},data,safe,list);
   assert.match(markup,/Foreign/);
-  assert.doesNotMatch(markup,/id="classTopicForm"|id="topicMaterialAttachForm"|data-move-topic/);
+  assert.doesNotMatch(markup,/id="classTopicForm"|id="topicMaterialAttachForm"|data-move-topic|data-complete-topic/);
 });
 test('missing data shows loading state',()=>assert.match(renderClassProgram(item,{},safe,list),/Загружаем/));
+
+test('completion filter keeps progress scoped to this class',()=>{
+  const d={...data,classTopics:data.classTopics.map(x=>({...x,completedAt:x.id==='t1'?'2026-11-15T10:00:00Z':null,completionRevision:1}))};
+  const markup=renderClassProgram(item,d,safe,list,'completed');
+  assert.match(markup,/Пройдено 1 из 2/);
+  assert.match(markup,/Вернуть в работу/);
+  assert.doesNotMatch(markup,/data-class-topic="t2"|Foreign/);
+  assert.match(markup,/data-topic-filter="completed" aria-pressed="true"/);
+});
+test('legacy imported class does not wait for resources that will never load',()=>{
+  const markup=renderClassProgram({...item,persistent:false},{},safe,list);
+  assert.match(markup,/пока недоступна/);
+  assert.doesNotMatch(markup,/Загружаем|classTopicForm/);
+});
