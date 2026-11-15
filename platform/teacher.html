@@ -537,15 +537,14 @@
       function classPeriodPreview(item) {
         const selected=state.periodPreview?.classId===item.id && state.periodPreview.classKind===item.kind ? state.periodPreview : null;
         const from=selected?.startDate || calendarDay(), to=selected?.endDate || shiftCalendarDay(from,30);
-        let rows=[], error='';
-        if (selected) try { rows=previewClassPeriod(from,to,item,state.data.lessons || [],state.data.scheduleRules || []); } catch(e) { error=e.message; }
+        const rows=selected?.rows || [], error=selected?.error || '';
         return `<details class="class-period-preview" ${selected?'open':''}><summary>Предпросмотр занятий на период</summary>
           <p class="muted small">Только просмотр слотов, без создания занятий. Период — до 31 дня, время по Москве.</p>
           <form id="classPeriodPreviewForm" class="stack" data-class-id="${safe(item.id)}" data-class-kind="${safe(item.kind)}">
             <div class="form-row"><label>Дата с<input name="startDate" type="date" value="${safe(from)}" required></label>
               <label>Дата по<input name="endDate" type="date" value="${safe(to)}" required></label></div>
-            <div class="row"><button type="submit" class="secondary">Показать слоты</button><button type="button" class="secondary" data-close-period-preview>Свернуть</button></div></form>
-          ${selected?`<div data-period-preview-result tabindex="-1">${error?`<p class="banner error" role="alert">${safe(error)}</p>`:
+            <div class="row"><button type="submit" class="secondary" ${selected?.loading?'disabled':''}>${selected?.loading?'Загружаем…':'Показать слоты'}</button><button type="button" class="secondary" data-close-period-preview>Свернуть</button></div></form>
+          ${selected?`<div data-period-preview-result tabindex="-1">${selected.loading?'<p role="status">Проверяем расписание на сервере…</p>':error?`<p class="banner error" role="alert">${safe(error)}</p>`:
             `<p class="small">${safe(from)} — ${safe(to)} · Слотов: <strong data-period-count>${rows.length}</strong> · Уже есть занятие: ${rows.filter(r=>r.isScheduled).length}</p>
               ${rows.length?rows.slice(0,100).map(row=>`<div class="item" data-period-slot><div><strong>${safe(date(new Date(row.start).toISOString()))}–${safe(calendarTime(row.end))}</strong></div>
                 <span class="pill" data-period-status="${row.isScheduled?'saved':'rule'}">${row.isScheduled?'Уже есть занятие':'Слот расписания'}</span></div>`).join(''):'<p class="muted small">В этом периоде нет действующих слотов расписания.</p>'}
@@ -2042,11 +2041,25 @@
         const counter = field.closest('.class-field')?.querySelector('[data-char-count]');
         if (counter) counter.textContent = field.value.length + ' / ' + field.maxLength;
       });
-      $('content').addEventListener('submit', event => {
+      $('content').addEventListener('submit', async event => {
         event.preventDefault(); const form = event.target;
         if (form.id==='classPeriodPreviewForm') {
-          state.periodPreview={classId:form.dataset.classId,classKind:form.dataset.classKind,startDate:formValue(form,'startDate'),endDate:formValue(form,'endDate')};
-          render(); document.querySelector('[data-period-preview-result]')?.focus(); return;
+          const preview={classId:form.dataset.classId,classKind:form.dataset.classKind,startDate:formValue(form,'startDate'),endDate:formValue(form,'endDate'),loading:true,rows:[],error:''};
+          const token=state.token;
+          state.periodPreview=preview; render();
+          try {
+            const rows=await api('teacher/schedule-rules/period-preview',{method:'POST',body:{
+              classId:preview.classId,classKind:preview.classKind,from:preview.startDate,to:preview.endDate}});
+            if (state.token!==token || state.periodPreview!==preview) return;
+            preview.rows=rows.map(row=>({start:Date.parse(row.lessonAt),end:Date.parse(row.lessonAt)+row.durationMinutes*60000,
+              isScheduled:row.existingLessonIds.length>0}));
+          } catch(error) {
+            if (state.token!==token || state.periodPreview!==preview) return;
+            preview.error=error.message;
+          }
+          preview.loading=false;
+          if (state.view==='overview') { render(); document.querySelector('[data-period-preview-result]')?.focus(); }
+          return;
         }
         const classFields = form => ({
           title: formValue(form, 'title'),

@@ -187,7 +187,12 @@ try {
   await page.locator('.class-period-preview > summary').click();
   await page.locator('#classPeriodPreviewForm [name="startDate"]').fill('2026-11-16');
   await page.locator('#classPeriodPreviewForm [name="endDate"]').fill('2026-11-30');
+  const previewResponse=page.waitForResponse(r=>r.url().endsWith('/teacher/schedule-rules/period-preview') && r.request().method()==='POST');
   await page.locator('#classPeriodPreviewForm button[type="submit"]').click();
+  const serverPreview=await previewResponse;
+  assert.equal(serverPreview.status(),200);
+  assert.equal((await serverPreview.json()).length,3);
+  await page.locator('[data-period-count]').waitFor();
   assert.equal(await page.locator('[data-period-count]').innerText(),'3');
   assert.equal(await page.locator('[data-period-status="saved"]').count(),1);
   assert.equal(await page.locator('[data-period-slot]').count(),3);
@@ -195,6 +200,7 @@ try {
   await page.screenshot({path:output+'/73_period_preview_real.png'});
   await page.locator('#classPeriodPreviewForm [name="endDate"]').fill('2027-01-31');
   await page.locator('#classPeriodPreviewForm button[type="submit"]').click();
+  await page.locator('[data-period-preview-result] [role="alert"]').waitFor();
   assert.match(await page.locator('[data-period-preview-result] [role="alert"]').innerText(),/31/);
   await page.setViewportSize({width:390,height:844});
   const periodOverflow=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,
