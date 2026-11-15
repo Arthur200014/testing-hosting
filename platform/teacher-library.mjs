@@ -13,9 +13,11 @@ export function libraryEntries(data) {
   const classes=libraryClasses(data);
   const materials=(data.materials || []).map(m=>{
     const links=[...(data.classMaterialLinks || []).filter(l=>l.materialId===m.id),
-      ...(data.topicMaterialLinks || []).filter(l=>l.materialId===m.id).map(l=>(data.classTopics || []).find(t=>t.id===l.topicId)).filter(Boolean),
-      ...(data.lessonMaterialLinks || []).filter(l=>l.materialId===m.id).map(l=>(data.lessons || []).find(t=>t.id===l.lessonId)).filter(Boolean)];
-    return {...m,key:'material:'+m.id,kind:'material',programIds:unique(links.flatMap(l=>programsFor(ownerClass(l,classes),data)))};
+      ...(data.topicMaterialLinks || []).filter(l=>l.materialId===m.id).map(l=>(data.classTopics || []).find(t=>t.id===l.topicId)).filter(Boolean)];
+    const lessonPrograms=(data.lessonMaterialLinks || []).filter(l=>l.materialId===m.id)
+      .flatMap(l=>(data.lessons || []).find(t=>t.id===l.lessonId)?.participants || [])
+      .map(p=>p.programId || (data.students || []).find(s=>s.membershipId===p.membershipId)?.programId);
+    return {...m,key:'material:'+m.id,kind:'material',programIds:unique([...links.flatMap(l=>programsFor(ownerClass(l,classes),data)),...lessonPrograms])};
   });
   return [...(data.nativeTasks || []).map(t=>({...t,key:'task:'+t.id,kind:'task',programIds:[t.programId]})),...materials];
 }
@@ -39,8 +41,10 @@ export function libraryTargets(entry,data,assignment=false) {
     const item=ownerClass(lesson,classes); if(!item || !compatible(item)) continue;
     if(assignment && !studentsFor(item,data).some(s=>s.programId===entry.programId && (lesson.participants || []).some(p=>p.membershipId===s.membershipId))) continue;
     if(!assignment && (data.lessonMaterialLinks || []).some(l=>l.materialId===entry.id && l.lessonId===lesson.id)) continue;
+    const instant=Date.parse(lesson.lessonAt);
+    const when=Number.isFinite(instant)?new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(instant)):'Дата не указана';
     result.push({key:'lesson:'+lesson.id,kind:'lesson',lessonId:lesson.id,classId:item.id,classKind:item.kind,
-      label:'Занятие · '+item.title+' · '+(lesson.title || String(lesson.lessonAt || '').slice(0,10))});
+      label:'Занятие · '+item.title+' · '+(lesson.title || 'Занятие')+' · '+when});
   }
   if(!assignment) for(const topic of data.classTopics || []) {
     const item=ownerClass(topic,classes); if(!item || !compatible(item)) continue;
