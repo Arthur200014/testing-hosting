@@ -782,11 +782,20 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     b.Property<string>("LegacyLessonId").IsRequired().HasMaxLength(128).HasColumnType("character varying(128)");
                     b.Property<DateTimeOffset>("LessonAt").HasColumnType("timestamp with time zone");
                     b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                    b.Property<Guid?>("IndividualClassId").HasColumnType("uuid");
+                    b.Property<Guid?>("GroupClassId").HasColumnType("uuid");
+                    b.Property<string>("Title").HasMaxLength(50).HasColumnType("character varying(50)");
+                    b.Property<string>("Description").HasMaxLength(1000).HasColumnType("character varying(1000)");
 
                     b.HasKey("Id");
                     b.HasAlternateKey("WorkspaceId", "Id");
                     b.HasIndex("WorkspaceId", "LegacyLessonId").IsUnique();
-                    b.ToTable("Lessons", "platform", t => t.HasCheckConstraint("CK_Lessons_LegacyId", "length(\"LegacyLessonId\") > 0"));
+                    b.HasIndex("WorkspaceId", "IndividualClassId");
+                    b.HasIndex("WorkspaceId", "GroupClassId");
+                    b.ToTable("Lessons", "platform", t => {
+                        t.HasCheckConstraint("CK_Lessons_LegacyId", "length(\"LegacyLessonId\") > 0");
+                        t.HasCheckConstraint("CK_Lessons_ClassLink", "\"IndividualClassId\" IS NULL OR \"GroupClassId\" IS NULL");
+                    });
                 });
 
             modelBuilder.Entity("TestingHosting.Platform.Lessons.LessonParticipant", b =>
@@ -1304,6 +1313,13 @@ namespace TestingHosting.Platform.Persistence.Migrations
 
             modelBuilder.Entity("TestingHosting.Platform.Lessons.Lesson", b =>
                 {
+                    b.HasOne("TestingHosting.Platform.Classes.TeacherClass", null)
+                        .WithMany().HasForeignKey("WorkspaceId", "IndividualClassId")
+                        .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict);
+                    b.HasOne("TestingHosting.Platform.Classes.TeacherGroupClass", null)
+                        .WithMany().HasForeignKey("WorkspaceId", "GroupClassId")
+                        .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("TestingHosting.Platform.IdentityAccess.Workspace", "Workspace")
                         .WithMany().HasForeignKey("WorkspaceId").OnDelete(DeleteBehavior.Restrict).IsRequired();
                     b.Navigation("Workspace");
