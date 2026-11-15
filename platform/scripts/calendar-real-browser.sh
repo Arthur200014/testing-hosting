@@ -39,9 +39,9 @@ for side in north south; do
 done
 # Programs have no create UI yet; all students/classes/rules/lessons below use HTTP APIs.
 "${compose[@]}" exec -T db psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<'SQL'
-INSERT INTO "Programs" ("Id","WorkspaceId","Code","DisplayName","IsActive","CreatedAt")
+INSERT INTO platform."Programs" ("Id","WorkspaceId","Code","DisplayName","IsActive","CreatedAt")
 SELECT gen_random_uuid(),"Id",'TEST-MATH','Учебная математика',true,NOW()
-FROM "Workspaces" WHERE "Slug" IN ('tas-calendar-north','tas-calendar-south');
+FROM platform."Workspaces" WHERE "Slug" IN ('tas-calendar-north','tas-calendar-south');
 SQL
 mkdir -p "$task_dir/site/platform"
 for file in teacher.html teacher-report.mjs teacher-data.mjs teacher-mutation.mjs teacher-calendar.mjs homework-deadline.mjs meleto-fidelity.css; do
