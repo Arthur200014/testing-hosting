@@ -256,7 +256,7 @@ try {
   await page.locator('.count-plan-modal').waitFor({state:'detached'});
   await page.locator('[data-back-classes]').click();
   await page.locator('[data-open-class="'+group.id+'"]').click();
-  await page.locator('[data-class-detail-tab="schedule"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="schedule"]').click();
   await page.locator('[data-open-class-lesson="'+grouped.id+'"]').click();
   await page.locator('.class-lesson-detail').waitFor();
   assert.equal(await page.locator('[data-lesson-participant]').count(),2);
