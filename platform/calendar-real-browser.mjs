@@ -565,7 +565,7 @@ try {
   assert.equal(await page.locator('[data-open-class-lesson]').count(),1);
   await page.screenshot({path:output+'/23_completed_lessons_real.png'});
   // Smaller UI-04 milestone: assign an existing task only to chosen group members.
-  await page.locator('[data-view="overview"]').click();
+  await page.locator('[data-back-classes]').click();
   await page.locator('[data-open-class="'+group.id+'"]').click();
   await page.locator('.class-detail-tabs [data-class-detail-tab="homework"]').click();
   await page.locator('#groupNativeAssignForm [name="taskId"]').selectOption(created[0].id);
