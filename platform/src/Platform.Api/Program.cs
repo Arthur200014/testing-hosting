@@ -477,6 +477,21 @@ app.MapPost("/api/v1/teacher/topic-materials", async (
     };
 }).RequireAuthorization("teacher");
 
+app.MapPost("/api/v1/teacher/class-topics/completion", async (
+    TeacherTopicCompletionRequest request, ClaimsPrincipal principal,
+    TeacherClassTopicService service, CancellationToken ct) =>
+{
+    var result = await service.CompleteAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), request, ct);
+    return result.Status switch
+    {
+        TeacherTopicStatus.Updated => Results.Ok(result.Topic),
+        TeacherTopicStatus.Invalid => Results.ValidationProblem(result.Errors!),
+        TeacherTopicStatus.NotFound => Results.NotFound(),
+        TeacherTopicStatus.Conflict => Results.Problem(statusCode:409, title:"Topic status changed. Reload before updating."),
+        _ => throw new InvalidOperationException("Unexpected topic completion status.")
+    };
+}).RequireAuthorization("teacher");
+
 app.MapPost("/api/v1/teacher/class-topics/move", async (
     TeacherTopicMoveRequest request, ClaimsPrincipal principal,
     TeacherClassTopicService service, CancellationToken ct) =>

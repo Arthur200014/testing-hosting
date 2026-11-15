@@ -328,7 +328,7 @@
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
-      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', groupEdit: '', groupCreate: false, lastClassInvitation: null, learningModal: false, classCreate: false, lessonPlan: null, scheduleEdit: null, calendarDate: calendarDay(), calendarMode: 'day', periodPreview: null };
+      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', topicFilter: 'all', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', groupEdit: '', groupCreate: false, lastClassInvitation: null, learningModal: false, classCreate: false, lessonPlan: null, scheduleEdit: null, calendarDate: calendarDay(), calendarMode: 'day', periodPreview: null };
       const $ = id => document.getElementById(id);
       const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const date = value => value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
@@ -677,7 +677,7 @@
           : tab === 'materials'
             ? renderClassMaterials(item, state.data, safe, list)
           : tab === 'program'
-            ? renderClassProgram(item, state.data, safe, list)
+            ? renderClassProgram(item, state.data, safe, list, state.topicFilter)
           : tab === 'schedule'
             ? `<section class="class-subsection">${classScheduleRules(item)}<h3>Занятия группы</h3>
                 <div class="class-tabs"><button type="button" data-class-lessons-filter="all">Все занятия</button><button type="button" data-class-lessons-filter="completed">Завершённые</button></div>
@@ -858,7 +858,7 @@
               </div>`)}
             <button class="primary" type="button" data-schedule-class="${safe(item.id)}">＋ Добавить занятие</button></section>`,
           materials: renderClassMaterials(item, state.data, safe, list),
-          program: renderClassProgram(item, state.data, safe, list),
+          program: renderClassProgram(item, state.data, safe, list, state.topicFilter),
           homework: classNativeTasksTab(item),
           payment: `<section class="class-subsection class-feature-note"><h3>Оплата</h3>
             <p>${item.priceAmount == null ? 'Стоимость не задана.' : 'Условие: ' + safe(item.priceAmount) + ' ' + safe(item.priceCurrency) + (item.priceBasis === 'month' ? ' в месяц' : ' за занятие')}</p>
@@ -1962,6 +1962,27 @@
           const form=cancelTopicForm.closest('form');
           form?.reset(); if (form) delete form.dataset.dirty;
           showNotice(''); return;
+        }
+        const topicFilter = event.target.closest('[data-topic-filter]');
+        const completeTopic = event.target.closest('[data-complete-topic]');
+        if (topicFilter || completeTopic) {
+          if (document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"]') &&
+              !confirm('Отменить несохранённые изменения программы?')) return;
+          if (topicFilter) { state.topicFilter=topicFilter.dataset.topicFilter; render(); return; }
+          const item=teacherClasses().find(x=>x.id===state.selectedClass && x.persistent && !x.isArchived);
+          if (!item || !topicsForClass(item,state.data).some(x=>x.id===completeTopic.dataset.completeTopic)) return;
+          completeTopic.disabled=true;
+          try {
+            await api('teacher/class-topics/completion',{method:'POST',body:{
+              topicId:completeTopic.dataset.completeTopic, completed:completeTopic.dataset.completed==='true',
+              expectedRevision:Number(completeTopic.dataset.revision)
+            }});
+            invalidate(['classTopics']); await refresh();
+          } catch(error) {
+            showNotice(error.message,true);
+            if(completeTopic.isConnected) completeTopic.disabled=false;
+          }
+          return;
         }
         const moveTopic = event.target.closest('[data-move-topic]');
         if (moveTopic) {

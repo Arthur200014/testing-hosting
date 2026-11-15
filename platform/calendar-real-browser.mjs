@@ -126,6 +126,19 @@ try {
     .map(x=>x.id),[secondTopic,firstTopic]);
   assert.deepEqual(await call('teacher/class-topics',south.token),[]);
   assert.deepEqual(await call('teacher/topic-materials',south.token),[]);
+  await page.locator('[data-topic-filter="completed"]').click();
+  await page.getByText('Пройденных тем пока нет.',{exact:true}).waitFor();
+  await page.locator('[data-topic-filter="all"]').click();
+  await page.locator('[data-complete-topic="'+firstTopic+'"]').click();
+  await page.getByText('Пройдено 1 из 2',{exact:true}).waitFor();
+  await page.locator('[data-topic-filter="completed"]').click();
+  assert.equal(await page.locator('[data-class-topic]').count(),1);
+  assert.equal(await page.locator('[data-class-topic="'+secondTopic+'"]').count(),0);
+  await page.locator('[data-complete-topic="'+firstTopic+'"]').click();
+  await page.getByText('Пройденных тем пока нет.',{exact:true}).waitFor();
+  await page.locator('[data-topic-filter="all"]').click();
+  await page.locator('[data-complete-topic="'+firstTopic+'"]').click();
+  await page.getByText('Пройдено 1 из 2',{exact:true}).waitFor();
   await page.screenshot({path:output+'/17_class_program_real.png'});
   await page.locator('.class-detail-tabs [data-class-detail-tab="materials"]').click();
   // Reuse the existing library entry in a persisted lesson; do not create a copy.
@@ -204,6 +217,14 @@ try {
   await page.locator('.class-detail-tabs [data-class-detail-tab="program"]').click();
   await page.locator('[data-class-topic]').first().filter({hasText:'Производная'}).waitFor();
   await page.locator('[data-class-topic="'+firstTopic+'"] a[href="https://example.org/study-notes"]').waitFor();
+  await page.getByText('Пройдено 1 из 2',{exact:true}).waitFor();
+  await page.locator('[data-topic-filter="completed"]').click();
+  assert.equal(await page.locator('[data-class-topic]').count(),1);
+  const persistedTopic=(await call('teacher/class-topics',north.token)).find(x=>x.id===firstTopic);
+  assert.ok(persistedTopic.completedAt);
+  assert.equal(persistedTopic.completionRevision,3);
+  await page.locator('[data-topic-filter="all"]').click();
+
   assert.equal((await call('teacher/topic-materials',north.token)).length,1);
   await page.locator('.class-detail-tabs [data-class-detail-tab="schedule"]').click();
   await page.locator('[data-open-class-lesson="'+linkedLessonId+'"]').click();

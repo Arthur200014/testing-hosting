@@ -120,6 +120,8 @@ namespace TestingHosting.Platform.Persistence.Migrations
                 b.Property<Guid?>("GroupClassId").HasColumnType("uuid");
                 b.Property<string>("Title").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
                 b.Property<string>("Plan").IsRequired().HasMaxLength(2000).HasColumnType("character varying(2000)");
+                b.Property<DateTimeOffset?>("CompletedAt").HasColumnType("timestamp with time zone");
+                b.Property<int>("CompletionRevision").HasColumnType("integer");
                 b.Property<int>("SortOrder").HasColumnType("integer");
                 b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
                 b.HasKey("Id");
