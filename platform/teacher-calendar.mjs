@@ -67,3 +67,13 @@ export function calendarEntries(day, lessons, rules, classes, zone = calendarZon
   }
   return entries.sort((a,b) => a.visibleStart-b.visibleStart || a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
 }
+
+export function calendarWeekDays(day) {
+  if (!shiftCalendarDay(day, 0)) return [];
+  const weekday = new Date(day + 'T12:00:00Z').getUTCDay();
+  const monday = shiftCalendarDay(day, -((weekday + 6) % 7));
+  return Array.from({length:7}, (_,offset)=>shiftCalendarDay(monday, offset));
+}
+export function calendarWeek(day, lessons, rules, classes, zone = calendarZone) {
+  return calendarWeekDays(day).map(date=>({date, entries:calendarEntries(date, lessons, rules, classes, zone)}));
+}

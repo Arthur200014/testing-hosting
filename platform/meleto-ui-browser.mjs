@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
-import { calendarDay, calendarTime } from './teacher-calendar.mjs';
+import { calendarDay, calendarTime, calendarWeekDays } from './teacher-calendar.mjs';
 
 const base = process.env.TAS_BROWSER_BASE || 'http://127.0.0.1:8766';
 const output = process.env.TAS_SCREENSHOT_DIR || 'test-results/meleto-ui02';
@@ -721,6 +721,12 @@ try {
   // Day calendar: reads survive reload, with no writes merely by browsing.
   lessons.push({id:'calendar-saved',lessonAt:'2026-11-16T13:00:00Z',title:'Сохранённый урок календаря',
     participants:[{membershipId:students[0].membershipId,durationMinutes:60,attendanceStatus:'Unknown'}]});
+  lessons.push(
+    {id:'calendar-overnight',lessonAt:'2026-11-17T20:30:00Z',title:'Ночной переход',
+      participants:[{membershipId:students[0].membershipId,durationMinutes:120,attendanceStatus:'Unknown'}]},
+    {id:'calendar-sunday',lessonAt:'2026-11-22T08:00:00Z',title:'Воскресное занятие',
+      participants:[{membershipId:students[0].membershipId,durationMinutes:60,attendanceStatus:'Unknown'}]}
+  );
   const beforeCalendar = JSON.stringify({lessons,scheduleRules});
   const writesBeforeCalendar = plannedLessonWrites;
   await page.reload();
@@ -776,6 +782,72 @@ try {
   assert.equal(overflow.scroll>overflow.width,false,'calendar fits mobile width: '+JSON.stringify(overflow));
   await page.screenshot({path:output+'/37_calendar_day_mobile.png'});
   assert.equal(unexpectedWrites,0);
+  // Week view reuses the day projection and existing planner, with no implicit writes.
+  await page.setViewportSize({width:1360,height:930});
+  await page.reload();
+  await page.locator('#loginForm [name="workspace"]').fill('synthetic');
+  await page.locator('#loginForm [name="email"]').fill('teacher@example.invalid');
+  await page.locator('#loginForm [name="password"]').fill('synthetic-password');
+  await page.locator('#loginForm button[type="submit"]').click();
+  await page.locator('[data-view="lessons"]').click();
+  await chooseDay('2026-11-18');
+  await page.locator('[data-calendar-mode="week"]').click();
+  assert.equal(await page.locator('[data-calendar-open-day]').count(),7);
+  await page.locator('[data-calendar-open-day="2026-11-16"]').waitFor();
+  await page.locator('[data-calendar-open-day="2026-11-22"]').waitFor();
+  await page.locator('[data-calendar-cell="2026-11-16"] [data-calendar-lesson="calendar-saved"]').waitFor();
+  assert.equal(await page.locator('[data-calendar-cell="2026-11-16"] [data-calendar-rule]').count(),2);
+  assert.equal(await page.locator('[data-calendar-cell="2026-11-18"] [data-calendar-rule]').count(),1);
+  const night = page.locator('[data-calendar-hour="0"] [data-calendar-cell="2026-11-18"] [data-calendar-lesson="calendar-overnight"]');
+  await night.waitFor();
+  await page.locator('[data-calendar-cell="2026-11-22"] [data-calendar-lesson="calendar-sunday"]').waitFor();
+  const beforeWeek = JSON.stringify({lessons,scheduleRules});
+  const writesBeforeWeek = plannedLessonWrites;
+  await page.locator('[data-calendar-shift="1"]').click();
+  assert.equal(await page.locator('#calendarDate').inputValue(),'2026-11-25');
+  await page.locator('[data-calendar-open-day="2026-11-23"]').waitFor();
+  await page.locator('[data-calendar-shift="-1"]').click();
+  await page.locator('[data-calendar-today]').click();
+  assert.equal(await page.locator('#calendarDate').inputValue(),calendarDay());
+  await page.locator('[data-calendar-open-day="'+calendarDay()+'"][aria-current="date"]').waitFor();
+  await chooseDay('2027-01-03');
+  assert.equal(await page.locator('[data-calendar-open-day]').first().getAttribute('data-calendar-open-day'),'2026-12-28');
+  await chooseDay('2026-11-18');
+  await page.locator('[data-calendar-cell="2026-11-18"] [data-plan-rule]').click();
+  assert.equal(await page.locator('#lessonPlannerForm [name="lessonDate"]').inputValue(),'2026-11-18');
+  assert.equal(await page.locator('#lessonPlannerForm [name="lessonStart"]').inputValue(),'16:00');
+  await page.locator('#lessonPlannerForm [data-cancel-lesson-plan]').click();
+  await page.locator('[data-calendar-add-day="2026-11-22"]').click();
+  assert.equal(await page.locator('#lessonPlannerForm [name="lessonDate"]').inputValue(),'2026-11-22');
+  assert.equal(await page.locator('#lessonPlannerForm [name="lessonStart"]').inputValue(),'09:00');
+  await page.locator('#lessonPlannerForm [data-cancel-lesson-plan]').click();
+  assert.equal(JSON.stringify({lessons,scheduleRules}),beforeWeek);
+  assert.equal(plannedLessonWrites,writesBeforeWeek,'week navigation and cancellation never create lessons');
+  await page.locator('[data-calendar-open-day="2026-11-22"]').click();
+  assert.equal(await page.locator('[data-calendar-mode="day"]').getAttribute('aria-pressed'),'true');
+  assert.equal(await page.locator('#calendarDate').inputValue(),'2026-11-22');
+  await page.locator('[data-calendar-lesson="calendar-sunday"]').waitFor();
+  await page.locator('[data-calendar-mode="week"]').click();
+  await page.locator('[data-calendar-add-day="2026-11-22"]').click();
+  await page.locator('#lessonPlannerForm [name="title"]').fill('Недельное занятие');
+  await page.locator('#lessonPlannerForm [name="planMember"][value="'+students[0].membershipId+'"]').check();
+  await page.locator('#lessonPlannerForm button[type="submit"]').click();
+  await page.locator('[data-calendar-cell="2026-11-22"] [data-calendar-lesson]').filter({hasText:'Недельное занятие'}).waitFor();
+  assert.equal(plannedLessonWrites,writesBeforeWeek+1);
+  assert.equal(plannedLessonRequests.at(-1).lessonAt,'2026-11-22T06:00:00.000Z');
+  assert.deepEqual(calendarWeekDays(await page.locator('#calendarDate').inputValue()),calendarWeekDays('2026-11-22'));
+  await page.locator('.calendar-week-scroll').evaluate(el=>{el.scrollTop=el.querySelector('[data-calendar-hour="9"]').offsetTop-100;});
+  await page.evaluate(()=>window.scrollTo(0,0));
+  await page.screenshot({path:output+'/38_calendar_week.png'});
+  await page.setViewportSize({width:390,height:844});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'week scroll stays inside calendar on mobile');
+  const weekScroll = page.locator('.calendar-week-scroll');
+  assert.equal(await weekScroll.evaluate(el=>el.scrollWidth>el.clientWidth),true);
+  await weekScroll.evaluate(el=>{el.scrollLeft=el.scrollWidth;});
+  assert.ok(await weekScroll.evaluate(el=>el.scrollLeft)>0,'Sunday can be reached by horizontal scrolling');
+  await page.screenshot({path:output+'/38_calendar_week_mobile.png'});
+  assert.equal(unexpectedWrites,0);
+  console.log('PASS: week calendar reload, Monday/Sunday and year boundaries, overnight, navigation, day switching, planner and mobile scroll');
   console.log('PASS: day calendar reload, navigation, separate lesson/rule states and timezone-safe planner');
   console.log('PASS: Meleto 15 recurring schedule (create/edit/disable, no phantom lessons)');
   console.log('PASS: Meleto 07/12/13 lesson planning and linked individual/group classes');

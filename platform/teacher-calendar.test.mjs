@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calendarDay, calendarTime, shiftCalendarDay, localSlotInstant, calendarEntries } from './teacher-calendar.mjs';
+import { calendarDay, calendarTime, shiftCalendarDay, localSlotInstant, calendarEntries, calendarWeekDays, calendarWeek } from './teacher-calendar.mjs';
 const item = {id:'class',kind:'individual',persistent:true};
 const rule = {id:'rule',classId:'class',classKind:'individual',isActive:true,daysMask:1,startMinute:15*60,durationMinutes:60,timeZoneId:'Europe/Moscow'};
 test('Moscow navigation and date boundaries are independent of device zone', () => {
@@ -36,4 +36,25 @@ test('DST gaps are skipped and repeated wall time produces one stable occurrence
   assert.equal(localSlotInstant('2026-03-29',150,'Europe/Berlin'),null);
   assert.equal(new Date(localSlotInstant('2026-10-25',150,'Europe/Berlin')).toISOString(),'2026-10-25T00:30:00.000Z');
   assert.equal(calendarEntries('2026-03-29',[],[{...rule,daysMask:64,startMinute:150,timeZoneId:'Europe/Berlin'}],[item]).length,0);
+});
+
+test('weeks begin Monday and preserve all seven dates across year and leap boundaries', () => {
+  assert.deepEqual(calendarWeekDays('2027-01-03'),['2026-12-28','2026-12-29','2026-12-30','2026-12-31','2027-01-01','2027-01-02','2027-01-03']);
+  assert.equal(calendarWeekDays('2027-01-04')[0],'2027-01-04');
+  assert.ok(calendarWeekDays('2028-03-01').includes('2028-02-29'));
+  assert.deepEqual(calendarWeekDays('invalid'),[]);
+});
+test('week projection reuses day boundaries, shows overnight continuation and never writes', () => {
+  const lessons = [{id:'overnight',lessonAt:'2026-11-16T20:30Z',participants:[{durationMinutes:120}]}];
+  const rules = [{...rule,daysMask:5}];
+  const before = JSON.stringify({lessons,rules});
+  const week = calendarWeek('2026-11-18',lessons,rules,[item]);
+  assert.equal(week.length,7);
+  assert.equal(week[0].date,'2026-11-16');
+  for (const day of week) assert.deepEqual(day.entries,calendarEntries(day.date,lessons,rules,[item]));
+  assert.equal(week[0].entries.filter(e=>e.kind==='lesson').length,1);
+  assert.equal(calendarTime(week[1].entries[0].visibleStart),'00:00');
+  assert.equal(week[2].entries[0].kind,'rule');
+  assert.deepEqual(week[6].entries,[]);
+  assert.equal(JSON.stringify({lessons,rules}),before);
 });
