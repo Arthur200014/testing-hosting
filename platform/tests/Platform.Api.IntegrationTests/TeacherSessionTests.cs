@@ -54,6 +54,16 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Single(candidates[0].ExistingLessonIds);
         Assert.Equal(new DateTimeOffset(2026, 12, 7, 12, 0, 0, TimeSpan.Zero), candidates[0].LessonAt);
         Assert.All(candidates.Skip(1), x => Assert.Empty(x.ExistingLessonIds));
+        var oneDay = await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules/period-preview",
+            request with { From = new(2026, 12, 7), To = new(2026, 12, 7) });
+        Assert.Single((await oneDay.Content.ReadFromJsonAsync<List<TeacherPeriodCandidate>>())!);
+        var groupResponse = await client.PostAsJsonAsync("/api/v1/teacher/groups",
+            new TeacherCreateGroupRequest(Guid.NewGuid(), "Empty preview group", [member]));
+        var group = (await groupResponse.Content.ReadFromJsonAsync<TeacherGroupClassView>())!;
+        var groupPreview = await client.PostAsJsonAsync("/api/v1/teacher/schedule-rules/period-preview",
+            request with { ClassId = group.Id, ClassKind = "group" });
+        Assert.Equal(HttpStatusCode.OK, groupPreview.StatusCode);
+        Assert.Empty((await groupPreview.Content.ReadFromJsonAsync<List<TeacherPeriodCandidate>>())!);
         foreach (var invalid in new[] { request with { To = new(2027, 1, 1) },
             request with { To = new(2026, 11, 30) }, request with { ClassKind = "unknown" } })
             Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(
