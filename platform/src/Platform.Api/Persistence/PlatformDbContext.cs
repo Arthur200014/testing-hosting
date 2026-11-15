@@ -39,10 +39,44 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<TeacherGroupClass> TeacherGroupClasses => Set<TeacherGroupClass>();
     public DbSet<TeacherGroupEnrollment> TeacherGroupEnrollments => Set<TeacherGroupEnrollment>();
     public DbSet<TeacherScheduleRule> TeacherScheduleRules => Set<TeacherScheduleRule>();
+    public DbSet<TeacherMaterial> TeacherMaterials => Set<TeacherMaterial>();
+    public DbSet<TeacherClassMaterialLink> TeacherClassMaterialLinks => Set<TeacherClassMaterialLink>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("platform");
+        modelBuilder.Entity<TeacherMaterial>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id });
+            entity.Property(x => x.Title).HasMaxLength(250);
+            entity.Property(x => x.Url).HasMaxLength(2048);
+            entity.HasIndex(x => new { x.WorkspaceId, x.CreatedAt });
+            entity.HasOne<Workspace>().WithMany().HasForeignKey(x => x.WorkspaceId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<TeacherClassMaterialLink>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.WorkspaceId, x.RequestId }).IsUnique();
+            entity.HasIndex(x => new { x.WorkspaceId, x.MaterialId, x.IndividualClassId }).IsUnique();
+            entity.HasIndex(x => new { x.WorkspaceId, x.MaterialId, x.GroupClassId }).IsUnique();
+            entity.HasOne<TeacherMaterial>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.MaterialId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<TeacherClass>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.IndividualClassId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<TeacherGroupClass>().WithMany()
+                .HasForeignKey(x => new { x.WorkspaceId, x.GroupClassId })
+                .HasPrincipalKey(x => new { x.WorkspaceId, x.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(t => t.HasCheckConstraint("CK_TeacherClassMaterialLinks_ExactlyOneClass",
+                "(\"IndividualClassId\" IS NOT NULL) <> (\"GroupClassId\" IS NOT NULL)"));
+        });
+
         modelBuilder.Entity<TeacherPeriodPlan>(entity =>
         {
             entity.HasKey(x => new { x.WorkspaceId, x.Id });
