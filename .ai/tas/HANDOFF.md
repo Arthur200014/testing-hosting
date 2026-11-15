@@ -2,19 +2,29 @@
 
 **UPDATED:** 2026-11-15
 **ACTIVE_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — Meleto UI-01…UI-08
-**ACTIVE_TASK:** UI-03 period planning — small READ-ONLY preview slice complete; full bulk planning remains open.
-**ACTIVE_BRANCH:** none; continue from `main`.
-**LAST_IMPLEMENTATION_COMMIT:** `c73f60288a44d4ce9ace595afac366d6b2b0e829` — PR #64.
-**NEXT_ACTION:** Small server-side period-preview slice: validate teacher ownership, active persisted class, date range (maximum 31 inclusive days), and applicable schedule rules; return read-only candidates with linked existing-start matches. Add focused real PostgreSQL integration tests for cross-owner rejection and zero mutations. Keep actual batch saving/idempotency and count-based screen 74 separate. Current client preview is not a trusted write/deduplication guard.
-**VERIFICATION:** PASS — 12 focused calendar Node tests; complete browser workflow 25/25 Node tests + Chromium on real isolated API/PostgreSQL with dedicated test teachers; Native homework browser run 43723479404, Homework import integration 43723479335 and TAS task CI 43723479338 all successful on PR head `1557995`. Source 73 PNG/JSON and generated screenshot visually inspected. NOT_RUN — bulk writes, production/Timeweb.
+**ACTIVE_TASK:** RELEASE_PENDING — publish and live-verify PR #65 before developing another feature.
+**ACTIVE_BRANCH:** `tas/UI-03-server-period-preview` — [PR #65](https://github.com/Arthur200014/testing-hosting/pull/65); resume branch, not stale main.
+**LAST_IMPLEMENTATION_COMMIT:** `38ace0a70ef52b63279f599aa9d2c10c4f0ddd1c`.
+**NEXT_ACTION:** Finish PR #65 release first under AGENTS.md: inspect exact PR head/required checks and migrations, merge into main, verify GitHub Pages interface and Timeweb API deployment, then exercise planning + group lesson completion/results through the real site. Existing real records read-only; save/cancel/reload in an identified live test workspace only. Record MERGED_SHA, frontend/API deployment evidence and live acceptance on main. If access/deployment/test account is unavailable, fix or report the exact RELEASE_BLOCKED/LIVE_WRITE_NOT_RUN condition; do not start materials/tasks instead. After successful live acceptance, resume lesson attachments (source 25, 27–29).
 
-## Completed small slice
+## Release state
+- Implementation and isolated CI are accepted; PR #65 remains open/unmerged as last observed. Latest branch code must be rechecked before merge.
+- Frontend observed on main before these instruction edits: `ab21d17`; PR #65 features absent from published teacher.html. API health returned 200, running API revision UNKNOWN.
+- **MERGED_SHA:** NOT_MERGED. **FRONTEND_DEPLOY:** PR #65 NOT_DEPLOYED. **API_DEPLOY:** UNKNOWN for this feature set. **LIVE_ACCEPTANCE:** NOT_RUN. These are evidence states, not successful release claims.
+- This checkpoint changes instructions only; it does not merge PR #65, deploy application code or run production writes.
 
-- `platform/teacher.html`, `teacher-calendar.mjs`, `meleto-fidelity.css`: expandable “Предпросмотр занятий на период” in active persisted individual/group class schedule; from/to dates, inclusive maximum 31 days, Moscow-time read-only rule occurrences. Marks an existing linked class Lesson with exactly the same start time; no claims about overlap safety. Invalid ranges/empty periods and close/reset handled. No save button and no mutation path. Scoped mobile header spacing fixes horizontal overflow.
-- `teacher-calendar.test.mjs`: inclusive boundaries, invalid/reversed/long ranges, inactive/foreign rules, archived class, existing-class matching, read-only behavior and exclusion of prior-day continuations.
-- `calendar-real-browser.mjs`: real HTTP persists one matching control Lesson in isolated test database, previews three slots with one saved match, validates limit, closes and compares full Lesson/Rule responses unchanged. Desktop screenshot `73_period_preview_real.png` inspected; mobile 390px overflow check passes; second teacher isolation also passes.
-- No API/schema, production data or credential changes. Reference 73 has a complete modal/write flow; this deliberately small inline preview is PARTIAL, not completed bulk planning.
+## Current implementation
+
+- Period/count planning: authoritative server preview, confirmed atomic batch saving, persisted request ledger, stale/overlap checks and workspace locks shared by lesson creation/correction. Count means next 1–31 future slots within 366 days; existing linked starts count toward N and are skipped on save. Migrations: TeacherPeriodPlans (20261115210000).
+- Class lesson detail/completion: nullable CompletedAt, explicit completion through existing correction API, immutable first completion timestamp, per-participant attendance and revision/replay checks. Past dates alone do not mark completion. Migration: LessonCompletion (20261115220000).
+- Current result scenario: nullable Reaction/Feedback on LessonParticipant, migration LessonFeedback (20261115230000) + EF snapshot. Endpoint `POST /teacher/lessons/{lessonId}/participants/{membershipId}/result` validates workspace/participant/version and updates only that result. Successful same-payload replay is safe; stale changed payload conflicts. Attendance, topic, other participants, class links, homework and completion are preserved.
+- Result dialog follows 26: selected student, optional reaction/comment, Done/cancel/close/Escape and focus containment. Three reactions positive/neutral/negative are a product choice; screenshot shows the reaction control, not its complete menu. Comment max 2000 chars, escaped on output. Timeline shows actual record creation/completion; no invented actual-start event. Recordings/boards/chat/material integrations remain unavailable; source 25 is PARTIAL.
+- Changed paths: lesson model/history/revision/correction, Program.cs, DbContext + migration/snapshot, teacher.html, meleto-fidelity.css, TeacherSessionTests.cs, calendar-real-browser.mjs.
+
+## Verification
+
+PASS on `38ace0a`: Native homework browser `43731170568`, TAS task CI `43731170606`, Homework import integration `43731170570`. Real isolated HTTP API/PostgreSQL + Chromium verified result cancel/save/refresh, mobile fit, one participant changed/other unchanged, preserved completion/class/attendance and previous planning scenarios. Integration tests cover result validation, foreign lesson/member, stale revision and replay. Local syntax + git diff --check PASS. Source 25–26 PNG/JSON and generated screenshots `25_lesson_history_real.png` / `26_lesson_result_real.png` inspected at 1348×926. First mobile header overflow fixed. Exact pixel fidelity PARTIAL. Production/Timeweb NOT_RUN.
 
 ## References and safety
 
-Source `.ai/tas/references/meleto/screens/73_bulk_lessons_period.png` + matching JSON; inspect 74 only when needed. Follow AGENTS.md: actual isolated API/PostgreSQL teachers for data-backed acceptance, mocked UI supplementary. Protect `sharifullinartur509@gmail.com` and all existing production owner/student/lesson records. No live imports or writer switch. Green isolated CI does not verify Timeweb deployment.
+Use repo PNG/JSON under `.ai/tas/references/meleto/`, only current IDs. Follow AGENTS.md and isolated `platform/scripts/calendar-real-browser.sh`. No production owner/student/lesson test writes, password changes, board deletion, repeat imports or writer switches. Green isolated CI does not verify deployment.
