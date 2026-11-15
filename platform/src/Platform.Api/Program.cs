@@ -46,6 +46,8 @@ builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddScoped<TeacherClassService>();
 builder.Services.AddScoped<TeacherGroupService>();
 builder.Services.AddScoped<TeacherScheduleRuleService>();
+builder.Services.AddScoped<TeacherPeriodPreviewService>();
+builder.Services.AddScoped<TeacherPeriodPlanService>();
 builder.Services.AddScoped<TeacherClassInvitationService>();
 builder.Services.AddSingleton<IPasswordHasher<TeacherUser>, PasswordHasher<TeacherUser>>();
 builder.Services.AddSingleton<TeacherTokenIssuer>();
@@ -348,6 +350,26 @@ app.MapPost("/api/v1/student/groups/invitations/accept", async (
     };
 }).RequireAuthorization("student");
 
+app.MapPost("/api/v1/teacher/schedule-rules/period-plan", async (
+    TeacherPeriodPlanRequest request, ClaimsPrincipal principal,
+    TeacherPeriodPlanService planner, CancellationToken ct) =>
+{
+    var result = await planner.SaveAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), request, ct);
+    return result.Status == 200 ? Results.Ok(result.Response) : Results.Problem(statusCode: result.Status,
+        title: "Период изменился, содержит конфликт или класс недоступен. Обновите предпросмотр.");
+}).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/schedule-rules/period-preview", async (
+    TeacherPeriodPreviewRequest request, ClaimsPrincipal principal,
+    TeacherPeriodPreviewService preview, CancellationToken ct) =>
+{
+    var result = await preview.PreviewAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), request, ct);
+    return result.NotFound ? Results.NotFound()
+        : result.Errors is not null ? Results.ValidationProblem(result.Errors)
+        : Results.Ok(result.Candidates);
+}).RequireAuthorization("teacher");
+
 app.MapGet("/api/v1/teacher/schedule-rules", async (
     ClaimsPrincipal principal, TeacherScheduleRuleService schedule, CancellationToken ct) =>
     Results.Ok(await schedule.ListAsync(
@@ -600,6 +622,20 @@ app.MapGet("/api/v1/teacher/lessons", async (
     Results.Ok(await history.ListLessonsAsync(
         Guid.Parse(principal.FindFirstValue("workspace_id")!), cancellationToken)))
     .RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/lessons/{lessonId:guid}/participants/{membershipId:guid}/result", async (
+    Guid lessonId, Guid membershipId, TeacherLessonFeedbackRequest request, ClaimsPrincipal principal,
+    TeacherLessonCorrectionService lessons, CancellationToken ct) =>
+{
+    var result = await lessons.FeedbackAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), lessonId, membershipId, request, ct);
+    return result.Status switch
+    {
+        TeacherLessonCorrectionStatus.Updated or TeacherLessonCorrectionStatus.Unchanged => Results.Ok(result.Response),
+        TeacherLessonCorrectionStatus.NotFound => Results.NotFound(),
+        TeacherLessonCorrectionStatus.InvalidRequest => Results.ValidationProblem(result.Errors!),
+        _ => Results.Problem(statusCode: 409, title: "Результаты изменились. Обновите занятие и повторите изменение.")
+    };
+}).RequireAuthorization("teacher");
 
 app.MapPost("/api/v1/teacher/lessons/{lessonId:guid}/correct", async (
     Guid lessonId, TeacherLessonCorrectionRequest request, ClaimsPrincipal principal,

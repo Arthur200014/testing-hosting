@@ -344,6 +344,8 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
+        state.resultDraft=null;
+        state.selectedLesson=null; state.lessonFilter='all';
         state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.classDetailTab = 'summary'; state.classStatsMonth = new Date().toISOString().slice(0,7); state.classStatsExpanded = ''; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; state.lessonPlan = null; state.scheduleEdit = null; state.calendarDate = calendarDay(); state.calendarMode = 'day'; state.periodPreview=null;
         document.body.classList.remove('calendar-plan-open');
         $('app').hidden = true; $('loginScreen').hidden = false;
@@ -537,19 +539,23 @@
       function classPeriodPreview(item) {
         const selected=state.periodPreview?.classId===item.id && state.periodPreview.classKind===item.kind ? state.periodPreview : null;
         const from=selected?.startDate || calendarDay(), to=selected?.endDate || shiftCalendarDay(from,30);
-        let rows=[], error='';
-        if (selected) try { rows=previewClassPeriod(from,to,item,state.data.lessons || [],state.data.scheduleRules || []); } catch(e) { error=e.message; }
-        return `<details class="class-period-preview" ${selected?'open':''}><summary>Предпросмотр занятий на период</summary>
-          <p class="muted small">Только просмотр слотов, без создания занятий. Период — до 31 дня, время по Москве.</p>
-          <form id="classPeriodPreviewForm" class="stack" data-class-id="${safe(item.id)}" data-class-kind="${safe(item.kind)}">
-            <div class="form-row"><label>Дата с<input name="startDate" type="date" value="${safe(from)}" required></label>
-              <label>Дата по<input name="endDate" type="date" value="${safe(to)}" required></label></div>
-            <div class="row"><button type="submit" class="secondary">Показать слоты</button><button type="button" class="secondary" data-close-period-preview>Свернуть</button></div></form>
-          ${selected?`<div data-period-preview-result tabindex="-1">${error?`<p class="banner error" role="alert">${safe(error)}</p>`:
-            `<p class="small">${safe(from)} — ${safe(to)} · Слотов: <strong data-period-count>${rows.length}</strong> · Уже есть занятие: ${rows.filter(r=>r.isScheduled).length}</p>
+        const rows=selected?.rows || [], error=selected?.error || '';
+        const modal=selected?.modal, mode=selected?.mode || 'period';
+        const opener=`<button type="button" class="secondary" data-open-count-plan="${safe(item.id)}" data-class-kind="${safe(item.kind)}">Запланировать несколько занятий</button>`;
+        return `${opener}${modal?'<div class="modal-backdrop"><section class="learning-modal count-plan-modal" role="dialog" aria-modal="true" aria-labelledby="countPlanTitle"><div class="modal-head"><h2 id="countPlanTitle">Запланировать занятия</h2><button type="button" class="modal-close" data-close-period-preview aria-label="Закрыть планирование">×</button></div><p>Запланируйте несколько занятий в рамках расписания</p>':`<details class="class-period-preview" ${selected?'open':''}><summary>Предпросмотр занятий на период</summary>`}
+          ${modal?`<div class="class-rule-summary">${scheduleSummary(item)}</div><div class="class-tabs"><button type="button" data-plan-mode="period" class="${mode==='period'?'active':''}">Период</button><button type="button" data-plan-mode="count" class="${mode==='count'?'active':''}">Количество</button></div>`:''}
+          <p class="muted small">Проверьте слоты перед созданием занятий. Уже существующие занятия будут пропущены. ${mode==='count'?'До 31 слота по расписанию':'Период — до 31 дня'}, время по Москве.</p>
+          <form id="classPeriodPreviewForm" class="stack" data-class-id="${safe(item.id)}" data-class-kind="${safe(item.kind)}" data-mode="${mode}" data-modal="${modal?'true':'false'}">
+            ${mode==='count'?`<label>Количество занятий<input name="count" type="number" min="1" max="31" step="1" placeholder="Количество занятий" value="${safe(selected?.count || '')}" required></label><p class="muted small">Следующие 1–31 слотов с сегодняшнего дня; уже созданные будут пропущены.</p>`:`<div class="form-row"><label>Дата с<input name="startDate" type="date" value="${safe(from)}" required></label><label>Дата по<input name="endDate" type="date" value="${safe(to)}" required></label></div>`}
+            <div class="row"><button type="submit" class="secondary" ${selected?.loading || (mode==='count' && !selected?.count)?'disabled':''}>${selected?.loading?'Загружаем…':'Показать слоты'}</button><button type="button" class="secondary" data-close-period-preview>${modal?'Отменить':'Свернуть'}</button></div></form>
+          ${selected && (selected.loading || error || selected.candidates)?`<div data-period-preview-result tabindex="-1">${selected.loading?'<p role="status">Проверяем расписание на сервере…</p>':error?`<p class="banner error" role="alert">${safe(error)}</p>`:
+            `<p class="small">${mode==='count'?'Следующие слоты по расписанию':safe(from)+' — '+safe(to)} · Слотов: <strong data-period-count>${rows.length}</strong> · Уже есть занятие: ${rows.filter(r=>r.isScheduled).length}</p>
               ${rows.length?rows.slice(0,100).map(row=>`<div class="item" data-period-slot><div><strong>${safe(date(new Date(row.start).toISOString()))}–${safe(calendarTime(row.end))}</strong></div>
                 <span class="pill" data-period-status="${row.isScheduled?'saved':'rule'}">${row.isScheduled?'Уже есть занятие':'Слот расписания'}</span></div>`).join(''):'<p class="muted small">В этом периоде нет действующих слотов расписания.</p>'}
-              ${rows.length>100?'<p class="muted small">Показаны первые 100 слотов. Сократите период для просмотра остальных.</p>':''}`}</div>`:''}</details>`;
+              ${rows.length>100?'<p class="muted small">Показаны первые 100 слотов. Сократите период для просмотра остальных.</p>':''}
+              ${selected.saved?`<p role="status">Создано занятий: ${selected.saved.createdLessonIds.length}. Уже были: ${selected.saved.skippedCount}.</p>`:
+                rows.some(r=>!r.isScheduled)?`<button type="button" class="primary" data-save-period ${selected.saving?'disabled':''}>${selected.saving?'Сохраняем…':'Создать занятия по этому предпросмотру'}</button>`:''}
+              ${selected.saveError?`<p class="banner error" role="alert">${safe(selected.saveError)} Повторная отправка с тем же запросом безопасна.</p>`:''}`}</div>`:''}${modal?'</section></div>':'</details>'}`;
       }
       function classScheduleRules(item) {
         const rows = classRules(item);
@@ -646,10 +652,12 @@
             ? `<section class="class-subsection">${metadata}${roster}${groupInvitePanel(item)}</section>`
           : tab === 'schedule'
             ? `<section class="class-subsection">${classScheduleRules(item)}<h3>Занятия группы</h3>
-                ${list(linkedLessons, 'Запланированных занятий пока нет.', x => `<div class="item">
+                <div class="class-tabs"><button type="button" data-class-lessons-filter="all">Все занятия</button><button type="button" data-class-lessons-filter="completed">Завершённые</button></div>
+                ${list(linkedLessons.filter(x=>state.lessonFilter!=='completed'||x.completedAt), 'Занятий пока нет.', x => `<div class="item">
                   <div><strong>${safe(x.title || 'Занятие')} · ${safe(date(x.lessonAt))}</strong>
                     <small>${safe((x.participants || []).length)} учеников · ${safe(x.description || 'Без описания')}</small></div>
-                  <span class="pill">${new Date(x.lessonAt) > new Date() ? 'Запланировано' : 'Дата прошла'}</span>
+                  <span class="pill">${x.completedAt?'Завершено':new Date(x.lessonAt) > new Date() ? 'Запланировано' : 'Дата прошла'}</span>
+                  <button type="button" class="secondary" data-open-class-lesson="${safe(x.id)}">Открыть занятие</button>
                 </div>`)}
                 ${item.isArchived ? '' : `<button type="button" class="primary" data-schedule-class="${safe(item.id)}">＋ Добавить занятие</button>`}
                 <p class="muted small">Правила повторения показаны выше; здесь — только отдельно созданные занятия группы.</p>
@@ -684,7 +692,51 @@
           ${body}
         </div>`;
       }
+      function classLessonDetail(item,lesson) {
+        const participants=lesson.participants || [];
+        const labels={Present:'Присутствовал',Absent:'Отсутствовал',Unknown:'Не отмечено'};
+        const duration=Math.max(...participants.map(p=>p.durationMinutes),0);
+        return `<section class="class-lesson-detail">
+          <nav class="lesson-planner-breadcrumb" aria-label="Путь к занятию"><button type="button" data-back-classes>Классы</button><span>›</span>
+            <button type="button" data-back-class-lessons>${safe(item.title)}</button><span>›</span><span>${safe(lesson.title || 'Занятие')}</span></nav>
+          <div class="lesson-detail-grid"><div class="stack">
+            <header class="lesson-detail-hero"><p>${safe(date(lesson.lessonAt))} · ${duration} мин</p><h1>${safe(lesson.title || 'Занятие')}</h1>
+              <div class="lesson-detail-status">${lesson.completedAt?'Завершено · '+safe(date(lesson.completedAt)):new Date(lesson.lessonAt)>new Date()?'Запланировано':'Дата прошла · ещё не завершено'}</div></header>
+            <section class="card stack"><h2>Доступ к записи</h2><p class="muted">Запись занятия недоступна.</p></section>
+            <section class="card stack"><h2>Темы и комментарии</h2>${list(participants.filter(p=>p.topicComment),'Темы пока не указаны.',p=>`<div><strong>${safe(studentName(p.membershipId))}</strong><p>${safe(p.topicComment)}</p></div>`)}</section>
+            <section class="card stack"><h2>Материалы</h2><p class="muted">Материалы к этому занятию не добавлены.</p></section>
+          </div><aside class="lesson-detail-side"><section class="card stack"><button class="primary" disabled title="Доска занятия пока недоступна">Перейти к доске</button></section>
+            <section class="card stack"><div class="section-head"><h2>Участники</h2><button type="button" class="secondary" data-edit-lesson="${safe(lesson.id)}">Посещаемость и завершение</button></div>
+              ${participants.map(p=>`<div class="item" data-lesson-participant="${safe(p.membershipId)}"><div><strong>${safe(studentName(p.membershipId))}</strong><small>${safe(labels[p.attendanceStatus] || p.attendanceStatus)} · ${p.durationMinutes} мин</small>
+                ${p.reaction?`<p data-student-reaction>${safe({positive:'😊',neutral:'😐',negative:'🙁'}[p.reaction] || p.reaction)}</p>`:''}${p.feedback?`<p data-student-feedback>${safe(p.feedback)}</p>`:''}</div>
+                <button type="button" class="class-text-link" data-open-lesson-result="${safe(p.membershipId)}" data-lesson-id="${safe(lesson.id)}">Изменить результат</button></div>`).join('')}
+              ${!lesson.completedAt?'<p class="small muted">Для завершения занятия откройте результаты и подтвердите завершение при сохранении.</p>':''}
+            </section>${state.editLesson?.id===lesson.id?lessonCorrectionForm():''}
+            <section class="card stack lesson-history"><h2>История занятия</h2>
+              ${lesson.createdAt?`<div class="lesson-history-event"><strong>Занятие создано</strong><small>${safe(date(lesson.createdAt))}</small></div>`:''}
+              ${lesson.completedAt?`<div class="lesson-history-event"><strong>Занятие завершено</strong><small>${safe(date(lesson.completedAt))}</small></div>`:'<p class="muted">Завершение ещё не подтверждено.</p>'}
+              <p class="muted small">Чат занятия недоступен.</p></section></aside></div>
+        </section>${lessonResultDialog(lesson)}`;
+      }
+      function lessonResultDialog(lesson) {
+        const draft=state.resultDraft;
+        if (!draft || draft.lessonId!==lesson.id) return '';
+        return `<div class="modal-backdrop"><section class="learning-modal lesson-result-modal" role="dialog" aria-modal="true" aria-labelledby="lessonResultTitle">
+          <div class="modal-head"><h2 id="lessonResultTitle">Результаты</h2><button type="button" class="modal-close" data-close-lesson-result ${draft.saving?'disabled':''} aria-label="Закрыть результаты">×</button></div>
+          <form id="lessonResultForm" class="stack"><strong>${safe(studentName(draft.membershipId))}</strong>
+            <label>Реакция<select name="reaction" ${draft.saving?'disabled':''}><option value="">Не выбрана</option>${[['positive','😊 Хорошо'],['neutral','😐 Обычно'],['negative','🙁 Требуется помощь']].map(([id,title])=>`<option value="${id}" ${draft.reaction===id?'selected':''}>${title}</option>`).join('')}</select></label>
+            <label>Комментарий<textarea name="feedback" maxlength="2000" placeholder="Комментарий" ${draft.saving?'disabled':''}>${safe(draft.feedback)}</textarea></label>
+            ${draft.error?`<p role="alert" class="banner error">${safe(draft.error)}</p>`:''}
+            <div class="row"><button type="submit" class="primary" ${draft.saving?'disabled':''}>${draft.saving?'Сохраняем…':'Готово'}</button><button type="button" class="secondary" data-close-lesson-result ${draft.saving?'disabled':''}>Отмена</button></div>
+          </form></section></div>`;
+      }
       function classDetail(item) {
+        if (state.selectedLesson) {
+          const lesson=(state.data.lessons || []).find(x=>x.id===state.selectedLesson &&
+            (item.kind==='group'?x.groupClassId===item.id:x.individualClassId===item.id ||
+              (!x.individualClassId && !x.groupClassId && x.participants?.some(p=>p.membershipId===item.studentMembershipId))));
+          if (lesson) return classLessonDetail(item,lesson);
+        }
         if (item.kind === 'group') return groupClassDetail(item);
         const lessons = (state.data.lessons || []).filter(x =>
           x.individualClassId === item.id ||
@@ -720,9 +772,11 @@
             </div>
           </section>`,
           schedule: `<section class="class-subsection">${classScheduleRules(item)}<h3>Занятия класса</h3>
-            ${list(lessons.slice(0, 15), 'Занятий по этому классу пока нет.', x => `<div class="item">
+            <div class="class-tabs"><button type="button" data-class-lessons-filter="all">Все занятия</button><button type="button" data-class-lessons-filter="completed">Завершённые</button></div>
+            ${list(lessons.filter(x=>state.lessonFilter!=='completed'||x.completedAt).slice(0, 15), 'Занятий по этому классу пока нет.', x => `<div class="item">
                 <div><strong>${safe(x.title || 'Занятие')} · ${safe(date(x.lessonAt))}</strong><small>${safe(x.participants?.find(p => p.membershipId === item.studentMembershipId)?.topicComment || 'Тема не указана')}</small></div>
-                <span class="pill">${new Date(x.lessonAt) > new Date() ? 'Запланировано' : 'Прошло'}</span>
+                <span class="pill">${x.completedAt?'Завершено':new Date(x.lessonAt) > new Date() ? 'Запланировано' : 'Прошло'}</span>
+                <button type="button" class="secondary" data-open-class-lesson="${safe(x.id)}">Открыть занятие</button>
               </div>`)}
             <button class="primary" type="button" data-schedule-class="${safe(item.id)}">＋ Добавить занятие</button></section>`,
           materials: `<section class="class-subsection class-feature-note"><h3>Материалы класса</h3>
@@ -1177,6 +1231,7 @@
           <form id="lessonCorrectionForm" class="stack" data-lesson-id="${safe(lesson.id)}">
             <label><span>Дата и время</span><input name="lessonAt" type="datetime-local" step="1" value="${safe(localLessonTime(lesson.lessonAt))}" required></label>
             ${participants}
+            ${!lesson.completedAt?'<label class="row"><input type="checkbox" name="complete" style="width:auto">Завершить занятие при сохранении</label>':`<p class="muted small">Завершено: ${safe(date(lesson.completedAt))}</p>`}
             <button class="primary" type="submit">Сохранить исправления</button>
           </form>
         </div>`;
@@ -1693,6 +1748,56 @@
         }
       });
       $('content').addEventListener('click', async event => {
+        const resultButton=event.target.closest('[data-open-lesson-result]');
+        if (resultButton) {
+          const lesson=state.data.lessons?.find(x=>x.id===resultButton.dataset.lessonId);
+          const participant=lesson?.participants.find(x=>x.membershipId===resultButton.dataset.openLessonResult);
+          if (!participant) return;
+          state.resultDraft={lessonId:lesson.id,membershipId:participant.membershipId,revision:lesson.revision,reaction:participant.reaction || '',feedback:participant.feedback || '',error:'',saving:false};
+          render(); document.querySelector('#lessonResultForm textarea')?.focus(); return;
+        }
+        if (event.target.closest('[data-close-lesson-result]')) {
+          if (state.resultDraft?.saving) return;
+          state.resultDraft=null; render(); document.querySelector('[data-open-lesson-result]')?.focus(); return;
+        }
+        const lessonFilter=event.target.closest('[data-class-lessons-filter]');
+        if (lessonFilter) { state.lessonFilter=lessonFilter.dataset.classLessonsFilter; render(); return; }
+        if (event.target.closest('[data-back-class-lessons]')) { state.selectedLesson=null; state.editLesson=null; render(); return; }
+        const lessonLink=event.target.closest('[data-open-class-lesson]');
+        if (lessonLink) { state.selectedLesson=lessonLink.dataset.openClassLesson; state.editLesson=null; render(); window.scrollTo(0,0); return; }
+        const countOpener=event.target.closest('[data-open-count-plan]');
+        if (countOpener) {
+          state.periodPreview={classId:countOpener.dataset.openCountPlan,classKind:countOpener.dataset.classKind,modal:true,mode:'count',count:''};
+          render(); document.querySelector('.count-plan-modal input')?.focus(); return;
+        }
+        const planMode=event.target.closest('[data-plan-mode]');
+        if (planMode && state.periodPreview) {
+          const p=state.periodPreview;
+          state.periodPreview={classId:p.classId,classKind:p.classKind,modal:true,mode:planMode.dataset.planMode,count:''};
+          render(); document.querySelector('.count-plan-modal input')?.focus(); return;
+        }
+        if (event.target.closest('[data-save-period]')) {
+          const preview=state.periodPreview, token=state.token;
+          if (!preview || preview.saving || preview.saved || !preview.candidates) return;
+          if (!confirm('Создать занятия для всех новых слотов показанного периода?')) return;
+          preview.saving=true; preview.saveError=''; render();
+          try {
+            const result=await api('teacher/schedule-rules/period-plan',{method:'POST',body:{requestId:preview.requestId,
+              period:{classId:preview.classId,classKind:preview.classKind,from:preview.startDate,to:preview.endDate,count:preview.mode==='count'?preview.count:null},expectedCandidates:preview.candidates}});
+            if (state.token!==token) return;
+            invalidate(['lessons']);
+            if (state.periodPreview===preview) {
+              preview.saved=result;
+              preview.rows=preview.rows.map(row=>({...row,isScheduled:true}));
+            }
+            await loadKey('lessons',true);
+          } catch(error) {
+            if (state.token!==token) return;
+            if (state.periodPreview===preview) preview.saveError=error.message;
+          }
+          if (state.token===token && state.periodPreview===preview) { preview.saving=false; render(); }
+          return;
+        }
         if (event.target.id === 'printReport') { window.print(); return; }
         if (event.target.closest('[data-retry-overview]')) { await refresh(true); return; }
         if (event.target.matches('.modal-backdrop[data-close-learning]') || event.target.closest('.modal-close[data-close-learning]')) {
@@ -1816,7 +1921,7 @@
           return;
         }
         const openClass = event.target.closest('[data-open-class]');
-        if (openClass) { state.scheduleEdit = null; state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
+        if (openClass) { state.selectedLesson=null; state.editLesson=null; state.lessonFilter='all'; state.scheduleEdit = null; state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
         if (event.target.closest('[data-back-classes]')) {
           if (document.querySelector('#classScheduleRuleForm[data-dirty="1"]') &&
               !confirm('Отменить изменения расписания без сохранения?')) return;
@@ -2024,6 +2129,23 @@
         }
       });
       document.addEventListener('keydown', event => {
+        if (state.resultDraft) {
+          if (event.key==='Escape' && !state.resultDraft.saving) { event.preventDefault(); state.resultDraft=null; render(); document.querySelector('[data-open-lesson-result]')?.focus(); return; }
+          if (event.key==='Tab') {
+            const controls=[...document.querySelectorAll('.lesson-result-modal button:not([disabled]), .lesson-result-modal select:not([disabled]), .lesson-result-modal textarea:not([disabled])')];
+            if (event.shiftKey && document.activeElement===controls[0]) { event.preventDefault(); controls.at(-1)?.focus(); }
+            else if (!event.shiftKey && document.activeElement===controls.at(-1)) { event.preventDefault(); controls[0]?.focus(); }
+          }
+        }
+        if (state.periodPreview?.modal) {
+          if (event.key==='Escape') { event.preventDefault(); state.periodPreview=null; render(); document.querySelector('[data-open-count-plan]')?.focus(); return; }
+          if (event.key==='Tab') {
+            const controls=[...document.querySelectorAll('.count-plan-modal button:not([disabled]), .count-plan-modal input:not([disabled])')];
+            const first=controls[0], last=controls.at(-1);
+            if (event.shiftKey && document.activeElement===first) { event.preventDefault(); last?.focus(); }
+            else if (!event.shiftKey && document.activeElement===last) { event.preventDefault(); first?.focus(); }
+          }
+        }
         const dialog=document.getElementById('calendarLessonDialog');
         if (dialog) {
           if (event.key==='Escape') { event.preventDefault(); cancelLessonPlan(); return; }
@@ -2038,15 +2160,53 @@
       });
       $('content').addEventListener('input', event => {
         const field = event.target;
+        if (field.matches('.count-plan-modal [name="count"]')) {
+          field.form.querySelector('button[type="submit"]').disabled=!field.validity.valid;
+        }
         if (!field.matches('#classForm [name="title"], #classForm [name="description"], #classEditForm [name="title"], #classEditForm [name="description"]')) return;
         const counter = field.closest('.class-field')?.querySelector('[data-char-count]');
         if (counter) counter.textContent = field.value.length + ' / ' + field.maxLength;
       });
-      $('content').addEventListener('submit', event => {
+      $('content').addEventListener('submit', async event => {
         event.preventDefault(); const form = event.target;
+        if (form.id==='lessonResultForm') {
+          const draft=state.resultDraft, token=state.token;
+          if (!draft || draft.saving) return;
+          draft.reaction=formValue(form,'reaction'); draft.feedback=formValue(form,'feedback'); draft.error=''; draft.saving=true; render();
+          try {
+            const saved=await api('teacher/lessons/'+encodeURIComponent(draft.lessonId)+'/participants/'+encodeURIComponent(draft.membershipId)+'/result',{
+              method:'POST',body:{expectedRevision:draft.revision,reaction:draft.reaction || null,feedback:draft.feedback || null}});
+            if (state.token!==token) return;
+            state.data.lessons=(state.data.lessons || []).map(x=>x.id===saved.id?saved:x);
+            if (state.resultDraft===draft) state.resultDraft=null;
+            render();
+            invalidate(['lessons']); await loadKey('lessons',true);
+          } catch(error) {
+            if (state.token!==token || state.resultDraft!==draft) return;
+            draft.error=error.message; draft.saving=false; render();
+          }
+          return;
+        }
         if (form.id==='classPeriodPreviewForm') {
-          state.periodPreview={classId:form.dataset.classId,classKind:form.dataset.classKind,startDate:formValue(form,'startDate'),endDate:formValue(form,'endDate')};
-          render(); document.querySelector('[data-period-preview-result]')?.focus(); return;
+          const mode=form.dataset.mode || 'period';
+          const preview={classId:form.dataset.classId,classKind:form.dataset.classKind,mode,modal:form.dataset.modal==='true',count:mode==='count'?Number(formValue(form,'count')):null,
+            startDate:mode==='count'?calendarDay():formValue(form,'startDate'),endDate:mode==='count'?calendarDay():formValue(form,'endDate'),loading:true,rows:[],error:''};
+          const token=state.token;
+          state.periodPreview=preview; render();
+          try {
+            const rows=await api('teacher/schedule-rules/period-preview',{method:'POST',body:{
+              classId:preview.classId,classKind:preview.classKind,from:preview.startDate,to:preview.endDate,count:preview.count}});
+            if (state.token!==token || state.periodPreview!==preview) return;
+            preview.candidates=rows; preview.requestId=crypto.randomUUID();
+            preview.rows=rows.map(row=>({start:Date.parse(row.lessonAt),end:Date.parse(row.lessonAt)+row.durationMinutes*60000,
+              isScheduled:row.existingLessonIds.length>0}));
+          } catch(error) {
+            if (state.token!==token || state.periodPreview!==preview) return;
+            preview.error=error.message;
+          }
+          preview.loading=false;
+          if (state.view==='overview') { render(); document.querySelector('[data-period-preview-result]')?.focus(); }
+          return;
         }
         const classFields = form => ({
           title: formValue(form, 'title'),
@@ -2110,7 +2270,7 @@
             topicComment: valueOf(row, 'topicComment') || null
           }));
           await mutation('lessonCorrection:' + source.id, 'lessons/' + encodeURIComponent(source.id) + '/correct',
-            () => ({ expectedRevision: source.revision, lessonAt, participants }));
+            () => ({ expectedRevision: source.revision, lessonAt, participants, complete:!!form.elements.namedItem('complete')?.checked }));
           state.editLesson = null;
         });
         if (form.matches('[data-native-grade]')) onForm(form, async () => {

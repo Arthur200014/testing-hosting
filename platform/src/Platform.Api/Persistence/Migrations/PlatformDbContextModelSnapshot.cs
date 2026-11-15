@@ -23,6 +23,18 @@ namespace TestingHosting.Platform.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherPeriodPlan", b =>
+            {
+                b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<string>("RequestJson").IsRequired().HasColumnType("text");
+                b.Property<string>("ResultJson").IsRequired().HasColumnType("text");
+                b.HasKey("WorkspaceId", "Id");
+                b.ToTable("TeacherPeriodPlans", "platform");
+                b.HasOne("TestingHosting.Platform.IdentityAccess.Workspace", null)
+                    .WithMany().HasForeignKey("WorkspaceId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+            });
+
             modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherClass", b =>
                 {
                     b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
@@ -804,6 +816,7 @@ namespace TestingHosting.Platform.Persistence.Migrations
             modelBuilder.Entity("TestingHosting.Platform.Lessons.Lesson", b =>
                 {
                     b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<DateTimeOffset?>("CompletedAt").HasColumnType("timestamp with time zone");
                     b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
                     b.Property<string>("LegacyLessonId").IsRequired().HasMaxLength(128).HasColumnType("character varying(128)");
                     b.Property<DateTimeOffset>("LessonAt").HasColumnType("timestamp with time zone");
@@ -826,6 +839,8 @@ namespace TestingHosting.Platform.Persistence.Migrations
 
             modelBuilder.Entity("TestingHosting.Platform.Lessons.LessonParticipant", b =>
                 {
+                    b.Property<string>("Reaction").HasMaxLength(16).HasColumnType("character varying(16)");
+                    b.Property<string>("Feedback").HasMaxLength(2000).HasColumnType("character varying(2000)");
                     b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
                     b.Property<string>("AttendanceStatus").IsRequired().HasMaxLength(128).HasColumnType("character varying(128)");
                     b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");

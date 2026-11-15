@@ -43,6 +43,13 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("platform");
+        modelBuilder.Entity<TeacherPeriodPlan>(entity =>
+        {
+            entity.HasKey(x => new { x.WorkspaceId, x.Id });
+            entity.ToTable("TeacherPeriodPlans");
+            entity.HasOne<Workspace>().WithMany().HasForeignKey(x => x.WorkspaceId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
 
         modelBuilder.Entity<NativeHomeworkTask>(entity =>
         {
@@ -442,6 +449,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
         modelBuilder.Entity<LessonParticipant>(entity =>
         {
+            entity.Property(x => x.Reaction).HasMaxLength(16);
+            entity.Property(x => x.Feedback).HasMaxLength(2000);
             entity.HasKey(x => x.Id);
             entity.Property(x => x.TaskNumbers).HasMaxLength(2048);
             entity.Property(x => x.TopicComment).HasMaxLength(4096);
