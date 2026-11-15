@@ -4,7 +4,7 @@ export const teacherPaths = {
   submissions: 'homework/submissions', subscriptions: 'subscriptions',
   nativeTasks: 'homework/native/tasks', nativeAssignments: 'homework/native/assignments',
   materials: 'materials', classMaterialLinks: 'class-materials', lessonMaterialLinks: 'lesson-materials',
-  classTopics: 'class-topics', topicMaterialLinks: 'topic-materials', topicTaskLinks: 'topic-tasks',
+  lessonTopicSets: 'lesson-topics', classTopics: 'class-topics', topicMaterialLinks: 'topic-materials', topicTaskLinks: 'topic-tasks',
   tests: 'tests/history', liveTests: 'tests/attempts',
   mocks: 'mocks/results', mockSessions: 'mocks/sessions'
 };
@@ -23,11 +23,12 @@ export const teacherMutationKeys = {
   classForm: ['classes'], classEditForm: ['classes'],
   groupForm: ['groups'], groupEditForm: ['groups'], classScheduleRuleForm: ['scheduleRules'],
   studentForm: ['students'], studentEditForm: ['students'],
-  lessonForm: ['lessons', 'assignments'], lessonCorrectionForm: ['lessons'], lessonPlannerForm: ['lessons'],
+  lessonForm: ['lessons', 'assignments'], lessonCorrectionForm: ['lessons'], lessonPlannerForm: ['lessons','lessonTopicSets'],
   nativeTaskForm: ['nativeTasks'], nativeAssignForm: ['nativeAssignments'],
   classNativeTaskForm: ['nativeTasks'], classNativeAssignForm: ['nativeAssignments'],
   classMaterialLinkForm: ['materials','classMaterialLinks'], classMaterialAttachForm: ['classMaterialLinks'],
   lessonMaterialAttachForm: ['lessonMaterialLinks'],
+  lessonTopicSetForm: ['lessonTopicSets'], topicLessonAttachForm: ['lessonTopicSets'],
   classTopicForm: ['classTopics'], topicMaterialAttachForm: ['topicMaterialLinks'], topicTaskAttachForm: ['topicTaskLinks'],
   catalogForm: ['catalog'], homeworkForm: ['assignments'],
   subscriptionForm: ['subscriptions']

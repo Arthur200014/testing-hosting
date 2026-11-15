@@ -26,6 +26,100 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     private const string ClaimCode = "synthetic-claim-code-for-integration-tests-only-2026";
 
     [Fact]
+    public async Task LessonTopicSetsReplaceAtomicallyAndEnforceClassOwnership()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "lesson-topics-north", "lt-north@example.invalid", "owner");
+        var south = await SeedAsync(factory, "lesson-topics-south", "lt-south@example.invalid", "owner");
+        var member = await SeedStudentAsync(factory, north.WorkspaceId, "Lesson topic student", true);
+        var otherMember = await SeedStudentAsync(factory, north.WorkspaceId, "Other class student", true);
+        using var client = factory.CreateClient();
+        var session = (await (await LoginAsync(client, "lesson-topics-north", "lt-north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+        async Task<TeacherClassView> Class(Guid id, string title) =>
+            (await (await client.PostAsJsonAsync("/api/v1/teacher/classes",
+                new TeacherCreateClassRequest(Guid.NewGuid(), id, title))).Content.ReadFromJsonAsync<TeacherClassView>())!;
+        var cls = await Class(member, "Lesson topic class");
+        var other = await Class(otherMember, "Other lesson class");
+        var group = (await (await client.PostAsJsonAsync("/api/v1/teacher/groups",
+            new TeacherCreateGroupRequest(Guid.NewGuid(), "Topic pair", [member, otherMember])))
+            .Content.ReadFromJsonAsync<TeacherGroupClassView>())!;
+        async Task<TeacherClassTopicView> Topic(Guid id, string kind, string title) =>
+            (await (await client.PostAsJsonAsync("/api/v1/teacher/class-topics",
+                new TeacherClassTopicCreateRequest(Guid.NewGuid(), id, kind, title))).Content.ReadFromJsonAsync<TeacherClassTopicView>())!;
+        var first = await Topic(cls.Id, "individual", "First");
+        var second = await Topic(cls.Id, "individual", "Second");
+        var wrong = await Topic(other.Id, "individual", "Another class");
+        var groupTopic = await Topic(group.Id, "group", "Group topic");
+        async Task<Guid> Lesson(Guid? classId, Guid? groupId, params Guid[] members) {
+            var response = await client.PostAsJsonAsync("/api/v1/teacher/lessons", new TeacherLessonWriteRequest(
+                Guid.NewGuid(), new DateTimeOffset(2026,12,9,12,0,0,TimeSpan.Zero),
+                members.Select(id=>new TeacherLessonParticipantRequest(id,60,null,null,"Unknown")).ToList(),
+                IndividualClassId:classId, GroupClassId:groupId));
+            Assert.Equal(HttpStatusCode.Created,response.StatusCode);
+            return (await response.Content.ReadFromJsonAsync<TeacherLessonWriteResponse>())!.LessonId;
+        }
+        var lesson = await Lesson(cls.Id,null,member);
+        var groupLesson = await Lesson(null,group.Id,member,otherMember);
+        var legacy = await Lesson(null,null,member);
+        var concurrentLesson = await Lesson(cls.Id,null,member);
+        var beforeLessons = await client.GetStringAsync("/api/v1/teacher/lessons");
+        var beforeTopics = await client.GetStringAsync("/api/v1/teacher/class-topics");
+        var request = new TeacherLessonTopicRequest(lesson,0,[first.Id,second.Id]);
+        var saved = await client.PostAsJsonAsync("/api/v1/teacher/lesson-topics",request);
+        Assert.Equal(HttpStatusCode.OK,saved.StatusCode);
+        var set = (await saved.Content.ReadFromJsonAsync<TeacherLessonTopicSet>())!;
+        Assert.Equal(1,set.Revision); Assert.Equal(2,set.TopicIds.Length);
+        var replay = await client.PostAsJsonAsync("/api/v1/teacher/lesson-topics",request);
+        Assert.Equal(HttpStatusCode.OK,replay.StatusCode);
+        Assert.Equal(set.TopicIds,(await replay.Content.ReadFromJsonAsync<TeacherLessonTopicSet>())!.TopicIds);
+        Assert.Equal(HttpStatusCode.Conflict,(await client.PostAsJsonAsync("/api/v1/teacher/lesson-topics",
+            request with { TopicIds = [first.Id] })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync("/api/v1/teacher/lesson-topics",
+            request with { ExpectedRevision = 1, TopicIds = [first.Id,wrong.Id] })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync("/api/v1/teacher/lesson-topics",
+            request with { ExpectedRevision = 1, TopicIds = [groupTopic.Id] })).StatusCode);
+        foreach(var invalid in new[] { request with { ExpectedRevision = null },request with { ExpectedRevision = -1 },
+            request with { TopicIds = null },request with { TopicIds = [first.Id,first.Id] },
+            request with { TopicIds = [Guid.Empty] },request with { TopicIds = Enumerable.Range(0,51).Select(_=>Guid.NewGuid()).ToList() } })
+            Assert.Equal(HttpStatusCode.BadRequest,(await client.PostAsJsonAsync("/api/v1/teacher/lesson-topics",invalid)).StatusCode);
+        var current = (await client.GetFromJsonAsync<List<TeacherLessonTopicSet>>("/api/v1/teacher/lesson-topics"))!.Single(x=>x.LessonId==lesson);
+        Assert.Equal(set.TopicIds,current.TopicIds); Assert.Equal(1,current.Revision);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync("/api/v1/teacher/lesson-topics",
+            new TeacherLessonTopicRequest(legacy,0,[]))).StatusCode);
+        var removed = await client.PostAsJsonAsync("/api/v1/teacher/lesson-topics",new TeacherLessonTopicRequest(lesson,1,[]));
+        Assert.Equal(HttpStatusCode.OK,removed.StatusCode);
+        Assert.Empty((await removed.Content.ReadFromJsonAsync<TeacherLessonTopicSet>())!.TopicIds);
+        Assert.Equal(HttpStatusCode.OK,(await client.PostAsJsonAsync("/api/v1/teacher/lesson-topics",new TeacherLessonTopicRequest(lesson,2,[first.Id]))).StatusCode);
+        // Returning to a prior set must not make a delayed old write valid again.
+        Assert.Equal(HttpStatusCode.Conflict,(await client.PostAsJsonAsync("/api/v1/teacher/lesson-topics",request)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,(await client.PostAsJsonAsync("/api/v1/teacher/lesson-topics",
+            new TeacherLessonTopicRequest(groupLesson,0,[groupTopic.Id]))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync("/api/v1/teacher/lesson-topics",
+            new TeacherLessonTopicRequest(groupLesson,1,[first.Id]))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,(await client.PostAsJsonAsync("/api/v1/teacher/groups/"+group.Id+"/archive",
+            new TeacherClassRevisionRequest(group.Revision))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync("/api/v1/teacher/lesson-topics",
+            new TeacherLessonTopicRequest(groupLesson,1,[]))).StatusCode);
+        var concurrent = await Task.WhenAll(
+            client.PostAsJsonAsync("/api/v1/teacher/lesson-topics",new TeacherLessonTopicRequest(concurrentLesson,0,[first.Id])),
+            client.PostAsJsonAsync("/api/v1/teacher/lesson-topics",new TeacherLessonTopicRequest(concurrentLesson,0,[second.Id])));
+        Assert.Single(concurrent.Where(x=>x.StatusCode==HttpStatusCode.OK));
+        Assert.Single(concurrent.Where(x=>x.StatusCode==HttpStatusCode.Conflict));
+        Assert.Equal(beforeLessons,await client.GetStringAsync("/api/v1/teacher/lessons"));
+        Assert.Equal(beforeTopics,await client.GetStringAsync("/api/v1/teacher/class-topics"));
+        var otherSession = (await (await LoginAsync(client,"lesson-topics-south","lt-south@example.invalid",Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",otherSession.AccessToken);
+        Assert.Empty((await client.GetFromJsonAsync<List<TeacherLessonTopicSet>>("/api/v1/teacher/lesson-topics"))!);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync("/api/v1/teacher/lesson-topics",request)).StatusCode);
+        client.DefaultRequestHeaders.Authorization = null;
+        Assert.Equal(HttpStatusCode.Unauthorized,(await client.GetAsync("/api/v1/teacher/lesson-topics")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,(await client.PostAsJsonAsync("/api/v1/teacher/lesson-topics",request)).StatusCode);
+    }
+
+    [Fact]
     public async Task TopicTaskTemplatesPersistReuseAndRejectForeignOrArchivedWrites()
     {
         await ResetAsync(factory);
