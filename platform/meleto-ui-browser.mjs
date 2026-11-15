@@ -493,7 +493,7 @@ try {
   await page.locator(`[data-open-class="${createdGroupId}"]`).click();
   await page.locator('.group-roster-member').first().waitFor();
   assert.equal(await page.locator('.group-roster-member').count(),2);
-  await page.locator('[data-edit-group]').click();
+  await page.locator('.group-roster [data-edit-group]').click();
   const groupEdit = page.locator('#groupEditForm');
   await groupEdit.waitFor();
   assert.equal(await groupEdit.locator('[name="groupMember"]').count(),2);
@@ -514,9 +514,11 @@ try {
   await page.locator('[data-archive-class]').click();
   await page.locator('[data-class-tab="archive"].active').waitFor();
   assert.equal(groupArchives,1);
+  page.once('dialog',d=>d.dismiss());
   await page.locator('[data-restore-class="'+createdGroupId+'"]').click();
-  // Explicit confirmation is required for the restore action as well.
-  // The first action will be retried below with a dialog handler.
+  assert.equal(groupRestores,0,'cancelled group restore must not write');
+  page.once('dialog',d=>d.accept());
+  await page.locator('[data-restore-class="'+createdGroupId+'"]').click();
   await page.locator('[data-class-tab="classes"].active').waitFor();
   assert.equal(groupRestores,1);
   await page.locator('[data-open-class="'+createdGroupId+'"]').click();
