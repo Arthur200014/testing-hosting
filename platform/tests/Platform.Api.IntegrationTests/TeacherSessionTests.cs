@@ -97,12 +97,72 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Single(lessonLinks);
         Assert.Equal(lesson.LessonId, lessonLinks[0].LessonId);
         Assert.Equal(material.MaterialId, lessonLinks[0].MaterialId);
+        var topicRequest = new TeacherClassTopicCreateRequest(
+            Guid.NewGuid(), individual.Id, "individual", "Functions", "Domain and range");
+        var topicSaved = await client.PostAsJsonAsync("/api/v1/teacher/class-topics", topicRequest);
+        Assert.Equal(HttpStatusCode.Created, topicSaved.StatusCode);
+        var topic = (await topicSaved.Content.ReadFromJsonAsync<TeacherClassTopicView>())!;
+        Assert.Equal(individual.Id, topic.IndividualClassId);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/class-topics", topicRequest)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/class-topics", topicRequest with { Title = "Other" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/class-topics", topicRequest with { RequestId = Guid.NewGuid(), Title = "" })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/class-topics", topicRequest with {
+                RequestId = Guid.NewGuid(), ClassId = Guid.NewGuid()
+            })).StatusCode);
+        var secondPost = await client.PostAsJsonAsync("/api/v1/teacher/class-topics",
+            topicRequest with { RequestId = Guid.NewGuid(), Title = "Derivative", Plan = "Rates" });
+        Assert.Equal(HttpStatusCode.Created, secondPost.StatusCode);
+        var second = (await secondPost.Content.ReadFromJsonAsync<TeacherClassTopicView>())!;
+        var groupTopicPost = await client.PostAsJsonAsync("/api/v1/teacher/class-topics",
+            topicRequest with { RequestId = Guid.NewGuid(), ClassKind = "group",
+                ClassId = group.Id, Title = "Group geometry" });
+        Assert.Equal(HttpStatusCode.Created, groupTopicPost.StatusCode);
+        var groupTopic = (await groupTopicPost.Content.ReadFromJsonAsync<TeacherClassTopicView>())!;
+        Assert.Equal(group.Id, groupTopic.GroupClassId);
+        var move = new TeacherTopicMoveRequest(second.Id, "up", [topic.Id, second.Id]);
+        Assert.Equal(HttpStatusCode.OK,
+            (await client.PostAsJsonAsync("/api/v1/teacher/class-topics/move", move)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync("/api/v1/teacher/class-topics/move", move)).StatusCode);
+        var orderedTopics = (await client.GetFromJsonAsync<List<TeacherClassTopicView>>(
+            "/api/v1/teacher/class-topics"))!.Where(x => x.IndividualClassId == individual.Id).ToList();
+        Assert.Equal(new[] { second.Id, topic.Id }, orderedTopics.Select(x => x.Id));
+        var attachTopicMaterial = new TeacherTopicMaterialRequest(Guid.NewGuid(), topic.Id, material.MaterialId);
+        Assert.Equal(HttpStatusCode.Created,
+            (await client.PostAsJsonAsync("/api/v1/teacher/topic-materials", attachTopicMaterial)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,
+            (await client.PostAsJsonAsync("/api/v1/teacher/topic-materials", attachTopicMaterial)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync("/api/v1/teacher/topic-materials",
+                attachTopicMaterial with { RequestId = Guid.NewGuid() })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync("/api/v1/teacher/topic-materials",
+                attachTopicMaterial with { RequestId = Guid.NewGuid(), TopicId = Guid.NewGuid() })).StatusCode);
+        Assert.Single((await client.GetFromJsonAsync<List<TeacherTopicMaterialView>>(
+            "/api/v1/teacher/topic-materials"))!);
+        Assert.Single((await client.GetFromJsonAsync<List<TeacherMaterialView>>(
+            "/api/v1/teacher/materials"))!); // Reuse the existing library row.
         var southSession = (await (await LoginAsync(client, "materials-check-south",
             "mat-south@example.invalid", Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", southSession.AccessToken);
         Assert.Empty((await client.GetFromJsonAsync<List<TeacherMaterialView>>("/api/v1/teacher/materials"))!);
         Assert.Empty((await client.GetFromJsonAsync<List<TeacherClassMaterialView>>("/api/v1/teacher/class-materials"))!);
         Assert.Empty((await client.GetFromJsonAsync<List<TeacherLessonMaterialView>>("/api/v1/teacher/lesson-materials"))!);
+        Assert.Empty((await client.GetFromJsonAsync<List<TeacherClassTopicView>>("/api/v1/teacher/class-topics"))!);
+        Assert.Empty((await client.GetFromJsonAsync<List<TeacherTopicMaterialView>>("/api/v1/teacher/topic-materials"))!);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/topic-materials",
+            attachTopicMaterial with { RequestId = Guid.NewGuid() })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/class-topics",
+            topicRequest with { RequestId = Guid.NewGuid() })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(
+            "/api/v1/teacher/class-topics/move",
+            new TeacherTopicMoveRequest(second.Id, "up", [topic.Id, second.Id]))).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(
             "/api/v1/teacher/lesson-materials", attachLesson with { RequestId = Guid.NewGuid() })).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(
