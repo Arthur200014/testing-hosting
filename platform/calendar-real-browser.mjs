@@ -102,11 +102,11 @@ try {
   await page.locator('#classTopicForm [name="title"]').fill('Функции и графики');
   await page.locator('#classTopicForm [name="plan"]').fill('Область определения и значения');
   await page.locator('#classTopicForm button[type="submit"]').click();
-  await page.getByText('Функции и графики').waitFor();
+  await page.locator('[data-class-topic] h3').filter({hasText:'Функции и графики'}).waitFor();
   await page.locator('#classTopicForm [name="title"]').fill('Производная');
   await page.locator('#classTopicForm [name="plan"]').fill('Критические точки');
   await page.locator('#classTopicForm button[type="submit"]').click();
-  await page.getByText('Производная',{exact:true}).waitFor();
+  await page.locator('[data-class-topic] h3').filter({hasText:'Производная'}).waitFor();
   const savedTopics=(await call('teacher/class-topics',north.token))
     .filter(x=>x.individualClassId===north.item.id);
   assert.deepEqual(savedTopics.map(x=>x.title),['Функции и графики','Производная']);
