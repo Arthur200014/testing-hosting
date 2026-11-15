@@ -49,19 +49,20 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
             new CreateNativeTaskRequest(Guid.NewGuid(),program,"Ready template","Solve 2+2")))
             .Content.ReadFromJsonAsync<NativeTaskView>())!;
         var request=new AssignNativeTaskRequest(Guid.NewGuid(),task.Id,[first],48,group.Id);
-        Assert.Equal(HttpStatusCode.Created,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/assignments",request)).StatusCode);
-        Assert.Equal(HttpStatusCode.OK,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/assignments",request)).StatusCode);
-        Assert.Equal(HttpStatusCode.Conflict,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/assignments",request with { GroupClassId=null })).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/assignments",
+        Assert.Equal(HttpStatusCode.BadRequest,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/group-assignments",request with { GroupClassId=null })).StatusCode);
+        Assert.Equal(HttpStatusCode.Created,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/group-assignments",request)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/group-assignments",request)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/group-assignments",request with { GroupClassId=Guid.NewGuid() })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/group-assignments",
             request with { RequestId=Guid.NewGuid(),MembershipIds=[first,outsider] })).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/assignments",
+        Assert.Equal(HttpStatusCode.BadRequest,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/group-assignments",
             request with { RequestId=Guid.NewGuid(),GroupClassId=Guid.Empty })).StatusCode);
         await using(var scope=factory.Services.CreateAsyncScope()) {
             var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
             (await db.TeacherGroupEnrollments.SingleAsync(x=>x.GroupClassId==group.Id && x.MembershipId==second)).IsApproved=false;
             await db.SaveChangesAsync();
         }
-        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/assignments",
+        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/group-assignments",
             request with { RequestId=Guid.NewGuid(),MembershipIds=[second] })).StatusCode);
         var rows=(await client.GetFromJsonAsync<List<NativeAssignmentView>>("/api/v1/teacher/homework/native/assignments"))!;
         var assignment=Assert.Single(rows);
@@ -71,12 +72,12 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         var other=(await (await LoginAsync(client,"ghw-south","ghw-south@example.invalid",Password))
             .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
         client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",other.AccessToken);
-        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/assignments",request)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/group-assignments",request)).StatusCode);
         Assert.Empty((await client.GetFromJsonAsync<List<NativeAssignmentView>>("/api/v1/teacher/homework/native/assignments"))!);
         client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",session.AccessToken);
         Assert.Equal(HttpStatusCode.OK,(await client.PostAsJsonAsync("/api/v1/teacher/groups/"+group.Id+"/archive",
             new TeacherClassRevisionRequest(group.Revision))).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/assignments",
+        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync("/api/v1/teacher/homework/native/group-assignments",
             request with { RequestId=Guid.NewGuid() })).StatusCode);
     }
 
