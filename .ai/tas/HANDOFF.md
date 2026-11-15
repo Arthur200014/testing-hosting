@@ -1,17 +1,25 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-16
-**ACTIVE_TASK:** UI-04 IN_PROGRESS — unified class/group/lesson homework block complete.
-**ACTIVE_BRANCH:** none; [PR #77](https://github.com/Arthur200014/testing-hosting/pull/77) merged.
+**ACTIVE_TASK:** UI-04 IN_PROGRESS — searchable library and reuse block.
+**ACTIVE_BRANCH:** `tas/ui04-library-reuse`; [PR #78](https://github.com/Arthur200014/testing-hosting/pull/78), implementation `8153641d4da2934c1c69f475d1a00af944298c6f`, isolated CI pending.
 **MERGED_SHA:** `70a5d105fe61ca614574b8cc8b5ea79c92a17247`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43773632077](https://github.com/Arthur200014/testing-hosting/actions/runs/43773632077) PASS; published teacher.html, teacher-data.mjs, class-native-homework.mjs and class-program-ui.mjs fetched and byte-compared with main: PASS. Timeweb native main auto-deploy configured/owner-confirmed; API deployment/revision independently NOT_VERIFIED / UNKNOWN.
-**NEXT_ACTION:** Next related UI-04 library block: program-scoped template/material search and preview → reuse/attach existing items to topics/classes/lessons without copies → cancel/save/reload and isolated tenant/browser checks. Reuse current APIs first; binary uploads/recordings need actual storage/access implementation separately.
+**NEXT_ACTION:** Finish #78 isolated real Chromium/API/PostgreSQL checks, fix actual failures, merge after green and confirm Pages. No Timeweb checks. Current block: library search/filter/preview → reuse materials in class/topic/lesson → attach templates to topics and jump to existing assignment flow → cancel/reload/no-copy checks.
 
 ## Standing owner instructions
 
 - Take several consecutive related steps together. Include **individual classes, groups and lessons**, not groups alone.
 - Verify persistence through isolated synthetic API/PostgreSQL/browser environments only. **Do not check Timeweb** or request production access. Independent Timeweb revision/live writes are not blockers in this owner-approved mode.
 - Never use real students/lessons/scores/settings/credentials as test-write targets; never retarget reset/seed/import/calendar-real-browser.sh to production. Do not rerun imports or switch writer.
+
+## Current #78 block
+
+- Library nav now opens shared templates/link materials with search, type/program filters, sorting and preview. Material programs derive from existing associations; no new metadata is invented.
+- Reuse via existing class-materials/topic-materials/lesson-materials/topic-tasks APIs; available targets exclude archive, incompatible template programs and already-linked objects. Task jump opens existing class/lesson assignment with no write until its explicit save.
+- Drafts survive refresh, cancel writes nothing, workspace changes clear library filters/selection. No new schema/backend/storage config.
+- LOCAL PASS: 13 focused Node tests + inline/module/browser syntax/diff. Real browser CI pending. Reference 48 read; final screenshot comparison pending.
+- Paths: teacher-library.mjs/test, teacher.html, teacher-data.mjs; existing calendar browser runner/script and its workflow.
 
 ## Completed #77 block
 
