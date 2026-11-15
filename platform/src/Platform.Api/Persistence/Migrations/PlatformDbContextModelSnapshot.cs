@@ -157,6 +157,30 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     .WithMany().HasForeignKey("WorkspaceId").OnDelete(DeleteBehavior.Restrict).IsRequired();
             });
 
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherTopicTaskLink", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                b.Property<Guid>("RequestId").HasColumnType("uuid");
+                b.Property<Guid>("TopicId").HasColumnType("uuid");
+                b.Property<Guid>("TaskId").HasColumnType("uuid");
+                b.Property<Guid>("ProgramId").HasColumnType("uuid");
+                b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
+                b.HasKey("Id");
+                b.HasIndex("WorkspaceId", "RequestId").IsUnique();
+                b.HasIndex("WorkspaceId", "TopicId", "TaskId").IsUnique();
+                b.HasIndex("WorkspaceId", "TaskId", "ProgramId");
+                b.ToTable("TeacherTopicTaskLinks", "platform");
+                b.HasOne("TestingHosting.Platform.Classes.TeacherClassTopic", null)
+                    .WithMany().HasForeignKey("WorkspaceId", "TopicId")
+                    .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict)
+                    .IsRequired().HasConstraintName("FK_TopicTasks_Topic");
+                b.HasOne("TestingHosting.Platform.Homework.NativeHomeworkTask", null)
+                    .WithMany().HasForeignKey("WorkspaceId", "TaskId", "ProgramId")
+                    .HasPrincipalKey("WorkspaceId", "Id", "ProgramId").OnDelete(DeleteBehavior.Restrict)
+                    .IsRequired().HasConstraintName("FK_TopicTasks_Task");
+            });
+
             modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherTopicMaterialLink", b =>
             {
                 b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");

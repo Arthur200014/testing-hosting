@@ -31,6 +31,21 @@ public sealed class TeacherTopicMaterialLink
     public DateTimeOffset CreatedAt { get; set; }
 }
 
+// A reusable task template attached to a topic; not a student assignment.
+public sealed class TeacherTopicTaskLink
+{
+    public Guid Id { get; set; }
+    public Guid WorkspaceId { get; set; }
+    public Guid RequestId { get; set; }
+    public Guid TopicId { get; set; }
+    public Guid TaskId { get; set; }
+    public Guid ProgramId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+public sealed record TeacherTopicTaskView(
+    Guid Id, Guid TopicId, Guid TaskId, Guid ProgramId, string Title, string Prompt, DateTimeOffset CreatedAt);
+public sealed record TeacherTopicTaskRequest(Guid RequestId, Guid TopicId, Guid TaskId);
+
 public sealed record TeacherClassTopicView(
     Guid Id, Guid? IndividualClassId, Guid? GroupClassId, string Title,
     string Plan, int SortOrder, DateTimeOffset CreatedAt, DateTimeOffset? CompletedAt, int CompletionRevision);
@@ -44,7 +59,8 @@ public sealed record TeacherTopicCompletionRequest(Guid TopicId, bool? Completed
 public enum TeacherTopicStatus { Created, Duplicate, Updated, Invalid, NotFound, Conflict }
 public sealed record TeacherTopicResult(
     TeacherTopicStatus Status, TeacherClassTopicView? Topic = null,
-    TeacherTopicMaterialView? Material = null, Dictionary<string, string[]>? Errors = null);
+    TeacherTopicMaterialView? Material = null, Dictionary<string, string[]>? Errors = null,
+    TeacherTopicTaskView? TaskLink = null);
 
 public sealed class TeacherClassTopicService(PlatformDbContext db, TimeProvider clock)
 {
@@ -53,6 +69,78 @@ public sealed class TeacherClassTopicService(PlatformDbContext db, TimeProvider 
             .OrderBy(x => x.SortOrder).ThenBy(x => x.CreatedAt).ThenBy(x => x.Id)
             .Select(x => new TeacherClassTopicView(x.Id, x.IndividualClassId, x.GroupClassId,
                 x.Title, x.Plan, x.SortOrder, x.CreatedAt, x.CompletedAt, x.CompletionRevision));
+
+    private IQueryable<TeacherTopicTaskView> TaskLinks(Guid workspaceId) =>
+        from link in db.TeacherTopicTaskLinks.AsNoTracking()
+        join task in db.NativeHomeworkTasks.AsNoTracking()
+            on new { link.WorkspaceId, link.TaskId, link.ProgramId }
+            equals new { task.WorkspaceId, TaskId = task.Id, task.ProgramId }
+        where link.WorkspaceId == workspaceId
+        orderby link.CreatedAt, link.Id
+        select new TeacherTopicTaskView(link.Id, link.TopicId, link.TaskId, link.ProgramId,
+            task.Title, task.Prompt, link.CreatedAt);
+
+    public Task<List<TeacherTopicTaskView>> TasksAsync(Guid workspaceId, CancellationToken ct) =>
+        TaskLinks(workspaceId).ToListAsync(ct);
+
+    public async Task<TeacherTopicResult> AttachTaskAsync(
+        Guid workspaceId, TeacherTopicTaskRequest request, CancellationToken ct)
+    {
+        if (request.RequestId == Guid.Empty || request.TopicId == Guid.Empty || request.TaskId == Guid.Empty)
+            return new(TeacherTopicStatus.Invalid, Errors: new() {
+                ["task"] = ["Request, topic and task IDs are required."]
+            });
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        try
+        {
+            var topic = await db.TeacherClassTopics.AsNoTracking().SingleOrDefaultAsync(
+                x => x.WorkspaceId == workspaceId && x.Id == request.TopicId, ct);
+            if (topic is null || !await ClassActiveAsync(
+                    workspaceId, topic.IndividualClassId, topic.GroupClassId, ct))
+                return new(TeacherTopicStatus.NotFound);
+            var prior = await db.TeacherTopicTaskLinks.AsNoTracking().SingleOrDefaultAsync(
+                x => x.WorkspaceId == workspaceId && x.RequestId == request.RequestId, ct);
+            if (prior is not null)
+                return prior.TopicId == request.TopicId && prior.TaskId == request.TaskId
+                    ? new(TeacherTopicStatus.Duplicate, TaskLink:
+                        await TaskLinks(workspaceId).SingleAsync(x => x.Id == prior.Id, ct))
+                    : new(TeacherTopicStatus.Conflict);
+            var task = await db.NativeHomeworkTasks.AsNoTracking().SingleOrDefaultAsync(
+                x => x.WorkspaceId == workspaceId && x.Id == request.TaskId, ct);
+            if (task is null) return new(TeacherTopicStatus.NotFound);
+            if (await db.TeacherTopicTaskLinks.AnyAsync(x => x.WorkspaceId == workspaceId &&
+                    x.TopicId == request.TopicId && x.TaskId == request.TaskId, ct))
+                return new(TeacherTopicStatus.Conflict);
+            var link = new TeacherTopicTaskLink {
+                Id = Guid.NewGuid(), WorkspaceId = workspaceId, RequestId = request.RequestId,
+                TopicId = topic.Id, TaskId = task.Id, ProgramId = task.ProgramId, CreatedAt = clock.GetUtcNow()
+            };
+            db.TeacherTopicTaskLinks.Add(link);
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return new(TeacherTopicStatus.Created, TaskLink:
+                await TaskLinks(workspaceId).SingleAsync(x => x.Id == link.Id, ct));
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg && pg.SqlState == "23505")
+        {
+            await tx.RollbackAsync(ct);
+            db.ChangeTracker.Clear();
+            var prior = await db.TeacherTopicTaskLinks.AsNoTracking().SingleOrDefaultAsync(
+                x => x.WorkspaceId == workspaceId && x.RequestId == request.RequestId, ct);
+            return prior is not null && prior.TopicId == request.TopicId && prior.TaskId == request.TaskId
+                ? new(TeacherTopicStatus.Duplicate, TaskLink:
+                    await TaskLinks(workspaceId).SingleAsync(x => x.Id == prior.Id, ct))
+                : new(TeacherTopicStatus.Conflict);
+        }
+        catch (PostgresException ex) when (ex.SqlState is "40001" or "40P01")
+        {
+            return new(TeacherTopicStatus.Conflict);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg && pg.SqlState is "40001" or "40P01")
+        {
+            return new(TeacherTopicStatus.Conflict);
+        }
+    }
 
     private IQueryable<TeacherTopicMaterialView> Materials(Guid workspaceId) =>
         from link in db.TeacherTopicMaterialLinks.AsNoTracking()

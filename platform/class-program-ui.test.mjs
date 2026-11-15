@@ -4,7 +4,7 @@ import { topicsForClass, renderClassProgram } from './class-program-ui.mjs';
 const safe=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const list=(xs,empty,render)=>xs.length?xs.map(render).join(''):empty;
 const item={id:'c1',kind:'individual',persistent:true,isArchived:false};
-const data={classTopics:[
+const data={nativeTasks:[],topicTaskLinks:[],classTopics:[
   {id:'t2',individualClassId:'c1',sortOrder:20,title:'Second',plan:''},
   {id:'t1',individualClassId:'c1',sortOrder:10,title:'<unsafe>',plan:'Read'},
   {id:'t3',groupClassId:'group',sortOrder:10,title:'Foreign',plan:''}
@@ -23,7 +23,7 @@ test('scopes and orders topics and escapes material content',()=>{
 test('group archive is read-only',()=>{
   const markup=renderClassProgram({id:'group',kind:'group',persistent:true,isArchived:true},data,safe,list);
   assert.match(markup,/Foreign/);
-  assert.doesNotMatch(markup,/id="classTopicForm"|id="topicMaterialAttachForm"|data-move-topic|data-complete-topic/);
+  assert.doesNotMatch(markup,/id="classTopicForm"|id="topicMaterialAttachForm"|id="topicTaskAttachForm"|data-move-topic|data-complete-topic/);
 });
 test('missing data shows loading state',()=>assert.match(renderClassProgram(item,{},safe,list),/Загружаем/));
 
@@ -39,4 +39,18 @@ test('legacy imported class does not wait for resources that will never load',()
   const markup=renderClassProgram({...item,persistent:false},{},safe,list);
   assert.match(markup,/пока недоступна/);
   assert.doesNotMatch(markup,/Загружаем|classTopicForm/);
+});
+
+test('without-task filter uses explicit topic links rather than student assignments',()=>{
+  const d={...data,nativeTasks:[{id:'task',title:'<Task>'}],
+    nativeAssignments:[{taskId:'task',membershipId:'unrelated'}],
+    topicTaskLinks:[{id:'link',topicId:'t1',taskId:'task',title:'<Task>',prompt:'<script>unsafe</script>'}]};
+  const filtered=renderClassProgram(item,d,safe,list,'without-task');
+  assert.match(filtered,/data-class-topic="t2"/);
+  assert.doesNotMatch(filtered,/data-class-topic="t1"|Foreign/);
+  assert.match(filtered,/data-topic-filter="without-task" aria-pressed="true"/);
+  const all=renderClassProgram(item,d,safe,list);
+  assert.match(all,/&lt;script&gt;unsafe&lt;\/script&gt;/);
+  assert.doesNotMatch(all,/<script>/);
+  assert.match(all,/topicTaskAttachForm/);
 });
