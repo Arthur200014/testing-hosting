@@ -881,6 +881,29 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     });
                 });
 
+            modelBuilder.Entity("TestingHosting.Platform.Lessons.TeacherLessonMaterialLink", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                b.Property<Guid>("RequestId").HasColumnType("uuid");
+                b.Property<Guid>("LessonId").HasColumnType("uuid");
+                b.Property<Guid>("MaterialId").HasColumnType("uuid");
+                b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
+                b.HasKey("Id");
+                b.HasIndex("WorkspaceId", "RequestId").IsUnique();
+                b.HasIndex("WorkspaceId", "LessonId", "MaterialId").IsUnique();
+                b.HasIndex("WorkspaceId", "MaterialId");
+                b.ToTable("TeacherLessonMaterialLinks", "platform");
+                b.HasOne("TestingHosting.Platform.Classes.TeacherMaterial", null)
+                    .WithMany().HasForeignKey("WorkspaceId", "MaterialId")
+                    .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict)
+                    .IsRequired().HasConstraintName("FK_LessonMaterialLinks_Material");
+                b.HasOne("TestingHosting.Platform.Lessons.Lesson", null)
+                    .WithMany().HasForeignKey("WorkspaceId", "LessonId")
+                    .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict)
+                    .IsRequired().HasConstraintName("FK_LessonMaterialLinks_Lesson");
+            });
+
             modelBuilder.Entity("TestingHosting.Platform.Lessons.LessonParticipant", b =>
                 {
                     b.Property<string>("Reaction").HasMaxLength(16).HasColumnType("character varying(16)");
