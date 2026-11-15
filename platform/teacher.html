@@ -319,11 +319,12 @@
     import { buildTeacherReport, collectTeacherHomework } from './teacher-report.mjs';
     import { teacherNeeds, teacherMutationKeys, invalidateTeacherData, invalidateTeacherKeys, loadTeacherKey } from './teacher-data.mjs';
     import { performTeacherMutation } from './teacher-mutation.mjs';
+    import { calendarZone, calendarDay, calendarTime, shiftCalendarDay, calendarEntries, localSlotInstant } from './teacher-calendar.mjs';
     import { nativeHomeworkDeadlineStatus } from './homework-deadline.mjs';
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
-      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', groupEdit: '', groupCreate: false, lastClassInvitation: null, learningModal: false, classCreate: false, lessonPlan: null, scheduleEdit: null };
+      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', groupEdit: '', groupCreate: false, lastClassInvitation: null, learningModal: false, classCreate: false, lessonPlan: null, scheduleEdit: null, calendarDate: calendarDay() };
       const $ = id => document.getElementById(id);
       const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const date = value => value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
@@ -341,7 +342,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
-        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.classDetailTab = 'summary'; state.classStatsMonth = new Date().toISOString().slice(0,7); state.classStatsExpanded = ''; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; state.lessonPlan = null; state.scheduleEdit = null;
+        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.classDetailTab = 'summary'; state.classStatsMonth = new Date().toISOString().slice(0,7); state.classStatsExpanded = ''; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; state.lessonPlan = null; state.scheduleEdit = null; state.calendarDate = calendarDay();
         $('app').hidden = true; $('loginScreen').hidden = false;
         $('loginError').textContent = message; $('loginError').hidden = !message;
       }
@@ -1166,11 +1167,11 @@
         const memberIds = item?.kind === 'group' ? (item.members || []).filter(x => x.isApproved).map(x => x.membershipId)
           : item ? [item.studentMembershipId] : (plan.memberIds || []);
         const available = (state.data.students || []).filter(st => !item || memberIds.includes(st.membershipId));
-        const next = new Date(Date.now()+30*60000), p = n=>String(n).padStart(2,'0');
-        const day = next.getFullYear()+'-'+p(next.getMonth()+1)+'-'+p(next.getDate());
-        const start = p(next.getHours())+':'+p(Math.floor(next.getMinutes()/5)*5);
-        const finish = new Date(next.getTime()+60*60000);
-        const end = p(finish.getHours())+':'+p(Math.floor(finish.getMinutes()/5)*5);
+        const next = new Date(plan.startAt || Date.now()+30*60000), p = n=>String(n).padStart(2,'0');
+        const day = plan.timeZone ? calendarDay(next, plan.timeZone) : next.getFullYear()+'-'+p(next.getMonth()+1)+'-'+p(next.getDate());
+        const start = plan.timeZone ? calendarTime(next, plan.timeZone) : p(next.getHours())+':'+p(Math.floor(next.getMinutes()/5)*5);
+        const finish = new Date(next.getTime()+(plan.durationMinutes || 60)*60000);
+        const end = plan.timeZone ? calendarTime(finish, plan.timeZone) : p(finish.getHours())+':'+p(Math.floor(finish.getMinutes()/5)*5);
         return `<section class="class-create lesson-planner">
           <div class="lesson-planner-breadcrumb"><button type="button" data-cancel-lesson-plan>Мои классы</button>
             <span>›</span><span>${item ? safe(item.title) + ' › ' : ''}${item ? 'Занятие класса' : 'Разовое занятие'}</span></div>
@@ -1188,14 +1189,14 @@
             <nav class="lesson-plan-anchors"><a href="#planDate">Дата и время</a><a href="#planDescription">Описание</a><a href="#planMembers">Участники</a></nav>
             <section class="class-ref-section" id="planDate">
               <h3>Дата и время</h3>
-              <label class="class-switch"><input type="checkbox" name="startNow"> Начать сейчас</label>
+              <label class="class-switch"><input type="checkbox" name="startNow" ${plan.timeZone?'disabled':''}> Начать сейчас</label>
               <div class="lesson-time-fields">
                 <label>Дата<input name="lessonDate" type="date" value="${day}" required></label>
                 <label>Начало<input name="lessonStart" type="time" value="${start}" required></label>
                 <label>Окончание<input name="lessonEnd" type="time" value="${end}" required></label>
               </div>
               <div class="lesson-duration-options">${[30,60,90,120].map(n=> `<button type="button" data-plan-duration="${n}">${n===90?'1 ч 30 мин':n===120?'2 ч':n+' мин'}</button>`).join('')}</div>
-              <p class="muted small">Время определяется часовым поясом устройства. Сохранится одно занятие, без повторяющегося расписания.</p>
+              <p class="muted small">${plan.timeZone?'Время по Москве ('+safe(plan.timeZone)+').':'Время определяется часовым поясом устройства.'} Сохранится одно занятие, без повторяющегося расписания.</p>
             </section>
             <section class="class-ref-section class-record-section"><div class="class-section-top">
               <label class="class-switch"><input type="checkbox" disabled> Записывать занятие</label>
@@ -1220,10 +1221,45 @@
         </section>`;
       }
 
+      function calendarView() {
+        const d = state.data;
+        const day = state.calendarDate;
+        const ready = ['lessons','scheduleRules','classes','groups'].every(key => Array.isArray(d[key]));
+        const entries = ready ? calendarEntries(day, d.lessons, d.scheduleRules, teacherClasses()) : [];
+        const title = new Intl.DateTimeFormat('ru-RU', {timeZone:'UTC', weekday:'long', day:'numeric', month:'long', year:'numeric'})
+          .format(new Date(day + 'T12:00:00Z'));
+        const clock = value => safe(calendarTime(value));
+        const card = entry => entry.kind === 'lesson' ? `<article class="calendar-event calendar-lesson" data-calendar-lesson="${safe(entry.id)}">
+          <div class="calendar-event-head"><strong>${clock(entry.start)}–${clock(entry.end)}</strong><span class="pill">Занятие сохранено</span></div>
+          <h3>${safe(entry.lesson.title || 'Занятие')}</h3>
+          <p>${safe((entry.lesson.participants || []).map(p=>studentName(p.membershipId)).join(' · '))}</p>
+          <button type="button" class="secondary small-button" data-edit-lesson="${safe(entry.id)}">Журнал и посещаемость</button>
+        </article>` : `<article class="calendar-event calendar-rule" data-calendar-rule="${safe(entry.id)}">
+          <div class="calendar-event-head"><strong>${clock(entry.start)}–${clock(entry.end)}</strong><span class="pill">Регулярный слот</span></div>
+          <h3>${safe(entry.item.title)}</h3><p class="small">По расписанию · ${safe(scheduleTime(entry.rule.startMinute))} · ${safe(entry.rule.timeZoneId)}</p>
+          <p class="muted small">Слот сам по себе не создаёт занятие. Совпадающие сохранённые занятия показаны отдельно.</p>
+          <button type="button" class="secondary small-button" data-plan-rule="${safe(entry.id)}" data-slot-start="${entry.start}">Запланировать занятие</button>
+        </article>`;
+        return `<section class="calendar-day" aria-label="Календарь на день">
+          <div class="calendar-toolbar"><div><h2>${safe(title)}</h2><p class="muted small">День · время по Москве (${calendarZone})</p></div>
+            <div class="row"><button type="button" class="secondary" data-calendar-shift="-1" aria-label="Предыдущий день">‹</button>
+              <button type="button" class="secondary" data-calendar-today>Сегодня</button>
+              <button type="button" class="secondary" data-calendar-shift="1" aria-label="Следующий день">›</button>
+              <label class="calendar-date-label">Дата<input id="calendarDate" type="date" value="${safe(day)}" required></label>
+              <button type="button" class="primary" data-create-one-time data-calendar-new>＋ Занятие</button></div></div>
+          <p class="calendar-legend"><span>● Сохранённое занятие</span><span>◌ Регулярный слот — без посещаемости</span></p>
+          ${!ready ? '<p class="empty" role="status">Данные календаря ещё не загружены. При ошибке нажмите «Обновить».</p>' :
+            `${!entries.length ? '<p class="empty" data-calendar-empty>На этот день занятий и регулярных слотов нет.</p>' : ''}
+            <div class="calendar-hours">${Array.from({length:24},(_,hour)=>`<div class="calendar-hour"><time>${String(hour).padStart(2,'0')}:00</time>
+              <div>${entries.filter(e=>Number(calendarTime(e.visibleStart).slice(0,2))===hour).map(card).join('')}</div></div>`).join('')}</div>`}
+          <p class="muted small">Слоты отражают текущее расписание, а не историю проведённых занятий. При переводе часов несуществующее местное время пропускается; повторяющееся показывается один раз.</p>
+        </section>`;
+      }
+
       function lessons() {
         if (state.lessonPlan) return lessonPlanner();
         const d = state.data;
-        return `<div class="grid two"><div class="card stack"><div class="section-head"><h2>Провести занятие</h2><button type="button" class="secondary small-button" data-create-one-time>＋ Разовое занятие</button></div><form id="lessonForm" class="stack">
+        return calendarView() + `<details class="calendar-history"><summary>Журнал и посещаемость</summary><div class="grid two"><div class="card stack"><div class="section-head"><h2>Провести занятие</h2></div><form id="lessonForm" class="stack">
           <label><span>Дата и время</span><input name="lessonAt" type="datetime-local" value="${nowLocal()}" required></label>
           <div class="form-row"><label><span>Длительность, минут</span><input name="durationMinutes" type="number" min="1" max="1440" value="60" required></label><label><span>Номера заданий</span><input name="taskNumbers" placeholder="например, 6, 13"></label></div>
           <label><span>Тема и комментарий</span><textarea name="topicComment" maxlength="4096"></textarea></label>
@@ -1231,7 +1267,7 @@
           <label><span>Назначить ДЗ вместе с занятием</span><select name="catalogItemId"><option value="">Без ДЗ</option>${(d.catalog || []).filter(x => x.isActive).map(x => `<option value="${safe(x.id)}" data-program="${safe(x.programId)}">${safe(x.name)} · ${safe(programName(x.programId))}</option>`).join('')}</select></label>
           <label><span>Срок ДЗ</span><select name="deadlineHours"><option value="24">24 часа</option><option value="48">48 часов</option><option value="72">72 часа</option></select></label>
           <button class="primary" type="submit" ${d.students?.length ? '' : 'disabled'}>Сохранить занятие</button></form></div>
-          <div class="card stack"><div class="section-head"><h2>История занятий</h2><span class="muted small">${d.lessons?.length || 0} записей</span></div>${list((d.lessons || []).slice(0, 80), 'Занятий пока нет.', x => `<div class="item"><div><strong>${safe(date(x.lessonAt))}</strong><small>${safe((x.participants || []).map(p => studentName(p.membershipId) + ' · ' + p.attendanceStatus).join(' / '))}</small></div><div class="row"><span class="pill">${x.participants?.length || 0}</span><button class="secondary small-button" type="button" data-edit-lesson="${safe(x.id)}">Исправить</button></div></div>`)}</div></div>` + lessonCorrectionForm();
+          <div class="card stack"><div class="section-head"><h2>История занятий</h2><span class="muted small">${d.lessons?.length || 0} записей</span></div>${list((d.lessons || []).slice(0, 80), 'Занятий пока нет.', x => `<div class="item"><div><strong>${safe(date(x.lessonAt))}</strong><small>${safe((x.participants || []).map(p => studentName(p.membershipId) + ' · ' + p.attendanceStatus).join(' / '))}</small></div><div class="row"><span class="pill">${x.participants?.length || 0}</span><button class="secondary small-button" type="button" data-edit-lesson="${safe(x.id)}">Исправить</button></div></div>`)}</div></div></details>` + lessonCorrectionForm();
       }
       function nativeGradeControls(x) {
         if (!x.submittedAt) return "";
@@ -1436,6 +1472,10 @@
         }
       });
       $('content').addEventListener('change', event => {
+        if (event.target.id === 'calendarDate') {
+          if (shiftCalendarDay(event.target.value, 0)) state.calendarDate = event.target.value;
+          render(); return;
+        }
         const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm');
         if (editor) editor.dataset.dirty = '1';
         if (event.target.matches('#lessonPlannerForm [name="startNow"]') && event.target.checked) {
@@ -1695,8 +1735,26 @@
           } catch(error) { showNotice(error.message,true); if(disableRule.isConnected) disableRule.disabled=false; }
           return;
         }
+        const calendarShift = event.target.closest('[data-calendar-shift]');
+        if (calendarShift || event.target.closest('[data-calendar-today]')) {
+          state.calendarDate = calendarShift ? shiftCalendarDay(state.calendarDate, Number(calendarShift.dataset.calendarShift)) : calendarDay();
+          render(); return;
+        }
+        const ruleSlot = event.target.closest('[data-plan-rule]');
+        if (ruleSlot) {
+          const rule = state.data.scheduleRules?.find(r=>r.id===ruleSlot.dataset.planRule && r.isActive);
+          const item = rule && teacherClasses().find(c=>c.id===rule.classId && c.kind===rule.classKind && !c.isArchived);
+          if (!item) return;
+          state.lessonPlan = {kind:item.kind, classId:item.id, startAt:Number(ruleSlot.dataset.slotStart), durationMinutes:rule.durationMinutes, timeZone:calendarZone};
+          render(); return;
+        }
         const createOneTime = event.target.closest('[data-create-one-time]');
-        if (createOneTime) { state.lessonPlan = {kind:'one-time'}; render(); return; }
+        if (createOneTime) {
+          state.lessonPlan = createOneTime.hasAttribute('data-calendar-new')
+            ? {kind:'one-time',startAt:localSlotInstant(state.calendarDate,9*60,calendarZone),timeZone:calendarZone}
+            : {kind:'one-time'};
+          render(); return;
+        }
         const scheduleClass = event.target.closest('[data-schedule-class]');
         if (scheduleClass) {
           const item = teacherClasses().find(x => x.id === scheduleClass.dataset.scheduleClass);
@@ -1749,7 +1807,9 @@
           const selected = state.data.lessons?.find(x => x.id === editLesson.dataset.editLesson);
           if (!selected) return;
           state.editLesson = { ...selected, participants: selected.participants.map(x => ({ ...x })) };
-          render(); return;
+          render();
+          $('lessonCorrectionForm')?.scrollIntoView({block:'start',behavior:'instant'});
+          return;
         }
         if (event.target.closest('[data-cancel-edit]')) {
           state.editStudent = ''; state.editSnapshot = null; render(); return;
@@ -1928,9 +1988,17 @@
           const ids = [...form.querySelectorAll('[name="planMember"]:checked')].map(x=>x.value);
           if (!ids.length) throw new Error('Выберите хотя бы одного участника.');
           const dateValue = formValue(form,'lessonDate');
-          const start = new Date(dateValue + 'T' + formValue(form,'lessonStart'));
-          const end = new Date(dateValue + 'T' + formValue(form,'lessonEnd'));
-          if (end <= start) end.setDate(end.getDate() + 1); // Explicit overnight slot, at most 240 min.
+          const zone = state.lessonPlan?.timeZone;
+          const instant = (day, time) => {
+            if (!zone) return new Date(day + 'T' + time);
+            const [hour,minute] = time.split(':').map(Number);
+            const value = localSlotInstant(day,hour*60+minute,zone);
+            if (value === null) throw new Error('Выбранное местное время недоступно.');
+            return new Date(value);
+          };
+          const start = instant(dateValue, formValue(form,'lessonStart'));
+          let end = instant(dateValue, formValue(form,'lessonEnd'));
+          if (end <= start) end = instant(shiftCalendarDay(dateValue,1), formValue(form,'lessonEnd')); // Explicit overnight slot, at most 240 min.
           const duration = Math.round((end-start)/60000);
           if (!Number.isFinite(duration) || duration < 15 || duration > 240)
             throw new Error('Время окончания должно быть позже начала. Длительность: 15–240 минут.');
