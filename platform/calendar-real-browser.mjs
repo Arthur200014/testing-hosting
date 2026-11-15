@@ -284,8 +284,10 @@ try {
   assert.equal(await page.locator('[data-lesson-participant]').count(),2);
   await page.locator('#lessonMaterialAttachForm [name="materialId"]').selectOption(createdMaterial[0].id);
   await page.locator('#lessonTopicSetForm input[value="'+pairTopic.id+'"]').uncheck();
-  page.once('dialog',dialog=>dialog.dismiss());
-  await page.locator('#lessonMaterialAttachForm button[type="submit"]').click();
+  await Promise.all([
+    page.waitForEvent('dialog').then(dialog=>dialog.dismiss()),
+    page.locator('#lessonMaterialAttachForm button[type="submit"]').click()
+  ]);
   assert.equal(await page.locator('#lessonTopicSetForm input[value="'+pairTopic.id+'"]').isChecked(),false);
   assert.equal((await call('teacher/lesson-materials',north.token)).length,1);
   await page.locator('#lessonMaterialAttachForm [data-lesson-material-cancel]').click();
@@ -661,6 +663,9 @@ try {
   await page.locator('[data-open-class-lesson="'+linkedLessonId+'"]').click();
   await page.locator('#lessonNativeTaskForm [name="title"]').fill('Задание из индивидуального урока');
   await page.locator('#lessonNativeTaskForm [name="prompt"]').fill('Решите 3 + 3');
+  await page.locator('#refresh').click(); await page.locator('#notice').waitFor({state:'hidden'});
+  assert.equal(await page.locator('#lessonNativeTaskForm [name="title"]').inputValue(),'Задание из индивидуального урока');
+  assert.equal(await page.locator('#lessonNativeTaskForm [name="prompt"]').inputValue(),'Решите 3 + 3');
   await page.locator('#lessonNativeTaskForm [data-class-task-cancel]').click();
   assert.equal((await call('teacher/homework/native/tasks',north.token)).some(t=>t.title==='Задание из индивидуального урока'),false);
   await page.locator('#lessonNativeTaskForm [name="title"]').fill('Задание из индивидуального урока');

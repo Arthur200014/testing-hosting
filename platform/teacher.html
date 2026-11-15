@@ -1589,6 +1589,13 @@
           </div>`;
       }
       function render() {
+        // Related reads may finish while the teacher is already typing in a lesson form.
+        const drafts=[...document.querySelectorAll('[data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"]')].map(form=>({
+          id:form.id, classId:form.dataset.classId, lessonId:form.dataset.lessonId,
+          fields:[...form.querySelectorAll('input[name],textarea[name],select[name]')].map(input=>({
+            name:input.name,type:input.type,value:input.value,checked:input.checked
+          }))
+        }));
         const calendarDialogWasOpen=!!document.getElementById('calendarLessonDialog');
         document.body.classList.toggle('calendar-plan-open',state.view==='lessons' && !!state.lessonPlan?.fromCalendar);
         if (state.view !== 'overview') {
@@ -1599,6 +1606,18 @@
           }
         }
         $('content').innerHTML = ({ overview, students, lessons, homework, subscriptions, results, report })[state.view]();
+        for(const draft of drafts) {
+          const form=document.getElementById(draft.id);
+          if(!form || form.dataset.classId!==draft.classId || form.dataset.lessonId!==draft.lessonId) continue;
+          for(const field of draft.fields) {
+            const input=[...form.querySelectorAll('input[name],textarea[name],select[name]')].find(x=>x.name===field.name &&
+              (field.type!=='checkbox' || x.value===field.value));
+            if(!input) continue;
+            if(field.type==='checkbox') input.checked=field.checked; else input.value=field.value;
+          }
+          form.dataset.dirty='1';
+          if(form.matches('[data-context-assign]')) updateGroupAssignmentChoices(form,state.data);
+        }
         if (state.view === 'students') studentRows();
         if (!calendarDialogWasOpen) document.querySelector('#calendarLessonDialog [name="title"]')?.focus();
         updateCalendarClock();
@@ -1620,8 +1639,11 @@
       }
       function canLeaveProgramDrafts(exceptForm = null) {
         const selectors='[data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"], #topicLessonAttachForm[data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"]';
-        return ![...document.querySelectorAll(selectors)].some(form=>form!==exceptForm) ||
-          confirm('Отменить несохранённые изменения программы или материалов?');
+        const dirty=[...document.querySelectorAll(selectors)].filter(form=>form!==exceptForm);
+        if(!dirty.length) return true;
+        if(!confirm('Отменить несохранённые изменения программы или материалов?')) return false;
+        for(const form of dirty) { form.reset(); delete form.dataset.dirty; }
+        return true;
       }
       function homeworkContext(form) {
         const item=teacherClasses().find(x=>x.id===form.dataset.classId && !x.isArchived);
@@ -1636,6 +1658,10 @@
         setBusy(form, true); showNotice('Сохраняем…');
         try {
           await callback();
+          delete form.dataset.dirty;
+          const savedForm=document.getElementById(form.id);
+          if(savedForm && savedForm.dataset.classId===form.dataset.classId && savedForm.dataset.lessonId===form.dataset.lessonId)
+            delete savedForm.dataset.dirty;
           const keys = form.matches('[data-native-grade]')
             ? ['nativeAssignments'] : teacherMutationKeys[form.id];
           invalidate(keys);
