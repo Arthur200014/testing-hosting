@@ -848,7 +848,7 @@ try {
   await chooseDay('2026-11-25');
   assert.equal(await page.locator('[data-calendar-now]').count(),0,'no clock marker in another week');
   await chooseDay('2026-11-18');
-  await page.locator('.calendar-week-scroll').evaluate(el=>{el.scrollTop=el.querySelector('[data-calendar-hour="9"]').offsetTop-100;});
+  await page.locator('.calendar-week-scroll').evaluate(el=>{el.scrollTop=el.querySelector('[data-calendar-hour="17"]').offsetTop-100;});
   await page.evaluate(()=>window.scrollTo(0,0));
   await page.screenshot({path:output+'/38_calendar_week.png'});
   await page.setViewportSize({width:390,height:844});
