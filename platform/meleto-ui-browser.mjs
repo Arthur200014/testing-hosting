@@ -747,7 +747,7 @@ try {
   await page.locator('[data-calendar-empty]').waitFor();
   await page.locator('[data-calendar-new]').click();
   assert.equal(await page.locator('#lessonPlannerForm [name="lessonDate"]').inputValue(),'2030-01-01');
-  await page.locator('[data-cancel-lesson-plan]').click();
+  await page.locator('#lessonPlannerForm [data-cancel-lesson-plan]').click();
   await chooseDay('2026-11-16');
   const slot = page.locator('[data-calendar-rule]').first();
   await slot.locator('[data-plan-rule]').click();
