@@ -29,11 +29,11 @@ export function renderLessonTopics(lesson, item, data, safe, list) {
     .sort((a,b) => a.sortOrder-b.sortOrder || String(a.id).localeCompare(String(b.id)));
   const selected = topics.filter(x => set.topicIds.includes(x.id));
   return `<section class="card stack" data-lesson-program="${safe(lesson.id)}">
-    <div class="section-head"><h2>Программа занятия</h2><span class="pill">${selected.length} тем</span></div>
+    <div class="section-head"><h2>Программа занятия</h2><span class="pill">Тем: ${selected.length}</span></div>
     ${item.isArchived ? '<p class="muted small">Класс в архиве. Программа доступна только для чтения.</p>' : `
       <form id="lessonTopicSetForm" class="stack" data-lesson-id="${safe(lesson.id)}" data-revision="${set.revision}">
-        <fieldset class="stack"><legend>Темы этого занятия</legend>
-          ${topics.map(x=>`<label class="row"><input type="checkbox" name="topicId" value="${safe(x.id)}" ${set.topicIds.includes(x.id)?'checked':''}><span>${safe(x.title)}</span></label>`).join('') || '<p class="muted">Сначала создайте темы во вкладке «Программа» класса.</p>'}
+        <fieldset class="stack lesson-topic-choices"><legend>Темы этого занятия</legend>
+          ${topics.map(x=>`<label class="lesson-topic-choice"><input type="checkbox" name="topicId" value="${safe(x.id)}" ${set.topicIds.includes(x.id)?'checked':''}><span>${safe(x.title)}</span></label>`).join('') || '<p class="muted">Сначала создайте темы во вкладке «Программа» класса.</p>'}
         </fieldset>
         <p class="muted small">Можно выбрать до 50 тем. Снятие всех отметок убирает связи с этим занятием.</p>
         <div class="row"><button type="submit" class="primary">Сохранить темы</button><button type="button" class="secondary" data-lesson-topics-cancel>Отмена</button></div>
