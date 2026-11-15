@@ -412,6 +412,8 @@
             !confirm('Отменить несохранённое расписание?')) return Promise.resolve();
         if (state.view !== view && document.querySelector('#lessonPlannerForm[data-dirty="1"]') &&
             !confirm('Отменить планирование занятия без сохранения?')) return Promise.resolve();
+        if (state.view !== view && document.querySelector('#classNativeTaskForm[data-dirty="1"], #classNativeAssignForm[data-dirty="1"]') &&
+            !confirm('Отменить несохранённое задание?')) return Promise.resolve();
         state.view = view;
         if (view !== 'lessons') state.lessonPlan = null;
         if (view !== 'overview') state.scheduleEdit = null;
@@ -1716,7 +1718,7 @@
         logout();
       });
       $('content').addEventListener('input', event => {
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm');
         if (editor) editor.dataset.dirty = '1';
         const draft = event.target.closest('#lessonPlannerForm');
         if (draft && event.target.name === 'title') {
@@ -1738,7 +1740,7 @@
           if (shiftCalendarDay(event.target.value, 0)) state.calendarDate = event.target.value;
           render(); return;
         }
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm');
         if (editor) editor.dataset.dirty = '1';
         if (event.target.id==='calendarPlanClass') {
           captureCalendarPlanDraft(event.target.form);
@@ -1917,7 +1919,9 @@
         }
         const cancelClassTask = event.target.closest('[data-class-task-cancel]');
         if (cancelClassTask) {
-          cancelClassTask.closest('form')?.reset();
+          const form = cancelClassTask.closest('form');
+          form?.reset();
+          if (form) delete form.dataset.dirty;
           showNotice('');
           return;
         }
@@ -1925,6 +1929,8 @@
         if (detailTab) {
           if (document.querySelector('#classScheduleRuleForm[data-dirty="1"]') &&
               !confirm('Отменить изменения расписания без сохранения?')) return;
+          if (document.querySelector('#classNativeTaskForm[data-dirty="1"], #classNativeAssignForm[data-dirty="1"]') &&
+              !confirm('Отменить несохранённое задание?')) return;
           state.scheduleEdit = null; state.classDetailTab = detailTab.dataset.classDetailTab;
           if (state.classDetailTab === 'homework') await refresh(); else render();
           return;
@@ -1984,6 +1990,8 @@
         const openClass = event.target.closest('[data-open-class]');
         if (openClass) { state.selectedLesson=null; state.editLesson=null; state.lessonFilter='all'; state.scheduleEdit = null; state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
         if (event.target.closest('[data-back-classes]')) {
+          if (document.querySelector('#classNativeTaskForm[data-dirty="1"], #classNativeAssignForm[data-dirty="1"]') &&
+              !confirm('Отменить несохранённое задание?')) return;
           if (document.querySelector('#classScheduleRuleForm[data-dirty="1"]') &&
               !confirm('Отменить изменения расписания без сохранения?')) return;
           state.scheduleEdit = null; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
