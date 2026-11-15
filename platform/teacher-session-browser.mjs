@@ -52,6 +52,7 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
   }
   const data = {
     'teacher/classes': [],
+    'teacher/groups': [],
     'teacher/students': fixtures[workspace].students,
     'teacher/lessons': [],
     'teacher/homework/assignments': [],

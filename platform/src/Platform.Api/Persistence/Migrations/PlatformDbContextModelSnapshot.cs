@@ -63,6 +63,57 @@ namespace TestingHosting.Platform.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherGroupClass", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<bool>("AllowLessonChat").HasColumnType("boolean");
+                    b.Property<bool>("AllowPrivateMessages").HasColumnType("boolean");
+                    b.Property<bool>("AutoApproveInvites").ValueGeneratedOnAdd().HasColumnType("boolean").HasDefaultValue(true);
+                    b.Property<int>("Capacity").ValueGeneratedOnAdd().HasColumnType("integer").HasDefaultValue(20);
+                    b.Property<string>("CoverStyle").IsRequired().ValueGeneratedOnAdd().HasMaxLength(16).HasColumnType("character varying(16)").HasDefaultValue("lavender");
+                    b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
+                    b.Property<string>("Description").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                    b.Property<int?>("DurationMinutes").HasColumnType("integer");
+                    b.Property<byte[]>("InvitationCodeHash").HasColumnType("bytea");
+                    b.Property<DateTimeOffset?>("InvitationExpiresAt").HasColumnType("timestamp with time zone");
+                    b.Property<string>("InvitationStatus").HasMaxLength(16).HasColumnType("character varying(16)");
+                    b.Property<bool>("IsArchived").HasColumnType("boolean");
+                    b.Property<decimal?>("PriceAmount").HasPrecision(12, 2).HasColumnType("numeric(12,2)");
+                    b.Property<string>("PriceBasis").HasMaxLength(16).HasColumnType("character varying(16)");
+                    b.Property<string>("PriceCurrency").HasMaxLength(3).HasColumnType("character varying(3)");
+                    b.Property<Guid>("RequestId").HasColumnType("uuid");
+                    b.Property<int>("Revision").ValueGeneratedOnAdd().IsConcurrencyToken().HasColumnType("integer").HasDefaultValue(1);
+                    b.Property<string>("Title").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                    b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                    b.HasKey("Id");
+                    b.HasAlternateKey("WorkspaceId", "Id");
+                    b.HasIndex("WorkspaceId", "RequestId").IsUnique();
+                    b.ToTable("TeacherGroupClasses", "platform", t =>
+                        {
+                            t.HasCheckConstraint("CK_TeacherGroupClasses_Capacity", "\"Capacity\" BETWEEN 1 AND 20");
+                            t.HasCheckConstraint("CK_TeacherGroupClasses_Title", "length(\"Title\") > 0");
+                            t.HasCheckConstraint("CK_TeacherGroupClasses_Cover", "\"CoverStyle\" IN ('lavender','sky','peach','mint')");
+                            t.HasCheckConstraint("CK_TeacherGroupClasses_Duration", "\"DurationMinutes\" IS NULL OR (\"DurationMinutes\" BETWEEN 15 AND 240 AND \"DurationMinutes\" % 5 = 0)");
+                            t.HasCheckConstraint("CK_TeacherGroupClasses_Price", "(\"PriceAmount\" IS NULL AND \"PriceCurrency\" IS NULL AND \"PriceBasis\" IS NULL) OR (\"PriceAmount\" BETWEEN 0 AND 10000000 AND \"PriceCurrency\" IN ('RUB','EUR','USD') AND \"PriceBasis\" IN ('lesson','month'))");
+                            t.HasCheckConstraint("CK_TeacherGroupClasses_Invite", "\"InvitationStatus\" IS NULL OR \"InvitationStatus\" IN ('pending','revoked')");
+                        });
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherGroupEnrollment", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<Guid>("GroupClassId").HasColumnType("uuid");
+                    b.Property<bool>("IsApproved").HasColumnType("boolean");
+                    b.Property<DateTimeOffset>("JoinedAt").HasColumnType("timestamp with time zone");
+                    b.Property<Guid>("MembershipId").HasColumnType("uuid");
+                    b.Property<Guid>("StudentId").HasColumnType("uuid");
+                    b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                    b.HasKey("Id");
+                    b.HasIndex("WorkspaceId", "GroupClassId", "MembershipId").IsUnique();
+                    b.HasIndex("WorkspaceId", "MembershipId", "StudentId");
+                    b.ToTable("TeacherGroupEnrollments", "platform");
+                });
+
             modelBuilder.Entity("TestingHosting.Platform.Homework.NativeHomeworkTask", b =>
                 {
                     b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
@@ -1023,6 +1074,27 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     b.Navigation("Workspace");
                 });
 
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherGroupClass", b =>
+                {
+                    b.HasOne("TestingHosting.Platform.IdentityAccess.Workspace", "Workspace")
+                        .WithMany().HasForeignKey("WorkspaceId")
+                        .OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.Navigation("Workspace");
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherGroupEnrollment", b =>
+                {
+                    b.HasOne("TestingHosting.Platform.Classes.TeacherGroupClass", "GroupClass")
+                        .WithMany("Members").HasForeignKey("WorkspaceId", "GroupClassId")
+                        .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Cascade).IsRequired();
+                    b.HasOne("TestingHosting.Platform.Students.WorkspaceStudentMembership", "Membership")
+                        .WithMany().HasForeignKey("WorkspaceId", "MembershipId", "StudentId")
+                        .HasPrincipalKey("WorkspaceId", "Id", "StudentId")
+                        .OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.Navigation("GroupClass");
+                    b.Navigation("Membership");
+                });
+
             modelBuilder.Entity("TestingHosting.Platform.Homework.NativeHomeworkTask", b =>
                 {
                     b.HasOne("TestingHosting.Platform.Students.LearningProgram", null)
@@ -1361,6 +1433,11 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     b.Navigation("Program");
 
                     b.Navigation("Workspace");
+                });
+
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherGroupClass", b =>
+                {
+                    b.Navigation("Members");
                 });
 
             modelBuilder.Entity("TestingHosting.Platform.IdentityAccess.TeacherUser", b =>

@@ -40,6 +40,14 @@ let inviteWrites = 0;
 let revokeWrites = 0;
 const syntheticInviteCode = 'B'.repeat(64);
 const classes = [];
+const groups = [];
+const createdGroupId = '99999999-9999-4999-8999-999999999999';
+const groupInviteCode = 'C'.repeat(64);
+let groupWrites = 0;
+let groupEdits = 0;
+let groupArchives = 0;
+let groupRestores = 0;
+let groupInvites = 0;
 const createdClassId = '55555555-5555-4555-8555-555555555555';
 const setClassSearch = value => page.locator('#classSearch').evaluate((input, next) => {
   input.value = next;
@@ -54,6 +62,64 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
   if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
   if (path === 'teacher-sessions' && request.method() === 'POST')
     return send({ accessToken: 'synthetic-ui-token', expiresAt: new Date(Date.now() + 300000).toISOString() });
+  if (path === 'teacher/groups' && request.method() === 'POST') {
+    const body = request.postDataJSON();
+    assert.equal(body.title, 'Синтетическая группа ЕГЭ');
+    assert.deepEqual(body.memberIds, [students[0].membershipId, students[1].membershipId]);
+    assert.equal(body.capacity, 3);
+    assert.equal(body.autoApproveInvites, false);
+    assert.ok(body.requestId);
+    const item = { ...body, id:createdGroupId, kind:'group', revision:1, isArchived:false,
+      invitationStatus:null, invitationExpiresAt:null, createdAt:new Date().toISOString(),
+      members:body.memberIds.map(id => {
+        const student = students.find(x => x.membershipId === id);
+        return { membershipId:id, studentName:student.studentName,
+          programName:student.programName, isApproved:true };
+      }) };
+    groups.push(item); groupWrites++;
+    return send(item, 201);
+  }
+  const groupMatch = path.match(/^teacher\/groups\/([^/]+)(?:\/(archive|restore|invitation(?:\/revoke)?|members\/[^/]+\/approve))?$/);
+  if (groupMatch) {
+    const item = groups.find(x => x.id === groupMatch[1]);
+    if (!item) return send({title:'Not found'},404);
+    const body = request.postDataJSON();
+    if (body.expectedRevision !== item.revision) return send({title:'Conflict'},409);
+    if (request.method() === 'PATCH' && !groupMatch[2]) {
+      Object.assign(item,body);
+      item.members = body.memberIds.map(id => {
+        const student = students.find(x => x.membershipId === id);
+        const existing = item.members.find(x => x.membershipId === id);
+        return { membershipId:id, studentName:student.studentName,
+          programName:student.programName,isApproved:existing?.isApproved ?? true };
+      });
+      item.revision++; groupEdits++;
+      return send(item);
+    }
+    if (groupMatch[2] === 'archive' || groupMatch[2] === 'restore') {
+      item.isArchived = groupMatch[2] === 'archive';
+      item.revision++;
+      item.isArchived ? groupArchives++ : groupRestores++;
+      return send(item);
+    }
+    if (groupMatch[2] === 'invitation') {
+      item.invitationStatus = 'pending';
+      item.invitationExpiresAt = new Date(Date.now() + 86400000).toISOString();
+      item.revision++; groupInvites++;
+      return send({code:groupInviteCode,expiresAt:item.invitationExpiresAt,revision:item.revision});
+    }
+    if (groupMatch[2] === 'invitation/revoke') {
+      item.invitationStatus = 'revoked'; item.revision++;
+      return send({status:'revoked',revision:item.revision});
+    }
+    if (groupMatch[2]?.endsWith('/approve')) {
+      const id=groupMatch[2].split('/')[1];
+      const member=item.members.find(x=>x.membershipId===id);
+      if(!member)return send({title:'Not found'},404);
+      member.isApproved=true; item.revision++; return send(item);
+    }
+    return send({title:'Bad request'},405);
+  }
   if (path === 'teacher/classes' && request.method() === 'POST') {
     const body = request.postDataJSON();
     assert.ok(body.requestId);
@@ -120,6 +186,7 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
   }
   if (request.method() !== 'GET') { unexpectedWrites++; return route.fulfill({ status: 405, headers }); }
   if (path === 'teacher/classes') return send(classes);
+  if (path === 'teacher/groups') return send(groups);
   if (path === 'teacher/students') return send(students);
   if (path === 'teacher/lessons') return send(lessons);
   if (path === 'teacher/homework/assignments') return send(homeworkAssignments);
@@ -233,7 +300,7 @@ try {
   assert.equal(await page.locator('.class-detail-tabs button').count(), 7);
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: output + '/09_class_summary.png' });
-  await page.locator('[data-class-detail-tab="information"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="information"]').click();
   await page.getByText(description, { exact: true }).waitFor();
   await page.getByText(/90 мин/).waitFor();
   await page.getByText(/EUR/).waitFor();
@@ -246,7 +313,7 @@ try {
   await page.locator(`[data-open-class="${createdClassId}"]`).waitFor({ state: 'attached' });
   assert.equal(await page.locator('[data-open-class]').count(), 3, 'persisted class replaces its legacy projection');
   await page.locator(`[data-open-class="${createdClassId}"]`).click();
-  await page.locator('[data-class-detail-tab="information"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="information"]').click();
   await page.getByText(description, { exact: true }).waitFor();
   await page.getByText(/90 мин/).waitFor();
   await page.getByText(/EUR/).waitFor();
@@ -326,7 +393,7 @@ try {
   await page.locator('#loginForm [name="password"]').fill('synthetic-password');
   await page.locator('#loginForm button[type="submit"]').click();
   await page.locator(`[data-open-class="${createdClassId}"]`).click();
-  await page.locator('[data-class-detail-tab="information"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="information"]').click();
   await page.getByText('Класс после редактирования', { exact: true }).waitFor();
   await page.getByText(/120 мин/).waitFor();
   assert.equal(await page.locator('.class-detail-banner.cover-mint').count(), 1);
@@ -349,7 +416,7 @@ try {
   await page.locator('#loginForm [name="password"]').fill('synthetic-password');
   await page.locator('#loginForm button[type="submit"]').click();
   await page.locator(`[data-open-class="${createdClassId}"]`).click();
-  await page.locator('[data-class-detail-tab="information"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="information"]').click();
   await page.getByText('Ожидает подтверждения').waitFor();
   assert.equal(await page.locator('[data-invite-code]').count(), 0, 'secret never returned on read');
   page.once('dialog', dialog => dialog.accept());
@@ -375,6 +442,11 @@ try {
       return respond({ accessToken: 'synthetic-student-token', student: { displayName: 'Алексей Смирнов' } });
     if (routePath === 'homework/native/assignments' && request.method() === 'GET')
       return respond([]);
+    if (routePath === 'student/groups/invitations/accept' && request.method() === 'POST') {
+      assert.equal(request.headers().authorization, 'Bearer synthetic-student-token');
+      assert.equal(request.postDataJSON().code, groupInviteCode);
+      return respond({status:'pending'});
+    }
     if (routePath === 'student/classes/invitations/accept' && request.method() === 'POST') {
       assert.equal(request.headers().authorization, 'Bearer synthetic-student-token');
       assert.equal(request.postDataJSON().code, syntheticInviteCode);
@@ -393,8 +465,84 @@ try {
   await studentPage.getByText('Приглашение в класс подтверждено.').waitFor();
   assert.equal(acceptedByStudent, 1);
   assert.equal(await studentPage.locator('#classInvitationForm [name="code"]').inputValue(), '');
+  // Group classes remain distinct from individual classes and are persistent.
+  await page.locator('[data-back-classes]').click();
+  await page.locator('[data-open-learning]').click();
+  await page.locator('[data-learning-type="group"]').click();
+  const groupForm = page.locator('#groupForm');
+  await groupForm.waitFor();
+  await groupForm.locator('[name="title"]').fill('Синтетическая группа ЕГЭ');
+  await groupForm.locator('[name="description"]').fill('Группа с двумя участниками');
+  await groupForm.locator('[name="capacity"]').fill('3');
+  await groupForm.locator('[name="autoApproveInvites"]').uncheck();
+  await groupForm.locator('[name="candidateMember"]').selectOption(students[0].membershipId);
+  await groupForm.locator('[data-add-group-member]').click();
+  await groupForm.locator('[name="candidateMember"]').selectOption(students[1].membershipId);
+  await groupForm.locator('[data-add-group-member]').click();
+  assert.equal(await groupForm.locator('[name="groupMember"]').count(), 2);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({path:output+'/05_group_create_top.png'});
+  await groupForm.locator('.group-settings').scrollIntoViewIfNeeded();
+  await page.screenshot({path:output+'/06_group_create_bottom.png'});
+  await groupForm.locator('[name="candidateMember"]').selectOption(students[0].membershipId);
+  await groupForm.locator('[data-add-group-member]').click();
+  assert.equal(await groupForm.locator('[name="groupMember"]').count(), 2, 'duplicate student must not be added');
+  await groupForm.locator('button[type="submit"]').click();
+  await page.locator(`[data-open-class="${createdGroupId}"]`).waitFor();
+  assert.equal(groupWrites,1);
+  await page.locator(`[data-open-class="${createdGroupId}"]`).click();
+  await page.locator('.group-roster-member').first().waitFor();
+  assert.equal(await page.locator('.group-roster-member').count(),2);
+  await page.locator('.group-roster [data-edit-group]').click();
+  const groupEdit = page.locator('#groupEditForm');
+  await groupEdit.waitFor();
+  assert.equal(await groupEdit.locator('[name="groupMember"]').count(),2);
+  await groupEdit.locator('[name="title"]').fill('Синтетическая группа обновлена');
+  await groupEdit.locator('[data-remove-group-member="'+students[1].membershipId+'"]').click();
+  await groupEdit.locator('[name="candidateMember"]').selectOption(students[2].membershipId);
+  await groupEdit.locator('[data-add-group-member]').click();
+  await groupEdit.locator('button[type="submit"]').click();
+  await page.getByText('Синтетическая группа обновлена',{exact:true}).first().waitFor();
+  assert.equal(groupEdits,1);
+  assert.deepEqual(groups[0].members.map(x=>x.membershipId),
+    [students[0].membershipId,students[2].membershipId]);
+  await page.locator('.class-detail-menu summary').click();
+  page.once('dialog', d=>d.dismiss());
+  await page.locator('[data-archive-class]').click();
+  assert.equal(groupArchives,0,'cancelled group archive must not write');
+  page.once('dialog', d=>d.accept());
+  await page.locator('[data-archive-class]').click();
+  await page.locator('[data-class-tab="archive"].active').waitFor();
+  assert.equal(groupArchives,1);
+  page.once('dialog',d=>d.dismiss());
+  await page.locator('[data-restore-class="'+createdGroupId+'"]').click();
+  assert.equal(groupRestores,0,'cancelled group restore must not write');
+  page.once('dialog',d=>d.accept());
+  await page.locator('[data-restore-class="'+createdGroupId+'"]').click();
+  await page.locator('[data-class-tab="classes"].active').waitFor();
+  assert.equal(groupRestores,1);
+  await page.locator('[data-open-class="'+createdGroupId+'"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="information"]').click();
+  page.once('dialog',d=>d.accept());
+  await page.locator('[data-issue-class-invite]').click();
+  await page.locator('[data-invite-code]').waitFor();
+  assert.equal(await page.locator('[data-invite-code]').textContent(),groupInviteCode);
+  assert.equal(groupInvites,1);
+  await page.reload();
+  await page.locator('#loginForm [name="workspace"]').fill('synthetic');
+  await page.locator('#loginForm [name="email"]').fill('teacher@example.invalid');
+  await page.locator('#loginForm [name="password"]').fill('synthetic-password');
+  await page.locator('#loginForm button[type="submit"]').click();
+  await page.locator('[data-open-class="'+createdGroupId+'"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="information"]').click();
+  assert.equal(await page.locator('[data-invite-code]').count(),0,'group invite secret must not leak on refresh');
+  assert.equal(unexpectedWrites,0);
+
+  await studentPage.locator('#groupInvitationForm [name="code"]').fill(groupInviteCode);
+  await studentPage.locator('#groupInvitationForm button[type="submit"]').click();
+  await studentPage.getByText('Заявка на вступление отправлена преподавателю на подтверждение.').waitFor();
   await studentPage.close();
-  console.log('PASS: UI-02 cover and authenticated teacher/student invitation lifecycle at 1348x926');
+  console.log('PASS: group creation/edit/enrollment/archive/restore/invitation at Meleto 1348×926');
 } finally {
   await browser.close();
 }

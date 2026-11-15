@@ -44,6 +44,7 @@ builder.Services.AddScoped<TeacherStudentArchiver>();
 builder.Services.AddScoped<TeacherStudentEditor>();
 builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddScoped<TeacherClassService>();
+builder.Services.AddScoped<TeacherGroupService>();
 builder.Services.AddScoped<TeacherClassInvitationService>();
 builder.Services.AddSingleton<IPasswordHasher<TeacherUser>, PasswordHasher<TeacherUser>>();
 builder.Services.AddSingleton<TeacherTokenIssuer>();
@@ -207,6 +208,144 @@ app.MapGet("/api/v1/teacher/students", async (
     var workspaceId = Guid.Parse(principal.FindFirstValue("workspace_id")!);
     return Results.Ok(await directory.ListAsync(workspaceId, cancellationToken));
 }).RequireAuthorization("teacher");
+
+
+app.MapGet("/api/v1/teacher/groups", async (
+    ClaimsPrincipal principal, TeacherGroupService groups, CancellationToken ct) =>
+    Results.Ok(await groups.ListAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), ct)))
+    .RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/groups", async (
+    TeacherCreateGroupRequest request, ClaimsPrincipal principal, TeacherGroupService groups, CancellationToken ct) =>
+{
+    var outcome = await groups.CreateAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), request, ct);
+    return outcome.Status switch
+    {
+        TeacherGroupStatus.Created => Results.Created($"/api/v1/teacher/groups/{outcome.Response!.Id}", outcome.Response),
+        TeacherGroupStatus.Unchanged => Results.Ok(outcome.Response),
+        TeacherGroupStatus.NotFound => Results.NotFound(),
+        TeacherGroupStatus.Conflict => Results.Problem(statusCode: 409, title: "Request ID already used for another group."),
+        TeacherGroupStatus.InvalidRequest => Results.ValidationProblem(outcome.Errors!),
+        _ => throw new InvalidOperationException("Unexpected group create result.")
+    };
+}).RequireAuthorization("teacher");
+
+app.MapPatch("/api/v1/teacher/groups/{groupId:guid}", async (
+    Guid groupId, TeacherUpdateGroupRequest request, ClaimsPrincipal principal,
+    TeacherGroupService groups, CancellationToken ct) =>
+{
+    var result = await groups.UpdateAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), groupId, request, ct);
+    return result.Status switch
+    {
+        TeacherGroupStatus.Updated or TeacherGroupStatus.Unchanged => Results.Ok(result.Response),
+        TeacherGroupStatus.NotFound => Results.NotFound(),
+        TeacherGroupStatus.InvalidRequest => Results.ValidationProblem(result.Errors!),
+        TeacherGroupStatus.Conflict => Results.Problem(statusCode: 409, title: "Group changed or archived."),
+        _ => throw new InvalidOperationException("Unexpected group update result.")
+    };
+}).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/groups/{groupId:guid}/archive", async (
+    Guid groupId, TeacherClassRevisionRequest request, ClaimsPrincipal principal,
+    TeacherGroupService groups, CancellationToken ct) =>
+{
+    var result = await groups.ArchiveAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), groupId, request, true, ct);
+    return result.Status switch
+    {
+        TeacherGroupStatus.Updated or TeacherGroupStatus.Unchanged => Results.Ok(result.Response),
+        TeacherGroupStatus.NotFound => Results.NotFound(),
+        TeacherGroupStatus.InvalidRequest => Results.ValidationProblem(result.Errors!),
+        TeacherGroupStatus.Conflict => Results.Problem(statusCode: 409, title: "Group changed."),
+        _ => throw new InvalidOperationException("Unexpected group archive result.")
+    };
+}).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/groups/{groupId:guid}/restore", async (
+    Guid groupId, TeacherClassRevisionRequest request, ClaimsPrincipal principal,
+    TeacherGroupService groups, CancellationToken ct) =>
+{
+    var result = await groups.ArchiveAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), groupId, request, false, ct);
+    return result.Status switch
+    {
+        TeacherGroupStatus.Updated or TeacherGroupStatus.Unchanged => Results.Ok(result.Response),
+        TeacherGroupStatus.NotFound => Results.NotFound(),
+        TeacherGroupStatus.InvalidRequest => Results.ValidationProblem(result.Errors!),
+        TeacherGroupStatus.Conflict => Results.Problem(statusCode: 409, title: "Group changed."),
+        _ => throw new InvalidOperationException("Unexpected group restore result.")
+    };
+}).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/groups/{groupId:guid}/invitation", async (
+    Guid groupId, TeacherClassRevisionRequest request, ClaimsPrincipal principal,
+    TeacherGroupService groups, CancellationToken ct) =>
+{
+    var result = await groups.InviteAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), groupId, request, false, ct);
+    return result.Status switch
+    {
+        TeacherGroupStatus.Updated => Results.Ok(result.Response),
+        TeacherGroupStatus.NotFound => Results.NotFound(),
+        TeacherGroupStatus.InvalidRequest => Results.ValidationProblem(new Dictionary<string,string[]> {
+            ["expectedRevision"] = ["Positive revision required."] }),
+        TeacherGroupStatus.Conflict => Results.Problem(statusCode: 409, title: "Group changed or archived."),
+        _ => throw new InvalidOperationException("Unexpected group invite result.")
+    };
+}).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/groups/{groupId:guid}/invitation/revoke", async (
+    Guid groupId, TeacherClassRevisionRequest request, ClaimsPrincipal principal,
+    TeacherGroupService groups, CancellationToken ct) =>
+{
+    var result = await groups.InviteAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), groupId, request, true, ct);
+    return result.Status switch
+    {
+        TeacherGroupStatus.Updated => Results.Ok(result.Response),
+        TeacherGroupStatus.NotFound => Results.NotFound(),
+        TeacherGroupStatus.InvalidRequest => Results.ValidationProblem(new Dictionary<string,string[]> {
+            ["expectedRevision"] = ["Positive revision required."] }),
+        TeacherGroupStatus.Conflict => Results.Problem(statusCode: 409, title: "Group changed or invitation unavailable."),
+        _ => throw new InvalidOperationException("Unexpected group invite revoke result.")
+    };
+}).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/groups/{groupId:guid}/members/{membershipId:guid}/approve", async (
+    Guid groupId, Guid membershipId, TeacherClassRevisionRequest request, ClaimsPrincipal principal,
+    TeacherGroupService groups, CancellationToken ct) =>
+{
+    var result = await groups.ApproveAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!), groupId, membershipId, request, ct);
+    return result.Status switch
+    {
+        TeacherGroupStatus.Updated or TeacherGroupStatus.Unchanged => Results.Ok(result.Response),
+        TeacherGroupStatus.NotFound => Results.NotFound(),
+        TeacherGroupStatus.InvalidRequest => Results.ValidationProblem(result.Errors!),
+        TeacherGroupStatus.Conflict => Results.Problem(statusCode: 409, title: "Group changed or archived."),
+        _ => throw new InvalidOperationException("Unexpected group approval result.")
+    };
+}).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/student/groups/invitations/accept", async (
+    AcceptClassInvitationRequest request, ClaimsPrincipal principal,
+    TeacherGroupService groups, CancellationToken ct) =>
+{
+    var result = await groups.JoinAsync(
+        Guid.Parse(principal.FindFirstValue("workspace_id")!),
+        Guid.Parse(principal.FindFirstValue("membership_id")!),
+        Guid.Parse(principal.FindFirstValue(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)!),
+        request.Code, ct);
+    return result.Status switch
+    {
+        TeacherGroupStatus.Updated or TeacherGroupStatus.Unchanged => Results.Ok(result.Response),
+        TeacherGroupStatus.NotFound => Results.NotFound(),
+        TeacherGroupStatus.InvalidRequest => Results.ValidationProblem(new Dictionary<string,string[]> {
+            ["code"] = ["Code must contain 64 hexadecimal characters."] }),
+        TeacherGroupStatus.Conflict => Results.Problem(statusCode: 409, title: "Group full, archived or invitation unavailable."),
+        _ => throw new InvalidOperationException("Unexpected group invitation accept result.")
+    };
+}).RequireAuthorization("student");
 
 app.MapGet("/api/v1/teacher/classes", async (
     ClaimsPrincipal principal, TeacherClassService classes, CancellationToken cancellationToken) =>

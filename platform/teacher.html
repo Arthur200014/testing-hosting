@@ -323,7 +323,7 @@
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
-      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', lastClassInvitation: null, learningModal: false, classCreate: false };
+      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', groupEdit: '', groupCreate: false, lastClassInvitation: null, learningModal: false, classCreate: false };
       const $ = id => document.getElementById(id);
       const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const date = value => value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
@@ -341,7 +341,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
-        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.classDetailTab = 'summary'; state.classStatsMonth = new Date().toISOString().slice(0,7); state.classStatsExpanded = ''; state.selectedClass = ''; state.classEdit = ''; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false;
+        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.classDetailTab = 'summary'; state.classStatsMonth = new Date().toISOString().slice(0,7); state.classStatsExpanded = ''; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false;
         $('app').hidden = true; $('loginScreen').hidden = false;
         $('loginError').textContent = message; $('loginError').hidden = !message;
       }
@@ -398,7 +398,7 @@
         if (state.view !== view && document.querySelector('#classEditForm[data-dirty="1"]') &&
             !confirm('Есть несохранённые изменения класса. Покинуть редактор без сохранения?')) return Promise.resolve();
         state.view = view;
-        if (view !== 'overview') { state.selectedClass = ''; state.classEdit = ''; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; }
+        if (view !== 'overview') { state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; }
         document.querySelectorAll('[data-view]').forEach(x => x.classList.toggle('active', x.dataset.view === view));
         $('viewTitle').textContent = names[view][0]; $('viewSubtitle').textContent = names[view][1];
         return refresh();
@@ -441,7 +441,12 @@
           studentMembershipId: student.membershipId, student,
           nextLesson: participantLesson(student.membershipId, true), persistent: false, isArchived: false
         }));
-        return [...persisted, ...legacy];
+        const groups = (state.data.groups || []).map(item => ({
+          ...item, persistent: true, studentMembershipId: null, nextLesson: null,
+          student: { studentName: item.members.length + ' участников',
+            programName: 'Групповое обучение', targetScore: '' }
+        }));
+        return [...persisted, ...legacy, ...groups];
       };
       function learningModal() {
         if (!state.learningModal) return '';
@@ -481,7 +486,100 @@
         ['summary','Сводка'], ['schedule','Расписание'], ['materials','Материалы'],
         ['program','Программа'], ['homework','Задания'], ['payment','Оплата'], ['information','Информация']
       ];
+      function groupInvitePanel(item) {
+        const issued = state.lastClassInvitation?.id === item.id ? state.lastClassInvitation : null;
+        const expired = item.invitationStatus === 'pending' && item.invitationExpiresAt && new Date(item.invitationExpiresAt) <= new Date();
+        const status = item.invitationStatus === 'pending' && !expired ? 'Приглашение активно'
+          : expired ? 'Срок приглашения истёк' : item.invitationStatus === 'revoked' ? 'Приглашение отозвано' : 'Не создано';
+        return `<section class="class-invite-card group-invite-panel">
+          <h3>Приглашение в группу</h3>
+          <p class="muted">Статус: <strong>${status}</strong>${item.invitationExpiresAt && item.invitationStatus === 'pending' ?
+            ' · до ' + safe(new Date(item.invitationExpiresAt).toLocaleDateString('ru-RU')) : ''}</p>
+          <p class="muted small">Код позволяет существующим ученикам вступить в группу после входа в кабинет. Допуск: ${item.autoApproveInvites ? 'автоматически' : 'после подтверждения преподавателем'}. Код не является паролем ученика и действует семь дней.</p>
+          ${issued ? `<code class="class-invite-code" data-invite-code>${safe(issued.code)}</code>
+            <button type="button" class="secondary" data-copy-class-invite>Скопировать код</button>
+            <p class="muted small">Сохраните код сейчас: он не возвращается при повторной загрузке.</p>` : ''}
+          ${item.isArchived ? '<p class="muted">Чтобы пригласить ученика, сначала восстановите группу.</p>' :
+            `<div class="row"><button class="primary" type="button" data-issue-class-invite="${safe(item.id)}">${item.invitationStatus === 'pending' ? 'Перевыпустить код' : 'Создать код'}</button>
+              ${item.invitationStatus === 'pending' ? `<button class="secondary" type="button" data-revoke-class-invite="${safe(item.id)}">Отозвать</button>` : ''}</div>`}
+        </section>`;
+      }
+      function groupClassDetail(item) {
+        const tab = classDetailTabs.some(x => x[0] === state.classDetailTab) ? state.classDetailTab : 'summary';
+        const members = item.members || [];
+        const roster = `<section class="class-subsection group-roster">
+          <div class="section-head"><h3>Участники</h3><span class="muted">${members.length} из ${item.capacity}</span></div>
+          ${members.length ? members.map(member => `<div class="group-roster-member">
+            <span class="group-roster-avatar" style="--avatar:${avatarColor(member.membershipId)}">${safe(initials(member.studentName))}</span>
+            <span><strong>${safe(member.studentName)}</strong><small>${safe(member.programName)}</small></span>
+            <span class="group-roster-status">${member.isApproved ? 'Допущен' : 'Ожидает подтверждения'}</span>
+            ${!member.isApproved && !item.isArchived ?
+              `<button class="secondary small-button" type="button" data-approve-group="${safe(member.membershipId)}" data-group-id="${safe(item.id)}">Подтвердить</button>` : ''}
+          </div>`).join('') : '<p class="muted">В группе пока нет учеников.</p>'}
+          ${!item.isArchived ? `<button type="button" class="secondary" data-edit-group="${safe(item.id)}">Изменить состав</button>` : ''}
+        </section>`;
+        const metadata = `<div class="class-info-grid">
+          <div class="class-info-panel"><h3>Об обучении</h3>
+            <p>Тип: групповое обучение</p><p>Участники: ${members.length} / ${item.capacity}</p>
+            <p>Допуск по коду: ${item.autoApproveInvites ? 'автоматический' : 'после подтверждения'}</p>
+            ${item.description ? `<p>Описание: <span data-class-description>${safe(item.description)}</span></p>` : ''}
+          </div>
+          <div class="class-info-panel"><h3>Настройки класса</h3>
+            <p>Длительность: ${item.durationMinutes != null ? safe(item.durationMinutes) + ' минут' : 'не задана'}</p>
+            <p>Стоимость: ${item.priceAmount != null ? safe(item.priceAmount) + ' ' + safe(item.priceCurrency) +
+              (item.priceBasis === 'month' ? ' / месяц' : ' / занятие') : 'не задана'}</p>
+            <p>Чат занятия: ${item.allowLessonChat ? 'разрешён в настройках' : 'выключен'}</p>
+            <p>Личные сообщения: ${item.allowPrivateMessages ? 'разрешены в настройках' : 'выключены'}</p>
+            <small class="muted">Реальные чаты, счета и записи занятий пока не подключены.</small>
+          </div>
+        </div>`;
+        const placeholders = {
+          schedule: ['Расписание', 'Календарь групповых занятий откроется в действующем разделе. Привязка занятия к группе ещё не реализована.'],
+          materials: ['Материалы', 'Материалы и библиотека пока не привязаны к группе.'],
+          program: ['Программа', 'Редактор программы для группового класса будет подключён позднее.'],
+          homework: ['Задания', 'Задания ученикам доступны в общем разделе, группового назначения пока нет.'],
+          payment: ['Оплата', 'Стоимость группы сохраняется как условие. Реальные счета и платежи не создаются.']
+        };
+        const body = tab === 'summary'
+          ? `<section class="class-summary"><p class="class-caption">Обучение</p>
+              <div class="class-nearest"><span class="class-nearest-icon">◯</span>
+                <div><strong>Группа создана</strong><small>Расписание группы пока не настроено</small></div>
+                <button class="secondary" type="button" data-class-detail-tab="information">Участники</button>
+              </div></section>${roster}`
+          : tab === 'information'
+            ? `<section class="class-subsection">${metadata}${roster}${groupInvitePanel(item)}</section>`
+            : `<section class="class-subsection"><h3>${placeholders[tab]?.[0]}</h3>
+                <p class="muted">${placeholders[tab]?.[1]}</p>
+                ${tab === 'schedule' ? '<button type="button" class="secondary" data-view-calendar>Открыть календарь</button>' : ''}
+                ${tab === 'homework' ? '<button type="button" class="secondary" data-class-section="homework">Открыть задания</button>' : ''}
+                ${tab === 'payment' ? '<button type="button" class="secondary" data-class-section="subscriptions">Абонементы</button>' : ''}
+              </section>`;
+        return `<div class="class-detail group-detail">
+          <div class="class-detail-banner cover-${safe(item.coverStyle || 'lavender')}">
+            <button type="button" class="class-back" data-back-classes aria-label="Назад ко всем классам">‹</button>
+            <div class="class-detail-banner-body"><p class="class-detail-kind">Групповое обучение</p>
+              <h2>${safe(item.title)}</h2><div class="class-banner-buttons">
+                <button class="primary" type="button" data-class-detail-tab="information">Участники · ${members.length}/${item.capacity}</button>
+                <button class="secondary" type="button" data-class-detail-tab="schedule">Расписание</button>
+              </div></div>
+            <div class="class-detail-banner-art" aria-hidden="true"></div>
+            <details class="class-detail-menu"><summary aria-label="Действия с классом">⋮</summary>
+              <div class="class-detail-menu-actions">
+                ${item.isArchived ? `<button type="button" data-restore-class="${safe(item.id)}">Восстановить группу</button>` :
+                  `<button type="button" data-edit-group="${safe(item.id)}">Редактировать группу</button>
+                  <button type="button" data-archive-class="${safe(item.id)}">В архив</button>`}
+              </div>
+            </details>
+          </div>
+          <nav class="class-detail-tabs" aria-label="Разделы класса">
+            ${classDetailTabs.map(([id,label]) => `<button type="button" class="${tab===id?'active':''}" data-class-detail-tab="${id}">${label}</button>`).join('')}
+          </nav>
+          ${item.isArchived ? '<p class="class-archived-state">Группа в архиве; ученики и история сохранены.</p>' : ''}
+          ${body}
+        </div>`;
+      }
       function classDetail(item) {
+        if (item.kind === 'group') return groupClassDetail(item);
         const lessons = (state.data.lessons || []).filter(x =>
           (x.participants || []).some(p => p.membershipId === item.studentMembershipId))
           .sort((a, b) => new Date(b.lessonAt) - new Date(a.lessonAt));
@@ -693,6 +791,99 @@
         form.querySelector('.class-create-actions').previousElementSibling.textContent = 'Изменяются только параметры класса. Ученик и его история не затрагиваются.';
         return wrapper.innerHTML;
       }
+      function groupStudentChip(membershipId) {
+        const student = (state.data.students || []).find(x => x.membershipId === membershipId);
+        if (!student) return '';
+        return `<span class="group-student-chip" data-group-member-chip="${safe(membershipId)}">
+          <input type="hidden" name="groupMember" value="${safe(membershipId)}">
+          <span>${safe(student.studentName)}</span><button type="button" data-remove-group-member="${safe(membershipId)}" aria-label="Убрать ученика">×</button>
+        </span>`;
+      }
+      function groupClassCreate() {
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = individualClassCreate();
+        wrapper.querySelector('h1').textContent = 'Новое групповое обучение';
+        const form = wrapper.querySelector('#classForm');
+        form.id = 'groupForm';
+        form.querySelector('.class-invitation-section').innerHTML = `
+          <div class="class-section-top">
+            <label class="class-switch"><input type="checkbox" name="inviteEnabled" checked><span>Пригласить учеников</span></label>
+            <p class="class-setting-note">ⓘ Приглашение формируется вручную после создания группы. Автоматическая отправка сообщений не выполняется.</p>
+          </div>
+          <div class="class-section-contents">
+            <div data-invite-display><div class="class-section-label">Приглашение по коду</div>
+              <div class="class-invite-link"><input type="text" value="Код появится после создания группы" disabled aria-label="Приглашение будет после создания"><button class="secondary" type="button" disabled>Скопировать</button></div>
+            </div>
+            <div class="class-student-picker">
+              <div class="class-section-label">Добавить существующих учеников</div>
+              <div class="class-student-select"><label><span class="visually-hidden">Ученик</span>
+                <select name="candidateMember" aria-label="Выберите ученика">
+                  ${(state.data.students || []).map(st => `<option value="${safe(st.membershipId)}">${safe(st.studentName)} · ${safe(st.programName)}</option>`).join('')}
+                </select></label>
+                <button class="primary" type="button" data-add-group-member>Добавить</button></div>
+              <div class="group-student-chips" data-group-members></div>
+              <p class="class-selected-student">Выбранные ученики будут добавлены при сохранении класса. Повторное добавление невозможно.</p>
+            </div>
+          </div>`;
+        const formEl = wrapper.querySelector('#groupForm');
+        const beforeChat = formEl.querySelector('.class-chats-section');
+        beforeChat.insertAdjacentHTML('beforebegin', `<section class="group-settings" aria-label="Настройки участников">
+          <h3>Участники</h3><p>Лимит мест в группе — от 1 до 20. Учитываются все заявки, включая ожидающие подтверждения.</p>
+          <label class="group-capacity-label">Принимать не больше
+            <input type="number" name="capacity" value="20" min="1" max="20" required> учеников</label>
+          <label class="group-auto-label"><input type="checkbox" name="autoApproveInvites" checked> Автоматически подтверждать допуск по приглашению</label>
+        </section>`);
+        const invitationSection = formEl.querySelector('.class-invitation-section');
+        const capacitySection = formEl.querySelector('.group-settings');
+        formEl.insertBefore(invitationSection, capacitySection);
+        formEl.querySelector('[type="submit"]').disabled = false;
+        formEl.querySelector('.class-end-note').textContent = 'Группа и выбранные участники сохраняются одновременно. При отмене ничего не создаётся.';
+        return wrapper.innerHTML;
+      }
+      function groupClassEdit(item) {
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = groupClassCreate();
+        const form = wrapper.querySelector('#groupForm');
+        form.id = 'groupEditForm';
+        form.dataset.classId = item.id;
+        form.dataset.revision = item.revision;
+        wrapper.querySelector('h1').textContent = 'Редактирование группового обучения';
+        form.elements.title.defaultValue = item.title;
+        form.elements.description.defaultValue = item.description || '';
+        for (const option of form.querySelectorAll('[name="coverStyle"]'))
+          option.defaultChecked = option.value === (item.coverStyle || 'lavender');
+        form.querySelector('[data-cover-display]').className = 'class-cover-display cover-' + (item.coverStyle || 'lavender');
+        form.querySelector('.group-student-chips').innerHTML =
+          (item.members || []).map(member => groupStudentChip(member.membershipId)).join('');
+        form.elements.capacity.defaultValue = item.capacity;
+        form.elements.autoApproveInvites.defaultChecked = !!item.autoApproveInvites;
+        for (const name of ['duration', 'price']) {
+          const enabled = name === 'duration' ? item.durationMinutes != null : item.priceAmount != null;
+          const toggle = form.querySelector('[data-settings-toggle="' + name + '"]');
+          toggle.defaultChecked = enabled;
+          const group = form.querySelector('[data-settings-group="' + name + '"]');
+          group.hidden = !enabled;
+          group.querySelectorAll('input, select').forEach(input => { input.disabled = !enabled; });
+        }
+        form.elements.durationMinutes.defaultValue = item.durationMinutes ?? 60;
+        form.elements.priceAmount.defaultValue = item.priceAmount ?? 0;
+        for (const [el, value] of [[form.elements.priceCurrency, item.priceCurrency || 'RUB'],
+                                    [form.elements.priceBasis, item.priceBasis || 'lesson']])
+          [...el.options].forEach(option => { option.defaultSelected = option.value === value; });
+        form.elements.allowLessonChat.defaultChecked = !!item.allowLessonChat;
+        form.elements.allowPrivateMessages.defaultChecked = !!item.allowPrivateMessages;
+        form.querySelectorAll('.class-field').forEach(label => {
+          const count = label.querySelector('[data-char-count]');
+          const input = label.querySelector('input,textarea');
+          if (count && input) count.textContent = input.value.length + ' / ' + input.maxLength;
+        });
+        form.querySelector('[type="submit"]').textContent = 'Сохранить изменения';
+        const cancel = form.querySelector('[data-cancel-class]');
+        cancel.removeAttribute('data-cancel-class');
+        cancel.setAttribute('data-cancel-group-edit', '');
+        form.querySelector('.class-end-note').textContent = 'Меняется только группа и её состав. Индивидуальные занятия учеников и история не удаляются.';
+        return wrapper.innerHTML;
+      }
       function classStatistics(activeClasses) {
         const month = state.classStatsMonth;
         const monthStart = new Date(month + '-01T12:00:00Z');
@@ -763,18 +954,21 @@
       }
       function overview() {
         const d = state.data;
-        if (!d.classes || !d.students || !d.lessons) {
+        if (!d.classes || !d.groups || !d.students || !d.lessons) {
           const failed = !$('notice').hidden && $('notice').classList.contains('error');
           return `<div class="classes-layout"><div class="classes-main"><div class="classes-heading"><h1>Мои классы</h1></div><div class="empty">${failed
             ? 'Не удалось загрузить классы и расписание.<br><button class="secondary" type="button" data-retry-overview style="margin-top:14px">Повторить</button>'
             : 'Загружаем классы и расписание…'}</div></div></div>${learningModal()}`;
         }
         if (state.classCreate) return individualClassCreate();
+        if (state.groupCreate) return groupClassCreate();
         const allClasses = teacherClasses();
         const classes = allClasses.filter(x => !x.isArchived);
         const archivedClasses = allClasses.filter(x => x.isArchived);
         const selected = allClasses.find(x => x.id === state.selectedClass &&
           (state.classTab === 'archive' ? x.isArchived : !x.isArchived));
+        if (selected && !selected.isArchived && selected.kind === 'group' && state.groupEdit === selected.id)
+          return groupClassEdit(selected);
         if (selected && !selected.isArchived && state.classEdit === selected.id)
           return individualClassEdit(selected);
         if (selected) return classDetail(selected);
@@ -1077,7 +1271,7 @@
         logout();
       });
       $('content').addEventListener('input', event => {
-        const editor = event.target.closest('#classEditForm');
+        const editor = event.target.closest('#classEditForm, #groupEditForm');
         if (editor) editor.dataset.dirty = '1';
         if (event.target.id === 'studentSearch') studentRows(event.target.value.trim());
         if (event.target.id === 'classSearch') {
@@ -1089,9 +1283,9 @@
         }
       });
       $('content').addEventListener('change', event => {
-        const editor = event.target.closest('#classEditForm');
+        const editor = event.target.closest('#classEditForm, #groupEditForm');
         if (editor) editor.dataset.dirty = '1';
-        if (event.target.matches('#classForm [name="coverStyle"], #classEditForm [name="coverStyle"]')) {
+        if (event.target.matches('#classForm [name="coverStyle"], #classEditForm [name="coverStyle"], #groupForm [name="coverStyle"], #groupEditForm [name="coverStyle"]')) {
           const preview = event.target.closest('form')?.querySelector('[data-cover-display]');
           if (preview) preview.className = 'class-cover-display cover-' + event.target.value;
           const picker = event.target.closest('.class-cover-picker');
@@ -1100,13 +1294,13 @@
           picker?.querySelector('[data-toggle-covers]')?.setAttribute('aria-expanded', 'false');
           return;
         }
-        if (event.target.matches('#classForm [name="inviteEnabled"], #classEditForm [name="inviteEnabled"]')) {
+        if (event.target.matches('#classForm [name="inviteEnabled"], #classEditForm [name="inviteEnabled"], #groupForm [name="inviteEnabled"], #groupEditForm [name="inviteEnabled"]')) {
           const link = event.target.closest('form')?.querySelector('[data-invite-display]');
           if (link) link.hidden = !event.target.checked;
           return;
         }
         const toggle = event.target;
-        if (toggle.matches('#classForm [data-settings-toggle], #classEditForm [data-settings-toggle]')) {
+        if (toggle.matches('#classForm [data-settings-toggle], #classEditForm [data-settings-toggle], #groupForm [data-settings-toggle], #groupEditForm [data-settings-toggle]')) {
           const group = toggle.form.querySelector('[data-settings-group="' + toggle.dataset.settingsToggle + '"]');
           if (group) {
             group.hidden = !toggle.checked;
@@ -1146,13 +1340,45 @@
           } else if (type === 'one-time') {
             await setView('lessons');
             showNotice('Открыта действующая форма занятия. Расширенная форма разового занятия будет добавлена в UI-03.');
+          } else if (type === 'group') {
+            state.groupCreate = true;
+            render();
+            document.querySelector('#groupForm [name="title"]')?.focus();
           } else {
             render();
-            showNotice('Групповое обучение будет доступно после добавления постоянной модели класса в UI-02. Данные не изменены.');
           }
           return;
         }
-        if (event.target.closest('[data-cancel-class]')) { state.classCreate = false; render(); return; }
+        if (event.target.closest('[data-cancel-class]')) { state.classCreate = false; state.groupCreate = false; render(); return; }
+        if (event.target.closest('[data-cancel-group-edit]')) {
+          if (document.querySelector('#groupEditForm[data-dirty="1"]') &&
+              !confirm('Отменить изменения группового класса без сохранения?')) return;
+          state.groupEdit = ''; render(); return;
+        }
+        const addGroupMember = event.target.closest('[data-add-group-member]');
+        if (addGroupMember) {
+          const form = addGroupMember.closest('form');
+          const id = form?.elements.candidateMember?.value;
+          const area = form?.querySelector('[data-group-members]');
+          if (!area || !id) return;
+          if (area.querySelector('[name="groupMember"][value="' + id + '"]')) {
+            showNotice('Этот ученик уже добавлен.', true); return;
+          }
+          if (area.querySelectorAll('[name="groupMember"]').length >= Number(form.elements.capacity.value)) {
+            showNotice('Лимит участников группы исчерпан.', true); return;
+          }
+          area.insertAdjacentHTML('beforeend', groupStudentChip(id));
+          if (form.id === 'groupEditForm') form.dataset.dirty = '1';
+          showNotice('');
+          return;
+        }
+        const removeGroupMember = event.target.closest('[data-remove-group-member]');
+        if (removeGroupMember) {
+          const form = removeGroupMember.closest('form');
+          removeGroupMember.closest('[data-group-member-chip]')?.remove();
+          if (form?.id === 'groupEditForm') form.dataset.dirty = '1';
+          return;
+        }
         if (event.target.closest('[data-cancel-class-edit]')) {
           if (document.querySelector('#classEditForm[data-dirty="1"]') &&
               !confirm('Отменить несохранённые изменения класса?')) return;
@@ -1188,6 +1414,22 @@
           if (target && name) target.textContent = 'Выбран ученик: ' + name + '. Он будет добавлен при создании класса.';
           return;
         }
+        const editGroup = event.target.closest('[data-edit-group]');
+        if (editGroup) { state.groupEdit = editGroup.dataset.editGroup; render(); return; }
+        const approveGroup = event.target.closest('[data-approve-group]');
+        if (approveGroup) {
+          const item = (state.data.groups || []).find(x => x.id === approveGroup.dataset.groupId);
+          if (!item || item.isArchived) return;
+          approveGroup.disabled = true;
+          try {
+            await api('teacher/groups/' + encodeURIComponent(item.id) + '/members/' +
+              encodeURIComponent(approveGroup.dataset.approveGroup) + '/approve', {
+                method: 'POST', body: { expectedRevision: item.revision }
+              });
+            invalidate(['groups']); await refresh(true);
+          } catch (error) { showNotice(error.message, true); if (approveGroup.isConnected) approveGroup.disabled = false; }
+          return;
+        }
         const editClass = event.target.closest('[data-edit-class]');
         if (editClass) { state.classEdit = editClass.dataset.editClass; render(); return; }
         const classTab = event.target.closest('[data-class-tab]');
@@ -1197,8 +1439,8 @@
           return;
         }
         const openClass = event.target.closest('[data-open-class]');
-        if (openClass) { state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
-        if (event.target.closest('[data-back-classes]')) { state.selectedClass = ''; state.classEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
+        if (openClass) { state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
+        if (event.target.closest('[data-back-classes]')) { state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
         if (event.target.closest('[data-copy-class-invite]')) {
           const code = state.lastClassInvitation?.code;
           if (!code) return;
@@ -1209,15 +1451,18 @@
         const issueInvite = event.target.closest('[data-issue-class-invite], [data-revoke-class-invite]');
         if (issueInvite) {
           const id = issueInvite.dataset.issueClassInvite || issueInvite.dataset.revokeClassInvite;
-          const item = (state.data.classes || []).find(x => x.id === id);
+          const individual = (state.data.classes || []).find(x => x.id === id);
+          const groupItem = (state.data.groups || []).find(x => x.id === id);
+          const item = individual || groupItem;
           if (!item || item.isArchived) return;
+          const root = groupItem ? 'groups' : 'classes';
           const revoke = issueInvite.hasAttribute('data-revoke-class-invite');
           if (!confirm(revoke ? 'Отозвать приглашение? Этот код больше нельзя будет использовать.' : 'Выпустить одноразовый код для текущего ученика? Прежний код перестанет действовать.')) return;
           issueInvite.disabled = true;
           try {
-            const result = await api('teacher/classes/' + encodeURIComponent(id) + (revoke ? '/invitation/revoke' : '/invitation'), { method: 'POST', body: { expectedRevision: item.revision } });
+            const result = await api('teacher/' + root + '/' + encodeURIComponent(id) + (revoke ? '/invitation/revoke' : '/invitation'), { method: 'POST', body: { expectedRevision: item.revision } });
             state.lastClassInvitation = revoke ? null : { id, code: result.code };
-            invalidate(['classes']);
+            invalidate([root]);
             await refresh(true);
           } catch (error) { showNotice(error.message, true); if (issueInvite.isConnected) issueInvite.disabled = false; }
           return;
@@ -1226,19 +1471,22 @@
         if (statusButton) {
           const id = statusButton.dataset.archiveClass || statusButton.dataset.restoreClass;
           const archived = statusButton.hasAttribute('data-archive-class');
-          const item = (state.data.classes || []).find(x => x.id === id);
+          const individual = (state.data.classes || []).find(x => x.id === id);
+          const groupItem = (state.data.groups || []).find(x => x.id === id);
+          const item = individual || groupItem;
+          const root = groupItem ? 'groups' : 'classes';
           if (!item || item.isArchived === archived) return;
           if (!confirm(archived
             ? `Перенести класс «${item.title}» в архив? Ученик и история занятий останутся без изменений.`
             : `Восстановить класс «${item.title}» в активный список?`)) return;
           statusButton.disabled = true;
           try {
-            await api('teacher/classes/' + encodeURIComponent(id) + (archived ? '/archive' : '/restore'), {
+            await api('teacher/' + root + '/' + encodeURIComponent(id) + (archived ? '/archive' : '/restore'), {
               method: 'POST', body: { expectedRevision: item.revision }
             });
-            state.selectedClass = ''; state.classEdit = '';
+            state.selectedClass = ''; state.classEdit = ''; state.groupEdit = '';
             state.classTab = archived ? 'archive' : 'classes';
-            invalidate(['classes']);
+            invalidate([root]);
             await refresh(true);
           } catch (error) { showNotice(error.message, true); if (statusButton.isConnected) statusButton.disabled = false; }
           return;
@@ -1310,6 +1558,25 @@
           priceBasis: form.elements.priceEnabled.checked ? formValue(form, 'priceBasis') : null,
           allowLessonChat: form.elements.allowLessonChat.checked,
           allowPrivateMessages: form.elements.allowPrivateMessages.checked
+        });
+        const groupFields = form => ({
+          ...classFields(form),
+          memberIds: [...form.querySelectorAll('[name="groupMember"]')].map(input => input.value),
+          capacity: Number(formValue(form, 'capacity')),
+          autoApproveInvites: form.elements.autoApproveInvites.checked
+        });
+        if (form.id === 'groupForm') onForm(form, async () => {
+          await mutation('group', 'groups', () => groupFields(form));
+          state.groupCreate = false; state.selectedClass = '';
+        });
+        if (form.id === 'groupEditForm') onForm(form, async () => {
+          const item = (state.data.groups || []).find(x => x.id === form.dataset.classId);
+          const revision = Number(form.dataset.revision);
+          if (!item || item.isArchived || item.revision !== revision) throw new Error('Группа изменилась. Обновите данные.');
+          await api('teacher/groups/' + encodeURIComponent(item.id), {
+            method: 'PATCH', body: { expectedRevision: revision, ...groupFields(form) }
+          });
+          state.groupEdit = '';
         });
         if (form.id === 'classForm') onForm(form, async () => {
           await mutation('class', 'classes', () => ({
