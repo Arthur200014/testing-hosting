@@ -174,6 +174,37 @@ try {
   await page.locator('[aria-label="Закрыть окно занятия"]').click();
   assert.equal((await call('teacher/lessons',north.token)).length,countBeforeCancel);
   console.log('PASS: real calendar one-time/individual/group dialog, draft/date/duration/members, class schedules, archived-class error/retry and cancel without writes');
+  // Small read-only period slice: persisted rules/lessons, no planning writes.
+  await call('teacher/lessons',north.token,{requestId:randomUUID(),title:'Контрольный слот',lessonAt:'2026-11-16T13:00:00Z',individualClassId:north.item.id,
+    participants:[{membershipId:north.students[0].membershipId,durationMinutes:60,attendanceStatus:'Unknown'}]},201);
+  const beforePreview=await call('teacher/lessons',north.token);
+  const rulesBeforePreview=await call('teacher/schedule-rules',north.token);
+  await page.setViewportSize({width:1363,height:936});
+  await page.locator('[data-view="overview"]').click();
+  await page.locator('#refresh').click(); await page.locator('#notice').waitFor({state:'hidden'});
+  await page.locator('[data-open-class="'+north.item.id+'"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="schedule"]').click();
+  await page.locator('.class-period-preview > summary').click();
+  await page.locator('#classPeriodPreviewForm [name="startDate"]').fill('2026-11-16');
+  await page.locator('#classPeriodPreviewForm [name="endDate"]').fill('2026-11-30');
+  await page.locator('#classPeriodPreviewForm button[type="submit"]').click();
+  assert.equal(await page.locator('[data-period-count]').innerText(),'3');
+  assert.equal(await page.locator('[data-period-status="saved"]').count(),1);
+  assert.equal(await page.locator('[data-period-slot]').count(),3);
+  await page.locator('.class-period-preview').scrollIntoViewIfNeeded();
+  await page.screenshot({path:output+'/73_period_preview_real.png'});
+  await page.locator('#classPeriodPreviewForm [name="endDate"]').fill('2027-01-31');
+  await page.locator('#classPeriodPreviewForm button[type="submit"]').click();
+  assert.match(await page.locator('[data-period-preview-result] [role="alert"]').innerText(),/31/);
+  await page.setViewportSize({width:390,height:844});
+  const periodOverflow=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,
+    elements:['.top','.class-detail-banner','.class-rule-section','.class-period-preview'].map(selector=>{const r=document.querySelector(selector)?.getBoundingClientRect();return {selector,width:r?.width,right:r?.right};})}));
+  assert.equal(periodOverflow.scroll>periodOverflow.width,false,'period preview fits mobile: '+JSON.stringify(periodOverflow));
+  await page.locator('[data-close-period-preview]').click();
+  assert.equal(await page.locator('.class-period-preview').getAttribute('open'),null);
+  assert.deepEqual(await call('teacher/lessons',north.token),beforePreview);
+  assert.deepEqual(await call('teacher/schedule-rules',north.token),rulesBeforePreview);
+  console.log('PASS: period preview uses persisted class rules, marks saved start times, validates 31-day bound and never writes');
   await page.locator('#logout').click(); await login(south); await month();
   await page.locator('[data-calendar-month-day="2026-11-16"] .calendar-month-event.is-saved').filter({hasText:'Чужое контрольное занятие'}).waitFor();
   assert.equal(await page.getByText('Урок через настоящий браузер',{exact:true}).count(),0);

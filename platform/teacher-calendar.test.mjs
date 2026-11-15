@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calendarDay, calendarTime, shiftCalendarDay, localSlotInstant, calendarEntries, calendarWeekDays, calendarWeek, shiftCalendarMonth, calendarMonthDays, calendarMonth } from './teacher-calendar.mjs';
+import { calendarDay, calendarTime, shiftCalendarDay, localSlotInstant, calendarEntries, calendarWeekDays, calendarWeek, shiftCalendarMonth, calendarMonthDays, calendarMonth, previewClassPeriod } from './teacher-calendar.mjs';
 const item = {id:'class',kind:'individual',persistent:true};
 const rule = {id:'rule',classId:'class',classKind:'individual',isActive:true,daysMask:1,startMinute:15*60,durationMinutes:60,timeZoneId:'Europe/Moscow'};
 test('Moscow navigation and date boundaries are independent of device zone', () => {
@@ -80,4 +80,23 @@ test('month events use the same read-only day projection and preserve overnight 
   for(const day of month) assert.deepEqual(day.entries,calendarEntries(day.date,lessons,[rule],[item]));
   assert.ok(month.find(d=>d.date==='2026-12-01').entries.some(e=>e.id==='night'));
   assert.equal(JSON.stringify(lessons),before);
+});
+
+test('period preview is inclusive, class-scoped and marks existing lessons without mutation',()=>{
+  const lessons=[{id:'saved',individualClassId:'class',lessonAt:'2026-11-16T12:00Z'}];
+  const rules=[rule,{...rule,id:'foreign',classId:'other'},{...rule,id:'off',isActive:false}];
+  const before=JSON.stringify({lessons,rules});
+  const rows=previewClassPeriod('2026-11-16','2026-11-30',item,lessons,rules);
+  assert.equal(rows.length,3); assert.equal(rows.filter(x=>x.isScheduled).length,1);
+  assert.equal(JSON.stringify({lessons,rules}),before);
+  assert.equal(previewClassPeriod('2026-11-17','2026-11-17',item,lessons,rules).length,0);
+  assert.equal(previewClassPeriod('2026-11-16','2026-11-16',item,[{...lessons[0],individualClassId:'other'}],rules)[0].isScheduled,false);
+});
+test('period preview validates the range and excludes archived classes and prior-day continuations',()=>{
+  assert.throws(()=>previewClassPeriod('bad','2026-11-30',item,[],[]),/корректные/);
+  assert.throws(()=>previewClassPeriod('2026-11-30','2026-11-16',item,[],[]),/окончания/);
+  assert.throws(()=>previewClassPeriod('2026-11-01','2026-12-02',item,[],[]),/31/);
+  assert.throws(()=>previewClassPeriod('2026-11-16','2026-11-16',{...item,isArchived:true},[],[rule]),/недоступен/);
+  const late={...rule,startMinute:23*60+30,durationMinutes:120};
+  assert.equal(previewClassPeriod('2026-11-17','2026-11-17',item,[],[late]).length,0);
 });
