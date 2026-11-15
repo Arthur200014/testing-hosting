@@ -401,7 +401,7 @@
             !confirm('Отменить планирование занятия без сохранения?')) return Promise.resolve();
         state.view = view;
         if (view !== 'lessons') state.lessonPlan = null;
-        if (view !== 'overview') { state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; state.lessonPlan = null; }
+        if (view !== 'overview') { state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; }
         document.querySelectorAll('[data-view]').forEach(x => x.classList.toggle('active', x.dataset.view === view));
         $('viewTitle').textContent = names[view][0]; $('viewSubtitle').textContent = names[view][1];
         return refresh();
@@ -1404,7 +1404,8 @@
             document.querySelector('#classForm input')?.focus();
           } else if (type === 'one-time') {
             await setView('lessons');
-            showNotice('Открыта действующая форма занятия. Расширенная форма разового занятия будет добавлена в UI-03.');
+            state.lessonPlan = {kind:'one-time'};
+            render();
           } else if (type === 'group') {
             state.groupCreate = true;
             render();
@@ -1556,9 +1557,43 @@
           } catch (error) { showNotice(error.message, true); if (statusButton.isConnected) statusButton.disabled = false; }
           return;
         }
-        if (event.target.closest('[data-view-calendar]') || event.target.closest('[data-schedule-class]')) {
+        const createOneTime = event.target.closest('[data-create-one-time]');
+        if (createOneTime) { state.lessonPlan = {kind:'one-time'}; render(); return; }
+        const scheduleClass = event.target.closest('[data-schedule-class]');
+        if (scheduleClass) {
+          const item = teacherClasses().find(x => x.id === scheduleClass.dataset.scheduleClass);
+          if (!item || item.isArchived) return;
+          const plan = item.persistent
+            ? {kind:item.kind, classId:item.id}
+            : {kind:'one-time',memberIds:[item.studentMembershipId]};
           await setView('lessons');
-          showNotice('Открыт календарь и действующая форма занятия.');
+          state.lessonPlan = plan;
+          render();
+          return;
+        }
+        if (event.target.closest('[data-view-calendar]')) { await setView('lessons'); return; }
+        if (event.target.closest('[data-cancel-lesson-plan]')) {
+          if (document.querySelector('#lessonPlannerForm[data-dirty="1"]') &&
+              !confirm('Отменить несохранённое занятие?')) return;
+          state.lessonPlan = null; render(); return;
+        }
+        const titleSuggestion = event.target.closest('[data-plan-title]');
+        if (titleSuggestion) {
+          const form = titleSuggestion.closest('form');
+          form.elements.title.value = titleSuggestion.dataset.planTitle;
+          form.dataset.dirty = '1';
+          const count = form.querySelector('[data-char-count]');
+          if (count) count.textContent = form.elements.title.value.length + ' / 50';
+          return;
+        }
+        const preset = event.target.closest('[data-plan-duration]');
+        if (preset) {
+          const form = preset.closest('form');
+          const [h,m] = form.elements.lessonStart.value.split(':').map(Number);
+          const value = h*60 + m + Number(preset.dataset.planDuration);
+          form.elements.lessonEnd.value = String(Math.floor(value/60)%24).padStart(2,'0') + ':' +
+            String(value%60).padStart(2,'0');
+          form.dataset.dirty = '1';
           return;
         }
         const openStudent = event.target.closest('[data-open-student]');
@@ -1723,6 +1758,31 @@
           const result = await mutation('student', 'students', () => ({ studentName: formValue(form, 'studentName'), programId: formValue(form, 'programId'), profile }));
           state.inviteCode = result.inviteCode;
           form.reset();
+        });
+        if (form.id === 'lessonPlannerForm') onForm(form, async () => {
+          const ids = [...form.querySelectorAll('[name="planMember"]:checked')].map(x=>x.value);
+          if (!ids.length) throw new Error('Выберите хотя бы одного участника.');
+          const dateValue = formValue(form,'lessonDate');
+          const start = new Date(dateValue + 'T' + formValue(form,'lessonStart'));
+          const end = new Date(dateValue + 'T' + formValue(form,'lessonEnd'));
+          const duration = Math.round((end-start)/60000);
+          if (!Number.isFinite(duration) || duration < 15 || duration > 240)
+            throw new Error('Время окончания должно быть позже начала. Длительность: 15–240 минут.');
+          if (!form.dataset.classId) oneProgram(ids.map(id=>({value:id})));
+          const itemId = form.dataset.classId || null;
+          const lesson = {
+            title:formValue(form,'title'), description:formValue(form,'description') || null,
+            lessonAt:start.toISOString(),
+            individualClassId:form.dataset.classKind==='individual'?itemId:null,
+            groupClassId:form.dataset.classKind==='group'?itemId:null,
+            participants:ids.map(membershipId=>({
+              membershipId, durationMinutes:duration,
+              attendanceStatus:'Unknown', taskNumbers:null,
+              topicComment:formValue(form,'topics') || null
+            }))
+          };
+          await mutation('plannedLesson','lessons',()=>lesson);
+          state.lessonPlan = null;
         });
         if (form.id === 'lessonForm') onForm(form, async () => {
           const ids = selectedIds(form); const program = oneProgram(ids);
