@@ -97,3 +97,17 @@ export function calendarMonthDays(day) {
 export function calendarMonth(day, lessons, rules, classes, zone = calendarZone) {
   return calendarMonthDays(day).map(date=>({date,entries:calendarEntries(date,lessons,rules,classes,zone)}));
 }
+
+// Read-only first slice of period planning. A candidate is not a new Lesson.
+export function previewClassPeriod(startDate, endDate, item, lessons, rules) {
+  if (!shiftCalendarDay(startDate,0) || !shiftCalendarDay(endDate,0)) throw new Error('Укажите корректные даты.');
+  const count=Math.round((Date.parse(endDate+'T12:00Z')-Date.parse(startDate+'T12:00Z'))/86400000)+1;
+  if (count<1) throw new Error('Дата окончания должна быть не раньше начала.');
+  if (count>31) throw new Error('Для предпросмотра выберите не больше 31 дня.');
+  if (!item || item.isArchived || item.persistent===false || !['individual','group'].includes(item.kind)) throw new Error('Класс недоступен для планирования.');
+  const active=rules.filter(r=>r.isActive && r.classId===item.id && r.classKind===item.kind);
+  const saved=lessons.filter(l=>item.kind==='group'?l.groupClassId===item.id:l.individualClassId===item.id);
+  return Array.from({length:count},(_,offset)=>shiftCalendarDay(startDate,offset)).flatMap(day=>
+    calendarEntries(day,[],active,[item]).filter(row=>calendarDay(row.start)===day)
+      .map(row=>({...row,isScheduled:saved.some(l=>Date.parse(l.lessonAt)===row.start)})));
+}

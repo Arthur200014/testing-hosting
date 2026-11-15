@@ -319,12 +319,12 @@
     import { buildTeacherReport, collectTeacherHomework } from './teacher-report.mjs';
     import { teacherNeeds, teacherMutationKeys, invalidateTeacherData, invalidateTeacherKeys, loadTeacherKey } from './teacher-data.mjs';
     import { performTeacherMutation } from './teacher-mutation.mjs';
-    import { calendarZone, calendarDay, calendarTime, shiftCalendarDay, calendarEntries, localSlotInstant, calendarWeek, calendarWeekDays, calendarMonth, calendarMonthDays, shiftCalendarMonth } from './teacher-calendar.mjs';
+    import { calendarZone, calendarDay, calendarTime, shiftCalendarDay, calendarEntries, localSlotInstant, calendarWeek, calendarWeekDays, calendarMonth, calendarMonthDays, shiftCalendarMonth, previewClassPeriod } from './teacher-calendar.mjs';
     import { nativeHomeworkDeadlineStatus } from './homework-deadline.mjs';
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
-      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', groupEdit: '', groupCreate: false, lastClassInvitation: null, learningModal: false, classCreate: false, lessonPlan: null, scheduleEdit: null, calendarDate: calendarDay(), calendarMode: 'day' };
+      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', groupEdit: '', groupCreate: false, lastClassInvitation: null, learningModal: false, classCreate: false, lessonPlan: null, scheduleEdit: null, calendarDate: calendarDay(), calendarMode: 'day', periodPreview: null };
       const $ = id => document.getElementById(id);
       const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const date = value => value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
@@ -344,7 +344,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
-        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.classDetailTab = 'summary'; state.classStatsMonth = new Date().toISOString().slice(0,7); state.classStatsExpanded = ''; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; state.lessonPlan = null; state.scheduleEdit = null; state.calendarDate = calendarDay(); state.calendarMode = 'day';
+        state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.classDetailTab = 'summary'; state.classStatsMonth = new Date().toISOString().slice(0,7); state.classStatsExpanded = ''; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; state.lessonPlan = null; state.scheduleEdit = null; state.calendarDate = calendarDay(); state.calendarMode = 'day'; state.periodPreview=null;
         document.body.classList.remove('calendar-plan-open');
         $('app').hidden = true; $('loginScreen').hidden = false;
         $('loginError').textContent = message; $('loginError').hidden = !message;
@@ -534,6 +534,23 @@
           · ${safe(x.timeZoneId)}</span>`).join('') :
           '<span class="muted small">Регулярное расписание пока не настроено.</span>';
       }
+      function classPeriodPreview(item) {
+        const selected=state.periodPreview?.classId===item.id && state.periodPreview.classKind===item.kind ? state.periodPreview : null;
+        const from=selected?.startDate || calendarDay(), to=selected?.endDate || shiftCalendarDay(from,30);
+        let rows=[], error='';
+        if (selected) try { rows=previewClassPeriod(from,to,item,state.data.lessons || [],state.data.scheduleRules || []); } catch(e) { error=e.message; }
+        return `<details class="class-period-preview" ${selected?'open':''}><summary>Предпросмотр занятий на период</summary>
+          <p class="muted small">Только просмотр слотов, без создания занятий. Период — до 31 дня, время по Москве.</p>
+          <form id="classPeriodPreviewForm" class="stack" data-class-id="${safe(item.id)}" data-class-kind="${safe(item.kind)}">
+            <div class="form-row"><label>Дата с<input name="startDate" type="date" value="${safe(from)}" required></label>
+              <label>Дата по<input name="endDate" type="date" value="${safe(to)}" required></label></div>
+            <div class="row"><button type="submit" class="secondary">Показать слоты</button><button type="button" class="secondary" data-close-period-preview>Свернуть</button></div></form>
+          ${selected?`<div data-period-preview-result tabindex="-1">${error?`<p class="banner error" role="alert">${safe(error)}</p>`:
+            `<p class="small">${safe(from)} — ${safe(to)} · Слотов: <strong data-period-count>${rows.length}</strong> · Уже есть занятие: ${rows.filter(r=>r.isScheduled).length}</p>
+              ${rows.length?rows.slice(0,100).map(row=>`<div class="item" data-period-slot><div><strong>${safe(date(new Date(row.start).toISOString()))}–${safe(calendarTime(row.end))}</strong></div>
+                <span class="pill" data-period-status="${row.isScheduled?'saved':'rule'}">${row.isScheduled?'Уже есть занятие':'Слот расписания'}</span></div>`).join(''):'<p class="muted small">В этом периоде нет действующих слотов расписания.</p>'}
+              ${rows.length>100?'<p class="muted small">Показаны первые 100 слотов. Сократите период для просмотра остальных.</p>':''}`}</div>`:''}</details>`;
+      }
       function classScheduleRules(item) {
         const rows = classRules(item);
         const writable = !item.isArchived && item.persistent!==false;
@@ -574,6 +591,7 @@
             <div class="row"><button type="submit" class="primary">Сохранить слот</button>
               <button type="button" class="secondary" data-cancel-schedule-rule>Отмена</button></div>
           </form>`:''}
+          ${writable?classPeriodPreview(item):''}
           ${item.isArchived?'<p class="muted small">Расписание архивного класса доступно только для просмотра.</p>':''}
         </section>`;
       }
@@ -1886,6 +1904,7 @@
           } catch(error) { showNotice(error.message,true); if(disableRule.isConnected) disableRule.disabled=false; }
           return;
         }
+        if (event.target.closest('[data-close-period-preview]')) { state.periodPreview=null; render(); return; }
         const calendarKind=event.target.closest('[data-calendar-plan-kind]');
         if (calendarKind && state.lessonPlan?.fromCalendar) {
           if (state.lessonPlan.createKind===calendarKind.dataset.calendarPlanKind) return;
@@ -2025,6 +2044,10 @@
       });
       $('content').addEventListener('submit', event => {
         event.preventDefault(); const form = event.target;
+        if (form.id==='classPeriodPreviewForm') {
+          state.periodPreview={classId:form.dataset.classId,classKind:form.dataset.classKind,startDate:formValue(form,'startDate'),endDate:formValue(form,'endDate')};
+          render(); document.querySelector('[data-period-preview-result]')?.focus(); return;
+        }
         const classFields = form => ({
           title: formValue(form, 'title'),
           coverStyle: form.querySelector('input[name="coverStyle"]:checked')?.value || 'lavender',
