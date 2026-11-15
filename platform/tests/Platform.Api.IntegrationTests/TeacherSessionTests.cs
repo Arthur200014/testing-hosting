@@ -25,6 +25,83 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     private const string Password = "Synthetic-Teacher-Password-Only-123!";
     private const string ClaimCode = "synthetic-claim-code-for-integration-tests-only-2026";
 
+
+    [Fact]
+    public async Task ScheduledLessonLinksOneClassAndRespectsMembersTenantAndIdempotency()
+    {
+        await ResetAsync(factory);
+        var north = await SeedAsync(factory, "schedule-north", "schedule-north@example.invalid", "owner");
+        await SeedAsync(factory, "schedule-south", "schedule-south@example.invalid", "owner");
+        var a = await SeedStudentAsync(factory, north.WorkspaceId, "Synthetic A", true);
+        var b = await SeedStudentAsync(factory, north.WorkspaceId, "Synthetic B", true);
+        var c = await SeedStudentAsync(factory, north.WorkspaceId, "Synthetic C", true);
+        using var client = factory.CreateClient();
+        var login = (await (await LoginAsync(client, "schedule-north", "schedule-north@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login.AccessToken);
+        var individualResponse = await client.PostAsJsonAsync("/api/v1/teacher/classes",
+            new TeacherCreateClassRequest(Guid.NewGuid(), a, "Individual"));
+        Assert.Equal(HttpStatusCode.Created, individualResponse.StatusCode);
+        var individual = (await individualResponse.Content.ReadFromJsonAsync<TeacherClassView>())!;
+        var groupResponse = await client.PostAsJsonAsync("/api/v1/teacher/groups",
+            new TeacherCreateGroupRequest(Guid.NewGuid(), "Group", [a, b], Capacity: 2));
+        Assert.Equal(HttpStatusCode.Created, groupResponse.StatusCode);
+        var group = (await groupResponse.Content.ReadFromJsonAsync<TeacherGroupClassView>())!;
+        var time = new DateTimeOffset(2026, 12, 1, 12, 30, 0, TimeSpan.Zero);
+        var participantA = new TeacherLessonParticipantRequest(a, 60, null, null, "Unknown");
+        var participantB = new TeacherLessonParticipantRequest(b, 60, null, null, "Unknown");
+        var one = new TeacherLessonWriteRequest(Guid.NewGuid(), time, [participantA],
+            IndividualClassId: individual.Id, Title: "Планиметрия", Description: "Повторение");
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsJsonAsync("/api/v1/teacher/lessons",
+                one with { RequestId = Guid.NewGuid(), GroupClassId = group.Id })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync("/api/v1/teacher/lessons",
+                one with { RequestId = Guid.NewGuid(), Participants = [participantB] })).StatusCode);
+        var created = await client.PostAsJsonAsync("/api/v1/teacher/lessons", one);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var first = (await created.Content.ReadFromJsonAsync<TeacherLessonWriteResponse>())!;
+        Assert.Equal(HttpStatusCode.OK,
+            (await client.PostAsJsonAsync("/api/v1/teacher/lessons", one)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync("/api/v1/teacher/lessons",
+                one with { Title = "Другая тема" })).StatusCode);
+        var second = new TeacherLessonWriteRequest(Guid.NewGuid(), time.AddHours(2),
+            [participantA, participantB], GroupClassId: group.Id,
+            Title: "Групповое занятие", Description: "Система уравнений");
+        Assert.Equal(HttpStatusCode.Created,
+            (await client.PostAsJsonAsync("/api/v1/teacher/lessons", second)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync("/api/v1/teacher/lessons",
+                second with { RequestId = Guid.NewGuid(), Participants = [participantA, participantB,
+                    new TeacherLessonParticipantRequest(c, 60, null, null, "Unknown")] })).StatusCode);
+        var lessons = (await client.GetFromJsonAsync<List<TeacherLessonView>>("/api/v1/teacher/lessons"))!;
+        Assert.Equal(2, lessons.Count);
+        var single = Assert.Single(lessons, x => x.Id == first.LessonId);
+        Assert.Equal(individual.Id, single.IndividualClassId);
+        Assert.Null(single.GroupClassId);
+        Assert.Equal("Планиметрия", single.Title);
+        Assert.Equal("Повторение", single.Description);
+        var grouped = Assert.Single(lessons, x => x.GroupClassId == group.Id);
+        Assert.Null(grouped.IndividualClassId);
+        Assert.Equal(2, grouped.Participants.Count);
+        Assert.All(grouped.Participants, p => Assert.Equal("Unknown", p.AttendanceStatus));
+        var archived = await client.PostAsJsonAsync(
+            "/api/v1/teacher/groups/" + group.Id + "/archive", new TeacherClassRevisionRequest(1));
+        Assert.Equal(HttpStatusCode.OK, archived.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync("/api/v1/teacher/lessons",
+                second with { RequestId = Guid.NewGuid() })).StatusCode);
+        Assert.Equal(2, (await client.GetFromJsonAsync<List<TeacherLessonView>>("/api/v1/teacher/lessons"))!.Count);
+        var south = (await (await LoginAsync(client, "schedule-south", "schedule-south@example.invalid", Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", south.AccessToken);
+        Assert.Empty((await client.GetFromJsonAsync<List<TeacherLessonView>>("/api/v1/teacher/lessons"))!);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.PostAsJsonAsync("/api/v1/teacher/lessons",
+                one with { RequestId = Guid.NewGuid() })).StatusCode);
+    }
+
     [Fact]
     public async Task IndividualClassesPersistAndAreTenantScopedAndIdempotent()
     {

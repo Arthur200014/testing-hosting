@@ -11,7 +11,9 @@ public sealed record TeacherLessonParticipantRequest(
 
 public sealed record TeacherLessonWriteRequest(
     Guid RequestId, DateTimeOffset? LessonAt,
-    List<TeacherLessonParticipantRequest>? Participants);
+    List<TeacherLessonParticipantRequest>? Participants,
+    Guid? IndividualClassId = null, Guid? GroupClassId = null,
+    string? Title = null, string? Description = null);
 
 public sealed record TeacherLessonWriteResponse(Guid LessonId, string LegacyLessonId, int ParticipantCount);
 
@@ -66,7 +68,27 @@ public sealed class TeacherLessonService(PlatformDbContext db, TimeProvider cloc
             .ToListAsync(cancellationToken);
         if (members.Count != ids.Count)
             return new(TeacherLessonWriteStatus.MembershipNotFound);
-        if (members.Select(x => x.ProgramId).Distinct().Count() != 1)
+        // A class-linked lesson may only contain members of that class.  For a group,
+        // participants from different programs are allowed if every one is enrolled and approved.
+        if (validation.IndividualClassId is Guid individualId)
+        {
+            var individual = await db.TeacherClasses.AsNoTracking()
+                .Where(x => x.WorkspaceId == workspaceId && x.Id == individualId && !x.IsArchived)
+                .Select(x => new { x.StudentMembershipId }).SingleOrDefaultAsync(cancellationToken);
+            if (individual is null || ids.Count != 1 || ids[0] != individual.StudentMembershipId)
+                return new(TeacherLessonWriteStatus.MembershipNotFound);
+        }
+        else if (validation.GroupClassId is Guid groupId)
+        {
+            var group = await db.TeacherGroupClasses.AsNoTracking()
+                .Where(x => x.WorkspaceId == workspaceId && x.Id == groupId && !x.IsArchived)
+                .Select(x => new { MemberIds = x.Members.Where(m => m.IsApproved)
+                    .Select(m => m.MembershipId).ToList() })
+                .SingleOrDefaultAsync(cancellationToken);
+            if (group is null || ids.Any(id => !group.MemberIds.Contains(id)))
+                return new(TeacherLessonWriteStatus.MembershipNotFound);
+        }
+        else if (members.Select(x => x.ProgramId).Distinct().Count() != 1)
             return new(TeacherLessonWriteStatus.InvalidRequest, Errors: new()
             {
                 ["participants"] = ["All participants must belong to one program."]
@@ -76,7 +98,10 @@ public sealed class TeacherLessonService(PlatformDbContext db, TimeProvider cloc
         var lesson = new Lesson
         {
             Id = Guid.NewGuid(), WorkspaceId = workspaceId, LegacyLessonId = lessonId,
-            LessonAt = validation.LessonAt, CreatedAt = now
+            LessonAt = validation.LessonAt, CreatedAt = now,
+            IndividualClassId = validation.IndividualClassId,
+            GroupClassId = validation.GroupClassId,
+            Title = validation.Title, Description = validation.Description
         };
         var byId = members.ToDictionary(x => x.Id);
         foreach (var item in validation.Participants)
@@ -121,7 +146,11 @@ public sealed class TeacherLessonService(PlatformDbContext db, TimeProvider cloc
     {
         var actual = existing.Participants.OrderBy(x => x.MembershipId).ToList();
         var expected = canonical.Participants.OrderBy(x => x.MembershipId).ToList();
-        if (existing.LessonAt != canonical.LessonAt || actual.Count != expected.Count ||
+        if (existing.LessonAt != canonical.LessonAt ||
+            existing.IndividualClassId != canonical.IndividualClassId ||
+            existing.GroupClassId != canonical.GroupClassId ||
+            existing.Title != canonical.Title || existing.Description != canonical.Description ||
+            actual.Count != expected.Count ||
             actual.Where((item, i) => item.MembershipId != expected[i].MembershipId ||
                 item.DurationMinutes != expected[i].DurationMinutes ||
                 item.TaskNumbers != expected[i].TaskNumbers ||
@@ -142,6 +171,13 @@ public sealed class TeacherLessonService(PlatformDbContext db, TimeProvider cloc
             errors["lessonAt"] = ["LessonAt is required."];
         if (request.Participants is null or { Count: 0 or > 100 })
             errors["participants"] = ["Between 1 and 100 participants are required."];
+        if ((request.IndividualClassId is not null && request.GroupClassId is not null) ||
+            request.IndividualClassId == Guid.Empty || request.GroupClassId == Guid.Empty)
+            errors["classId"] = ["Link a lesson to one class type at most."];
+        var title = string.IsNullOrWhiteSpace(request.Title) ? null : request.Title.Trim();
+        var description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+        if (title?.Length > 50) errors["title"] = ["Title must not exceed 50 characters."];
+        if (description?.Length > 1000) errors["description"] = ["Description must not exceed 1000 characters."];
 
         var participants = new List<CanonicalParticipant>();
         if (request.Participants is not null)
@@ -163,7 +199,8 @@ public sealed class TeacherLessonService(PlatformDbContext db, TimeProvider cloc
                 participants.Add(new(item.MembershipId, item.DurationMinutes, tasks, comment, status));
             }
         }
-        return new(request.LessonAt is null ? default : Truncate(request.LessonAt.Value), participants, errors);
+        return new(request.LessonAt is null ? default : Truncate(request.LessonAt.Value),
+            participants, errors, request.IndividualClassId, request.GroupClassId, title, description);
     }
 
     private static DateTimeOffset Truncate(DateTimeOffset date) =>
@@ -174,5 +211,6 @@ public sealed class TeacherLessonService(PlatformDbContext db, TimeProvider cloc
         string? TopicComment, string AttendanceStatus);
     private sealed record CanonicalLesson(
         DateTimeOffset LessonAt, List<CanonicalParticipant> Participants,
-        Dictionary<string, string[]> Errors);
+        Dictionary<string, string[]> Errors,
+        Guid? IndividualClassId, Guid? GroupClassId, string? Title, string? Description);
 }

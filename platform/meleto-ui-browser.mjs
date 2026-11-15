@@ -48,6 +48,8 @@ let groupEdits = 0;
 let groupArchives = 0;
 let groupRestores = 0;
 let groupInvites = 0;
+let plannedLessonWrites = 0;
+const plannedLessonRequests = [];
 const createdClassId = '55555555-5555-4555-8555-555555555555';
 const setClassSearch = value => page.locator('#classSearch').evaluate((input, next) => {
   input.value = next;
@@ -62,6 +64,18 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
   if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
   if (path === 'teacher-sessions' && request.method() === 'POST')
     return send({ accessToken: 'synthetic-ui-token', expiresAt: new Date(Date.now() + 300000).toISOString() });
+  if (path === 'teacher/lessons' && request.method() === 'POST') {
+    const body = request.postDataJSON();
+    assert.ok(body.requestId, 'planned lesson is idempotent');
+    assert.ok(body.title);
+    assert.equal(body.participants.every(p => p.attendanceStatus === 'Unknown'), true,
+      'planning a lesson does not mark attendance');
+    const id = 'aaaaaaa0-aaaa-4aaa-8aaa-' + String(plannedLessonWrites + 1).padStart(12, '0');
+    plannedLessonRequests.push(body);
+    plannedLessonWrites++;
+    lessons.push({ ...body, id, revision:'synthetic', participants:body.participants });
+    return send({lessonId:id,legacyLessonId:'api:'+body.requestId,participantCount:body.participants.length},201);
+  }
   if (path === 'teacher/groups' && request.method() === 'POST') {
     const body = request.postDataJSON();
     assert.equal(body.title, 'Синтетическая группа ЕГЭ');
@@ -188,6 +202,10 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
   if (path === 'teacher/classes') return send(classes);
   if (path === 'teacher/groups') return send(groups);
   if (path === 'teacher/students') return send(students);
+  if (path === 'teacher/programs') return send([
+    {id:'66666666-6666-4666-8666-666666666666', displayName:'Профильная математика'}
+  ]);
+  if (path === 'teacher/homework/catalog') return send([]);
   if (path === 'teacher/lessons') return send(lessons);
   if (path === 'teacher/homework/assignments') return send(homeworkAssignments);
   if (path === 'teacher/homework/native/assignments') return send([]);
@@ -542,6 +560,59 @@ try {
   await studentPage.locator('#groupInvitationForm button[type="submit"]').click();
   await studentPage.getByText('Заявка на вступление отправлена преподавателю на подтверждение.').waitFor();
   await studentPage.close();
+  // An individual class directly opens the matching one-lesson planning form.
+  await page.locator('[data-back-classes]').click();
+  await page.locator('[data-open-class="'+createdClassId+'"]').click();
+  await page.locator('[data-schedule-class="'+createdClassId+'"]').first().click();
+  const linkedPlan = page.locator('#lessonPlannerForm');
+  await linkedPlan.waitFor();
+  assert.equal(await linkedPlan.getAttribute('data-class-kind'),'individual');
+  assert.equal(await linkedPlan.locator('[name="planMember"]:checked').count(),1);
+  await linkedPlan.locator('[name="title"]').fill('Синтетическая планиметрия');
+  page.once('dialog',d=>d.dismiss());
+  await linkedPlan.locator('[data-cancel-lesson-plan]').click();
+  assert.equal(plannedLessonWrites,0,'cancelled planning never writes');
+  page.once('dialog',d=>d.accept());
+  await linkedPlan.locator('[data-cancel-lesson-plan]').click();
+  assert.equal(plannedLessonWrites,0);
+  await page.locator('[data-create-one-time]').click();
+  await page.locator('#lessonPlannerForm [name="title"]').fill('Синтетическое разовое');
+  await page.locator('#lessonPlannerForm [name="planMember"][value="'+students[0].membershipId+'"]').check();
+  await page.locator('#lessonPlannerForm [name="planMember"][value="'+students[2].membershipId+'"]').check();
+  await page.evaluate(()=>window.scrollTo(0,0));
+  await page.screenshot({path:output+'/07_onetime_create.png'});
+  await page.locator('#planDescription').scrollIntoViewIfNeeded();
+  await page.screenshot({path:output+'/13_lesson_create_bottom.png'});
+  await page.locator('#lessonPlannerForm button[type="submit"]').click();
+  await page.locator('[data-create-one-time]').waitFor();
+  assert.equal(plannedLessonWrites,1);
+  assert.equal(plannedLessonRequests[0].individualClassId,null);
+  assert.equal(plannedLessonRequests[0].groupClassId,null);
+  assert.equal(plannedLessonRequests[0].participants.length,2);
+  await page.locator('[data-view="overview"]').click();
+  await page.locator('[data-open-class="'+createdClassId+'"]').click();
+  await page.locator('[data-schedule-class="'+createdClassId+'"]').first().click();
+  await page.locator('#lessonPlannerForm [name="title"]').fill('Синтетическая планиметрия');
+  await page.evaluate(()=>window.scrollTo(0,0));
+  await page.screenshot({path:output+'/12_lesson_create_top.png'});
+  await page.locator('#lessonPlannerForm button[type="submit"]').click();
+  await page.locator('[data-create-one-time]').waitFor();
+  assert.equal(plannedLessonWrites,2);
+  assert.equal(plannedLessonRequests[1].individualClassId,createdClassId);
+  assert.equal(plannedLessonRequests[1].groupClassId,null);
+  await page.locator('[data-view="overview"]').click();
+  await page.locator('[data-open-class="'+createdGroupId+'"]').click();
+  await page.locator('.class-detail-tabs [data-class-detail-tab="schedule"]').click();
+  await page.locator('[data-schedule-class="'+createdGroupId+'"]').click();
+  await page.locator('#lessonPlannerForm [name="title"]').fill('Синтетическая групповая тема');
+  await page.locator('#lessonPlannerForm button[type="submit"]').click();
+  await page.locator('[data-create-one-time]').waitFor();
+  assert.equal(plannedLessonWrites,3);
+  assert.equal(plannedLessonRequests[2].groupClassId,createdGroupId);
+  assert.deepEqual(plannedLessonRequests[2].participants.map(x=>x.membershipId),
+    [students[0].membershipId,students[2].membershipId]);
+  assert.equal(unexpectedWrites,0);
+  console.log('PASS: Meleto 07/12/13 lesson planning and linked individual/group classes');
   console.log('PASS: group creation/edit/enrollment/archive/restore/invitation at Meleto 1348×926');
 } finally {
   await browser.close();
