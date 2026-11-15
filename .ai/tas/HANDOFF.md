@@ -2,11 +2,11 @@
 
 **UPDATED:** 2026-11-15
 **ACTIVE_PLAN:** [RELEASE_PLAN.md](./RELEASE_PLAN.md) — Meleto UI-01…UI-08
-**ACTIVE_TASK:** UI-03 week calendar — implemented, awaiting Chromium verification.
-**ACTIVE_BRANCH:** `tas/UI-03-calendar-week`
-**LAST_IMPLEMENTATION_COMMIT:** current branch head (base `1feb966`; day calendar merged in PR #58).
-**NEXT_ACTION:** Finish this branch's Chromium CI and inspect `38_calendar_week.png` / mobile screenshot. Fix actual failures and merge once verified. Next product slice: month calendar (`39` — verify exact screen index before work); mass scheduling stays separate.
-**VERIFICATION:** PASS — 13 focused local Node tests, JS syntax and diff checks. Browser CI pending; local Chromium was previously blocked by OS socket permissions. NOT_RUN — reference comparison: repeated exact-title/short-title Library searches returned zero, ZIP materialization by known ID returned 404. NOT_RUN — Timeweb production.
+**ACTIVE_TASK:** UI-03 week calendar — PR #59 merged; reference 38 follow-up (today column/current-time line) awaiting browser CI.
+**ACTIVE_BRANCH:** `tas/UI-03-calendar-week-reference`
+**LAST_IMPLEMENTATION_COMMIT:** [`4e1621b`](https://github.com/Arthur200014/testing-hosting/commit/4e1621b80fef57ba2c9d8dd91daf88d6f2cfbf7a) (PR #59); follow-up on current branch.
+**NEXT_ACTION:** Finish reference follow-up CI and inspect desktop/mobile screenshots; then finalize HANDOFF. Next UI-03 slice: month (`39_calendar_month`), reusing shared projection; mass scheduling separate.
+**VERIFICATION:** PASS — PR #59: Chromium + 20 Node tests (43716922942), TAS CI (43716922952), PostgreSQL integration/startup/isolated restore (43716922945), source `2982d6c`; 13 focused local Node tests. Desktop/mobile screenshots inspected. Follow-up browser CI pending; syntax/diff checks pass. Reference 37/38 PNGs + JSON now read from Git after concurrent reference-pack commit `1f3f35d`; fidelity PARTIAL (header/card layout and duration geometry differ). NOT_RUN — Timeweb production.
 
 ## Current slice
 
@@ -16,4 +16,4 @@
 
 ## References and safety
 
-[`Meleto_Reference_Pack.zip`](https://chatgpt.com/library?file_id=libfile_2a4feb1037c08191997ce235ce5fd686&account_id=personal): use only screens 37–38 and matching JSON if access returns. Currently unavailable; no pixel-fidelity claim. Follow `AGENTS.md` context budget. Do not touch live students/imports, GAS/Sheets, production writer/passwords. Green CI does not verify Timeweb deployment.
+References are now in Git: `.ai/tas/references/meleto/screens/37_calendar_day.png`, `38_calendar_week.png` and matching `screen_specs.json` records. Prefer these paths; Library archive previously returned 404 and is no longer needed. Follow `AGENTS.md` context budget: only 1–2 relevant PNG/JSON records. Do not touch live students/imports, GAS/Sheets, production writer/passwords. Green CI does not verify Timeweb deployment.
