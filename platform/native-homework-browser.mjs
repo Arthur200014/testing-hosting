@@ -116,6 +116,7 @@ async function mockApi(page) {
       if (path.startsWith('teacher/')) teacherReads.push(path);
       const reads = {
         'teacher/classes': [],
+        'teacher/groups': [],
         'teacher/students': students,
         'teacher/programs': programs,
         'teacher/lessons': lessons,
