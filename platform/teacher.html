@@ -486,7 +486,100 @@
         ['summary','Сводка'], ['schedule','Расписание'], ['materials','Материалы'],
         ['program','Программа'], ['homework','Задания'], ['payment','Оплата'], ['information','Информация']
       ];
+      function groupInvitePanel(item) {
+        const issued = state.lastClassInvitation?.id === item.id ? state.lastClassInvitation : null;
+        const expired = item.invitationStatus === 'pending' && item.invitationExpiresAt && new Date(item.invitationExpiresAt) <= new Date();
+        const status = item.invitationStatus === 'pending' && !expired ? 'Приглашение активно'
+          : expired ? 'Срок приглашения истёк' : item.invitationStatus === 'revoked' ? 'Приглашение отозвано' : 'Не создано';
+        return `<section class="class-invite-card group-invite-panel">
+          <h3>Приглашение в группу</h3>
+          <p class="muted">Статус: <strong>${status}</strong>${item.invitationExpiresAt && item.invitationStatus === 'pending' ?
+            ' · до ' + safe(new Date(item.invitationExpiresAt).toLocaleDateString('ru-RU')) : ''}</p>
+          <p class="muted small">Код позволяет существующим ученикам вступить в группу после входа в кабинет. Допуск: ${item.autoApproveInvites ? 'автоматически' : 'после подтверждения преподавателем'}. Код не является паролем ученика и действует семь дней.</p>
+          ${issued ? `<code class="class-invite-code" data-invite-code>${safe(issued.code)}</code>
+            <button type="button" class="secondary" data-copy-class-invite>Скопировать код</button>
+            <p class="muted small">Сохраните код сейчас: он не возвращается при повторной загрузке.</p>` : ''}
+          ${item.isArchived ? '<p class="muted">Чтобы пригласить ученика, сначала восстановите группу.</p>' :
+            `<div class="row"><button class="primary" type="button" data-issue-class-invite="${safe(item.id)}">${item.invitationStatus === 'pending' ? 'Перевыпустить код' : 'Создать код'}</button>
+              ${item.invitationStatus === 'pending' ? `<button class="secondary" type="button" data-revoke-class-invite="${safe(item.id)}">Отозвать</button>` : ''}</div>`}
+        </section>`;
+      }
+      function groupClassDetail(item) {
+        const tab = classDetailTabs.some(x => x[0] === state.classDetailTab) ? state.classDetailTab : 'summary';
+        const members = item.members || [];
+        const roster = `<section class="class-subsection group-roster">
+          <div class="section-head"><h3>Участники</h3><span class="muted">${members.length} из ${item.capacity}</span></div>
+          ${members.length ? members.map(member => `<div class="group-roster-member">
+            <span class="group-roster-avatar" style="--avatar:${avatarColor(member.membershipId)}">${safe(initials(member.studentName))}</span>
+            <span><strong>${safe(member.studentName)}</strong><small>${safe(member.programName)}</small></span>
+            <span class="group-roster-status">${member.isApproved ? 'Допущен' : 'Ожидает подтверждения'}</span>
+            ${!member.isApproved && !item.isArchived ?
+              `<button class="secondary small-button" type="button" data-approve-group="${safe(member.membershipId)}" data-group-id="${safe(item.id)}">Подтвердить</button>` : ''}
+          </div>`).join('') : '<p class="muted">В группе пока нет учеников.</p>'}
+          ${!item.isArchived ? `<button type="button" class="secondary" data-edit-group="${safe(item.id)}">Изменить состав</button>` : ''}
+        </section>`;
+        const metadata = `<div class="class-info-grid">
+          <div class="class-info-panel"><h3>Об обучении</h3>
+            <p>Тип: групповое обучение</p><p>Участники: ${members.length} / ${item.capacity}</p>
+            <p>Допуск по коду: ${item.autoApproveInvites ? 'автоматический' : 'после подтверждения'}</p>
+            ${item.description ? `<p>Описание: <span data-class-description>${safe(item.description)}</span></p>` : ''}
+          </div>
+          <div class="class-info-panel"><h3>Настройки класса</h3>
+            <p>Длительность: ${item.durationMinutes != null ? safe(item.durationMinutes) + ' минут' : 'не задана'}</p>
+            <p>Стоимость: ${item.priceAmount != null ? safe(item.priceAmount) + ' ' + safe(item.priceCurrency) +
+              (item.priceBasis === 'month' ? ' / месяц' : ' / занятие') : 'не задана'}</p>
+            <p>Чат занятия: ${item.allowLessonChat ? 'разрешён в настройках' : 'выключен'}</p>
+            <p>Личные сообщения: ${item.allowPrivateMessages ? 'разрешены в настройках' : 'выключены'}</p>
+            <small class="muted">Реальные чаты, счета и записи занятий пока не подключены.</small>
+          </div>
+        </div>`;
+        const placeholders = {
+          schedule: ['Расписание', 'Календарь групповых занятий откроется в действующем разделе. Привязка занятия к группе ещё не реализована.'],
+          materials: ['Материалы', 'Материалы и библиотека пока не привязаны к группе.'],
+          program: ['Программа', 'Редактор программы для группового класса будет подключён позднее.'],
+          homework: ['Задания', 'Задания ученикам доступны в общем разделе, группового назначения пока нет.'],
+          payment: ['Оплата', 'Стоимость группы сохраняется как условие. Реальные счета и платежи не создаются.']
+        };
+        const body = tab === 'summary'
+          ? `<section class="class-summary"><p class="class-caption">Обучение</p>
+              <div class="class-nearest"><span class="class-nearest-icon">◯</span>
+                <div><strong>Группа создана</strong><small>Расписание группы пока не настроено</small></div>
+                <button class="secondary" type="button" data-class-detail-tab="information">Участники</button>
+              </div></section>${roster}`
+          : tab === 'information'
+            ? `<section class="class-subsection">${metadata}${roster}${groupInvitePanel(item)}</section>`
+            : `<section class="class-subsection"><h3>${placeholders[tab]?.[0]}</h3>
+                <p class="muted">${placeholders[tab]?.[1]}</p>
+                ${tab === 'schedule' ? '<button type="button" class="secondary" data-view-calendar>Открыть календарь</button>' : ''}
+                ${tab === 'homework' ? '<button type="button" class="secondary" data-class-section="homework">Открыть задания</button>' : ''}
+                ${tab === 'payment' ? '<button type="button" class="secondary" data-class-section="subscriptions">Абонементы</button>' : ''}
+              </section>`;
+        return `<div class="class-detail group-detail">
+          <div class="class-detail-banner cover-${safe(item.coverStyle || 'lavender')}">
+            <button type="button" class="class-back" data-back-classes aria-label="Назад ко всем классам">‹</button>
+            <div class="class-detail-banner-body"><p class="class-detail-kind">Групповое обучение</p>
+              <h2>${safe(item.title)}</h2><div class="class-banner-buttons">
+                <button class="primary" type="button" data-class-detail-tab="information">Участники · ${members.length}/${item.capacity}</button>
+                <button class="secondary" type="button" data-class-detail-tab="schedule">Расписание</button>
+              </div></div>
+            <div class="class-detail-banner-art" aria-hidden="true"></div>
+            <details class="class-detail-menu"><summary aria-label="Действия с классом">⋮</summary>
+              <div class="class-detail-menu-actions">
+                ${item.isArchived ? `<button type="button" data-restore-class="${safe(item.id)}">Восстановить группу</button>` :
+                  `<button type="button" data-edit-group="${safe(item.id)}">Редактировать группу</button>
+                  <button type="button" data-archive-class="${safe(item.id)}">В архив</button>`}
+              </div>
+            </details>
+          </div>
+          <nav class="class-detail-tabs" aria-label="Разделы класса">
+            ${classDetailTabs.map(([id,label]) => `<button type="button" class="${tab===id?'active':''}" data-class-detail-tab="${id}">${label}</button>`).join('')}
+          </nav>
+          ${item.isArchived ? '<p class="class-archived-state">Группа в архиве; ученики и история сохранены.</p>' : ''}
+          ${body}
+        </div>`;
+      }
       function classDetail(item) {
+        if (item.kind === 'group') return groupClassDetail(item);
         const lessons = (state.data.lessons || []).filter(x =>
           (x.participants || []).some(p => p.membershipId === item.studentMembershipId))
           .sort((a, b) => new Date(b.lessonAt) - new Date(a.lessonAt));
