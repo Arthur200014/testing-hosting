@@ -1,38 +1,40 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-16
-**ACTIVE_TASK:** UI-05 cross-source pupil learning history implemented; isolated acceptance pending.
-**ACTIVE_BRANCH:** `tas/ui05-pupil-learning-history`, [PR #88](https://github.com/Arthur200014/testing-hosting/pull/88), head `e4fb27615d41f0356d8c455cd8bb0c6e801f8c5a`.
-**MERGED_SHA:** `08b4f9cdfaceed1768e7fdcea1e9d21c398981ca`, [PR #87](https://github.com/Arthur200014/testing-hosting/pull/87).
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43935680969](https://github.com/Arthur200014/testing-hosting/actions/runs/43935680969) PASS; published teacher.html, teacher-data.mjs and student-card.mjs byte-match main. API adds one pupil-scoped read endpoint; schema/migrations/config unchanged. Timeweb native main auto-deploy is owner-configured; independent API completion/revision UNKNOWN / NOT_VERIFIED, LIVE_WRITE_NOT_RUN under approved isolated-only mode.
-**NEXT_ACTION:** Finish PR #88 CI/PostgreSQL/browser, inspect references45–46 screenshots, merge/Pages/byte-check/HANDOFF. Larger owner-requested block implemented: imported homework/attempts, historical/live tests, mock summaries/sessions/independent task events, mock drill-down/back plus native-work month/class filtering. All sources scoped before count/page; history readonly, actual0/null preserved. LOCAL17 + final TAS CI43951782634 + PostgreSQL43951782534 (106 API tests) PASS; browser43951782524 pending. Fixed Moscow boundary parameters to UTC; second-program fixture now uses a separate same-name person because current DB permits only one membership/student/workspace. Schema unchanged; no Timeweb checks/live writes.
+**ACTIVE_TASK:** UI-05 cross-source pupil learning history released.
+**ACTIVE_BRANCH:** none.
+**MERGED_SHA:** `f3ca3fd919649d33d0dd756c331be08d15f9177d`, [PR #88](https://github.com/Arthur200014/testing-hosting/pull/88).
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43953164765](https://github.com/Arthur200014/testing-hosting/actions/runs/43953164765) PASS; published teacher.html, teacher-data.mjs, student-card.mjs and pupil-history.mjs byte-match main. API extended; no schema/migration/config changes. Native Timeweb main auto-deploy is owner-configured; independent API completion/revision UNKNOWN / NOT_VERIFIED, LIVE_WRITE_NOT_RUN in approved isolated-only mode.
+**NEXT_ACTION:** UI-05 pupil feedback/report draft (reference47 only): existing pupil context → generate draft from complete scoped pupil data → review/edit/cancel/save/reload → return to originating class/lesson. Inspect existing report code and preserve its actual scoring policy; never calculate report totals from paged history items or truncated workspace nativeAssignments. Reuse/add a minimal complete pupil input/aggregate as needed. No sending messages, invitations or notifications in this block. Verify isolated persistence/access and teacher reload, then CI/merge/Pages/HANDOFF. Take the connected report scenario, not a filters-only task.
 
 ## Standing owner instructions
 
-- Take connected scenarios for individual/group contexts; latest preference is substantial connected blocks, not filters alone.
+- Latest preference: substantial connected blocks, covering individual/group contexts.
 - Persistence tests use isolated synthetic API/PostgreSQL/Chromium workspaces only. **Do not check Timeweb** or ask for production credentials; independent production revision/live writes are not blockers in this approved mode.
 - Real students, lessons, scores, settings and credentials are not test-write targets. Never retarget reset/seed/import/browser scripts to production, rerun imports, change writer or provision infrastructure incidentally. No invitations/notifications/payments.
 - Tests/runner are committed in Git; reset/seed scripts must never run on real data.
 
-## Completed #87
+## Completed #88
 
-- Pupil Tasks/Results tabs: paged native assignments → condition/actual answer → existing grading form → saved result/list/return. Source class/lesson context retained for individual and group navigation.
-- GET teacher/students/{membershipId}/homework?page=N&results=BOOL checks owned active membership and filters exact workspace/membership/StudentId/ProgramId before count/order/page20. Results includes actual graded rows, including 0%. Global workspace Take(300) is not used.
-- Existing idempotent grading write/API unchanged. Cancel/reset does not write; refresh retains draft, declined navigation keeps it, related caches invalidate after assignment/grade. Exact owned work ID checked before grading.
-- UI clearly labels native work and all dates. Imported work/tests/mocks stay in their existing sections; no fabricated aggregates. References45–46 fidelity PARTIAL (month/class filters and other result types pending).
-- Changed: platform/teacher.html, student-card.mjs/test, teacher-data.mjs/test, calendar-real-browser.mjs; API Program.cs and Homework/NativeHomeworkService.cs + NativeHomeworkModels.cs; existing TeacherSessionTests.cs extended. No schema/config changes.
+- Pupil Tasks/Results exposes seven sources: native homework, imported homework with actual submission events, live/historical tests, mock summaries/sessions/independent task events. Actual IDs distinguish repeated attempts; missing values remain missing and 0% remains valid.
+- Source/list/detail/paging, imported task HTTPS/HTTP link, summary → mock tasks by exact mock ID/date → return to summary, plus original class/lesson return and teacher relogin. Historical records readonly; existing native grading/cancel/draft protection preserved.
+- New GET teacher/students/{membershipId}/history validates owned active membership; every source filters workspace/membership/student/program before count/order/page20. Native homework endpoint adds exact owned class + month filters. Historical class relationships are not inferred from names or dates.
+- Month semantics: homework uses assignment date; live tests use completion date; historical tests/mocks use saved date; sessions use start date. Moscow instant boundaries are converted to UTC for Npgsql. Counts/pages share the filtered query. Cache keys separate source/month/class/page/mock target; cross-workspace reset retained.
+- Changed: platform/pupil-history.mjs/test, student-card.mjs, teacher-data.mjs, teacher.html; Students/PupilHistoryReader.cs, Homework/NativeHomeworkService.cs, Program.cs; TeacherSessionTests.cs, calendar-real-browser.mjs, scripts/calendar-real-browser.sh, test-fixtures/pupil-history.sql, native-homework-browser workflow.
+- References45–46 screenshots inspected. Fidelity PARTIAL; shared header dynamics and feedback/report remain unfinished. Fixture SQL is guarded by disposable compose project, localhost API, synthetic database/user and owned synthetic pupil.
 
 ## Verification
 
-- LOCAL PASS: **17** focused Node checks + changed inline/module/browser syntax/diff.
-- Final head `129598177fbf264b98d762ae3ab0323ed6335353`: [TAS CI 43934353464](https://github.com/Arthur200014/testing-hosting/actions/runs/43934353464), [PostgreSQL 43934353419](https://github.com/Arthur200014/testing-hosting/actions/runs/43934353419), [real Chromium/API/PostgreSQL 43934353428](https://github.com/Arthur200014/testing-hosting/actions/runs/43934353428): PASS. Existing **105 API integration tests** green; expanded context test verifies 301 records across all pages, bounded page handling, 0% result and foreign-workspace404.
-- Browser PASS: paged pupil list; exact answer; cancel/reset no write; refresh draft retention; declined navigation; grade0; teacher reload/login; student API readback; second participant unchanged; group lesson return; 390px overflow assertion. Previous class/profile/recording scenarios also pass in existing runner.
-- Inspected screenshots45_student_work_list_real.png, 46_student_work_result_real.png, 46_student_work_mobile_real.png in final run artifact meleto-ui02-screenshots.
-- Initial failures were test setup (missing required submission/grade IDs) and assertion (first grade is201, replay200); corrected without changing application constraints. No outstanding final failures.
-- Production functional writes/Timeweb checks NOT_RUN. Frontend bytes verified independently; isolated persistence is not production functional acceptance. New endpoint requires native API rollout; running revision is not independently established.
+- LOCAL PASS: **17** focused Node tests + module/inline/browser/shell syntax and diff checks.
+- Final head `e4fb27615d41f0356d8c455cd8bb0c6e801f8c5a`: [TAS CI 43951782634](https://github.com/Arthur200014/testing-hosting/actions/runs/43951782634), [PostgreSQL 43951782534](https://github.com/Arthur200014/testing-hosting/actions/runs/43951782534), [real Chromium/API/PostgreSQL 43951782524](https://github.com/Arthur200014/testing-hosting/actions/runs/43951782524): PASS. **106 API integration tests** green.
+- API coverage: all sources; repeated test IDs with distinct event IDs; same-name other-program pupil; Moscow month edges; pages; 0/null; invalid parameters/foreign denial; exact native class filters without attributing unlinked legacy work.
+- Browser PASS: native group/individual filters, empty period/reset, 21 imported rows across pages, actual 0% submission details and safe source link, historical/live test and session details, mock task drill-down/back, teacher reload/login, second pupil unchanged/foreign404, 390px layout; previous profile and grade save/cancel/reload scenarios remain green.
+- Inspected final artifact screenshots: 45_pupil_imported_attempts_real.png, 46_pupil_mock_breakdown_real.png, 46_pupil_history_mobile_real.png (meleto-ui02-screenshots).
+- Fixed actual UTC query-parameter defect. Corrected fixture assumption: current DB enforces one membership/student/workspace, so a separate same-name person tests other-program isolation. Do not claim multiple study memberships are supported by current schema. No outstanding final failures.
+- Production functional writes/Timeweb checks NOT_RUN. Frontend bytes verified independently; isolated persistence is not production functional acceptance. New history endpoint requires native API rollout; running revision remains independently unknown.
 
 ## Retained boundaries
 
-Pupil profile/attendance/class context from #86 remains published. Recordings (#84–85) remain external HTTPS references, not video uploads/playback storage, with existing access/participation/availability/expiry checks. Provider permissions govern copied URLs. Educational file storage remains5MiB/file,100MiB/workspace with existing access rules. Board/chat, remaining UI-05 feedback/invitations and wider visual refinement are unfinished scope.
+Recordings remain external HTTPS references with existing access/participation/availability/expiry checks, not video storage. Educational file storage remains 5MiB/file, 100MiB/workspace with existing access rules. No completed imports rerun. Broader multiple-study membership changes, feedback/report drafts, invitations, board/chat and remaining visual refinement are separate unfinished scope.
 
 Published interface: https://arthur200014.github.io/testing-hosting/platform/teacher.html.
