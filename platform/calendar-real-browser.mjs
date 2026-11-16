@@ -1018,6 +1018,63 @@ try {
   await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'recordings fit mobile');await page.setViewportSize({width:1348,height:926});
   await enterRecordingStudent();assert.equal(await recordingStudent.locator('#studentRecordings [data-recording-row]').count(),1,'availability and expiry survive student login');await recordingStudent.close();
   await page.reload();await login(north);await page.locator('.nav [data-view="library"]').click();await page.locator('[data-library]').waitFor();await page.locator('[data-library-section="recordings"]').click();await page.locator('[data-recording-row="'+recording.id+'"]').waitFor();assert.equal(await page.locator('[data-recording-row]').count(),2,'teacher recording metadata persists across login');
+  // Contextual recording management from both lesson card formats.
+  const lessonsBeforeRecordingCards=await call('teacher/lessons',north.token);
+  async function openRecordingLesson(classId,lessonId) {
+    await page.locator('.nav [data-view="overview"]').click();
+    const back=page.locator('[data-back-classes]').first();if(await back.isVisible()) await back.click();
+    await page.locator('[data-open-class="'+classId+'"]').click();
+    await page.locator('.class-detail-tabs [data-class-detail-tab="schedule"]').click();
+    await page.locator('[data-class-lessons-filter="all"]').click();
+    await page.locator('[data-open-class-lesson="'+lessonId+'"]').click();
+    await page.locator('[data-lesson-recordings="'+lessonId+'"]').waitFor();
+    await page.locator('[data-lesson-recordings="'+lessonId+'"]').getByRole('button',{name:'Повторить загрузку'}).waitFor({state:'detached'});
+  }
+  await openRecordingLesson(north.item.id,recordLesson.id);
+  const individualCard=page.locator('[data-lesson-recordings="'+recordLesson.id+'"]');
+  await individualCard.locator('[data-recording-row="'+recording.id+'"]').waitFor();
+  assert.equal(await individualCard.locator('[data-recording-row="'+groupRecording.id+'"]').count(),0);
+  const countBeforeContext=(await call('teacher/recordings',north.token)).length;
+  await individualCard.locator('[data-lesson-recording-new]').click();
+  await page.locator('#recordingForm').waitFor();assert.equal(await page.locator('#recordingForm [name="lessonId"]').inputValue(),recordLesson.id);assert.equal(await page.locator('#recordingForm [name="lessonId"]').isDisabled(),true);
+  await page.locator('#recordingForm [name="title"]').fill('Несохранённая запись карточки');
+  await page.locator('#refresh').click();await page.locator('#notice').waitFor({state:'hidden'});assert.equal(await page.locator('#recordingForm [name="title"]').inputValue(),'Несохранённая запись карточки');
+  await Promise.all([page.waitForEvent('dialog').then(d=>d.dismiss()),page.locator('[data-recording-return]').click()]);assert.equal(await page.locator('#recordingForm').count(),1,'declined navigation keeps recording draft');
+  await Promise.all([page.waitForEvent('dialog').then(d=>d.accept()),page.locator('[data-recording-return]').click()]);await individualCard.waitFor();
+  assert.equal((await call('teacher/recordings',north.token)).length,countBeforeContext);
+  await individualCard.locator('[data-lesson-recording-new]').click();await page.locator('#recordingForm [name="title"]').fill('Отмена из карточки');await page.locator('[data-recording-cancel]').click();await individualCard.waitFor();assert.equal((await call('teacher/recordings',north.token)).length,countBeforeContext);
+  await individualCard.locator('[data-lesson-recording-library]').click();await page.locator('[data-recording-context="'+recordLesson.id+'"]').waitFor();assert.equal(await page.locator('[data-recording-row]').count(),1,'lesson-filtered library excludes same/other class lessons');await page.locator('[data-recording-return]').click();await individualCard.waitFor();
+  async function createContextRecording(card,title,url) {
+    await card.locator('[data-lesson-recording-new]').click();await page.locator('#recordingForm').waitFor();
+    await page.locator('#recordingForm [name="title"]').fill(title);await page.locator('#recordingForm [name="sourceUrl"]').fill(url);
+    const saved=page.waitForResponse(r=>r.url().endsWith('/teacher/recordings') && r.request().method()==='POST');
+    await page.locator('#recordingForm button[type="submit"]').click();assert.equal((await saved).status(),200);const result=await (await saved).json();
+    await card.locator('[data-recording-row="'+result.id+'"]').waitFor();assert.equal(await page.locator('[data-recording-library]').count(),0,'save returns to exact lesson card');return result.id;
+  }
+  const contextualIndividual=await createContextRecording(individualCard,'Запись из индивидуальной карточки','https://example.org/context-individual');
+  await individualCard.locator('[data-recording-open="'+contextualIndividual+'"]').click();await individualCard.locator('[data-recording-source-link]').waitFor();assert.equal(await individualCard.locator('[data-recording-source-link]').getAttribute('href'),'https://example.org/context-individual');
+  const contextStudent=await context.newPage();contextStudent.on('pageerror',e=>errors.push(e.message));
+  await contextStudent.goto(site+'/platform/student.html');await contextStudent.locator('#loginForm [name="workspace"]').fill(north.workspace);await contextStudent.locator('#loginForm [name="code"]').fill(north.students[0].inviteCode);await contextStudent.locator('#loginForm button[type="submit"]').click();await contextStudent.locator('[data-recording-row="'+contextualIndividual+'"]').waitFor();
+  await page.screenshot({path:output+'/24_individual_lesson_recordings_real.png'});
+  await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'individual recording card fits mobile');await page.setViewportSize({width:1348,height:926});
+  await individualCard.locator('[data-lesson-recording-edit="'+contextualIndividual+'"]').click();assert.equal(await page.locator('#recordingForm [name="lessonId"]').isDisabled(),true);
+  await page.locator('#recordingForm [name="isAvailable"]').uncheck();await page.locator('#recordingForm button[type="submit"]').click();await individualCard.waitFor();await individualCard.getByText('Выдача ссылки закрыта',{exact:true}).waitFor();
+  await contextStudent.locator('[data-refresh-recordings]').click();await contextStudent.locator('[data-recording-row="'+contextualIndividual+'"]').waitFor({state:'detached'});assert.equal((await fetch(api+'/api/v1/recordings/'+contextualIndividual+'/source',{headers:{Authorization:'Bearer '+fileLearner.accessToken}})).status,404);
+  await openRecordingLesson(group.id,grouped.id);const groupCard=page.locator('[data-lesson-recordings="'+grouped.id+'"]');await groupCard.locator('[data-recording-row="'+groupRecording.id+'"]').waitFor();await groupCard.getByText('Срок истёк',{exact:true}).waitFor();
+  await groupCard.locator('[data-lesson-recording-edit="'+groupRecording.id+'"]').click();await page.locator('#recordingForm [name="accessUntil"]').fill('');await page.locator('#recordingForm [name="title"]').fill('Групповая запись без ограничения');await page.locator('#recordingForm button[type="submit"]').click();await groupCard.waitFor();await groupCard.getByText('Групповая запись без ограничения',{exact:true}).waitFor();
+  const contextualGroup=await createContextRecording(groupCard,'Запись из карточки пары','https://example.org/context-group');
+  await contextStudent.locator('[data-refresh-recordings]').click();await contextStudent.locator('[data-recording-row="'+contextualGroup+'"]').waitFor();assert.equal((await call('recordings',otherLearner.accessToken)).some(r=>r.id===contextualGroup),false,'nonparticipant does not gain recording access');
+  await groupCard.locator('[data-lesson-recording-library]').click();await page.locator('[data-recording-context="'+grouped.id+'"]').waitFor();assert.equal(await page.locator('[data-recording-row]').count(),2);await page.locator('[data-recording-all]').click();assert.equal(await page.locator('[data-recording-row]').count(),4,'explicit all-recordings navigation clears lesson filter');
+  await openRecordingLesson(group.id,grouped.id);
+  const activeGroup=(await call('teacher/groups',north.token)).find(g=>g.id===group.id);await call('teacher/groups/'+group.id+'/archive',north.token,{expectedRevision:activeGroup.revision});await page.locator('#refresh').click();await page.locator('#notice').waitFor({state:'hidden'});
+  assert.equal(await groupCard.locator('[data-lesson-recording-new], [data-lesson-recording-edit]').count(),0,'archived lesson recording card is readonly');assert.equal(await groupCard.locator('[data-recording-open]').count(),2);
+  assert.equal((await fetch(api+'/api/v1/recordings/'+contextualGroup+'/source',{headers:{Authorization:'Bearer '+fileLearner.accessToken}})).status,404,'archive revokes student source issuance');
+  const archivedGroup=(await call('teacher/groups',north.token)).find(g=>g.id===group.id);await call('teacher/groups/'+group.id+'/restore',north.token,{expectedRevision:archivedGroup.revision});await page.locator('#refresh').click();await page.locator('#notice').waitFor({state:'hidden'});await groupCard.locator('[data-lesson-recording-new]').waitFor();
+  await page.reload();await login(north);await openRecordingLesson(group.id,grouped.id);await groupCard.locator('[data-recording-row="'+contextualGroup+'"]').waitFor();assert.equal(await groupCard.locator('[data-recording-row]').count(),2,'group lesson records persist after reload/login');
+  await page.screenshot({path:output+'/24_group_lesson_recordings_real.png'});await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'group recording card fits mobile');await page.setViewportSize({width:1348,height:926});
+  await contextStudent.reload();await contextStudent.locator('#loginForm [name="workspace"]').fill(north.workspace);await contextStudent.locator('#loginForm [name="code"]').fill(north.students[0].inviteCode);await contextStudent.locator('#loginForm button[type="submit"]').click();await contextStudent.locator('[data-recording-row="'+contextualGroup+'"]').waitFor();assert.equal(await contextStudent.locator('[data-recording-row="'+contextualIndividual+'"]').count(),0);await contextStudent.close();
+  assert.deepEqual(await call('teacher/lessons',north.token),lessonsBeforeRecordingCards,'record management does not change lesson attendance or homework contexts');
+  await page.locator('.nav [data-view="library"]').click();await page.locator('[data-recording-library]').waitFor();
   await page.locator('[data-library-section="materials"]').click();
   await page.locator('#logout').click(); await login(south);
   await page.locator('.nav [data-view="library"]').click();await page.locator('[data-library]').waitFor();

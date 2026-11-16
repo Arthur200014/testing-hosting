@@ -333,7 +333,7 @@
     import { individualClassNativeHomework, taskMatchesClass, renderGroupHomework, renderContextHomework, homeworkAudience, updateGroupAssignmentChoices } from './class-native-homework.mjs';
     import { renderClassMaterials } from './class-materials-ui.mjs';
     import { newFileUploadState, uploadProtectedFile, saveProtectedFile } from './material-file.mjs';
-    import {recordingWriteAction, recordingSourceLink} from './lesson-recordings.mjs';
+    import {recordingWriteAction, recordingSourceLink, renderLessonRecordings, resolveRecordingContext, beginLessonRecordings, leaveLessonRecordings} from './lesson-recordings.mjs';
     import { newLibraryState, libraryEntries, libraryTargets, libraryAttachment, materialManagementAction, libraryFolderAction, renderLibrary, renderLibraryResults } from './teacher-library.mjs';
     import { renderClassProgram, topicsForClass } from './class-program-ui.mjs';
     import { renderLessonTopics, lessonBelongsToClass, lessonTopicChange } from './lesson-topics-ui.mjs';
@@ -411,7 +411,7 @@
         const selectedLessonDetail = view === 'overview' && !!state.selectedClass && !!state.selectedLesson;
         const selectedProgramClass = view === 'overview' && state.selectedClass && state.classDetailTab === 'program' &&
           teacherClasses().some(item => item.id === state.selectedClass && item.persistent);
-        const extra = selectedLessonDetail ? ['materials','lessonMaterialLinks','classTopics','topicMaterialLinks','topicTaskLinks','lessonTopicSets','programs','nativeTasks',contextHomeworkKey(teacherClasses().find(x=>x.id===state.selectedClass),(state.data.lessons || []).find(x=>x.id===state.selectedLesson))] :
+        const extra = selectedLessonDetail ? ['recordings','materials','lessonMaterialLinks','classTopics','topicMaterialLinks','topicTaskLinks','lessonTopicSets','programs','nativeTasks',contextHomeworkKey(teacherClasses().find(x=>x.id===state.selectedClass),(state.data.lessons || []).find(x=>x.id===state.selectedLesson))] :
           selectedProgramClass ? ['classTopics','topicMaterialLinks','materials','topicTaskLinks','nativeTasks','lessonTopicSets'] :
           selectedMaterialClass ? ['materials','classMaterialLinks'] :
           classTasks ? ['programs','nativeTasks',contextHomeworkKey(teacherClasses().find(x=>x.id===state.selectedClass))] :
@@ -452,6 +452,7 @@
             !confirm('Отменить несохранённое прикрепление материала?')) return Promise.resolve();
         if (state.view !== view && document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"], #topicLessonAttachForm[data-dirty="1"], #lessonTopicSetForm[data-dirty="1"]') &&
             !confirm('Отменить несохранённую тему или материал программы?')) return Promise.resolve();
+        if(state.view==='library' && view!=='library' && state.library.recordingContext) state.library=leaveLessonRecordings(state.library);
         state.view = view;
         if (view !== 'lessons') state.lessonPlan = null;
         if (view !== 'overview') state.scheduleEdit = null;
@@ -752,7 +753,7 @@
           <div class="lesson-detail-grid"><div class="stack">
             <header class="lesson-detail-hero"><p>${safe(date(lesson.lessonAt))} · ${duration} мин</p><h1>${safe(lesson.title || 'Занятие')}</h1>
               <div class="lesson-detail-status">${lesson.completedAt?'Завершено · '+safe(date(lesson.completedAt)):new Date(lesson.lessonAt)>new Date()?'Запланировано':'Дата прошла · ещё не завершено'}</div></header>
-            <section class="card stack"><h2>Доступ к записи</h2><p class="muted">Запись занятия недоступна.</p></section>
+            ${renderLessonRecordings(lesson,item,state.data,safe)}
             <section class="card stack"><h2>Темы и комментарии</h2>${list(participants.filter(p=>p.topicComment),'Темы пока не указаны.',p=>`<div><strong>${safe(studentName(p.membershipId))}</strong><p>${safe(p.topicComment)}</p></div>`)}</section>
             ${renderLessonTopics(lesson, item, state.data, safe, list)}
             ${renderLessonMaterials(lesson, state.data, item.isArchived, safe, list)}
@@ -1607,6 +1608,15 @@
             <div class="card stack"><h2>Пробники</h2>${list(r.mocks, 'В выбранном периоде пробников нет.', x => `<div class="item"><div><strong>${safe(x.variantName)}</strong><small>${safe(x.mockDate)} · первичные ${safe(x.primaryScore)}/${safe(x.maxPrimaryScore)}</small></div><span class="pill">${percent(x.scorePercent)}</span></div>`)}</div>
           </div>`;
       }
+      async function returnToRecordingLesson() {
+        if(!canLeaveLibraryDraft()) return;
+        const context=state.library.recordingContext,resolved=resolveRecordingContext(state.data,context);
+        state.library=leaveLessonRecordings(state.library);
+        state.selectedClass=resolved?.owner.id || '';state.selectedLesson=resolved?.lesson.id || null;
+        state.classDetailTab=classDetailTabs.some(([id])=>id===context?.returnTab)?context.returnTab:'schedule';state.classTab='classes';state.editLesson=null;
+        await setView('overview');
+        if(!resolved) showNotice('Занятие больше недоступно. Открыт список классов.',true);
+      }
       function rememberLibraryFolder() {
         try { if(state.libraryStorageKey) sessionStorage.setItem(state.libraryStorageKey,state.library.folderId || ''); } catch {}
       }
@@ -1714,7 +1724,7 @@
           invalidate(keys);
           if (form.matches('[data-context-assign], [data-native-grade]'))
             invalidate([...new Set([...Object.keys(state.data),...Object.keys(state.inflight)])].filter(key => /^(group|class|lesson)Homework:/.test(key)));
-          await refresh();
+          if(form.afterSave) await form.afterSave(); else await refresh();
         }
         catch (error) {
           if (error.retrySameRequest) {
@@ -1902,8 +1912,23 @@
         }
         if(event.target.closest('[data-file-upload-cancel]')) {state.fileUpload=newFileUploadState();render();return;}
 
+        const lessonRecordingNew=event.target.closest('[data-lesson-recording-new]'),lessonRecordingEdit=event.target.closest('[data-lesson-recording-edit]'),lessonRecordingList=event.target.closest('[data-lesson-recording-library]');
+        if(lessonRecordingNew || lessonRecordingEdit || lessonRecordingList) {
+          if(!canLeaveProgramDrafts() || !canLeaveLibraryDraft()) return;
+          const item=teacherClasses().find(c=>c.id===state.selectedClass),lessonId=lessonRecordingNew?.dataset.lessonRecordingNew || lessonRecordingEdit?.dataset.recordingLesson || lessonRecordingList?.dataset.lessonRecordingLibrary;
+          if(!item || state.selectedLesson!==lessonId) {showNotice('Повторно откройте занятие.',true);return;}
+          try {const generation=state.generation,next=beginLessonRecordings(state.data,state.library,item,lessonId,lessonRecordingNew?'new':lessonRecordingEdit?'edit':'list',lessonRecordingEdit?.dataset.lessonRecordingEdit);next.recordingContext.returnTab=state.classDetailTab;
+            await setView('library');if(state.generation!==generation || state.view!=='library') return;state.library=next;render();document.querySelector('#recordingForm [name="title"]')?.focus();
+          } catch(error) {showNotice(error.message,true);}return;
+        }
+        if(event.target.closest('[data-recording-return]')) {await returnToRecordingLesson();return;}
+        if(event.target.closest('[data-recording-all]')) {
+          if(!canLeaveLibraryDraft()) return;state.library=leaveLessonRecordings(state.library);state.library.section='recordings';state.library.recordingLessonId='';state.library.recordingQuery='';state.library.recordingClass='';state.library.recordingEditor='';render();return;
+        }
         const recordingOpen=event.target.closest('[data-recording-open]');
         if(recordingOpen) {
+          const lessonCard=recordingOpen.closest('[data-lesson-recordings]');
+          if(lessonCard && (state.selectedLesson!==lessonCard.dataset.lessonRecordings || !(state.data.recordings || []).some(r=>r.id===recordingOpen.dataset.recordingOpen && r.lessonId===state.selectedLesson))) {showNotice('Запись больше не относится к открытому занятию.',true);return;}
           const box=recordingOpen.closest('[data-recording-row]').querySelector('[data-recording-source]'),generation=state.generation;
           box.replaceChildren();recordingOpen.disabled=true;
           try {const result=await api('teacher/recordings/'+encodeURIComponent(recordingOpen.dataset.recordingOpen)+'/source');if(generation===state.generation && box.isConnected) box.innerHTML=recordingSourceLink(result.url,safe);}
@@ -1913,13 +1938,13 @@
         if(section) {
           if(!canLeaveLibraryDraft()) return;
           if(state.fileUpload?.busy) {showNotice('Дождитесь завершения загрузки.',true);return;}
-          state.library.section=section.dataset.librarySection;state.library.recordingEditor='';render();return;
+          state.library=leaveLessonRecordings(state.library);state.library.section=section.dataset.librarySection;state.library.recordingEditor='';render();return;
         }
         const recordingClass=event.target.closest('[data-recording-class]');
-        if(recordingClass) {if(!canLeaveLibraryDraft()) return;state.library.recordingClass=recordingClass.dataset.recordingClass;state.library.recordingEditor='';render();return;}
+        if(recordingClass) {if(state.library.recordingContext || !canLeaveLibraryDraft()) return;state.library.recordingClass=recordingClass.dataset.recordingClass;state.library.recordingEditor='';render();return;}
         const recordingEdit=event.target.closest('[data-recording-edit]');
-        if(recordingEdit || event.target.closest('[data-recording-create]')) {if(!canLeaveLibraryDraft()) return;state.library.recordingEditor=recordingEdit?.dataset.recordingEdit || 'new';render();document.querySelector('#recordingForm [name="title"]')?.focus();return;}
-        if(event.target.closest('[data-recording-cancel]')) {delete event.target.closest('form').dataset.dirty;state.library.recordingEditor='';render();showNotice('');return;}
+        if(recordingEdit || event.target.closest('[data-recording-create]')) {if(!canLeaveLibraryDraft()) return;const context=state.library.recordingContext;if(context && (!resolveRecordingContext(state.data,context)?.canWrite || (recordingEdit && !(state.data.recordings || []).some(r=>r.id===recordingEdit.dataset.recordingEdit && r.lessonId===context.lessonId)))) {showNotice('Запись или занятие больше недоступны для изменения.',true);return;}state.library.recordingEditor=recordingEdit?.dataset.recordingEdit || 'new';render();document.querySelector('#recordingForm [name="title"]')?.focus();return;}
+        if(event.target.closest('[data-recording-cancel]')) {delete event.target.closest('form').dataset.dirty;state.library.recordingEditor='';if(state.library.recordingContext) await returnToRecordingLesson();else render();showNotice('');return;}
         const folderNav=event.target.closest('[data-library-folder]');
         if(folderNav) {
           if(!canLeaveLibraryDraft()) return;
@@ -2493,8 +2518,11 @@
           if(!canLeaveLibraryDraft(form)) return;
           const current=form.dataset.recordingId?(state.data.recordings || []).find(r=>r.id===form.dataset.recordingId):null;
           if(form.dataset.recordingId && !current) {showNotice('Запись больше недоступна.',true);return;}
+          const context=state.library.recordingContext,generation=state.generation;
+          if(context && (!resolveRecordingContext(state.data,context)?.canWrite || form.dataset.contextLessonId!==context.lessonId)) {showNotice('Повторно откройте занятие.',true);return;}
+          if(context) form.afterSave=async()=>{if(generation===state.generation) await returnToRecordingLesson();};
           onForm(form,async()=>{
-            const action=recordingWriteAction(current,{title:formValue(form,'title'),sourceUrl:formValue(form,'sourceUrl'),lessonId:formValue(form,'lessonId'),revision:form.dataset.revision,accessUntil:formValue(form,'accessUntil'),isAvailable:form.elements.isAvailable.checked});
+            const action=recordingWriteAction(current,{title:formValue(form,'title'),sourceUrl:formValue(form,'sourceUrl'),lessonId:formValue(form,'lessonId'),revision:form.dataset.revision,accessUntil:formValue(form,'accessUntil'),isAvailable:form.elements.isAvailable.checked},context);
             form.libraryKeys=action.keys;const generation=state.generation;
             await mutation('recording:'+(current?.id || 'new'),action.path,()=>action.body);
             if(generation===state.generation) state.library.recordingEditor='';
