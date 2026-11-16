@@ -44,6 +44,7 @@ builder.Services.AddScoped<TeacherStudentCreator>();
 builder.Services.AddScoped<TeacherStudentArchiver>();
 builder.Services.AddScoped<TeacherStudentEditor>();
 builder.Services.AddScoped<TeacherResultsReader>();
+builder.Services.AddScoped<PupilHistoryReader>();
 builder.Services.AddScoped<TeacherClassService>();
 builder.Services.AddScoped<TeacherMaterialService>();
 builder.Services.AddScoped<TeacherFileService>();
@@ -977,10 +978,23 @@ app.MapGet("/api/v1/teacher/homework/native/assignments", async (ClaimsPrincipal
     NativeHomeworkService homework, CancellationToken ct) =>
     Results.Ok(await homework.TeacherAssignmentsAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), ct)))
     .RequireAuthorization("teacher");
+app.MapGet("/api/v1/teacher/students/{membershipId:guid}/history", async (Guid membershipId, string? source, int? page, bool? results,
+    string? month, string? mockId, DateOnly? mockDate, ClaimsPrincipal principal, PupilHistoryReader history, CancellationToken ct) =>
+{
+    if (!new[] { "imported", "tests", "liveTests", "mocks", "mockTasks", "mockSessions" }.Contains(source) ||
+        !PupilHistoryReader.TryMonth(month, out var start) || mockId?.Length > 200)
+        return Results.BadRequest("Choose a history source and a valid month.");
+    return await history.ReadAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), membershipId, source!,
+        page ?? 0, results ?? false, start, ct, mockId, mockDate) is { } rows ? Results.Ok(rows) : Results.NotFound();
+}).RequireAuthorization("teacher");
 app.MapGet("/api/v1/teacher/students/{membershipId:guid}/homework", async (Guid membershipId, int? page, bool? results,
-    ClaimsPrincipal principal, NativeHomeworkService homework, CancellationToken ct) =>
-    await homework.PupilAssignmentsAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), membershipId,
-        page ?? 0, results ?? false, ct) is { } rows ? Results.Ok(rows) : Results.NotFound())
+    string? month, Guid? classId, string? classKind, ClaimsPrincipal principal, NativeHomeworkService homework, CancellationToken ct) =>
+{
+    if (!PupilHistoryReader.TryMonth(month, out var start) || (classId.HasValue && classKind is not ("group" or "individual")) ||
+        (!classId.HasValue && !string.IsNullOrEmpty(classKind))) return Results.BadRequest("Choose a valid month and class.");
+    return await homework.PupilAssignmentsAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), membershipId,
+        page ?? 0, results ?? false, ct, start, classId, classKind) is { } rows ? Results.Ok(rows) : Results.NotFound();
+})
     .RequireAuthorization("teacher");
 app.MapGet("/api/v1/teacher/groups/{groupId:guid}/homework", async (Guid groupId, ClaimsPrincipal principal,
     NativeHomeworkService homework, CancellationToken ct) =>

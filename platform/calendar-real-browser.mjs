@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import {execFileSync} from 'node:child_process';
 import { mkdir, readFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
 const api = process.env.TAS_REAL_API, site = process.env.TAS_REAL_SITE;
@@ -1164,6 +1165,34 @@ try {
   await page.screenshot({path:output+'/46_student_work_result_real.png'});await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'pupil work detail fits mobile');await page.screenshot({path:output+'/46_student_work_mobile_real.png'});await page.setViewportSize({width:1348,height:926});
   await page.reload();await login(north);await openRecordingLesson(group.id,grouped.id);await page.locator('.class-lesson-detail [data-open-student="'+pupilCardId+'"]').click();await page.locator('[data-student-card-tab="results"]').click();await page.locator('[data-student-work-open="'+workId+'"]').click();await page.locator('[data-student-work-detail]').getByText('Оценка: 0%',{exact:true}).waitFor();
   await page.locator('[data-student-work-close]').click();await page.locator('[data-student-card-tab="tasks"]').click();await page.screenshot({path:output+'/45_student_work_list_real.png'});
+  // Historical fixtures are restricted to this fresh, synthetic compose project.
+  const fixtureProject=process.env.TAS_REAL_COMPOSE_PROJECT;
+  assert.match(fixtureProject || '',/^tas-calendar-browser-(?:local|[0-9]+)-[0-9a-f]{8}$/);
+  assert.equal(process.env.POSTGRES_DB,'calendar_browser_test');assert.equal(process.env.POSTGRES_USER,'calendar_browser_test');
+  assert.match(pupilCardId,/^[0-9a-f-]{36}$/);
+  execFileSync('docker',['compose','--env-file','.env.example','-p',fixtureProject,'exec','-T','db','psql','-v','ON_ERROR_STOP=1','-U','calendar_browser_test','-d','calendar_browser_test','-v','pupil_membership='+pupilCardId],{input:await readFile('platform/test-fixtures/pupil-history.sql','utf8'),stdio:['pipe','ignore','pipe']});
+  await page.locator('[data-pupil-work-month]').fill('2026-11');await page.locator('[data-pupil-work-month]').dispatchEvent('change');await page.locator('[data-pupil-work-class]').selectOption('group~'+group.id);await page.locator('[data-student-work="'+workId+'"]').waitFor();
+  await page.locator('[data-pupil-work-class]').selectOption('individual~'+north.item.id);await page.locator('#notice').waitFor({state:'hidden'});assert.equal(await page.locator('[data-student-work="'+workId+'"]').count(),0,'group work excluded from individual class');
+  await page.locator('[data-pupil-work-clear]').click();await page.locator('[data-student-work="'+workId+'"]').waitFor();
+  await page.locator('[data-pupil-work-source]').selectOption('imported');await page.locator('[data-student-history]').waitFor();
+  assert.equal(await page.locator('[data-student-work]').count(),20);await page.locator('[data-student-work-page="1"]').click();await page.locator('[data-student-work-page="0"]').waitFor();assert.equal(await page.locator('[data-student-work]').count(),1);
+  await page.locator('[data-pupil-work-month]').fill('1900-01');await page.locator('[data-pupil-work-month]').dispatchEvent('change');await page.locator('[data-student-history]').getByText('В выбранном периоде записей нет.',{exact:true}).waitFor();
+  await page.locator('[data-pupil-work-month]').fill('2026-11');await page.locator('[data-pupil-work-month]').dispatchEvent('change');await page.locator('[data-student-work-page="1"]').waitFor();
+  await page.locator('[data-student-card-tab="results"]').click();await page.locator('[data-student-history] [data-student-work-open]').click();await page.locator('[data-student-history-detail]').getByText('0%',{exact:true}).first().waitFor();
+  const originalLink=page.locator('[data-student-history-detail] a');assert.equal(await originalLink.getAttribute('href'),'https://tests.invalid/history/21');assert.equal(await page.locator('[data-student-history-detail] [data-native-grade]').count(),0,'imported facts are readonly');
+  await page.screenshot({path:output+'/45_pupil_imported_attempts_real.png'});
+  for(const source of ['tests','liveTests','mockSessions']) {
+    await page.locator('[data-pupil-work-source]').selectOption(source);await page.locator('[data-student-history] [data-student-work-open]').click();await page.locator('[data-student-history-detail]').waitFor();
+    if(source==='tests') await page.locator('[data-student-history-detail]').getByText('Не сохранено',{exact:true}).first().waitFor();
+    if(source==='liveTests') await page.locator('[data-student-history-detail]').getByText('1 / 2',{exact:true}).waitFor();
+    if(source==='mockSessions') {await page.locator('[data-student-history-detail]').getByText('submitted',{exact:true}).waitFor();await page.locator('[data-student-history-detail]').getByText('Не сохранено',{exact:true}).first().waitFor();}
+  }
+  await page.locator('[data-pupil-work-source]').selectOption('mocks');await page.locator('[data-student-history] [data-student-work-open]').click();await page.locator('[data-student-mock-parts]').click();await page.locator('[data-student-history] [data-student-work-open]').click();await page.locator('[data-student-history-detail]').getByText('Тригонометрия: разбор',{exact:true}).waitFor();await page.locator('[data-student-history-detail]').getByText('Не сохранено',{exact:true}).first().waitFor();
+  await page.screenshot({path:output+'/46_pupil_mock_breakdown_real.png'});await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'history and source filters fit mobile');await page.screenshot({path:output+'/46_pupil_history_mobile_real.png'});await page.setViewportSize({width:1348,height:926});
+  await page.locator('[data-student-history-back]').click();await page.locator('[data-student-mock-parts]').waitFor();
+  await page.reload();await login(north);await openRecordingLesson(group.id,grouped.id);await page.locator('.class-lesson-detail [data-open-student="'+pupilCardId+'"]').click();await page.locator('[data-student-card-tab="results"]').click();await page.locator('[data-pupil-work-source]').selectOption('imported');await page.locator('[data-student-history] [data-student-work-open]').click();await page.locator('[data-student-history-detail]').getByText('0%',{exact:true}).first().waitFor();
+  for(const source of ['imported','tests','liveTests','mocks','mockTasks','mockSessions']) await call('teacher/students/'+pupilCardId+'/history?source='+source,south.token,undefined,404);
+  assert.equal((await call('teacher/students/'+pupilTwo.membershipId+'/history?source=imported',north.token)).total,0,'pair participant does not inherit historical results');
   await page.locator('[data-student-card-return]').click();await page.locator('[data-lesson-recordings="'+grouped.id+'"]').waitFor();
 
   await page.locator('.nav [data-view="library"]').click();await page.locator('[data-library]').waitFor();

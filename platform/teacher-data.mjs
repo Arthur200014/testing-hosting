@@ -17,8 +17,21 @@ export function contextHomeworkKey(item, lesson = null) {
 }
 export function teacherResourcePath(key) {
   if (Object.hasOwn(teacherPaths, key)) return teacherPaths[key];
-  const pupil = /^studentHomework:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):(tasks|results):(\d{1,8})$/i.exec(key);
-  if(pupil) return 'students/' + pupil[1] + '/homework?page=' + pupil[3] + '&results=' + (pupil[2] === 'results');
+  const pupil = /^studentHomework:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):(tasks|results):(\d{1,8})(?::(all|\d{4}-\d{2}):(all|(?:group|individual)~[0-9a-f-]{36}))?$/i.exec(key);
+  if(pupil) {
+    let path='students/' + pupil[1] + '/homework?page=' + pupil[3] + '&results=' + (pupil[2] === 'results');
+    if(pupil[4] && pupil[4]!=='all') path+='&month='+pupil[4];
+    if(pupil[5] && pupil[5]!=='all') {const [kind,id]=pupil[5].split('~');path+='&classKind='+kind+'&classId='+id;}
+    return path;
+  }
+  const history=/^studentHistory:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):(imported|tests|liveTests|mocks|mockTasks|mockSessions):(tasks|results):(\d{1,8}):(all|\d{4}-\d{2}):([^:]*):(all|\d{4}-\d{2}-\d{2})$/.exec(key);
+  if(history) {
+    const query=new URLSearchParams({source:history[2],page:history[4],results:String(history[3]==='results')});
+    if(history[5]!=='all') query.set('month',history[5]);
+    if(history[6]) query.set('mockId',decodeURIComponent(history[6]));
+    if(history[7]!=='all') query.set('mockDate',history[7]);
+    return 'students/'+history[1]+'/history?'+query;
+  }
   const match = /^(groupHomework|classHomework|lessonHomework):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(key);
   if (match) return ({groupHomework:'groups',classHomework:'classes',lessonHomework:'lessons'})[match[1]] + '/' + match[2] + '/homework';
   throw new Error('Unknown teacher resource: ' + key);

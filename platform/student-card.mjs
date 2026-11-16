@@ -1,3 +1,4 @@
+import {pupilHistoryKey,pupilWorkFilters,renderPupilHistory} from './pupil-history.mjs';
 export const studentProfileKeys=['grade','groupId','targetScore','targetGrade','initialScore','initialPrimaryScore','initialGrade','parentName','notes'];
 export const studentProfileSnapshot=student=>Object.fromEntries(studentProfileKeys.map(key=>[key,student[key] ?? null]));
 export function studentMemberships(data,membershipId) {
@@ -55,15 +56,19 @@ const date=value=>new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',date
 const monthKey=value=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit'}).format(new Date(value));
 const status={Present:'Присутствовал',Absent:'Отсутствовал',Unknown:'Не отмечено'};
 export function studentHomeworkKey(card) {
-  return 'studentHomework:'+card.membershipId+':'+(card.tab==='results'?'results':'tasks')+':'+(card.workPage || 0);
+  if(card.workSource && card.workSource!=='native') return pupilHistoryKey(card);
+  const key='studentHomework:'+card.membershipId+':'+(card.tab==='results'?'results':'tasks')+':'+(card.workPage || 0);
+  return card.workMonth || card.workClass?key+':'+(card.workMonth || 'all')+':'+(card.workClass || 'all'):key;
 }
 export function renderStudentHomework(data,card,safe,gradeControls=()=> '') {
+  const filters=pupilWorkFilters(card,studentClassRelations(data,card.membershipId),safe);
+  if(card.workSource && card.workSource!=='native') return filters+renderPupilHistory(data,card,safe);
   const feed=data[studentHomeworkKey(card)],results=card.tab==='results';
-  if(!feed) return '<section class="card stack"><p>Загружаем встроенные задания…</p><button class="secondary" type="button" data-student-card-retry>Повторить загрузку</button></section>';
+  if(!feed) return filters+'<section class="card stack"><p>Загружаем встроенные задания…</p><button class="secondary" type="button" data-student-card-retry>Повторить загрузку</button></section>';
   const member=(data.students || []).find(s=>s.membershipId===card.membershipId);
   const rows=(feed.items || []).filter(x=>x.membershipId===member?.membershipId && x.programId===member?.programId);
   const selected=rows.find(x=>x.id===card.workId);
-  return `<section class="card stack" data-student-homework><div class="section-head"><h3>${results?'Результаты':'Задания'} · ${feed.total}</h3><span class="muted small">Встроенные ДЗ · все даты</span></div><p class="muted small">По выбранному обучению. Импортные ДЗ, тесты и пробники доступны в общих разделах.</p>
+  return filters+`<section class="card stack" data-student-homework><div class="section-head"><h3>${results?'Результаты':'Задания'} · ${feed.total}</h3><span class="muted small">Встроенные ДЗ · ${card.workMonth?safe(card.workMonth):'все даты'}</span></div><p class="muted small">По выбранному обучению. Другие виды работ доступны через выбор источника выше.</p>
     ${selected?`<article class="stack" data-student-work-detail="${safe(selected.id)}"><button class="secondary small-button" type="button" data-student-work-close>К списку работ</button><h3>${safe(selected.title)}</h3><p class="muted small">Назначено: ${safe(date(selected.assignedAt))} · Срок: ${safe(date(selected.deadlineAt))}</p><h4>Условие</h4><p style="white-space:pre-wrap">${safe(selected.prompt)}</p><h4>Ответ ученика</h4><p style="white-space:pre-wrap">${safe(selected.answer || 'Ответ ещё не отправлен.')}</p>${selected.submittedAt?`<p class="muted small">Сдано: ${safe(date(selected.submittedAt))}</p>`:''}<p>${selected.scorePercent==null?'Оценка пока не выставлена.':'Оценка: '+safe(selected.scorePercent)+'%'}</p>${gradeControls(selected).replace('<form ',`<form id="studentGrade-${safe(selected.id)}" data-student-grade `)}</article>`:
       rows.length?rows.map(x=>`<article class="item" style="flex-wrap:wrap" data-student-work="${safe(x.id)}"><div><strong>${safe(x.title)}</strong><small>До ${safe(date(x.deadlineAt))} · ${x.scorePercent!=null?'Оценено: '+safe(x.scorePercent)+'%':x.submittedAt?'На проверке':'Ожидается ответ'}</small></div><button class="secondary small-button" type="button" data-student-work-open="${safe(x.id)}">${x.submittedAt?'Ответ и результат':'Открыть задание'}</button></article>`).join(''):'<p class="muted">'+(results?'Проверенных работ пока нет.':'Встроенных заданий пока нет.')+'</p>'}
     ${!selected && feed.total>feed.pageSize?`<nav class="row" aria-label="Страницы работ"><button type="button" class="secondary small-button" data-student-work-page="${feed.page-1}" ${feed.page===0?'disabled':''}>Назад</button><span>${feed.page+1} / ${Math.ceil(feed.total/feed.pageSize)}</span><button type="button" class="secondary small-button" data-student-work-page="${feed.page+1}" ${(feed.page+1)*feed.pageSize>=feed.total?'disabled':''}>Далее</button></nav>`:''}</section>`;

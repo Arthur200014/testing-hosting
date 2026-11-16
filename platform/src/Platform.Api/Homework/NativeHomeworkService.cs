@@ -104,14 +104,24 @@ public sealed class NativeHomeworkService(PlatformDbContext db, TimeProvider clo
         return (201, items.Select(x => x.Id).ToArray());
     }
 
-    public async Task<StudentHomeworkPage?> PupilAssignmentsAsync(Guid workspace, Guid membershipId, int page, bool results, CancellationToken ct)
+    public async Task<StudentHomeworkPage?> PupilAssignmentsAsync(Guid workspace, Guid membershipId, int page, bool results, CancellationToken ct,
+        DateOnly? month = null, Guid? classId = null, string? classKind = null)
     {
         var member = await db.WorkspaceStudentMemberships.AsNoTracking().Where(x =>
             x.WorkspaceId == workspace && x.Id == membershipId && x.IsActive)
             .Select(x => new { x.StudentId, x.ProgramId }).SingleOrDefaultAsync(ct);
         if (member is null) return null;
+        if (classId.HasValue && !(classKind == "group"
+            ? await db.TeacherGroupClasses.AnyAsync(x => x.WorkspaceId == workspace && x.Id == classId &&
+                (x.Members.Any(m => m.MembershipId == membershipId) || db.NativeHomeworkAssignments.Any(a =>
+                    a.WorkspaceId == workspace && a.MembershipId == membershipId && a.GroupClassId == classId)), ct)
+            : await db.TeacherClasses.AnyAsync(x => x.WorkspaceId == workspace && x.Id == classId && x.StudentMembershipId == membershipId, ct))) return null;
+        var from = month.HasValue ? Students.PupilHistoryReader.MoscowStart(month.Value) : (DateTimeOffset?)null;
+        var until = month.HasValue ? Students.PupilHistoryReader.MoscowStart(month.Value.AddMonths(1)) : (DateTimeOffset?)null;
         var query = Query(workspace).AsNoTracking().Where(x => x.MembershipId == membershipId &&
-            x.StudentId == member.StudentId && x.ProgramId == member.ProgramId && (!results || x.GradedAt != null));
+            x.StudentId == member.StudentId && x.ProgramId == member.ProgramId && (!results || x.GradedAt != null) &&
+            (!from.HasValue || x.AssignedAt >= from && x.AssignedAt < until) &&
+            (!classId.HasValue || (classKind == "group" ? x.GroupClassId == classId : x.IndividualClassId == classId)));
         var total = await query.CountAsync(ct);
         const int size = 20;
         page = Math.Clamp(page, 0, Math.Max(0, (total - 1) / size));

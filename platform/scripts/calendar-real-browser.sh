@@ -12,6 +12,7 @@ JWT_SIGNING_KEY="$(openssl rand -base64 48)"
 STUDENT_CODE_PEPPER="$(openssl rand -base64 48)"
 TAS_REAL_TEST_PASSWORD="$(openssl rand -hex 24)"
 export API_PORT=18081 CORS_ALLOWED_ORIGIN=http://127.0.0.1:8767
+export TAS_REAL_COMPOSE_PROJECT="$project"
 export TAS_REAL_API=http://127.0.0.1:18081 TAS_REAL_SITE=http://127.0.0.1:8767
 compose=(docker compose --env-file .env.example -p "$project")
 site_pid=''
@@ -44,7 +45,7 @@ SELECT gen_random_uuid(),"Id",'TEST-MATH','Учебная математика',
 FROM platform."Workspaces" WHERE "Slug" IN ('tas-calendar-north','tas-calendar-south');
 SQL
 mkdir -p "$task_dir/site/platform"
-for file in student.html material-file.mjs lesson-recordings.mjs student-card.mjs teacher.html teacher-report.mjs teacher-data.mjs teacher-library.mjs teacher-mutation.mjs teacher-calendar.mjs homework-deadline.mjs class-native-homework.mjs class-materials-ui.mjs lesson-materials-ui.mjs lesson-topics-ui.mjs class-program-ui.mjs meleto-fidelity.css; do
+for file in student.html material-file.mjs lesson-recordings.mjs student-card.mjs pupil-history.mjs teacher.html teacher-report.mjs teacher-data.mjs teacher-library.mjs teacher-mutation.mjs teacher-calendar.mjs homework-deadline.mjs class-native-homework.mjs class-materials-ui.mjs lesson-materials-ui.mjs lesson-topics-ui.mjs class-program-ui.mjs meleto-fidelity.css; do
   cp "platform/$file" "$task_dir/site/platform/$file"
 done
 # Rewrite ONLY the disposable copy. Published source and production settings stay untouched.

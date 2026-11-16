@@ -26,6 +26,61 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     private const string ClaimCode = "synthetic-claim-code-for-integration-tests-only-2026";
 
     [Fact]
+    public async Task PupilHistoryKeepsSourceAttemptProgramMonthAndWorkspaceBoundaries()
+    {
+        await ResetAsync(factory);
+        var north=await SeedAsync(factory,"pupil-history-north","pupil-history-north@example.invalid","owner");
+        await SeedAsync(factory,"pupil-history-south","pupil-history-south@example.invalid","owner");
+        var own=await SeedStudentAsync(factory,north.WorkspaceId,"History pupil",true);
+        await SeedResultsAsync(factory,north.WorkspaceId,own);await SeedHomeworkAsync(factory,north.WorkspaceId,own);
+        var otherProgram=await SeedProgramAsync(factory,north.WorkspaceId);
+        var otherStudy=Guid.NewGuid();
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var member=await db.WorkspaceStudentMemberships.SingleAsync(x=>x.Id==own);
+            db.WorkspaceStudentMemberships.Add(new WorkspaceStudentMembership {Id=otherStudy,WorkspaceId=north.WorkspaceId,
+                StudentId=member.StudentId,ProgramId=otherProgram,CodeHash=System.Security.Cryptography.SHA256.HashData(Guid.NewGuid().ToByteArray())});
+            db.HistoricalTestResults.AddRange(Enumerable.Range(1,21).Select(i=>new HistoricalTestResult {
+                Id=Guid.NewGuid(),WorkspaceId=north.WorkspaceId,MembershipId=own,StudentId=member.StudentId,ProgramId=member.ProgramId,
+                EventId="pupil-page-"+i,TestId="same-test",TestDate=new DateOnly(2026,11,2),TopicId="topic",TopicName="Repeated test",
+                TaskNumber=6,ScorePercent=0,DurationSeconds=0,SchemaVersion="2",ServerSubmittedAt=DateTimeOffset.UtcNow}));
+            var dates=new[]{new DateTimeOffset(2026,10,31,20,59,59,TimeSpan.Zero),new DateTimeOffset(2026,10,31,21,0,0,TimeSpan.Zero),new DateTimeOffset(2026,11,30,21,0,0,TimeSpan.Zero)};
+            db.TestAttempts.AddRange(dates.Select((date,i)=>new TestAttempt {Id=Guid.NewGuid(),WorkspaceId=north.WorkspaceId,MembershipId=own,
+                StudentId=member.StudentId,ProgramId=member.ProgramId,EventId="pupil-boundary-"+i,TestId="boundary",Topic="Boundary",TaskNumber=6,
+                Correct=0,Total=1,Percent=0,StartedAt=date.AddMinutes(-1),CompletedAt=date,DurationSeconds=60,SchemaVersion="1.0",
+                MoscowMonthKey=i==0?"2026-10":i==1?"2026-11":"2026-12",CreatedAt=date}));
+            await db.SaveChangesAsync();
+        }
+        using var client=factory.CreateClient();
+        var path="/api/v1/teacher/students/"+own+"/history";
+        Assert.Equal(HttpStatusCode.Unauthorized,(await client.GetAsync(path+"?source=tests")).StatusCode);
+        var session=(await (await LoginAsync(client,"pupil-history-north","pupil-history-north@example.invalid",Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",session.AccessToken);
+        foreach(var source in new[]{"imported","tests","liveTests","mocks","mockTasks","mockSessions"}) {
+            var page=(await client.GetFromJsonAsync<PupilHistoryPage>(path+"?source="+source))!;
+            Assert.True(page.Total>0);Assert.All(page.Items,x=>{Assert.Equal(own,x.MembershipId);Assert.Equal(source,x.Source);});
+            Assert.Equal(0,(await client.GetFromJsonAsync<PupilHistoryPage>("/api/v1/teacher/students/"+otherStudy+"/history?source="+source))!.Total);
+            Assert.Equal(0,(await client.GetFromJsonAsync<PupilHistoryPage>(path+"?source="+source+"&month=1900-01"))!.Total);
+        }
+        var first=(await client.GetFromJsonAsync<PupilHistoryPage>(path+"?source=tests&month=2026-11"))!;
+        var second=(await client.GetFromJsonAsync<PupilHistoryPage>(path+"?source=tests&month=2026-11&page=1"))!;
+        Assert.Equal(22,first.Total);Assert.Equal(20,first.Items.Count);Assert.Equal(2,second.Items.Count);
+        Assert.Equal(22,first.Items.Concat(second.Items).Select(x=>x.Id).Distinct().Count());
+        Assert.Contains(first.Items,x=>x.ScorePercent==0);
+        foreach(var pair in new[]{("2026-10",1),("2026-11",2),("2026-12",1)})
+            Assert.Equal(pair.Item2,(await client.GetFromJsonAsync<PupilHistoryPage>(path+"?source=liveTests&month="+pair.Item1))!.Total);
+        var imported=(await client.GetFromJsonAsync<PupilHistoryPage>(path+"?source=imported&results=true"))!;
+        Assert.Equal(1,imported.Total);Assert.Single(Assert.Single(imported.Items).Attempts!);
+        Assert.Equal(0,(await client.GetFromJsonAsync<PupilHistoryPage>(path+"?source=mockTasks&mockId=other"))!.Total);
+        Assert.Equal(1,(await client.GetFromJsonAsync<PupilHistoryPage>(path+"?source=mockTasks&mockId=mock-1&mockDate=2026-11-01"))!.Total);
+        Assert.Equal(HttpStatusCode.BadRequest,(await client.GetAsync(path+"?source=unknown")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,(await client.GetAsync(path+"?source=tests&month=2026-13")).StatusCode);
+        var other=(await (await LoginAsync(client,"pupil-history-south","pupil-history-south@example.invalid",Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",other.AccessToken);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.GetAsync(path+"?source=tests")).StatusCode);
+    }
+
+    [Fact]
     public async Task RecordingLinksRecheckParticipantsExpiryAndWorkspaceOnEverySourceRead()
     {
         await ResetAsync(factory);
@@ -425,6 +480,12 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         var pupilPath="/api/v1/teacher/students/"+first+"/homework";
         var pupil=(await client.GetFromJsonAsync<StudentHomeworkPage>(pupilPath))!;
         Assert.Equal(3,pupil.Total);Assert.Equal(3,pupil.Items.Count);
+        Assert.Equal(1,(await client.GetFromJsonAsync<StudentHomeworkPage>(pupilPath+"?classKind=individual&classId="+cls.Id))!.Total);
+        Assert.Equal(1,(await client.GetFromJsonAsync<StudentHomeworkPage>(pupilPath+"?classKind=group&classId="+group.Id))!.Total);
+        Assert.Equal(0,(await client.GetFromJsonAsync<StudentHomeworkPage>(pupilPath+"?month=1900-01"))!.Total);
+        Assert.Equal(HttpStatusCode.BadRequest,(await client.GetAsync(pupilPath+"?month=2026-13")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.GetAsync(pupilPath+"?classKind=group&classId="+Guid.NewGuid())).StatusCode);
+
         Assert.All(pupil.Items,x=>Assert.Equal(first,x.MembershipId));
         var secondPath="/api/v1/teacher/students/"+second+"/homework";
         var page0=(await client.GetFromJsonAsync<StudentHomeworkPage>(secondPath))!;
