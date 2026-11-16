@@ -1,11 +1,11 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-16
-**ACTIVE_TASK:** UI-04 IN_PROGRESS — external lesson recording links released.
-**ACTIVE_BRANCH:** none.
+**ACTIVE_TASK:** UI-04 IN_PROGRESS — contextual recording management implemented, isolated acceptance pending.
+**ACTIVE_BRANCH:** `tas/ui04-recordings-in-lessons`, PR #85, head `d57fad1fcfd4691cef3f9dcd8f90d52cba6dafc0`.
 **MERGED_SHA:** `c6f2aba810c56f190cc384a8a1abe889d68356e8`, [PR #84](https://github.com/Arthur200014/testing-hosting/pull/84).
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43892298459](https://github.com/Arthur200014/testing-hosting/actions/runs/43892298459) PASS; teacher.html, student.html, teacher-data.mjs, teacher-library.mjs and lesson-recordings.mjs byte-match main. API code + additive migration on main for configured native Timeweb auto-deploy. Independent API deployment/revision/migration NOT_VERIFIED / UNKNOWN; LIVE_WRITE_NOT_RUN per owner mode.
-**NEXT_ACTION:** UI-04 contextual recordings in individual/group lesson cards: show that lesson's references, open source through existing authenticated endpoint, jump to library/create with lesson preselected, and return safely. Reuse the new service/module; verify cancel/save/reopen/student access in isolated API/PostgreSQL/browser, then PR/merge/Pages/HANDOFF. Do not add video storage or provision infrastructure incidentally.
+**NEXT_ACTION:** Finish PR #85 isolated browser/CI acceptance for both lesson formats, fix failures, inspect reference24 screenshots, merge/Pages/byte comparison and update HANDOFF. Existing API reused; no backend/schema changes or video storage. No Timeweb checks or production writes.
 
 ## Standing owner instructions
 
