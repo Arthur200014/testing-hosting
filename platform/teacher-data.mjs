@@ -17,6 +17,8 @@ export function contextHomeworkKey(item, lesson = null) {
 }
 export function teacherResourcePath(key) {
   if (Object.hasOwn(teacherPaths, key)) return teacherPaths[key];
+  const pupil = /^studentHomework:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):(tasks|results):(\d{1,8})$/i.exec(key);
+  if(pupil) return 'students/' + pupil[1] + '/homework?page=' + pupil[3] + '&results=' + (pupil[2] === 'results');
   const match = /^(groupHomework|classHomework|lessonHomework):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(key);
   if (match) return ({groupHomework:'groups',classHomework:'classes',lessonHomework:'lessons'})[match[1]] + '/' + match[2] + '/homework';
   throw new Error('Unknown teacher resource: ' + key);

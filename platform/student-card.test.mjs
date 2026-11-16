@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {studentMemberships,studentClassRelations,studentLessonRows,studentLessonTarget,resolveStudentOrigin,beginStudentCard,studentEditAction,renderStudentCard} from './student-card.mjs';
+import {studentMemberships,studentClassRelations,studentLessonRows,studentLessonTarget,resolveStudentOrigin,beginStudentCard,studentEditAction,studentHomeworkKey,renderStudentHomework,renderStudentCard} from './student-card.mjs';
 const safe=x=>String(x??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 const fixture=()=>({students:[{membershipId:'a',studentId:'same-person',studentName:'Same name',programName:'Math',grade:'11',notes:'Original',parentName:'Parent'},{membershipId:'b',studentId:'other-person',studentName:'Same name',programName:'Math'},{membershipId:'second-program',studentId:'same-person',studentName:'Same name',programName:'Language',grade:'9',notes:'Other profile'}],classes:[{id:'individual',studentMembershipId:'a',title:'Individual'},{id:'language',studentMembershipId:'second-program',title:'Language class'}],groups:[{id:'pair',title:'Pair',members:[{membershipId:'a',isApproved:true},{membershipId:'b',isApproved:false}]}],lessons:[{id:'lesson',groupClassId:'pair',lessonAt:'2026-11-16T09:00:00Z',title:'Pair lesson',participants:[{membershipId:'a',attendanceStatus:'Absent',durationMinutes:60},{membershipId:'b',attendanceStatus:'Present',durationMinutes:90}]},{id:'language-lesson',individualClassId:'language',lessonAt:'2026-11-17T09:00:00Z',participants:[{membershipId:'second-program',attendanceStatus:'Unknown',durationMinutes:45}]}]});
 test('student identity uses membership and StudentId, not duplicate names; attendance stays per participant',()=>{
@@ -36,4 +36,16 @@ test('card renders verified data, independent attendance, unavailable state and 
  assert.match(renderStudentCard({...d,classes:undefined},card,safe),/Загружаем классы/);
  assert.match(renderStudentCard(d,{...card,membershipId:'foreign'},safe),/Ученик больше недоступен/);
  assert.match(renderStudentCard(d,{...card,membershipId:'b',tab:'classes'},safe),/Ожидает подтверждения/);
+});
+
+test('pupil work uses a scoped page, escapes answers and preserves zero grades',()=>{
+ const d=fixture(),card={membershipId:'a',tab:'tasks',workPage:2};d.students[0].programId='math';
+ assert.equal(studentHomeworkKey(card),'studentHomework:a:tasks:2');
+ assert.match(renderStudentHomework(d,card,safe),/Загружаем/);
+ const row={id:'work',membershipId:'a',programId:'math',title:'Task <1>',prompt:'<script>',answer:'<img>',assignedAt:'2026-11-16T10:00:00Z',deadlineAt:'2026-11-17T10:00:00Z',submittedAt:'2026-11-16T11:00:00Z',scorePercent:0};
+ d[studentHomeworkKey(card)]={items:[row,{...row,id:'foreign',membershipId:'b'},{...row,id:'other-program',programId:'language'}],total:41,page:2,pageSize:20};
+ const list=renderStudentHomework(d,card,safe);assert.match(list,/3 \/ 3/);assert.match(list,/Оценено: 0%/);assert.doesNotMatch(list,/data-student-work="foreign"|data-student-work="other-program"/);
+ card.workId='work';const detail=renderStudentHomework(d,card,safe,()=>'<form data-native-grade="work"></form>');
+ assert.match(detail,/&lt;script&gt;/);assert.match(detail,/&lt;img&gt;/);assert.match(detail,/Оценка: 0%/);assert.match(detail,/id="studentGrade-work" data-student-grade/);
+ card.tab='results';assert.equal(studentHomeworkKey(card),'studentHomework:a:results:2');d[studentHomeworkKey(card)]={items:[],total:0,page:0,pageSize:20};assert.match(renderStudentHomework(d,card,safe),/Проверенных работ пока нет/);
 });

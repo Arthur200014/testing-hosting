@@ -154,3 +154,15 @@ test('individual class and lesson have separate scoped cache routes',async()=>{
  assert.equal(teacherResourcePath(contextHomeworkKey({id,kind:'individual'})),'classes/'+id+'/homework');
  assert.equal(teacherResourcePath(contextHomeworkKey({id,kind:'group'},{id:lessonId})),'lessons/'+lessonId+'/homework');
 });
+
+test('pupil work cache separates membership, page and results; invalidation rejects stale grades',async()=>{
+ const {teacherResourcePath}=await import('./teacher-data.mjs');
+ const id='11111111-1111-1111-1111-111111111111',key='studentHomework:'+id+':tasks:1',state=freshState();
+ assert.equal(teacherResourcePath(key),'students/'+id+'/homework?page=1&results=false');
+ assert.equal(teacherResourcePath('studentHomework:'+id+':results:0'),'students/'+id+'/homework?page=0&results=true');
+ assert.throws(()=>teacherResourcePath('studentHomework:../students:tasks:0'));
+ assert.throws(()=>teacherResourcePath('studentHomework:'+id+':tasks:-1'));
+ let done;const old=loadTeacherKey(state,key,()=>new Promise(r=>{done=r}),()=>{});await Promise.resolve();
+ invalidateTeacherKeys(state,[key]);await loadTeacherKey(state,key,async()=>({items:[{scorePercent:0}]}),()=>{});done({items:[]});await old;
+ assert.equal(state.data[key].items[0].scorePercent,0);
+});

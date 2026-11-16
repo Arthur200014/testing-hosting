@@ -416,14 +416,36 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
             var member=await db.WorkspaceStudentMemberships.SingleAsync(x=>x.Id==second);
             db.NativeHomeworkAssignments.AddRange(Enumerable.Range(1,301).Select(i=>new NativeHomeworkAssignment {
                 Id=Guid.NewGuid(),WorkspaceId=north.WorkspaceId,TaskId=task.Id,ProgramId=program,MembershipId=second,StudentId=member.StudentId,
-                RequestId=Guid.NewGuid(),AssignedAt=DateTimeOffset.UtcNow.AddMinutes(i),DeadlineAt=DateTimeOffset.UtcNow.AddDays(2).AddMinutes(i)
+                RequestId=Guid.NewGuid(),AssignedAt=DateTimeOffset.UtcNow.AddMinutes(i),DeadlineAt=DateTimeOffset.UtcNow.AddDays(2).AddMinutes(i),
+                Answer=i==1?"Answer":null,SubmittedAt=i==1?DateTimeOffset.UtcNow:null,ScorePercent=i==1?0:null,GradedAt=i==1?DateTimeOffset.UtcNow:null
             }));
             await db.SaveChangesAsync();
         }
+        var pupilPath="/api/v1/teacher/students/"+first+"/homework";
+        var pupil=(await client.GetFromJsonAsync<StudentHomeworkPage>(pupilPath))!;
+        Assert.Equal(3,pupil.Total);Assert.Equal(3,pupil.Items.Count);
+        Assert.All(pupil.Items,x=>Assert.Equal(first,x.MembershipId));
+        var secondPath="/api/v1/teacher/students/"+second+"/homework";
+        var page0=(await client.GetFromJsonAsync<StudentHomeworkPage>(secondPath))!;
+        Assert.Equal(301,page0.Total);Assert.Equal(20,page0.PageSize);Assert.Equal(20,page0.Items.Count);
+        var allIds=new HashSet<Guid>(page0.Items.Select(x=>x.Id));
+        for(var pageIndex=1;pageIndex<16;pageIndex++) {
+            var next=(await client.GetFromJsonAsync<StudentHomeworkPage>(secondPath+"?page="+pageIndex))!;
+            Assert.Equal(pageIndex,next.Page);Assert.Equal(301,next.Total);
+            Assert.All(next.Items,x=>{Assert.Equal(second,x.MembershipId);Assert.True(allIds.Add(x.Id));});
+        }
+        Assert.Equal(301,allIds.Count);
+        Assert.Equal(0,(await client.GetFromJsonAsync<StudentHomeworkPage>(secondPath+"?page=-1"))!.Page);
+        Assert.Equal(15,(await client.GetFromJsonAsync<StudentHomeworkPage>(secondPath+"?page=2147483647"))!.Page);
+        var results=(await client.GetFromJsonAsync<StudentHomeworkPage>(secondPath+"?results=true"))!;
+        Assert.Equal(1,results.Total);Assert.Equal(0,Assert.Single(results.Items).ScorePercent);
+        Assert.Equal(0,(await client.GetFromJsonAsync<StudentHomeworkPage>(pupilPath+"?results=true"))!.Total);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.GetAsync("/api/v1/teacher/students/"+Guid.NewGuid()+"/homework")).StatusCode);
         var history=(await client.GetFromJsonAsync<List<NativeAssignmentView>>(classPath))!;
         Assert.Equal(2,history.Count);Assert.All(history,x=>Assert.Null(x.GroupClassId));
         var other=(await (await LoginAsync(client,"context-south","context-south@example.invalid",Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
         client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",other.AccessToken);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.GetAsync(pupilPath)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound,(await client.GetAsync(classPath)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound,(await client.GetAsync(lessonPath)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync(endpoint,request)).StatusCode);
