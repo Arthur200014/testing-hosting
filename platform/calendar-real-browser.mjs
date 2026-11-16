@@ -59,6 +59,7 @@ try {
   const errors=[]; page.on('pageerror',e=>errors.push(e.message));
   async function login(account) {
     await page.goto(site+'/platform/teacher.html');
+    assert.deepEqual(errors,[],'Teacher page modules must initialize before login');
     await page.locator('#loginForm [name="workspace"]').fill(account.workspace);
     await page.locator('#loginForm [name="email"]').fill(account.email);
     await page.locator('#loginForm [name="password"]').fill(password);
