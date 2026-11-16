@@ -1,11 +1,11 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-16
-**ACTIVE_TASK:** UI-04 IN_PROGRESS — material management released; next library folders.
-**ACTIVE_BRANCH:** none.
+**ACTIVE_TASK:** UI-04 IN_PROGRESS — library folders implemented, isolated acceptance pending.
+**ACTIVE_BRANCH:** `tas/ui04-library-folders`, PR #81, head `8bc775f314c6de0f5565740ff8e62e6d74eaf36b`.
 **MERGED_SHA:** `af413af9a3e4d839dc728257532275faff6bc672`, [PR #80](https://github.com/Arthur200014/testing-hosting/pull/80).
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43821874800](https://github.com/Arthur200014/testing-hosting/actions/runs/43821874800) PASS; published teacher.html, student.html and teacher-library.mjs byte-match main. API code + additive migration are on main for configured native Timeweb auto-deploy. Independent API deployment/revision/migration NOT_VERIFIED / UNKNOWN; LIVE_WRITE_NOT_RUN per owner instruction.
-**NEXT_ACTION:** UI-04 library folders (references 48–49): create/rename a workspace folder, move an existing file/link into it or back to all files without copying bytes/changing access, persist selection/results across reload. Take the related steps together, reuse existing library/API/browser patterns. Finish isolated checks → PR/merge/Pages → HANDOFF. Recordings/large-file storage remain separate.
+**NEXT_ACTION:** Finish PR #81 isolated PostgreSQL/browser checks, fix failures, merge and publish Pages, compare published bytes and update HANDOFF. Recordings/large-file storage remain separate.
 
 ## Standing owner instructions
 
