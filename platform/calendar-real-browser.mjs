@@ -845,8 +845,10 @@ try {
   await page.locator('#refresh').click();await page.locator('#notice').waitFor({state:'hidden'});
   assert.equal(await page.locator('#libraryRenameForm [name="title"]').inputValue(),'Черновик старого окна');
   assert.equal(await page.locator('#libraryRenameForm').getAttribute('data-revision'),'2','refresh must not silently rebase a stale draft');
+  const staleRename=page.waitForResponse(r=>r.url().endsWith('/materials/'+uploaded.id+'/rename') && r.request().method()==='POST');
   await page.locator('#libraryRenameForm button[type="submit"]').click();
-  await page.locator('#notice').filter({hasText:'Материал изменился'}).waitFor();
+  assert.equal((await staleRename).status(),409,'stale draft must be rejected by the real API');
+  await page.locator('#notice').filter({hasText:'Конфликт с уже сохранённой записью'}).waitFor();
   await page.locator('[data-library-management-cancel]').click();
   assert.equal(await page.locator('#libraryRenameForm [name="title"]').inputValue(),'Название из другого окна');
   const managementStudent=await context.newPage();managementStudent.on('pageerror',e=>errors.push(e.message));
