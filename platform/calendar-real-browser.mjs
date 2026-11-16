@@ -1125,7 +1125,17 @@ try {
   await page.locator('[data-student-related-class="'+group.id+'"]').click();await page.locator('.group-roster-member [data-open-student="'+pupilCardId+'"]').waitFor();await page.locator('.group-roster-member [data-open-student="'+pupilCardId+'"]').click();await page.locator('[data-student-card-month]').fill('2026-11');await page.locator('[data-student-card-month]').dispatchEvent('change');await page.locator('[data-student-related-lesson="'+grouped.id+'"][data-membership-id="'+pupilCardId+'"]').click();await page.locator('[data-lesson-recordings="'+grouped.id+'"]').waitFor();
   await page.reload();await login(north);await openRecordingLesson(north.item.id,recordLesson.id);await page.locator('.class-lesson-detail [data-open-student="'+pupilCardId+'"]').click();await page.locator('[data-student-card] h2').filter({hasText:finalPupilName}).waitFor();await page.locator('[data-student-card-tab="profile"]').click();await page.locator('[data-student-card]').getByText('Сохранено из карточки ученика',{exact:true}).waitFor();
   assert.equal((await call('teacher/students',north.token)).length,pupilsCount,'opening cards creates no duplicate pupil');
-  const profileStudentPage=await context.newPage();profileStudentPage.on('pageerror',e=>errors.push(e.message));await profileStudentPage.goto(site+'/platform/student.html');await profileStudentPage.locator('#loginForm [name="workspace"]').fill(north.workspace);await profileStudentPage.locator('#loginForm [name="code"]').fill(north.students[0].inviteCode);await profileStudentPage.locator('#loginForm button[type="submit"]').click();await profileStudentPage.locator('#studentName').filter({hasText:finalPupilName}).waitFor();await profileStudentPage.close();
+  const profileStudentPage=await context.newPage();profileStudentPage.on('pageerror',e=>errors.push(e.message));await profileStudentPage.goto(site+'/platform/student.html');await profileStudentPage.locator('#loginForm [name="workspace"]').fill(north.workspace);await profileStudentPage.locator('#loginForm [name="code"]').fill(north.students[0].inviteCode);async function submitProfileStudentLogin() {
+    const reply=profileStudentPage.waitForResponse(r=>r.url().endsWith('/api/v1/student-sessions') && r.request().method()==='POST');
+    await profileStudentPage.locator('#loginForm button[type="submit"]').click();return reply;
+  }
+  let profileLoginReply=await submitProfileStudentLogin();
+  if(profileLoginReply.status()===429) {
+    const retry=Number(profileLoginReply.headers()['retry-after']);await profileStudentPage.waitForTimeout((Number.isFinite(retry) && retry>0?Math.min(retry,60):60)*1000);
+    await profileStudentPage.locator('#loginForm [name="code"]').fill(north.students[0].inviteCode);profileLoginReply=await submitProfileStudentLogin();
+  }
+  assert.equal(profileLoginReply.status(),200,'student login succeeds after respecting the rate window');assert.equal((await profileLoginReply.json()).student.displayName,finalPupilName,'student session uses persisted display name');
+  await profileStudentPage.locator('#studentName').filter({hasText:finalPupilName}).waitFor();await profileStudentPage.close();
   await page.locator('.nav [data-view="library"]').click();await page.locator('[data-library]').waitFor();
   await page.locator('[data-library-section="materials"]').click();
   await page.locator('#logout').click(); await login(south);
