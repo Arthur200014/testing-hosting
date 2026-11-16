@@ -2,10 +2,10 @@
 
 **UPDATED:** 2026-11-16
 **ACTIVE_TASK:** UI-04 IN_PROGRESS — contextual recording management implemented, isolated acceptance pending.
-**ACTIVE_BRANCH:** `tas/ui04-recordings-in-lessons`, PR #85, head `d57fad1fcfd4691cef3f9dcd8f90d52cba6dafc0`.
+**ACTIVE_BRANCH:** `tas/ui04-recordings-in-lessons`, PR #85, head `af6baf933500ba1467ff3146dbd9770e8b68e490`; 18 local checks and previous backend CI PASS, final browser retry after test-fixture corrections.
 **MERGED_SHA:** `c6f2aba810c56f190cc384a8a1abe889d68356e8`, [PR #84](https://github.com/Arthur200014/testing-hosting/pull/84).
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43892298459](https://github.com/Arthur200014/testing-hosting/actions/runs/43892298459) PASS; teacher.html, student.html, teacher-data.mjs, teacher-library.mjs and lesson-recordings.mjs byte-match main. API code + additive migration on main for configured native Timeweb auto-deploy. Independent API deployment/revision/migration NOT_VERIFIED / UNKNOWN; LIVE_WRITE_NOT_RUN per owner mode.
-**NEXT_ACTION:** Finish PR #85 isolated browser/CI acceptance for both lesson formats, fix failures, inspect reference24 screenshots, merge/Pages/byte comparison and update HANDOFF. Existing API reused; no backend/schema changes or video storage. No Timeweb checks or production writes.
+**NEXT_ACTION:** Finish PR #85 final CI/browser, inspect reference24 screenshots, merge/Pages/byte comparison/HANDOFF. Initial browser reached new card flows but incorrectly assumed the second synthetic pupil was a nonparticipant; now actual pair participation is asserted and a dedicated synthetic outsider is used. Fresh-login library defaults handled explicitly. Existing API reused; no backend/schema changes. No Timeweb checks or production writes.
 
 ## Standing owner instructions
 
