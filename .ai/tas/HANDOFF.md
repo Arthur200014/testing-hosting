@@ -1,39 +1,41 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-16
-**ACTIVE_TASK:** UI-04 IN_PROGRESS — external lesson recording links implemented, isolated acceptance pending.
-**ACTIVE_BRANCH:** `tas/ui04-lesson-recordings`, PR #84, head `d0097062e3b9fd1ca6935e8570d22ff51becf289`; 105 PostgreSQL tests PASS, final browser rerun after fixture/module-copy fixes.
-**MERGED_SHA:** `d31125cb1f1f59f54b802f983bf2403a49351807`, [PR #81](https://github.com/Arthur200014/testing-hosting/pull/81).
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43847840704](https://github.com/Arthur200014/testing-hosting/actions/runs/43847840704) PASS; published teacher.html, teacher-library.mjs and teacher-data.mjs byte-match main. API code + additive migration are on main for configured native Timeweb auto-deploy. Independent API deployment/revision/migration NOT_VERIFIED / UNKNOWN; LIVE_WRITE_NOT_RUN per owner instruction.
-**NEXT_ACTION:** Finish PR #84 final CI, inspect reference50 screenshot, merge and publish Pages, verify changed published bytes and update HANDOFF. Prior browser blockers were missing recording feed in old synthetic fixtures and missing lesson-recordings.mjs in the isolated site copy; fixed. External links only, source-provider permissions separate. No Timeweb checks or production writes.
+**ACTIVE_TASK:** UI-04 IN_PROGRESS — external lesson recording links released.
+**ACTIVE_BRANCH:** none.
+**MERGED_SHA:** `c6f2aba810c56f190cc384a8a1abe889d68356e8`, [PR #84](https://github.com/Arthur200014/testing-hosting/pull/84).
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43892298459](https://github.com/Arthur200014/testing-hosting/actions/runs/43892298459) PASS; teacher.html, student.html, teacher-data.mjs, teacher-library.mjs and lesson-recordings.mjs byte-match main. API code + additive migration on main for configured native Timeweb auto-deploy. Independent API deployment/revision/migration NOT_VERIFIED / UNKNOWN; LIVE_WRITE_NOT_RUN per owner mode.
+**NEXT_ACTION:** UI-04 contextual recordings in individual/group lesson cards: show that lesson's references, open source through existing authenticated endpoint, jump to library/create with lesson preselected, and return safely. Reuse the new service/module; verify cancel/save/reopen/student access in isolated API/PostgreSQL/browser, then PR/merge/Pages/HANDOFF. Do not add video storage or provision infrastructure incidentally.
 
 ## Standing owner instructions
 
 - Take several consecutive related steps together; cover individual classes, groups and lessons.
-- Persistence checks use isolated synthetic API/PostgreSQL/Chromium workspaces only. **Do not check Timeweb** or request production credentials. Independent Timeweb revision/live writes are not blockers in this approved mode.
+- Persistence acceptance uses isolated synthetic API/PostgreSQL/Chromium workspaces only. **Do not check Timeweb** or request production credentials. Independent Timeweb revision/live writes are not blockers in this approved mode.
 - No real students, lessons, scores, settings or credentials as test-write targets. Never retarget reset/seed/import/calendar-real-browser.sh to production, rerun imports, change writer, send invitations/notifications/payments or provision infrastructure incidentally.
-- Tests and real-browser runner are committed in Git. These use synthetic fixtures; do not run their reset/seed scripts against real data.
+- Tests/runner are saved in Git. Their reset/seed commands must never run against real data.
 
-## Completed #81
+## Completed #84
 
-- Workspace folders: create/rename/cancel, folder counts, all-library/unfiled/folder navigation. Files AND link materials can move into a folder or back to unfiled; task templates stay outside folder containers.
-- Move changes only material metadata. Stored bytes, quota and existing individual/group/topic/lesson bindings and student access are preserved. Upload completion reveals the new unfiled file in the common list.
-- Selected folder survives reload/login in the same tab through sessionStorage scoped to authenticated WorkspaceId + TeacherId; only folder ID is stored. Other workspace starts separately; missing folder falls back safely.
-- Expected revisions prevent stale rename/move. Dirty folder/move drafts retain fields and original revision across refresh. Shared workspace lock serializes writes; receipts make create/rename/move retries idempotent and prevent old retries restoring previous state.
-- Additive `20261116160000_LibraryFolders`: folder and receipt tables + nullable material FolderId, workspace-composite FK. Existing materials stay unfiled; no data conversion/configuration/infrastructure changes.
-- Paths: Classes/TeacherLibraryFolderService.cs, TeacherMaterialManagement.cs, TeacherMaterialService.cs, Program.cs, DbContext/migration/snapshot; teacher-library.mjs/test, teacher-data.mjs, teacher.html; existing TeacherSessionTests.cs, calendar-real-browser.mjs and browser workflow.
-- Single-level folders implemented; nested folders/delete-folders and remaining visual detail are not implemented. Reference48–49 fidelity remains PARTIAL.
+- Separate library tab “Записи занятий”: class grouping/sidebar, search, add/edit/cancel, association with an individual/group lesson, optional explicit Moscow expiry and availability toggle. Teacher retains control of expired/disabled references.
+- These are **external HTTPS links**, not video bytes or a recorder/player. Volume is unknown and not counted toward file quota. No automatic provider requests or embedded playback. Teacher supplies an existing source.
+- Student list returns metadata without source URL. “Получить ссылку” fetches the authenticated endpoint, then renders an escaped external link with noopener/noreferrer. Every source read rechecks active student/program, current nonarchived individual or approved group membership, actual lesson participation, availability and expiry. Foreign workspace/nonparticipants denied; current-token requests denied immediately after revoke/expiry.
+- Platform policy controls **issuance of the link**. Already-issued URLs and actual video viewing remain subject to source-provider permissions; UI explicitly explains this. Do not claim platform revokes copied external links or verifies provider playback.
+- Additive `20261116190000_LessonRecordings`: recording metadata + operation receipts, workspace/lesson FKs. Revisions and existing workspace advisory lock protect concurrent/stale edits; late replay cannot revert newer metadata. Existing lessons/materials preserved; no production configuration/infrastructure changes.
+- Paths: Lessons/LessonRecordingService.cs, Program.cs, DbContext/migration/snapshot; lesson-recordings.mjs/test, teacher-library/data + teacher/student pages; existing TeacherSessionTests.cs, calendar-real-browser.mjs/script, synthetic browser fixtures and workflow.
+- Reference50 + final screenshot inspected; visual fidelity PARTIAL. Video uploads/large-file storage/provider integration remain separate decisions.
 
 ## Verification
 
-- LOCAL PASS: **15** focused Node checks; changed module/inline/browser syntax and diff checks.
-- FINAL head `79aa24b6d64babdf499fe39427ec09242f9670e7`: [TAS CI 43847056752](https://github.com/Arthur200014/testing-hosting/actions/runs/43847056752), [PostgreSQL 43847056784](https://github.com/Arthur200014/testing-hosting/actions/runs/43847056784), [real Chromium/API/PostgreSQL 43847056743](https://github.com/Arthur200014/testing-hosting/actions/runs/43847056743): PASS.
-- PostgreSQL **104/104**, migration/model/startup/ready/auth/isolated restore PASS. New regression covers trimmed/invalid names, concurrent create and stale moves, replay after later changes, foreign/student denial, unchanged bytes/grants and one stored content row.
-- Browser PASS: folder create/rename/cancel/empty state; file + link move/cancel/refresh; unchanged quota, exact bytes and class grants; reload/login selection; move back to unfiled; foreign workspace isolation; 390px overflow. Screenshot `49_library_folders_real.png` inspected against reference49; retained in `meleto-ui02-screenshots` artifact of final browser run.
-- Initial migration overload compile error fixed using named arguments; final checks green. No outstanding failed implementation checks. Production API/migration not independently verified; no production writes.
+- LOCAL PASS: **17** focused Node tests; changed inline/module/browser syntax, shell syntax and diff.
+- FINAL head `523e6a20e5a9d9c37cde2421075ea2762da126e9`: [TAS CI 43891301565](https://github.com/Arthur200014/testing-hosting/actions/runs/43891301565), [PostgreSQL 43891301540](https://github.com/Arthur200014/testing-hosting/actions/runs/43891301540), [real Chromium/API/PostgreSQL 43891303040](https://github.com/Arthur200014/testing-hosting/actions/runs/43891303040): PASS.
+- PostgreSQL **105/105**, migration/model/startup/ready/auth/isolated restore PASS. Recording regression covers URL/name validation, concurrent creation/replay/stale edits, reassignment, foreign/student/anonymous denial, metadata without URL, expiry, disabled issuance, actual participants, approval/archive revocation and no-store responses.
+- Browser PASS: both class formats, create/edit/cancel/search/filter, preserved draft revision across refresh and HTTP409 conflict, authenticated exact source-link target, revoke/expiry, teacher/student reload/login, workspace isolation, 390px layout. `50_lesson_recordings_real.png` retained in final run's `meleto-ui02-screenshots` artifact.
+- Fixed test harness blockers: empty recording feed in two old synthetic student fixtures; new module copied to isolated site; module initialization checked before login. Runner is executable.
+- Fixed old calendar test clock dependence: count-plan create/skip expectations derive from real future-slot preview; today's passed slot is not assumed future. Production calendar code unchanged.
+- External provider playback NOT_RUN (synthetic example.org links); source issuance/link attributes verified. No production writes or Timeweb verification. No outstanding failed checks at final head.
 
-## Existing material storage safeguards (#79–80)
+## Existing storage/library safeguards (#79–81)
 
-PostgreSQL metadata + separate bytea contents; **5 MiB/file, 100 MiB/workspace**, PDF/PNG/JPEG/UTF-8 TXT, two uploads/API instance. Authenticated workspace-scoped teacher/student downloads, no public file URLs. Reuse through individual/group/topic/lesson links. Display rename preserves original filename/bytes; exact unlink revokes only selected grant. Guarded unused-file deletion frees quota, tombstones/receipts block replay resurrection. Folder moves preserve these rules. Recordings/large files remain separate.
+PostgreSQL metadata + separate bytea file contents; **5 MiB/file, 100 MiB/workspace**, PDF/PNG/JPEG/UTF-8 TXT, two uploads/API instance. Authenticated scoped downloads, no public file URLs. Material links reuse bytes across individual/group/topic/lesson contexts. Display rename preserves original filename/bytes; exact unlink revokes selected grant; unused-file deletion frees quota with replay protection. Single-level folders organize files/links without changing bytes/access; selection persists per teacher/workspace in the same tab. These attachment limits do not support recordings.
 
 Published interface: https://arthur200014.github.io/testing-hosting/platform/teacher.html.
