@@ -512,7 +512,10 @@ try {
   await page.locator('.count-plan-modal [name="startDate"]').waitFor();
   await page.locator('.count-plan-modal [data-plan-mode="count"]').click();
   await page.locator('.count-plan-modal [name="count"]').fill('5');
+  const countPreview=page.waitForResponse(r=>r.url().endsWith('/teacher/schedule-rules/period-preview') && r.request().method()==='POST');
   await page.locator('.count-plan-modal button[type="submit"]').click();
+  const countCandidates=await (await countPreview).json();assert.equal(countCandidates.length,5);
+  const expectedCountCreated=countCandidates.filter(row=>!row.existingLessonIds.length).length,expectedCountSkipped=5-expectedCountCreated;
   await page.locator('[data-period-count]').waitFor();
   assert.equal(await page.locator('[data-period-count]').innerText(),'5');
   page.once('dialog',dialog=>dialog.accept());
@@ -520,9 +523,9 @@ try {
   await page.locator('[data-save-period]').click();
   const countResult=await countSaved;
   assert.equal(countResult.status(),200);
-  assert.equal((await countResult.json()).createdLessonIds.length,2);
-  await page.getByText('Создано занятий: 2. Уже были: 3.').waitFor();
-  assert.equal((await call('teacher/lessons',north.token)).length,beforePreview.length+4);
+  const countBody=await countResult.json();assert.equal(countBody.createdLessonIds.length,expectedCountCreated);assert.equal(countBody.skippedCount,expectedCountSkipped);
+  await page.getByText('Создано занятий: '+expectedCountCreated+'. Уже были: '+expectedCountSkipped+'.').waitFor();
+  assert.equal((await call('teacher/lessons',north.token)).length,beforePreview.length+2+expectedCountCreated);
   await page.locator('[aria-label="Закрыть планирование"]').click();
   await page.locator('.count-plan-modal').waitFor({state:'detached'});
   await page.locator('[data-back-classes]').click();
