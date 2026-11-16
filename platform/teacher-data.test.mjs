@@ -93,7 +93,7 @@ test('a successful mutation refetches only its modified resource instead of the 
   assert.deepEqual(teacherMutationKeys.nativeTaskForm, ['nativeTasks']);
   assert.deepEqual(teacherMutationKeys.lessonForm, ['lessons', 'assignments']);
   assert.deepEqual(teacherMutationKeys.lessonCorrectionForm, ['lessons']);
-  assert.deepEqual(teacherMutationKeys.studentEditForm, ['students']);
+  assert.deepEqual(teacherMutationKeys.studentEditForm, ['students','classes','groups']);
   assert.deepEqual(teacherMutationKeys.subscriptionForm, ['subscriptions']);
 
   const cachedStudents = state.data.students;

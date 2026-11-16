@@ -264,6 +264,17 @@
     .library-layout .item { gap:12px; flex-wrap:wrap; }
     @media(max-width:760px) { main:has([data-library]) > .top { margin-left:-16px; margin-right:-16px; padding-left:16px; padding-right:16px; } }
     @media(max-width:900px) { .library-layout { grid-template-columns:minmax(0,1fr); } }
+    [data-student-card], [data-student-card] .card, [data-student-card] label { min-width:0;overflow-wrap:anywhere; }
+    .student-card-layout {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:16px;align-items:start;}
+    .student-card-layout .section-head {flex-wrap:wrap;}
+    .student-card-details {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:0;}
+    .student-card-details dt {font-size:13px;color:#77768d;}.student-card-details dd {margin:5px 0 0;white-space:pre-wrap;}
+    .student-attendance-ring {width:170px;height:170px;max-width:100%;border-radius:50%;background:conic-gradient(#17bd9d var(--attendance),#eeecf8 0);display:grid;place-items:center;margin:auto;}
+    .student-attendance-ring strong {width:140px;height:140px;border-radius:50%;background:white;display:grid;place-content:center;text-align:center;font-size:32px;}.student-attendance-ring small {font-size:12px;font-weight:400;}
+    [data-student-card] input, [data-student-card] select, [data-student-card] textarea {min-width:0;max-width:100%;}
+    [data-student-card] .class-tabs {display:flex;flex-wrap:wrap;max-width:100%;}
+    [data-student-card] .row > label {flex:1 1 180px;max-width:100%;}
+    @media(max-width:760px) {.student-card-layout,.student-card-details {grid-template-columns:minmax(0,1fr);}main:has([data-student-card]) > .top {margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px;}}
   </style>
   <link rel="stylesheet" href="./meleto-fidelity.css">
 </head>
@@ -324,6 +335,7 @@
   </div>
 
   <script type="module">
+    import {studentProfileKeys, studentProfileSnapshot, studentMemberships, studentClassRelations, studentLessonRows, studentLessonTarget, resolveStudentOrigin, beginStudentCard, studentEditAction, renderStudentCard} from './student-card.mjs';
     import { buildTeacherReport, collectTeacherHomework } from './teacher-report.mjs';
     import { teacherNeeds, teacherMutationKeys, invalidateTeacherData, invalidateTeacherKeys, loadTeacherKey } from './teacher-data.mjs';
     import { performTeacherMutation } from './teacher-mutation.mjs';
@@ -341,7 +353,7 @@
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
-      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', topicFilter: 'all', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', groupEdit: '', groupCreate: false, lastClassInvitation: null, learningModal: false, classCreate: false, lessonPlan: null, scheduleEdit: null, calendarDate: calendarDay(), calendarMode: 'day', periodPreview: null };
+      const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, studentCard:null, studentSearch:'', editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', topicFilter: 'all', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', groupEdit: '', groupCreate: false, lastClassInvitation: null, learningModal: false, classCreate: false, lessonPlan: null, scheduleEdit: null, calendarDate: calendarDay(), calendarMode: 'day', periodPreview: null };
       state.library = newLibraryState();
       const $ = id => document.getElementById(id);
       const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -363,7 +375,7 @@
       }
       function logout(message = '') {
         state.library=newLibraryState();state.libraryStorageKey='';state.fileUpload=null;
-        state.resultDraft=null;
+        state.resultDraft=null;state.studentCard=null;state.studentSearch='';
         state.selectedLesson=null; state.lessonFilter='all';
         state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.classDetailTab = 'summary'; state.classStatsMonth = new Date().toISOString().slice(0,7); state.classStatsExpanded = ''; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; state.lessonPlan = null; state.scheduleEdit = null; state.calendarDate = calendarDay(); state.calendarMode = 'day'; state.periodPreview=null;
         document.body.classList.remove('calendar-plan-open');
@@ -408,10 +420,11 @@
           teacherClasses().some(item => item.id === state.selectedClass);
         const selectedMaterialClass = view === 'overview' && state.selectedClass && state.classDetailTab === 'materials' &&
           teacherClasses().some(item => item.id === state.selectedClass && item.persistent);
+        const selectedStudentCard=view==='students' && !!state.studentCard;
         const selectedLessonDetail = view === 'overview' && !!state.selectedClass && !!state.selectedLesson;
         const selectedProgramClass = view === 'overview' && state.selectedClass && state.classDetailTab === 'program' &&
           teacherClasses().some(item => item.id === state.selectedClass && item.persistent);
-        const extra = selectedLessonDetail ? ['recordings','materials','lessonMaterialLinks','classTopics','topicMaterialLinks','topicTaskLinks','lessonTopicSets','programs','nativeTasks',contextHomeworkKey(teacherClasses().find(x=>x.id===state.selectedClass),(state.data.lessons || []).find(x=>x.id===state.selectedLesson))] :
+        const extra = selectedStudentCard ? ['classes','groups','lessons'] : selectedLessonDetail ? ['recordings','materials','lessonMaterialLinks','classTopics','topicMaterialLinks','topicTaskLinks','lessonTopicSets','programs','nativeTasks',contextHomeworkKey(teacherClasses().find(x=>x.id===state.selectedClass),(state.data.lessons || []).find(x=>x.id===state.selectedLesson))] :
           selectedProgramClass ? ['classTopics','topicMaterialLinks','materials','topicTaskLinks','nativeTasks','lessonTopicSets'] :
           selectedMaterialClass ? ['materials','classMaterialLinks'] :
           classTasks ? ['programs','nativeTasks',contextHomeworkKey(teacherClasses().find(x=>x.id===state.selectedClass))] :
@@ -432,6 +445,7 @@
           body => api('teacher/' + path, { method: 'POST', body }));
       }
       function setView(view) {
+        if(state.view!==view && !canLeaveStudentEdit()) return Promise.resolve();
         if(state.view==='library' && state.view!==view && state.fileUpload?.file) {
           if(state.fileUpload.busy) {showNotice('Дождитесь завершения загрузки.',true);return Promise.resolve();}
           if(!confirm('Отменить выбранную загрузку файла?')) return Promise.resolve();
@@ -453,6 +467,7 @@
         if (state.view !== view && document.querySelector('#classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"], #topicLessonAttachForm[data-dirty="1"], #lessonTopicSetForm[data-dirty="1"]') &&
             !confirm('Отменить несохранённую тему или материал программы?')) return Promise.resolve();
         if(state.view==='library' && view!=='library' && state.library.recordingContext) state.library=leaveLessonRecordings(state.library);
+        if(view!=='students') state.studentCard=null;
         state.view = view;
         if (view !== 'lessons') state.lessonPlan = null;
         if (view !== 'overview') state.scheduleEdit = null;
@@ -658,7 +673,7 @@
           <div class="section-head"><h3>Участники</h3><span class="muted">${members.length} из ${item.capacity}</span></div>
           ${members.length ? members.map(member => `<div class="group-roster-member">
             <span class="group-roster-avatar" style="--avatar:${avatarColor(member.membershipId)}">${safe(initials(member.studentName))}</span>
-            <span><strong>${safe(member.studentName)}</strong><small>${safe(member.programName)}</small></span>
+            <span><button type="button" class="class-text-link" data-open-student="${safe(member.membershipId)}">${safe(member.studentName)}</button><small>${safe(member.programName)}</small></span>
             <span class="group-roster-status">${member.isApproved ? 'Допущен' : 'Ожидает подтверждения'}</span>
             ${!member.isApproved && !item.isArchived ?
               `<button class="secondary small-button" type="button" data-approve-group="${safe(member.membershipId)}" data-group-id="${safe(item.id)}">Подтвердить</button>` : ''}
@@ -760,7 +775,7 @@
             ${renderContextHomework(item,state.data,safe,date,list,nativeGradeControls,lesson)}
           </div><aside class="lesson-detail-side"><section class="card stack"><button class="primary" disabled title="Доска занятия пока недоступна">Перейти к доске</button></section>
             <section class="card stack"><div class="section-head"><h2>Участники</h2><button type="button" class="secondary" data-edit-lesson="${safe(lesson.id)}">Посещаемость и завершение</button></div>
-              ${participants.map(p=>`<div class="item" data-lesson-participant="${safe(p.membershipId)}"><div><strong>${safe(studentName(p.membershipId))}</strong><small>${safe(labels[p.attendanceStatus] || p.attendanceStatus)} · ${p.durationMinutes} мин</small>
+              ${participants.map(p=>`<div class="item" data-lesson-participant="${safe(p.membershipId)}"><div><button type="button" class="class-text-link" data-open-student="${safe(p.membershipId)}">${safe(studentName(p.membershipId))}</button><small>${safe(labels[p.attendanceStatus] || p.attendanceStatus)} · ${p.durationMinutes} мин</small>
                 ${p.reaction?`<p data-student-reaction>${safe({positive:'😊',neutral:'😐',negative:'🙁'}[p.reaction] || p.reaction)}</p>`:''}${p.feedback?`<p data-student-feedback>${safe(p.feedback)}</p>`:''}</div>
                 <button type="button" class="class-text-link" data-open-lesson-result="${safe(p.membershipId)}" data-lesson-id="${safe(lesson.id)}">Изменить результат</button></div>`).join('')}
               ${!lesson.completedAt?'<p class="small muted">Для завершения занятия откройте результаты и подтвердите завершение при сохранении.</p>':''}
@@ -1138,7 +1153,7 @@
               <strong>${safe(x.student.studentName)}</strong>
               <span>Посещение: ${marks.length ? attended + ' из ' + marks.length : 'нет отмеченной посещаемости'}</span>
               <span>Задания: ${tasksLoaded ? (pupilTasks.length ? submitted + ' из ' + pupilTasks.length : 'не назначались за месяц') : 'загружаются'}</span>
-              <button class="class-text-link" type="button" data-open-student="${safe(x.studentMembershipId)}">Карточка ученика</button>
+              <button class="class-text-link" type="button" data-open-student="${safe(x.studentMembershipId)}" data-student-origin-class="${safe(x.id)}">Карточка ученика</button>
             </div>` : ''}
           </div>`;
         }).join('');
@@ -1219,10 +1234,9 @@
           <div class="today-lessons">${todayLessons.map(x => `<div class="today-lesson"><strong>${safe(lessonLabel(x.lessonAt).join(' · '))}</strong><small>${safe((x.participants || []).map(p => studentName(p.membershipId)).join(', ') || 'Без участников')}</small></div>`).join('')}</div>
           <button class="today-plan" type="button" data-view-calendar>▣ Запланировать занятие</button></div></section></div>${learningModal()}`;
       }
-      const studentProfileFields = ['grade', 'groupId', 'targetScore', 'targetGrade',
-        'initialScore', 'initialPrimaryScore', 'initialGrade', 'parentName', 'notes'];
+      const studentProfileFields = studentProfileKeys;
       function studentProfile(item) {
-        return Object.fromEntries(studentProfileFields.map(key => [key, item[key] ?? null]));
+        return studentProfileSnapshot(item);
       }
       function editStudentForm() {
         const x = state.editSnapshot;
@@ -1242,8 +1256,9 @@
       }
       function students() {
         const d = state.data;
+        if(state.studentCard) return renderStudentCard(d,state.studentCard,safe,state.editStudent===state.studentCard.membershipId?editStudentForm():'');
         return `<div class="grid two"><div class="card stack"><div class="section-head"><h2>Ученики</h2><span class="muted small">${d.students?.length || 0} активных</span></div>
-          <label><span>Поиск по имени</span><input id="studentSearch" type="search" placeholder="Начните вводить имя"></label><div id="studentRows"></div></div>
+          <label><span>Поиск по имени</span><input id="studentSearch" type="search" value="${safe(state.studentSearch || '')}" placeholder="Начните вводить имя"></label><div id="studentRows"></div></div>
           <div class="card stack"><div><h2>Новый ученик</h2><p class="muted small">Код доступа появится после создания. Скопируйте его ученику.</p></div>
           <form id="studentForm" class="stack">
             <div class="form-row"><label><span>Имя ученика</span><input name="studentName" maxlength="200" required></label><label><span>Программа</span><select name="programId" required>${options(d.programs || [], 'id', 'displayName')}</select></label></div>
@@ -1252,9 +1267,10 @@
             <button class="primary" type="submit" ${d.programs?.length ? '' : 'disabled'}>Создать ученика</button>
           </form>${state.inviteCode ? `<div class="banner" role="status">Код нового ученика: <strong>${safe(state.inviteCode)}</strong>. Скопируйте его сейчас.</div>` : ''}${d.programs?.length ? '' : '<p class="muted small">В пространстве пока нет активных программ.</p>'}</div></div>` + editStudentForm();
       }
-      function studentRows(query = '') {
+      function studentRows(query = state.studentSearch || '') {
+        if(!$('studentRows')) return;
         const filtered = (state.data.students || []).filter(x => x.studentName.toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru')));
-        $('studentRows').innerHTML = list(filtered, 'Ученики не найдены.', x => `<div class="item"><div><strong>${safe(x.studentName)}</strong><small>${safe(x.programName)}${x.grade ? ' · ' + safe(x.grade) + ' класс' : ''}${x.groupId ? ' · ' + safe(x.groupId) : ''}</small></div><div class="row"><button class="secondary small-button" data-report="${safe(x.membershipId)}" type="button">Отчёт</button><button class="secondary small-button" data-edit-student="${safe(x.membershipId)}" type="button">Изменить</button><button class="danger small-button" data-archive="${safe(x.membershipId)}" type="button">В архив</button></div></div>`);
+        $('studentRows').innerHTML = list(filtered, 'Ученики не найдены.', x => `<div class="item"><div><button type="button" class="class-text-link" data-open-student="${safe(x.membershipId)}">${safe(x.studentName)}</button><small>${safe(x.programName)}${x.grade ? ' · ' + safe(x.grade) + ' класс' : ''}${x.groupId ? ' · ' + safe(x.groupId) : ''}</small></div><div class="row"><button class="secondary small-button" data-report="${safe(x.membershipId)}" type="button">Отчёт</button><button class="secondary small-button" data-edit-student="${safe(x.membershipId)}" type="button">Изменить</button><button class="danger small-button" data-archive="${safe(x.membershipId)}" type="button">В архив</button></div></div>`);
       }
       function participantList() {
         const selected = studentChoices();
@@ -1630,8 +1646,8 @@
       }
       function render() {
         // Related reads may finish while the teacher is already typing in a lesson form.
-        const drafts=[...document.querySelectorAll('[data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"], #libraryAttachForm[data-dirty="1"], #libraryRenameForm[data-dirty="1"], #libraryMoveForm[data-dirty="1"], #libraryFolderForm[data-dirty="1"], #recordingForm[data-dirty="1"]')].map(form=>({
-          id:form.id, classId:form.dataset.classId, lessonId:form.dataset.lessonId, libraryItem:form.dataset.libraryItem, revision:form.dataset.revision,
+        const drafts=[...document.querySelectorAll('[data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"], #libraryAttachForm[data-dirty="1"], #libraryRenameForm[data-dirty="1"], #libraryMoveForm[data-dirty="1"], #libraryFolderForm[data-dirty="1"], #recordingForm[data-dirty="1"], #studentEditForm[data-dirty="1"]')].map(form=>({
+          id:form.id, classId:form.dataset.classId, lessonId:form.dataset.lessonId, libraryItem:form.dataset.libraryItem, studentId:form.dataset.studentId, revision:form.dataset.revision,
           fields:[...form.querySelectorAll('input[name],textarea[name],select[name]')].map(input=>({
             name:input.name,type:input.type,value:input.value,checked:input.checked
           }))
@@ -1648,7 +1664,7 @@
         $('content').innerHTML = ({ overview, students, lessons, homework, library, subscriptions, results, report })[state.view]();
         for(const draft of drafts) {
           const form=document.getElementById(draft.id);
-          if(!form || form.dataset.classId!==draft.classId || form.dataset.lessonId!==draft.lessonId || form.dataset.libraryItem!==draft.libraryItem) continue;
+          if(!form || form.dataset.classId!==draft.classId || form.dataset.lessonId!==draft.lessonId || form.dataset.libraryItem!==draft.libraryItem || form.dataset.studentId!==draft.studentId) continue;
           for(const field of draft.fields) {
             const input=[...form.querySelectorAll('input[name],textarea[name],select[name]')].find(x=>x.name===field.name &&
               (field.type!=='checkbox' || x.value===field.value));
@@ -1675,10 +1691,25 @@
       function enterSession(session, workspace) {
         invalidate();
         state.token = session.accessToken; state.expiresAt = session.expiresAt; state.workspace = workspace;
+        state.studentCard=null;state.studentSearch='';state.editStudent='';state.editSnapshot=null;
         state.library=newLibraryState();state.libraryStorageKey='tas:library-folder:'+session.workspaceId+':'+session.teacherId;
         try { state.library.folderId=sessionStorage.getItem(state.libraryStorageKey) || ''; } catch {}
         $('workspaceName').textContent = workspace; $('loginScreen').hidden = true; $('app').hidden = false;
         return setView('overview');
+      }
+      function canLeaveStudentEdit() {
+        const form=document.getElementById('studentEditForm');
+        if(form?.querySelector('button[type="submit"]')?.disabled) {showNotice('Дождитесь сохранения профиля.',true);return false;}
+        if(form?.dataset.dirty==='1' && !confirm('Отменить несохранённые изменения профиля ученика?')) return false;
+        if(form) delete form.dataset.dirty;state.editStudent='';state.editSnapshot=null;
+        return true;
+      }
+      async function studentCardTarget(target) {
+        if(!canLeaveStudentEdit()) return;
+        state.studentCard=null;state.selectedClass=target?.classId || '';state.selectedLesson=target?.lessonId || null;
+        state.classTab=target?.isArchived?'archive':'classes';state.classDetailTab=classDetailTabs.some(([id])=>id===target?.tab)?target.tab:target?.classKind==='group'?'information':'summary';
+        state.editLesson=null;await setView('overview');
+        if(!target) showNotice('Исходный класс больше недоступен. Открыт список классов.',true);
       }
       function canLeaveProgramDrafts(exceptForm = null) {
         const selectors='[data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #classTopicForm[data-dirty="1"], #topicMaterialAttachForm[data-dirty="1"], #topicTaskAttachForm[data-dirty="1"], #topicLessonAttachForm[data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"]';
@@ -1789,10 +1820,11 @@
       document.querySelector('.nav').addEventListener('click', event => {
         const coming = event.target.closest('[data-coming]');
         if (coming) { showNotice('Раздел «' + coming.dataset.coming + '» будет подключён на своём этапе. Данные не изменены.'); return; }
-        const button = event.target.closest('[data-view]'); if (button) setView(button.dataset.view);
+        const button = event.target.closest('[data-view]'); if(button?.dataset.view==='students' && state.view==='students' && state.studentCard) {if(!canLeaveStudentEdit()) return;state.studentCard=null;render();return;} if (button) setView(button.dataset.view);
       });
       $('refresh').addEventListener('click', () => refresh(true));
       $('logout').addEventListener('click', async () => {
+        if(!canLeaveStudentEdit()) return;
         try { await api('teacher-sessions/logout', { method: 'POST' }); } catch (_) {}
         logout();
       });
@@ -1804,7 +1836,7 @@
           state.library.recordingQuery=event.target.value;
           const input=event.target,start=input.selectionStart;render();const next=document.querySelector('[data-recording-search]');next.focus();next.setSelectionRange(start,start);return;
         }
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, #libraryAttachForm, #libraryRenameForm, #libraryMoveForm, #libraryFolderForm, #recordingForm, [data-context-task], [data-context-assign]');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, #libraryAttachForm, #libraryRenameForm, #libraryMoveForm, #libraryFolderForm, #recordingForm, #studentEditForm, [data-context-task], [data-context-assign]');
         if (editor) editor.dataset.dirty = '1';
         const draft = event.target.closest('#lessonPlannerForm');
         if (draft && event.target.name === 'title') {
@@ -1812,7 +1844,7 @@
           if (label) label.textContent = event.target.value.length + ' / 50';
         }
         if (draft && state.lessonPlan?.fromCalendar) captureCalendarPlanDraft(draft);
-        if (event.target.id === 'studentSearch') studentRows(event.target.value.trim());
+        if (event.target.id === 'studentSearch') {state.studentSearch=event.target.value;studentRows(event.target.value.trim());}
         if (event.target.id === 'classSearch') {
           const position = event.target.selectionStart;
           state.classSearch = event.target.value;
@@ -1841,8 +1873,18 @@
           section.querySelector('[data-group-homework-empty]').hidden=rows.some(row=>!row.hidden);
         }
         if(event.target.closest('[data-context-assign]')) updateGroupAssignmentChoices(event.target.closest('form'),state.data);
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, #libraryAttachForm, #libraryRenameForm, #libraryMoveForm, #libraryFolderForm, #recordingForm, [data-context-task], [data-context-assign]');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, #libraryAttachForm, #libraryRenameForm, #libraryMoveForm, #libraryFolderForm, #recordingForm, #studentEditForm, [data-context-task], [data-context-assign]');
         if (editor) editor.dataset.dirty = '1';
+        if(state.studentCard && event.target.matches('[data-student-card-membership], [data-student-card-month], [data-student-card-filter]')) {
+          const card=state.studentCard;
+          if(!canLeaveStudentEdit()) {render();return;}
+          if(event.target.matches('[data-student-card-membership]')) {
+            if(!studentMemberships(state.data,card.membershipId).some(s=>s.membershipId===event.target.value)) {render();return;}
+            card.membershipId=event.target.value;card.classFilter='';card.infoOpen=false;
+          } else if(event.target.matches('[data-student-card-month]')) card.month=event.target.value;
+          else card.classFilter=event.target.value;
+          render();return;
+        }
         if (event.target.id==='calendarPlanClass') {
           captureCalendarPlanDraft(event.target.form);
           const plan=state.lessonPlan;
@@ -2433,10 +2475,29 @@
         }
         const openStudent = event.target.closest('[data-open-student]');
         if (openStudent) {
-          const selected = state.data.students?.find(x => x.membershipId === openStudent.dataset.openStudent);
-          await setView('students');
-          if (selected) { const input = $('studentSearch'); if (input) { input.value = selected.studentName; studentRows(selected.studentName); } }
-          return;
+          if(!canLeaveStudentEdit() || !canLeaveProgramDrafts()) return;
+          const generation=state.generation,id=openStudent.dataset.openStudent;
+          const owner=state.view==='overview'?teacherClasses().find(c=>c.id===(openStudent.dataset.studentOriginClass || state.selectedClass)):null;
+          const origin=owner?{classId:owner.id,classKind:owner.kind || 'individual',legacy:owner.persistent===false,lessonId:owner.id===state.selectedClass?(state.selectedLesson || null):null,tab:state.classDetailTab}:null;
+          try {const card=beginStudentCard(state.data,id,origin);await setView('students');if(generation!==state.generation || state.view!=='students') return;state.studentCard=card;await refresh();}
+          catch(error) {showNotice(error.message,true);}return;
+        }
+        if(event.target.closest('[data-student-card-retry]')) {await refresh(true);return;}
+        if(event.target.closest('[data-student-card-close]')) {if(!canLeaveStudentEdit()) return;state.studentCard=null;render();return;}
+        if(event.target.closest('[data-student-card-return]')) {const card=state.studentCard;await studentCardTarget(resolveStudentOrigin(state.data,card?.origin,card?.membershipId));return;}
+        const studentTab=event.target.closest('[data-student-card-tab]');
+        if(studentTab) {if(!state.studentCard || !['attendance','classes','profile'].includes(studentTab.dataset.studentCardTab) || !canLeaveStudentEdit()) return;state.studentCard.tab=studentTab.dataset.studentCardTab;render();return;}
+        if(event.target.closest('[data-student-card-info]')) {if(!state.studentCard) return;state.studentCard.infoOpen=true;render();document.querySelector('[data-student-info-close]')?.focus();return;}
+        if(event.target.closest('[data-student-info-close]')) {if(!state.studentCard) return;state.studentCard.infoOpen=false;render();document.querySelector('[data-student-card-info]')?.focus();return;}
+        const relatedClass=event.target.closest('[data-student-related-class]');
+        if(relatedClass) {
+          const card=state.studentCard,relation=card && studentClassRelations(state.data,card.membershipId).find(c=>c.id===relatedClass.dataset.studentRelatedClass && c.classKind===relatedClass.dataset.classKind && c.membershipId===relatedClass.dataset.membershipId);
+          if(!relation) {showNotice('Связь с классом больше недоступна.',true);return;}await studentCardTarget({classId:relation.id,classKind:relation.classKind,isArchived:relation.isArchived,tab:relation.classKind==='group'?'information':'summary'});return;
+        }
+        const relatedLesson=event.target.closest('[data-student-related-lesson]');
+        if(relatedLesson) {
+          const card=state.studentCard,row=card && studentLessonRows(state.data,card.membershipId).find(r=>r.lesson.id===relatedLesson.dataset.studentRelatedLesson && r.participant.membershipId===relatedLesson.dataset.membershipId);
+          const target=row && studentLessonTarget(state.data,row);if(!target) {showNotice('Занятие больше недоступно.',true);return;}await studentCardTarget({...target,tab:'schedule'});return;
         }
         if (event.target.closest('[data-cancel-lesson]')) {
           state.editLesson = null; render(); return;
@@ -2451,10 +2512,12 @@
           return;
         }
         if (event.target.closest('[data-cancel-edit]')) {
+          if(document.querySelector('#studentEditForm button[type="submit"]')?.disabled) return;
           state.editStudent = ''; state.editSnapshot = null; render(); return;
         }
         const editStudent = event.target.closest('[data-edit-student]');
         if (editStudent) {
+          if(!canLeaveStudentEdit()) return;
           const selected = state.data.students?.find(x => x.membershipId === editStudent.dataset.editStudent);
           if (!selected) return;
           state.editStudent = selected.membershipId;
@@ -2512,6 +2575,11 @@
         if (!field.matches('#classForm [name="title"], #classForm [name="description"], #classEditForm [name="title"], #classEditForm [name="description"]')) return;
         const counter = field.closest('.class-field')?.querySelector('[data-char-count]');
         if (counter) counter.textContent = field.value.length + ' / ' + field.maxLength;
+      });
+      $('content').addEventListener('keydown',event=>{
+        const dialog=document.querySelector('[data-student-info-dialog]');if(!dialog) return;
+        if(event.key==='Escape') {event.preventDefault();state.studentCard.infoOpen=false;render();document.querySelector('[data-student-card-info]')?.focus();}
+        if(event.key==='Tab') {const controls=[...dialog.querySelectorAll('button')];const index=controls.indexOf(document.activeElement);if((!event.shiftKey && index===controls.length-1)||(event.shiftKey && index===0)) {event.preventDefault();controls[event.shiftKey?controls.length-1:0]?.focus();}}
       });
       $('content').addEventListener('submit', async event => {
         event.preventDefault(); const form = event.target;
@@ -2710,12 +2778,10 @@
           const snapshot = state.editSnapshot;
           const id = form.dataset.studentId;
           if (!snapshot || id !== state.editStudent) throw new Error('Повторно выберите ученика.');
-          const profile = Object.fromEntries(studentProfileFields.map(key => [key, formValue(form, key) || null]));
-          await mutation('studentEdit:' + id, 'students/' + encodeURIComponent(id) + '/edit', () => ({
-            studentName: formValue(form, 'studentName'), profile,
-            expectedStudentName: snapshot.studentName, expectedProfile: studentProfile(snapshot)
-          }));
-          state.editStudent = ''; state.editSnapshot = null;
+          if(state.studentCard && state.studentCard.membershipId!==id) throw new Error('Карточка ученика изменилась.');
+          const generation=state.generation,values=Object.fromEntries(['studentName',...studentProfileFields].map(key=>[key,formValue(form,key)])),action=studentEditAction(snapshot,values);
+          await mutation('studentEdit:' + id,action.path,()=>action.body);
+          if(generation===state.generation && state.editStudent===id) {state.editStudent = ''; state.editSnapshot = null;}
         });
         if (form.id === 'lessonMaterialAttachForm') onForm(form, async () => {
           const lessonId=form.dataset.lessonId;
