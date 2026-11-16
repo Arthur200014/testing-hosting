@@ -26,6 +26,60 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     private const string ClaimCode = "synthetic-claim-code-for-integration-tests-only-2026";
 
     [Fact]
+    public async Task PupilFeedbackPersistsCompleteSnapshotRejectsStaleWritesAndIsolatesPupils()
+    {
+        await ResetAsync(factory);
+        var north=await SeedAsync(factory,"feedback-north","feedback-north@example.invalid","owner");
+        await SeedAsync(factory,"feedback-south","feedback-south@example.invalid","owner");
+        var first=await SeedStudentAsync(factory,north.WorkspaceId,"Feedback first",true);
+        var second=await SeedStudentAsync(factory,north.WorkspaceId,"Feedback second",true);
+        var blank=await SeedStudentAsync(factory,north.WorkspaceId,"Feedback blank",true);
+        await SeedHistoryAsync(factory,north.WorkspaceId,[first,second]);
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var member=await db.WorkspaceStudentMemberships.SingleAsync(x=>x.Id==first);
+            var task=new NativeHomeworkTask {Id=Guid.NewGuid(),WorkspaceId=north.WorkspaceId,ProgramId=member.ProgramId,
+                RequestId=Guid.NewGuid(),Title="Complete report source",Prompt="Solve",CreatedAt=DateTimeOffset.UtcNow};
+            db.NativeHomeworkTasks.Add(task);
+            db.NativeHomeworkAssignments.AddRange(Enumerable.Range(1,301).Select(i=>new NativeHomeworkAssignment {
+                Id=Guid.NewGuid(),WorkspaceId=north.WorkspaceId,MembershipId=first,StudentId=member.StudentId,ProgramId=member.ProgramId,
+                TaskId=task.Id,RequestId=Guid.NewGuid(),AssignedAt=DateTimeOffset.UtcNow,DeadlineAt=DateTimeOffset.UtcNow.AddDays(1)}));
+            await db.SaveChangesAsync();
+        }
+        using var client=factory.CreateClient();
+        var path="/api/v1/teacher/students/"+first+"/feedback";
+        Assert.Equal(HttpStatusCode.Unauthorized,(await client.GetAsync(path)).StatusCode);
+        var session=(await (await LoginAsync(client,"feedback-north","feedback-north@example.invalid",Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",session.AccessToken);
+        var editor=(await client.GetFromJsonAsync<FeedbackEditorView>(path))!;
+        Assert.Null(editor.Draft);Assert.Equal(301,editor.Current.Data.NativeAssignments.Count);
+        Assert.All(editor.Current.Data.Lessons,x=>Assert.Equal(first,Assert.Single(x.Participants).MembershipId));
+        var request=new SaveFeedbackRequest(Guid.NewGuid(),0,editor.Current.GeneratedAt,"Report","Actual report text <safe>");
+        Assert.Equal(HttpStatusCode.Created,(await client.PostAsJsonAsync(path,request)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,(await client.PostAsJsonAsync(path,request)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,(await client.PostAsJsonAsync(path,request with {Body="Different"})).StatusCode);
+        var saved=(await client.GetFromJsonAsync<FeedbackEditorView>(path))!.Draft!;
+        Assert.Equal(1,saved.Revision);Assert.Equal(301,saved.Snapshot.Data.NativeAssignments.Count);Assert.Equal(request.Body,saved.Body);
+        Assert.Null((await client.GetFromJsonAsync<FeedbackEditorView>("/api/v1/teacher/students/"+second+"/feedback"))!.Draft);
+        var firstWrite=client.PostAsJsonAsync(path,request with {RequestId=Guid.NewGuid(),ExpectedRevision=1,Body="Concurrent A"});
+        var secondWrite=client.PostAsJsonAsync(path,request with {RequestId=Guid.NewGuid(),ExpectedRevision=1,Body="Concurrent B"});
+        var replies=await Task.WhenAll(firstWrite,secondWrite);
+        Assert.Single(replies,x=>x.StatusCode==HttpStatusCode.Created);Assert.Single(replies,x=>x.StatusCode==HttpStatusCode.Conflict);
+        var latest=(await client.GetFromJsonAsync<FeedbackEditorView>(path))!.Draft!;
+        Assert.Equal(2,latest.Revision);Assert.Equal(editor.Current.GeneratedAt,latest.Snapshot.GeneratedAt);
+        Assert.Equal(HttpStatusCode.Conflict,(await client.PostAsJsonAsync(path,request with {RequestId=Guid.NewGuid()})).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,(await client.PostAsJsonAsync(path,request with {RequestId=Guid.NewGuid(),Body=""})).StatusCode);
+        var emptyPath="/api/v1/teacher/students/"+blank+"/feedback";
+        var empty=(await client.GetFromJsonAsync<FeedbackEditorView>(emptyPath))!;
+        Assert.Empty(empty.Current.Data.Lessons);
+        Assert.Equal(HttpStatusCode.Conflict,(await client.PostAsJsonAsync(emptyPath,new SaveFeedbackRequest(Guid.NewGuid(),0,empty.Current.GeneratedAt,"Empty","No lessons"))).StatusCode);
+        var other=(await (await LoginAsync(client,"feedback-south","feedback-south@example.invalid",Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",other.AccessToken);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.GetAsync(path)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync(path,request)).StatusCode);
+    }
+
+    [Fact]
     public async Task PupilHistoryKeepsSourceAttemptProgramMonthAndWorkspaceBoundaries()
     {
         await ResetAsync(factory);

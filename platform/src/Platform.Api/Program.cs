@@ -45,6 +45,7 @@ builder.Services.AddScoped<TeacherStudentArchiver>();
 builder.Services.AddScoped<TeacherStudentEditor>();
 builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddScoped<PupilHistoryReader>();
+builder.Services.AddScoped<PupilFeedbackService>();
 builder.Services.AddScoped<TeacherClassService>();
 builder.Services.AddScoped<TeacherMaterialService>();
 builder.Services.AddScoped<TeacherFileService>();
@@ -977,6 +978,14 @@ app.MapPost("/api/v1/teacher/homework/native/tasks", async (CreateNativeTaskRequ
 app.MapGet("/api/v1/teacher/homework/native/assignments", async (ClaimsPrincipal principal,
     NativeHomeworkService homework, CancellationToken ct) =>
     Results.Ok(await homework.TeacherAssignmentsAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), ct)))
+    .RequireAuthorization("teacher");
+app.MapGet("/api/v1/teacher/students/{membershipId:guid}/feedback", async (Guid membershipId, ClaimsPrincipal principal,
+    PupilFeedbackService feedback, CancellationToken ct) =>
+    await feedback.ReadAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), membershipId, ct) is { } value
+        ? Results.Ok(value) : Results.NotFound()).RequireAuthorization("teacher");
+app.MapPost("/api/v1/teacher/students/{membershipId:guid}/feedback", async (Guid membershipId, SaveFeedbackRequest request,
+    ClaimsPrincipal principal, PupilFeedbackService feedback, CancellationToken ct) =>
+    NativeWrite(await feedback.SaveAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!), membershipId, request, ct)))
     .RequireAuthorization("teacher");
 app.MapGet("/api/v1/teacher/students/{membershipId:guid}/history", async (Guid membershipId, string? source, int? page, bool? results,
     string? month, string? mockId, DateOnly? mockDate, ClaimsPrincipal principal, PupilHistoryReader history, CancellationToken ct) =>

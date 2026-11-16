@@ -1193,6 +1193,41 @@ try {
   await page.reload();await login(north);await openRecordingLesson(group.id,grouped.id);await page.locator('.class-lesson-detail [data-open-student="'+pupilCardId+'"]').click();await page.locator('[data-student-card-tab="results"]').click();await page.locator('[data-pupil-work-source]').selectOption('imported');await page.locator('[data-student-history] [data-student-work-open]').click();await page.locator('[data-student-history-detail]').getByText('0%',{exact:true}).first().waitFor();
   for(const source of ['imported','tests','liveTests','mocks','mockTasks','mockSessions']) await call('teacher/students/'+pupilCardId+'/history?source='+source,south.token,undefined,404);
   assert.equal((await call('teacher/students/'+pupilTwo.membershipId+'/history?source=imported',north.token)).total,0,'pair participant does not inherit historical results');
+  // Pupil feedback: generate/cancel/preview/refresh/conflict/save/relogin on real PostgreSQL.
+  const feedbackPath='teacher/students/'+pupilCardId+'/feedback';
+  await page.locator('[data-student-card-tab="feedback"]').click();await page.locator('[data-pupil-feedback]').waitFor();
+  await page.locator('[data-feedback-generate]').click();await page.locator('#pupilFeedbackForm').waitFor();
+  await page.locator('#pupilFeedbackForm [name="body"]').fill('Не сохранять этот черновик');
+  page.once('dialog',d=>d.accept());await page.locator('[data-feedback-cancel]').click();
+  assert.equal((await call(feedbackPath,north.token)).draft,null,'cancel writes no feedback');
+  await page.locator('[data-feedback-generate]').click();await page.locator('#pupilFeedbackForm').waitFor();
+  const feedbackForm=page.locator('#pupilFeedbackForm'),generatedBody=await feedbackForm.locator('[name="body"]').inputValue();
+  assert.ok(generatedBody.includes('Период:'));await feedbackForm.locator('[name="title"]').fill('Обратная связь: тестовый ученик');
+  await feedbackForm.locator('[name="body"]').fill(generatedBody+'\nПроверка сохранения черновика');
+  await page.locator('#refresh').click();await page.locator('#notice').waitFor({state:'hidden'});assert.equal(await feedbackForm.locator('[name="body"]').inputValue(),generatedBody+'\nПроверка сохранения черновика','feedback refresh retains text and original revision');
+  page.once('dialog',d=>d.dismiss());await page.locator('[data-student-card-tab="classes"]').click();await feedbackForm.waitFor();
+  await feedbackForm.locator('button[data-feedback-preview]').click();await page.locator('section[data-feedback-preview]').waitFor();
+  const feedbackSaved=page.waitForResponse(r=>r.url().endsWith('/'+feedbackPath) && r.request().method()==='POST');
+  await feedbackForm.locator('button[type="submit"]').click();assert.equal((await feedbackSaved).status(),201);const savedFeedback=await (await feedbackSaved).json();
+  await page.locator('[data-feedback-saved]').waitFor();assert.equal(savedFeedback.revision,1);
+  assert.ok(savedFeedback.snapshot.data.nativeAssignments.some(x=>x.id===workId),'report includes the current pupil graded work');
+  assert.equal(savedFeedback.snapshot.data.nativeAssignments.some(x=>x.id===secondWorkId),false,'report excludes pair participant work');
+  assert.ok(savedFeedback.snapshot.data.lessons.length<=8);assert.ok(savedFeedback.snapshot.data.lessons.every(x=>x.participants.length===1 && x.participants[0].membershipId===pupilCardId));
+  await page.locator('[data-feedback-edit]').click();await feedbackForm.locator('[name="body"]').fill(savedFeedback.body+'\nЛокальная правка');
+  const externalFeedback=await call(feedbackPath,north.token,{requestId:randomUUID(),expectedRevision:1,generatedAt:savedFeedback.snapshot.generatedAt,title:savedFeedback.title,body:savedFeedback.body+'\nДругое окно'},201);
+  const staleFeedback=page.waitForResponse(r=>r.url().endsWith('/'+feedbackPath) && r.request().method()==='POST');
+  await feedbackForm.locator('button[type="submit"]').click();assert.equal((await staleFeedback).status(),409);await feedbackForm.waitFor();
+  assert.equal(await feedbackForm.locator('[name="body"]').inputValue(),savedFeedback.body+'\nЛокальная правка','conflict retains local text');
+  assert.equal((await call(feedbackPath,north.token)).draft.body,externalFeedback.body,'stale write does not overwrite another window');
+  page.once('dialog',d=>d.accept());await page.locator('[data-feedback-cancel]').click();await page.locator('#refresh').click();await page.locator('#notice').waitFor({state:'hidden'});
+  await page.locator('[data-feedback-edit]').click();await feedbackForm.locator('[name="body"]').fill(externalFeedback.body+'\nИтоговый сохранённый комментарий');
+  const finalFeedback=page.waitForResponse(r=>r.url().endsWith('/'+feedbackPath) && r.request().method()==='POST');await feedbackForm.locator('button[type="submit"]').click();assert.equal((await finalFeedback).status(),201);await page.locator('[data-feedback-saved]').waitFor();
+  assert.equal((await call(feedbackPath,north.token)).draft.revision,3);
+  assert.equal((await call('teacher/students/'+pupilTwo.membershipId+'/feedback',north.token)).draft,null);
+  await call(feedbackPath,south.token,undefined,404);await call(feedbackPath,south.token,{requestId:randomUUID(),expectedRevision:0,generatedAt:savedFeedback.snapshot.generatedAt,title:'Other',body:'Other'},404);
+  await page.reload();await login(north);await openRecordingLesson(group.id,grouped.id);await page.locator('.class-lesson-detail [data-open-student="'+pupilCardId+'"]').click();await page.locator('[data-student-card-tab="feedback"]').click();await page.locator('[data-feedback-saved]').getByText(/Итоговый сохранённый комментарий/).waitFor();
+  await page.screenshot({path:output+'/47_pupil_feedback_saved_real.png'});await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'feedback draft fits mobile');await page.screenshot({path:output+'/47_pupil_feedback_mobile_real.png'});await page.setViewportSize({width:1348,height:926});
+
   await page.locator('[data-student-card-return]').click();await page.locator('[data-lesson-recordings="'+grouped.id+'"]').waitFor();
 
   await page.locator('.nav [data-view="library"]').click();await page.locator('[data-library]').waitFor();
