@@ -1,3 +1,4 @@
+import { materialAction } from './material-file.mjs';
 export function lessonBelongsToClass(lesson, item) {
   return item.kind === 'group'
     ? lesson.groupClassId === item.id && !lesson.individualClassId
@@ -42,7 +43,7 @@ export function renderLessonTopics(lesson, item, data, safe, list) {
       <div class="section-head"><h3>${safe(topic.title)}</h3><span class="pill">${topic.completedAt?'Пройдена':'В работе'}</span></div>
       ${topic.plan?`<p>${safe(topic.plan)}</p>`:''}
       <strong>Материалы темы</strong>
-      ${list(data.topicMaterialLinks.filter(l=>l.topicId===topic.id),'Материалов темы пока нет.',l=>`<div class="item"><strong>${safe(l.title)}</strong><a href="${safe(l.url)}" target="_blank" rel="noopener noreferrer">Открыть</a></div>`)}
+      ${list(data.topicMaterialLinks.filter(l=>l.topicId===topic.id),'Материалов темы пока нет.',l=>`<div class="item"><strong>${safe(l.title)}</strong>${materialAction(l,safe)}</div>`)}
       <strong>Задания темы</strong>
       ${list(data.topicTaskLinks.filter(l=>l.topicId===topic.id),'Заданий темы пока нет.',l=>`<div class="item"><div><strong>${safe(l.title)}</strong><p style="white-space:pre-wrap">${safe(l.prompt)}</p><small class="muted">Шаблон задания · назначается ученикам отдельно</small></div></div>`)}
     </article>`)}

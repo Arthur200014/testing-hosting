@@ -50,7 +50,7 @@ public sealed record TeacherClassTopicView(
     Guid Id, Guid? IndividualClassId, Guid? GroupClassId, string Title,
     string Plan, int SortOrder, DateTimeOffset CreatedAt, DateTimeOffset? CompletedAt, int CompletionRevision);
 public sealed record TeacherTopicMaterialView(
-    Guid Id, Guid TopicId, Guid MaterialId, string Title, string Url, DateTimeOffset CreatedAt);
+    Guid Id, Guid TopicId, Guid MaterialId, string Title, string Url, DateTimeOffset CreatedAt, Guid? FileId = null, string? FileName = null, long? SizeBytes = null, string? ContentType = null);
 public sealed record TeacherClassTopicCreateRequest(
     Guid RequestId, Guid ClassId, string ClassKind, string? Title, string? Plan = null);
 public sealed record TeacherTopicMaterialRequest(Guid RequestId, Guid TopicId, Guid MaterialId);
@@ -150,7 +150,7 @@ public sealed class TeacherClassTopicService(PlatformDbContext db, TimeProvider 
         where link.WorkspaceId == workspaceId
         orderby link.CreatedAt descending
         select new TeacherTopicMaterialView(link.Id, link.TopicId, link.MaterialId,
-            material.Title, material.Url, link.CreatedAt);
+            material.Title, material.Url, link.CreatedAt, material.FileAssetId, material.FileAsset == null ? null : material.FileAsset.FileName, material.FileAsset == null ? null : (long?)material.FileAsset.SizeBytes, material.FileAsset == null ? null : material.FileAsset.ContentType);
 
     public Task<List<TeacherClassTopicView>> ListAsync(Guid workspaceId, CancellationToken ct) =>
         Topics(workspaceId).ToListAsync(ct);
@@ -165,7 +165,7 @@ public sealed class TeacherClassTopicService(PlatformDbContext db, TimeProvider 
              equals new { material.WorkspaceId, MaterialId = material.Id }
          where link.WorkspaceId == workspaceId && link.Id == linkId
          select new TeacherTopicMaterialView(link.Id, link.TopicId, link.MaterialId,
-             material.Title, material.Url, link.CreatedAt)).SingleAsync(ct);
+             material.Title, material.Url, link.CreatedAt, material.FileAssetId, material.FileAsset == null ? null : material.FileAsset.FileName, material.FileAsset == null ? null : (long?)material.FileAsset.SizeBytes, material.FileAsset == null ? null : material.FileAsset.ContentType)).SingleAsync(ct);
 
     private Task<bool> ClassActiveAsync(Guid workspaceId, Guid? individual, Guid? group, CancellationToken ct) =>
         individual is { } individualId

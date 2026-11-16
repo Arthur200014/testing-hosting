@@ -1,3 +1,4 @@
+import { materialAction } from './material-file.mjs';
 import { lessonBelongsToClass, lessonCaption } from './lesson-topics-ui.mjs';
 export function topicsForClass(item, data) {
   return (data.classTopics || []).filter(x => item.kind === 'group'
@@ -35,7 +36,7 @@ export function renderClassProgram(item, data, safe, list, filter = 'all') {
       <div class="stack" data-topic-tasks="${safe(x.id)}"><strong>Задания темы · ${tasks.length}</strong>
         ${list(tasks,'Задание не прикреплено.',t=>`<div class="item"><div><strong>${safe(t.title)}</strong><p style="white-space:pre-wrap">${safe(t.prompt)}</p><small class="muted">Шаблон задания</small></div></div>`)}</div>
       ${list(links,'Материалы не прикреплены.',l=>
-        `<div class="item"><strong>${safe(l.title)}</strong><a href="${safe(l.url)}" target="_blank" rel="noopener noreferrer">Открыть</a></div>`)}
+        `<div class="item"><strong>${safe(l.title)}</strong>${materialAction(l,safe)}</div>`)}
     </article>`;
   });
   return `<section class="class-subsection stack" data-class-program="${safe(item.id)}">

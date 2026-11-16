@@ -503,6 +503,7 @@ try {
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
     if (routePath === 'student-sessions' && request.method() === 'POST')
       return respond({ accessToken: 'synthetic-student-token', student: { displayName: 'Алексей Смирнов' } });
+    if (routePath === 'files' && request.method() === 'GET') return respond([]);
     if (routePath === 'homework/native/assignments' && request.method() === 'GET')
       return respond([]);
     if (routePath === 'student/groups/invitations/accept' && request.method() === 'POST') {

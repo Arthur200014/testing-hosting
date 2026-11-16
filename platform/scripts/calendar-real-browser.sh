@@ -44,7 +44,7 @@ SELECT gen_random_uuid(),"Id",'TEST-MATH','Учебная математика',
 FROM platform."Workspaces" WHERE "Slug" IN ('tas-calendar-north','tas-calendar-south');
 SQL
 mkdir -p "$task_dir/site/platform"
-for file in teacher.html teacher-report.mjs teacher-data.mjs teacher-library.mjs teacher-mutation.mjs teacher-calendar.mjs homework-deadline.mjs class-native-homework.mjs class-materials-ui.mjs lesson-materials-ui.mjs lesson-topics-ui.mjs class-program-ui.mjs meleto-fidelity.css; do
+for file in student.html material-file.mjs teacher.html teacher-report.mjs teacher-data.mjs teacher-library.mjs teacher-mutation.mjs teacher-calendar.mjs homework-deadline.mjs class-native-homework.mjs class-materials-ui.mjs lesson-materials-ui.mjs lesson-topics-ui.mjs class-program-ui.mjs meleto-fidelity.css; do
   cp "platform/$file" "$task_dir/site/platform/$file"
 done
 # Rewrite ONLY the disposable copy. Published source and production settings stay untouched.
@@ -56,6 +56,12 @@ old="const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';"
 assert s.count(old)==1
 open(p,'w').write(s.replace(old,"const API = 'http://127.0.0.1:18081';"))
 PY
+python3 - "$task_dir/site/platform/student.html" <<'PYLOCAL'
+import sys
+p=sys.argv[1];s=open(p).read();old="https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/"
+assert s.count(old)==1
+open(p,'w').write(s.replace(old,'http://127.0.0.1:18081/api/v1/'))
+PYLOCAL
 python3 -m http.server 8767 --bind 127.0.0.1 --directory "$task_dir/site" > "$task_dir/site.log" 2>&1 &
 site_pid=$!
 for attempt in {1..15}; do

@@ -21,6 +21,7 @@
     .prompt, .answer { white-space: pre-wrap; overflow-wrap: anywhere; }
     .error { color: #ffb5af; }
     [hidden] { display: none !important; }
+    #studentFiles { overflow-wrap:anywhere; }
   </style>
 </head>
 <body>
@@ -37,9 +38,10 @@
           <input name="code" maxlength="64" minlength="64" pattern="[A-Fa-f0-9]{64}" autocomplete="off" required></label>
           <button type="submit">Вступить в группу</button></form>
       </section>
-      <div id="assignments"></div></section>
+      <section class="card"><h2>Файлы от преподавателя</h2><div id="studentFiles"></div></section><div id="assignments"></div></section>
   </main>
   <script type="module">
+    import { materialAction, saveProtectedFile, fileSize } from './material-file.mjs';
     import { nativeHomeworkDeadlineStatus } from './homework-deadline.mjs';
     const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/';
     const $ = id => document.getElementById(id);
@@ -57,12 +59,26 @@
         response.status === 409 ? 'Ответ уже сдан. Обновите страницу.' : data?.title || 'Не удалось выполнить запрос.'); error.status = response.status; throw error; }
       return data;
     }
+    async function loadFiles() {
+      const expected=token;
+      try {
+        const files=await api('files');if(token!==expected) return;
+        $('studentFiles').innerHTML=files.length?files.map(x=>`<div class="card"><strong>${safe(x.title)}</strong><p>${safe(x.fileName)} · ${safe(fileSize(x.sizeBytes))}</p>${materialAction(x,safe)}</div>`).join(''):'<p class="muted">Доступных файлов пока нет.</p>';
+      } catch {if(token===expected) $('studentFiles').textContent='Не удалось загрузить список файлов.';}
+    }
+    $('dashboard').addEventListener('click',async event=>{
+      const button=event.target.closest('[data-file-download]');if(!button) return;
+      button.disabled=true;
+      try {await saveProtectedFile(API.replace(/\/api\/v1\/$/,''),token,button.dataset.fileDownload,button.dataset.fileName,true);}
+      catch(error) {message(error.message,true);} finally {if(button.isConnected) button.disabled=false;}
+    });
     async function refresh() {
       const items = await api('homework/native/assignments');
       $('assignments').innerHTML = items.length ? items.map(x => `<article class="card"><h2>${safe(x.title)}</h2>
         <p class="muted">Срок: ${safe(date(x.deadlineAt))} · <strong>${safe(nativeHomeworkDeadlineStatus(x).label)}</strong></p><p class="prompt">${safe(x.prompt)}</p>
         ${x.submittedAt ? `<p class="muted">Сдано ${safe(date(x.submittedAt))} · ${x.scorePercent == null ? 'без оценки' : safe(x.scorePercent) + '%'}</p><p class="answer">${safe(x.answer)}</p>${x.teacherFeedback ? `<p class="answer">Комментарий преподавателя: ${safe(x.teacherFeedback)}</p>` : ''}${x.gradedAt ? `<p class="muted">Проверено: ${safe(date(x.gradedAt))}</p>` : ''}` :
           `<form data-assignment="${safe(x.id)}"><label>Ваш ответ<textarea name="answer" maxlength="10000" required></textarea></label><button type="submit">Отправить ответ</button></form>`}</article>`).join('') : '<p class="card">Пока нет назначенных заданий.</p>';
+      await loadFiles();
       message('Задания загружены.');
     }
     $('loginForm').addEventListener('submit', async event => {
@@ -104,7 +120,7 @@
       try { await api('homework/native/submissions', { assignmentId: id, submissionId, answer }); pending.delete(id); await refresh(); }
       catch (error) { if (error.status && error.status < 500) pending.delete(id); message(error.message, true); button.disabled = false; }
     });
-    $('logout').addEventListener('click', () => { token = ''; pending.clear(); $('dashboard').hidden = true; $('login').hidden = false; $('assignments').replaceChildren(); message('Вы вышли.'); });
+    $('logout').addEventListener('click', () => { token = ''; pending.clear(); $('dashboard').hidden = true; $('login').hidden = false; $('assignments').replaceChildren();$('studentFiles').replaceChildren(); message('Вы вышли.'); });
   </script>
 </body>
 </html>

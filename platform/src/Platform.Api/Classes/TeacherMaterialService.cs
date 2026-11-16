@@ -11,6 +11,8 @@ public sealed class TeacherMaterial
     public Guid WorkspaceId { get; set; }
     public required string Title { get; set; }
     public required string Url { get; set; }
+    public Guid? FileAssetId { get; set; }
+    public TeacherFileAsset? FileAsset { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
 
@@ -25,10 +27,10 @@ public sealed class TeacherClassMaterialLink
     public DateTimeOffset CreatedAt { get; set; }
 }
 
-public sealed record TeacherMaterialView(Guid Id, string Title, string Url, DateTimeOffset CreatedAt);
+public sealed record TeacherMaterialView(Guid Id, string Title, string Url, DateTimeOffset CreatedAt, Guid? FileId = null, string? FileName = null, long? SizeBytes = null, string? ContentType = null);
 public sealed record TeacherClassMaterialView(
     Guid Id, Guid MaterialId, Guid? IndividualClassId, Guid? GroupClassId,
-    string Title, string Url, DateTimeOffset CreatedAt);
+    string Title, string Url, DateTimeOffset CreatedAt, Guid? FileId = null, string? FileName = null, long? SizeBytes = null, string? ContentType = null);
 public sealed record TeacherClassMaterialWriteRequest(
     Guid RequestId, Guid ClassId, string ClassKind, Guid? MaterialId = null,
     string? Title = null, string? Url = null);
@@ -42,7 +44,7 @@ public sealed class TeacherMaterialService(PlatformDbContext db, TimeProvider cl
     public Task<List<TeacherMaterialView>> LibraryAsync(Guid workspaceId, CancellationToken ct) =>
         db.TeacherMaterials.AsNoTracking().Where(x => x.WorkspaceId == workspaceId)
             .OrderByDescending(x => x.CreatedAt)
-            .Select(x => new TeacherMaterialView(x.Id, x.Title, x.Url, x.CreatedAt))
+            .Select(x => new TeacherMaterialView(x.Id, x.Title, x.Url, x.CreatedAt, x.FileAssetId, x.FileAsset == null ? null : x.FileAsset.FileName, x.FileAsset == null ? null : (long?)x.FileAsset.SizeBytes, x.FileAsset == null ? null : x.FileAsset.ContentType))
             .ToListAsync(ct);
 
     private IQueryable<TeacherClassMaterialView> Linked(Guid workspaceId) =>
@@ -53,7 +55,7 @@ public sealed class TeacherMaterialService(PlatformDbContext db, TimeProvider cl
         where link.WorkspaceId == workspaceId
         orderby link.CreatedAt descending
         select new TeacherClassMaterialView(link.Id, link.MaterialId,
-            link.IndividualClassId, link.GroupClassId, material.Title, material.Url, link.CreatedAt);
+            link.IndividualClassId, link.GroupClassId, material.Title, material.Url, link.CreatedAt, material.FileAssetId, material.FileAsset == null ? null : material.FileAsset.FileName, material.FileAsset == null ? null : (long?)material.FileAsset.SizeBytes, material.FileAsset == null ? null : material.FileAsset.ContentType);
 
     public Task<List<TeacherClassMaterialView>> LinksAsync(Guid workspaceId, CancellationToken ct) =>
         Linked(workspaceId).ToListAsync(ct);
@@ -65,7 +67,7 @@ public sealed class TeacherMaterialService(PlatformDbContext db, TimeProvider cl
              equals new { material.WorkspaceId, MaterialId = material.Id }
          where link.WorkspaceId == workspaceId && link.RequestId == requestId
          select new TeacherClassMaterialView(link.Id, link.MaterialId,
-             link.IndividualClassId, link.GroupClassId, material.Title, material.Url, link.CreatedAt))
+             link.IndividualClassId, link.GroupClassId, material.Title, material.Url, link.CreatedAt, material.FileAssetId, material.FileAsset == null ? null : material.FileAsset.FileName, material.FileAsset == null ? null : (long?)material.FileAsset.SizeBytes, material.FileAsset == null ? null : material.FileAsset.ContentType))
         .SingleOrDefaultAsync(ct);
 
     private static bool SameRequest(TeacherClassMaterialView existing, TeacherClassMaterialWriteRequest request,
@@ -115,7 +117,7 @@ public sealed class TeacherMaterialService(PlatformDbContext db, TimeProvider cl
         TeacherMaterial material;
         if (request.MaterialId is { } id)
         {
-            material = await db.TeacherMaterials.AsNoTracking()
+            material = await db.TeacherMaterials.AsNoTracking().Include(x=>x.FileAsset)
                 .SingleOrDefaultAsync(x => x.WorkspaceId == workspaceId && x.Id == id, ct)
                 ?? null!;
             if (material is null) return new(TeacherClassMaterialStatus.NotFound);
@@ -152,6 +154,6 @@ public sealed class TeacherMaterialService(PlatformDbContext db, TimeProvider cl
         }
         return new(TeacherClassMaterialStatus.Created,
             new TeacherClassMaterialView(created.Id, material.Id,
-                created.IndividualClassId, created.GroupClassId, material.Title, material.Url, created.CreatedAt));
+                created.IndividualClassId, created.GroupClassId, material.Title, material.Url, created.CreatedAt, material.FileAssetId, material.FileAsset?.FileName, material.FileAsset?.SizeBytes, material.FileAsset?.ContentType));
     }
 }
