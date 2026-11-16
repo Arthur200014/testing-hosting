@@ -50,3 +50,26 @@ test('preview escapes source text and never creates an unsafe link or iframe',()
  const html=renderLibrary(d,state,safe);assert.match(html,/&lt;img/);assert.doesNotMatch(html,/<img|<iframe|href="javascript:/);
  const a=newLibraryState(),b=newLibraryState();a.query='x';assert.equal(b.query,'');
 });
+
+test('material management maps exact bindings and preserves the draft revision for conflict checks',async()=>{
+ const {materialBindings,materialManagementAction,libraryUsedBytes,renderMaterialManagement}=await import('./teacher-library.mjs');
+ const d=data(),entry={...libraryEntries(d).find(x=>x.key==='material:same'),fileId:'file',sizeBytes:12,revision:3};
+ d.lessonMaterialLinks=[{id:'lesson-link',lessonId:'l',materialId:entry.id}];
+ d.topicMaterialLinks=[{id:'topic-link',topicId:'topic',materialId:entry.id}];
+ const links=materialBindings(entry,d);
+ assert.deepEqual(links.map(x=>x.key),['class:link','topic:topic-link','lesson:lesson-link']);
+ assert.throws(()=>materialManagementAction(entry,'delete',d,{revision:3}),/привязки/);
+ assert.deepEqual(materialManagementAction(entry,'unlink',d,{binding:'lesson:lesson-link'}),{path:'materials/same/unlink',body:{linkKind:'lesson',linkId:'lesson-link'},keys:['lessonMaterialLinks']});
+ assert.throws(()=>materialManagementAction(entry,'unlink',d,{binding:'class:foreign'}));
+ const action=materialManagementAction(entry,'rename',d,{revision:1,title:' New label '});
+ assert.deepEqual(action.body,{expectedRevision:1,title:'New label'});
+ assert.equal(entry.revision,3);assert.equal(entry.fileId,'file');
+ const safe=x=>String(x??'').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+ const html=renderMaterialManagement({...entry,title:'<unsafe>'},d,safe,true);
+ assert.match(html,/data-revision="3"/);assert.match(html,/&lt;unsafe&gt;/);assert.match(html,/type="submit" class="secondary" disabled/);
+ d.materials=[{fileId:'f',sizeBytes:12},{fileId:'deleted',sizeBytes:40,deletedAt:'2026-01-01'},{url:'https://example.org',sizeBytes:200}];
+ assert.equal(libraryUsedBytes(d),12);
+ assert.throws(()=>materialManagementAction({kind:'task',id:'x'},'rename',d,{revision:1,title:'New'}));
+ d.classMaterialLinks=[];d.topicMaterialLinks=[];d.lessonMaterialLinks=[];
+ assert.equal(materialManagementAction(entry,'delete',d,{revision:3}).path,'materials/same/delete');
+});

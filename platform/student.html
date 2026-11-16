@@ -38,7 +38,7 @@
           <input name="code" maxlength="64" minlength="64" pattern="[A-Fa-f0-9]{64}" autocomplete="off" required></label>
           <button type="submit">Вступить в группу</button></form>
       </section>
-      <section class="card"><h2>Файлы от преподавателя</h2><div id="studentFiles"></div></section><div id="assignments"></div></section>
+      <section class="card"><h2>Файлы от преподавателя</h2><button type="button" data-refresh-files>Обновить файлы</button><div id="studentFiles"></div></section><div id="assignments"></div></section>
   </main>
   <script type="module">
     import { materialAction, saveProtectedFile, fileSize } from './material-file.mjs';
@@ -67,6 +67,8 @@
       } catch {if(token===expected) $('studentFiles').textContent='Не удалось загрузить список файлов.';}
     }
     $('dashboard').addEventListener('click',async event=>{
+      const refreshButton=event.target.closest('[data-refresh-files]');
+      if(refreshButton) {refreshButton.disabled=true;try{await loadFiles();}finally{refreshButton.disabled=false;}return;}
       const button=event.target.closest('[data-file-download]');if(!button) return;
       button.disabled=true;
       try {await saveProtectedFile(API.replace(/\/api\/v1\/$/,''),token,button.dataset.fileDownload,button.dataset.fileName,true);}

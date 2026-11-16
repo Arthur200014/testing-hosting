@@ -48,6 +48,11 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         var bytes=System.Text.Encoding.UTF8.GetBytes("Stored bytes");var uploadId=Guid.NewGuid();
         async Task<HttpResponseMessage> Upload(Guid request,byte[] content,string title="Original")=>await teacher.PostAsync("/api/v1/teacher/files/"+request+"?fileName=notes.txt&title="+Uri.EscapeDataString(title),new ByteArrayContent(content));
         var material=(await (await Upload(uploadId,bytes)).Content.ReadFromJsonAsync<TeacherMaterialView>())!;
+        // Pre-management uploads did not store UploadTitle; first rename preserves that original value.
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            (await db.TeacherFileAssets.SingleAsync(x=>x.Id==material.FileId)).UploadTitle=null;await db.SaveChangesAsync();
+        }
         var root="/api/v1/teacher/materials/"+material.Id;var download="/api/v1/teacher/files/"+material.FileId+"/content";
         var rename=new RenameMaterialRequest(Guid.NewGuid(),material.Revision,"Renamed display title");
         Assert.Equal(HttpStatusCode.OK,(await teacher.PostAsJsonAsync(root+"/rename",rename)).StatusCode);
