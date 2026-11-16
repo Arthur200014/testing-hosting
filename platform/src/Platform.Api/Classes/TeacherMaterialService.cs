@@ -13,6 +13,7 @@ public sealed class TeacherMaterial
     public required string Url { get; set; }
     public int Revision { get; set; } = 1;
     public DateTimeOffset? DeletedAt { get; set; }
+    public Guid? FolderId { get; set; }
     public Guid? FileAssetId { get; set; }
     public TeacherFileAsset? FileAsset { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
@@ -29,7 +30,7 @@ public sealed class TeacherClassMaterialLink
     public DateTimeOffset CreatedAt { get; set; }
 }
 
-public sealed record TeacherMaterialView(Guid Id, string Title, string Url, DateTimeOffset CreatedAt, Guid? FileId = null, string? FileName = null, long? SizeBytes = null, string? ContentType = null, int Revision = 1);
+public sealed record TeacherMaterialView(Guid Id, string Title, string Url, DateTimeOffset CreatedAt, Guid? FileId = null, string? FileName = null, long? SizeBytes = null, string? ContentType = null, int Revision = 1, Guid? FolderId = null);
 public sealed record TeacherClassMaterialView(
     Guid Id, Guid MaterialId, Guid? IndividualClassId, Guid? GroupClassId,
     string Title, string Url, DateTimeOffset CreatedAt, Guid? FileId = null, string? FileName = null, long? SizeBytes = null, string? ContentType = null);
@@ -46,7 +47,7 @@ public sealed class TeacherMaterialService(PlatformDbContext db, TimeProvider cl
     public Task<List<TeacherMaterialView>> LibraryAsync(Guid workspaceId, CancellationToken ct) =>
         db.TeacherMaterials.AsNoTracking().Where(x => x.WorkspaceId == workspaceId && x.DeletedAt == null)
             .OrderByDescending(x => x.CreatedAt)
-            .Select(x => new TeacherMaterialView(x.Id, x.Title, x.Url, x.CreatedAt, x.FileAssetId, x.FileAsset == null ? null : x.FileAsset.FileName, x.FileAsset == null ? null : (long?)x.FileAsset.SizeBytes, x.FileAsset == null ? null : x.FileAsset.ContentType, x.Revision))
+            .Select(x => new TeacherMaterialView(x.Id, x.Title, x.Url, x.CreatedAt, x.FileAssetId, x.FileAsset == null ? null : x.FileAsset.FileName, x.FileAsset == null ? null : (long?)x.FileAsset.SizeBytes, x.FileAsset == null ? null : x.FileAsset.ContentType, x.Revision, x.FolderId))
             .ToListAsync(ct);
 
     private IQueryable<TeacherClassMaterialView> Linked(Guid workspaceId) =>

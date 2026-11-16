@@ -73,3 +73,24 @@ test('material management maps exact bindings and preserves the draft revision f
  d.classMaterialLinks=[];d.topicMaterialLinks=[];d.lessonMaterialLinks=[];
  assert.equal(materialManagementAction(entry,'delete',d,{revision:3}).path,'materials/same/delete');
 });
+
+test('folders filter only materials, escape labels and map create, rename and move without copying content',async()=>{
+ const {libraryFolderAction,materialManagementAction}=await import('./teacher-library.mjs');
+ const d=data();d.libraryFolders=[{id:'folder',title:'<img src=x>',revision:2}];
+ d.materials[0].folderId='folder';d.materials[0].revision=4;
+ const material=libraryEntries(d).find(x=>x.key==='material:same');
+ assert.deepEqual(filterLibrary(d,{folderId:'folder'}).map(x=>x.key),['material:same']);
+ assert.deepEqual(filterLibrary(d,{folderId:'unfiled'}).map(x=>x.key),['material:u']);
+ assert.equal(filterLibrary(d,{folderId:'missing'}).length,0);
+ assert.deepEqual(materialManagementAction(material,'move',d,{revision:'4',folderId:'folder'}),{path:'materials/same/move',body:{expectedRevision:4,folderId:'folder'},keys:['materials']});
+ assert.equal(materialManagementAction(material,'move',d,{revision:4,folderId:''}).body.folderId,null);
+ assert.throws(()=>materialManagementAction(material,'move',d,{revision:4,folderId:'foreign'}));
+ assert.throws(()=>materialManagementAction(material,'move',d,{folderId:'folder'}));
+ assert.deepEqual(libraryFolderAction(null,{title:'  Algebra  '}),{path:'library-folders',body:{title:'Algebra'},keys:['libraryFolders']});
+ assert.deepEqual(libraryFolderAction(d.libraryFolders[0],{title:'Math',revision:'2'}).body,{title:'Math',expectedRevision:2});
+ assert.throws(()=>libraryFolderAction(null,{title:'  '}));assert.throws(()=>libraryFolderAction(null,{title:'x'.repeat(101)}));
+ const safe=x=>String(x??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+ const html=renderLibrary(d,{...newLibraryState(),folderId:'folder',folderEditor:'folder',selected:material.key,manageOpen:true},safe);
+ assert.match(html,/&lt;img src=x&gt;/);assert.doesNotMatch(html,/<img/);
+ assert.match(html,/id="libraryFolderForm"[^>]*data-revision="2"/);assert.match(html,/id="libraryMoveForm"[^>]*data-revision="4"/);
+});

@@ -3,7 +3,7 @@ export const teacherPaths = {
   catalog: 'homework/catalog', assignments: 'homework/assignments',
   submissions: 'homework/submissions', subscriptions: 'subscriptions',
   nativeTasks: 'homework/native/tasks', nativeAssignments: 'homework/native/assignments',
-  materials: 'materials', classMaterialLinks: 'class-materials', lessonMaterialLinks: 'lesson-materials',
+  libraryFolders: 'library-folders', materials: 'materials', classMaterialLinks: 'class-materials', lessonMaterialLinks: 'lesson-materials',
   lessonTopicSets: 'lesson-topics', classTopics: 'class-topics', topicMaterialLinks: 'topic-materials', topicTaskLinks: 'topic-tasks',
   tests: 'tests/history', liveTests: 'tests/attempts',
   mocks: 'mocks/results', mockSessions: 'mocks/sessions'
@@ -27,7 +27,7 @@ export const teacherNeeds = {
   students: ['students', 'programs'],
   lessons: ['classes', 'groups', 'scheduleRules', 'students', 'programs', 'lessons', 'catalog'],
   homework: ['students', 'programs', 'catalog', 'assignments', 'submissions', 'nativeTasks', 'nativeAssignments'],
-  library: ['programs','students','classes','groups','lessons','nativeTasks','materials','classMaterialLinks','lessonMaterialLinks','classTopics','topicMaterialLinks','topicTaskLinks'],
+  library: ['libraryFolders','programs','students','classes','groups','lessons','nativeTasks','materials','classMaterialLinks','lessonMaterialLinks','classTopics','topicMaterialLinks','topicTaskLinks'],
   subscriptions: ['students', 'subscriptions'],
   results: ['students', 'tests', 'liveTests', 'mocks', 'mockSessions'],
   report: ['students', 'lessons', 'assignments', 'nativeAssignments', 'tests', 'liveTests', 'mocks']
@@ -52,7 +52,7 @@ export const teacherMutationKeys = {
 // This full reset is required on logout, login or a different workspace.
 export function invalidateTeacherData(state) {
   state.fileUpload = null;
-  state.library = {query:'',kind:'all',programId:'',sort:'newest',selected:''};
+  state.library = {query:'',kind:'all',programId:'',sort:'newest',selected:'',manageOpen:false,folderId:'',folderEditor:''};
   state.generation++;
   state.data = {};
   state.loadedAt = {};
