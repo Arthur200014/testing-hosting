@@ -2,10 +2,10 @@
 
 **UPDATED:** 2026-11-16
 **ACTIVE_TASK:** UI-04 IN_PROGRESS — material rename, unlink and guarded deletion.
-**ACTIVE_BRANCH:** `tas/ui04-file-management`, backend checkpoint `3f1b7c267e2073ac8218accb38aa93a8c166f398`; UI/real-browser work in progress, not releasable yet.
+**ACTIVE_BRANCH:** `tas/ui04-file-management`, PR #80, head `6e47a658c7e632f5750fb13fe0e246e7a2075add`; UI complete, final isolated CI pending.
 **MERGED_SHA:** `19ab684f54d9052651fd55fdd609b7e2ecf0c5cb`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43812116451](https://github.com/Arthur200014/testing-hosting/actions/runs/43812116451) PASS; 9 changed published teacher/student/module files byte-compared with main: PASS. API changes and additive migration committed for configured native Timeweb auto-deploy; independent API revision/migration NOT_VERIFIED / UNKNOWN.
-**NEXT_ACTION:** Finish current branch UI and isolated acceptance for rename/cancel/reload, unlink/access revocation, guarded deletion/quota recovery and old-request replay denial; fix CI then PR/merge/Pages. No real record deletions or Timeweb checks. Recordings remain separate.
+**NEXT_ACTION:** Finish current PR final isolated acceptance for rename/cancel/reload, unlink/access revocation, guarded deletion/quota recovery and old-request replay denial; fix CI then PR/merge/Pages. No real record deletions or Timeweb checks. Recordings remain separate.
 
 ## Standing owner instructions
 
