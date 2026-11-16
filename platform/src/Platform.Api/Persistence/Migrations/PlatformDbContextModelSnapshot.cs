@@ -142,6 +142,20 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict);
             });
 
+            modelBuilder.Entity("TestingHosting.Platform.Lessons.LessonRecording",b=>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");b.Property<Guid>("WorkspaceId").HasColumnType("uuid");b.Property<Guid>("LessonId").HasColumnType("uuid");
+                b.Property<string>("Title").IsRequired().HasMaxLength(250).HasColumnType("character varying(250)");b.Property<string>("SourceUrl").IsRequired().HasMaxLength(2048).HasColumnType("character varying(2048)");
+                b.Property<int>("Revision").ValueGeneratedOnAdd().HasColumnType("integer").HasDefaultValue(1);b.Property<bool>("IsAvailable").HasColumnType("boolean");
+                b.Property<DateTimeOffset?>("AccessUntil").HasColumnType("timestamp with time zone");b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
+                b.HasKey("Id");b.HasAlternateKey("WorkspaceId","Id");b.HasIndex("WorkspaceId","LessonId");b.ToTable("LessonRecordings","platform");
+            });
+            modelBuilder.Entity("TestingHosting.Platform.Lessons.LessonRecordingOperation",b=>
+            {
+                b.Property<Guid>("WorkspaceId").HasColumnType("uuid");b.Property<Guid>("RequestId").HasColumnType("uuid");b.Property<Guid>("RecordingId").HasColumnType("uuid");
+                b.Property<string>("Kind").IsRequired().HasMaxLength(24).HasColumnType("character varying(24)");b.Property<string>("PayloadHash").IsRequired().HasMaxLength(64).HasColumnType("character varying(64)");b.Property<int>("ResultRevision").HasColumnType("integer");
+                b.HasKey("WorkspaceId","RequestId","Kind");b.HasIndex("WorkspaceId","RecordingId");b.ToTable("LessonRecordingOperations","platform");
+            });
             modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherLibraryFolder",b=>
             {
                 b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
@@ -1824,6 +1838,14 @@ namespace TestingHosting.Platform.Persistence.Migrations
                 b.HasOne("TestingHosting.Platform.Classes.TeacherLibraryFolder",null).WithMany().HasForeignKey("WorkspaceId","FolderId").HasPrincipalKey("WorkspaceId","Id").OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_Materials_Folder");
             });
 
+            modelBuilder.Entity("TestingHosting.Platform.Lessons.LessonRecording",b=>
+            {
+                b.HasOne("TestingHosting.Platform.Lessons.Lesson",null).WithMany().HasForeignKey("WorkspaceId","LessonId").HasPrincipalKey("WorkspaceId","Id").OnDelete(DeleteBehavior.Restrict).IsRequired().HasConstraintName("FK_Recordings_Lesson");
+            });
+            modelBuilder.Entity("TestingHosting.Platform.Lessons.LessonRecordingOperation",b=>
+            {
+                b.HasOne("TestingHosting.Platform.Lessons.LessonRecording",null).WithMany().HasForeignKey("WorkspaceId","RecordingId").HasPrincipalKey("WorkspaceId","Id").OnDelete(DeleteBehavior.Restrict).IsRequired().HasConstraintName("FK_RecordingOperations_Recording");
+            });
 #pragma warning restore 612, 618
         }
     }

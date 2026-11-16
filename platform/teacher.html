@@ -333,6 +333,7 @@
     import { individualClassNativeHomework, taskMatchesClass, renderGroupHomework, renderContextHomework, homeworkAudience, updateGroupAssignmentChoices } from './class-native-homework.mjs';
     import { renderClassMaterials } from './class-materials-ui.mjs';
     import { newFileUploadState, uploadProtectedFile, saveProtectedFile } from './material-file.mjs';
+    import {recordingWriteAction, recordingSourceLink} from './lesson-recordings.mjs';
     import { newLibraryState, libraryEntries, libraryTargets, libraryAttachment, materialManagementAction, libraryFolderAction, renderLibrary, renderLibraryResults } from './teacher-library.mjs';
     import { renderClassProgram, topicsForClass } from './class-program-ui.mjs';
     import { renderLessonTopics, lessonBelongsToClass, lessonTopicChange } from './lesson-topics-ui.mjs';
@@ -1618,7 +1619,7 @@
       }
       function render() {
         // Related reads may finish while the teacher is already typing in a lesson form.
-        const drafts=[...document.querySelectorAll('[data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"], #libraryAttachForm[data-dirty="1"], #libraryRenameForm[data-dirty="1"], #libraryMoveForm[data-dirty="1"], #libraryFolderForm[data-dirty="1"]')].map(form=>({
+        const drafts=[...document.querySelectorAll('[data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"], #libraryAttachForm[data-dirty="1"], #libraryRenameForm[data-dirty="1"], #libraryMoveForm[data-dirty="1"], #libraryFolderForm[data-dirty="1"], #recordingForm[data-dirty="1"]')].map(form=>({
           id:form.id, classId:form.dataset.classId, lessonId:form.dataset.lessonId, libraryItem:form.dataset.libraryItem, revision:form.dataset.revision,
           fields:[...form.querySelectorAll('input[name],textarea[name],select[name]')].map(input=>({
             name:input.name,type:input.type,value:input.value,checked:input.checked
@@ -1685,7 +1686,7 @@
         return {item,lesson};
       }
       function canLeaveLibraryDraft(exceptForm=null) {
-        const forms=[...document.querySelectorAll('#libraryAttachForm[data-dirty="1"], #libraryRenameForm[data-dirty="1"], #libraryMoveForm[data-dirty="1"], #libraryFolderForm[data-dirty="1"]')].filter(x=>x!==exceptForm);
+        const forms=[...document.querySelectorAll('#libraryAttachForm[data-dirty="1"], #libraryRenameForm[data-dirty="1"], #libraryMoveForm[data-dirty="1"], #libraryFolderForm[data-dirty="1"], #recordingForm[data-dirty="1"]')].filter(x=>x!==exceptForm);
         if(!forms.length) return true;
         if(!confirm('Отменить несохранённые изменения библиотеки?')) return false;
         for(const form of forms) {form.reset();delete form.dataset.dirty;}
@@ -1788,7 +1789,11 @@
       $('content').addEventListener('input', event => {
         if(event.target.closest('#fileUploadForm') && event.target.name==='title') {state.fileUpload.title=event.target.value;state.fileUpload.requestId=null;return;}
         if(event.target.id==='librarySearch') {state.library.query=event.target.value;updateLibraryResults();return;}
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, #libraryAttachForm, #libraryRenameForm, #libraryMoveForm, #libraryFolderForm, [data-context-task], [data-context-assign]');
+        if(event.target.matches('[data-recording-search]')) {
+          state.library.recordingQuery=event.target.value;
+          const input=event.target,start=input.selectionStart;render();const next=document.querySelector('[data-recording-search]');next.focus();next.setSelectionRange(start,start);return;
+        }
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, #libraryAttachForm, #libraryRenameForm, #libraryMoveForm, #libraryFolderForm, #recordingForm, [data-context-task], [data-context-assign]');
         if (editor) editor.dataset.dirty = '1';
         const draft = event.target.closest('#lessonPlannerForm');
         if (draft && event.target.name === 'title') {
@@ -1825,7 +1830,7 @@
           section.querySelector('[data-group-homework-empty]').hidden=rows.some(row=>!row.hidden);
         }
         if(event.target.closest('[data-context-assign]')) updateGroupAssignmentChoices(event.target.closest('form'),state.data);
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, #libraryAttachForm, #libraryRenameForm, #libraryMoveForm, #libraryFolderForm, [data-context-task], [data-context-assign]');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, #libraryAttachForm, #libraryRenameForm, #libraryMoveForm, #libraryFolderForm, #recordingForm, [data-context-task], [data-context-assign]');
         if (editor) editor.dataset.dirty = '1';
         if (event.target.id==='calendarPlanClass') {
           captureCalendarPlanDraft(event.target.form);
@@ -1897,6 +1902,24 @@
         }
         if(event.target.closest('[data-file-upload-cancel]')) {state.fileUpload=newFileUploadState();render();return;}
 
+        const recordingOpen=event.target.closest('[data-recording-open]');
+        if(recordingOpen) {
+          const box=recordingOpen.closest('[data-recording-row]').querySelector('[data-recording-source]'),generation=state.generation;
+          box.replaceChildren();recordingOpen.disabled=true;
+          try {const result=await api('teacher/recordings/'+encodeURIComponent(recordingOpen.dataset.recordingOpen)+'/source');if(generation===state.generation && box.isConnected) box.innerHTML=recordingSourceLink(result.url,safe);}
+          catch(error) {if(generation===state.generation) showNotice(error.message,true);}finally {if(recordingOpen.isConnected) recordingOpen.disabled=false;}return;
+        }
+        const section=event.target.closest('[data-library-section]');
+        if(section) {
+          if(!canLeaveLibraryDraft()) return;
+          if(state.fileUpload?.busy) {showNotice('Дождитесь завершения загрузки.',true);return;}
+          state.library.section=section.dataset.librarySection;state.library.recordingEditor='';render();return;
+        }
+        const recordingClass=event.target.closest('[data-recording-class]');
+        if(recordingClass) {if(!canLeaveLibraryDraft()) return;state.library.recordingClass=recordingClass.dataset.recordingClass;state.library.recordingEditor='';render();return;}
+        const recordingEdit=event.target.closest('[data-recording-edit]');
+        if(recordingEdit || event.target.closest('[data-recording-create]')) {if(!canLeaveLibraryDraft()) return;state.library.recordingEditor=recordingEdit?.dataset.recordingEdit || 'new';render();document.querySelector('#recordingForm [name="title"]')?.focus();return;}
+        if(event.target.closest('[data-recording-cancel]')) {delete event.target.closest('form').dataset.dirty;state.library.recordingEditor='';render();showNotice('');return;}
         const folderNav=event.target.closest('[data-library-folder]');
         if(folderNav) {
           if(!canLeaveLibraryDraft()) return;
@@ -2466,6 +2489,17 @@
       });
       $('content').addEventListener('submit', async event => {
         event.preventDefault(); const form = event.target;
+        if(form.id==='recordingForm') {
+          if(!canLeaveLibraryDraft(form)) return;
+          const current=form.dataset.recordingId?(state.data.recordings || []).find(r=>r.id===form.dataset.recordingId):null;
+          if(form.dataset.recordingId && !current) {showNotice('Запись больше недоступна.',true);return;}
+          onForm(form,async()=>{
+            const action=recordingWriteAction(current,{title:formValue(form,'title'),sourceUrl:formValue(form,'sourceUrl'),lessonId:formValue(form,'lessonId'),revision:form.dataset.revision,accessUntil:formValue(form,'accessUntil'),isAvailable:form.elements.isAvailable.checked});
+            form.libraryKeys=action.keys;const generation=state.generation;
+            await mutation('recording:'+(current?.id || 'new'),action.path,()=>action.body);
+            if(generation===state.generation) state.library.recordingEditor='';
+          });return;
+        }
         if(form.id==='libraryFolderForm') {
           if(!canLeaveLibraryDraft(form)) return;
           const folder=form.dataset.folderId?(state.data.libraryFolders || []).find(x=>x.id===form.dataset.folderId):null;

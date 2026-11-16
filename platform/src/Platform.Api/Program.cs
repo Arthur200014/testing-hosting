@@ -51,6 +51,7 @@ builder.Services.AddScoped<TeacherMaterialManagement>();
 builder.Services.AddScoped<TeacherLibraryFolderService>();
 builder.Services.AddScoped<TeacherClassTopicService>();
 builder.Services.AddScoped<TeacherLessonMaterialService>();
+builder.Services.AddScoped<LessonRecordingService>();
 builder.Services.AddScoped<TeacherLessonTopicService>();
 builder.Services.AddScoped<TeacherGroupService>();
 builder.Services.AddScoped<TeacherScheduleRuleService>();
@@ -900,6 +901,23 @@ app.MapPost("/api/v1/teacher/library-folders/{id:guid}/rename",async(Guid id,Ren
     NativeWrite(await folders.WriteAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),id,request.RequestId,request.ExpectedRevision,request.Title,ct))).RequireAuthorization("teacher");
 app.MapPost("/api/v1/teacher/materials/{id:guid}/move",async(Guid id,MoveMaterialRequest request,ClaimsPrincipal principal,TeacherMaterialManagement materials,CancellationToken ct)=>
     NativeWrite(await materials.MoveAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),id,request,ct))).RequireAuthorization("teacher");
+
+app.MapGet("/api/v1/teacher/recordings",async(ClaimsPrincipal principal,HttpResponse response,LessonRecordingService recordings,CancellationToken ct)=> {
+    response.Headers.CacheControl="no-store";return Results.Ok(await recordings.TeacherListAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),ct));
+}).RequireAuthorization("teacher");
+app.MapPost("/api/v1/teacher/recordings",async(RecordingWriteRequest request,ClaimsPrincipal principal,LessonRecordingService recordings,CancellationToken ct)=>
+    NativeWrite(await recordings.WriteAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),null,request,ct))).RequireAuthorization("teacher");
+app.MapPost("/api/v1/teacher/recordings/{id:guid}/edit",async(Guid id,RecordingWriteRequest request,ClaimsPrincipal principal,LessonRecordingService recordings,CancellationToken ct)=>
+    NativeWrite(await recordings.WriteAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),id,request,ct))).RequireAuthorization("teacher");
+app.MapGet("/api/v1/teacher/recordings/{id:guid}/source",async(Guid id,ClaimsPrincipal principal,HttpResponse response,LessonRecordingService recordings,CancellationToken ct)=> {
+    response.Headers.CacheControl="no-store";return await recordings.TeacherSourceAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),id,ct) is {} url?Results.Ok(new{url}):Results.NotFound();
+}).RequireAuthorization("teacher");
+app.MapGet("/api/v1/recordings",async(ClaimsPrincipal principal,HttpResponse response,LessonRecordingService recordings,CancellationToken ct)=> {
+    response.Headers.CacheControl="no-store";return await recordings.StudentListAsync(principal,ct) is {} rows?Results.Ok(rows):Results.Unauthorized();
+}).RequireAuthorization("student");
+app.MapGet("/api/v1/recordings/{id:guid}/source",async(Guid id,ClaimsPrincipal principal,HttpResponse response,LessonRecordingService recordings,CancellationToken ct)=> {
+    response.Headers.CacheControl="no-store";return await recordings.StudentSourceAsync(principal,id,ct) is {} url?Results.Ok(new{url}):Results.NotFound();
+}).RequireAuthorization("student");
 
 app.MapPost("/api/v1/teacher/materials/{id:guid}/rename",async(Guid id,RenameMaterialRequest request,ClaimsPrincipal principal,TeacherMaterialManagement materials,CancellationToken ct)=>
     NativeWrite(await materials.RenameAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),id,request,ct))).RequireAuthorization("teacher");

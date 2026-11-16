@@ -38,11 +38,12 @@
           <input name="code" maxlength="64" minlength="64" pattern="[A-Fa-f0-9]{64}" autocomplete="off" required></label>
           <button type="submit">Вступить в группу</button></form>
       </section>
-      <section class="card"><h2>Файлы от преподавателя</h2><button type="button" data-refresh-files>Обновить файлы</button><div id="studentFiles"></div></section><div id="assignments"></div></section>
+      <section class="card"><h2>Файлы от преподавателя</h2><button type="button" data-refresh-files>Обновить файлы</button><div id="studentFiles"></div></section><section class="card"><h2>Записи занятий</h2><p class="muted">Ссылки на внешний источник. Права просмотра у источника настраиваются отдельно.</p><button type="button" data-refresh-recordings>Обновить записи</button><div id="studentRecordings"></div></section><div id="assignments"></div></section>
   </main>
   <script type="module">
     import { materialAction, saveProtectedFile, fileSize } from './material-file.mjs';
     import { nativeHomeworkDeadlineStatus } from './homework-deadline.mjs';
+    import {renderStudentRecordings,recordingSourceLink} from './lesson-recordings.mjs';
     const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/';
     const $ = id => document.getElementById(id);
     let token = '';
@@ -66,7 +67,21 @@
         $('studentFiles').innerHTML=files.length?files.map(x=>`<div class="card"><strong>${safe(x.title)}</strong><p>${safe(x.fileName)} · ${safe(fileSize(x.sizeBytes))}</p>${materialAction(x,safe)}</div>`).join(''):'<p class="muted">Доступных файлов пока нет.</p>';
       } catch {if(token===expected) $('studentFiles').textContent='Не удалось загрузить список файлов.';}
     }
+    async function loadRecordings() {
+      const expected=token;
+      try {const rows=await api('recordings');if(token===expected) $('studentRecordings').innerHTML=renderStudentRecordings(rows,safe);}
+      catch {if(token===expected) $('studentRecordings').textContent='Не удалось загрузить записи.';}
+    }
     $('dashboard').addEventListener('click',async event=>{
+      const recordingRefresh=event.target.closest('[data-refresh-recordings]');
+      if(recordingRefresh) {recordingRefresh.disabled=true;try{await loadRecordings();}finally{recordingRefresh.disabled=false;}return;}
+      const recordingOpen=event.target.closest('[data-recording-open]');
+      if(recordingOpen) {
+        const box=recordingOpen.closest('[data-recording-row]').querySelector('[data-recording-source]'),expected=token;box.replaceChildren();recordingOpen.disabled=true;
+        try {const result=await api('recordings/'+encodeURIComponent(recordingOpen.dataset.recordingOpen)+'/source');if(token===expected && box.isConnected) box.innerHTML=recordingSourceLink(result.url,safe);}
+        catch {if(token===expected) {box.textContent='Ссылка недоступна. Обновите записи.';}}
+        finally {if(recordingOpen.isConnected) recordingOpen.disabled=false;}return;
+      }
       const refreshButton=event.target.closest('[data-refresh-files]');
       if(refreshButton) {refreshButton.disabled=true;try{await loadFiles();}finally{refreshButton.disabled=false;}return;}
       const button=event.target.closest('[data-file-download]');if(!button) return;
@@ -80,7 +95,7 @@
         <p class="muted">Срок: ${safe(date(x.deadlineAt))} · <strong>${safe(nativeHomeworkDeadlineStatus(x).label)}</strong></p><p class="prompt">${safe(x.prompt)}</p>
         ${x.submittedAt ? `<p class="muted">Сдано ${safe(date(x.submittedAt))} · ${x.scorePercent == null ? 'без оценки' : safe(x.scorePercent) + '%'}</p><p class="answer">${safe(x.answer)}</p>${x.teacherFeedback ? `<p class="answer">Комментарий преподавателя: ${safe(x.teacherFeedback)}</p>` : ''}${x.gradedAt ? `<p class="muted">Проверено: ${safe(date(x.gradedAt))}</p>` : ''}` :
           `<form data-assignment="${safe(x.id)}"><label>Ваш ответ<textarea name="answer" maxlength="10000" required></textarea></label><button type="submit">Отправить ответ</button></form>`}</article>`).join('') : '<p class="card">Пока нет назначенных заданий.</p>';
-      await loadFiles();
+      await Promise.all([loadFiles(),loadRecordings()]);
       message('Задания загружены.');
     }
     $('loginForm').addEventListener('submit', async event => {
@@ -122,7 +137,7 @@
       try { await api('homework/native/submissions', { assignmentId: id, submissionId, answer }); pending.delete(id); await refresh(); }
       catch (error) { if (error.status && error.status < 500) pending.delete(id); message(error.message, true); button.disabled = false; }
     });
-    $('logout').addEventListener('click', () => { token = ''; pending.clear(); $('dashboard').hidden = true; $('login').hidden = false; $('assignments').replaceChildren();$('studentFiles').replaceChildren(); message('Вы вышли.'); });
+    $('logout').addEventListener('click', () => { token = ''; pending.clear(); $('dashboard').hidden = true; $('login').hidden = false; $('assignments').replaceChildren();$('studentFiles').replaceChildren();$('studentRecordings').replaceChildren(); message('Вы вышли.'); });
   </script>
 </body>
 </html>
