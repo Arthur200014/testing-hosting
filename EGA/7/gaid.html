@@ -1502,7 +1502,7 @@ html.noanim .page,html.noanim .bub{animation:none!important}
 
 </section><section class="page guide-screen" data-board-anchor="practice-mixed" data-nav-group="theory-mixed" data-section="practice-mixed" id="practice-mixed">
 <span class="nail n1"></span><span class="nail n2"></span><span class="nail n3"></span><span class="nail n4"></span><svg aria-hidden="true" class="shared-board-layer" data-anchor-id="practice-mixed"></svg>
-<div class="phead"><span class="pnum">06 · самостоятельная отработка</span><h1>✎ Самостоятельная отработка · Микс</h1><div class="sub">разные темы вперемешку · 2 ученика</div></div>
+<div class="phead"><span class="pnum">06 · самостоятельная отработка</span><h1>✎ Самостоятельная отработка · Микс</h1><div class="sub">16 прототипов: степени · корни · логарифмы · тригонометрия · 2 ученика</div></div>
 <p class="tagline">У каждого ученика своё условие. Введите числовой ответ и нажмите «Проверить». Новая задача изменяет только выбранную карточку.</p>
 <div class="pair-practice" data-pair-topic="mixed">
 <div class="pair-task-grid">
@@ -1940,8 +1940,12 @@ function pdfPrototype(topic,index){
   if(kind===1){const a=[15,75,105,165][j%4],q=4*(1+Math.floor(j/4)%45),sign=a>90?-1:1;return task(String.raw`${q}\sin${a}^\circ\cos${a}^\circ`,sign*q/4,'Синус двойного угла','100Б · №6 (вариация)',[L('Сворачиваем произведение по формуле синуса двойного угла.',String.raw`${q/2}\sin${2*a}^\circ`),L('Для двойного угла синус равен ±1/2.',String.raw`\sin${2*a}^\circ=${sign<0?'-':''}\frac12`),L('Вычисляем произведение.',String.raw`${sign*q/4}`)])}
   if(kind===2){const q=3+j%80;return task(String.raw`${q}\sqrt2\cos(-225^\circ)`,-q,'Табличные углы и знаки','100Б · №13 (вариация)',[L('Косинус чётен, значение угла 225° отрицательно.',String.raw`\cos(-225^\circ)=-\frac{\sqrt2}2`),L('Перемножаем коэффициенты.',String.raw`${q}\sqrt2\cdot(-\frac{\sqrt2}2)=-${q}`)])}
   const q=1+j%9,d=[10,20,25,40,50,80,100,125,200,250][Math.floor(j/9)%10],rad=d*d-q*q;return task(String.raw`\text{Найдите }\cos\alpha,\ \text{если }\sin\alpha=-\frac{\sqrt{${rad}}}{${d}},\ \alpha\in(\pi;\frac{3\pi}2)`,-q/d,'Знаки в III четверти','100Б · №45 (вариация)',[L('Используем основное тождество.',String.raw`\cos^2\alpha=1-\frac{${rad}}{${d*d}}=\frac{${q*q}}{${d*d}}`),L('В третьей четверти косинус отрицателен.',String.raw`\cos\alpha=-\frac{${q}}{${d}}=${num(-q/d)}`)])}
- const sub=pdfPrototype(['powers','roots','logs','trig'][i%4],Math.floor(i/4)*4+i%4),v=1+Math.floor(i/4)%5;
- return task(String.raw`\left(${sub.tex}\right)+${v}`,Number((sub.answer+v).toFixed(8)),'Микс: '+sub.prototype,'100Б · комбинация',sub.steps.concat([L('Прибавляем последнее слагаемое.',String.raw`${num(sub.answer)}+${v}=${num(sub.answer+v)}`)]));
+ // Финальный микс включает 4 прототипа из каждой из 4 тем.
+ // Условия и ответы соответствуют исходному типу ЕГЭ, без искусственного сложения.
+ const group=Math.floor(i%16/4),sourceKind=i%4,seed=Math.floor(i/16);
+ const sourceTopic=['powers','roots','logs','trig'][group];
+ const source=pdfPrototype(sourceTopic,seed*4+sourceKind);
+ return task(source.tex,source.answer,'Микс: '+source.prototype,source.origin,source.steps);
 }
 const mixedGenerators=[genPowers,genRoots,genLogs,genTrig,genComposite];
 function genMixed(){return pick(mixedGenerators)();}
@@ -1958,23 +1962,31 @@ const active={};
 const locallyUsed=new Set();
 const mateSlot=id=>id.endsWith('-a')?id.replace(/-a$/,'-b'):id.replace(/-b$/,'-a');
 const numberSignature=tex=>((String(tex||'').match(/-?\d+(?:\{,\}\d+|,\d+|\.\d+)?/g))||[]).join('|');
+const prototypeCount=topic=>topic==='mixed'?16:4;
 function makePrototype(topic,kind,seed){
- const item=pdfPrototype(topic,4*seed+kind);
+ const item=pdfPrototype(topic,prototypeCount(topic)*seed+kind);
  item.prototypeKind=kind;
  return item;
 }
 function prototypeKind(topic,item){
  const key=item?.prototypeKind;
- if(Number.isInteger(key)&&key>=0&&key<4)return key;
  const name=String(item?.prototype||'');
  const names={
   powers:['Десятичные показатели','Дробные показатели','Степень степени','Корни в показателе'],
   roots:['Вынесение множителя из корня','Разность квадратов','Квадрат произведения','Кубические корни'],
   logs:['Сумма логарифмов','Смена основания','Дробное основание','Логарифм частного'],
   trig:['Косинус двойного угла','Синус двойного угла','Табличные углы и знаки','Знаки в III четверти'],
-  mixed:['Микс: Десятичные показатели','Микс: Вынесение множителя из корня','Микс: Сумма логарифмов','Микс: Косинус двойного угла']
+  mixed:[
+   'Микс: Десятичные показатели','Микс: Дробные показатели','Микс: Степень степени','Микс: Корни в показателе',
+   'Микс: Вынесение множителя из корня','Микс: Разность квадратов','Микс: Квадрат произведения','Микс: Кубические корни',
+   'Микс: Сумма логарифмов','Микс: Смена основания','Микс: Дробное основание','Микс: Логарифм частного',
+   'Микс: Косинус двойного угла','Микс: Синус двойного угла','Микс: Табличные углы и знаки','Микс: Знаки в III четверти'
+  ]
  };
  const match=names[topic]?.indexOf(name)??-1;
+ // У старых занятий mixed.prototypeKind нумеровал только 4 группы.
+ if(topic==='mixed'&&match>=0)return match;
+ if(Number.isInteger(key)&&key>=0&&key<prototypeCount(topic))return key;
  if(match>=0)return match;
  const aliases={
   powers:{'Степени с десятичными показателями':0,'Дробный показатель':1,'Степень с дробным показателем':1,'Степени с корнями в показателе':3},
@@ -2046,7 +2058,7 @@ function freshForSlot(id,topic){
 }
 function localNextPrototype(topic){
  const aId=topic+'-a',bId=topic+'-b',old=prototypeKind(topic,active[aId]);
- const kind=((old??-1)+1)%4;
+ const kind=((old??-1)+1)%prototypeCount(topic);
  const a=uniqueForSlot(aId,topic,new Set(),kind,null,null);
  const b=uniqueForSlot(bId,topic,new Set([a.tex]),kind,a,null);
  paint(document.querySelector(`[data-pair-slot="${aId}"]`),a);
@@ -2219,7 +2231,7 @@ for(const practice of document.querySelectorAll('[data-pair-topic]')){
   window.dispatchEvent(new Event('guide:resizeboard'));
  });
 }
-window.GuidePair={receive,receiveSolution,receiveInput,receiveCheck,generators,starts,active,verify,make:topic=>generators[topic](),makeDistinct:freshForSlot,set:paint,toggleSolution,uniqueForSlot,prototypeKind,pdfPrototype};
+window.GuidePair={receive,receiveSolution,receiveInput,receiveCheck,generators,starts,active,verify,make:topic=>generators[topic](),makeDistinct:freshForSlot,set:paint,toggleSolution,uniqueForSlot,prototypeKind,prototypeCount,pdfPrototype};
 })();
 </script><script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
@@ -2263,8 +2275,8 @@ async function generatePrototype(topic){
    q.items=q.items||{};
    q.prototypes=q.prototypes||{};
    const aId=topic+'-a',bId=topic+'-b';
-   const previous=Number.isInteger(q.prototypes[topic])?q.prototypes[topic]:window.GuidePair.prototypeKind(topic,q.items[aId]?.item);
-   const kind=((previous??-1)+1)%4;
+   const previous=topic==='mixed'?window.GuidePair.prototypeKind(topic,q.items[aId]?.item):(Number.isInteger(q.prototypes[topic])?q.prototypes[topic]:window.GuidePair.prototypeKind(topic,q.items[aId]?.item));
+   const kind=((previous??-1)+1)%window.GuidePair.prototypeCount(topic);
    const used=new Set(q.used);
    const first=window.GuidePair.uniqueForSlot(aId,topic,used,kind,null,null);
    used.add(first.tex);
