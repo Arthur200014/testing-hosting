@@ -1093,7 +1093,7 @@ try {
   await openRecordingLesson(north.item.id,recordLesson.id);
   await page.locator('.class-lesson-detail [data-open-student="'+pupilCardId+'"]').click();await page.locator('[data-student-card="'+pupilCardId+'"]').waitFor();
   await page.locator('[data-student-card-return]').click();await page.locator('[data-lesson-recordings="'+recordLesson.id+'"]').waitFor();
-  await page.locator('[data-back-class-lessons]').click();await page.locator('.class-detail-tabs [data-class-detail-tab="summary"]').click();
+  await page.locator('[data-back-class-lessons]').click();await page.locator('.class-detail-tabs [data-class-detail-tab="information"]').click();
   await page.locator('[data-open-student="'+pupilCardId+'"]').click();await page.locator('[data-student-card="'+pupilCardId+'"]').waitFor();
   await page.locator('[data-student-card-month]').fill('2026-11');await page.locator('[data-student-card-month]').dispatchEvent('change');
   const firstPairAttendance=page.locator('[data-student-attendance-row="'+grouped.id+'"][data-member-id="'+pupilCardId+'"]');await firstPairAttendance.waitFor();await firstPairAttendance.getByText('Присутствовал',{exact:true}).waitFor();
@@ -1112,7 +1112,7 @@ try {
   await page.locator('[data-student-card-tab="profile"]').click();await page.locator('[data-student-card]').getByText('Сохранено из карточки ученика',{exact:true}).waitFor();
   await page.locator('[data-student-card-info]').click();await page.locator('[data-student-info-dialog]').waitFor();await page.screenshot({path:output+'/44_student_info_real.png'});await page.locator('[data-student-info-close]').first().click();
   await page.locator('[data-student-card-tab="attendance"]').click();await page.screenshot({path:output+'/43_student_attendance_real.png'});await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'pupil card fits mobile');await page.setViewportSize({width:1348,height:926});
-  await page.locator('[data-student-card-return]').click();await page.locator('.class-detail-tabs [data-class-detail-tab="summary"].active').waitFor();assert.equal(await page.locator('[data-open-student="'+pupilCardId+'"]').innerText(),finalPupilName,'individual class name updates from current API data');
+  await page.locator('[data-student-card-return]').click();await page.locator('.class-detail-tabs [data-class-detail-tab="information"].active').waitFor();assert.equal(await page.locator('[data-open-student="'+pupilCardId+'"]').innerText(),finalPupilName,'individual class name updates from current API data');
   await openRecordingLesson(group.id,grouped.id);await page.locator('[data-back-class-lessons]').click();await page.locator('.class-detail-tabs [data-class-detail-tab="information"]').click();
   await page.locator('.group-roster-member [data-open-student="'+pupilTwo.membershipId+'"]').click();await page.locator('[data-student-card="'+pupilTwo.membershipId+'"]').waitFor();await page.locator('[data-student-card-month]').fill('2026-11');await page.locator('[data-student-card-month]').dispatchEvent('change');
   const secondPairAttendance=page.locator('[data-student-attendance-row="'+grouped.id+'"][data-member-id="'+pupilTwo.membershipId+'"]');await secondPairAttendance.waitFor();await secondPairAttendance.getByText('Отсутствовал',{exact:true}).waitFor();
