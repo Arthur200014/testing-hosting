@@ -844,6 +844,13 @@ html.noanim .page,html.noanim .bub{animation:none!important}
 .pair-feedback:not(:empty){margin:5px 0 0}
 .pair-grid-paper{margin-top:7px}
 @media(max-width:770px){.pair-question{font-size:clamp(26px,6vw,34px);min-height:65px}.pair-task-grid{gap:7px}.pair-task{padding:10px}.pair-grid-paper{margin-top:6px}}
+
+/* Управление прототипами для парной работы */
+.pair-prototype-controls{display:flex;justify-content:flex-end;margin:0 0 10px}
+.pair-other-prototype{border:2px solid var(--wood2);border-radius:9px;background:var(--toad);color:var(--ink);padding:9px 14px;font:800 15px system-ui,sans-serif;cursor:pointer;box-shadow:2px 3px 0 #0002}
+.pair-other-prototype:disabled,.pair-new:disabled{opacity:.6;cursor:wait}
+.pair-task-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:770px){.pair-task-grid{grid-template-columns:repeat(2,minmax(270px,1fr));overflow-x:auto;scroll-snap-type:x proximity}.pair-task{scroll-snap-align:start}}
 </style><script>window.MathJax = {tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},options:{skipHtmlTags:['script','noscript','style','textarea','pre','code']}};</script><script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script><style id="v8-practice-solutions-and-trig">
 /* v8: пошаговые решения только рядом с генерируемыми задачами */
 .pair-task header{grid-template-columns:minmax(0,1fr) auto auto;column-gap:6px}
@@ -1524,9 +1531,9 @@ const sectionObserver=new IntersectionObserver(entries=>{const best=entries.filt
 function selectPractice(topic,index,emitShared=true){const list=$$(`[data-practice-topic="${topic}"]`);index=Math.max(0,Math.min(list.length-1,Number(index)||0));local.practice[topic]=index;list.forEach(li=>li.classList.toggle("selected",Number(li.dataset.practiceIndex)===index));const li=list.find(x=>Number(x.dataset.practiceIndex)===index);const label=$(`[data-current-practice="${topic}"]`),condition=$(`[data-current-task="${topic}"]`);if(label)label.textContent="№"+(index+1);if(condition&&li)condition.innerHTML=li.querySelector(".task-copy")?.innerHTML||"";if(emitShared)emit("guide:practice",{topic,index})}
 $$(".practice-item").forEach(li=>li.querySelector(".task-select")?.addEventListener("click",()=>selectPractice(li.dataset.practiceTopic,Number(li.dataset.practiceIndex),true)));
 function setReveal(key,value,emitShared=true){local.revealed[key]=!!value;const box=$(`[data-answer-box="${key}"]`),btn=$(`[data-answer-key="${key}"]`);box?.classList.toggle("show",!!value);if(btn)btn.textContent=value?"Скрыть решение":"Показать решение и ответ";if(emitShared)emit("guide:reveal",{key,value:!!value})}
-$("[data-answer-key]").forEach(btn=>btn.addEventListener("click",()=>{if(!window.GuideSession?.isTeacher())return;setReveal(btn.dataset.answerKey,!local.revealed[btn.dataset.answerKey],true)}));
+$$("[data-answer-key]").forEach(btn=>btn.addEventListener("click",()=>{if(!window.GuideSession?.isTeacher())return;setReveal(btn.dataset.answerKey,!local.revealed[btn.dataset.answerKey],true)}));
 function setExample(topic,step,emitShared=true){const count=$$(`[data-example="${topic}"] .example-step`).length||4;step=Math.max(0,Math.min(count,Number(step)||0));local.example[topic]=step;$$(`[data-example="${topic}"] .example-step`).forEach(el=>el.classList.toggle("visible",Number(el.dataset.step)<=step));const btn=$(`[data-example-next="${topic}"]`);if(btn)btn.textContent=step>=count?"свернуть пример":step===0?"показать первый шаг":"показать следующий шаг";if(emitShared)emit("guide:example",{topic,step})}
-$("[data-example-next]").forEach(btn=>btn.addEventListener("click",()=>{if(!window.GuideSession?.isTeacher())return;const t=btn.dataset.exampleNext,cur=local.example[t]||0,count=$$(`[data-example="${t}"] .example-step`).length||4;setExample(t,cur>=count?0:cur+1,true)}));
+$$("[data-example-next]").forEach(btn=>btn.addEventListener("click",()=>{if(!window.GuideSession?.isTeacher())return;const t=btn.dataset.exampleNext,cur=local.example[t]||0,count=$$(`[data-example="${t}"] .example-step`).length||4;setExample(t,cur>=count?0:cur+1,true)}));
 
 
 function setProperty(topic,index,emitShared=true){
@@ -1921,18 +1928,18 @@ function pdfPrototype(topic,index){
  if(topic==='roots'){
   if(kind===0){const a=3+j%7,c=1+Math.floor(j/7)%2,k=[2,3,5,6,7][Math.floor(j/14)%5],ans=(a-c)*k;return task(String.raw`(\sqrt{${a*a*k}}-\sqrt{${c*c*k}})\sqrt{${k}}`,ans,'Вынесение множителя из корня','100Б · №14 (вариация)',[L('Извлекаем квадратные множители.',String.raw`\sqrt{${a*a*k}}=${a}\sqrt{${k}},\ \sqrt{${c*c*k}}=${c}\sqrt{${k}}`),L('Приводим подобные радикалы.',String.raw`(${a}-${c})\sqrt{${k}}`),L('Умножаем корни.',String.raw`(${a-c})\cdot${k}=${ans}`)])}
   if(kind===1){const x=12+j%13,y=2+Math.floor(j/13)%8;return task(String.raw`(\sqrt{${x}}-\sqrt{${y}})(\sqrt{${x}}+\sqrt{${y}})`,x-y,'Разность квадратов','100Б · №38 (вариация)',[L('Применяем формулу разности квадратов.',String.raw`(\sqrt{${x}})^2-(\sqrt{${y}})^2`),L('Убираем корни и квадраты.',String.raw`${x}-${y}=${x-y}`)])}
-  if(kind===2){const q=2+j%5,n=3+Math.floor(j/5)%7;return task(frac(`(${q}\\sqrt{${n}})^2`,`${q}`),q*n,'Квадрат произведения','100Б · №52 (вариация)',[L('Возводим в квадрат числовой множитель и корень.',String.raw`(${q}\sqrt{${n}})^2=${q*q}\cdot${n}`),L('Делим на знаменатель.',String.raw`${q*q*n}/${q}=${q*n}`)])}
-  const q=2+j%5,n=2+Math.floor(j/5)%7;return task(frac(String.raw`\sqrt[3]{${q*q*q*n}}\cdot\sqrt[3]{${n*n}}`,String.raw`\sqrt[3]{${n*n*n}}`),q,'Кубические корни','100Б · №25/42 (вариация)',[L('Объединяем корни третьей степени.',String.raw`\sqrt[3]{${q*q*q*n*n*n}}=${q*n}`),L('Сокращаем общий множитель.',String.raw`\frac{${q*n}}{${n}}=${q}`)])}
+  if(kind===2){const q=2+j%12,n=3+Math.floor(j/12)%12;return task(frac(`(${q}\\sqrt{${n}})^2`,`${q}`),q*n,'Квадрат произведения','100Б · №52 (вариация)',[L('Возводим в квадрат числовой множитель и корень.',String.raw`(${q}\sqrt{${n}})^2=${q*q}\cdot${n}`),L('Делим на знаменатель.',String.raw`${q*q*n}/${q}=${q*n}`)])}
+  const q=2+j%12,n=2+Math.floor(j/12)%12;return task(frac(String.raw`\sqrt[3]{${q*q*q*n}}\cdot\sqrt[3]{${n*n}}`,String.raw`\sqrt[3]{${n*n*n}}`),q,'Кубические корни','100Б · №25/42 (вариация)',[L('Объединяем корни третьей степени.',String.raw`\sqrt[3]{${q*q*q*n*n*n}}=${q*n}`),L('Сокращаем общий множитель.',String.raw`\frac{${q*n}}{${n}}=${q}`)])}
  if(topic==='logs'){
-  if(kind===0){const k=2+Math.floor(j/5)%8;return task(String.raw`\log_{${b}} ${k}+\log_{${b}}\left(${frac(b*b,k)}\right)`,2,'Сумма логарифмов','100Б · №28 (вариация)',[L('Складываем логарифмы по правилу произведения.',String.raw`\log_{${b}}\left(${k}\cdot\frac{${b*b}}{${k}}\right)`),L('Получаем логарифм квадрата основания.',String.raw`\log_{${b}}${b}^2=2`)])}
-  if(kind===1){const x=3+j%5,y=7+Math.floor(j/5)%8;return task(String.raw`\frac{\log_2${x}}{\log_2${y}}+\log_{${y}}\frac1{${x}}`,0,'Смена основания','100Б · №26 (вариация)',[L('Применяем формулу перехода.',String.raw`\frac{\log_2${x}}{\log_2${y}}=\log_{${y}}${x}`),L('Логарифм обратного аргумента равен противоположному.',String.raw`\log_{${y}}\frac1{${x}}=-\log_{${y}}${x}`),L('Сумма противоположных чисел равна нулю.',String.raw`0`)])}
-  if(kind===2){const x=2+j;return task(String.raw`\log_{\frac1{${x*x}}}${x}`,-0.5,'Дробное основание','100Б · №50 (вариация)',[L('Основание равно x в степени −2.',String.raw`\frac1{${x*x}}=${x}^{-2}`),L('Степень, превращающая основание в аргумент, равна −1/2.',String.raw`(${x}^{-2})^{-\frac12}=${x}`),L('Записываем десятичную дробь.',String.raw`-0{,}5`)])}
+  if(kind===0){const k=2+Math.floor(j/5)%20;return task(String.raw`\log_{${b}} ${k}+\log_{${b}}\left(${frac(b*b,k)}\right)`,2,'Сумма логарифмов','100Б · №28 (вариация)',[L('Складываем логарифмы по правилу произведения.',String.raw`\log_{${b}}\left(${k}\cdot\frac{${b*b}}{${k}}\right)`),L('Получаем логарифм квадрата основания.',String.raw`\log_{${b}}${b}^2=2`)])}
+  if(kind===1){const x=3+j%10,y=7+Math.floor(j/10)%14;return task(String.raw`\frac{\log_2${x}}{\log_2${y}}+\log_{${y}}\frac1{${x}}`,0,'Смена основания','100Б · №26 (вариация)',[L('Применяем формулу перехода.',String.raw`\frac{\log_2${x}}{\log_2${y}}=\log_{${y}}${x}`),L('Логарифм обратного аргумента равен противоположному.',String.raw`\log_{${y}}\frac1{${x}}=-\log_{${y}}${x}`),L('Сумма противоположных чисел равна нулю.',String.raw`0`)])}
+  if(kind===2){const x=2+j%150;return task(String.raw`\log_{\frac1{${x*x}}}${x}`,-0.5,'Дробное основание','100Б · №50 (вариация)',[L('Основание равно x в степени −2.',String.raw`\frac1{${x*x}}=${x}^{-2}`),L('Степень, превращающая основание в аргумент, равна −1/2.',String.raw`(${x}^{-2})^{-\frac12}=${x}`),L('Записываем десятичную дробь.',String.raw`-0{,}5`)])}
   const m=2+j%5,c=8+Math.floor(j/5)%10;return task(String.raw`\text{Найдите }\log_{a}\frac{a^{${m}}}{b},\ \text{если }\log_a b=${c}`,m-c,'Логарифм частного','100Б · №1 (вариация)',[L('Раскрываем логарифм частного.',String.raw`\log_a a^{${m}}-\log_a b`),L('Подставляем известное значение.',String.raw`${m}-${c}=${m-c}`)])}
  if(topic==='trig'){
   if(kind===0){const v=(j%8+1)/10,q=2*(2+Math.floor(j/8)%7),ans=Number((q*(2*v*v-1)).toFixed(8));return task(String.raw`\text{Найдите }${q}\cos2\alpha,\ \text{если }\cos\alpha=${num(v)}`,ans,'Косинус двойного угла','100Б · №18 (вариация)',[L('Выбираем форму через косинус.',String.raw`\cos2\alpha=2\cos^2\alpha-1`),L('Подставляем известные значения.',String.raw`${q}(2\cdot${num(v)}^2-1)`),L('Вычисляем число.',String.raw`${num(ans)}`)])}
-  if(kind===1){const a=[15,75,105,165][j%4],q=4*(1+Math.floor(j/4)%7),sign=a>90?-1:1;return task(String.raw`${q}\sin${a}^\circ\cos${a}^\circ`,sign*q/4,'Синус двойного угла','100Б · №6 (вариация)',[L('Сворачиваем произведение по формуле синуса двойного угла.',String.raw`${q/2}\sin${2*a}^\circ`),L('Для двойного угла синус равен ±1/2.',String.raw`\sin${2*a}^\circ=${sign<0?'-':''}\frac12`),L('Вычисляем произведение.',String.raw`${sign*q/4}`)])}
-  if(kind===2){const q=3+j;return task(String.raw`${q}\sqrt2\cos(-225^\circ)`,-q,'Табличные углы и знаки','100Б · №13 (вариация)',[L('Косинус чётен, значение угла 225° отрицательно.',String.raw`\cos(-225^\circ)=-\frac{\sqrt2}2`),L('Перемножаем коэффициенты.',String.raw`${q}\sqrt2\cdot(-\frac{\sqrt2}2)=-${q}`)])}
-  const q=2+j%8,d=10*(1+Math.floor(j/8)%5),rad=d*d-q*q;return task(String.raw`\text{Найдите }\cos\alpha,\ \text{если }\sin\alpha=-\frac{\sqrt{${rad}}}{${d}},\ \alpha\in(\pi;\frac{3\pi}2)`,-q/d,'Знаки в III четверти','100Б · №45 (вариация)',[L('Используем основное тождество.',String.raw`\cos^2\alpha=1-\frac{${rad}}{${d*d}}=\frac{${q*q}}{${d*d}}`),L('В третьей четверти косинус отрицателен.',String.raw`\cos\alpha=-\frac{${q}}{${d}}=${num(-q/d)}`)])}
+  if(kind===1){const a=[15,75,105,165][j%4],q=4*(1+Math.floor(j/4)%45),sign=a>90?-1:1;return task(String.raw`${q}\sin${a}^\circ\cos${a}^\circ`,sign*q/4,'Синус двойного угла','100Б · №6 (вариация)',[L('Сворачиваем произведение по формуле синуса двойного угла.',String.raw`${q/2}\sin${2*a}^\circ`),L('Для двойного угла синус равен ±1/2.',String.raw`\sin${2*a}^\circ=${sign<0?'-':''}\frac12`),L('Вычисляем произведение.',String.raw`${sign*q/4}`)])}
+  if(kind===2){const q=3+j%80;return task(String.raw`${q}\sqrt2\cos(-225^\circ)`,-q,'Табличные углы и знаки','100Б · №13 (вариация)',[L('Косинус чётен, значение угла 225° отрицательно.',String.raw`\cos(-225^\circ)=-\frac{\sqrt2}2`),L('Перемножаем коэффициенты.',String.raw`${q}\sqrt2\cdot(-\frac{\sqrt2}2)=-${q}`)])}
+  const q=1+j%9,d=[10,20,25,40,50,80,100,125,200,250][Math.floor(j/9)%10],rad=d*d-q*q;return task(String.raw`\text{Найдите }\cos\alpha,\ \text{если }\sin\alpha=-\frac{\sqrt{${rad}}}{${d}},\ \alpha\in(\pi;\frac{3\pi}2)`,-q/d,'Знаки в III четверти','100Б · №45 (вариация)',[L('Используем основное тождество.',String.raw`\cos^2\alpha=1-\frac{${rad}}{${d*d}}=\frac{${q*q}}{${d*d}}`),L('В третьей четверти косинус отрицателен.',String.raw`\cos\alpha=-\frac{${q}}{${d}}=${num(-q/d)}`)])}
  const sub=pdfPrototype(['powers','roots','logs','trig'][i%4],Math.floor(i/4)*4+i%4),v=1+Math.floor(i/4)%5;
  return task(String.raw`\left(${sub.tex}\right)+${v}`,Number((sub.answer+v).toFixed(8)),'Микс: '+sub.prototype,'100Б · комбинация',sub.steps.concat([L('Прибавляем последнее слагаемое.',String.raw`${num(sub.answer)}+${v}=${num(sub.answer+v)}`)]));
 }
@@ -1951,10 +1958,104 @@ const active={};
 const locallyUsed=new Set();
 const mateSlot=id=>id.endsWith('-a')?id.replace(/-a$/,'-b'):id.replace(/-b$/,'-a');
 const numberSignature=tex=>((String(tex||'').match(/-?\d+(?:\{,\}\d+|,\d+|\.\d+)?/g))||[]).join('|');
-function distinctFromMate(id,item){const mate=active[mateSlot(id)];if(!mate)return true;return item?.tex!==mate?.tex&&numberSignature(item?.tex)!==numberSignature(mate?.tex);}
-function uniqueForSlot(id,topic,extraUsed=new Set()){const used=new Set([...locallyUsed,...extraUsed,...Object.values(active).map(x=>x.tex)]);for(let n=0;n<180;n++){const item=generators[topic]();if(!used.has(item.tex)&&distinctFromMate(id,item))return item;}for(let n=0;n<100000;n++){const item=pdfPrototype(topic,n);if(!used.has(item.tex)&&distinctFromMate(id,item))return item;}throw Error('Нет уникальных задач');}
-function freshForSlot(id,topic){const item=uniqueForSlot(id,topic);locallyUsed.add(item.tex);return item;}
-
+function makePrototype(topic,kind,seed){
+ const item=pdfPrototype(topic,4*seed+kind);
+ item.prototypeKind=kind;
+ return item;
+}
+function prototypeKind(topic,item){
+ const key=item?.prototypeKind;
+ if(Number.isInteger(key)&&key>=0&&key<4)return key;
+ const name=String(item?.prototype||'');
+ const names={
+  powers:['Десятичные показатели','Дробные показатели','Степень степени','Корни в показателе'],
+  roots:['Вынесение множителя из корня','Разность квадратов','Квадрат произведения','Кубические корни'],
+  logs:['Сумма логарифмов','Смена основания','Дробное основание','Логарифм частного'],
+  trig:['Косинус двойного угла','Синус двойного угла','Табличные углы и знаки','Знаки в III четверти'],
+  mixed:['Микс: Десятичные показатели','Микс: Вынесение множителя из корня','Микс: Сумма логарифмов','Микс: Косинус двойного угла']
+ };
+ const match=names[topic]?.indexOf(name)??-1;
+ if(match>=0)return match;
+ const aliases={
+  powers:{'Степени с десятичными показателями':0,'Дробный показатель':1,'Степень с дробным показателем':1,'Степени с корнями в показателе':3},
+  roots:{'Радикалы':0,'Вынесение множителей':0},
+  logs:{},
+  trig:{'Формула sin 2α':1,'Сокращение через двойной угол':1}
+ };
+ return Object.prototype.hasOwnProperty.call(aliases[topic]||{},name)?aliases[topic][name]:null;
+}
+function legacyVariation(topic,label){
+ if(topic==='trig'&&label==='Дополнительные углы'){
+  const angle=pick([17,23,28,33,37,41,53]),k=rand(9,40),m=rand(1,50);
+  return task(String.raw`${k}\operatorname{tg}${angle}^{\circ}\cdot\operatorname{tg}${90-angle}^{\circ}-${m}`,k-m,label,'Парная отработка · ЕГЭ №7',[
+   L('Углы дополняют друг друга до 90°.',String.raw`${angle}^{\circ}+${90-angle}^{\circ}=90^\circ`),
+   L('Произведение тангенсов дополнительных углов равно 1.',String.raw`\operatorname{tg}${angle}^{\circ}\cdot\operatorname{tg}${90-angle}^{\circ}=1`),
+   L('Вычисляем ответ.',String.raw`${k}-${m}=${k-m}`)]);
+ }
+ if(topic==='logs'&&label==='Разность логарифмов'){
+  const b=pick([2,3,4,5]),p=rand(2,5),k=rand(2,9);
+  return task(String.raw`\log_{${b}}${b**p*k}-\log_{${b}}${k}`,p,label,'Парная отработка · ЕГЭ №7',[
+   L('Разность логарифмов заменяем логарифмом частного.',String.raw`\log_{${b}}\frac{${b**p*k}}{${k}}`),
+   L('Сокращаем аргумент до степени основания.',String.raw`\frac{${b**p*k}}{${k}}=${b}^{${p}}`),
+   L('Находим показатель.',String.raw`\log_{${b}}${b}^{${p}}=${p}`)]);
+ }
+ if((topic==='logs'||topic==='mixed')&&label==='Логарифмическая цепочка'){
+  const b=pick([2,3,4,5]),x=pick([3,5,7,11]),p=rand(2,4);
+  return task(String.raw`\log_{${b}}${x}\cdot\log_{${x}}${b**p}`,p,label,'Парная отработка · ЕГЭ №7',[
+   L('Сворачиваем цепочку в один логарифм.',String.raw`\log_{${b}}${x}\cdot\log_{${x}}${b**p}=\log_{${b}}${b**p}`),
+   L('Находим показатель степени основания.',String.raw`\log_{${b}}${b}^{${p}}=${p}`)]);
+ }
+ if(topic==='mixed'&&label==='Степени с корнями в показателе'){
+  const item=makePrototype('powers',3,rand(0,6000));
+  item.prototype=label;
+  return item;
+ }
+ return null;
+}
+function distinctFromMate(id,item,remoteMate=undefined){
+ const mate=remoteMate===undefined?active[mateSlot(id)]:remoteMate;
+ if(!mate)return true;
+ return item?.tex!==mate?.tex&&numberSignature(item?.tex)!==numberSignature(mate?.tex);
+}
+function uniqueForSlot(id,topic,extraUsed=new Set(),kind=null,remoteMate=undefined,remoteCurrent=undefined){
+ const current=remoteCurrent===undefined?active[id]:remoteCurrent;
+ const selected=kind===null?prototypeKind(topic,current):kind;
+ const label=kind===null?current?.prototype:null;
+ const used=new Set([...locallyUsed,...extraUsed,...Object.values(active).map(x=>x.tex)]);
+ const acceptable=item=>!used.has(item.tex)&&distinctFromMate(id,item,remoteMate);
+ for(let n=0;n<1200;n++){
+  const seed=n<900?rand(0,9500):n-900;
+  const item=selected!==null?makePrototype(topic,selected,seed):legacyVariation(topic,label)||originalGenerators[topic]();
+  if(label&&selected!==null)item.prototype=label;
+  if(label&&item.prototype!==label)continue;
+  if(acceptable(item))return item;
+ }
+ if(selected!==null){
+  for(let seed=300;seed<30000;seed++){
+   const item=makePrototype(topic,selected,seed);
+   if(label)item.prototype=label;
+   if(acceptable(item))return item;
+  }
+ }
+ throw Error('Для этого прототипа пока нет новых чисел. Нажмите «Другой прототип».');
+}
+function freshForSlot(id,topic){
+ const item=uniqueForSlot(id,topic);
+ locallyUsed.add(item.tex);
+ return item;
+}
+function localNextPrototype(topic){
+ const aId=topic+'-a',bId=topic+'-b',old=prototypeKind(topic,active[aId]);
+ const kind=((old??-1)+1)%4;
+ const a=uniqueForSlot(aId,topic,new Set(),kind,null,null);
+ const b=uniqueForSlot(bId,topic,new Set([a.tex]),kind,a,null);
+ paint(document.querySelector(`[data-pair-slot="${aId}"]`),a);
+ paint(document.querySelector(`[data-pair-slot="${bId}"]`),b);
+}
+for(const topic of ['powers','roots','logs','trig','mixed']){
+ starts[topic+'-a']=makePrototype(topic,0,0);
+ starts[topic+'-b']=makePrototype(topic,0,1);
+}
 
 /* The original guide rendered problems before deferred MathJax had loaded.
  * Keep readable equations immediately, and typeset them after startup. */
@@ -2088,10 +2189,37 @@ for(const el of document.querySelectorAll('[data-pair-slot]')){
  el.querySelector('.pair-check').addEventListener('click',()=>verify(el));
  el.querySelector('input').addEventListener('input',()=>{el.querySelector('.pair-feedback').textContent='';el.classList.remove('correct','incorrect');sendPair(id,'input',{tex:active[id]?.tex,text:el.querySelector('input').value.slice(0,40)});});
  el.querySelector('input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();verify(el);}});
- el.querySelector('.pair-new').addEventListener('click',async()=>{const shared=window.GuideSession?.isJoined()&&window.GuideSession?.generatePair;if(shared){el.querySelector('.pair-new').disabled=true;try{await window.GuideSession.generatePair(id,topic)}finally{el.querySelector('.pair-new').disabled=false;}}else{const next=freshForSlot(id,topic);paint(el,next);}window.dispatchEvent(new Event('guide:resizeboard'));});
+ el.querySelector('.pair-new').textContent='↻ Другие числа';
+ el.querySelector('.pair-new').title='Сохранить прототип и изменить числа только у этого ученика';
+ el.querySelector('.pair-new').addEventListener('click',async()=>{
+  const button=el.querySelector('.pair-new');
+  button.disabled=true;
+  try{
+   if(window.GuideSession?.isJoined()&&window.GuideSession?.generatePair)await window.GuideSession.generatePair(id,topic);
+   else paint(el,freshForSlot(id,topic));
+  }catch(err){window.GuideApp?.toast(err.message||'Нет подходящих чисел','bad');}
+  finally{button.disabled=false;}
+  window.dispatchEvent(new Event('guide:resizeboard'));
+ });
  el.querySelector('.pair-solve').addEventListener('click',()=>{if(window.GuideSession?.isTeacher())toggleSolution(el);});
 }
-window.GuidePair={receive,receiveSolution,receiveInput,receiveCheck,generators,starts,active,verify,make:topic=>generators[topic](),makeDistinct:freshForSlot,set:paint,toggleSolution,uniqueForSlot,pdfPrototype};
+for(const practice of document.querySelectorAll('[data-pair-topic]')){
+ const topic=practice.dataset.pairTopic,grid=practice.querySelector('.pair-task-grid');
+ const controls=document.createElement('div');controls.className='pair-prototype-controls';
+ const button=document.createElement('button');button.type='button';button.className='pair-other-prototype';button.textContent='⇄ Другой прототип · обоим ученикам';
+ button.title='Одновременно изменить тип задания и оба условия';
+ controls.appendChild(button);practice.insertBefore(controls,grid);
+ button.addEventListener('click',async()=>{
+  button.disabled=true;
+  try{
+   if(window.GuideSession?.isJoined()&&window.GuideSession?.generatePrototype)await window.GuideSession.generatePrototype(topic);
+   else localNextPrototype(topic);
+  }catch(err){window.GuideApp?.toast(err.message||'Не удалось сменить прототип','bad');}
+  finally{button.disabled=false;}
+  window.dispatchEvent(new Event('guide:resizeboard'));
+ });
+}
+window.GuidePair={receive,receiveSolution,receiveInput,receiveCheck,generators,starts,active,verify,make:topic=>generators[topic](),makeDistinct:freshForSlot,set:paint,toggleSolution,uniqueForSlot,prototypeKind,pdfPrototype};
 })();
 </script><script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
@@ -2107,8 +2235,8 @@ const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelecto
 let role="",me=null,student=null,studentKey="",joined=false,joining=false,localState=null,lastStateVersion=-1,liveMembers={},stateUnsub=null,strokesUnsub=null,membersUnsub=null,messagesUnsub=null,interactionsUnsub=null,padsUnsub=null,questionsUnsub=null,waitingUnsub=null,memberNode=null,browserClientId=sessionStorage.getItem(CLIENT_ID_KEY),online=navigator.onLine;
 if(!browserClientId){browserClientId='client-'+uuid();sessionStorage.setItem(CLIENT_ID_KEY,browserClientId)}
 let hasRemoteQuestions=false;
-window.GuideSession={isTeacher:()=>joined&&role==='teacher',isJoined:()=>joined,hasQuestionBank:()=>hasRemoteQuestions,generatePair:null};
-window.GuideSession.generatePair=async(id,topic)=>{
+window.GuideSession={isTeacher:()=>joined&&role==='teacher',isJoined:()=>joined,hasQuestionBank:()=>hasRemoteQuestions,generatePair:null,generatePrototype:null};
+async function generatePair(id,topic){
  if(!joined||!window.GuidePair?.uniqueForSlot)return;
  const key=String(id||'');
  if(!/^(powers|roots|logs|trig|mixed)-[ab]$/.test(key)||topic!==key.split('-')[0])return;
@@ -2117,14 +2245,41 @@ window.GuideSession.generatePair=async(id,topic)=>{
    const q=current&&typeof current==='object'?current:{used:[],items:{}};
    q.used=Array.isArray(q.used)?q.used:[];
    q.items=q.items||{};
-   const item=window.GuidePair.uniqueForSlot(key,topic,new Set(q.used));
+   const mateKey=key.replace(/-[ab]$/,key.endsWith('-a')?'-b':'-a');
+   const item=window.GuidePair.uniqueForSlot(key,topic,new Set(q.used),null,q.items[mateKey]?.item||null,q.items[key]?.item||window.GuidePair.active[key]);
    q.used.push(item.tex);
    q.items[key]={item,at:Date.now()};
    return q;
   });
-  if(!res.committed)throw new Error('Не удалось сохранить задачу');
- }catch(err){GuideApp.toast('Новая задача не сохранена: '+(err.message||'ошибка сети'),'bad');}
-};
+  if(!res.committed)throw Error('Не удалось сохранить задачу');
+ }catch(err){GuideApp.toast('Другие числа не сохранены: '+(err.message||'ошибка сети'),'bad');}
+}
+async function generatePrototype(topic){
+ if(!joined||!window.GuidePair?.uniqueForSlot||!['powers','roots','logs','trig','mixed'].includes(topic))return;
+ try{
+  const res=await runTransaction(questionsRef(),current=>{
+   const q=current&&typeof current==='object'?current:{used:[],items:{}};
+   q.used=Array.isArray(q.used)?q.used:[];
+   q.items=q.items||{};
+   q.prototypes=q.prototypes||{};
+   const aId=topic+'-a',bId=topic+'-b';
+   const previous=Number.isInteger(q.prototypes[topic])?q.prototypes[topic]:window.GuidePair.prototypeKind(topic,q.items[aId]?.item);
+   const kind=((previous??-1)+1)%4;
+   const used=new Set(q.used);
+   const first=window.GuidePair.uniqueForSlot(aId,topic,used,kind,null,null);
+   used.add(first.tex);
+   const second=window.GuidePair.uniqueForSlot(bId,topic,used,kind,first,null);
+   q.prototypes[topic]=kind;
+   q.used.push(first.tex,second.tex);
+   q.items[aId]={item:first,at:Date.now()};
+   q.items[bId]={item:second,at:Date.now()};
+   return q;
+  });
+  if(!res.committed)throw Error('Не удалось сохранить прототип');
+ }catch(err){GuideApp.toast('Прототип не изменён: '+(err.message||'ошибка сети'),'bad');}
+}
+window.GuideSession.generatePair=generatePair;
+window.GuideSession.generatePrototype=generatePrototype;
 function syncSolutionPermissions(){const onlyTeacher=role==='teacher'&&joined;document.querySelectorAll('[data-answer-key],[data-example-next],.pair-solve').forEach(btn=>{btn.disabled=!onlyTeacher;btn.title=onlyTeacher?'Показать решение всем участникам':'Решение открывает только учитель';});}
 syncSolutionPermissions();
 function freshState(){return{version:1,schemaVersion:SCHEMA_VERSION,boardEpoch:0,strokes:{},students:{},ui:{practice:{},revealedAnswers:{},exampleSteps:{},propertySlides:{}}}}
