@@ -1,11 +1,11 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-16
-**ACTIVE_TASK:** UI-04 IN_PROGRESS — searchable library/reuse block complete.
-**ACTIVE_BRANCH:** none; [PR #78](https://github.com/Arthur200014/testing-hosting/pull/78) merged.
+**ACTIVE_TASK:** UI-04 IN_PROGRESS — real file attachments.
+**ACTIVE_BRANCH:** `tas/ui04-file-attachments`, backend checkpoint `afc6fd1b4bd2ff8cd2fb5e8fbca5851635c87298`; UI/browser integration in progress, not releasable yet.
 **MERGED_SHA:** `3774a94857dacd33b4342314a739ba2c08b748dc`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43777340175](https://github.com/Arthur200014/testing-hosting/actions/runs/43777340175) PASS; published teacher.html, teacher-data.mjs and teacher-library.mjs fetched and byte-compared with main: PASS. API/schema unchanged in this block. Timeweb native main auto-deploy owner-confirmed; independent API revision UNKNOWN.
-**NEXT_ACTION:** Next related UI-04 block: real binary attachments. Inspect existing storage/config/access code only, then implement isolated upload → protected download/access → reuse attachment in class/lesson with cancel/reload and tenant checks. Do not invent uploads, provision new production infrastructure, or expose files publicly. Production activation must use actual durable storage configuration; report any missing configuration honestly. Recordings remain separate until file access works.
+**NEXT_ACTION:** Finish file upload/download UI and isolated browser acceptance on active branch; inspect backend CI, fix failures, then PR/merge/Pages. Existing PostgreSQL is durable storage for this bounded slice (5 MiB/file, 100 MiB/workspace), metadata/content separated. No new production infrastructure or Timeweb checks. Recordings remain separate.
 
 ## Standing owner instructions
 
