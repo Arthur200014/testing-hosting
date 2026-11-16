@@ -53,6 +53,8 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         var upload=await Upload(requestId,bytes);Assert.Equal(HttpStatusCode.Created,upload.StatusCode);
         var material=(await upload.Content.ReadFromJsonAsync<TeacherMaterialView>())!;Assert.NotNull(material.FileId);
         Assert.Equal(HttpStatusCode.OK,(await Upload(requestId,bytes)).StatusCode);
+        var replays=await Task.WhenAll(Upload(requestId,bytes),Upload(requestId,bytes));
+        Assert.All(replays,r=>Assert.Equal(HttpStatusCode.OK,r.StatusCode));
         Assert.Equal(HttpStatusCode.Conflict,(await Upload(requestId,[1,2,3])).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest,(await Upload(Guid.NewGuid(),bytes,"../notes.txt")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest,(await Upload(Guid.NewGuid(),bytes,"notes.pdf")).StatusCode);
