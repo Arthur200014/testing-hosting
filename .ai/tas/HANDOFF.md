@@ -1,11 +1,11 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-16
-**ACTIVE_TASK:** UI-05 IN_PROGRESS — pupil cards/class context implemented, isolated acceptance pending.
-**ACTIVE_BRANCH:** `tas/ui05-student-cards`, PR #86, head `e14c00979b4303664ec6908020583fa9d037eda3`; server CI PASS, final browser rerun after mobile fix.
-**MERGED_SHA:** `181d586d01e53ebac1fede8c7650a1c0a42aec6d`, [PR #85](https://github.com/Arthur200014/testing-hosting/pull/85).
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43907587097](https://github.com/Arthur200014/testing-hosting/actions/runs/43907587097) PASS; published teacher.html and lesson-recordings.mjs byte-match main. Backend/API/schema unchanged by #85; existing API from #84 reused. Native Timeweb auto-deploy is owner-configured; independent API revision/migration NOT_VERIFIED / UNKNOWN, LIVE_WRITE_NOT_RUN.
-**NEXT_ACTION:** Finish PR #86 latest CI/browser; inspect reference43–44 desktop and 390px screenshots, merge/Pages/byte comparison/HANDOFF. Browser already passed individual profile cancel/refresh/stale HTTP409/save; corrected test entry to class Information tab. Actual mobile overflow fixed with scoped header/control width rules and new geometry diagnostic. Verify remaining group/related-navigation/reload checks. No backend/schema changes, Timeweb checks or production writes.
+**ACTIVE_TASK:** UI-05 pupil card / attendance / class context released.
+**ACTIVE_BRANCH:** none.
+**MERGED_SHA:** `5f6f5a9db5b2927efa8ec5a01933b5d6e9b0075c`, [PR #86](https://github.com/Arthur200014/testing-hosting/pull/86).
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43923614370](https://github.com/Arthur200014/testing-hosting/actions/runs/43923614370) PASS; published teacher.html, teacher-data.mjs and student-card.mjs byte-match main. Backend/API/schema/configuration unchanged; existing profile API reused. Native Timeweb auto-deploy is owner-configured; independent API revision/migrations UNKNOWN / NOT_VERIFIED. LIVE_WRITE_NOT_RUN under the owner-approved isolated-only mode.
+**NEXT_ACTION:** UI-05 pupil assignments/results: open only relevant references45–46 and implement the connected pupil work list → submission/review → result/return scenario using existing APIs. Scope by exact membership/program/workspace; verify whether the current homework feed is complete before deriving counts (never infer from a truncated global feed). Reuse existing assignment/submission/grading flows. Cover individual/group context, cancel/save/reload and access isolation in the existing synthetic runner, then CI/merge/Pages/HANDOFF. No invitations or real-pupil writes.
 
 ## Standing owner instructions
 
@@ -14,25 +14,24 @@
 - Real students, lessons, scores, settings and credentials are not test-write targets. Never retarget reset/seed/import/browser scripts to production, rerun imports, change writer or provision infrastructure incidentally. No invitations/notifications/payments.
 - Tests/runner are committed in Git; reset/seed scripts must never run on real data.
 
-## Completed #85
+## Completed #86
 
-- Replaced lesson-card recording placeholder with that lesson's real references, counts and availability/expiry state, source retrieval and library actions.
-- From either class format: open lesson-filtered library, create/edit with the lesson locked, cancel/save back to the exact lesson; restore previous library preferences and originating class tab. Refresh retains draft fields/revision; dirty navigation requires discard confirmation. IDs/ownership/lesson consistency and session generation checked.
-- Fixed archive transition: selected lesson stays visible when its class becomes archived, and uses the proper active/archive context on return. Recording create/edit controls disappear; teacher can inspect references, student issuance is revoked by existing API. Restore re-enables the card.
-- Recording metadata is fetched when a lesson opens. No backend/schema/configuration changes. Changed paths: teacher.html, lesson-recordings.mjs/test, calendar-real-browser.mjs.
-- References24/50; individual/group screenshots inspected. Overall fidelity PARTIAL; board/chat placeholders unchanged.
+- Exact pupil card from student list, individual/group class and lesson; validated return to originating class/lesson, including archive/legacy contexts.
+- Real attendance by month/class with independent pair-participant status; class relationships across the same person's owned study memberships. Profile and goals stay scoped to selected learning membership. Unknown attendance is shown separately.
+- Existing profile edit: cancel/save/reload, draft retained on refresh and declined navigation, stale-snapshot HTTP409 protection, unrelated fields preserved, renamed pupil refreshed in class rosters. Info dialog uses actual data with keyboard/focus handling; no invented phone/email/online state.
+- Changed paths: platform/teacher.html, new student-card.mjs/test, teacher-data.mjs/test, calendar-real-browser.mjs, scripts/calendar-real-browser.sh, .github/workflows/native-homework-browser.yml.
+- References43–44 desktop and 390px screenshots inspected; fidelity PARTIAL. Mobile card overflow fixed. Last student-login acceptance explicitly checks HTTP status and respects rate-limit retry. No outstanding final-check failures.
 
 ## Verification
 
-- LOCAL PASS: **18** focused Node checks + changed inline/module/browser syntax and diff; relevant recording checks rerun after archive fix.
-- FINAL head `bb04ba7302884238ffcb4027298e0e3d0a7ddf90`: [TAS CI 43906439366](https://github.com/Arthur200014/testing-hosting/actions/runs/43906439366), [PostgreSQL 43906439678](https://github.com/Arthur200014/testing-hosting/actions/runs/43906439678), [real Chromium/API/PostgreSQL 43906439717](https://github.com/Arthur200014/testing-hosting/actions/runs/43906439717): PASS. Existing **105 API integration tests**, startup/migrations/ready/restore remain green.
-- Browser PASS: create/edit/cancel/list/source/return; locked lesson; refresh and declined navigation preserve draft; both formats and actual pair participants; dedicated outsider denial; student revocation; archive/restore; teacher/student reload/login; unchanged lesson records; 390px layouts.
-- Screenshots `24_individual_lesson_recordings_real.png`, `24_group_lesson_recordings_real.png` retained in final run's `meleto-ui02-screenshots` artifact.
-- Initial false assumption that pupil2 was a nonparticipant corrected with a dedicated synthetic outsider. Actual archive-navigation defect fixed. Final checks have no outstanding failures.
-- No live writes/Timeweb checks; external provider playback NOT_RUN (synthetic links).
+- LOCAL PASS: **15** focused Node tests, changed syntax/shell/diff checks.
+- Final head `c7002f098f7d6735e5d4058815e50104fa7d4099`: [TAS CI 43921995427](https://github.com/Arthur200014/testing-hosting/actions/runs/43921995427), [PostgreSQL 43921995331](https://github.com/Arthur200014/testing-hosting/actions/runs/43921995331), [real Chromium/API/PostgreSQL 43921995317](https://github.com/Arthur200014/testing-hosting/actions/runs/43921995317): PASS. Existing **105 API integration tests** remain green.
+- Browser PASS: individual/group entry and return; cancel/draft/409/save; profile persisted after teacher/student reload/login; class roster refresh; separate pair attendance; related navigation; foreign-workspace denial; no duplicate pupil creation; mobile layout.
+- Final browser artifact retains 43_student_attendance_real.png, 44_student_info_real.png, 43_student_card_mobile_real.png.
+- Production functional writes/Timeweb checks NOT_RUN. Published frontend bytes verified independently; isolated persistence is not production functional acceptance.
 
 ## Retained boundaries
 
-Recordings are external HTTPS references, not video uploads/recording/playback storage. Existing service rechecks student/program, current class membership, actual participation, availability and expiry before issuing URL. Copied URLs/video viewing remain subject to provider permissions. No public platform file URLs or new infrastructure. Educational file storage remains 5MiB/file, 100MiB/workspace; folders/rename/unlink/guarded deletion from #79–81 preserve bytes/access rules. Large video storage and remaining visual refinement are separate backlog.
+Recordings (#84–85) remain external HTTPS references, not video uploads/playback storage. Existing service rechecks access/participation/availability/expiry; provider permissions govern copied URLs. Educational file storage remains 5MiB/file, 100MiB/workspace, preserving folder/rename/unlink/deletion access rules. Board/chat and remaining UI-05 tabs are unfinished scope, not completed by this release.
 
 Published interface: https://arthur200014.github.io/testing-hosting/platform/teacher.html.
