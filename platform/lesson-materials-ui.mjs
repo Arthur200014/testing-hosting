@@ -1,3 +1,4 @@
+import { materialAction } from './material-file.mjs';
 export function lessonMaterialEntries(data, lessonId) {
   const links = (data.lessonMaterialLinks || []).filter(x => x.lessonId === lessonId);
   const used = new Set(links.map(x => x.materialId));
@@ -23,6 +24,6 @@ export function renderLessonMaterials(lesson, data, archived, safe, list) {
       </form>`}
     ${list(links, 'Материалов к этому занятию пока нет.', x => `
       <div class="item"><div><strong>${safe(x.title)}</strong><small>${safe(x.url)}</small></div>
-        <a class="link" href="${safe(x.url)}" target="_blank" rel="noopener noreferrer">Открыть</a></div>`)}
+        ${materialAction(x,safe)}</div>`)}
   </section>`;
 }

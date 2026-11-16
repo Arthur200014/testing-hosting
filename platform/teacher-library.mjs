@@ -1,3 +1,4 @@
+import { materialAction, fileSize, renderFileUpload } from './material-file.mjs';
 const unique = values => [...new Set(values.filter(Boolean))];
 export const newLibraryState = () => ({query:'',kind:'all',programId:'',sort:'newest',selected:''});
 const studentsFor = (item,data) => {
@@ -23,9 +24,9 @@ export function libraryEntries(data) {
 }
 export function filterLibrary(data, filters) {
   const query=String(filters.query || '').normalize('NFKC').toLocaleLowerCase('ru').trim();
-  return libraryEntries(data).filter(x=>(filters.kind==='all' || !filters.kind || x.kind===filters.kind) &&
+  return libraryEntries(data).filter(x=>(filters.kind==='all' || !filters.kind || (filters.kind==='file'?!!x.fileId:filters.kind==='material'?x.kind==='material' && !x.fileId:x.kind===filters.kind)) &&
     (!filters.programId || (filters.programId==='unlinked' ? !x.programIds.length : x.programIds.includes(filters.programId))) &&
-    (!query || [x.title,x.prompt,x.url].filter(Boolean).join(' ').normalize('NFKC').toLocaleLowerCase('ru').includes(query)))
+    (!query || [x.title,x.prompt,x.url,x.fileName].filter(Boolean).join(' ').normalize('NFKC').toLocaleLowerCase('ru').includes(query)))
     .sort((a,b)=>filters.sort==='title' ? String(a.title).localeCompare(String(b.title),'ru') || a.key.localeCompare(b.key) :
       Date.parse(b.createdAt || 0)-Date.parse(a.createdAt || 0) || a.key.localeCompare(b.key));
 }
@@ -64,25 +65,26 @@ export function libraryAttachment(entry,target,data) {
 }
 export function renderLibraryResults(data,filters,safe) {
   const entries=filterLibrary(data,filters);
-  return `<p class="muted small" role="status">Найдено: ${entries.length}</p>${entries.length?entries.map(x=>`<article class="item" data-library-entry="${safe(x.key)}"><div style="min-width:0;overflow-wrap:anywhere"><strong>${safe(x.title)}</strong><small>${x.kind==='task'?'Шаблон задания':'Материал по ссылке'} · ${safe(x.programIds.map(id=>(data.programs || []).find(p=>p.id===id)?.displayName || 'Программа').join(', ') || 'Без программы')}</small></div><button type="button" class="secondary small-button" data-library-preview="${safe(x.key)}">Просмотреть</button></article>`).join(''):'<div class="empty">Ничего не найдено. Измените поиск или фильтры.</div>'}`;
+  return `<p class="muted small" role="status">Найдено: ${entries.length}</p>${entries.length?entries.map(x=>`<article class="item" data-library-entry="${safe(x.key)}"><div style="min-width:0;overflow-wrap:anywhere"><strong>${safe(x.title)}</strong><small>${x.kind==='task'?'Шаблон задания':x.fileId?'Файл · '+fileSize(x.sizeBytes):'Материал по ссылке'} · ${safe(x.programIds.map(id=>(data.programs || []).find(p=>p.id===id)?.displayName || 'Программа').join(', ') || 'Без программы')}</small></div><button type="button" class="secondary small-button" data-library-preview="${safe(x.key)}">Просмотреть</button></article>`).join(''):'<div class="empty">Ничего не найдено. Измените поиск или фильтры.</div>'}`;
 }
 const webUrl = value => { try {const u=new URL(value);return ['http:','https:'].includes(u.protocol)?u.href:null;} catch{return null;} };
-export function renderLibrary(data,state,safe) {
+export function renderLibrary(data,state,safe,upload=null) {
   const entry=libraryEntries(data).find(x=>x.key===state.selected);
   const options=targets=>'<option value="">Выберите место</option>'+targets.map(t=>`<option value="${safe(t.key)}">${safe(t.label)}</option>`).join('');
   const targets=entry?libraryTargets(entry,data):[], destinations=entry?.kind==='task'?libraryTargets(entry,data,true):[];
   const url=entry?.kind==='material'?webUrl(entry.url):null;
   const count=entry ? (entry.kind==='task' ? (data.topicTaskLinks || []).filter(l=>l.taskId===entry.id).length :
     [...(data.classMaterialLinks || []),...(data.lessonMaterialLinks || []),...(data.topicMaterialLinks || [])].filter(l=>l.materialId===entry.id).length) : 0;
-  return `<section class="stack" data-library><div class="section-head"><div><h2>Библиотека</h2><p class="muted small">Шаблоны заданий и ссылки для повторного использования в классах и занятиях.</p></div><button type="button" class="secondary" data-library-create>Создать шаблон</button></div>
-    <div class="class-tabs" role="group" aria-label="Тип содержимого">${[['all','Всё'],['task','Шаблоны'],['material','Ссылки']].map(([id,label])=>`<button type="button" class="${state.kind===id?'active':''}" aria-pressed="${state.kind===id}" data-library-type="${id}">${label}</button>`).join('')}</div>
+  return `<section class="stack" data-library><div class="section-head"><div><h2>Библиотека</h2><p class="muted small">Шаблоны, файлы и ссылки для повторного использования в классах и занятиях.</p></div><button type="button" class="secondary" data-library-create>Создать шаблон</button></div>
+    <div class="class-tabs" role="group" aria-label="Тип содержимого">${[['all','Всё'],['task','Шаблоны'],['file','Файлы'],['material','Ссылки']].map(([id,label])=>`<button type="button" class="${state.kind===id?'active':''}" aria-pressed="${state.kind===id}" data-library-type="${id}">${label}</button>`).join('')}</div>
+    ${upload?renderFileUpload(upload,safe):''}
     <div class="form-row"><label>Поиск<input id="librarySearch" type="search" value="${safe(state.query)}" placeholder="Название, условие или адрес ссылки"></label><label>Программа<select data-library-program><option value="">Все программы</option>${(data.programs || []).map(p=>`<option value="${safe(p.id)}" ${state.programId===p.id?'selected':''}>${safe(p.displayName)}</option>`).join('')}<option value="unlinked" ${state.programId==='unlinked'?'selected':''}>Без программы</option></select></label><label>Сортировка<select data-library-sort><option value="newest" ${state.sort==='newest'?'selected':''}>Сначала новые</option><option value="title" ${state.sort==='title'?'selected':''}>По названию</option></select></label></div>
     <p class="muted small">Программа ссылки определяется по классам, темам и занятиям, где она используется. Новые ссылки добавляются на вкладке «Материалы» класса.</p>
     <div class="library-layout"><section class="card stack" id="libraryResults">${renderLibraryResults(data,state,safe)}</section>
       <section class="card stack" aria-label="Предпросмотр" data-library-detail style="min-width:0;overflow-wrap:anywhere">${entry?`
         <div class="section-head"><h3>${safe(entry.title)}</h3><button type="button" class="secondary small-button" data-library-close>Закрыть</button></div>
-        <span class="pill">${entry.kind==='task'?'Шаблон задания':'Ссылка'} · Привязок: ${count}</span>
-        ${entry.kind==='task'?`<p style="white-space:pre-wrap" data-library-prompt>${safe(entry.prompt)}</p>`:`<p>${safe(entry.url)}</p>${url?`<a class="link" href="${safe(url)}" target="_blank" rel="noopener noreferrer">Открыть материал ↗</a>`:''}`}
+        <span class="pill">${entry.kind==='task'?'Шаблон задания':entry.fileId?'Файл':'Ссылка'} · Привязок: ${count}</span>
+        ${entry.kind==='task'?`<p style="white-space:pre-wrap" data-library-prompt>${safe(entry.prompt)}</p>`:`<p>${safe(entry.fileName || entry.url)}${entry.fileId?' · '+safe(fileSize(entry.sizeBytes)):''}</p>${materialAction(entry,safe)}`}
         <form id="libraryAttachForm" class="stack" data-library-item="${safe(entry.key)}"><h3>Использовать готовое</h3><label>Куда прикрепить<select name="target" required>${options(targets)}</select></label><p class="muted small">Добавляется привязка. Сам ${entry.kind==='task'?'шаблон':'материал'} остаётся в библиотеке.</p><div class="row"><button type="submit" class="primary" ${targets.length?'':'disabled'}>Прикрепить</button><button type="button" class="secondary" data-library-cancel>Отмена</button></div>${targets.length?'':'<p class="muted small">Нет подходящих мест для новой привязки.</p>'}</form>
         ${entry.kind==='task'?`<form id="libraryAssignJumpForm" class="stack" data-library-item="${safe(entry.key)}"><h3>Назначить ученикам</h3><label>Класс или занятие<select name="target" required>${options(destinations)}</select></label><button type="submit" class="secondary" ${destinations.length?'':'disabled'}>Перейти к назначению</button><p class="muted small">Получателей и срок выберите на следующем экране.</p></form>`:''}
       `:'<h3>Предпросмотр</h3><p class="muted">Выберите шаблон или ссылку в списке.</p>'}</section>

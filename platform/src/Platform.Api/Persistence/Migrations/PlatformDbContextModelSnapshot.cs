@@ -155,25 +155,20 @@ namespace TestingHosting.Platform.Persistence.Migrations
                 b.HasKey("Id");b.HasAlternateKey("WorkspaceId","Id");
                 b.HasIndex("WorkspaceId","RequestId").IsUnique();
                 b.ToTable("TeacherFileAssets","platform",t=>t.HasCheckConstraint("CK_FileAssets_Size","\"SizeBytes\" BETWEEN 1 AND 5242880"));
-                b.HasOne("TestingHosting.Platform.IdentityAccess.Workspace",null).WithMany().HasForeignKey("WorkspaceId")
-                    .OnDelete(DeleteBehavior.Restrict).IsRequired().HasConstraintName("FK_FileAssets_Workspace");
+
             });
             modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherFileContent", b =>
             {
                 b.Property<Guid>("WorkspaceId").HasColumnType("uuid");b.Property<Guid>("FileId").HasColumnType("uuid");
                 b.Property<byte[]>("Bytes").IsRequired().HasColumnType("bytea");b.HasKey("WorkspaceId","FileId");
                 b.ToTable("TeacherFileContents","platform",t=>t.HasCheckConstraint("CK_FileContents_Size","octet_length(\"Bytes\") BETWEEN 1 AND 5242880"));
-                b.HasOne("TestingHosting.Platform.Classes.TeacherFileAsset",null).WithMany().HasForeignKey("WorkspaceId","FileId")
-                    .HasPrincipalKey("WorkspaceId","Id").OnDelete(DeleteBehavior.Restrict).IsRequired().HasConstraintName("FK_FileContents_Asset");
+
             });
             modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherMaterial", b =>
             {
                     b.Property<Guid?>("FileAssetId").HasColumnType("uuid");
                     b.HasIndex("WorkspaceId","FileAssetId").IsUnique();
-                    b.HasOne("TestingHosting.Platform.Classes.TeacherFileAsset","FileAsset").WithMany()
-                        .HasForeignKey("WorkspaceId","FileAssetId").HasPrincipalKey("WorkspaceId","Id")
-                        .OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_Materials_File");
-                    b.Navigation("FileAsset");
+
 
                 b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
                 b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
@@ -1753,6 +1748,26 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     .WithMany().HasForeignKey("WorkspaceId", "GroupClassId")
                     .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict)
                     .HasConstraintName("FK_NativeAssignments_Group");
+            });
+
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherFileAsset", b =>
+            {
+                b.HasOne("TestingHosting.Platform.IdentityAccess.Workspace",null).WithMany().HasForeignKey("WorkspaceId")
+                    .OnDelete(DeleteBehavior.Restrict).IsRequired().HasConstraintName("FK_FileAssets_Workspace");
+            });
+
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherFileContent", b =>
+            {
+                b.HasOne("TestingHosting.Platform.Classes.TeacherFileAsset",null).WithMany().HasForeignKey("WorkspaceId","FileId")
+                    .HasPrincipalKey("WorkspaceId","Id").OnDelete(DeleteBehavior.Restrict).IsRequired().HasConstraintName("FK_FileContents_Asset");
+            });
+
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherMaterial", b =>
+            {
+                    b.HasOne("TestingHosting.Platform.Classes.TeacherFileAsset","FileAsset").WithMany()
+                        .HasForeignKey("WorkspaceId","FileAssetId").HasPrincipalKey("WorkspaceId","Id")
+                        .OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_Materials_File");
+                    b.Navigation("FileAsset");
             });
 
 #pragma warning restore 612, 618

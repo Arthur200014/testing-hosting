@@ -332,6 +332,7 @@
     import { groupHomeworkKey, contextHomeworkKey } from './teacher-data.mjs';
     import { individualClassNativeHomework, taskMatchesClass, renderGroupHomework, renderContextHomework, homeworkAudience, updateGroupAssignmentChoices } from './class-native-homework.mjs';
     import { renderClassMaterials } from './class-materials-ui.mjs';
+    import { newFileUploadState, uploadProtectedFile, saveProtectedFile } from './material-file.mjs';
     import { newLibraryState, libraryEntries, libraryTargets, libraryAttachment, renderLibrary, renderLibraryResults } from './teacher-library.mjs';
     import { renderClassProgram, topicsForClass } from './class-program-ui.mjs';
     import { renderLessonTopics, lessonBelongsToClass, lessonTopicChange } from './lesson-topics-ui.mjs';
@@ -360,7 +361,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
-        state.library=newLibraryState();
+        state.library=newLibraryState();state.fileUpload=null;
         state.resultDraft=null;
         state.selectedLesson=null; state.lessonFilter='all';
         state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.classDetailTab = 'summary'; state.classStatsMonth = new Date().toISOString().slice(0,7); state.classStatsExpanded = ''; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; state.lessonPlan = null; state.scheduleEdit = null; state.calendarDate = calendarDay(); state.calendarMode = 'day'; state.periodPreview=null;
@@ -430,6 +431,11 @@
           body => api('teacher/' + path, { method: 'POST', body }));
       }
       function setView(view) {
+        if(state.view==='library' && state.view!==view && state.fileUpload?.file) {
+          if(state.fileUpload.busy) {showNotice('Дождитесь завершения загрузки.',true);return Promise.resolve();}
+          if(!confirm('Отменить выбранную загрузку файла?')) return Promise.resolve();
+          state.fileUpload=newFileUploadState();
+        }
         if(state.view!==view && !canLeaveLibraryDraft()) return Promise.resolve();
         if (state.view !== view && document.querySelector('#classEditForm[data-dirty="1"]') &&
             !confirm('Есть несохранённые изменения класса. Покинуть редактор без сохранения?')) return Promise.resolve();
@@ -1600,7 +1606,7 @@
             <div class="card stack"><h2>Пробники</h2>${list(r.mocks, 'В выбранном периоде пробников нет.', x => `<div class="item"><div><strong>${safe(x.variantName)}</strong><small>${safe(x.mockDate)} · первичные ${safe(x.primaryScore)}/${safe(x.maxPrimaryScore)}</small></div><span class="pill">${percent(x.scorePercent)}</span></div>`)}</div>
           </div>`;
       }
-      function library() { return renderLibrary(state.data,state.library,safe); }
+      function library() { state.fileUpload ||= newFileUploadState();return renderLibrary(state.data,state.library,safe,state.fileUpload); }
       function render() {
         // Related reads may finish while the teacher is already typing in a lesson form.
         const drafts=[...document.querySelectorAll('[data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"], #libraryAttachForm[data-dirty="1"]')].map(form=>({
@@ -1766,6 +1772,7 @@
         logout();
       });
       $('content').addEventListener('input', event => {
+        if(event.target.closest('#fileUploadForm') && event.target.name==='title') {state.fileUpload.title=event.target.value;state.fileUpload.requestId=null;return;}
         if(event.target.id==='librarySearch') {state.library.query=event.target.value;updateLibraryResults();return;}
         const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, #libraryAttachForm, [data-context-task], [data-context-assign]');
         if (editor) editor.dataset.dirty = '1';
@@ -1785,6 +1792,10 @@
         }
       });
       $('content').addEventListener('change', event => {
+        if(event.target.matches('#fileUploadForm [name="file"]')) {
+          state.fileUpload={...newFileUploadState(),file:event.target.files[0] || null,title:event.target.files[0]?.name || ''};
+          render();document.querySelector('[data-file-upload-panel]').open=true;return;
+        }
         if(event.target.matches('[data-library-program], [data-library-sort]')) {
           state.library[event.target.matches('[data-library-program]')?'programId':'sort']=event.target.value;
           updateLibraryResults();return;
@@ -1863,6 +1874,15 @@
         }
       });
       $('content').addEventListener('click', async event => {
+        const download=event.target.closest('[data-file-download]');
+        if(download) {
+          download.disabled=true;
+          try {await saveProtectedFile(API,state.token,download.dataset.fileDownload,download.dataset.fileName);}
+          catch(error) {showNotice(error.message,true);} finally {if(download.isConnected) download.disabled=false;}
+          return;
+        }
+        if(event.target.closest('[data-file-upload-cancel]')) {state.fileUpload=newFileUploadState();render();return;}
+
         const libraryType=event.target.closest('[data-library-type]');
         if(libraryType) {state.library.kind=libraryType.dataset.libraryType;updateLibraryResults();return;}
         const libraryPreview=event.target.closest('[data-library-preview]');
@@ -2402,6 +2422,20 @@
       });
       $('content').addEventListener('submit', async event => {
         event.preventDefault(); const form = event.target;
+        if(form.id==='fileUploadForm') {
+          if(state.fileUpload?.busy) return;
+          const upload=state.fileUpload,generation=state.generation,token=state.token;
+          upload.busy=true;upload.error='';render();document.querySelector('[data-file-upload-panel]').open=true;
+          try {
+            const item=await uploadProtectedFile(API,token,upload);
+            if(state.generation!==generation) return;
+            state.fileUpload=newFileUploadState();state.library.selected='material:'+item.id;state.library.kind='file';state.library.query='';state.library.programId='';
+            invalidate(['materials']);await refresh();showNotice('Файл загружен. Теперь его можно прикрепить.');
+          } catch(error) {if(state.generation===generation) upload.error=error.message;}
+          finally {if(state.generation===generation) {upload.busy=false;render();}}
+          return;
+        }
+
         if(form.id==='libraryAttachForm') onForm(form,async()=>{
           const entry=libraryEntries(state.data).find(x=>x.key===form.dataset.libraryItem && x.key===state.library.selected);
           if(!entry) throw new Error('Повторно выберите объект библиотеки.');

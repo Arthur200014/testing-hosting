@@ -42,7 +42,7 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         async Task<TeacherCreateStudentResponse> Student(string name) =>
             (await (await teacher.PostAsJsonAsync("/api/v1/teacher/students",new TeacherCreateStudentRequest(Guid.NewGuid(),program,name)))
                 .Content.ReadFromJsonAsync<TeacherCreateStudentResponse>())!;
-        var first=await Student("File recipient"),second=await Student("Other recipient");
+        var first=await Student("File recipient");var second=await Student("Other recipient");
         var cls=(await (await teacher.PostAsJsonAsync("/api/v1/teacher/classes",new TeacherCreateClassRequest(Guid.NewGuid(),first.MembershipId,"Files class")))
             .Content.ReadFromJsonAsync<TeacherClassView>())!;
         var group=(await (await teacher.PostAsJsonAsync("/api/v1/teacher/groups",new TeacherCreateGroupRequest(Guid.NewGuid(),"Files group",[first.MembershipId,second.MembershipId])))

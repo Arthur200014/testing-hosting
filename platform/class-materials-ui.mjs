@@ -1,3 +1,4 @@
+import { materialAction } from './material-file.mjs';
 export function classMaterialEntries(data, item) {
   const links = (data.classMaterialLinks || []).filter(x => item.kind === 'group'
     ? x.groupClassId === item.id : x.individualClassId === item.id);
@@ -42,7 +43,7 @@ export function renderClassMaterials(item, data, safe, list) {
       <div class="section-head"><h3>Прикреплённые ссылки</h3><span class="muted small">${links.length}</span></div>
       ${list(links, 'В этом классе пока нет материалов.', x => `
         <div class="item"><div><strong>${safe(x.title)}</strong><small>${safe(x.url)}</small></div>
-          <a class="link" href="${safe(x.url)}" target="_blank" rel="noopener noreferrer">Открыть</a></div>`)}
+          ${materialAction(x,safe)}</div>`)}
     </section>
   </section>`;
 }

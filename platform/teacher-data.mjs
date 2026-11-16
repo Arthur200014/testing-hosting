@@ -51,6 +51,7 @@ export const teacherMutationKeys = {
 
 // This full reset is required on logout, login or a different workspace.
 export function invalidateTeacherData(state) {
+  state.fileUpload = null;
   state.library = {query:'',kind:'all',programId:'',sort:'newest',selected:''};
   state.generation++;
   state.data = {};
