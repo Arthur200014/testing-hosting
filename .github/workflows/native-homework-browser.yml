@@ -11,6 +11,8 @@ on:
       - 'platform/lesson-recordings*.mjs'
       - 'platform/student-card*.mjs'
       - 'platform/pupil-history*.mjs'
+      - 'platform/pupil-feedback*.mjs'
+      - 'platform/src/Platform.Api/Students/PupilFeedbackService.cs'
       - 'platform/test-fixtures/pupil-history.sql'
       - 'platform/src/Platform.Api/Students/PupilHistoryReader.cs'
       - 'platform/src/Platform.Api/Lessons/LessonRecordingService.cs'
@@ -38,12 +40,16 @@ on:
       - 'platform/src/Platform.Api/Classes/TeacherClassTopicService.cs'
       - '.github/workflows/native-homework-browser.yml'
   workflow_dispatch:
+  workflow_run:
+    workflows: ["pages build and deployment"]
+    types: [completed]
 
 permissions:
   contents: read
 
 jobs:
   browser:
+    if: github.event_name != 'workflow_run'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -64,8 +70,18 @@ jobs:
           done
           cat /tmp/tas-native-homework-http.log
           exit 1
+      - name: Check changed browser module syntax
+        run: |
+          node --check platform/pupil-feedback.mjs
+          node --check platform/calendar-real-browser.mjs
+          python3 - <<'PY'
+          from pathlib import Path
+          source=Path('platform/teacher.html').read_text()
+          Path('/tmp/teacher-inline.mjs').write_text(source.split('<script type="module">')[1].split('</script>')[0])
+          PY
+          node --check /tmp/teacher-inline.mjs
       - name: Verify report and cached teacher data (synthetic Node fixtures)
-        run: node --test platform/pupil-history.test.mjs platform/student-card.test.mjs platform/lesson-recordings.test.mjs platform/teacher-report.test.mjs platform/teacher-data.test.mjs platform/teacher-library.test.mjs platform/material-file.test.mjs platform/homework-deadline.test.mjs platform/teacher-calendar.test.mjs platform/class-native-homework.test.mjs platform/class-materials-ui.test.mjs platform/lesson-materials-ui.test.mjs platform/lesson-topics-ui.test.mjs platform/class-program-ui.test.mjs
+        run: node --test platform/pupil-feedback.test.mjs platform/pupil-history.test.mjs platform/student-card.test.mjs platform/lesson-recordings.test.mjs platform/teacher-report.test.mjs platform/teacher-data.test.mjs platform/teacher-library.test.mjs platform/material-file.test.mjs platform/homework-deadline.test.mjs platform/teacher-calendar.test.mjs platform/class-native-homework.test.mjs platform/class-materials-ui.test.mjs platform/lesson-materials-ui.test.mjs platform/lesson-topics-ui.test.mjs platform/class-program-ui.test.mjs
       - name: Verify teacher and student UI against synthetic API
         run: node platform/native-homework-browser.mjs
       - name: Verify workspace switch, stale network responses and offline retry
@@ -85,3 +101,36 @@ jobs:
           name: meleto-ui02-screenshots
           path: ${{ runner.temp }}/meleto-ui02/*.png
           if-no-files-found: error
+
+  publication:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - name: Compare published frontend bytes with the Pages source commit
+        env:
+          PUBLICATION_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          python3 - <<'PY'
+          import concurrent.futures, os, pathlib, time, urllib.request
+          names=['teacher.html','teacher-data.mjs','student-card.mjs','pupil-history.mjs','pupil-feedback.mjs','teacher-report.mjs']
+          def matches(name):
+              url='https://arthur200014.github.io/testing-hosting/platform/'+name+'?release='+os.environ['PUBLICATION_SHA']
+              try:
+                  request=urllib.request.Request(url,headers={'Cache-Control':'no-cache'})
+                  return urllib.request.urlopen(request,timeout=15).read()==pathlib.Path('platform',name).read_bytes()
+              except Exception:
+                  return False
+          for attempt in range(6):
+              with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+                  checks=dict(zip(names,pool.map(matches,names)))
+              if all(checks.values()):
+                  print('Published frontend byte-match PASS:',os.environ['PUBLICATION_SHA'],checks)
+                  break
+              if attempt==5:
+                  raise SystemExit('Published frontend byte-match FAIL: '+str(checks))
+              time.sleep(10)
+          PY

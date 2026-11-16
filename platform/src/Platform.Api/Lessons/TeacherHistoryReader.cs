@@ -18,17 +18,17 @@ public sealed record TeacherLessonView(
 public sealed class TeacherHistoryReader(PlatformDbContext db)
 {
     public async Task<List<TeacherLessonView>> ListLessonsAsync(
-        Guid workspaceId, CancellationToken cancellationToken)
+        Guid workspaceId, CancellationToken cancellationToken, Guid? membershipId = null)
     {
         var lessons = await db.Lessons.AsNoTracking()
-            .Where(x => x.WorkspaceId == workspaceId)
+            .Where(x => x.WorkspaceId == workspaceId && (!membershipId.HasValue || db.LessonParticipants.Any(p => p.WorkspaceId == workspaceId && p.LessonId == x.Id && p.MembershipId == membershipId)))
             .OrderByDescending(x => x.LessonAt).ThenBy(x => x.Id)
             .Select(x => new { x.Id, x.LegacyLessonId, x.LessonAt,
                 x.IndividualClassId, x.GroupClassId, x.Title, x.Description, x.CompletedAt, x.CreatedAt })
             .ToListAsync(cancellationToken);
 
         var participants = await db.LessonParticipants.AsNoTracking()
-            .Where(x => x.WorkspaceId == workspaceId)
+            .Where(x => x.WorkspaceId == workspaceId && (!membershipId.HasValue || x.MembershipId == membershipId))
             .OrderBy(x => x.Id)
             .Select(x => new
             {

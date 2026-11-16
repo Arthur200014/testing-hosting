@@ -17,6 +17,8 @@ export function contextHomeworkKey(item, lesson = null) {
 }
 export function teacherResourcePath(key) {
   if (Object.hasOwn(teacherPaths, key)) return teacherPaths[key];
+  const feedback=/^pupilFeedback:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(key);
+  if(feedback) return 'students/'+feedback[1]+'/feedback';
   const pupil = /^studentHomework:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):(tasks|results):(\d{1,8})(?::(all|\d{4}-\d{2}):(all|(?:group|individual)~[0-9a-f-]{36}))?$/i.exec(key);
   if(pupil) {
     let path='students/' + pupil[1] + '/homework?page=' + pupil[3] + '&results=' + (pupil[2] === 'results');
