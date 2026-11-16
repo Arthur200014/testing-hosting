@@ -102,6 +102,7 @@ builder.Services.AddRateLimiter(options =>
 {
     var studentSessionOptions = StartupConfiguration.GetStudentSessionOptions(builder.Configuration);
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddConcurrencyLimiter("file-uploads", limiter => { limiter.PermitLimit=2;limiter.QueueLimit=0; });
     options.AddPolicy("teacher-sessions", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
@@ -899,11 +900,14 @@ app.MapPost("/api/v1/teacher/files/{requestId:guid}", async (Guid requestId,stri
 {
     var result=await files.UploadAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),requestId,fileName,title,request.Body,request.ContentLength,ct);
     return result.Status is 200 or 201 ? Results.Json(result.Value,statusCode:result.Status) : Results.Problem(statusCode:result.Status,title:result.Value?.ToString());
-}).RequireAuthorization("teacher");
+}).RequireAuthorization("teacher").RequireRateLimiting("file-uploads");
 app.MapGet("/api/v1/teacher/files/{id:guid}/content",async(Guid id,HttpResponse response,ClaimsPrincipal principal,TeacherFileService files,CancellationToken ct)=>
     FileResult(response,await files.TeacherDownloadAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),id,ct))).RequireAuthorization("teacher");
-app.MapGet("/api/v1/files",async(ClaimsPrincipal principal,TeacherFileService files,CancellationToken ct)=>
-    await files.StudentFilesAsync(principal,ct) is {} rows ? Results.Ok(rows) : Results.Unauthorized()).RequireAuthorization("student");
+app.MapGet("/api/v1/files",async(HttpResponse response,ClaimsPrincipal principal,TeacherFileService files,CancellationToken ct)=>
+{
+    response.Headers.CacheControl="no-store";
+    return await files.StudentFilesAsync(principal,ct) is {} rows ? Results.Ok(rows) : Results.Unauthorized();
+}).RequireAuthorization("student");
 app.MapGet("/api/v1/files/{id:guid}/content",async(Guid id,HttpResponse response,ClaimsPrincipal principal,TeacherFileService files,CancellationToken ct)=>
     FileResult(response,await files.StudentDownloadAsync(principal,id,ct))).RequireAuthorization("student");
 

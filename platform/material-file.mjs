@@ -21,7 +21,7 @@ export function renderFileUpload(state,safe) {
 async function check(response) {
   if(response.ok) return response;
   const data=await response.json().catch(()=>null);
-  throw new Error(response.status===401?'Войдите заново.':response.status===404?'Файл недоступен.':data?.title || 'Не удалось выполнить операцию с файлом.');
+  throw new Error(response.status===401?'Войдите заново.':response.status===404?'Файл недоступен.':response.status===429?'Повторите загрузку через несколько секунд.':data?.title || 'Не удалось выполнить операцию с файлом.');
 }
 export async function uploadProtectedFile(api,token,state,request=fetch) {
   if(!state.file || !state.file.size || state.file.size>MAX_FILE_BYTES) throw new Error('Выберите непустой файл размером до 5 МБ.');

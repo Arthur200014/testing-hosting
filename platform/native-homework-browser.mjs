@@ -130,6 +130,7 @@ async function mockApi(page) {
         'teacher/tests/history': [],
         'teacher/tests/attempts': [],
         'teacher/mocks/results': [],
+        'files': [],
         'homework/native/assignments': assignments
       };
       if (Object.hasOwn(reads, path)) return send(reads[path]);

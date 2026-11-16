@@ -167,7 +167,7 @@ namespace TestingHosting.Platform.Persistence.Migrations
             modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherMaterial", b =>
             {
                     b.Property<Guid?>("FileAssetId").HasColumnType("uuid");
-                    b.HasIndex("WorkspaceId","FileAssetId").IsUnique();
+
 
 
                 b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
@@ -177,6 +177,7 @@ namespace TestingHosting.Platform.Persistence.Migrations
                 b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
                 b.HasKey("Id");
                 b.HasAlternateKey("WorkspaceId", "Id");
+                b.HasIndex("WorkspaceId","FileAssetId").IsUnique();
                 b.HasIndex("WorkspaceId", "CreatedAt");
                 b.ToTable("TeacherMaterials", "platform");
                 b.HasOne("TestingHosting.Platform.IdentityAccess.Workspace", null)
