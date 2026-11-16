@@ -2,10 +2,10 @@
 
 **UPDATED:** 2026-11-16
 **ACTIVE_TASK:** UI-05 IN_PROGRESS — pupil cards/class context implemented, isolated acceptance pending.
-**ACTIVE_BRANCH:** `tas/ui05-student-cards`, PR #86, head `7e3c9c20087c1f5d81adabd4591bb9b53e7ca581`.
+**ACTIVE_BRANCH:** `tas/ui05-student-cards`, PR #86, head `e14c00979b4303664ec6908020583fa9d037eda3`; server CI PASS, final browser rerun after mobile fix.
 **MERGED_SHA:** `181d586d01e53ebac1fede8c7650a1c0a42aec6d`, [PR #85](https://github.com/Arthur200014/testing-hosting/pull/85).
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43907587097](https://github.com/Arthur200014/testing-hosting/actions/runs/43907587097) PASS; published teacher.html and lesson-recordings.mjs byte-match main. Backend/API/schema unchanged by #85; existing API from #84 reused. Native Timeweb auto-deploy is owner-configured; independent API revision/migration NOT_VERIFIED / UNKNOWN, LIVE_WRITE_NOT_RUN.
-**NEXT_ACTION:** Finish PR #86 isolated CI/browser checks, fix failures, inspect reference43–44 screenshots, merge/Pages/byte comparison and update HANDOFF. Existing student/profile API reused; no backend/schema changes. No Timeweb checks, production writes or invitations.
+**NEXT_ACTION:** Finish PR #86 latest CI/browser; inspect reference43–44 desktop and 390px screenshots, merge/Pages/byte comparison/HANDOFF. Browser already passed individual profile cancel/refresh/stale HTTP409/save; corrected test entry to class Information tab. Actual mobile overflow fixed with scoped header/control width rules and new geometry diagnostic. Verify remaining group/related-navigation/reload checks. No backend/schema changes, Timeweb checks or production writes.
 
 ## Standing owner instructions
 
