@@ -1134,8 +1134,38 @@ try {
     const retry=Number(profileLoginReply.headers()['retry-after']);await profileStudentPage.waitForTimeout((Number.isFinite(retry) && retry>0?Math.min(retry,60):60)*1000);
     await profileStudentPage.locator('#loginForm [name="code"]').fill(north.students[0].inviteCode);profileLoginReply=await submitProfileStudentLogin();
   }
-  assert.equal(profileLoginReply.status(),200,'student login succeeds after respecting the rate window');assert.equal((await profileLoginReply.json()).student.displayName,finalPupilName,'student session uses persisted display name');
+  assert.equal(profileLoginReply.status(),200,'student login succeeds after respecting the rate window');const profileSession=await profileLoginReply.json();assert.equal(profileSession.student.displayName,finalPupilName,'student session uses persisted display name');
   await profileStudentPage.locator('#studentName').filter({hasText:finalPupilName}).waitFor();await profileStudentPage.close();
+  // Pupil-scoped work pages: real answers, cancel/reset, draft refresh and persisted zero-grade result.
+  const workTask=await call('teacher/homework/native/tasks',north.token,{requestId:randomUUID(),programId:pupilOne.programId,title:'Карточка ученика: проверка ДЗ',prompt:'Вычислите 2 + 2. Условие <не HTML>'},201);
+  let workId,secondWorkId;
+  for(let i=0;i<21;i++) {
+    const assigned=await call('teacher/homework/native/group-assignments',north.token,{requestId:randomUUID(),taskId:workTask.id,membershipIds:i===0?[pupilCardId,pupilTwo.membershipId]:[pupilCardId],deadlineHours:48,groupClassId:group.id},201);
+    workId=assigned[0];if(i===0) secondWorkId=(await call('teacher/students/'+pupilTwo.membershipId+'/homework',north.token)).items.find(x=>x.taskId===workTask.id).id;
+  }
+  await call('homework/native/submissions',profileSession.accessToken,{submissionId:randomUUID(),assignmentId:workId,answer:'Ответ ученика: 5 < 6'},201);
+  const workPath='teacher/students/'+pupilCardId+'/homework';
+  await call(workPath,south.token,undefined,404);
+  await page.locator('[data-student-card-tab="tasks"]').click();await page.locator('[data-student-work="'+workId+'"]').waitFor();
+  assert.equal(await page.locator('[data-student-work="'+secondWorkId+'"]').count(),0,'other pair participant has a separate assignment');
+  await page.locator('[data-student-work-page="1"]').click();await page.locator('[data-student-work-page="0"]').waitFor();
+  await page.locator('[data-student-work-page="0"]').click();await page.locator('[data-student-work-open="'+workId+'"]').click();
+  const workForm=page.locator('[data-student-grade][data-native-grade="'+workId+'"]');await workForm.waitFor();
+  await page.getByText('Ответ ученика: 5 < 6',{exact:true}).waitFor();await workForm.locator('[name="scorePercent"]').fill('55');await workForm.locator('[name="feedback"]').fill('Несохранённый комментарий');
+  await page.locator('#refresh').click();await page.locator('#notice').waitFor({state:'hidden'});assert.equal(await workForm.locator('[name="feedback"]').inputValue(),'Несохранённый комментарий','grade draft survives refresh');
+  page.once('dialog',d=>d.dismiss());await page.locator('[data-student-card-tab="results"]').click();await workForm.waitFor();
+  await workForm.locator('button[type="reset"]').click();assert.equal(await workForm.locator('[name="feedback"]').inputValue(),'');
+  assert.equal((await call(workPath,north.token)).items.find(x=>x.id===workId).scorePercent,null,'cancel/reset does not grade');
+  await workForm.locator('[name="scorePercent"]').fill('0');await workForm.locator('[name="feedback"]').fill('Проверено из карточки ученика');
+  const gradedReply=page.waitForResponse(r=>r.url().endsWith('/teacher/homework/native/grades') && r.request().method()==='POST');await workForm.locator('button[type="submit"]').click();assert.equal((await gradedReply).status(),201);await workForm.waitFor({state:'detached'});
+  await page.locator('[data-student-work-detail]').getByText('Оценка: 0%',{exact:true}).waitFor();await page.locator('[data-student-work-close]').click();await page.locator('[data-student-card-tab="results"]').click();await page.locator('[data-student-work-open="'+workId+'"]').click();await page.getByText('Комментарий: Проверено из карточки ученика',{exact:true}).waitFor();
+  assert.equal((await call('homework/native/assignments',profileSession.accessToken)).find(x=>x.id===workId).scorePercent,0,'student reads persisted zero grade');
+  const secondWorks=await call('teacher/students/'+pupilTwo.membershipId+'/homework',north.token);assert.equal(secondWorks.items.find(x=>x.id===secondWorkId).scorePercent,null,'grading first pupil leaves second unchanged');
+  await page.screenshot({path:output+'/46_student_work_result_real.png'});await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'pupil work detail fits mobile');await page.screenshot({path:output+'/46_student_work_mobile_real.png'});await page.setViewportSize({width:1348,height:926});
+  await page.reload();await login(north);await openRecordingLesson(group.id,grouped.id);await page.locator('.class-lesson-detail [data-open-student="'+pupilCardId+'"]').click();await page.locator('[data-student-card-tab="results"]').click();await page.locator('[data-student-work-open="'+workId+'"]').click();await page.locator('[data-student-work-detail]').getByText('Оценка: 0%',{exact:true}).waitFor();
+  await page.locator('[data-student-work-close]').click();await page.locator('[data-student-card-tab="tasks"]').click();await page.screenshot({path:output+'/45_student_work_list_real.png'});
+  await page.locator('[data-student-card-return]').click();await page.locator('[data-lesson-recordings="'+grouped.id+'"]').waitFor();
+
   await page.locator('.nav [data-view="library"]').click();await page.locator('[data-library]').waitFor();
   await page.locator('[data-library-section="materials"]').click();
   await page.locator('#logout').click(); await login(south);

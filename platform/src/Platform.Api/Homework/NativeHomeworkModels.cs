@@ -39,6 +39,7 @@ public sealed record AssignNativeTaskRequest(Guid RequestId, Guid TaskId, Guid[]
 public sealed record SubmitNativeAnswerRequest(Guid SubmissionId, Guid AssignmentId, string? Answer);
 public sealed record GradeNativeAnswerRequest(Guid RequestId, Guid AssignmentId, int ScorePercent, string? Feedback);
 public sealed record NativeTaskView(Guid Id, Guid ProgramId, string Title, string Prompt, DateTimeOffset CreatedAt);
+public sealed record StudentHomeworkPage(IReadOnlyList<NativeAssignmentView> Items, int Total, int Page, int PageSize);
 public sealed record NativeAssignmentView(Guid Id, Guid TaskId, Guid MembershipId, Guid ProgramId,
     string Title, string Prompt, DateTimeOffset AssignedAt, DateTimeOffset DeadlineAt,
     string? Answer, DateTimeOffset? SubmittedAt, int? ScorePercent, string? TeacherFeedback, DateTimeOffset? GradedAt, Guid? GroupClassId = null, Guid? IndividualClassId = null, Guid? LessonId = null);

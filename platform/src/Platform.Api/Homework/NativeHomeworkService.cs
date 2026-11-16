@@ -104,6 +104,27 @@ public sealed class NativeHomeworkService(PlatformDbContext db, TimeProvider clo
         return (201, items.Select(x => x.Id).ToArray());
     }
 
+    public async Task<StudentHomeworkPage?> PupilAssignmentsAsync(Guid workspace, Guid membershipId, int page, bool results, CancellationToken ct)
+    {
+        var member = await db.WorkspaceStudentMemberships.AsNoTracking().Where(x =>
+            x.WorkspaceId == workspace && x.Id == membershipId && x.IsActive)
+            .Select(x => new { x.StudentId, x.ProgramId }).SingleOrDefaultAsync(ct);
+        if (member is null) return null;
+        var query = Query(workspace).AsNoTracking().Where(x => x.MembershipId == membershipId &&
+            x.StudentId == member.StudentId && x.ProgramId == member.ProgramId && (!results || x.GradedAt != null));
+        var total = await query.CountAsync(ct);
+        const int size = 20;
+        page = Math.Clamp(page, 0, Math.Max(0, (total - 1) / size));
+        var rows = await query.OrderByDescending(x => x.AssignedAt).ThenByDescending(x => x.Id)
+            .Skip(page * size).Take(size)
+            .Select(x => new NativeAssignmentView(x.Id, x.TaskId, x.MembershipId, x.ProgramId,
+                db.NativeHomeworkTasks.Where(t => t.Id == x.TaskId && t.WorkspaceId == workspace).Select(t => t.Title).First(),
+                db.NativeHomeworkTasks.Where(t => t.Id == x.TaskId && t.WorkspaceId == workspace).Select(t => t.Prompt).First(),
+                x.AssignedAt, x.DeadlineAt, x.Answer, x.SubmittedAt, x.ScorePercent, x.TeacherFeedback, x.GradedAt,
+                x.GroupClassId, x.IndividualClassId, x.LessonId)).ToListAsync(ct);
+        return new StudentHomeworkPage(rows, total, page, size);
+    }
+
     public async Task<List<NativeAssignmentView>?> GroupAssignmentsAsync(Guid workspace, Guid groupId, CancellationToken ct)
     {
         if (!await db.TeacherGroupClasses.AsNoTracking().AnyAsync(x => x.WorkspaceId == workspace && x.Id == groupId, ct))

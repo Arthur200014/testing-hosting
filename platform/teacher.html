@@ -335,7 +335,7 @@
   </div>
 
   <script type="module">
-    import {studentProfileKeys, studentProfileSnapshot, studentMemberships, studentClassRelations, studentLessonRows, studentLessonTarget, resolveStudentOrigin, beginStudentCard, studentEditAction, renderStudentCard} from './student-card.mjs';
+    import {studentProfileKeys, studentProfileSnapshot, studentMemberships, studentClassRelations, studentLessonRows, studentLessonTarget, resolveStudentOrigin, beginStudentCard, studentEditAction, studentHomeworkKey, renderStudentCard} from './student-card.mjs';
     import { buildTeacherReport, collectTeacherHomework } from './teacher-report.mjs';
     import { teacherNeeds, teacherMutationKeys, invalidateTeacherData, invalidateTeacherKeys, loadTeacherKey } from './teacher-data.mjs';
     import { performTeacherMutation } from './teacher-mutation.mjs';
@@ -424,7 +424,7 @@
         const selectedLessonDetail = view === 'overview' && !!state.selectedClass && !!state.selectedLesson;
         const selectedProgramClass = view === 'overview' && state.selectedClass && state.classDetailTab === 'program' &&
           teacherClasses().some(item => item.id === state.selectedClass && item.persistent);
-        const extra = selectedStudentCard ? ['classes','groups','lessons'] : selectedLessonDetail ? ['recordings','materials','lessonMaterialLinks','classTopics','topicMaterialLinks','topicTaskLinks','lessonTopicSets','programs','nativeTasks',contextHomeworkKey(teacherClasses().find(x=>x.id===state.selectedClass),(state.data.lessons || []).find(x=>x.id===state.selectedLesson))] :
+        const extra = selectedStudentCard ? ['classes','groups','lessons',...(['tasks','results'].includes(state.studentCard.tab)?[studentHomeworkKey(state.studentCard)]:[])] : selectedLessonDetail ? ['recordings','materials','lessonMaterialLinks','classTopics','topicMaterialLinks','topicTaskLinks','lessonTopicSets','programs','nativeTasks',contextHomeworkKey(teacherClasses().find(x=>x.id===state.selectedClass),(state.data.lessons || []).find(x=>x.id===state.selectedLesson))] :
           selectedProgramClass ? ['classTopics','topicMaterialLinks','materials','topicTaskLinks','nativeTasks','lessonTopicSets'] :
           selectedMaterialClass ? ['materials','classMaterialLinks'] :
           classTasks ? ['programs','nativeTasks',contextHomeworkKey(teacherClasses().find(x=>x.id===state.selectedClass))] :
@@ -1256,7 +1256,7 @@
       }
       function students() {
         const d = state.data;
-        if(state.studentCard) return renderStudentCard(d,state.studentCard,safe,state.editStudent===state.studentCard.membershipId?editStudentForm():'');
+        if(state.studentCard) return renderStudentCard(d,state.studentCard,safe,state.editStudent===state.studentCard.membershipId?editStudentForm():'',nativeGradeControls);
         return `<div class="grid two"><div class="card stack"><div class="section-head"><h2>Ученики</h2><span class="muted small">${d.students?.length || 0} активных</span></div>
           <label><span>Поиск по имени</span><input id="studentSearch" type="search" value="${safe(state.studentSearch || '')}" placeholder="Начните вводить имя"></label><div id="studentRows"></div></div>
           <div class="card stack"><div><h2>Новый ученик</h2><p class="muted small">Код доступа появится после создания. Скопируйте его ученику.</p></div>
@@ -1646,7 +1646,7 @@
       }
       function render() {
         // Related reads may finish while the teacher is already typing in a lesson form.
-        const drafts=[...document.querySelectorAll('[data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"], #libraryAttachForm[data-dirty="1"], #libraryRenameForm[data-dirty="1"], #libraryMoveForm[data-dirty="1"], #libraryFolderForm[data-dirty="1"], #recordingForm[data-dirty="1"], #studentEditForm[data-dirty="1"]')].map(form=>({
+        const drafts=[...document.querySelectorAll('[data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"], #libraryAttachForm[data-dirty="1"], #libraryRenameForm[data-dirty="1"], #libraryMoveForm[data-dirty="1"], #libraryFolderForm[data-dirty="1"], #recordingForm[data-dirty="1"], #studentEditForm[data-dirty="1"], [data-student-grade][data-dirty="1"]')].map(form=>({
           id:form.id, classId:form.dataset.classId, lessonId:form.dataset.lessonId, libraryItem:form.dataset.libraryItem, studentId:form.dataset.studentId, revision:form.dataset.revision,
           fields:[...form.querySelectorAll('input[name],textarea[name],select[name]')].map(input=>({
             name:input.name,type:input.type,value:input.value,checked:input.checked
@@ -1698,9 +1698,9 @@
         return setView('overview');
       }
       function canLeaveStudentEdit() {
-        const form=document.getElementById('studentEditForm');
-        if(form?.querySelector('button[type="submit"]')?.disabled) {showNotice('Дождитесь сохранения профиля.',true);return false;}
-        if(form?.dataset.dirty==='1' && !confirm('Отменить несохранённые изменения профиля ученика?')) return false;
+        const form=document.querySelector('#studentEditForm, [data-student-grade]');
+        if(form?.querySelector('button[type="submit"]')?.disabled) {showNotice('Дождитесь сохранения.',true);return false;}
+        if(form?.dataset.dirty==='1' && !confirm('Отменить несохранённые изменения ученика?')) return false;
         if(form) delete form.dataset.dirty;state.editStudent='';state.editSnapshot=null;
         return true;
       }
@@ -1754,8 +1754,8 @@
           const keys = form.libraryKeys || (form.matches('[data-native-grade]')
             ? ['nativeAssignments'] : teacherMutationKeys[form.id]);
           invalidate(keys);
-          if (form.matches('[data-context-assign], [data-native-grade]'))
-            invalidate([...new Set([...Object.keys(state.data),...Object.keys(state.inflight)])].filter(key => /^(group|class|lesson)Homework:/.test(key)));
+          if (keys?.includes('nativeAssignments') || form.matches('[data-context-assign], [data-native-grade]'))
+            invalidate([...new Set([...Object.keys(state.data),...Object.keys(state.inflight)])].filter(key => /^((group|class|lesson)Homework:|studentHomework:)/.test(key)));
           if(form.afterSave) await form.afterSave(); else await refresh();
         }
         catch (error) {
@@ -1822,6 +1822,7 @@
         if (coming) { showNotice('Раздел «' + coming.dataset.coming + '» будет подключён на своём этапе. Данные не изменены.'); return; }
         const button = event.target.closest('[data-view]'); if(button?.dataset.view==='students' && state.view==='students' && state.studentCard) {if(!canLeaveStudentEdit()) return;state.studentCard=null;render();return;} if (button) setView(button.dataset.view);
       });
+      document.addEventListener('reset',event=>{if(event.target.matches('[data-student-grade]')) {if(event.target.querySelector('button[type="submit"]')?.disabled) event.preventDefault();else delete event.target.dataset.dirty;}});
       $('refresh').addEventListener('click', () => refresh(true));
       $('logout').addEventListener('click', async () => {
         if(!canLeaveStudentEdit()) return;
@@ -1836,7 +1837,7 @@
           state.library.recordingQuery=event.target.value;
           const input=event.target,start=input.selectionStart;render();const next=document.querySelector('[data-recording-search]');next.focus();next.setSelectionRange(start,start);return;
         }
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, #libraryAttachForm, #libraryRenameForm, #libraryMoveForm, #libraryFolderForm, #recordingForm, #studentEditForm, [data-context-task], [data-context-assign]');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, #libraryAttachForm, #libraryRenameForm, #libraryMoveForm, #libraryFolderForm, #recordingForm, #studentEditForm, [data-student-grade], [data-context-task], [data-context-assign]');
         if (editor) editor.dataset.dirty = '1';
         const draft = event.target.closest('#lessonPlannerForm');
         if (draft && event.target.name === 'title') {
@@ -1853,7 +1854,7 @@
           if (input) { input.focus(); input.setSelectionRange(position, position); }
         }
       });
-      $('content').addEventListener('change', event => {
+      $('content').addEventListener('change', async event => {
         if(event.target.matches('#fileUploadForm [name="file"]')) {
           state.fileUpload={...newFileUploadState(),file:event.target.files[0] || null,title:event.target.files[0]?.name || ''};
           render();document.querySelector('[data-file-upload-panel]').open=true;return;
@@ -1873,17 +1874,17 @@
           section.querySelector('[data-group-homework-empty]').hidden=rows.some(row=>!row.hidden);
         }
         if(event.target.closest('[data-context-assign]')) updateGroupAssignmentChoices(event.target.closest('form'),state.data);
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, #libraryAttachForm, #libraryRenameForm, #libraryMoveForm, #libraryFolderForm, #recordingForm, #studentEditForm, [data-context-task], [data-context-assign]');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, #libraryAttachForm, #libraryRenameForm, #libraryMoveForm, #libraryFolderForm, #recordingForm, #studentEditForm, [data-student-grade], [data-context-task], [data-context-assign]');
         if (editor) editor.dataset.dirty = '1';
         if(state.studentCard && event.target.matches('[data-student-card-membership], [data-student-card-month], [data-student-card-filter]')) {
           const card=state.studentCard;
           if(!canLeaveStudentEdit()) {render();return;}
           if(event.target.matches('[data-student-card-membership]')) {
             if(!studentMemberships(state.data,card.membershipId).some(s=>s.membershipId===event.target.value)) {render();return;}
-            card.membershipId=event.target.value;card.classFilter='';card.infoOpen=false;
+            card.membershipId=event.target.value;card.classFilter='';card.infoOpen=false;card.workPage=0;card.workId='';
           } else if(event.target.matches('[data-student-card-month]')) card.month=event.target.value;
           else card.classFilter=event.target.value;
-          render();return;
+          await refresh();return;
         }
         if (event.target.id==='calendarPlanClass') {
           captureCalendarPlanDraft(event.target.form);
@@ -2486,7 +2487,15 @@
         if(event.target.closest('[data-student-card-close]')) {if(!canLeaveStudentEdit()) return;state.studentCard=null;render();return;}
         if(event.target.closest('[data-student-card-return]')) {const card=state.studentCard;await studentCardTarget(resolveStudentOrigin(state.data,card?.origin,card?.membershipId));return;}
         const studentTab=event.target.closest('[data-student-card-tab]');
-        if(studentTab) {if(!state.studentCard || !['attendance','classes','profile'].includes(studentTab.dataset.studentCardTab) || !canLeaveStudentEdit()) return;state.studentCard.tab=studentTab.dataset.studentCardTab;render();return;}
+        if(studentTab) {if(!state.studentCard || !['attendance','tasks','results','classes','profile'].includes(studentTab.dataset.studentCardTab) || !canLeaveStudentEdit()) return;state.studentCard.tab=studentTab.dataset.studentCardTab;state.studentCard.workPage=0;state.studentCard.workId='';await refresh();return;}
+        const workOpen=event.target.closest('[data-student-work-open]'),workClose=event.target.closest('[data-student-work-close]'),workPage=event.target.closest('[data-student-work-page]');
+        if(workOpen || workClose || workPage) {
+          const card=state.studentCard;if(!card || !['tasks','results'].includes(card.tab) || !canLeaveStudentEdit()) return;
+          const feed=state.data[studentHomeworkKey(card)],member=(state.data.students || []).find(x=>x.membershipId===card.membershipId);
+          if(workOpen && !(feed?.items || []).some(x=>x.id===workOpen.dataset.studentWorkOpen && x.membershipId===card.membershipId && x.programId===member?.programId)) return;
+          if(workPage) {const page=Number(workPage.dataset.studentWorkPage);if(!feed || !Number.isInteger(page) || page<0 || page*feed.pageSize>=feed.total) return;card.workPage=page;}
+          card.workId=workOpen?.dataset.studentWorkOpen || '';await refresh();return;
+        }
         if(event.target.closest('[data-student-card-info]')) {if(!state.studentCard) return;state.studentCard.infoOpen=true;render();document.querySelector('[data-student-info-close]')?.focus();return;}
         if(event.target.closest('[data-student-info-close]')) {if(!state.studentCard) return;state.studentCard.infoOpen=false;render();document.querySelector('[data-student-card-info]')?.focus();return;}
         const relatedClass=event.target.closest('[data-student-related-class]');
@@ -2769,6 +2778,10 @@
         });
         if (form.matches('[data-native-grade]')) onForm(form, async () => {
           const assignmentId = form.dataset.nativeGrade;
+          if(form.hasAttribute('data-student-grade')) {
+            const card=state.studentCard,member=(state.data.students || []).find(x=>x.membershipId===card?.membershipId);
+            if(!card || !(state.data[studentHomeworkKey(card)]?.items || []).some(x=>x.id===assignmentId && x.membershipId===member?.membershipId && x.programId===member?.programId)) throw new Error('Повторно откройте работу ученика.');
+          }
           await mutation('nativeGrade:' + assignmentId, 'homework/native/grades', () => ({
             assignmentId, scorePercent: Number(formValue(form, 'scorePercent')),
             feedback: formValue(form, 'feedback') || null
