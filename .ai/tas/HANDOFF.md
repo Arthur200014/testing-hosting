@@ -1,35 +1,36 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-16
-**ACTIVE_TASK:** UI-04 IN_PROGRESS — real file attachments.
-**ACTIVE_BRANCH:** `tas/ui04-file-attachments`; [PR #79](https://github.com/Arthur200014/testing-hosting/pull/79), head `7152a162e09e804b34ce5e9601a4bed843c7ca51`; implementation complete, isolated CI pending.
-**MERGED_SHA:** `3774a94857dacd33b4342314a739ba2c08b748dc`.
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43777340175](https://github.com/Arthur200014/testing-hosting/actions/runs/43777340175) PASS; published teacher.html, teacher-data.mjs and teacher-library.mjs fetched and byte-compared with main: PASS. API/schema unchanged in this block. Timeweb native main auto-deploy owner-confirmed; independent API revision UNKNOWN.
-**NEXT_ACTION:** Finish #79 isolated file upload/download/reuse/permissions browser and PostgreSQL checks; fix actual failures, merge after green and confirm Pages. PostgreSQL stores bounded files (5 MiB/file, 100 MiB/workspace), metadata/content separate. Two concurrent uploads/API instance cap memory. No new production infrastructure or Timeweb checks. Recordings remain separate.
+**ACTIVE_TASK:** UI-04 IN_PROGRESS — bounded file upload/protected access/reuse block complete.
+**ACTIVE_BRANCH:** none; [PR #79](https://github.com/Arthur200014/testing-hosting/pull/79) merged.
+**MERGED_SHA:** `19ab684f54d9052651fd55fdd609b7e2ecf0c5cb`.
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43812116451](https://github.com/Arthur200014/testing-hosting/actions/runs/43812116451) PASS; 9 changed published teacher/student/module files byte-compared with main: PASS. API changes and additive migration committed for configured native Timeweb auto-deploy; independent API revision/migration NOT_VERIFIED / UNKNOWN.
+**NEXT_ACTION:** Next related UI-04 file-management block (reference 49): rename display labels without changing bytes → detach material links without deleting shared files → guarded deletion only for unused library files/materials, with quota recovery, cancel/reload/idempotency and isolated teacher/student permission checks. Do not delete real records during acceptance. Keep recordings/large-object storage separate; do not expand this PostgreSQL slice incidentally.
 
 ## Standing owner instructions
 
 - Take several consecutive related steps together; cover individual classes, groups and lessons.
-- Verify persistence only in isolated synthetic API/PostgreSQL/browser environments. **Do not check Timeweb** or request production access. Independent Timeweb revision/live writes are not blockers in this approved mode.
-- Real students/lessons/scores/settings/credentials are not test-write targets. Never retarget reset/seed/import/calendar-real-browser.sh to production, rerun imports or switch writer.
+- Persistence tests use isolated synthetic API/PostgreSQL/browser environments only. **Do not check Timeweb** or request production access. Independent Timeweb revision/live writes are not blockers in this approved mode.
+- Real students, lessons, scores, settings and credentials are not test-write targets. Never retarget reset/seed/import/calendar-real-browser.sh to production, rerun imports, change writer or provision production infrastructure incidentally.
 
-## Completed #78
+## Completed #79
 
-- Library nav opens templates and link materials: title/condition/URL search, type/program filters, sorting, preview and usage counts. Link programs derive from existing class/topic associations and actual lesson participants; not new material ownership metadata.
-- Materials reuse existing IDs in active classes/topics/lessons; templates attach to compatible topics. Assignment jump opens the existing class/lesson homework form with the selected template and writes nothing until explicit save there. Lesson picker includes date/time.
-- Existing/archived/incompatible targets are excluded. Draft attachment selection survives refresh; cancel writes nothing; changing workspace clears library search/filters/selection. No source-object copies.
-- Fixed narrow-screen wrapping and library header margins; preview does not inherit sidebar behavior.
-- Paths: platform/teacher-library.mjs/test, teacher.html, teacher-data.mjs, calendar-real-browser.mjs, scripts/calendar-real-browser.sh; .github/workflows/native-homework-browser.yml. Existing backend/schema/storage configs unchanged.
-- Reference 48 and final desktop/mobile 48_library_reuse_real*.png inspected: visual fidelity PARTIAL; implemented template/link catalog, not binary files, folders or recordings. No fake storage quota/upload state.
+- Library uploads PDF/PNG/JPEG/UTF-8 TXT with extension/signature/filename checks. Limit **5 MiB/file, 100 MiB/workspace**, two concurrent uploads/API instance; serialized quota and request replay prevent quota races/duplicates. These are small educational attachments, not recording storage.
+- Existing durable PostgreSQL stores metadata in TeacherFileAssets and bytes separately in TeacherFileContents (bytea). Additive `20261116120000_TeacherFileAssets` adds tables + nullable TeacherMaterials.FileAssetId with workspace FKs/indexes; old link materials preserved. No new dependency, infrastructure, environment variable or production configuration.
+- Teacher download requires active teacher authorization in the owning workspace. Student file list/download rechecks active student/program membership and current individual class, approved group/topic, or actual lesson participation. Unbound files are private; removal of approval/archive revokes access. File IDs are not public URLs; no bearer tokens in links.
+- Header-authorized fetch → temporary browser Blob download; attachment/no-store/nosniff response. Library lists load metadata only. One material/file is reused in class/topic/lesson; downloads work from those teacher screens and the student cabinet.
+- UI upload cancel writes nothing; invalid upload shows an error; successful upload is confirmed by API. Retry retains request identity. Upload selection is held only in session memory and reset across workspace/logout.
+- Paths: TeacherFileService.cs, material projection services, Program.cs, DbContext/migration/snapshot; material-file.mjs/test, teacher/student pages, library/data + class/lesson/topic renderers; existing API/browser tests, runner and workflow. Full 24-file diff in #79.
+- Reference 48 + final teacher/student screenshots inspected: visual fidelity PARTIAL. No folders, recording uploads, public sharing or virus-scanning claims. Current file deletion/unlink UI is not implemented.
 
 ## Verification
 
-- LOCAL PASS: 13 focused Node tests; inline/module/browser syntax and diff checks.
-- FINAL CI at `00e9aa887d1fa00dc7bed3390a4f5cf6f6dcc15a`: [TAS CI 43776922984](https://github.com/Arthur200014/testing-hosting/actions/runs/43776922984), [PostgreSQL 43776922982](https://github.com/Arthur200014/testing-hosting/actions/runs/43776922982), [real Chromium/API/PostgreSQL 43776923008](https://github.com/Arthur200014/testing-hosting/actions/runs/43776923008): PASS.
-- PostgreSQL: 101/101 tests. Browser: search/preview, class/topic/lesson reuse, cancel/no write, no copies, task assignment jump/save, relogin/reload, draft refresh, foreign workspace empty/filter reset and 390px overflow PASS.
-- Screenshot artifact `meleto-ui02-screenshots` retained in browser run; workflow now uploads diagnostic screenshots on failures too. Earlier mobile overflow failures were fixed; final run PASS.
-- LIVE_WRITE_NOT_RUN; API production deployment NOT_VERIFIED per isolated-only instruction. No production data, invitations, notifications or writer changes.
-- Previous unified individual/group/lesson homework release #77 remains intact. Existing latest-300 histories and immutable grading remain; no regrading introduced.
+- LOCAL PASS: 32 focused Node checks, inline/module/browser syntax and diff checks.
+- FINAL CI at `0daa3477fbe34d5d7db2f43a474bc882b213263c`: [TAS CI 43811679789](https://github.com/Arthur200014/testing-hosting/actions/runs/43811679789), [PostgreSQL 43811679793](https://github.com/Arthur200014/testing-hosting/actions/runs/43811679793), [real Chromium/API/PostgreSQL 43811679815](https://github.com/Arthur200014/testing-hosting/actions/runs/43811679815): PASS.
+- PostgreSQL: **102/102 tests**, migration/model/startup/ready/auth and existing isolated restore checks PASS. Covers exact bytes, empty/malformed/oversize input, quota, sequential/concurrent replay, anonymous/foreign/other-pupil denial, actual lesson participants and approval/archive revocation.
+- Browser: cancel/error/upload, teacher + student byte-for-byte downloads, unbound/unauthorized denial, reuse without copies, reload/login and 390px layout PASS. Screenshots 48_binary_file_library_real.png / 48_student_file_access_real.png retained in browser-run artifact.
+- Earlier compile/snapshot-order/fixture failures were fixed; final run PASS. API-route/material-service changes now trigger browser workflow.
+- LIVE_WRITE_NOT_RUN; production API/migration NOT_VERIFIED per owner instruction. No real student writes, invitations, notifications or writer changes.
 
 Published interface: https://arthur200014.github.io/testing-hosting/platform/teacher.html.
-UI-04 remains IN_PROGRESS: binary files/access, recordings and remaining library/reference details.
+UI-04 remains IN_PROGRESS: file management/folders, recordings/large-file storage and remaining reference details.
