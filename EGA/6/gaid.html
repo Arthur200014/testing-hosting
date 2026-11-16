@@ -885,7 +885,18 @@ function defaultSolution(topic,task){
   trig:[stepObj('Отмечаем табличное значение',`\\sin x=\\frac12`,'На окружности это высота 1/2.'),stepObj('Записываем корни',`x=\\frac{\\pi}{6}+2\\pi k\\;\\;\\text{или}\\;\\;x=\\frac{5\\pi}{6}+2\\pi k`),stepObj('Отбираем по условию',`x_0=\\frac{\\pi}{6}`,'Это наименьший положительный корень.'),stepObj('Считаем выражение из ответа',`\\frac{6x_0}{\\pi}=1`,'В бланк идёт целое число 1.')]
  };return d[topic]||[]
 }
-function generateRational(){
+function generateRational(prototype=null){
+ if(prototype==='Дробные · одинаковые числители'){
+  const x=gri(-9,12),a=gnonzero(-5,5),c=gri(2,10),b=c-a*x;
+  const den=linTex(a,b);
+  const sol=[stepObj('ОДЗ',`${den}\\ne0`,'Знаменатель не может равняться нулю.'),stepObj('Приравниваем знаменатели',`${den}=${c}`,'Числители одинаковые и ненулевые.'),stepObj('Решаем',`x=${x}`)];
+  return taskObj(prototype,'Найдите корень уравнения.',`\\frac{1}{${den}}=\\frac{1}{${c}}`,x,numTex(x),'Проверь ОДЗ и приравняй знаменатели.',sol);
+ }
+ if(prototype==='Дробные · несколько дробей'){
+  const a=gri(-10,8),m=gri(2,6),x=a+2*m,den=linTex(1,-a);
+  const sol=[stepObj('ОДЗ',`${den}\\ne0`),stepObj('Переносим дробь',`\\frac{1}{${den}}=\\frac{1}{${2*m}}`),stepObj('Приравниваем знаменатели',`${den}=${2*m}`),stepObj('Ответ',`x=${x}`)];
+  return taskObj(prototype,'Найдите корень уравнения.',`\\frac{1}{${den}}+\\frac{1}{${2*m}}=\\frac{1}{${m}}`,x,numTex(x),'Учитывай ОДЗ; общий знаменатель нужен для каждого слагаемого.',sol);
+ }
  const x=gri(-9,12),a=gnonzero(-5,5),n=gri(1,5),c=gri(2,9),b=n*c-a*x,after=n*c-b;
  const sol=[stepObj('ОДЗ',`${linTex(a,b)}\\ne0`,'Знаменатель не должен обращаться в ноль.'),stepObj('Умножаем крест-накрест',`${n}\\cdot${c}=${linTex(a,b)}`),stepObj('Переносим число',`${a}x=${after}`),stepObj('Делим на коэффициент',`x=${numTex(x)}`)];
  return taskObj("Дробное уравнение · одна дробь = числовая дробь","Найдите корень уравнения.",`\\frac{${n}}{${linTex(a,b)}}=\\frac{1}{${c}}`,x,numTex(x),"Знаменатель не равен нулю. После ОДЗ умножь крест-накрест.",sol);
@@ -1103,7 +1114,7 @@ $$("[data-gen-answer]").forEach(input=>input.addEventListener("input",()=>{
 }));
 /* Парная отработка: обе карточки сохраняют прототип; номера и ответы независимы. */
 const PAIR_PROTOTYPES={
- rational:['Дробное уравнение · одна дробь = числовая дробь'],
+ rational:['Дробное уравнение · одна дробь = числовая дробь','Дробные · одинаковые числители','Дробные · несколько дробей'],
  powers:['Нечётная степень скобки','Чётная степень · два корня'],
  quadratic:['Квадратное · Виета / дискриминант','Квадратное · вынести x'],
  roots:['Квадратный корень от линейного выражения','Кубический корень'],
@@ -1118,7 +1129,7 @@ function makePairTask(topic,prototype,avoid=[]){
  const gen=GENERATORS[topic];if(!gen)return null;
  let choice=null;
  for(let k=0;k<450;k++){
-   const t=topic==='trig'?generateTrig(prototype):gen();
+   const t=topic==='trig'?generateTrig(prototype):topic==='rational'?generateRational(prototype):gen();
    if(t.prototype!==prototype)continue;
    choice=t;
    if(avoid.every(old=>!old||(String(t.tex)!==String(old.tex)&&!sameExercise(t,old))))return t;
@@ -1417,29 +1428,19 @@ const music=$('#guideMusic'),musicDock=$('#musicDock'),musicToggle=$('#musicTogg
 // This keeps the track and the existing controls intact while allowing GitHub's limited
 // upload transport to accept the updated guide. The standalone full version has it inline.
 const guideMusicSourceReady=(async()=>{
-  const urls=[
-    'https://raw.githubusercontent.com/Arthur200014/testing-hosting/263dac670c2f3392619ae349797d42a3f5ef77bc/EGA/6/gaid.html',
-    'https://cdn.jsdelivr.net/gh/Arthur200014/testing-hosting@263dac670c2f3392619ae349797d42a3f5ef77bc/EGA/6/gaid.html'
-  ];
-  let lastError;
-  for(const url of urls){
-    try{
+  // MP3 хранится отдельно от HTML. Фрагменты бинарные, в исходном порядке.
+  try{
+    const parts=await Promise.all(Array.from({length:11},async(_,i)=>{
+      const url='./guide-music.part'+String(i).padStart(2,'0');
       const response=await fetch(url);
-      if(!response.ok)throw new Error('Music HTTP '+response.status);
-      const oldSource=await response.text();
-      const audioMarker=oldSource.indexOf('id="guideMusic"');
-      if(audioMarker<0)throw new Error('Original music tag missing');
-      const srcStart=oldSource.indexOf('src="data:audio/mpeg;base64,',audioMarker);
-      if(srcStart<0)throw new Error('Original music data missing');
-      const valueStart=srcStart+5, valueEnd=oldSource.indexOf('"',valueStart);
-      if(valueEnd-valueStart<4000000)throw new Error('Original audio is incomplete');
-      music.src=oldSource.slice(valueStart,valueEnd);
-      music.load();
-      return true;
-    }catch(error){lastError=error}
-  }
-  console.warn('Не удалось загрузить прежнюю запись музыки',lastError);
-  return false;
+      if(!response.ok)throw new Error('Music chunk '+i+': HTTP '+response.status);
+      return response.arrayBuffer();
+    }));
+    const total=parts.reduce((n,p)=>n+p.byteLength,0);
+    if(total!==3207973)throw new Error('Music size mismatch: '+total);
+    music.src=URL.createObjectURL(new Blob(parts,{type:'audio/mpeg'}));
+    music.load();return true;
+  }catch(error){console.warn('Не удалось загрузить музыку',error);return false}
 })();
 const musicStore={get(k){try{return localStorage.getItem(k)}catch{return null}},set(k,v){try{localStorage.setItem(k,v)}catch{}}};let savedVol=Math.max(0,Math.min(1,Number(musicStore.get(MUSIC_VOL_KEY)??.35)));music.volume=savedVol;musicVolume.value=Math.round(savedVol*100);musicOut.textContent=Math.round(savedVol*100)+'%';function syncMusicUi(){const playing=!music.paused;musicDock.classList.toggle('playing',playing);musicToggle.textContent=playing?'❚❚ пауза':'▶ музыка'}music.addEventListener('play',syncMusicUi);music.addEventListener('pause',syncMusicUi);musicToggle.addEventListener('click',async()=>{if(music.paused){musicStore.set(MUSIC_PAUSED_KEY,'0');try{if(!music.src)await guideMusicSourceReady;await music.play()}catch{toast('Нажми ещё раз для запуска музыки','bad')}}else{music.pause();musicStore.set(MUSIC_PAUSED_KEY,'1')}});musicVolume.addEventListener('input',e=>{savedVol=Number(e.target.value)/100;music.volume=savedVol;musicOut.textContent=e.target.value+'%';musicStore.set(MUSIC_VOL_KEY,String(savedVol))});if(musicStore.get(MUSIC_PAUSED_KEY)!=='1'){window.addEventListener('pointerdown',async e=>{if(e.target.closest?.('#musicDock'))return;if(music.paused)try{if(!music.src)await guideMusicSourceReady;await music.play()}catch{}},{once:true,capture:true})}syncMusicUi();
 // Initial state
