@@ -2189,10 +2189,37 @@ for(const el of document.querySelectorAll('[data-pair-slot]')){
  el.querySelector('.pair-check').addEventListener('click',()=>verify(el));
  el.querySelector('input').addEventListener('input',()=>{el.querySelector('.pair-feedback').textContent='';el.classList.remove('correct','incorrect');sendPair(id,'input',{tex:active[id]?.tex,text:el.querySelector('input').value.slice(0,40)});});
  el.querySelector('input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();verify(el);}});
- el.querySelector('.pair-new').addEventListener('click',async()=>{const shared=window.GuideSession?.isJoined()&&window.GuideSession?.generatePair;if(shared){el.querySelector('.pair-new').disabled=true;try{await window.GuideSession.generatePair(id,topic)}finally{el.querySelector('.pair-new').disabled=false;}}else{const next=freshForSlot(id,topic);paint(el,next);}window.dispatchEvent(new Event('guide:resizeboard'));});
+ el.querySelector('.pair-new').textContent='↻ Другие числа';
+ el.querySelector('.pair-new').title='Сохранить прототип и изменить числа только у этого ученика';
+ el.querySelector('.pair-new').addEventListener('click',async()=>{
+  const button=el.querySelector('.pair-new');
+  button.disabled=true;
+  try{
+   if(window.GuideSession?.isJoined()&&window.GuideSession?.generatePair)await window.GuideSession.generatePair(id,topic);
+   else paint(el,freshForSlot(id,topic));
+  }catch(err){window.GuideApp?.toast(err.message||'Нет подходящих чисел','bad');}
+  finally{button.disabled=false;}
+  window.dispatchEvent(new Event('guide:resizeboard'));
+ });
  el.querySelector('.pair-solve').addEventListener('click',()=>{if(window.GuideSession?.isTeacher())toggleSolution(el);});
 }
-window.GuidePair={receive,receiveSolution,receiveInput,receiveCheck,generators,starts,active,verify,make:topic=>generators[topic](),makeDistinct:freshForSlot,set:paint,toggleSolution,uniqueForSlot,pdfPrototype};
+for(const practice of document.querySelectorAll('[data-pair-topic]')){
+ const topic=practice.dataset.pairTopic,grid=practice.querySelector('.pair-task-grid');
+ const controls=document.createElement('div');controls.className='pair-prototype-controls';
+ const button=document.createElement('button');button.type='button';button.className='pair-other-prototype';button.textContent='⇄ Другой прототип · обоим ученикам';
+ button.title='Одновременно изменить тип задания и оба условия';
+ controls.appendChild(button);practice.insertBefore(controls,grid);
+ button.addEventListener('click',async()=>{
+  button.disabled=true;
+  try{
+   if(window.GuideSession?.isJoined()&&window.GuideSession?.generatePrototype)await window.GuideSession.generatePrototype(topic);
+   else localNextPrototype(topic);
+  }catch(err){window.GuideApp?.toast(err.message||'Не удалось сменить прототип','bad');}
+  finally{button.disabled=false;}
+  window.dispatchEvent(new Event('guide:resizeboard'));
+ });
+}
+window.GuidePair={receive,receiveSolution,receiveInput,receiveCheck,generators,starts,active,verify,make:topic=>generators[topic](),makeDistinct:freshForSlot,set:paint,toggleSolution,uniqueForSlot,prototypeKind,pdfPrototype};
 })();
 </script><script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
@@ -2208,8 +2235,8 @@ const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelecto
 let role="",me=null,student=null,studentKey="",joined=false,joining=false,localState=null,lastStateVersion=-1,liveMembers={},stateUnsub=null,strokesUnsub=null,membersUnsub=null,messagesUnsub=null,interactionsUnsub=null,padsUnsub=null,questionsUnsub=null,waitingUnsub=null,memberNode=null,browserClientId=sessionStorage.getItem(CLIENT_ID_KEY),online=navigator.onLine;
 if(!browserClientId){browserClientId='client-'+uuid();sessionStorage.setItem(CLIENT_ID_KEY,browserClientId)}
 let hasRemoteQuestions=false;
-window.GuideSession={isTeacher:()=>joined&&role==='teacher',isJoined:()=>joined,hasQuestionBank:()=>hasRemoteQuestions,generatePair:null};
-window.GuideSession.generatePair=async(id,topic)=>{
+window.GuideSession={isTeacher:()=>joined&&role==='teacher',isJoined:()=>joined,hasQuestionBank:()=>hasRemoteQuestions,generatePair:null,generatePrototype:null};
+async function generatePair(id,topic){
  if(!joined||!window.GuidePair?.uniqueForSlot)return;
  const key=String(id||'');
  if(!/^(powers|roots|logs|trig|mixed)-[ab]$/.test(key)||topic!==key.split('-')[0])return;
@@ -2218,14 +2245,41 @@ window.GuideSession.generatePair=async(id,topic)=>{
    const q=current&&typeof current==='object'?current:{used:[],items:{}};
    q.used=Array.isArray(q.used)?q.used:[];
    q.items=q.items||{};
-   const item=window.GuidePair.uniqueForSlot(key,topic,new Set(q.used));
+   const mateKey=key.replace(/-[ab]$/,key.endsWith('-a')?'-b':'-a');
+   const item=window.GuidePair.uniqueForSlot(key,topic,new Set(q.used),null,q.items[mateKey]?.item||null,q.items[key]?.item||window.GuidePair.active[key]);
    q.used.push(item.tex);
    q.items[key]={item,at:Date.now()};
    return q;
   });
-  if(!res.committed)throw new Error('Не удалось сохранить задачу');
- }catch(err){GuideApp.toast('Новая задача не сохранена: '+(err.message||'ошибка сети'),'bad');}
-};
+  if(!res.committed)throw Error('Не удалось сохранить задачу');
+ }catch(err){GuideApp.toast('Другие числа не сохранены: '+(err.message||'ошибка сети'),'bad');}
+}
+async function generatePrototype(topic){
+ if(!joined||!window.GuidePair?.uniqueForSlot||!['powers','roots','logs','trig','mixed'].includes(topic))return;
+ try{
+  const res=await runTransaction(questionsRef(),current=>{
+   const q=current&&typeof current==='object'?current:{used:[],items:{}};
+   q.used=Array.isArray(q.used)?q.used:[];
+   q.items=q.items||{};
+   q.prototypes=q.prototypes||{};
+   const aId=topic+'-a',bId=topic+'-b';
+   const previous=Number.isInteger(q.prototypes[topic])?q.prototypes[topic]:window.GuidePair.prototypeKind(topic,q.items[aId]?.item);
+   const kind=((previous??-1)+1)%4;
+   const used=new Set(q.used);
+   const first=window.GuidePair.uniqueForSlot(aId,topic,used,kind,null,null);
+   used.add(first.tex);
+   const second=window.GuidePair.uniqueForSlot(bId,topic,used,kind,first,null);
+   q.prototypes[topic]=kind;
+   q.used.push(first.tex,second.tex);
+   q.items[aId]={item:first,at:Date.now()};
+   q.items[bId]={item:second,at:Date.now()};
+   return q;
+  });
+  if(!res.committed)throw Error('Не удалось сохранить прототип');
+ }catch(err){GuideApp.toast('Прототип не изменён: '+(err.message||'ошибка сети'),'bad');}
+}
+window.GuideSession.generatePair=generatePair;
+window.GuideSession.generatePrototype=generatePrototype;
 function syncSolutionPermissions(){const onlyTeacher=role==='teacher'&&joined;document.querySelectorAll('[data-answer-key],[data-example-next],.pair-solve').forEach(btn=>{btn.disabled=!onlyTeacher;btn.title=onlyTeacher?'Показать решение всем участникам':'Решение открывает только учитель';});}
 syncSolutionPermissions();
 function freshState(){return{version:1,schemaVersion:SCHEMA_VERSION,boardEpoch:0,strokes:{},students:{},ui:{practice:{},revealedAnswers:{},exampleSteps:{},propertySlides:{}}}}
