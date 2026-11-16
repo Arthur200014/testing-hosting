@@ -1157,7 +1157,7 @@ try {
   await workForm.locator('button[type="reset"]').click();assert.equal(await workForm.locator('[name="feedback"]').inputValue(),'');
   assert.equal((await call(workPath,north.token)).items.find(x=>x.id===workId).scorePercent,null,'cancel/reset does not grade');
   await workForm.locator('[name="scorePercent"]').fill('0');await workForm.locator('[name="feedback"]').fill('Проверено из карточки ученика');
-  const gradedReply=page.waitForResponse(r=>r.url().endsWith('/teacher/homework/native/grades') && r.request().method()==='POST');await workForm.locator('button[type="submit"]').click();assert.equal((await gradedReply).status(),200);await workForm.waitFor({state:'detached'});
+  const gradedReply=page.waitForResponse(r=>r.url().endsWith('/teacher/homework/native/grades') && r.request().method()==='POST');await workForm.locator('button[type="submit"]').click();assert.equal((await gradedReply).status(),201);await workForm.waitFor({state:'detached'});
   await page.locator('[data-student-work-detail]').getByText('Оценка: 0%',{exact:true}).waitFor();await page.locator('[data-student-work-close]').click();await page.locator('[data-student-card-tab="results"]').click();await page.locator('[data-student-work-open="'+workId+'"]').click();await page.getByText('Комментарий: Проверено из карточки ученика',{exact:true}).waitFor();
   assert.equal((await call('homework/native/assignments',profileSession.accessToken)).find(x=>x.id===workId).scorePercent,0,'student reads persisted zero grade');
   const secondWorks=await call('teacher/students/'+pupilTwo.membershipId+'/homework',north.token);assert.equal(secondWorks.items.find(x=>x.id===secondWorkId).scorePercent,null,'grading first pupil leaves second unchanged');
