@@ -47,6 +47,7 @@ builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddScoped<TeacherClassService>();
 builder.Services.AddScoped<TeacherMaterialService>();
 builder.Services.AddScoped<TeacherFileService>();
+builder.Services.AddScoped<TeacherMaterialManagement>();
 builder.Services.AddScoped<TeacherClassTopicService>();
 builder.Services.AddScoped<TeacherLessonMaterialService>();
 builder.Services.AddScoped<TeacherLessonTopicService>();
@@ -889,6 +890,13 @@ app.MapPost("/api/v1/teacher/subscriptions/{membershipId:guid}", async (
         _ => throw new InvalidOperationException("Unknown teacher subscription write result.")
     };
 }).RequireAuthorization("teacher");
+
+app.MapPost("/api/v1/teacher/materials/{id:guid}/rename",async(Guid id,RenameMaterialRequest request,ClaimsPrincipal principal,TeacherMaterialManagement materials,CancellationToken ct)=>
+    NativeWrite(await materials.RenameAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),id,request,ct))).RequireAuthorization("teacher");
+app.MapPost("/api/v1/teacher/materials/{id:guid}/unlink",async(Guid id,UnlinkMaterialRequest request,ClaimsPrincipal principal,TeacherMaterialManagement materials,CancellationToken ct)=>
+    NativeWrite(await materials.UnlinkAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),id,request,ct))).RequireAuthorization("teacher");
+app.MapPost("/api/v1/teacher/materials/{id:guid}/delete",async(Guid id,DeleteMaterialRequest request,ClaimsPrincipal principal,TeacherMaterialManagement materials,CancellationToken ct)=>
+    NativeWrite(await materials.DeleteAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),id,request,ct))).RequireAuthorization("teacher");
 
 // Authorization is carried in headers; file IDs are never public download URLs.
 static IResult FileResult(HttpResponse response, FileDownload? file)

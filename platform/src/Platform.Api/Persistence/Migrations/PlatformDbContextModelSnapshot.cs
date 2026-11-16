@@ -142,10 +142,22 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict);
             });
 
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherMaterialOperation", b =>
+            {
+                b.Property<Guid>("WorkspaceId").HasColumnType("uuid");b.Property<Guid>("RequestId").HasColumnType("uuid");
+                b.Property<Guid>("MaterialId").HasColumnType("uuid");
+                b.Property<string>("Kind").IsRequired().HasMaxLength(24).HasColumnType("character varying(24)");
+                b.Property<string>("PayloadHash").IsRequired().HasMaxLength(64).HasColumnType("character varying(64)");
+                b.Property<int>("ResultRevision").HasColumnType("integer");
+                b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
+                b.HasKey("WorkspaceId","RequestId","Kind");b.HasIndex("WorkspaceId","MaterialId");b.ToTable("TeacherMaterialOperations","platform");
+            });
             modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherFileAsset", b =>
             {
                 b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
                 b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                b.Property<DateTimeOffset?>("DeletedAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("UploadTitle").HasMaxLength(250).HasColumnType("character varying(250)");
                 b.Property<Guid>("RequestId").HasColumnType("uuid");
                 b.Property<string>("FileName").IsRequired().HasMaxLength(180).HasColumnType("character varying(180)");
                 b.Property<string>("ContentType").IsRequired().HasMaxLength(80).HasColumnType("character varying(80)");
@@ -166,6 +178,8 @@ namespace TestingHosting.Platform.Persistence.Migrations
             });
             modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherMaterial", b =>
             {
+                    b.Property<int>("Revision").ValueGeneratedOnAdd().HasColumnType("integer").HasDefaultValue(1);
+                    b.Property<DateTimeOffset?>("DeletedAt").HasColumnType("timestamp with time zone");
                     b.Property<Guid?>("FileAssetId").HasColumnType("uuid");
 
 
@@ -1769,6 +1783,12 @@ namespace TestingHosting.Platform.Persistence.Migrations
                         .HasForeignKey("WorkspaceId","FileAssetId").HasPrincipalKey("WorkspaceId","Id")
                         .OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_Materials_File");
                     b.Navigation("FileAsset");
+            });
+
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherMaterialOperation",b=>
+            {
+                b.HasOne("TestingHosting.Platform.Classes.TeacherMaterial",null).WithMany().HasForeignKey("WorkspaceId","MaterialId")
+                    .HasPrincipalKey("WorkspaceId","Id").OnDelete(DeleteBehavior.Restrict).IsRequired().HasConstraintName("FK_MaterialOperations_Material");
             });
 
 #pragma warning restore 612, 618

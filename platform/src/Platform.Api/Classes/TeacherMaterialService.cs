@@ -11,6 +11,8 @@ public sealed class TeacherMaterial
     public Guid WorkspaceId { get; set; }
     public required string Title { get; set; }
     public required string Url { get; set; }
+    public int Revision { get; set; } = 1;
+    public DateTimeOffset? DeletedAt { get; set; }
     public Guid? FileAssetId { get; set; }
     public TeacherFileAsset? FileAsset { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
@@ -27,7 +29,7 @@ public sealed class TeacherClassMaterialLink
     public DateTimeOffset CreatedAt { get; set; }
 }
 
-public sealed record TeacherMaterialView(Guid Id, string Title, string Url, DateTimeOffset CreatedAt, Guid? FileId = null, string? FileName = null, long? SizeBytes = null, string? ContentType = null);
+public sealed record TeacherMaterialView(Guid Id, string Title, string Url, DateTimeOffset CreatedAt, Guid? FileId = null, string? FileName = null, long? SizeBytes = null, string? ContentType = null, int Revision = 1);
 public sealed record TeacherClassMaterialView(
     Guid Id, Guid MaterialId, Guid? IndividualClassId, Guid? GroupClassId,
     string Title, string Url, DateTimeOffset CreatedAt, Guid? FileId = null, string? FileName = null, long? SizeBytes = null, string? ContentType = null);
@@ -42,9 +44,9 @@ public sealed record TeacherClassMaterialResult(
 public sealed class TeacherMaterialService(PlatformDbContext db, TimeProvider clock)
 {
     public Task<List<TeacherMaterialView>> LibraryAsync(Guid workspaceId, CancellationToken ct) =>
-        db.TeacherMaterials.AsNoTracking().Where(x => x.WorkspaceId == workspaceId)
+        db.TeacherMaterials.AsNoTracking().Where(x => x.WorkspaceId == workspaceId && x.DeletedAt == null)
             .OrderByDescending(x => x.CreatedAt)
-            .Select(x => new TeacherMaterialView(x.Id, x.Title, x.Url, x.CreatedAt, x.FileAssetId, x.FileAsset == null ? null : x.FileAsset.FileName, x.FileAsset == null ? null : (long?)x.FileAsset.SizeBytes, x.FileAsset == null ? null : x.FileAsset.ContentType))
+            .Select(x => new TeacherMaterialView(x.Id, x.Title, x.Url, x.CreatedAt, x.FileAssetId, x.FileAsset == null ? null : x.FileAsset.FileName, x.FileAsset == null ? null : (long?)x.FileAsset.SizeBytes, x.FileAsset == null ? null : x.FileAsset.ContentType, x.Revision))
             .ToListAsync(ct);
 
     private IQueryable<TeacherClassMaterialView> Linked(Guid workspaceId) =>
@@ -52,7 +54,7 @@ public sealed class TeacherMaterialService(PlatformDbContext db, TimeProvider cl
         join material in db.TeacherMaterials.AsNoTracking()
             on new { link.WorkspaceId, link.MaterialId }
             equals new { material.WorkspaceId, MaterialId = material.Id }
-        where link.WorkspaceId == workspaceId
+        where material.DeletedAt == null && link.WorkspaceId == workspaceId
         orderby link.CreatedAt descending
         select new TeacherClassMaterialView(link.Id, link.MaterialId,
             link.IndividualClassId, link.GroupClassId, material.Title, material.Url, link.CreatedAt, material.FileAssetId, material.FileAsset == null ? null : material.FileAsset.FileName, material.FileAsset == null ? null : (long?)material.FileAsset.SizeBytes, material.FileAsset == null ? null : material.FileAsset.ContentType);
@@ -65,7 +67,7 @@ public sealed class TeacherMaterialService(PlatformDbContext db, TimeProvider cl
          join material in db.TeacherMaterials.AsNoTracking()
              on new { link.WorkspaceId, link.MaterialId }
              equals new { material.WorkspaceId, MaterialId = material.Id }
-         where link.WorkspaceId == workspaceId && link.RequestId == requestId
+         where material.DeletedAt == null && link.WorkspaceId == workspaceId && link.RequestId == requestId
          select new TeacherClassMaterialView(link.Id, link.MaterialId,
              link.IndividualClassId, link.GroupClassId, material.Title, material.Url, link.CreatedAt, material.FileAssetId, material.FileAsset == null ? null : material.FileAsset.FileName, material.FileAsset == null ? null : (long?)material.FileAsset.SizeBytes, material.FileAsset == null ? null : material.FileAsset.ContentType))
         .SingleOrDefaultAsync(ct);
@@ -101,6 +103,9 @@ public sealed class TeacherMaterialService(PlatformDbContext db, TimeProvider cl
             errors["materialId"] = ["Choose an existing material without changing its title/URL."];
         if (errors.Count != 0) return new(TeacherClassMaterialStatus.Invalid, Errors: errors);
 
+        await using var tx=await db.Database.BeginTransactionAsync(ct);
+        await TeacherMaterialManagement.LockAsync(db,workspaceId,ct);
+        if(await TeacherMaterialManagement.RevokedAsync(db,workspaceId,request.RequestId,"class",ct)) return new(TeacherClassMaterialStatus.Conflict);
         var previous = await ByRequestAsync(workspaceId, request.RequestId, ct);
         if (previous is not null)
             return SameRequest(previous, request, title, url)
@@ -118,7 +123,7 @@ public sealed class TeacherMaterialService(PlatformDbContext db, TimeProvider cl
         if (request.MaterialId is { } id)
         {
             material = await db.TeacherMaterials.AsNoTracking().Include(x=>x.FileAsset)
-                .SingleOrDefaultAsync(x => x.WorkspaceId == workspaceId && x.Id == id, ct)
+                .SingleOrDefaultAsync(x => x.WorkspaceId == workspaceId && x.Id == id && x.DeletedAt == null, ct)
                 ?? null!;
             if (material is null) return new(TeacherClassMaterialStatus.NotFound);
         }
@@ -146,12 +151,14 @@ public sealed class TeacherMaterialService(PlatformDbContext db, TimeProvider cl
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg && pg.SqlState == "23505")
         {
+            await tx.RollbackAsync(ct);await tx.DisposeAsync();
             db.ChangeTracker.Clear();
             previous = await ByRequestAsync(workspaceId, request.RequestId, ct);
             return previous is not null && SameRequest(previous, request, title, url)
                 ? new(TeacherClassMaterialStatus.Duplicate, previous)
                 : new(TeacherClassMaterialStatus.Conflict);
         }
+        await tx.CommitAsync(ct);
         return new(TeacherClassMaterialStatus.Created,
             new TeacherClassMaterialView(created.Id, material.Id,
                 created.IndividualClassId, created.GroupClassId, material.Title, material.Url, created.CreatedAt, material.FileAssetId, material.FileAsset?.FileName, material.FileAsset?.SizeBytes, material.FileAsset?.ContentType));

@@ -39,6 +39,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<TeacherGroupClass> TeacherGroupClasses => Set<TeacherGroupClass>();
     public DbSet<TeacherGroupEnrollment> TeacherGroupEnrollments => Set<TeacherGroupEnrollment>();
     public DbSet<TeacherScheduleRule> TeacherScheduleRules => Set<TeacherScheduleRule>();
+    public DbSet<TeacherMaterialOperation> TeacherMaterialOperations => Set<TeacherMaterialOperation>();
     public DbSet<TeacherFileAsset> TeacherFileAssets => Set<TeacherFileAsset>();
     public DbSet<TeacherFileContent> TeacherFileContents => Set<TeacherFileContent>();
     public DbSet<TeacherMaterial> TeacherMaterials => Set<TeacherMaterial>();
@@ -141,12 +142,19 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 .OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_TopicTasks_Task");
         });
 
+        modelBuilder.Entity<TeacherMaterialOperation>(entity =>
+        {
+            entity.HasKey(x=>new{x.WorkspaceId,x.RequestId,x.Kind});
+            entity.Property(x=>x.Kind).HasMaxLength(24);entity.Property(x=>x.PayloadHash).HasMaxLength(64);
+            entity.HasOne<TeacherMaterial>().WithMany().HasForeignKey(x=>new{x.WorkspaceId,x.MaterialId})
+                .HasPrincipalKey(x=>new{x.WorkspaceId,x.Id}).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_MaterialOperations_Material");
+        });
         modelBuilder.Entity<TeacherFileAsset>(entity =>
         {
             entity.HasKey(x=>x.Id);entity.HasAlternateKey(x=>new{x.WorkspaceId,x.Id});
             entity.HasIndex(x=>new{x.WorkspaceId,x.RequestId}).IsUnique();
             entity.Property(x=>x.FileName).HasMaxLength(180);entity.Property(x=>x.ContentType).HasMaxLength(80);
-            entity.Property(x=>x.Sha256).HasMaxLength(64);
+            entity.Property(x=>x.Sha256).HasMaxLength(64);entity.Property(x=>x.UploadTitle).HasMaxLength(250);
             entity.HasOne<Workspace>().WithMany().HasForeignKey(x=>x.WorkspaceId).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_FileAssets_Workspace");
             entity.ToTable(t=>t.HasCheckConstraint("CK_FileAssets_Size","\"SizeBytes\" BETWEEN 1 AND 5242880"));
         });
@@ -161,6 +169,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         {
             entity.HasKey(x => x.Id);
             entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id });
+            entity.Property(x=>x.Revision).HasDefaultValue(1);
             entity.Property(x => x.Title).HasMaxLength(250);
             entity.Property(x => x.Url).HasMaxLength(2048);
             entity.HasIndex(x=>new{x.WorkspaceId,x.FileAssetId}).IsUnique();

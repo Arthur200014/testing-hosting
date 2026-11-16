@@ -30,7 +30,7 @@ public sealed class TeacherLessonMaterialService(PlatformDbContext db, TimeProvi
         join material in db.TeacherMaterials.AsNoTracking()
             on new { link.WorkspaceId, link.MaterialId }
             equals new { material.WorkspaceId, MaterialId = material.Id }
-        where link.WorkspaceId == workspaceId
+        where material.DeletedAt == null && link.WorkspaceId == workspaceId
         orderby link.CreatedAt descending
         select new TeacherLessonMaterialView(link.Id, link.LessonId, link.MaterialId,
             material.Title, material.Url, link.CreatedAt, material.FileAssetId, material.FileAsset == null ? null : material.FileAsset.FileName, material.FileAsset == null ? null : (long?)material.FileAsset.SizeBytes, material.FileAsset == null ? null : material.FileAsset.ContentType);
@@ -44,7 +44,7 @@ public sealed class TeacherLessonMaterialService(PlatformDbContext db, TimeProvi
          join material in db.TeacherMaterials.AsNoTracking()
              on new { link.WorkspaceId, link.MaterialId }
              equals new { material.WorkspaceId, MaterialId = material.Id }
-         where link.WorkspaceId == workspaceId && link.RequestId == requestId
+         where material.DeletedAt == null && link.WorkspaceId == workspaceId && link.RequestId == requestId
          select new TeacherLessonMaterialView(link.Id, link.LessonId, link.MaterialId,
              material.Title, material.Url, link.CreatedAt, material.FileAssetId, material.FileAsset == null ? null : material.FileAsset.FileName, material.FileAsset == null ? null : (long?)material.FileAsset.SizeBytes, material.FileAsset == null ? null : material.FileAsset.ContentType)).SingleOrDefaultAsync(ct);
 
@@ -57,6 +57,9 @@ public sealed class TeacherLessonMaterialService(PlatformDbContext db, TimeProvi
         if (request.MaterialId == Guid.Empty) errors["materialId"] = ["Material ID is required."];
         if (errors.Count > 0) return new(TeacherLessonMaterialStatus.Invalid, Errors: errors);
 
+        await using var tx=await db.Database.BeginTransactionAsync(ct);
+        await TeacherMaterialManagement.LockAsync(db,workspaceId,ct);
+        if(await TeacherMaterialManagement.RevokedAsync(db,workspaceId,request.RequestId,"lesson",ct)) return new(TeacherLessonMaterialStatus.Conflict);
         var previous = await ByRequestAsync(workspaceId, request.RequestId, ct);
         if (previous is not null)
             return previous.LessonId == request.LessonId && previous.MaterialId == request.MaterialId
@@ -76,7 +79,7 @@ public sealed class TeacherLessonMaterialService(PlatformDbContext db, TimeProvi
                 x.WorkspaceId == workspaceId && x.Id == groupId && !x.IsArchived, ct))
             return new(TeacherLessonMaterialStatus.NotFound);
         if (!await db.TeacherMaterials.AsNoTracking().AnyAsync(x =>
-                x.WorkspaceId == workspaceId && x.Id == request.MaterialId, ct))
+                x.WorkspaceId == workspaceId && x.Id == request.MaterialId && x.DeletedAt == null, ct))
             return new(TeacherLessonMaterialStatus.NotFound);
         if (await db.TeacherLessonMaterialLinks.AsNoTracking().AnyAsync(x =>
             x.WorkspaceId == workspaceId && x.LessonId == request.LessonId &&
@@ -92,6 +95,7 @@ public sealed class TeacherLessonMaterialService(PlatformDbContext db, TimeProvi
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException e) when (e.InnerException is PostgresException pg && pg.SqlState == "23505")
         {
+            await tx.RollbackAsync(ct);await tx.DisposeAsync();
             db.ChangeTracker.Clear();
             previous = await ByRequestAsync(workspaceId, request.RequestId, ct);
             return previous is not null && previous.LessonId == request.LessonId &&
@@ -99,6 +103,7 @@ public sealed class TeacherLessonMaterialService(PlatformDbContext db, TimeProvi
                 ? new(TeacherLessonMaterialStatus.Duplicate, previous)
                 : new(TeacherLessonMaterialStatus.Conflict);
         }
+        await tx.CommitAsync(ct);
         return new(TeacherLessonMaterialStatus.Created,
             (await ByRequestAsync(workspaceId, request.RequestId, ct))!);
     }

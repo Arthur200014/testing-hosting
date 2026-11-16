@@ -11,6 +11,8 @@ public sealed class TeacherFileAsset
     public Guid Id { get; set; }
     public Guid WorkspaceId { get; set; }
     public Guid RequestId { get; set; }
+    public DateTimeOffset? DeletedAt { get; set; }
+    public string? UploadTitle { get; set; }
     public required string FileName { get; set; }
     public required string ContentType { get; set; }
     public required string Sha256 { get; set; }
@@ -58,13 +60,14 @@ public sealed class TeacherFileService(PlatformDbContext db, TimeProvider clock)
         if (prior is not null)
         {
             var material = await db.TeacherMaterials.AsNoTracking().SingleAsync(x => x.WorkspaceId == workspace && x.FileAssetId == prior.Id, ct);
-            return prior.FileName == name && prior.Sha256 == hash && material.Title == caption
+            if(prior.DeletedAt is not null) return (410,"Файл был удалён. Выберите файл для новой загрузки.");
+            return prior.FileName == name && prior.Sha256 == hash && (prior.UploadTitle ?? material.Title) == caption
                 ? (200, View(material, prior)) : (409, "Этот запрос уже использован для другого файла.");
         }
-        var used = await db.TeacherFileAssets.Where(x => x.WorkspaceId == workspace).SumAsync(x => (long?)x.SizeBytes, ct) ?? 0;
+        var used = await db.TeacherFileAssets.Where(x => x.WorkspaceId == workspace && x.DeletedAt == null).SumAsync(x => (long?)x.SizeBytes, ct) ?? 0;
         if (used + bytes.Length > MaxWorkspaceBytes) return (409, "Достигнут лимит файлов пространства — 100 МБ.");
         var asset = new TeacherFileAsset { Id=Guid.NewGuid(),WorkspaceId=workspace,RequestId=requestId,
-            FileName=name,ContentType=type,SizeBytes=bytes.Length,Sha256=hash,CreatedAt=clock.GetUtcNow() };
+            FileName=name,UploadTitle=caption,ContentType=type,SizeBytes=bytes.Length,Sha256=hash,CreatedAt=clock.GetUtcNow() };
         var item = new TeacherMaterial { Id=Guid.NewGuid(),WorkspaceId=workspace,Title=caption,Url="",
             FileAssetId=asset.Id,FileAsset=asset,CreatedAt=asset.CreatedAt };
         db.TeacherFileAssets.Add(asset);
@@ -74,7 +77,7 @@ public sealed class TeacherFileService(PlatformDbContext db, TimeProvider clock)
         return (201, View(item, asset));
     }
     private static TeacherMaterialView View(TeacherMaterial m, TeacherFileAsset f) =>
-        new(m.Id,m.Title,m.Url,m.CreatedAt,f.Id,f.FileName,f.SizeBytes,f.ContentType);
+        new(m.Id,m.Title,m.Url,m.CreatedAt,f.Id,f.FileName,f.SizeBytes,f.ContentType,m.Revision);
     private static string? ContentType(string name, byte[] data)
     {
         if (data.Length == 0) return null;
@@ -91,7 +94,7 @@ public sealed class TeacherFileService(PlatformDbContext db, TimeProvider clock)
     private async Task<FileDownload?> DownloadAsync(Guid workspace, Guid id, CancellationToken ct) =>
         await (from f in db.TeacherFileAssets.AsNoTracking() join c in db.TeacherFileContents.AsNoTracking()
             on new {f.WorkspaceId,FileId=f.Id} equals new {c.WorkspaceId,c.FileId}
-            where f.WorkspaceId==workspace && f.Id==id
+            where f.WorkspaceId==workspace && f.Id==id && f.DeletedAt==null
             select new FileDownload(c.Bytes,f.ContentType,f.FileName)).SingleOrDefaultAsync(ct);
 
     private async Task<(Guid Workspace,Guid Member,Guid Student)?> StudentAsync(ClaimsPrincipal principal,CancellationToken ct)
@@ -110,7 +113,7 @@ public sealed class TeacherFileService(PlatformDbContext db, TimeProvider clock)
             (x.IndividualClassId!=null && individual.Contains(x.IndividualClassId.Value) || x.GroupClassId!=null && groups.Contains(x.GroupClassId.Value))).Select(x=>x.Id);
         var lessons=db.Lessons.Where(x=>x.WorkspaceId==workspace && x.Participants.Any(p=>p.MembershipId==member) &&
             (x.IndividualClassId!=null && individual.Contains(x.IndividualClassId.Value) || x.GroupClassId!=null && groups.Contains(x.GroupClassId.Value))).Select(x=>x.Id);
-        return db.TeacherMaterials.AsNoTracking().Where(x=>x.WorkspaceId==workspace && x.FileAssetId!=null &&
+        return db.TeacherMaterials.AsNoTracking().Where(x=>x.WorkspaceId==workspace && x.DeletedAt==null && x.FileAssetId!=null &&
             (db.TeacherClassMaterialLinks.Any(l=>l.WorkspaceId==workspace && l.MaterialId==x.Id &&
                 (l.IndividualClassId!=null && individual.Contains(l.IndividualClassId.Value) || l.GroupClassId!=null && groups.Contains(l.GroupClassId.Value))) ||
              db.TeacherTopicMaterialLinks.Any(l=>l.WorkspaceId==workspace && l.MaterialId==x.Id && topics.Contains(l.TopicId)) ||
@@ -120,7 +123,7 @@ public sealed class TeacherFileService(PlatformDbContext db, TimeProvider clock)
     {
         var identity=await StudentAsync(principal,ct);if(identity is null) return null;
         return await Accessible(identity.Value.Workspace,identity.Value.Member).OrderByDescending(x=>x.CreatedAt)
-            .Select(x=>new TeacherMaterialView(x.Id,x.Title,x.Url,x.CreatedAt,x.FileAssetId,x.FileAsset!.FileName,x.FileAsset.SizeBytes,x.FileAsset.ContentType)).ToListAsync(ct);
+            .Select(x=>new TeacherMaterialView(x.Id,x.Title,x.Url,x.CreatedAt,x.FileAssetId,x.FileAsset!.FileName,x.FileAsset.SizeBytes,x.FileAsset.ContentType,x.Revision)).ToListAsync(ct);
     }
     public async Task<FileDownload?> StudentDownloadAsync(ClaimsPrincipal principal,Guid id,CancellationToken ct)
     {
