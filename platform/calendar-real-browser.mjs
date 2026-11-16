@@ -1082,7 +1082,7 @@ try {
   await page.screenshot({path:output+'/24_group_lesson_recordings_real.png'});await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'group recording card fits mobile');await page.setViewportSize({width:1348,height:926});
   await contextStudent.reload();await contextStudent.locator('#loginForm [name="workspace"]').fill(north.workspace);await contextStudent.locator('#loginForm [name="code"]').fill(north.students[0].inviteCode);await contextStudent.locator('#loginForm button[type="submit"]').click();await contextStudent.locator('[data-recording-row="'+contextualGroup+'"]').waitFor();assert.equal(await contextStudent.locator('[data-recording-row="'+contextualIndividual+'"]').count(),0);await contextStudent.close();
   assert.deepEqual(await call('teacher/lessons',north.token),lessonsBeforeRecordingCards,'record management does not change lesson attendance or homework contexts');
-  await page.locator('.nav [data-view="library"]').click();await page.locator('[data-recording-library]').waitFor();
+  await page.locator('.nav [data-view="library"]').click();await page.locator('[data-library]').waitFor();
   await page.locator('[data-library-section="materials"]').click();
   await page.locator('#logout').click(); await login(south);
   await page.locator('.nav [data-view="library"]').click();await page.locator('[data-library]').waitFor();
