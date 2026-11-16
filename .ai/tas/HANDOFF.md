@@ -1,36 +1,35 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-16
-**ACTIVE_TASK:** UI-04 IN_PROGRESS — material rename, unlink and guarded deletion.
-**ACTIVE_BRANCH:** `tas/ui04-file-management`, PR #80, head `6e47a658c7e632f5750fb13fe0e246e7a2075add`; UI complete, final isolated CI pending.
-**MERGED_SHA:** `19ab684f54d9052651fd55fdd609b7e2ecf0c5cb`.
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43812116451](https://github.com/Arthur200014/testing-hosting/actions/runs/43812116451) PASS; 9 changed published teacher/student/module files byte-compared with main: PASS. API changes and additive migration committed for configured native Timeweb auto-deploy; independent API revision/migration NOT_VERIFIED / UNKNOWN.
-**NEXT_ACTION:** Finish current PR final isolated acceptance for rename/cancel/reload, unlink/access revocation, guarded deletion/quota recovery and old-request replay denial; fix CI then PR/merge/Pages. No real record deletions or Timeweb checks. Recordings remain separate.
+**ACTIVE_TASK:** UI-04 IN_PROGRESS — material management released; next library folders.
+**ACTIVE_BRANCH:** none.
+**MERGED_SHA:** `af413af9a3e4d839dc728257532275faff6bc672`, [PR #80](https://github.com/Arthur200014/testing-hosting/pull/80).
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43821874800](https://github.com/Arthur200014/testing-hosting/actions/runs/43821874800) PASS; published teacher.html, student.html and teacher-library.mjs byte-match main. API code + additive migration are on main for configured native Timeweb auto-deploy. Independent API deployment/revision/migration NOT_VERIFIED / UNKNOWN; LIVE_WRITE_NOT_RUN per owner instruction.
+**NEXT_ACTION:** UI-04 library folders (references 48–49): create/rename a workspace folder, move an existing file/link into it or back to all files without copying bytes/changing access, persist selection/results across reload. Take the related steps together, reuse existing library/API/browser patterns. Finish isolated checks → PR/merge/Pages → HANDOFF. Recordings/large-file storage remain separate.
 
 ## Standing owner instructions
 
 - Take several consecutive related steps together; cover individual classes, groups and lessons.
-- Persistence tests use isolated synthetic API/PostgreSQL/browser environments only. **Do not check Timeweb** or request production access. Independent Timeweb revision/live writes are not blockers in this approved mode.
-- Real students, lessons, scores, settings and credentials are not test-write targets. Never retarget reset/seed/import/calendar-real-browser.sh to production, rerun imports, change writer or provision production infrastructure incidentally.
+- All persistence acceptance uses isolated synthetic API/PostgreSQL/Chromium workspaces. **Do not check Timeweb** or request production credentials. Independent Timeweb revision/live writes are not blockers in this approved mode.
+- Never use real students, lessons, scores, settings or credentials as test-write targets. Never retarget reset/seed/import/calendar-real-browser.sh to production, rerun imports, change writer, send invitations/notifications/payments or provision production infrastructure incidentally.
+- Tests and browser runner are committed in Git for repeatable checks; they use synthetic fixtures, not production data.
 
-## Completed #79
+## Completed #80
 
-- Library uploads PDF/PNG/JPEG/UTF-8 TXT with extension/signature/filename checks. Limit **5 MiB/file, 100 MiB/workspace**, two concurrent uploads/API instance; serialized quota and request replay prevent quota races/duplicates. These are small educational attachments, not recording storage.
-- Existing durable PostgreSQL stores metadata in TeacherFileAssets and bytes separately in TeacherFileContents (bytea). Additive `20261116120000_TeacherFileAssets` adds tables + nullable TeacherMaterials.FileAssetId with workspace FKs/indexes; old link materials preserved. No new dependency, infrastructure, environment variable or production configuration.
-- Teacher download requires active teacher authorization in the owning workspace. Student file list/download rechecks active student/program membership and current individual class, approved group/topic, or actual lesson participation. Unbound files are private; removal of approval/archive revokes access. File IDs are not public URLs; no bearer tokens in links.
-- Header-authorized fetch → temporary browser Blob download; attachment/no-store/nosniff response. Library lists load metadata only. One material/file is reused in class/topic/lesson; downloads work from those teacher screens and the student cabinet.
-- UI upload cancel writes nothing; invalid upload shows an error; successful upload is confirmed by API. Retry retains request identity. Upload selection is held only in session memory and reset across workspace/logout.
-- Paths: TeacherFileService.cs, material projection services, Program.cs, DbContext/migration/snapshot; material-file.mjs/test, teacher/student pages, library/data + class/lesson/topic renderers; existing API/browser tests, runner and workflow. Full 24-file diff in #79.
-- Reference 48 + final teacher/student screenshots inspected: visual fidelity PARTIAL. No folders, recording uploads, public sharing or virus-scanning claims. Current file deletion/unlink UI is not implemented.
+- Library display-title rename + cancel; original filename/bytes remain intact. Expected revision rejects a stale window with HTTP409; refresh preserves draft text AND original revision, cancel restores loaded title.
+- Exact class/topic/lesson bindings are shown for individual/group contexts. Unlink removes only the chosen binding; other bindings retain access. Student list refresh updates labels/access; final unlink revokes current-token download while teacher keeps the file.
+- Explicit guarded deletion of unused file/link only; server rechecks all bindings transactionally. Active file bytes are removed and workspace quota recovered. Metadata tombstones/receipts prevent old upload/attachment retries resurrecting bytes or access; replay is idempotent. Shared workspace advisory lock covers upload/attach/manage races.
+- Additive `20261116140000_MaterialManagement`: title revisions, deletion timestamps, immutable original upload label and operation receipts. Preserves old materials and legacy upload replay. No new production configuration.
+- Paths: Classes/TeacherMaterialManagement.cs, material/file/lesson/topic services, Program.cs, DbContext/migration/snapshot; teacher-library.mjs/test, teacher/student pages; existing TeacherSessionTests.cs, calendar-real-browser.mjs and browser workflow.
+- Existing #79 storage stays PostgreSQL metadata + separate bytea content; **5 MiB/file, 100 MiB/workspace**, PDF/PNG/JPEG/UTF-8 TXT, two uploads/API instance. Teacher/student downloads are authenticated and workspace-scoped; bindings reuse bytes. No public sharing, folders or recording uploads yet.
 
 ## Verification
 
-- LOCAL PASS: 32 focused Node checks, inline/module/browser syntax and diff checks.
-- FINAL CI at `0daa3477fbe34d5d7db2f43a474bc882b213263c`: [TAS CI 43811679789](https://github.com/Arthur200014/testing-hosting/actions/runs/43811679789), [PostgreSQL 43811679793](https://github.com/Arthur200014/testing-hosting/actions/runs/43811679793), [real Chromium/API/PostgreSQL 43811679815](https://github.com/Arthur200014/testing-hosting/actions/runs/43811679815): PASS.
-- PostgreSQL: **102/102 tests**, migration/model/startup/ready/auth and existing isolated restore checks PASS. Covers exact bytes, empty/malformed/oversize input, quota, sequential/concurrent replay, anonymous/foreign/other-pupil denial, actual lesson participants and approval/archive revocation.
-- Browser: cancel/error/upload, teacher + student byte-for-byte downloads, unbound/unauthorized denial, reuse without copies, reload/login and 390px layout PASS. Screenshots 48_binary_file_library_real.png / 48_student_file_access_real.png retained in browser-run artifact.
-- Earlier compile/snapshot-order/fixture failures were fixed; final run PASS. API-route/material-service changes now trigger browser workflow.
-- LIVE_WRITE_NOT_RUN; production API/migration NOT_VERIFIED per owner instruction. No real student writes, invitations, notifications or writer changes.
+- LOCAL PASS: 17 focused Node checks; changed inline/module/browser syntax and diff checks.
+- FINAL head `f7745b76652a87e7f18b870dd9fb87e5ebe4687b`: [TAS CI 43821214273](https://github.com/Arthur200014/testing-hosting/actions/runs/43821214273), [PostgreSQL 43821214270](https://github.com/Arthur200014/testing-hosting/actions/runs/43821214270), [real Chromium/API/PostgreSQL 43821214380](https://github.com/Arthur200014/testing-hosting/actions/runs/43821214380): PASS.
+- PostgreSQL **103/103** tests; migration/model/startup/ready/auth/isolated restore PASS. Management regression covers foreign/student denial, replay, stale edits, individual/group/topic/lesson grants, unlink revocation, attach/delete race, actual byte deletion and a full-quota upload after recovery.
+- Browser PASS: cancel/save/conflict/student refresh/unlink/delete/quota reuse/reload/login; exact download bytes preserved; foreign workspace empty. Screenshot `49_file_management_real.png` inspected against reference49, 390px overflow PASS. Artifact `meleto-ui02-screenshots` retained in final browser run. Visual fidelity remains PARTIAL; folders and remaining reference details are future work.
+- Earlier browser failure was an incorrect expected error-message string; fixed to assert real HTTP409 plus the existing common UI notice, final run PASS.
+- No outstanding implementation/check failures. Production API/migration not independently verified; no live writes, per owner mode.
 
 Published interface: https://arthur200014.github.io/testing-hosting/platform/teacher.html.
-UI-04 remains IN_PROGRESS: file management/folders, recordings/large-file storage and remaining reference details.
