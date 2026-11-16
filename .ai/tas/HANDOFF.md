@@ -1,11 +1,11 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-16
-**ACTIVE_TASK:** UI-05 pupil card / attendance / class context released.
-**ACTIVE_BRANCH:** none.
+**ACTIVE_TASK:** UI-05 pupil homework/results implemented; isolated CI acceptance pending.
+**ACTIVE_BRANCH:** `tas/ui05-student-homework`, [PR #87](https://github.com/Arthur200014/testing-hosting/pull/87), head `9a544bd4d3d429b3ddfaf8a2aae0cf7b70268e91`.
 **MERGED_SHA:** `5f6f5a9db5b2927efa8ec5a01933b5d6e9b0075c`, [PR #86](https://github.com/Arthur200014/testing-hosting/pull/86).
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43923614370](https://github.com/Arthur200014/testing-hosting/actions/runs/43923614370) PASS; published teacher.html, teacher-data.mjs and student-card.mjs byte-match main. Backend/API/schema/configuration unchanged; existing profile API reused. Native Timeweb auto-deploy is owner-configured; independent API revision/migrations UNKNOWN / NOT_VERIFIED. LIVE_WRITE_NOT_RUN under the owner-approved isolated-only mode.
-**NEXT_ACTION:** UI-05 pupil assignments/results: open only relevant references45–46 and implement the connected pupil work list → submission/review → result/return scenario using existing APIs. Scope by exact membership/program/workspace; verify whether the current homework feed is complete before deriving counts (never infer from a truncated global feed). Reuse existing assignment/submission/grading flows. Cover individual/group context, cancel/save/reload and access isolation in the existing synthetic runner, then CI/merge/Pages/HANDOFF. No invitations or real-pupil writes.
+**NEXT_ACTION:** Finish PR #87 CI/PostgreSQL/browser, inspect screenshots45–46, merge/Pages/byte-check/HANDOFF. Implementation: pupil-scoped paginated native homework endpoint (workspace/membership/person/program), list/detail/answer/existing grading/results and guarded cancel/refresh/return. LOCAL17 PASS; existing integration test expanded to 301 rows/zero grade/foreign denial; existing real-browser runner covers pages/cancel/draft/save/relogin/second pupil. Schema unchanged. No Timeweb checks or live writes.
 
 ## Standing owner instructions
 
