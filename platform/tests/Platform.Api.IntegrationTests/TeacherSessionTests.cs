@@ -26,6 +26,84 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     private const string ClaimCode = "synthetic-claim-code-for-integration-tests-only-2026";
 
     [Fact]
+    public async Task LibraryFoldersAreWorkspaceScopedAndMovesPreserveBytesAndAccess()
+    {
+        await ResetAsync(factory);
+        var north=await SeedAsync(factory,"folder-north","folder-north@example.invalid","owner");
+        await SeedAsync(factory,"folder-south","folder-south@example.invalid","owner");
+        using var teacher=factory.CreateClient();
+        var login=(await (await LoginAsync(teacher,"folder-north","folder-north@example.invalid",Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        teacher.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",login.AccessToken);
+        const string folders="/api/v1/teacher/library-folders";
+        var creation=new CreateLibraryFolderRequest(Guid.NewGuid(),"  Algebra  ");
+        var created=await Task.WhenAll(teacher.PostAsJsonAsync(folders,creation),teacher.PostAsJsonAsync(folders,creation));
+        Assert.All(created,x=>Assert.Equal(HttpStatusCode.OK,x.StatusCode));
+        var folder=Assert.Single((await teacher.GetFromJsonAsync<List<TeacherLibraryFolder>>(folders))!);
+        Assert.Equal("Algebra",folder.Title);Assert.Equal(1,folder.Revision);
+        Assert.Equal(HttpStatusCode.Conflict,(await teacher.PostAsJsonAsync(folders,creation with{Title="Changed retry"})).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,(await teacher.PostAsJsonAsync(folders,new CreateLibraryFolderRequest(Guid.NewGuid(),"  "))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,(await teacher.PostAsJsonAsync(folders,new CreateLibraryFolderRequest(Guid.NewGuid(),new string('x',101)))).StatusCode);
+        var rename=new RenameLibraryFolderRequest(Guid.NewGuid(),1,"Math");
+        Assert.Equal(HttpStatusCode.OK,(await teacher.PostAsJsonAsync(folders+"/"+folder.Id+"/rename",rename)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,(await teacher.PostAsJsonAsync(folders+"/"+folder.Id+"/rename",rename)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,(await teacher.PostAsJsonAsync(folders+"/"+folder.Id+"/rename",rename with{RequestId=Guid.NewGuid(),Title="Stale"})).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,(await teacher.PostAsJsonAsync(folders+"/"+folder.Id+"/rename",new RenameLibraryFolderRequest(Guid.NewGuid(),2,"Final folder"))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,(await teacher.PostAsJsonAsync(folders+"/"+folder.Id+"/rename",rename)).StatusCode);
+        Assert.Equal("Final folder",Assert.Single((await teacher.GetFromJsonAsync<List<TeacherLibraryFolder>>(folders))!).Title);
+        Guid program;
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();program=Guid.NewGuid();
+            db.Programs.Add(new(){Id=program,WorkspaceId=north.WorkspaceId,Code="FOLDERS",DisplayName="Folders",IsActive=true});await db.SaveChangesAsync();
+        }
+        var student=(await (await teacher.PostAsJsonAsync("/api/v1/teacher/students",new TeacherCreateStudentRequest(Guid.NewGuid(),program,"Folder learner"))).Content.ReadFromJsonAsync<TeacherCreateStudentResponse>())!;
+        var cls=(await (await teacher.PostAsJsonAsync("/api/v1/teacher/classes",new TeacherCreateClassRequest(Guid.NewGuid(),student.MembershipId,"Folder class"))).Content.ReadFromJsonAsync<TeacherClassView>())!;
+        var bytes=System.Text.Encoding.UTF8.GetBytes("One stored copy");
+        var material=(await (await teacher.PostAsync("/api/v1/teacher/files/"+Guid.NewGuid()+"?fileName=folder.txt&title=Folder%20file",new ByteArrayContent(bytes))).Content.ReadFromJsonAsync<TeacherMaterialView>())!;
+        Assert.Null(material.FolderId);
+        var root="/api/v1/teacher/materials/"+material.Id;
+        var move=new MoveMaterialRequest(Guid.NewGuid(),1,folder.Id);
+        using var learner=factory.CreateClient();
+        var session=(await (await learner.PostAsJsonAsync("/api/v1/student-sessions",new{workspace="folder-north",code=student.InviteCode})).Content.ReadFromJsonAsync<TestingHosting.Platform.StudentSessions.StudentSessionResponse>())!;
+        learner.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",session.AccessToken);
+        Assert.Equal(HttpStatusCode.Forbidden,(await learner.GetAsync(folders)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden,(await learner.PostAsJsonAsync(folders,creation)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden,(await learner.PostAsJsonAsync(root+"/move",move)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,(await teacher.PostAsJsonAsync(root+"/move",move)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await learner.GetAsync("/api/v1/files/"+material.FileId+"/content")).StatusCode); // folder does not grant access
+        var attachment=new TeacherClassMaterialWriteRequest(Guid.NewGuid(),cls.Id,"individual",material.Id);
+        var link=(await (await teacher.PostAsJsonAsync("/api/v1/teacher/class-materials",attachment)).Content.ReadFromJsonAsync<TeacherClassMaterialView>())!;
+        Assert.Equal(bytes,await learner.GetByteArrayAsync("/api/v1/files/"+material.FileId+"/content"));
+        Assert.Equal(HttpStatusCode.OK,(await teacher.PostAsJsonAsync(root+"/move",move)).StatusCode);
+        var saved=Assert.Single((await teacher.GetFromJsonAsync<List<TeacherMaterialView>>("/api/v1/teacher/materials"))!);
+        Assert.Equal(folder.Id,saved.FolderId);Assert.Equal(2,saved.Revision);
+        Assert.Equal(HttpStatusCode.Conflict,(await teacher.PostAsJsonAsync(root+"/move",move with{RequestId=Guid.NewGuid(),FolderId=null})).StatusCode);
+        var rootMove=new MoveMaterialRequest(Guid.NewGuid(),saved.Revision,null);
+        Assert.Equal(HttpStatusCode.OK,(await teacher.PostAsJsonAsync(root+"/move",rootMove)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,(await teacher.PostAsJsonAsync(root+"/move",move)).StatusCode); // late replay cannot move back
+        saved=Assert.Single((await teacher.GetFromJsonAsync<List<TeacherMaterialView>>("/api/v1/teacher/materials"))!);
+        Assert.Null(saved.FolderId);Assert.Equal(3,saved.Revision);
+        Assert.Equal(bytes,await learner.GetByteArrayAsync("/api/v1/files/"+material.FileId+"/content"));
+        Assert.Equal(link.Id,Assert.Single((await teacher.GetFromJsonAsync<List<TeacherClassMaterialView>>("/api/v1/teacher/class-materials"))!).Id);
+        using var foreign=factory.CreateClient();
+        var foreignSession=(await (await LoginAsync(foreign,"folder-south","folder-south@example.invalid",Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        foreign.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",foreignSession.AccessToken);
+        Assert.Empty((await foreign.GetFromJsonAsync<List<TeacherLibraryFolder>>(folders))!);
+        Assert.Equal(HttpStatusCode.NotFound,(await foreign.PostAsJsonAsync(folders+"/"+folder.Id+"/rename",new RenameLibraryFolderRequest(Guid.NewGuid(),3,"Foreign"))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await foreign.PostAsJsonAsync(root+"/move",new MoveMaterialRequest(Guid.NewGuid(),3,null))).StatusCode);
+        await foreign.PostAsJsonAsync(folders,new CreateLibraryFolderRequest(Guid.NewGuid(),"Foreign folder"));
+        var foreignFolder=Assert.Single((await foreign.GetFromJsonAsync<List<TeacherLibraryFolder>>(folders))!);
+        Assert.Equal(HttpStatusCode.NotFound,(await teacher.PostAsJsonAsync(root+"/move",new MoveMaterialRequest(Guid.NewGuid(),3,foreignFolder.Id))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await teacher.PostAsJsonAsync(root+"/move",new MoveMaterialRequest(Guid.NewGuid(),3,Guid.NewGuid()))).StatusCode);
+        var races=await Task.WhenAll(teacher.PostAsJsonAsync(root+"/move",new MoveMaterialRequest(Guid.NewGuid(),3,folder.Id)),teacher.PostAsJsonAsync(root+"/move",new MoveMaterialRequest(Guid.NewGuid(),3,null)));
+        Assert.Single(races,x=>x.StatusCode==HttpStatusCode.OK);Assert.Single(races,x=>x.StatusCode==HttpStatusCode.Conflict);
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            Assert.Single(await db.TeacherFileContents.Where(x=>x.WorkspaceId==north.WorkspaceId).ToListAsync());
+            Assert.Single(await db.TeacherFileAssets.Where(x=>x.WorkspaceId==north.WorkspaceId).ToListAsync());
+        }
+    }
+
+    [Fact]
     public async Task MaterialManagementKeepsBytesRevokesLinksPreventsReplayAndRecoversQuota()
     {
         await ResetAsync(factory);

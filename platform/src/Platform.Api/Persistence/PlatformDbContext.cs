@@ -39,6 +39,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<TeacherGroupClass> TeacherGroupClasses => Set<TeacherGroupClass>();
     public DbSet<TeacherGroupEnrollment> TeacherGroupEnrollments => Set<TeacherGroupEnrollment>();
     public DbSet<TeacherScheduleRule> TeacherScheduleRules => Set<TeacherScheduleRule>();
+    public DbSet<TeacherLibraryFolder> TeacherLibraryFolders => Set<TeacherLibraryFolder>();
+    public DbSet<TeacherLibraryFolderOperation> TeacherLibraryFolderOperations => Set<TeacherLibraryFolderOperation>();
     public DbSet<TeacherMaterialOperation> TeacherMaterialOperations => Set<TeacherMaterialOperation>();
     public DbSet<TeacherFileAsset> TeacherFileAssets => Set<TeacherFileAsset>();
     public DbSet<TeacherFileContent> TeacherFileContents => Set<TeacherFileContent>();
@@ -142,6 +144,19 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 .OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_TopicTasks_Task");
         });
 
+        modelBuilder.Entity<TeacherLibraryFolder>(entity =>
+        {
+            entity.HasKey(x=>x.Id);entity.HasAlternateKey(x=>new{x.WorkspaceId,x.Id});
+            entity.Property(x=>x.Title).HasMaxLength(100);entity.Property(x=>x.Revision).HasDefaultValue(1);
+            entity.HasOne<Workspace>().WithMany().HasForeignKey(x=>x.WorkspaceId).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_LibraryFolders_Workspace");
+        });
+        modelBuilder.Entity<TeacherLibraryFolderOperation>(entity =>
+        {
+            entity.HasKey(x=>new{x.WorkspaceId,x.RequestId,x.Kind});
+            entity.Property(x=>x.Kind).HasMaxLength(24);entity.Property(x=>x.PayloadHash).HasMaxLength(64);
+            entity.HasOne<TeacherLibraryFolder>().WithMany().HasForeignKey(x=>new{x.WorkspaceId,x.FolderId})
+                .HasPrincipalKey(x=>new{x.WorkspaceId,x.Id}).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_LibraryFolderOperations_Folder");
+        });
         modelBuilder.Entity<TeacherMaterialOperation>(entity =>
         {
             entity.HasKey(x=>new{x.WorkspaceId,x.RequestId,x.Kind});
@@ -170,6 +185,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(x => x.Id);
             entity.HasAlternateKey(x => new { x.WorkspaceId, x.Id });
             entity.Property(x=>x.Revision).HasDefaultValue(1);
+            entity.HasOne<TeacherLibraryFolder>().WithMany().HasForeignKey(x=>new{x.WorkspaceId,x.FolderId})
+                .HasPrincipalKey(x=>new{x.WorkspaceId,x.Id}).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_Materials_Folder");
             entity.Property(x => x.Title).HasMaxLength(250);
             entity.Property(x => x.Url).HasMaxLength(2048);
             entity.HasIndex(x=>new{x.WorkspaceId,x.FileAssetId}).IsUnique();

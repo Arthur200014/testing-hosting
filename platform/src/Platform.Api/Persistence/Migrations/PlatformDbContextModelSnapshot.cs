@@ -142,6 +142,24 @@ namespace TestingHosting.Platform.Persistence.Migrations
                     .HasPrincipalKey("WorkspaceId", "Id").OnDelete(DeleteBehavior.Restrict);
             });
 
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherLibraryFolder",b=>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("WorkspaceId").HasColumnType("uuid");
+                b.Property<string>("Title").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)");
+                b.Property<int>("Revision").ValueGeneratedOnAdd().HasColumnType("integer").HasDefaultValue(1);
+                b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
+                b.HasKey("Id");b.HasAlternateKey("WorkspaceId","Id");b.ToTable("TeacherLibraryFolders","platform");
+            });
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherLibraryFolderOperation",b=>
+            {
+                b.Property<Guid>("WorkspaceId").HasColumnType("uuid");b.Property<Guid>("RequestId").HasColumnType("uuid");
+                b.Property<string>("Kind").IsRequired().HasMaxLength(24).HasColumnType("character varying(24)");
+                b.Property<Guid>("FolderId").HasColumnType("uuid");
+                b.Property<string>("PayloadHash").IsRequired().HasMaxLength(64).HasColumnType("character varying(64)");
+                b.Property<int>("ResultRevision").HasColumnType("integer");
+                b.HasKey("WorkspaceId","RequestId","Kind");b.HasIndex("WorkspaceId","FolderId");b.ToTable("TeacherLibraryFolderOperations","platform");
+            });
             modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherMaterialOperation", b =>
             {
                 b.Property<Guid>("WorkspaceId").HasColumnType("uuid");b.Property<Guid>("RequestId").HasColumnType("uuid");
@@ -180,6 +198,7 @@ namespace TestingHosting.Platform.Persistence.Migrations
             {
                     b.Property<int>("Revision").ValueGeneratedOnAdd().HasColumnType("integer").HasDefaultValue(1);
                     b.Property<DateTimeOffset?>("DeletedAt").HasColumnType("timestamp with time zone");
+                    b.Property<Guid?>("FolderId").HasColumnType("uuid");
                     b.Property<Guid?>("FileAssetId").HasColumnType("uuid");
 
 
@@ -191,6 +210,7 @@ namespace TestingHosting.Platform.Persistence.Migrations
                 b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
                 b.HasKey("Id");
                 b.HasAlternateKey("WorkspaceId", "Id");
+                b.HasIndex("WorkspaceId","FolderId");
                 b.HasIndex("WorkspaceId","FileAssetId").IsUnique();
                 b.HasIndex("WorkspaceId", "CreatedAt");
                 b.ToTable("TeacherMaterials", "platform");
@@ -1789,6 +1809,19 @@ namespace TestingHosting.Platform.Persistence.Migrations
             {
                 b.HasOne("TestingHosting.Platform.Classes.TeacherMaterial",null).WithMany().HasForeignKey("WorkspaceId","MaterialId")
                     .HasPrincipalKey("WorkspaceId","Id").OnDelete(DeleteBehavior.Restrict).IsRequired().HasConstraintName("FK_MaterialOperations_Material");
+            });
+
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherLibraryFolder",b=>
+            {
+                b.HasOne("TestingHosting.Platform.IdentityAccess.Workspace",null).WithMany().HasForeignKey("WorkspaceId").OnDelete(DeleteBehavior.Restrict).IsRequired().HasConstraintName("FK_LibraryFolders_Workspace");
+            });
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherLibraryFolderOperation",b=>
+            {
+                b.HasOne("TestingHosting.Platform.Classes.TeacherLibraryFolder",null).WithMany().HasForeignKey("WorkspaceId","FolderId").HasPrincipalKey("WorkspaceId","Id").OnDelete(DeleteBehavior.Restrict).IsRequired().HasConstraintName("FK_LibraryFolderOperations_Folder");
+            });
+            modelBuilder.Entity("TestingHosting.Platform.Classes.TeacherMaterial",b=>
+            {
+                b.HasOne("TestingHosting.Platform.Classes.TeacherLibraryFolder",null).WithMany().HasForeignKey("WorkspaceId","FolderId").HasPrincipalKey("WorkspaceId","Id").OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_Materials_Folder");
             });
 
 #pragma warning restore 612, 618

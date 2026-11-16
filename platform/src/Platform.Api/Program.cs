@@ -48,6 +48,7 @@ builder.Services.AddScoped<TeacherClassService>();
 builder.Services.AddScoped<TeacherMaterialService>();
 builder.Services.AddScoped<TeacherFileService>();
 builder.Services.AddScoped<TeacherMaterialManagement>();
+builder.Services.AddScoped<TeacherLibraryFolderService>();
 builder.Services.AddScoped<TeacherClassTopicService>();
 builder.Services.AddScoped<TeacherLessonMaterialService>();
 builder.Services.AddScoped<TeacherLessonTopicService>();
@@ -890,6 +891,15 @@ app.MapPost("/api/v1/teacher/subscriptions/{membershipId:guid}", async (
         _ => throw new InvalidOperationException("Unknown teacher subscription write result.")
     };
 }).RequireAuthorization("teacher");
+
+app.MapGet("/api/v1/teacher/library-folders",async(ClaimsPrincipal principal,TeacherLibraryFolderService folders,CancellationToken ct)=>
+    Results.Ok(await folders.ListAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),ct))).RequireAuthorization("teacher");
+app.MapPost("/api/v1/teacher/library-folders",async(CreateLibraryFolderRequest request,ClaimsPrincipal principal,TeacherLibraryFolderService folders,CancellationToken ct)=>
+    NativeWrite(await folders.WriteAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),null,request.RequestId,0,request.Title,ct))).RequireAuthorization("teacher");
+app.MapPost("/api/v1/teacher/library-folders/{id:guid}/rename",async(Guid id,RenameLibraryFolderRequest request,ClaimsPrincipal principal,TeacherLibraryFolderService folders,CancellationToken ct)=>
+    NativeWrite(await folders.WriteAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),id,request.RequestId,request.ExpectedRevision,request.Title,ct))).RequireAuthorization("teacher");
+app.MapPost("/api/v1/teacher/materials/{id:guid}/move",async(Guid id,MoveMaterialRequest request,ClaimsPrincipal principal,TeacherMaterialManagement materials,CancellationToken ct)=>
+    NativeWrite(await materials.MoveAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),id,request,ct))).RequireAuthorization("teacher");
 
 app.MapPost("/api/v1/teacher/materials/{id:guid}/rename",async(Guid id,RenameMaterialRequest request,ClaimsPrincipal principal,TeacherMaterialManagement materials,CancellationToken ct)=>
     NativeWrite(await materials.RenameAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),id,request,ct))).RequireAuthorization("teacher");

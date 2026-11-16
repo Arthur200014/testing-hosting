@@ -77,6 +77,20 @@ public sealed class TeacherMaterialManagement(PlatformDbContext db, TimeProvider
         Receipt(workspace,request.RequestId,id,kind,hash,material.Revision);
         await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);return (200,new{MaterialId=id,material.Revision});
     }
+    public async Task<(int Status,object? Value)> MoveAsync(Guid workspace,Guid id,MoveMaterialRequest request,CancellationToken ct)
+    {
+        if(request.RequestId==Guid.Empty || request.ExpectedRevision<1 || request.FolderId==Guid.Empty) return (400,"Выберите папку и актуальную версию материала.");
+        var hash=Hash(id,request.ExpectedRevision+":"+request.FolderId);
+        await using var tx=await db.Database.BeginTransactionAsync(ct);await LockAsync(db,workspace,ct);
+        if(await Replay(workspace,request.RequestId,"move",hash,ct) is {} replay) return replay;
+        var material=await db.TeacherMaterials.SingleOrDefaultAsync(x=>x.WorkspaceId==workspace && x.Id==id && x.DeletedAt==null,ct);
+        if(material is null) return (404,null);
+        if(material.Revision!=request.ExpectedRevision) return (409,"Материал изменился. Обновите библиотеку.");
+        if(request.FolderId is {} folder && !await db.TeacherLibraryFolders.AnyAsync(x=>x.WorkspaceId==workspace && x.Id==folder,ct)) return (404,null);
+        material.FolderId=request.FolderId;material.Revision++;
+        Receipt(workspace,request.RequestId,id,"move",hash,material.Revision);
+        await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);return (200,new{MaterialId=id,material.Revision});
+    }
     public async Task<(int Status,object? Value)> DeleteAsync(Guid workspace,Guid id,DeleteMaterialRequest request,CancellationToken ct)
     {
         if(request.RequestId==Guid.Empty || request.ExpectedRevision<1) return (400,"Обновите материал перед удалением.");

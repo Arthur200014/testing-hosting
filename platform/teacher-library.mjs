@@ -1,6 +1,6 @@
 import { materialAction, fileSize, renderFileUpload } from './material-file.mjs';
 const unique = values => [...new Set(values.filter(Boolean))];
-export const newLibraryState = () => ({query:'',kind:'all',programId:'',sort:'newest',selected:'',manageOpen:false});
+export const newLibraryState = () => ({query:'',kind:'all',programId:'',sort:'newest',selected:'',manageOpen:false,folderId:'',folderEditor:''});
 const studentsFor = (item,data) => {
   const ids = item.kind==='group' ? (item.members || []).filter(m=>m.isApproved).map(m=>m.membershipId) : [item.studentMembershipId];
   return (data.students || []).filter(s=>ids.includes(s.membershipId) && s.isActive!==false);
@@ -24,7 +24,7 @@ export function libraryEntries(data) {
 }
 export function filterLibrary(data, filters) {
   const query=String(filters.query || '').normalize('NFKC').toLocaleLowerCase('ru').trim();
-  return libraryEntries(data).filter(x=>(filters.kind==='all' || !filters.kind || (filters.kind==='file'?!!x.fileId:filters.kind==='material'?x.kind==='material' && !x.fileId:x.kind===filters.kind)) &&
+  return libraryEntries(data).filter(x=>(!filters.folderId || (x.kind==='material' && (filters.folderId==='unfiled' ? !x.folderId : x.folderId===filters.folderId))) && (filters.kind==='all' || !filters.kind || (filters.kind==='file'?!!x.fileId:filters.kind==='material'?x.kind==='material' && !x.fileId:x.kind===filters.kind)) &&
     (!filters.programId || (filters.programId==='unlinked' ? !x.programIds.length : x.programIds.includes(filters.programId))) &&
     (!query || [x.title,x.prompt,x.url,x.fileName].filter(Boolean).join(' ').normalize('NFKC').toLocaleLowerCase('ru').includes(query)))
     .sort((a,b)=>filters.sort==='title' ? String(a.title).localeCompare(String(b.title),'ru') || a.key.localeCompare(b.key) :
@@ -88,6 +88,11 @@ export function materialManagementAction(entry,operation,data,values={}) {
   }
   const expectedRevision=Number(values.revision);
   if(!Number.isInteger(expectedRevision) || expectedRevision<1) throw new Error('Обновите материал перед изменением.');
+  if(operation==='move') {
+    const folderId=values.folderId || null;
+    if(folderId && !(data.libraryFolders || []).some(f=>f.id===folderId)) throw new Error('Выберите существующую папку.');
+    return {path:root+'/move',body:{expectedRevision,folderId},keys:['materials']};
+  }
   if(operation==='rename') {
     const title=String(values.title || '').trim();
     if(!title || title.length>250) throw new Error('Укажите название длиной 1–250 символов.');
@@ -108,12 +113,35 @@ export function renderMaterialManagement(entry,data,safe,open=false) {
       <p class="muted small">Меняется название в библиотеке, классах и кабинете ученика. Имя и содержимое файла сохраняются.</p>
       <div class="row"><button type="submit" class="primary">Сохранить название</button><button type="button" class="secondary" data-library-management-cancel>Отмена</button></div>
     </form>
+    <form id="libraryMoveForm" class="stack" data-library-item="${safe(entry.key)}" data-revision="${Number(entry.revision || 1)}">
+      <label>Папка<select name="folderId"><option value="">Без папки</option>${(data.libraryFolders || []).map(f=>`<option value="${safe(f.id)}" ${entry.folderId===f.id?'selected':''}>${safe(f.title)}</option>`).join('')}</select></label>
+      <div class="row"><button type="submit" class="secondary">Переместить</button><button type="button" class="secondary" data-library-management-cancel>Отмена</button></div>
+      <p class="muted small">Перемещение сохраняет привязки и доступ учеников.</p>
+    </form>
     <h3>Где используется · ${links.length}</h3>
     ${links.map(link=>`<div class="item" data-material-binding="${safe(link.key)}"><span>${safe(link.label)}</span><button type="button" class="secondary small-button" data-library-unlink="${safe(link.key)}" data-material-id="${safe(entry.id)}">Отвязать</button></div>`).join('') || '<p class="muted small">Привязок нет.</p>'}
     <p class="muted small">После отвязки доступ через выбранный класс, тему или занятие прекращается. Общий материал остаётся в библиотеке.</p>
     <form id="libraryDeleteForm" data-library-item="${safe(entry.key)}" data-revision="${Number(entry.revision || 1)}"><button type="submit" class="secondary" ${links.length?'disabled':''}>${entry.fileId?'Удалить неиспользуемый файл':'Удалить ссылку из библиотеки'}</button></form>
     ${links.length?'<p class="muted small">Удаление доступно после снятия всех привязок.</p>':''}
   </div></details>`;
+}
+export function libraryFolderAction(folder,values={}) {
+  const title=String(values.title || '').trim();
+  if(!title || title.length>100) throw new Error('Укажите название папки длиной 1–100 символов.');
+  if(!folder) return {path:'library-folders',body:{title},keys:['libraryFolders']};
+  const expectedRevision=Number(values.revision);
+  if(!Number.isInteger(expectedRevision) || expectedRevision<1) throw new Error('Обновите папку перед изменением.');
+  return {path:'library-folders/'+encodeURIComponent(folder.id)+'/rename',body:{expectedRevision,title},keys:['libraryFolders']};
+}
+export function renderLibraryFolders(data,state,safe) {
+  const folders=data.libraryFolders || [], current=folders.find(f=>f.id===state.folderId);
+  const editor=state.folderEditor==='create'?null:folders.find(f=>f.id===state.folderEditor);
+  const count=id=>(data.materials || []).filter(m=>id==='unfiled'?!m.folderId:m.folderId===id).length;
+  return `<section class="card stack" data-library-folders>
+    <div class="section-head"><h3>${safe(current?.title || (state.folderId==='unfiled'?'Без папки':'Вся библиотека'))}</h3><div class="row"><button type="button" class="secondary small-button" data-library-folder-create>Создать папку</button>${current?'<button type="button" class="secondary small-button" data-library-folder-rename>Переименовать папку</button>':''}</div></div>
+    <nav class="row" aria-label="Папки библиотеки" style="flex-wrap:wrap"><button type="button" class="secondary small-button" data-library-folder="" aria-pressed="${!state.folderId}">Вся библиотека</button><button type="button" class="secondary small-button" data-library-folder="unfiled" aria-pressed="${state.folderId==='unfiled'}">Без папки · ${count('unfiled')}</button>${folders.map(f=>`<button type="button" class="secondary small-button" style="max-width:100%;white-space:normal;overflow-wrap:anywhere" data-library-folder="${safe(f.id)}" aria-pressed="${state.folderId===f.id}">${safe(f.title)} · ${count(f.id)}</button>`).join('')}</nav>
+    ${state.folderEditor==='create' || editor?`<form id="libraryFolderForm" class="stack" data-library-item="folder:${safe(editor?.id || 'new')}" data-folder-id="${safe(editor?.id || '')}" data-revision="${editor?.revision || 0}"><label>${editor?'Название папки':'Новая папка'}<input name="title" maxlength="100" required value="${safe(editor?.title || '')}"></label><div class="row"><button type="submit" class="primary">Сохранить папку</button><button type="button" class="secondary" data-library-folder-cancel>Отмена</button></div></form>`:''}
+  </section>`;
 }
 export function renderLibraryResults(data,filters,safe) {
   const entries=filterLibrary(data,filters);
@@ -131,6 +159,7 @@ export function renderLibrary(data,state,safe,upload=null) {
     <div class="class-tabs" role="group" aria-label="Тип содержимого">${[['all','Всё'],['task','Шаблоны'],['file','Файлы'],['material','Ссылки']].map(([id,label])=>`<button type="button" class="${state.kind===id?'active':''}" aria-pressed="${state.kind===id}" data-library-type="${id}">${label}</button>`).join('')}</div>
     <div class="stack" data-library-used-bytes="${libraryUsedBytes(data)}"><span class="muted small">Файлы: ${safe(fileSize(libraryUsedBytes(data)))} из 100 МБ</span><progress max="104857600" value="${libraryUsedBytes(data)}" aria-label="Занято места файлами" style="width:100%"></progress></div>
     ${upload?renderFileUpload(upload,safe):''}
+    ${renderLibraryFolders(data,state,safe)}
     <div class="form-row"><label>Поиск<input id="librarySearch" type="search" value="${safe(state.query)}" placeholder="Название, условие или адрес ссылки"></label><label>Программа<select data-library-program><option value="">Все программы</option>${(data.programs || []).map(p=>`<option value="${safe(p.id)}" ${state.programId===p.id?'selected':''}>${safe(p.displayName)}</option>`).join('')}<option value="unlinked" ${state.programId==='unlinked'?'selected':''}>Без программы</option></select></label><label>Сортировка<select data-library-sort><option value="newest" ${state.sort==='newest'?'selected':''}>Сначала новые</option><option value="title" ${state.sort==='title'?'selected':''}>По названию</option></select></label></div>
     <p class="muted small">Программа ссылки определяется по классам, темам и занятиям, где она используется. Новые ссылки добавляются на вкладке «Материалы» класса.</p>
     <div class="library-layout"><section class="card stack" id="libraryResults">${renderLibraryResults(data,state,safe)}</section>
