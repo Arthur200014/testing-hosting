@@ -1,11 +1,11 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-16
-**ACTIVE_TASK:** UI-04 IN_PROGRESS — bounded file upload/protected access/reuse block complete.
-**ACTIVE_BRANCH:** none; [PR #79](https://github.com/Arthur200014/testing-hosting/pull/79) merged.
+**ACTIVE_TASK:** UI-04 IN_PROGRESS — material rename, unlink and guarded deletion.
+**ACTIVE_BRANCH:** `tas/ui04-file-management`, backend checkpoint `3f1b7c267e2073ac8218accb38aa93a8c166f398`; UI/real-browser work in progress, not releasable yet.
 **MERGED_SHA:** `19ab684f54d9052651fd55fdd609b7e2ecf0c5cb`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43812116451](https://github.com/Arthur200014/testing-hosting/actions/runs/43812116451) PASS; 9 changed published teacher/student/module files byte-compared with main: PASS. API changes and additive migration committed for configured native Timeweb auto-deploy; independent API revision/migration NOT_VERIFIED / UNKNOWN.
-**NEXT_ACTION:** Next related UI-04 file-management block (reference 49): rename display labels without changing bytes → detach material links without deleting shared files → guarded deletion only for unused library files/materials, with quota recovery, cancel/reload/idempotency and isolated teacher/student permission checks. Do not delete real records during acceptance. Keep recordings/large-object storage separate; do not expand this PostgreSQL slice incidentally.
+**NEXT_ACTION:** Finish current branch UI and isolated acceptance for rename/cancel/reload, unlink/access revocation, guarded deletion/quota recovery and old-request replay denial; fix CI then PR/merge/Pages. No real record deletions or Timeweb checks. Recordings remain separate.
 
 ## Standing owner instructions
 
