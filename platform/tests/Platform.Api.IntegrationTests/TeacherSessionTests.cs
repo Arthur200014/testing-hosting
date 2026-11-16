@@ -78,7 +78,10 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Equal(HttpStatusCode.NotFound,(await learner.GetAsync(path)).StatusCode);
         Assert.Empty((await learner.GetFromJsonAsync<List<TeacherMaterialView>>("/api/v1/files"))!);
         Assert.Equal(HttpStatusCode.Forbidden,(await learner.PostAsync("/api/v1/teacher/files/"+Guid.NewGuid()+"?fileName=x.txt",new ByteArrayContent(bytes))).StatusCode);
-        Assert.Equal(HttpStatusCode.Created,(await teacher.PostAsJsonAsync("/api/v1/teacher/class-materials",new TeacherClassMaterialWriteRequest(Guid.NewGuid(),cls.Id,"individual",material.Id))).StatusCode);
+        var attached=await teacher.PostAsJsonAsync("/api/v1/teacher/class-materials",new TeacherClassMaterialWriteRequest(Guid.NewGuid(),cls.Id,"individual",material.Id));
+        Assert.Equal(HttpStatusCode.Created,attached.StatusCode);
+        var attachment=(await attached.Content.ReadFromJsonAsync<TeacherClassMaterialView>())!;
+        Assert.Equal("notes.txt",attachment.FileName);Assert.Equal(bytes.Length,attachment.SizeBytes);
         Assert.Equal(bytes,await learner.GetByteArrayAsync(path));
         Assert.Equal(HttpStatusCode.NotFound,(await outsider.GetAsync(path)).StatusCode);
         var lesson=(await (await teacher.PostAsJsonAsync("/api/v1/teacher/lessons",new TeacherLessonWriteRequest(Guid.NewGuid(),DateTimeOffset.UtcNow,

@@ -117,7 +117,7 @@ public sealed class TeacherMaterialService(PlatformDbContext db, TimeProvider cl
         TeacherMaterial material;
         if (request.MaterialId is { } id)
         {
-            material = await db.TeacherMaterials.AsNoTracking()
+            material = await db.TeacherMaterials.AsNoTracking().Include(x=>x.FileAsset)
                 .SingleOrDefaultAsync(x => x.WorkspaceId == workspaceId && x.Id == id, ct)
                 ?? null!;
             if (material is null) return new(TeacherClassMaterialStatus.NotFound);
