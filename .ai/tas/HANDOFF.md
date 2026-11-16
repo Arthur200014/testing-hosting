@@ -2,10 +2,10 @@
 
 **UPDATED:** 2026-11-16
 **ACTIVE_TASK:** UI-04 IN_PROGRESS — external lesson recording links implemented, isolated acceptance pending.
-**ACTIVE_BRANCH:** `tas/ui04-lesson-recordings`, PR #84, head `467c10a8be0826ef7f2d3f77e12daeff671d67d3`.
+**ACTIVE_BRANCH:** `tas/ui04-lesson-recordings`, PR #84, head `d0097062e3b9fd1ca6935e8570d22ff51becf289`; 105 PostgreSQL tests PASS, final browser rerun after fixture/module-copy fixes.
 **MERGED_SHA:** `d31125cb1f1f59f54b802f983bf2403a49351807`, [PR #81](https://github.com/Arthur200014/testing-hosting/pull/81).
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43847840704](https://github.com/Arthur200014/testing-hosting/actions/runs/43847840704) PASS; published teacher.html, teacher-library.mjs and teacher-data.mjs byte-match main. API code + additive migration are on main for configured native Timeweb auto-deploy. Independent API deployment/revision/migration NOT_VERIFIED / UNKNOWN; LIVE_WRITE_NOT_RUN per owner instruction.
-**NEXT_ACTION:** Finish PR #84 PostgreSQL/browser checks, fix failures, inspect reference50 screenshot, merge and publish Pages, verify changed published bytes and update HANDOFF. External links only: no video bytes/playback claims; source-provider permissions remain separate. No Timeweb checks or production writes.
+**NEXT_ACTION:** Finish PR #84 final CI, inspect reference50 screenshot, merge and publish Pages, verify changed published bytes and update HANDOFF. Prior browser blockers were missing recording feed in old synthetic fixtures and missing lesson-recordings.mjs in the isolated site copy; fixed. External links only, source-provider permissions separate. No Timeweb checks or production writes.
 
 ## Standing owner instructions
 
