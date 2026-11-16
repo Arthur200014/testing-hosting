@@ -1,41 +1,38 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-16
-**ACTIVE_TASK:** UI-04 IN_PROGRESS — contextual recording management implemented, isolated acceptance pending.
-**ACTIVE_BRANCH:** `tas/ui04-recordings-in-lessons`, PR #85, head `af6baf933500ba1467ff3146dbd9770e8b68e490`; 18 local checks and previous backend CI PASS, final browser retry after test-fixture corrections.
-**MERGED_SHA:** `c6f2aba810c56f190cc384a8a1abe889d68356e8`, [PR #84](https://github.com/Arthur200014/testing-hosting/pull/84).
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43892298459](https://github.com/Arthur200014/testing-hosting/actions/runs/43892298459) PASS; teacher.html, student.html, teacher-data.mjs, teacher-library.mjs and lesson-recordings.mjs byte-match main. API code + additive migration on main for configured native Timeweb auto-deploy. Independent API deployment/revision/migration NOT_VERIFIED / UNKNOWN; LIVE_WRITE_NOT_RUN per owner mode.
-**NEXT_ACTION:** Finish PR #85 final CI/browser, inspect reference24 screenshots, merge/Pages/byte comparison/HANDOFF. Initial browser reached new card flows but incorrectly assumed the second synthetic pupil was a nonparticipant; now actual pair participation is asserted and a dedicated synthetic outsider is used. Fresh-login library defaults handled explicitly. Existing API reused; no backend/schema changes. No Timeweb checks or production writes.
+**ACTIVE_TASK:** UI-04 contextual recordings released; next scoped UI-05 pupil card.
+**ACTIVE_BRANCH:** none.
+**MERGED_SHA:** `181d586d01e53ebac1fede8c7650a1c0a42aec6d`, [PR #85](https://github.com/Arthur200014/testing-hosting/pull/85).
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43907587097](https://github.com/Arthur200014/testing-hosting/actions/runs/43907587097) PASS; published teacher.html and lesson-recordings.mjs byte-match main. Backend/API/schema unchanged by #85; existing API from #84 reused. Native Timeweb auto-deploy is owner-configured; independent API revision/migration NOT_VERIFIED / UNKNOWN, LIVE_WRITE_NOT_RUN.
+**NEXT_ACTION:** UI-05 class composition → pupil card for individual/group classes (relevant references42–47, open only the applicable 1–2 specs/PNGs): open the exact pupil from class/lesson, show current details and class relationships, reuse existing profile editing with cancel/save/reload, return to originating class. Take the connected steps together. Isolated persistence/access checks → PR/merge/Pages/HANDOFF. Do not send invitations or modify real pupils.
 
 ## Standing owner instructions
 
-- Take several consecutive related steps together; cover individual classes, groups and lessons.
-- Persistence acceptance uses isolated synthetic API/PostgreSQL/Chromium workspaces only. **Do not check Timeweb** or request production credentials. Independent Timeweb revision/live writes are not blockers in this approved mode.
-- No real students, lessons, scores, settings or credentials as test-write targets. Never retarget reset/seed/import/calendar-real-browser.sh to production, rerun imports, change writer, send invitations/notifications/payments or provision infrastructure incidentally.
-- Tests/runner are saved in Git. Their reset/seed commands must never run against real data.
+- Take a substantial connected scenario, covering individual and group contexts.
+- Persistence tests use isolated synthetic API/PostgreSQL/Chromium workspaces only. **Do not check Timeweb** or ask for production credentials; independent production revision/live writes are not blockers in this approved mode.
+- Real students, lessons, scores, settings and credentials are not test-write targets. Never retarget reset/seed/import/browser scripts to production, rerun imports, change writer or provision infrastructure incidentally. No invitations/notifications/payments.
+- Tests/runner are committed in Git; reset/seed scripts must never run on real data.
 
-## Completed #84
+## Completed #85
 
-- Separate library tab “Записи занятий”: class grouping/sidebar, search, add/edit/cancel, association with an individual/group lesson, optional explicit Moscow expiry and availability toggle. Teacher retains control of expired/disabled references.
-- These are **external HTTPS links**, not video bytes or a recorder/player. Volume is unknown and not counted toward file quota. No automatic provider requests or embedded playback. Teacher supplies an existing source.
-- Student list returns metadata without source URL. “Получить ссылку” fetches the authenticated endpoint, then renders an escaped external link with noopener/noreferrer. Every source read rechecks active student/program, current nonarchived individual or approved group membership, actual lesson participation, availability and expiry. Foreign workspace/nonparticipants denied; current-token requests denied immediately after revoke/expiry.
-- Platform policy controls **issuance of the link**. Already-issued URLs and actual video viewing remain subject to source-provider permissions; UI explicitly explains this. Do not claim platform revokes copied external links or verifies provider playback.
-- Additive `20261116190000_LessonRecordings`: recording metadata + operation receipts, workspace/lesson FKs. Revisions and existing workspace advisory lock protect concurrent/stale edits; late replay cannot revert newer metadata. Existing lessons/materials preserved; no production configuration/infrastructure changes.
-- Paths: Lessons/LessonRecordingService.cs, Program.cs, DbContext/migration/snapshot; lesson-recordings.mjs/test, teacher-library/data + teacher/student pages; existing TeacherSessionTests.cs, calendar-real-browser.mjs/script, synthetic browser fixtures and workflow.
-- Reference50 + final screenshot inspected; visual fidelity PARTIAL. Video uploads/large-file storage/provider integration remain separate decisions.
+- Replaced lesson-card recording placeholder with that lesson's real references, counts and availability/expiry state, source retrieval and library actions.
+- From either class format: open lesson-filtered library, create/edit with the lesson locked, cancel/save back to the exact lesson; restore previous library preferences and originating class tab. Refresh retains draft fields/revision; dirty navigation requires discard confirmation. IDs/ownership/lesson consistency and session generation checked.
+- Fixed archive transition: selected lesson stays visible when its class becomes archived, and uses the proper active/archive context on return. Recording create/edit controls disappear; teacher can inspect references, student issuance is revoked by existing API. Restore re-enables the card.
+- Recording metadata is fetched when a lesson opens. No backend/schema/configuration changes. Changed paths: teacher.html, lesson-recordings.mjs/test, calendar-real-browser.mjs.
+- References24/50; individual/group screenshots inspected. Overall fidelity PARTIAL; board/chat placeholders unchanged.
 
 ## Verification
 
-- LOCAL PASS: **17** focused Node tests; changed inline/module/browser syntax, shell syntax and diff.
-- FINAL head `523e6a20e5a9d9c37cde2421075ea2762da126e9`: [TAS CI 43891301565](https://github.com/Arthur200014/testing-hosting/actions/runs/43891301565), [PostgreSQL 43891301540](https://github.com/Arthur200014/testing-hosting/actions/runs/43891301540), [real Chromium/API/PostgreSQL 43891303040](https://github.com/Arthur200014/testing-hosting/actions/runs/43891303040): PASS.
-- PostgreSQL **105/105**, migration/model/startup/ready/auth/isolated restore PASS. Recording regression covers URL/name validation, concurrent creation/replay/stale edits, reassignment, foreign/student/anonymous denial, metadata without URL, expiry, disabled issuance, actual participants, approval/archive revocation and no-store responses.
-- Browser PASS: both class formats, create/edit/cancel/search/filter, preserved draft revision across refresh and HTTP409 conflict, authenticated exact source-link target, revoke/expiry, teacher/student reload/login, workspace isolation, 390px layout. `50_lesson_recordings_real.png` retained in final run's `meleto-ui02-screenshots` artifact.
-- Fixed test harness blockers: empty recording feed in two old synthetic student fixtures; new module copied to isolated site; module initialization checked before login. Runner is executable.
-- Fixed old calendar test clock dependence: count-plan create/skip expectations derive from real future-slot preview; today's passed slot is not assumed future. Production calendar code unchanged.
-- External provider playback NOT_RUN (synthetic example.org links); source issuance/link attributes verified. No production writes or Timeweb verification. No outstanding failed checks at final head.
+- LOCAL PASS: **18** focused Node checks + changed inline/module/browser syntax and diff; relevant recording checks rerun after archive fix.
+- FINAL head `bb04ba7302884238ffcb4027298e0e3d0a7ddf90`: [TAS CI 43906439366](https://github.com/Arthur200014/testing-hosting/actions/runs/43906439366), [PostgreSQL 43906439678](https://github.com/Arthur200014/testing-hosting/actions/runs/43906439678), [real Chromium/API/PostgreSQL 43906439717](https://github.com/Arthur200014/testing-hosting/actions/runs/43906439717): PASS. Existing **105 API integration tests**, startup/migrations/ready/restore remain green.
+- Browser PASS: create/edit/cancel/list/source/return; locked lesson; refresh and declined navigation preserve draft; both formats and actual pair participants; dedicated outsider denial; student revocation; archive/restore; teacher/student reload/login; unchanged lesson records; 390px layouts.
+- Screenshots `24_individual_lesson_recordings_real.png`, `24_group_lesson_recordings_real.png` retained in final run's `meleto-ui02-screenshots` artifact.
+- Initial false assumption that pupil2 was a nonparticipant corrected with a dedicated synthetic outsider. Actual archive-navigation defect fixed. Final checks have no outstanding failures.
+- No live writes/Timeweb checks; external provider playback NOT_RUN (synthetic links).
 
-## Existing storage/library safeguards (#79–81)
+## Retained boundaries
 
-PostgreSQL metadata + separate bytea file contents; **5 MiB/file, 100 MiB/workspace**, PDF/PNG/JPEG/UTF-8 TXT, two uploads/API instance. Authenticated scoped downloads, no public file URLs. Material links reuse bytes across individual/group/topic/lesson contexts. Display rename preserves original filename/bytes; exact unlink revokes selected grant; unused-file deletion frees quota with replay protection. Single-level folders organize files/links without changing bytes/access; selection persists per teacher/workspace in the same tab. These attachment limits do not support recordings.
+Recordings are external HTTPS references, not video uploads/recording/playback storage. Existing service rechecks student/program, current class membership, actual participation, availability and expiry before issuing URL. Copied URLs/video viewing remain subject to provider permissions. No public platform file URLs or new infrastructure. Educational file storage remains 5MiB/file, 100MiB/workspace; folders/rename/unlink/guarded deletion from #79–81 preserve bytes/access rules. Large video storage and remaining visual refinement are separate backlog.
 
 Published interface: https://arthur200014.github.io/testing-hosting/platform/teacher.html.
