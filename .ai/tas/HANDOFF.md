@@ -1,11 +1,11 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-16
-**ACTIVE_TASK:** UI-04 contextual recordings released; next scoped UI-05 pupil card.
-**ACTIVE_BRANCH:** none.
+**ACTIVE_TASK:** UI-05 IN_PROGRESS — pupil cards/class context implemented, isolated acceptance pending.
+**ACTIVE_BRANCH:** `tas/ui05-student-cards`, PR #86, head `7e3c9c20087c1f5d81adabd4591bb9b53e7ca581`.
 **MERGED_SHA:** `181d586d01e53ebac1fede8c7650a1c0a42aec6d`, [PR #85](https://github.com/Arthur200014/testing-hosting/pull/85).
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43907587097](https://github.com/Arthur200014/testing-hosting/actions/runs/43907587097) PASS; published teacher.html and lesson-recordings.mjs byte-match main. Backend/API/schema unchanged by #85; existing API from #84 reused. Native Timeweb auto-deploy is owner-configured; independent API revision/migration NOT_VERIFIED / UNKNOWN, LIVE_WRITE_NOT_RUN.
-**NEXT_ACTION:** UI-05 class composition → pupil card for individual/group classes (relevant references42–47, open only the applicable 1–2 specs/PNGs): open the exact pupil from class/lesson, show current details and class relationships, reuse existing profile editing with cancel/save/reload, return to originating class. Take the connected steps together. Isolated persistence/access checks → PR/merge/Pages/HANDOFF. Do not send invitations or modify real pupils.
+**NEXT_ACTION:** Finish PR #86 isolated CI/browser checks, fix failures, inspect reference43–44 screenshots, merge/Pages/byte comparison and update HANDOFF. Existing student/profile API reused; no backend/schema changes. No Timeweb checks, production writes or invitations.
 
 ## Standing owner instructions
 
