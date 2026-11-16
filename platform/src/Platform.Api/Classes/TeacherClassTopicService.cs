@@ -147,7 +147,7 @@ public sealed class TeacherClassTopicService(PlatformDbContext db, TimeProvider 
         join material in db.TeacherMaterials.AsNoTracking()
             on new { link.WorkspaceId, link.MaterialId }
             equals new { material.WorkspaceId, MaterialId = material.Id }
-        where link.WorkspaceId == workspaceId
+        where material.DeletedAt == null && link.WorkspaceId == workspaceId
         orderby link.CreatedAt descending
         select new TeacherTopicMaterialView(link.Id, link.TopicId, link.MaterialId,
             material.Title, material.Url, link.CreatedAt, material.FileAssetId, material.FileAsset == null ? null : material.FileAsset.FileName, material.FileAsset == null ? null : (long?)material.FileAsset.SizeBytes, material.FileAsset == null ? null : material.FileAsset.ContentType);
@@ -163,7 +163,7 @@ public sealed class TeacherClassTopicService(PlatformDbContext db, TimeProvider 
          join material in db.TeacherMaterials.AsNoTracking()
              on new { link.WorkspaceId, link.MaterialId }
              equals new { material.WorkspaceId, MaterialId = material.Id }
-         where link.WorkspaceId == workspaceId && link.Id == linkId
+         where material.DeletedAt == null && link.WorkspaceId == workspaceId && link.Id == linkId
          select new TeacherTopicMaterialView(link.Id, link.TopicId, link.MaterialId,
              material.Title, material.Url, link.CreatedAt, material.FileAssetId, material.FileAsset == null ? null : material.FileAsset.FileName, material.FileAsset == null ? null : (long?)material.FileAsset.SizeBytes, material.FileAsset == null ? null : material.FileAsset.ContentType)).SingleAsync(ct);
 
@@ -235,6 +235,9 @@ public sealed class TeacherClassTopicService(PlatformDbContext db, TimeProvider 
         if (request.TopicId == Guid.Empty) errors["topicId"] = ["Topic is required."];
         if (request.MaterialId == Guid.Empty) errors["materialId"] = ["Material is required."];
         if (errors.Count > 0) return new(TeacherTopicStatus.Invalid, Errors: errors);
+        await using var tx=await db.Database.BeginTransactionAsync(ct);
+        await TeacherMaterialManagement.LockAsync(db,workspaceId,ct);
+        if(await TeacherMaterialManagement.RevokedAsync(db,workspaceId,request.RequestId,"topic",ct)) return new(TeacherTopicStatus.Conflict);
         var prior = await db.TeacherTopicMaterialLinks.AsNoTracking().SingleOrDefaultAsync(
             x => x.WorkspaceId == workspaceId && x.RequestId == request.RequestId, ct);
         if (prior is not null)
@@ -248,7 +251,7 @@ public sealed class TeacherClassTopicService(PlatformDbContext db, TimeProvider 
                 workspaceId, topic.IndividualClassId, topic.GroupClassId, ct))
             return new(TeacherTopicStatus.NotFound);
         if (!await db.TeacherMaterials.AsNoTracking().AnyAsync(
-                x => x.WorkspaceId == workspaceId && x.Id == request.MaterialId, ct))
+                x => x.WorkspaceId == workspaceId && x.Id == request.MaterialId && x.DeletedAt == null, ct))
             return new(TeacherTopicStatus.NotFound);
         if (await db.TeacherTopicMaterialLinks.AsNoTracking().AnyAsync(
                 x => x.WorkspaceId == workspaceId && x.TopicId == request.TopicId
@@ -262,6 +265,7 @@ public sealed class TeacherClassTopicService(PlatformDbContext db, TimeProvider 
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg && pg.SqlState == "23505")
         {
+            await tx.RollbackAsync(ct);await tx.DisposeAsync();
             db.ChangeTracker.Clear();
             prior = await db.TeacherTopicMaterialLinks.AsNoTracking().SingleOrDefaultAsync(
                 x => x.WorkspaceId == workspaceId && x.RequestId == request.RequestId, ct);
@@ -270,6 +274,7 @@ public sealed class TeacherClassTopicService(PlatformDbContext db, TimeProvider 
                 ? new(TeacherTopicStatus.Duplicate, Material: await ByLinkAsync(workspaceId, prior.Id, ct))
                 : new(TeacherTopicStatus.Conflict);
         }
+        await tx.CommitAsync(ct);
         return new(TeacherTopicStatus.Created,
             Material: await ByLinkAsync(workspaceId, link.Id, ct));
     }

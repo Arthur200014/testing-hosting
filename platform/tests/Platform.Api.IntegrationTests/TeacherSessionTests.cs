@@ -26,6 +26,101 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     private const string ClaimCode = "synthetic-claim-code-for-integration-tests-only-2026";
 
     [Fact]
+    public async Task MaterialManagementKeepsBytesRevokesLinksPreventsReplayAndRecoversQuota()
+    {
+        await ResetAsync(factory);
+        var north=await SeedAsync(factory,"manage-north","manage-north@example.invalid","owner");
+        await SeedAsync(factory,"manage-south","manage-south@example.invalid","owner");
+        using var teacher=factory.CreateClient();
+        var owner=(await (await LoginAsync(teacher,"manage-north","manage-north@example.invalid",Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        teacher.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",owner.AccessToken);
+        Guid program;
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();program=Guid.NewGuid();
+            db.Programs.Add(new(){Id=program,WorkspaceId=north.WorkspaceId,Code="MANAGE",DisplayName="Manage",IsActive=true});await db.SaveChangesAsync();
+        }
+        async Task<TeacherCreateStudentResponse> Student(string name)=>(await (await teacher.PostAsJsonAsync("/api/v1/teacher/students",new TeacherCreateStudentRequest(Guid.NewGuid(),program,name))).Content.ReadFromJsonAsync<TeacherCreateStudentResponse>())!;
+        var first=await Student("First");var second=await Student("Second");
+        var cls=(await (await teacher.PostAsJsonAsync("/api/v1/teacher/classes",new TeacherCreateClassRequest(Guid.NewGuid(),first.MembershipId,"Management class"))).Content.ReadFromJsonAsync<TeacherClassView>())!;
+        var group=(await (await teacher.PostAsJsonAsync("/api/v1/teacher/groups",new TeacherCreateGroupRequest(Guid.NewGuid(),"Management group",[first.MembershipId,second.MembershipId]))).Content.ReadFromJsonAsync<TeacherGroupClassView>())!;
+        var lesson=(await (await teacher.PostAsJsonAsync("/api/v1/teacher/lessons",new TeacherLessonWriteRequest(Guid.NewGuid(),DateTimeOffset.UtcNow,[new TeacherLessonParticipantRequest(second.MembershipId,60,null,null,"Unknown")],GroupClassId:group.Id))).Content.ReadFromJsonAsync<TeacherLessonWriteResponse>())!;
+        var topic=(await (await teacher.PostAsJsonAsync("/api/v1/teacher/class-topics",new TeacherClassTopicCreateRequest(Guid.NewGuid(),group.Id,"group","Management topic"))).Content.ReadFromJsonAsync<TeacherClassTopicView>())!;
+        var bytes=System.Text.Encoding.UTF8.GetBytes("Stored bytes");var uploadId=Guid.NewGuid();
+        async Task<HttpResponseMessage> Upload(Guid request,byte[] content,string title="Original")=>await teacher.PostAsync("/api/v1/teacher/files/"+request+"?fileName=notes.txt&title="+Uri.EscapeDataString(title),new ByteArrayContent(content));
+        var material=(await (await Upload(uploadId,bytes)).Content.ReadFromJsonAsync<TeacherMaterialView>())!;
+        // Pre-management uploads did not store UploadTitle; first rename preserves that original value.
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            (await db.TeacherFileAssets.SingleAsync(x=>x.Id==material.FileId)).UploadTitle=null;await db.SaveChangesAsync();
+        }
+        var root="/api/v1/teacher/materials/"+material.Id;var download="/api/v1/teacher/files/"+material.FileId+"/content";
+        var rename=new RenameMaterialRequest(Guid.NewGuid(),material.Revision,"Renamed display title");
+        Assert.Equal(HttpStatusCode.OK,(await teacher.PostAsJsonAsync(root+"/rename",rename)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,(await teacher.PostAsJsonAsync(root+"/rename",rename)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,(await teacher.PostAsJsonAsync(root+"/rename",rename with{RequestId=Guid.NewGuid(),Title="Stale"})).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,(await teacher.PostAsJsonAsync(root+"/rename",rename with{Title="Changed retry"})).StatusCode);
+        var saved=Assert.Single((await teacher.GetFromJsonAsync<List<TeacherMaterialView>>("/api/v1/teacher/materials"))!);
+        Assert.Equal(2,saved.Revision);Assert.Equal(rename.Title,saved.Title);Assert.Equal("notes.txt",saved.FileName);
+        Assert.Equal(bytes,await teacher.GetByteArrayAsync(download));
+        Assert.Equal(HttpStatusCode.OK,(await Upload(uploadId,bytes)).StatusCode); // original upload title survives display rename
+        async Task<HttpClient> Learner(TeacherCreateStudentResponse s) {
+            var client=factory.CreateClient();var login=(await (await client.PostAsJsonAsync("/api/v1/student-sessions",new{workspace="manage-north",code=s.InviteCode})).Content.ReadFromJsonAsync<TestingHosting.Platform.StudentSessions.StudentSessionResponse>())!;
+            client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",login.AccessToken);return client;
+        }
+        using var learner=await Learner(first);using var other=await Learner(second);var studentPath="/api/v1/files/"+material.FileId+"/content";
+        Assert.Equal(HttpStatusCode.Forbidden,(await learner.PostAsJsonAsync(root+"/rename",rename)).StatusCode);
+        var classRequest=new TeacherClassMaterialWriteRequest(Guid.NewGuid(),cls.Id,"individual",material.Id);
+        var groupRequest=new TeacherClassMaterialWriteRequest(Guid.NewGuid(),group.Id,"group",material.Id);
+        var topicRequest=new TeacherTopicMaterialRequest(Guid.NewGuid(),topic.Id,material.Id);
+        var lessonRequest=new TeacherLessonMaterialWriteRequest(Guid.NewGuid(),lesson.LessonId,material.Id);
+        var classLink=(await (await teacher.PostAsJsonAsync("/api/v1/teacher/class-materials",classRequest)).Content.ReadFromJsonAsync<TeacherClassMaterialView>())!;
+        var groupLink=(await (await teacher.PostAsJsonAsync("/api/v1/teacher/class-materials",groupRequest)).Content.ReadFromJsonAsync<TeacherClassMaterialView>())!;
+        var topicLink=(await (await teacher.PostAsJsonAsync("/api/v1/teacher/topic-materials",topicRequest)).Content.ReadFromJsonAsync<TeacherTopicMaterialView>())!;
+        var lessonLink=(await (await teacher.PostAsJsonAsync("/api/v1/teacher/lesson-materials",lessonRequest)).Content.ReadFromJsonAsync<TeacherLessonMaterialView>())!;
+        var deletion=new DeleteMaterialRequest(Guid.NewGuid(),saved.Revision);
+        Assert.Equal(HttpStatusCode.Conflict,(await teacher.PostAsJsonAsync(root+"/delete",deletion)).StatusCode);
+        var foreign=(await (await LoginAsync(teacher,"manage-south","manage-south@example.invalid",Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        teacher.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",foreign.AccessToken);
+        Assert.Equal(HttpStatusCode.NotFound,(await teacher.PostAsJsonAsync(root+"/delete",deletion)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await teacher.PostAsJsonAsync(root+"/unlink",new UnlinkMaterialRequest(Guid.NewGuid(),"class",classLink.Id))).StatusCode);
+        teacher.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",owner.AccessToken);
+        async Task Unlink(string kind,Guid link) {
+            var request=new UnlinkMaterialRequest(Guid.NewGuid(),kind,link);
+            Assert.Equal(HttpStatusCode.OK,(await teacher.PostAsJsonAsync(root+"/unlink",request)).StatusCode);
+            Assert.Equal(HttpStatusCode.OK,(await teacher.PostAsJsonAsync(root+"/unlink",request)).StatusCode);
+        }
+        await Unlink("class",classLink.Id);Assert.Equal(HttpStatusCode.Conflict,(await teacher.PostAsJsonAsync("/api/v1/teacher/class-materials",classRequest)).StatusCode);
+        Assert.Equal(bytes,await learner.GetByteArrayAsync(studentPath)); // other bindings retain access
+        await Unlink("class",groupLink.Id);Assert.Equal(HttpStatusCode.Conflict,(await teacher.PostAsJsonAsync("/api/v1/teacher/class-materials",groupRequest)).StatusCode);
+        await Unlink("topic",topicLink.Id);Assert.Equal(HttpStatusCode.Conflict,(await teacher.PostAsJsonAsync("/api/v1/teacher/topic-materials",topicRequest)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await learner.GetAsync(studentPath)).StatusCode);Assert.Equal(bytes,await other.GetByteArrayAsync(studentPath));
+        await Unlink("lesson",lessonLink.Id);Assert.Equal(HttpStatusCode.Conflict,(await teacher.PostAsJsonAsync("/api/v1/teacher/lesson-materials",lessonRequest)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await other.GetAsync(studentPath)).StatusCode);Assert.Equal(bytes,await teacher.GetByteArrayAsync(download));
+        // Explicit new attach and deletion serialize: they cannot both succeed.
+        var raceRequest=classRequest with{RequestId=Guid.NewGuid()};
+        var race=await Task.WhenAll(teacher.PostAsJsonAsync(root+"/delete",deletion),teacher.PostAsJsonAsync("/api/v1/teacher/class-materials",raceRequest));
+        if(race[0].StatusCode==HttpStatusCode.OK) Assert.Equal(HttpStatusCode.NotFound,race[1].StatusCode);
+        else {
+            Assert.Equal(HttpStatusCode.Conflict,race[0].StatusCode);Assert.Equal(HttpStatusCode.Created,race[1].StatusCode);
+            var link=(await race[1].Content.ReadFromJsonAsync<TeacherClassMaterialView>())!;await Unlink("class",link.Id);
+            Assert.Equal(HttpStatusCode.OK,(await teacher.PostAsJsonAsync(root+"/delete",deletion)).StatusCode);
+        }
+        Assert.Equal(HttpStatusCode.OK,(await teacher.PostAsJsonAsync(root+"/delete",deletion)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await teacher.GetAsync(download)).StatusCode);
+        Assert.Equal(HttpStatusCode.Gone,(await Upload(uploadId,bytes)).StatusCode); // no resurrection on a late upload replay
+        Assert.Empty((await teacher.GetFromJsonAsync<List<TeacherMaterialView>>("/api/v1/teacher/materials"))!);
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();Assert.Equal(0,await db.TeacherFileContents.CountAsync());
+            Assert.Equal(0,await db.TeacherFileAssets.Where(x=>x.WorkspaceId==north.WorkspaceId && x.DeletedAt==null).CountAsync());
+            Assert.NotNull((await db.TeacherFileAssets.SingleAsync()).DeletedAt);
+            // Occupied metadata capacity proves deletion is excluded from subsequent quota checks.
+            db.TeacherFileAssets.AddRange(Enumerable.Range(0,19).Select(i=>new TeacherFileAsset{Id=Guid.NewGuid(),WorkspaceId=north.WorkspaceId,RequestId=Guid.NewGuid(),FileName="quota.txt",ContentType="text/plain",Sha256=new string('0',64),SizeBytes=TeacherFileService.MaxFileBytes,CreatedAt=DateTimeOffset.UtcNow}));await db.SaveChangesAsync();
+        }
+        var full=Enumerable.Repeat((byte)'A',TeacherFileService.MaxFileBytes).ToArray();
+        Assert.Equal(HttpStatusCode.Created,(await Upload(Guid.NewGuid(),full,"Reuses released quota")).StatusCode);
+    }
+
+    [Fact]
     public async Task FileAttachmentsPersistBytesReuseMaterialsAndEnforceCurrentStudentAccess()
     {
         await ResetAsync(factory);

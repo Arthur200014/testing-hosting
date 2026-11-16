@@ -1,6 +1,6 @@
 import { materialAction, fileSize, renderFileUpload } from './material-file.mjs';
 const unique = values => [...new Set(values.filter(Boolean))];
-export const newLibraryState = () => ({query:'',kind:'all',programId:'',sort:'newest',selected:''});
+export const newLibraryState = () => ({query:'',kind:'all',programId:'',sort:'newest',selected:'',manageOpen:false});
 const studentsFor = (item,data) => {
   const ids = item.kind==='group' ? (item.members || []).filter(m=>m.isApproved).map(m=>m.membershipId) : [item.studentMembershipId];
   return (data.students || []).filter(s=>ids.includes(s.membershipId) && s.isActive!==false);
@@ -63,6 +63,58 @@ export function libraryAttachment(entry,target,data) {
   if(allowed.kind==='lesson') return {path:'lesson-materials',body:{lessonId:allowed.lessonId,materialId:entry.id},keys:['lessonMaterialLinks']};
   return {path:'topic-materials',body:{topicId:allowed.topicId,materialId:entry.id},keys:['topicMaterialLinks']};
 }
+export function materialBindings(entry,data) {
+  if(entry.kind!=='material') return [];
+  const classes=libraryClasses(data);
+  return [
+    ...(data.classMaterialLinks || []).filter(x=>x.materialId===entry.id).map(x=>({kind:'class',id:x.id,label:'Класс · '+(ownerClass(x,classes)?.title || 'Класс')})),
+    ...(data.topicMaterialLinks || []).filter(x=>x.materialId===entry.id).map(x=>{
+      const topic=(data.classTopics || []).find(t=>t.id===x.topicId);
+      return {kind:'topic',id:x.id,label:'Тема · '+(ownerClass(topic || {},classes)?.title || 'Класс')+' · '+(topic?.title || 'Тема')};
+    }),
+    ...(data.lessonMaterialLinks || []).filter(x=>x.materialId===entry.id).map(x=>{
+      const lesson=(data.lessons || []).find(l=>l.id===x.lessonId);
+      return {kind:'lesson',id:x.id,label:'Занятие · '+(ownerClass(lesson || {},classes)?.title || 'Класс')+' · '+(lesson?.title || String(lesson?.lessonAt || '').slice(0,10))};
+    })
+  ].map(x=>({...x,key:x.kind+':'+x.id}));
+}
+export function materialManagementAction(entry,operation,data,values={}) {
+  if(entry?.kind!=='material') throw new Error('Выберите файл или материал по ссылке.');
+  const root='materials/'+encodeURIComponent(entry.id);
+  if(operation==='unlink') {
+    const link=materialBindings(entry,data).find(x=>x.key===values.binding);
+    if(!link) throw new Error('Привязка изменилась. Обновите библиотеку.');
+    return {path:root+'/unlink',body:{linkKind:link.kind,linkId:link.id},keys:[{class:'classMaterialLinks',topic:'topicMaterialLinks',lesson:'lessonMaterialLinks'}[link.kind]]};
+  }
+  const expectedRevision=Number(values.revision);
+  if(!Number.isInteger(expectedRevision) || expectedRevision<1) throw new Error('Обновите материал перед изменением.');
+  if(operation==='rename') {
+    const title=String(values.title || '').trim();
+    if(!title || title.length>250) throw new Error('Укажите название длиной 1–250 символов.');
+    return {path:root+'/rename',body:{expectedRevision,title},keys:['materials','classMaterialLinks','topicMaterialLinks','lessonMaterialLinks']};
+  }
+  if(operation!=='delete') throw new Error('Неизвестное действие.');
+  if(materialBindings(entry,data).length) throw new Error('Сначала снимите все привязки.');
+  return {path:root+'/delete',body:{expectedRevision},keys:['materials']};
+}
+export function libraryUsedBytes(data) {
+  return (data.materials || []).filter(x=>x.fileId && !x.deletedAt).reduce((sum,x)=>sum+Math.max(0,Number(x.sizeBytes)||0),0);
+}
+export function renderMaterialManagement(entry,data,safe,open=false) {
+  const links=materialBindings(entry,data);
+  return `<details data-material-menu ${open?'open':''}><summary>Действия с материалом</summary><div class="stack" style="margin-top:16px">
+    <form id="libraryRenameForm" class="stack" data-library-item="${safe(entry.key)}" data-revision="${Number(entry.revision || 1)}">
+      <label>Название в библиотеке<input name="title" maxlength="250" required value="${safe(entry.title)}"></label>
+      <p class="muted small">Меняется название в библиотеке, классах и кабинете ученика. Имя и содержимое файла сохраняются.</p>
+      <div class="row"><button type="submit" class="primary">Сохранить название</button><button type="button" class="secondary" data-library-management-cancel>Отмена</button></div>
+    </form>
+    <h3>Где используется · ${links.length}</h3>
+    ${links.map(link=>`<div class="item" data-material-binding="${safe(link.key)}"><span>${safe(link.label)}</span><button type="button" class="secondary small-button" data-library-unlink="${safe(link.key)}" data-material-id="${safe(entry.id)}">Отвязать</button></div>`).join('') || '<p class="muted small">Привязок нет.</p>'}
+    <p class="muted small">После отвязки доступ через выбранный класс, тему или занятие прекращается. Общий материал остаётся в библиотеке.</p>
+    <form id="libraryDeleteForm" data-library-item="${safe(entry.key)}" data-revision="${Number(entry.revision || 1)}"><button type="submit" class="secondary" ${links.length?'disabled':''}>${entry.fileId?'Удалить неиспользуемый файл':'Удалить ссылку из библиотеки'}</button></form>
+    ${links.length?'<p class="muted small">Удаление доступно после снятия всех привязок.</p>':''}
+  </div></details>`;
+}
 export function renderLibraryResults(data,filters,safe) {
   const entries=filterLibrary(data,filters);
   return `<p class="muted small" role="status">Найдено: ${entries.length}</p>${entries.length?entries.map(x=>`<article class="item" data-library-entry="${safe(x.key)}"><div style="min-width:0;overflow-wrap:anywhere"><strong>${safe(x.title)}</strong><small>${x.kind==='task'?'Шаблон задания':x.fileId?'Файл · '+fileSize(x.sizeBytes):'Материал по ссылке'} · ${safe(x.programIds.map(id=>(data.programs || []).find(p=>p.id===id)?.displayName || 'Программа').join(', ') || 'Без программы')}</small></div><button type="button" class="secondary small-button" data-library-preview="${safe(x.key)}">Просмотреть</button></article>`).join(''):'<div class="empty">Ничего не найдено. Измените поиск или фильтры.</div>'}`;
@@ -77,6 +129,7 @@ export function renderLibrary(data,state,safe,upload=null) {
     [...(data.classMaterialLinks || []),...(data.lessonMaterialLinks || []),...(data.topicMaterialLinks || [])].filter(l=>l.materialId===entry.id).length) : 0;
   return `<section class="stack" data-library><div class="section-head"><div><h2>Библиотека</h2><p class="muted small">Шаблоны, файлы и ссылки для повторного использования в классах и занятиях.</p></div><button type="button" class="secondary" data-library-create>Создать шаблон</button></div>
     <div class="class-tabs" role="group" aria-label="Тип содержимого">${[['all','Всё'],['task','Шаблоны'],['file','Файлы'],['material','Ссылки']].map(([id,label])=>`<button type="button" class="${state.kind===id?'active':''}" aria-pressed="${state.kind===id}" data-library-type="${id}">${label}</button>`).join('')}</div>
+    <div class="stack" data-library-used-bytes="${libraryUsedBytes(data)}"><span class="muted small">Файлы: ${safe(fileSize(libraryUsedBytes(data)))} из 100 МБ</span><progress max="104857600" value="${libraryUsedBytes(data)}" aria-label="Занято места файлами" style="width:100%"></progress></div>
     ${upload?renderFileUpload(upload,safe):''}
     <div class="form-row"><label>Поиск<input id="librarySearch" type="search" value="${safe(state.query)}" placeholder="Название, условие или адрес ссылки"></label><label>Программа<select data-library-program><option value="">Все программы</option>${(data.programs || []).map(p=>`<option value="${safe(p.id)}" ${state.programId===p.id?'selected':''}>${safe(p.displayName)}</option>`).join('')}<option value="unlinked" ${state.programId==='unlinked'?'selected':''}>Без программы</option></select></label><label>Сортировка<select data-library-sort><option value="newest" ${state.sort==='newest'?'selected':''}>Сначала новые</option><option value="title" ${state.sort==='title'?'selected':''}>По названию</option></select></label></div>
     <p class="muted small">Программа ссылки определяется по классам, темам и занятиям, где она используется. Новые ссылки добавляются на вкладке «Материалы» класса.</p>
@@ -85,6 +138,7 @@ export function renderLibrary(data,state,safe,upload=null) {
         <div class="section-head"><h3>${safe(entry.title)}</h3><button type="button" class="secondary small-button" data-library-close>Закрыть</button></div>
         <span class="pill">${entry.kind==='task'?'Шаблон задания':entry.fileId?'Файл':'Ссылка'} · Привязок: ${count}</span>
         ${entry.kind==='task'?`<p style="white-space:pre-wrap" data-library-prompt>${safe(entry.prompt)}</p>`:`<p>${safe(entry.fileName || entry.url)}${entry.fileId?' · '+safe(fileSize(entry.sizeBytes)):''}</p>${materialAction(entry,safe)}`}
+        ${entry.kind==='material'?renderMaterialManagement(entry,data,safe,state.manageOpen):''}
         <form id="libraryAttachForm" class="stack" data-library-item="${safe(entry.key)}"><h3>Использовать готовое</h3><label>Куда прикрепить<select name="target" required>${options(targets)}</select></label><p class="muted small">Добавляется привязка. Сам ${entry.kind==='task'?'шаблон':'материал'} остаётся в библиотеке.</p><div class="row"><button type="submit" class="primary" ${targets.length?'':'disabled'}>Прикрепить</button><button type="button" class="secondary" data-library-cancel>Отмена</button></div>${targets.length?'':'<p class="muted small">Нет подходящих мест для новой привязки.</p>'}</form>
         ${entry.kind==='task'?`<form id="libraryAssignJumpForm" class="stack" data-library-item="${safe(entry.key)}"><h3>Назначить ученикам</h3><label>Класс или занятие<select name="target" required>${options(destinations)}</select></label><button type="submit" class="secondary" ${destinations.length?'':'disabled'}>Перейти к назначению</button><p class="muted small">Получателей и срок выберите на следующем экране.</p></form>`:''}
       `:'<h3>Предпросмотр</h3><p class="muted">Выберите шаблон или ссылку в списке.</p>'}</section>

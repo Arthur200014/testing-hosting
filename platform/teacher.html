@@ -333,7 +333,7 @@
     import { individualClassNativeHomework, taskMatchesClass, renderGroupHomework, renderContextHomework, homeworkAudience, updateGroupAssignmentChoices } from './class-native-homework.mjs';
     import { renderClassMaterials } from './class-materials-ui.mjs';
     import { newFileUploadState, uploadProtectedFile, saveProtectedFile } from './material-file.mjs';
-    import { newLibraryState, libraryEntries, libraryTargets, libraryAttachment, renderLibrary, renderLibraryResults } from './teacher-library.mjs';
+    import { newLibraryState, libraryEntries, libraryTargets, libraryAttachment, materialManagementAction, renderLibrary, renderLibraryResults } from './teacher-library.mjs';
     import { renderClassProgram, topicsForClass } from './class-program-ui.mjs';
     import { renderLessonTopics, lessonBelongsToClass, lessonTopicChange } from './lesson-topics-ui.mjs';
     import { renderLessonMaterials } from './lesson-materials-ui.mjs';
@@ -1609,8 +1609,8 @@
       function library() { state.fileUpload ||= newFileUploadState();return renderLibrary(state.data,state.library,safe,state.fileUpload); }
       function render() {
         // Related reads may finish while the teacher is already typing in a lesson form.
-        const drafts=[...document.querySelectorAll('[data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"], #libraryAttachForm[data-dirty="1"]')].map(form=>({
-          id:form.id, classId:form.dataset.classId, lessonId:form.dataset.lessonId, libraryItem:form.dataset.libraryItem,
+        const drafts=[...document.querySelectorAll('[data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"], #libraryAttachForm[data-dirty="1"], #libraryRenameForm[data-dirty="1"]')].map(form=>({
+          id:form.id, classId:form.dataset.classId, lessonId:form.dataset.lessonId, libraryItem:form.dataset.libraryItem, revision:form.dataset.revision,
           fields:[...form.querySelectorAll('input[name],textarea[name],select[name]')].map(input=>({
             name:input.name,type:input.type,value:input.value,checked:input.checked
           }))
@@ -1635,6 +1635,7 @@
             if(field.type==='checkbox') input.checked=field.checked; else input.value=field.value;
           }
           form.dataset.dirty='1';
+          if(draft.revision!==undefined) form.dataset.revision=draft.revision;
           if(form.matches('[data-context-assign]')) updateGroupAssignmentChoices(form,state.data);
         }
         if (state.view === 'students') studentRows();
@@ -1672,11 +1673,12 @@
           throw new Error('Класс или занятие больше недоступны.');
         return {item,lesson};
       }
-      function canLeaveLibraryDraft() {
-        const form=document.querySelector('#libraryAttachForm[data-dirty="1"]');
-        if(!form) return true;
-        if(!confirm('Отменить несохранённую привязку?')) return false;
-        form.reset();delete form.dataset.dirty;return true;
+      function canLeaveLibraryDraft(exceptForm=null) {
+        const forms=[...document.querySelectorAll('#libraryAttachForm[data-dirty="1"], #libraryRenameForm[data-dirty="1"]')].filter(x=>x!==exceptForm);
+        if(!forms.length) return true;
+        if(!confirm('Отменить несохранённые изменения библиотеки?')) return false;
+        for(const form of forms) {form.reset();delete form.dataset.dirty;}
+        return true;
       }
       function updateLibraryResults() {
         const results=document.getElementById('libraryResults');
@@ -1771,10 +1773,11 @@
         try { await api('teacher-sessions/logout', { method: 'POST' }); } catch (_) {}
         logout();
       });
+      $('content').addEventListener('toggle',event=>{if(event.target.matches('[data-material-menu]') && event.target.isConnected) state.library.manageOpen=event.target.open;},true);
       $('content').addEventListener('input', event => {
         if(event.target.closest('#fileUploadForm') && event.target.name==='title') {state.fileUpload.title=event.target.value;state.fileUpload.requestId=null;return;}
         if(event.target.id==='librarySearch') {state.library.query=event.target.value;updateLibraryResults();return;}
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, #libraryAttachForm, [data-context-task], [data-context-assign]');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, #libraryAttachForm, #libraryRenameForm, [data-context-task], [data-context-assign]');
         if (editor) editor.dataset.dirty = '1';
         const draft = event.target.closest('#lessonPlannerForm');
         if (draft && event.target.name === 'title') {
@@ -1811,7 +1814,7 @@
           section.querySelector('[data-group-homework-empty]').hidden=rows.some(row=>!row.hidden);
         }
         if(event.target.closest('[data-context-assign]')) updateGroupAssignmentChoices(event.target.closest('form'),state.data);
-        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, #libraryAttachForm, [data-context-task], [data-context-assign]');
+        const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, #libraryAttachForm, #libraryRenameForm, [data-context-task], [data-context-assign]');
         if (editor) editor.dataset.dirty = '1';
         if (event.target.id==='calendarPlanClass') {
           captureCalendarPlanDraft(event.target.form);
@@ -1883,12 +1886,28 @@
         }
         if(event.target.closest('[data-file-upload-cancel]')) {state.fileUpload=newFileUploadState();render();return;}
 
+        if(event.target.closest('[data-library-management-cancel]')) {
+          const form=event.target.closest('form');delete form.dataset.dirty;render();showNotice('');return;
+        }
+        const unlink=event.target.closest('[data-library-unlink]');
+        if(unlink) {
+          if(!canLeaveLibraryDraft()) return;
+          if(!confirm('Снять эту привязку? Доступ через неё будет закрыт.')) return;
+          unlink.disabled=true;
+          try {
+            const entry=libraryEntries(state.data).find(x=>x.kind==='material' && x.id===unlink.dataset.materialId && x.key===state.library.selected);
+            const action=materialManagementAction(entry,'unlink',state.data,{binding:unlink.dataset.libraryUnlink});
+            await mutation('materialUnlink:'+entry.id+':'+unlink.dataset.libraryUnlink,action.path,()=>action.body);
+            invalidate(action.keys);await refresh();
+          } catch(error) {showNotice(error.message,true);} finally {if(unlink.isConnected) unlink.disabled=false;}
+          return;
+        }
         const libraryType=event.target.closest('[data-library-type]');
         if(libraryType) {state.library.kind=libraryType.dataset.libraryType;updateLibraryResults();return;}
         const libraryPreview=event.target.closest('[data-library-preview]');
         if(libraryPreview || event.target.closest('[data-library-close]')) {
           if(!canLeaveLibraryDraft()) return;
-          state.library.selected=libraryPreview?.dataset.libraryPreview || '';render();return;
+          state.library.selected=libraryPreview?.dataset.libraryPreview || '';state.library.manageOpen=false;render();return;
         }
         if(event.target.closest('[data-library-cancel]')) {
           const form=event.target.closest('form');form.reset();delete form.dataset.dirty;showNotice('');return;
@@ -2422,6 +2441,20 @@
       });
       $('content').addEventListener('submit', async event => {
         event.preventDefault(); const form = event.target;
+        if(form.id==='libraryRenameForm' || form.id==='libraryDeleteForm') {
+          if(!canLeaveLibraryDraft(form)) return;
+          const deleting=form.id==='libraryDeleteForm';
+          const entry=libraryEntries(state.data).find(x=>x.key===form.dataset.libraryItem && x.key===state.library.selected);
+          if(!entry) {showNotice('Повторно выберите материал.',true);return;}
+          if(deleting && !confirm(entry.fileId?'Удалить неиспользуемый файл? Содержимое будет удалено без возможности восстановления.':'Удалить неиспользуемую ссылку из библиотеки?')) return;
+          onForm(form,async()=>{
+            const action=materialManagementAction(entry,deleting?'delete':'rename',state.data,{title:formValue(form,'title'),revision:form.dataset.revision});
+            form.libraryKeys=action.keys;
+            await mutation('materialManage:'+entry.id+':'+(deleting?'delete':'rename'),action.path,()=>action.body);
+            if(deleting) {state.library.selected='';state.library.manageOpen=false;}
+          });
+          return;
+        }
         if(form.id==='fileUploadForm') {
           if(state.fileUpload?.busy) return;
           const upload=state.fileUpload,generation=state.generation,token=state.token;
@@ -2436,13 +2469,16 @@
           return;
         }
 
-        if(form.id==='libraryAttachForm') onForm(form,async()=>{
+        if(form.id==='libraryAttachForm') {
+          if(!canLeaveLibraryDraft(form)) return;
+          onForm(form,async()=>{
           const entry=libraryEntries(state.data).find(x=>x.key===form.dataset.libraryItem && x.key===state.library.selected);
           if(!entry) throw new Error('Повторно выберите объект библиотеки.');
           const action=libraryAttachment(entry,formValue(form,'target'),state.data);
           form.libraryKeys=action.keys;
           await mutation('libraryAttach:'+entry.key,action.path,()=>action.body);
-        });
+          });return;
+        }
         if(form.id==='libraryAssignJumpForm') {
           if(!canLeaveLibraryDraft()) return;
           try {
