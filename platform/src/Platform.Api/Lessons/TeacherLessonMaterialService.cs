@@ -16,7 +16,7 @@ public sealed class TeacherLessonMaterialLink
 }
 
 public sealed record TeacherLessonMaterialView(
-    Guid Id, Guid LessonId, Guid MaterialId, string Title, string Url, DateTimeOffset CreatedAt);
+    Guid Id, Guid LessonId, Guid MaterialId, string Title, string Url, DateTimeOffset CreatedAt, Guid? FileId = null, string? FileName = null, long? SizeBytes = null, string? ContentType = null);
 public sealed record TeacherLessonMaterialWriteRequest(Guid RequestId, Guid LessonId, Guid MaterialId);
 public enum TeacherLessonMaterialStatus { Created, Duplicate, Invalid, NotFound, Conflict }
 public sealed record TeacherLessonMaterialResult(
@@ -33,7 +33,7 @@ public sealed class TeacherLessonMaterialService(PlatformDbContext db, TimeProvi
         where link.WorkspaceId == workspaceId
         orderby link.CreatedAt descending
         select new TeacherLessonMaterialView(link.Id, link.LessonId, link.MaterialId,
-            material.Title, material.Url, link.CreatedAt);
+            material.Title, material.Url, link.CreatedAt, material.FileAssetId, material.FileAsset == null ? null : material.FileAsset.FileName, material.FileAsset == null ? null : (long?)material.FileAsset.SizeBytes, material.FileAsset == null ? null : material.FileAsset.ContentType);
 
     public Task<List<TeacherLessonMaterialView>> ListAsync(Guid workspaceId, CancellationToken ct) =>
         Links(workspaceId).ToListAsync(ct);
@@ -46,7 +46,7 @@ public sealed class TeacherLessonMaterialService(PlatformDbContext db, TimeProvi
              equals new { material.WorkspaceId, MaterialId = material.Id }
          where link.WorkspaceId == workspaceId && link.RequestId == requestId
          select new TeacherLessonMaterialView(link.Id, link.LessonId, link.MaterialId,
-             material.Title, material.Url, link.CreatedAt)).SingleOrDefaultAsync(ct);
+             material.Title, material.Url, link.CreatedAt, material.FileAssetId, material.FileAsset == null ? null : material.FileAsset.FileName, material.FileAsset == null ? null : (long?)material.FileAsset.SizeBytes, material.FileAsset == null ? null : material.FileAsset.ContentType)).SingleOrDefaultAsync(ct);
 
     public async Task<TeacherLessonMaterialResult> AttachAsync(
         Guid workspaceId, TeacherLessonMaterialWriteRequest request, CancellationToken ct)

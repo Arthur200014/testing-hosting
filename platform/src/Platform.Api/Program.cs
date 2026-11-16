@@ -45,6 +45,7 @@ builder.Services.AddScoped<TeacherStudentEditor>();
 builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddScoped<TeacherClassService>();
 builder.Services.AddScoped<TeacherMaterialService>();
+builder.Services.AddScoped<TeacherFileService>();
 builder.Services.AddScoped<TeacherClassTopicService>();
 builder.Services.AddScoped<TeacherLessonMaterialService>();
 builder.Services.AddScoped<TeacherLessonTopicService>();
@@ -886,6 +887,25 @@ app.MapPost("/api/v1/teacher/subscriptions/{membershipId:guid}", async (
         _ => throw new InvalidOperationException("Unknown teacher subscription write result.")
     };
 }).RequireAuthorization("teacher");
+
+// Authorization is carried in headers; file IDs are never public download URLs.
+static IResult FileResult(HttpResponse response, FileDownload? file)
+{
+    response.Headers.CacheControl="no-store";response.Headers["X-Content-Type-Options"]="nosniff";
+    return file is null ? Results.NotFound() : Results.File(file.Bytes,file.ContentType,file.FileName);
+}
+app.MapPost("/api/v1/teacher/files/{requestId:guid}", async (Guid requestId,string? fileName,string? title,
+    HttpRequest request,ClaimsPrincipal principal,TeacherFileService files,CancellationToken ct) =>
+{
+    var result=await files.UploadAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),requestId,fileName,title,request.Body,request.ContentLength,ct);
+    return result.Status is 200 or 201 ? Results.Json(result.Value,statusCode:result.Status) : Results.Problem(statusCode:result.Status,title:result.Value?.ToString());
+}).RequireAuthorization("teacher");
+app.MapGet("/api/v1/teacher/files/{id:guid}/content",async(Guid id,HttpResponse response,ClaimsPrincipal principal,TeacherFileService files,CancellationToken ct)=>
+    FileResult(response,await files.TeacherDownloadAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),id,ct))).RequireAuthorization("teacher");
+app.MapGet("/api/v1/files",async(ClaimsPrincipal principal,TeacherFileService files,CancellationToken ct)=>
+    await files.StudentFilesAsync(principal,ct) is {} rows ? Results.Ok(rows) : Results.Unauthorized()).RequireAuthorization("student");
+app.MapGet("/api/v1/files/{id:guid}/content",async(Guid id,HttpResponse response,ClaimsPrincipal principal,TeacherFileService files,CancellationToken ct)=>
+    FileResult(response,await files.StudentDownloadAsync(principal,id,ct))).RequireAuthorization("student");
 
 app.MapGet("/api/v1/teacher/homework/catalog", async (
     ClaimsPrincipal principal, TeacherHomeworkReader homework, CancellationToken cancellationToken) =>

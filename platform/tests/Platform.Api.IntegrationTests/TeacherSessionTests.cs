@@ -26,6 +26,93 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     private const string ClaimCode = "synthetic-claim-code-for-integration-tests-only-2026";
 
     [Fact]
+    public async Task FileAttachmentsPersistBytesReuseMaterialsAndEnforceCurrentStudentAccess()
+    {
+        await ResetAsync(factory);
+        var north=await SeedAsync(factory,"files-north","files-north@example.invalid","owner");
+        await SeedAsync(factory,"files-south","files-south@example.invalid","owner");
+        using var teacher=factory.CreateClient();
+        var session=(await (await LoginAsync(teacher,"files-north","files-north@example.invalid",Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        teacher.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",session.AccessToken);
+        Guid program;
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            program=Guid.NewGuid();db.Programs.Add(new() {Id=program,WorkspaceId=north.WorkspaceId,Code="FILES",DisplayName="Files",IsActive=true});await db.SaveChangesAsync();
+        }
+        async Task<TeacherCreateStudentResponse> Student(string name) =>
+            (await (await teacher.PostAsJsonAsync("/api/v1/teacher/students",new TeacherCreateStudentRequest(Guid.NewGuid(),program,name)))
+                .Content.ReadFromJsonAsync<TeacherCreateStudentResponse>())!;
+        var first=await Student("File recipient"),second=await Student("Other recipient");
+        var cls=(await (await teacher.PostAsJsonAsync("/api/v1/teacher/classes",new TeacherCreateClassRequest(Guid.NewGuid(),first.MembershipId,"Files class")))
+            .Content.ReadFromJsonAsync<TeacherClassView>())!;
+        var group=(await (await teacher.PostAsJsonAsync("/api/v1/teacher/groups",new TeacherCreateGroupRequest(Guid.NewGuid(),"Files group",[first.MembershipId,second.MembershipId])))
+            .Content.ReadFromJsonAsync<TeacherGroupClassView>())!;
+        var bytes=System.Text.Encoding.UTF8.GetBytes("Учебный файл\nТолько синтетические данные.");var requestId=Guid.NewGuid();
+        async Task<HttpResponseMessage> Upload(Guid id,byte[] value,string name="notes.txt") =>
+            await teacher.PostAsync("/api/v1/teacher/files/"+id+"?fileName="+Uri.EscapeDataString(name)+"&title=Notes",new ByteArrayContent(value));
+        var upload=await Upload(requestId,bytes);Assert.Equal(HttpStatusCode.Created,upload.StatusCode);
+        var material=(await upload.Content.ReadFromJsonAsync<TeacherMaterialView>())!;Assert.NotNull(material.FileId);
+        Assert.Equal(HttpStatusCode.OK,(await Upload(requestId,bytes)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,(await Upload(requestId,[1,2,3])).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,(await Upload(Guid.NewGuid(),bytes,"../notes.txt")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,(await Upload(Guid.NewGuid(),bytes,"notes.pdf")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,(await Upload(Guid.NewGuid(),[])).StatusCode);
+        Assert.Equal(HttpStatusCode.RequestEntityTooLarge,(await Upload(Guid.NewGuid(),new byte[TeacherFileService.MaxFileBytes+1])).StatusCode);
+        using var anonymous=factory.CreateClient();
+        Assert.Equal(HttpStatusCode.Unauthorized,(await anonymous.GetAsync("/api/v1/teacher/files/"+material.FileId+"/content")).StatusCode);
+        var download=await teacher.GetAsync("/api/v1/teacher/files/"+material.FileId+"/content");
+        Assert.Equal(bytes,await download.Content.ReadAsByteArrayAsync());
+        Assert.Equal("attachment",download.Content.Headers.ContentDisposition!.DispositionType);
+        Assert.Contains("no-store",download.Headers.CacheControl!.ToString());
+        Assert.Equal("nosniff",Assert.Single(download.Headers.GetValues("X-Content-Type-Options")));
+        async Task<HttpClient> Learner(TeacherCreateStudentResponse student) {
+            var client=factory.CreateClient();
+            var login=(await (await client.PostAsJsonAsync("/api/v1/student-sessions",new{workspace="files-north",code=student.InviteCode}))
+                .Content.ReadFromJsonAsync<TestingHosting.Platform.StudentSessions.StudentSessionResponse>())!;
+            client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",login.AccessToken);return client;
+        }
+        using var learner=await Learner(first);using var outsider=await Learner(second);
+        var path="/api/v1/files/"+material.FileId+"/content";
+        Assert.Equal(HttpStatusCode.NotFound,(await learner.GetAsync(path)).StatusCode);
+        Assert.Empty((await learner.GetFromJsonAsync<List<TeacherMaterialView>>("/api/v1/files"))!);
+        Assert.Equal(HttpStatusCode.Forbidden,(await learner.PostAsync("/api/v1/teacher/files/"+Guid.NewGuid()+"?fileName=x.txt",new ByteArrayContent(bytes))).StatusCode);
+        Assert.Equal(HttpStatusCode.Created,(await teacher.PostAsJsonAsync("/api/v1/teacher/class-materials",new TeacherClassMaterialWriteRequest(Guid.NewGuid(),cls.Id,"individual",material.Id))).StatusCode);
+        Assert.Equal(bytes,await learner.GetByteArrayAsync(path));
+        Assert.Equal(HttpStatusCode.NotFound,(await outsider.GetAsync(path)).StatusCode);
+        var lesson=(await (await teacher.PostAsJsonAsync("/api/v1/teacher/lessons",new TeacherLessonWriteRequest(Guid.NewGuid(),DateTimeOffset.UtcNow,
+            [new TeacherLessonParticipantRequest(first.MembershipId,60,null,null,"Unknown")],GroupClassId:group.Id)))
+            .Content.ReadFromJsonAsync<TeacherLessonWriteResponse>())!;
+        Assert.Equal(HttpStatusCode.Created,(await teacher.PostAsJsonAsync("/api/v1/teacher/lesson-materials",new TeacherLessonMaterialWriteRequest(Guid.NewGuid(),lesson.LessonId,material.Id))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await outsider.GetAsync(path)).StatusCode); // approved, but not an actual lesson participant
+        var topic=(await (await teacher.PostAsJsonAsync("/api/v1/teacher/class-topics",new TeacherClassTopicCreateRequest(Guid.NewGuid(),group.Id,"group","File topic")))
+            .Content.ReadFromJsonAsync<TeacherClassTopicView>())!;
+        Assert.Equal(HttpStatusCode.Created,(await teacher.PostAsJsonAsync("/api/v1/teacher/topic-materials",new TeacherTopicMaterialRequest(Guid.NewGuid(),topic.Id,material.Id))).StatusCode);
+        Assert.Equal(bytes,await outsider.GetByteArrayAsync(path));
+        Assert.Equal(material.FileId,Assert.Single((await learner.GetFromJsonAsync<List<TeacherMaterialView>>("/api/v1/files"))!).FileId);
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            (await db.TeacherGroupEnrollments.SingleAsync(x=>x.GroupClassId==group.Id && x.MembershipId==second.MembershipId)).IsApproved=false;
+            await db.SaveChangesAsync();Assert.Equal(1,await db.TeacherFileContents.CountAsync());
+        }
+        Assert.Equal(HttpStatusCode.NotFound,(await outsider.GetAsync(path)).StatusCode);
+        var foreign=(await (await LoginAsync(teacher,"files-south","files-south@example.invalid",Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        teacher.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",foreign.AccessToken);
+        Assert.Equal(HttpStatusCode.NotFound,(await teacher.GetAsync("/api/v1/teacher/files/"+material.FileId+"/content")).StatusCode);
+        teacher.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",session.AccessToken);
+        await teacher.PostAsJsonAsync("/api/v1/teacher/classes/"+cls.Id+"/archive",new TeacherClassRevisionRequest(cls.Revision));
+        await teacher.PostAsJsonAsync("/api/v1/teacher/groups/"+group.Id+"/archive",new TeacherClassRevisionRequest(group.Revision));
+        Assert.Equal(HttpStatusCode.NotFound,(await learner.GetAsync(path)).StatusCode);
+        // Simulate already occupied metadata capacity; the upload must not create any new object.
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            db.TeacherFileAssets.AddRange(Enumerable.Range(0,20).Select(i=>new TeacherFileAsset {Id=Guid.NewGuid(),WorkspaceId=north.WorkspaceId,RequestId=Guid.NewGuid(),
+                FileName="quota.txt",ContentType="text/plain",SizeBytes=TeacherFileService.MaxFileBytes,Sha256=new string('0',64),CreatedAt=DateTimeOffset.UtcNow}));await db.SaveChangesAsync();
+        }
+        Assert.Equal(HttpStatusCode.Conflict,(await Upload(Guid.NewGuid(),bytes)).StatusCode);
+        Assert.Single((await teacher.GetFromJsonAsync<List<TeacherMaterialView>>("/api/v1/teacher/materials"))!);
+    }
+
+    [Fact]
     public async Task NativeHomeworkContextPersistsClassAndLessonAndRejectsWrongAudience()
     {
         await ResetAsync(factory);
