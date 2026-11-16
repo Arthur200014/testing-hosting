@@ -1063,7 +1063,15 @@ try {
   await openRecordingLesson(group.id,grouped.id);const groupCard=page.locator('[data-lesson-recordings="'+grouped.id+'"]');await groupCard.locator('[data-recording-row="'+groupRecording.id+'"]').waitFor();await groupCard.getByText('Срок истёк',{exact:true}).waitFor();
   await groupCard.locator('[data-lesson-recording-edit="'+groupRecording.id+'"]').click();await page.locator('#recordingForm [name="accessUntil"]').fill('');await page.locator('#recordingForm [name="title"]').fill('Групповая запись без ограничения');await page.locator('#recordingForm button[type="submit"]').click();await groupCard.waitFor();await groupCard.getByText('Групповая запись без ограничения',{exact:true}).waitFor();
   const contextualGroup=await createContextRecording(groupCard,'Запись из карточки пары','https://example.org/context-group');
-  await contextStudent.locator('[data-refresh-recordings]').click();await contextStudent.locator('[data-recording-row="'+contextualGroup+'"]').waitFor();assert.equal((await call('recordings',otherLearner.accessToken)).some(r=>r.id===contextualGroup),false,'nonparticipant does not gain recording access');
+  await contextStudent.locator('[data-refresh-recordings]').click();await contextStudent.locator('[data-recording-row="'+contextualGroup+'"]').waitFor();
+  const currentPairLesson=(await call('teacher/lessons',north.token)).find(l=>l.id===grouped.id);
+  assert.ok(currentPairLesson.participants.some(p=>p.membershipId===north.students[1].membershipId),'second pupil is an actual participant in this fixture');
+  assert.equal((await call('recordings',otherLearner.accessToken)).some(r=>r.id===contextualGroup),true,'both actual pair participants receive recording metadata');
+  const [outsiderProgram]=await call('teacher/programs',north.token);
+  const recordingOutsider=await call('teacher/students',north.token,{requestId:randomUUID(),programId:outsiderProgram.id,studentName:'Изолированный неучастник записи'},201);
+  const outsiderSession=await call('student-sessions',null,{workspace:north.workspace,code:recordingOutsider.inviteCode});
+  assert.equal((await call('recordings',outsiderSession.accessToken)).some(r=>r.id===contextualGroup),false,'dedicated nonparticipant does not gain recording access');
+  assert.equal((await fetch(api+'/api/v1/recordings/'+contextualGroup+'/source',{headers:{Authorization:'Bearer '+outsiderSession.accessToken}})).status,404);
   await groupCard.locator('[data-lesson-recording-library]').click();await page.locator('[data-recording-context="'+grouped.id+'"]').waitFor();assert.equal(await page.locator('[data-recording-row]').count(),2);await page.locator('[data-recording-all]').click();assert.equal(await page.locator('[data-recording-row]').count(),4,'explicit all-recordings navigation clears lesson filter');
   await openRecordingLesson(group.id,grouped.id);
   const activeGroup=(await call('teacher/groups',north.token)).find(g=>g.id===group.id);await call('teacher/groups/'+group.id+'/archive',north.token,{expectedRevision:activeGroup.revision});await page.locator('#refresh').click();await page.locator('#notice').waitFor({state:'hidden'});
