@@ -1,6 +1,7 @@
+import {renderRecordingLibrary} from './lesson-recordings.mjs';
 import { materialAction, fileSize, renderFileUpload } from './material-file.mjs';
 const unique = values => [...new Set(values.filter(Boolean))];
-export const newLibraryState = () => ({query:'',kind:'all',programId:'',sort:'newest',selected:'',manageOpen:false,folderId:'',folderEditor:''});
+export const newLibraryState = () => ({query:'',kind:'all',programId:'',sort:'newest',selected:'',manageOpen:false,folderId:'',folderEditor:'',section:'materials',recordingEditor:'',recordingQuery:'',recordingClass:''});
 const studentsFor = (item,data) => {
   const ids = item.kind==='group' ? (item.members || []).filter(m=>m.isApproved).map(m=>m.membershipId) : [item.studentMembershipId];
   return (data.students || []).filter(s=>ids.includes(s.membershipId) && s.isActive!==false);
@@ -149,6 +150,7 @@ export function renderLibraryResults(data,filters,safe) {
 }
 const webUrl = value => { try {const u=new URL(value);return ['http:','https:'].includes(u.protocol)?u.href:null;} catch{return null;} };
 export function renderLibrary(data,state,safe,upload=null) {
+  if(state.section==='recordings') return renderRecordingLibrary(data,state,safe);
   const entry=libraryEntries(data).find(x=>x.key===state.selected);
   const options=targets=>'<option value="">Выберите место</option>'+targets.map(t=>`<option value="${safe(t.key)}">${safe(t.label)}</option>`).join('');
   const targets=entry?libraryTargets(entry,data):[], destinations=entry?.kind==='task'?libraryTargets(entry,data,true):[];
@@ -156,6 +158,7 @@ export function renderLibrary(data,state,safe,upload=null) {
   const count=entry ? (entry.kind==='task' ? (data.topicTaskLinks || []).filter(l=>l.taskId===entry.id).length :
     [...(data.classMaterialLinks || []),...(data.lessonMaterialLinks || []),...(data.topicMaterialLinks || [])].filter(l=>l.materialId===entry.id).length) : 0;
   return `<section class="stack" data-library><div class="section-head"><div><h2>Библиотека</h2><p class="muted small">Шаблоны, файлы и ссылки для повторного использования в классах и занятиях.</p></div><button type="button" class="secondary" data-library-create>Создать шаблон</button></div>
+    <div class="class-tabs" role="group" aria-label="Раздел библиотеки"><button type="button" class="active" aria-pressed="true" data-library-section="materials">Материалы</button><button type="button" data-library-section="recordings">Записи занятий</button></div>
     <div class="class-tabs" role="group" aria-label="Тип содержимого">${[['all','Всё'],['task','Шаблоны'],['file','Файлы'],['material','Ссылки']].map(([id,label])=>`<button type="button" class="${state.kind===id?'active':''}" aria-pressed="${state.kind===id}" data-library-type="${id}">${label}</button>`).join('')}</div>
     <div class="stack" data-library-used-bytes="${libraryUsedBytes(data)}"><span class="muted small">Файлы: ${safe(fileSize(libraryUsedBytes(data)))} из 100 МБ</span><progress max="104857600" value="${libraryUsedBytes(data)}" aria-label="Занято места файлами" style="width:100%"></progress></div>
     ${upload?renderFileUpload(upload,safe):''}

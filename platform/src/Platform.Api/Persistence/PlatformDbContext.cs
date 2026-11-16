@@ -32,6 +32,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<HomeworkImportBatch> HomeworkImportBatches => Set<HomeworkImportBatch>();
     public DbSet<NativeHomeworkTask> NativeHomeworkTasks => Set<NativeHomeworkTask>();
     public DbSet<NativeHomeworkAssignment> NativeHomeworkAssignments => Set<NativeHomeworkAssignment>();
+    public DbSet<LessonRecording> LessonRecordings => Set<LessonRecording>();
+    public DbSet<LessonRecordingOperation> LessonRecordingOperations => Set<LessonRecordingOperation>();
     public DbSet<Lesson> Lessons => Set<Lesson>();
     public DbSet<LessonParticipant> LessonParticipants => Set<LessonParticipant>();
     public DbSet<SubscriptionSnapshot> SubscriptionSnapshots => Set<SubscriptionSnapshot>();
@@ -610,6 +612,17 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             });
         });
 
+        modelBuilder.Entity<LessonRecording>(entity =>
+        {
+            entity.HasKey(x=>x.Id);entity.HasAlternateKey(x=>new{x.WorkspaceId,x.Id});
+            entity.Property(x=>x.Title).HasMaxLength(250);entity.Property(x=>x.SourceUrl).HasMaxLength(2048);entity.Property(x=>x.Revision).HasDefaultValue(1);
+            entity.HasOne<Lesson>().WithMany().HasForeignKey(x=>new{x.WorkspaceId,x.LessonId}).HasPrincipalKey(x=>new{x.WorkspaceId,x.Id}).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_Recordings_Lesson");
+        });
+        modelBuilder.Entity<LessonRecordingOperation>(entity =>
+        {
+            entity.HasKey(x=>new{x.WorkspaceId,x.RequestId,x.Kind});entity.Property(x=>x.Kind).HasMaxLength(24);entity.Property(x=>x.PayloadHash).HasMaxLength(64);
+            entity.HasOne<LessonRecording>().WithMany().HasForeignKey(x=>new{x.WorkspaceId,x.RecordingId}).HasPrincipalKey(x=>new{x.WorkspaceId,x.Id}).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_RecordingOperations_Recording");
+        });
         modelBuilder.Entity<Lesson>(entity =>
         {
             entity.HasKey(x => x.Id);

@@ -26,6 +26,78 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
     private const string ClaimCode = "synthetic-claim-code-for-integration-tests-only-2026";
 
     [Fact]
+    public async Task RecordingLinksRecheckParticipantsExpiryAndWorkspaceOnEverySourceRead()
+    {
+        await ResetAsync(factory);
+        var north=await SeedAsync(factory,"record-north","record-north@example.invalid","owner");
+        await SeedAsync(factory,"record-south","record-south@example.invalid","owner");
+        using var teacher=factory.CreateClient();
+        var session=(await (await LoginAsync(teacher,"record-north","record-north@example.invalid",Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        teacher.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",session.AccessToken);
+        Guid program;
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();program=Guid.NewGuid();db.Programs.Add(new(){Id=program,WorkspaceId=north.WorkspaceId,Code="REC",DisplayName="Recordings",IsActive=true});await db.SaveChangesAsync();
+        }
+        async Task<TeacherCreateStudentResponse> Student(string name)=>(await (await teacher.PostAsJsonAsync("/api/v1/teacher/students",new TeacherCreateStudentRequest(Guid.NewGuid(),program,name))).Content.ReadFromJsonAsync<TeacherCreateStudentResponse>())!;
+        var first=await Student("First");var second=await Student("Second");var third=await Student("Nonparticipant");
+        var cls=(await (await teacher.PostAsJsonAsync("/api/v1/teacher/classes",new TeacherCreateClassRequest(Guid.NewGuid(),first.MembershipId,"Individual recording class"))).Content.ReadFromJsonAsync<TeacherClassView>())!;
+        var group=(await (await teacher.PostAsJsonAsync("/api/v1/teacher/groups",new TeacherCreateGroupRequest(Guid.NewGuid(),"Group recording class",[first.MembershipId,second.MembershipId,third.MembershipId]))).Content.ReadFromJsonAsync<TeacherGroupClassView>())!;
+        async Task<Guid> Lesson(Guid member,Guid? individual,Guid? grp)=>(await (await teacher.PostAsJsonAsync("/api/v1/teacher/lessons",new TeacherLessonWriteRequest(Guid.NewGuid(),DateTimeOffset.UtcNow,[new TeacherLessonParticipantRequest(member,60,null,null,"Unknown")],IndividualClassId:individual,GroupClassId:grp))).Content.ReadFromJsonAsync<TeacherLessonWriteResponse>())!.LessonId;
+        var individual=await Lesson(first.MembershipId,cls.Id,null);var grouped=await Lesson(second.MembershipId,null,group.Id);
+        const string root="/api/v1/teacher/recordings",source="https://example.org/recording?synthetic=1";
+        var request=new RecordingWriteRequest(Guid.NewGuid(),individual," Individual recording ",source,AccessUntil:DateTimeOffset.UtcNow.AddHours(1));
+        var creates=await Task.WhenAll(teacher.PostAsJsonAsync(root,request),teacher.PostAsJsonAsync(root,request));Assert.All(creates,r=>Assert.Equal(HttpStatusCode.OK,r.StatusCode));
+        var recording=Assert.Single((await teacher.GetFromJsonAsync<List<TeacherRecordingView>>(root))!);Assert.Equal("Individual recording",recording.Title);
+        Assert.Equal(HttpStatusCode.Conflict,(await teacher.PostAsJsonAsync(root,request with{Title="Changed retry"})).StatusCode);
+        foreach(var invalid in new[]{"javascript:alert(1)","http://example.org/x","https://user:pass@example.org/x","https://127.0.0.1/x","https://localhost/x","https://example.org:8443/x"})
+            Assert.Equal(HttpStatusCode.BadRequest,(await teacher.PostAsJsonAsync(root,request with{RequestId=Guid.NewGuid(),SourceUrl=invalid})).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await teacher.PostAsJsonAsync(root,request with{RequestId=Guid.NewGuid(),LessonId=Guid.NewGuid()})).StatusCode);
+        using var anon=factory.CreateClient();Assert.Equal(HttpStatusCode.Unauthorized,(await anon.GetAsync(root)).StatusCode);Assert.Equal(HttpStatusCode.Unauthorized,(await anon.GetAsync("/api/v1/recordings/"+recording.Id+"/source")).StatusCode);
+        async Task<HttpClient> Learner(TeacherCreateStudentResponse student) {
+            var client=factory.CreateClient();var login=(await (await client.PostAsJsonAsync("/api/v1/student-sessions",new{workspace="record-north",code=student.InviteCode})).Content.ReadFromJsonAsync<TestingHosting.Platform.StudentSessions.StudentSessionResponse>())!;
+            client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",login.AccessToken);return client;
+        }
+        using var a=await Learner(first);using var b=await Learner(second);using var outsider=await Learner(third);
+        var studentSource="/api/v1/recordings/"+recording.Id+"/source";
+        Assert.Equal(HttpStatusCode.Forbidden,(await a.PostAsJsonAsync(root,request)).StatusCode);
+        var list=await a.GetAsync("/api/v1/recordings");Assert.Contains("no-store",list.Headers.CacheControl!.ToString());Assert.DoesNotContain(source,await list.Content.ReadAsStringAsync());
+        Assert.Single((await list.Content.ReadFromJsonAsync<List<StudentRecordingView>>())!);
+        var opened=await a.GetAsync(studentSource);Assert.Equal(HttpStatusCode.OK,opened.StatusCode);Assert.Contains("no-store",opened.Headers.CacheControl!.ToString());Assert.Contains(source,await opened.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.NotFound,(await b.GetAsync(studentSource)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await outsider.GetAsync(studentSource)).StatusCode);
+        await teacher.PostAsJsonAsync(root,request with{RequestId=Guid.NewGuid(),LessonId=grouped,Title="Group recording"});
+        var groupRecording=(await teacher.GetFromJsonAsync<List<TeacherRecordingView>>(root))!.Single(r=>r.LessonId==grouped);
+        var groupSource="/api/v1/recordings/"+groupRecording.Id+"/source";
+        Assert.Equal(HttpStatusCode.OK,(await b.GetAsync(groupSource)).StatusCode);Assert.Equal(HttpStatusCode.NotFound,(await outsider.GetAsync(groupSource)).StatusCode);
+        var editPath=root+"/"+recording.Id+"/edit";
+        var expired=request with{RequestId=Guid.NewGuid(),ExpectedRevision=1,AccessUntil=DateTimeOffset.UtcNow.AddMinutes(-1),Title="Expired recording"};
+        Assert.Equal(HttpStatusCode.OK,(await teacher.PostAsJsonAsync(editPath,expired)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,(await teacher.PostAsJsonAsync(editPath,expired)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await a.GetAsync(studentSource)).StatusCode);Assert.Empty((await a.GetFromJsonAsync<List<StudentRecordingView>>("/api/v1/recordings"))!);
+        Assert.Equal(HttpStatusCode.OK,(await teacher.GetAsync(root+"/"+recording.Id+"/source")).StatusCode); // owner still manages expired references
+        var reassign=request with{RequestId=Guid.NewGuid(),ExpectedRevision=2,LessonId=grouped,AccessUntil=null,Title="Reassigned recording"};
+        Assert.Equal(HttpStatusCode.OK,(await teacher.PostAsJsonAsync(editPath,reassign)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,(await teacher.PostAsJsonAsync(editPath,reassign with{RequestId=Guid.NewGuid(),Title="Stale"})).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,(await teacher.PostAsJsonAsync(editPath,expired)).StatusCode); // late replay does not expire/reassign newer state
+        Assert.Equal(HttpStatusCode.NotFound,(await a.GetAsync(studentSource)).StatusCode);Assert.Equal(HttpStatusCode.OK,(await b.GetAsync(studentSource)).StatusCode);
+        var disabled=reassign with{RequestId=Guid.NewGuid(),ExpectedRevision=3,IsAvailable=false};
+        Assert.Equal(HttpStatusCode.OK,(await teacher.PostAsJsonAsync(editPath,disabled)).StatusCode);Assert.Equal(HttpStatusCode.NotFound,(await b.GetAsync(studentSource)).StatusCode);
+        using var foreign=factory.CreateClient();var foreignSession=(await (await LoginAsync(foreign,"record-south","record-south@example.invalid",Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        foreign.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",foreignSession.AccessToken);
+        Assert.Empty((await foreign.GetFromJsonAsync<List<TeacherRecordingView>>(root))!);Assert.Equal(HttpStatusCode.NotFound,(await foreign.GetAsync(root+"/"+recording.Id+"/source")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await foreign.PostAsJsonAsync(root,request with{RequestId=Guid.NewGuid()})).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await foreign.PostAsJsonAsync(editPath,disabled with{RequestId=Guid.NewGuid(),ExpectedRevision=4})).StatusCode);
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();(await db.TeacherGroupEnrollments.SingleAsync(x=>x.GroupClassId==group.Id && x.MembershipId==second.MembershipId)).IsApproved=false;await db.SaveChangesAsync();
+        }
+        Assert.Equal(HttpStatusCode.NotFound,(await b.GetAsync(groupSource)).StatusCode);
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();(await db.TeacherGroupEnrollments.SingleAsync(x=>x.GroupClassId==group.Id && x.MembershipId==second.MembershipId)).IsApproved=true;(await db.TeacherGroupClasses.SingleAsync(x=>x.Id==group.Id)).IsArchived=true;await db.SaveChangesAsync();
+        }
+        Assert.Equal(HttpStatusCode.NotFound,(await b.GetAsync(groupSource)).StatusCode);
+    }
+
+    [Fact]
     public async Task LibraryFoldersAreWorkspaceScopedAndMovesPreserveBytesAndAccess()
     {
         await ResetAsync(factory);

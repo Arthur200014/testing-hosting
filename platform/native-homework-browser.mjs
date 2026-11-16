@@ -131,6 +131,7 @@ async function mockApi(page) {
         'teacher/tests/attempts': [],
         'teacher/mocks/results': [],
         'files': [],
+        'recordings': [],
         'homework/native/assignments': assignments
       };
       if (Object.hasOwn(reads, path)) return send(reads[path]);
