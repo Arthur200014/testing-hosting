@@ -1958,10 +1958,104 @@ const active={};
 const locallyUsed=new Set();
 const mateSlot=id=>id.endsWith('-a')?id.replace(/-a$/,'-b'):id.replace(/-b$/,'-a');
 const numberSignature=tex=>((String(tex||'').match(/-?\d+(?:\{,\}\d+|,\d+|\.\d+)?/g))||[]).join('|');
-function distinctFromMate(id,item){const mate=active[mateSlot(id)];if(!mate)return true;return item?.tex!==mate?.tex&&numberSignature(item?.tex)!==numberSignature(mate?.tex);}
-function uniqueForSlot(id,topic,extraUsed=new Set()){const used=new Set([...locallyUsed,...extraUsed,...Object.values(active).map(x=>x.tex)]);for(let n=0;n<180;n++){const item=generators[topic]();if(!used.has(item.tex)&&distinctFromMate(id,item))return item;}for(let n=0;n<100000;n++){const item=pdfPrototype(topic,n);if(!used.has(item.tex)&&distinctFromMate(id,item))return item;}throw Error('Нет уникальных задач');}
-function freshForSlot(id,topic){const item=uniqueForSlot(id,topic);locallyUsed.add(item.tex);return item;}
-
+function makePrototype(topic,kind,seed){
+ const item=pdfPrototype(topic,4*seed+kind);
+ item.prototypeKind=kind;
+ return item;
+}
+function prototypeKind(topic,item){
+ const key=item?.prototypeKind;
+ if(Number.isInteger(key)&&key>=0&&key<4)return key;
+ const name=String(item?.prototype||'');
+ const names={
+  powers:['Десятичные показатели','Дробные показатели','Степень степени','Корни в показателе'],
+  roots:['Вынесение множителя из корня','Разность квадратов','Квадрат произведения','Кубические корни'],
+  logs:['Сумма логарифмов','Смена основания','Дробное основание','Логарифм частного'],
+  trig:['Косинус двойного угла','Синус двойного угла','Табличные углы и знаки','Знаки в III четверти'],
+  mixed:['Микс: Десятичные показатели','Микс: Вынесение множителя из корня','Микс: Сумма логарифмов','Микс: Косинус двойного угла']
+ };
+ const match=names[topic]?.indexOf(name)??-1;
+ if(match>=0)return match;
+ const aliases={
+  powers:{'Степени с десятичными показателями':0,'Дробный показатель':1,'Степень с дробным показателем':1,'Степени с корнями в показателе':3},
+  roots:{'Радикалы':0,'Вынесение множителей':0},
+  logs:{},
+  trig:{'Формула sin 2α':1,'Сокращение через двойной угол':1}
+ };
+ return Object.prototype.hasOwnProperty.call(aliases[topic]||{},name)?aliases[topic][name]:null;
+}
+function legacyVariation(topic,label){
+ if(topic==='trig'&&label==='Дополнительные углы'){
+  const angle=pick([17,23,28,33,37,41,53]),k=rand(9,40),m=rand(1,50);
+  return task(String.raw`${k}\operatorname{tg}${angle}^{\circ}\cdot\operatorname{tg}${90-angle}^{\circ}-${m}`,k-m,label,'Парная отработка · ЕГЭ №7',[
+   L('Углы дополняют друг друга до 90°.',String.raw`${angle}^{\circ}+${90-angle}^{\circ}=90^\circ`),
+   L('Произведение тангенсов дополнительных углов равно 1.',String.raw`\operatorname{tg}${angle}^{\circ}\cdot\operatorname{tg}${90-angle}^{\circ}=1`),
+   L('Вычисляем ответ.',String.raw`${k}-${m}=${k-m}`)]);
+ }
+ if(topic==='logs'&&label==='Разность логарифмов'){
+  const b=pick([2,3,4,5]),p=rand(2,5),k=rand(2,9);
+  return task(String.raw`\log_{${b}}${b**p*k}-\log_{${b}}${k}`,p,label,'Парная отработка · ЕГЭ №7',[
+   L('Разность логарифмов заменяем логарифмом частного.',String.raw`\log_{${b}}\frac{${b**p*k}}{${k}}`),
+   L('Сокращаем аргумент до степени основания.',String.raw`\frac{${b**p*k}}{${k}}=${b}^{${p}}`),
+   L('Находим показатель.',String.raw`\log_{${b}}${b}^{${p}}=${p}`)]);
+ }
+ if((topic==='logs'||topic==='mixed')&&label==='Логарифмическая цепочка'){
+  const b=pick([2,3,4,5]),x=pick([3,5,7,11]),p=rand(2,4);
+  return task(String.raw`\log_{${b}}${x}\cdot\log_{${x}}${b**p}`,p,label,'Парная отработка · ЕГЭ №7',[
+   L('Сворачиваем цепочку в один логарифм.',String.raw`\log_{${b}}${x}\cdot\log_{${x}}${b**p}=\log_{${b}}${b**p}`),
+   L('Находим показатель степени основания.',String.raw`\log_{${b}}${b}^{${p}}=${p}`)]);
+ }
+ if(topic==='mixed'&&label==='Степени с корнями в показателе'){
+  const item=makePrototype('powers',3,rand(0,6000));
+  item.prototype=label;
+  return item;
+ }
+ return null;
+}
+function distinctFromMate(id,item,remoteMate=undefined){
+ const mate=remoteMate===undefined?active[mateSlot(id)]:remoteMate;
+ if(!mate)return true;
+ return item?.tex!==mate?.tex&&numberSignature(item?.tex)!==numberSignature(mate?.tex);
+}
+function uniqueForSlot(id,topic,extraUsed=new Set(),kind=null,remoteMate=undefined,remoteCurrent=undefined){
+ const current=remoteCurrent===undefined?active[id]:remoteCurrent;
+ const selected=kind===null?prototypeKind(topic,current):kind;
+ const label=kind===null?current?.prototype:null;
+ const used=new Set([...locallyUsed,...extraUsed,...Object.values(active).map(x=>x.tex)]);
+ const acceptable=item=>!used.has(item.tex)&&distinctFromMate(id,item,remoteMate);
+ for(let n=0;n<1200;n++){
+  const seed=n<900?rand(0,9500):n-900;
+  const item=selected!==null?makePrototype(topic,selected,seed):legacyVariation(topic,label)||originalGenerators[topic]();
+  if(label&&selected!==null)item.prototype=label;
+  if(label&&item.prototype!==label)continue;
+  if(acceptable(item))return item;
+ }
+ if(selected!==null){
+  for(let seed=300;seed<30000;seed++){
+   const item=makePrototype(topic,selected,seed);
+   if(label)item.prototype=label;
+   if(acceptable(item))return item;
+  }
+ }
+ throw Error('Для этого прототипа пока нет новых чисел. Нажмите «Другой прототип».');
+}
+function freshForSlot(id,topic){
+ const item=uniqueForSlot(id,topic);
+ locallyUsed.add(item.tex);
+ return item;
+}
+function localNextPrototype(topic){
+ const aId=topic+'-a',bId=topic+'-b',old=prototypeKind(topic,active[aId]);
+ const kind=((old??-1)+1)%4;
+ const a=uniqueForSlot(aId,topic,new Set(),kind,null,null);
+ const b=uniqueForSlot(bId,topic,new Set([a.tex]),kind,a,null);
+ paint(document.querySelector(`[data-pair-slot="${aId}"]`),a);
+ paint(document.querySelector(`[data-pair-slot="${bId}"]`),b);
+}
+for(const topic of ['powers','roots','logs','trig','mixed']){
+ starts[topic+'-a']=makePrototype(topic,0,0);
+ starts[topic+'-b']=makePrototype(topic,0,1);
+}
 
 /* The original guide rendered problems before deferred MathJax had loaded.
  * Keep readable equations immediately, and typeset them after startup. */
