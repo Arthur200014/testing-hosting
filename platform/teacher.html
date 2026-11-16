@@ -335,6 +335,7 @@
   </div>
 
   <script type="module">
+    import {pupilAllowedSources} from './pupil-history.mjs';
     import {studentProfileKeys, studentProfileSnapshot, studentMemberships, studentClassRelations, studentLessonRows, studentLessonTarget, resolveStudentOrigin, beginStudentCard, studentEditAction, studentHomeworkKey, renderStudentCard} from './student-card.mjs';
     import { buildTeacherReport, collectTeacherHomework } from './teacher-report.mjs';
     import { teacherNeeds, teacherMutationKeys, invalidateTeacherData, invalidateTeacherKeys, loadTeacherKey } from './teacher-data.mjs';
@@ -1754,8 +1755,8 @@
           const keys = form.libraryKeys || (form.matches('[data-native-grade]')
             ? ['nativeAssignments'] : teacherMutationKeys[form.id]);
           invalidate(keys);
-          if (keys?.includes('nativeAssignments') || form.matches('[data-context-assign], [data-native-grade]'))
-            invalidate([...new Set([...Object.keys(state.data),...Object.keys(state.inflight)])].filter(key => /^((group|class|lesson)Homework:|studentHomework:)/.test(key)));
+          if (keys?.includes('nativeAssignments') || keys?.includes('assignments') || form.matches('[data-context-assign], [data-native-grade]'))
+            invalidate([...new Set([...Object.keys(state.data),...Object.keys(state.inflight)])].filter(key => /^((group|class|lesson)Homework:|studentHomework:|studentHistory:)/.test(key)));
           if(form.afterSave) await form.afterSave(); else await refresh();
         }
         catch (error) {
@@ -1876,12 +1877,21 @@
         if(event.target.closest('[data-context-assign]')) updateGroupAssignmentChoices(event.target.closest('form'),state.data);
         const editor = event.target.closest('#classEditForm, #groupEditForm, #lessonPlannerForm, #classScheduleRuleForm, #classNativeTaskForm, #classNativeAssignForm, #groupNativeAssignForm, #classMaterialLinkForm, #classMaterialAttachForm, #lessonMaterialAttachForm, #classTopicForm, #topicMaterialAttachForm, #topicTaskAttachForm, #topicLessonAttachForm, #lessonTopicSetForm, #libraryAttachForm, #libraryRenameForm, #libraryMoveForm, #libraryFolderForm, #recordingForm, #studentEditForm, [data-student-grade], [data-context-task], [data-context-assign]');
         if (editor) editor.dataset.dirty = '1';
+        if(event.target.matches('[data-pupil-work-source], [data-pupil-work-month], [data-pupil-work-class]')) {
+          const card=state.studentCard;if(!card || !canLeaveStudentEdit()) {render();return;}
+          if(event.target.matches('[data-pupil-work-source]')) {
+            if(!pupilAllowedSources(card.tab).includes(event.target.value)) {render();return;}
+            card.workSource=event.target.value;card.workClass='';card.workMock=null;card.historyReturn=null;
+          } else if(event.target.matches('[data-pupil-work-month]')) {card.workMonth=event.target.value;card.workMock=null;card.historyReturn=null;}
+          else {const value=event.target.value;if(value && !studentClassRelations(state.data,card.membershipId).some(c=>c.membershipId===card.membershipId && c.classKind+'~'+c.id===value)) {render();return;}card.workClass=value;}
+          card.workPage=0;card.workId='';await refresh();return;
+        }
         if(state.studentCard && event.target.matches('[data-student-card-membership], [data-student-card-month], [data-student-card-filter]')) {
           const card=state.studentCard;
           if(!canLeaveStudentEdit()) {render();return;}
           if(event.target.matches('[data-student-card-membership]')) {
             if(!studentMemberships(state.data,card.membershipId).some(s=>s.membershipId===event.target.value)) {render();return;}
-            card.membershipId=event.target.value;card.classFilter='';card.infoOpen=false;card.workPage=0;card.workId='';
+            card.membershipId=event.target.value;card.classFilter='';card.infoOpen=false;card.workPage=0;card.workId='';card.workSource='native';card.workMonth='';card.workClass='';card.workMock=null;card.historyReturn=null;
           } else if(event.target.matches('[data-student-card-month]')) card.month=event.target.value;
           else card.classFilter=event.target.value;
           await refresh();return;
@@ -2487,7 +2497,18 @@
         if(event.target.closest('[data-student-card-close]')) {if(!canLeaveStudentEdit()) return;state.studentCard=null;render();return;}
         if(event.target.closest('[data-student-card-return]')) {const card=state.studentCard;await studentCardTarget(resolveStudentOrigin(state.data,card?.origin,card?.membershipId));return;}
         const studentTab=event.target.closest('[data-student-card-tab]');
-        if(studentTab) {if(!state.studentCard || !['attendance','tasks','results','classes','profile'].includes(studentTab.dataset.studentCardTab) || !canLeaveStudentEdit()) return;state.studentCard.tab=studentTab.dataset.studentCardTab;state.studentCard.workPage=0;state.studentCard.workId='';await refresh();return;}
+        if(studentTab) {if(!state.studentCard || !['attendance','tasks','results','classes','profile'].includes(studentTab.dataset.studentCardTab) || !canLeaveStudentEdit()) return;state.studentCard.tab=studentTab.dataset.studentCardTab;state.studentCard.workPage=0;state.studentCard.workId='';state.studentCard.workMock=null;state.studentCard.historyReturn=null;if(!pupilAllowedSources(state.studentCard.tab).includes(state.studentCard.workSource || 'native')) state.studentCard.workSource='native';await refresh();return;}
+        if(event.target.closest('[data-pupil-work-clear]')) {const card=state.studentCard;if(!card || !canLeaveStudentEdit()) return;card.workMonth='';card.workClass='';card.workPage=0;card.workId='';card.workMock=null;card.historyReturn=null;await refresh();return;}
+        const mockParts=event.target.closest('[data-student-mock-parts]');
+        if(mockParts) {
+          const card=state.studentCard,member=(state.data.students || []).find(x=>x.membershipId===card?.membershipId);
+          if(!card || card.workSource!=='mocks' || !canLeaveStudentEdit()) return;
+          const row=state.data[studentHomeworkKey(card)]?.items.find(x=>x.id===mockParts.dataset.studentMockParts && x.membershipId===member?.membershipId && x.programId===member?.programId && x.source==='mocks');
+          if(!row) return;
+          card.historyReturn={workSource:card.workSource,workPage:card.workPage,workMonth:card.workMonth,workId:card.workId};
+          card.workSource='mockTasks';card.workMock={id:row.details.mockId,date:row.date};card.workPage=0;card.workId='';await refresh();return;
+        }
+        if(event.target.closest('[data-student-history-back]')) {const card=state.studentCard;if(!card?.historyReturn || !canLeaveStudentEdit()) return;Object.assign(card,card.historyReturn);card.workMock=null;card.historyReturn=null;await refresh();return;}
         const workOpen=event.target.closest('[data-student-work-open]'),workClose=event.target.closest('[data-student-work-close]'),workPage=event.target.closest('[data-student-work-page]');
         if(workOpen || workClose || workPage) {
           const card=state.studentCard;if(!card || !['tasks','results'].includes(card.tab) || !canLeaveStudentEdit()) return;
@@ -2780,7 +2801,7 @@
           const assignmentId = form.dataset.nativeGrade;
           if(form.hasAttribute('data-student-grade')) {
             const card=state.studentCard,member=(state.data.students || []).find(x=>x.membershipId===card?.membershipId);
-            if(!card || !(state.data[studentHomeworkKey(card)]?.items || []).some(x=>x.id===assignmentId && x.membershipId===member?.membershipId && x.programId===member?.programId)) throw new Error('Повторно откройте работу ученика.');
+            if(!card || (card.workSource && card.workSource!=='native') || !(state.data[studentHomeworkKey(card)]?.items || []).some(x=>x.id===assignmentId && x.membershipId===member?.membershipId && x.programId===member?.programId)) throw new Error('Повторно откройте работу ученика.');
           }
           await mutation('nativeGrade:' + assignmentId, 'homework/native/grades', () => ({
             assignmentId, scorePercent: Number(formValue(form, 'scorePercent')),
