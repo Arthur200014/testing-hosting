@@ -29,7 +29,7 @@ public sealed class LibraryFolders : Migration
         m.CreateIndex("IX_TeacherLibraryFolderOperations_WorkspaceId_FolderId","TeacherLibraryFolderOperations",new[]{"WorkspaceId","FolderId"},schema:"platform");
         m.AddColumn<Guid>("FolderId","TeacherMaterials",type:"uuid",schema:"platform",nullable:true);
         m.CreateIndex("IX_TeacherMaterials_WorkspaceId_FolderId","TeacherMaterials",new[]{"WorkspaceId","FolderId"},schema:"platform");
-        m.AddForeignKey("FK_Materials_Folder","TeacherMaterials",new[]{"WorkspaceId","FolderId"},"TeacherLibraryFolders",new[]{"WorkspaceId","Id"},schema:"platform",principalSchema:"platform",onDelete:ReferentialAction.Restrict);
+        m.AddForeignKey(name:"FK_Materials_Folder",table:"TeacherMaterials",columns:new[]{"WorkspaceId","FolderId"},principalTable:"TeacherLibraryFolders",principalColumns:new[]{"WorkspaceId","Id"},schema:"platform",principalSchema:"platform",onDelete:ReferentialAction.Restrict);
     }
     protected override void Down(MigrationBuilder m)
     {
