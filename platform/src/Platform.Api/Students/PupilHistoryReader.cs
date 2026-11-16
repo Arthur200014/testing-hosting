@@ -20,7 +20,7 @@ public sealed class PupilHistoryReader(PlatformDbContext db)
         return true;
     }
 
-    public static DateTimeOffset MoscowStart(DateOnly day) => new(day.ToDateTime(TimeOnly.MinValue), TimeSpan.FromHours(3));
+    public static DateTimeOffset MoscowStart(DateOnly day) => new DateTimeOffset(day.ToDateTime(TimeOnly.MinValue), TimeSpan.FromHours(3)).ToUniversalTime();
     private static DateOnly MoscowDay(DateTimeOffset value) => DateOnly.FromDateTime(value.ToOffset(TimeSpan.FromHours(3)).DateTime);
 
     private static async Task<PupilHistoryPage> PageAsync<T>(IQueryable<T> query, int page,

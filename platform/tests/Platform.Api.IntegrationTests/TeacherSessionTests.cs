@@ -39,7 +39,7 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
             var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
             var member=await db.WorkspaceStudentMemberships.SingleAsync(x=>x.Id==own);
             db.WorkspaceStudentMemberships.Add(new WorkspaceStudentMembership {Id=otherStudy,WorkspaceId=north.WorkspaceId,
-                StudentId=member.StudentId,ProgramId=otherProgram,CodeHash=System.Security.Cryptography.SHA256.HashData(Guid.NewGuid().ToByteArray())});
+                Student=new Student {Id=Guid.NewGuid(),DisplayName="History pupil"},ProgramId=otherProgram,CodeHash=System.Security.Cryptography.SHA256.HashData(Guid.NewGuid().ToByteArray())});
             db.HistoricalTestResults.AddRange(Enumerable.Range(1,21).Select(i=>new HistoricalTestResult {
                 Id=Guid.NewGuid(),WorkspaceId=north.WorkspaceId,MembershipId=own,StudentId=member.StudentId,ProgramId=member.ProgramId,
                 EventId="pupil-page-"+i,TestId="same-test",TestDate=new DateOnly(2026,11,2),TopicId="topic",TopicName="Repeated test",
