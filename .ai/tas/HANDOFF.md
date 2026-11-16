@@ -1,15 +1,15 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-16
-**ACTIVE_TASK:** UI-05 pupil native homework/review/results released (scoped medium block).
-**ACTIVE_BRANCH:** none.
+**ACTIVE_TASK:** UI-05 cross-source pupil learning history implemented; isolated acceptance pending.
+**ACTIVE_BRANCH:** `tas/ui05-pupil-learning-history`, [PR #88](https://github.com/Arthur200014/testing-hosting/pull/88), head `c263348cc852c4341181c858ee9ebb5c57b955c0`.
 **MERGED_SHA:** `08b4f9cdfaceed1768e7fdcea1e9d21c398981ca`, [PR #87](https://github.com/Arthur200014/testing-hosting/pull/87).
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43935680969](https://github.com/Arthur200014/testing-hosting/actions/runs/43935680969) PASS; published teacher.html, teacher-data.mjs and student-card.mjs byte-match main. API adds one pupil-scoped read endpoint; schema/migrations/config unchanged. Timeweb native main auto-deploy is owner-configured; independent API completion/revision UNKNOWN / NOT_VERIFIED, LIVE_WRITE_NOT_RUN under approved isolated-only mode.
-**NEXT_ACTION:** Finish UI-05 native-work context filtering as another medium block: pupil Tasks/Results month + owned class filters, server filtering/count/pagination together, preserve work/detail/class return and drafts. Use references45–46 only. Existing scope intentionally shows selected membership/program over all dates; do not infer month/class totals from current pages or global truncated feeds. Isolated boundary/date/access/save/reload checks → CI/merge/Pages/HANDOFF. Imported assignments/tests/mocks and feedback remain later scope; no invitations/real-pupil writes.
+**NEXT_ACTION:** Finish PR #88 CI/PostgreSQL/browser, inspect references45–46 screenshots, merge/Pages/byte-check/HANDOFF. Larger owner-requested block implemented: imported homework/attempts, historical/live tests, mock summaries/sessions/independent task events, mock drill-down/back plus native-work month/class filtering. All sources scoped before count/page; history readonly, actual0/null preserved. LOCAL17 PASS; new integration/browser scenarios pending. Schema unchanged; no Timeweb checks/live writes.
 
 ## Standing owner instructions
 
-- Take connected scenarios for individual/group contexts; current preference is medium-sized blocks.
+- Take connected scenarios for individual/group contexts; latest preference is substantial connected blocks, not filters alone.
 - Persistence tests use isolated synthetic API/PostgreSQL/Chromium workspaces only. **Do not check Timeweb** or ask for production credentials; independent production revision/live writes are not blockers in this approved mode.
 - Real students, lessons, scores, settings and credentials are not test-write targets. Never retarget reset/seed/import/browser scripts to production, rerun imports, change writer or provision infrastructure incidentally. No invitations/notifications/payments.
 - Tests/runner are committed in Git; reset/seed scripts must never run on real data.
