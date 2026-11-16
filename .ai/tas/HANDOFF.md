@@ -1,11 +1,11 @@
 # TEACHER AI STUDENT — HANDOFF
 
-**UPDATED:** 2026-11-16
-**ACTIVE_TASK:** UI-05 cross-source pupil learning history released.
-**ACTIVE_BRANCH:** none.
+**UPDATED:** 2026-11-17
+**ACTIVE_TASK:** UI-05 pupil feedback draft implemented; isolated CI acceptance pending.
+**ACTIVE_BRANCH:** `tas/ui05-pupil-feedback`, [PR #89](https://github.com/Arthur200014/testing-hosting/pull/89), head `e8eaf6b629135e86ad105ba09ccb61c1111ebf80`.
 **MERGED_SHA:** `f3ca3fd919649d33d0dd756c331be08d15f9177d`, [PR #88](https://github.com/Arthur200014/testing-hosting/pull/88).
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43953164765](https://github.com/Arthur200014/testing-hosting/actions/runs/43953164765) PASS; published teacher.html, teacher-data.mjs, student-card.mjs and pupil-history.mjs byte-match main. API extended; no schema/migration/config changes. Native Timeweb main auto-deploy is owner-configured; independent API completion/revision UNKNOWN / NOT_VERIFIED, LIVE_WRITE_NOT_RUN in approved isolated-only mode.
-**NEXT_ACTION:** UI-05 pupil feedback/report draft (reference47 only): existing pupil context → generate draft from complete scoped pupil data → review/edit/cancel/save/reload → return to originating class/lesson. Inspect existing report code and preserve its actual scoring policy; never calculate report totals from paged history items or truncated workspace nativeAssignments. Reuse/add a minimal complete pupil input/aggregate as needed. No sending messages, invitations or notifications in this block. Verify isolated persistence/access and teacher reload, then CI/merge/Pages/HANDOFF. Take the connected report scenario, not a filters-only task.
+**NEXT_ACTION:** Finish PR #89 CI/API/PostgreSQL/Chromium, then merge/Pages/publication byte check/HANDOFF. Connected feedback scenario implemented: complete scoped last8-lesson report inputs, unchanged80/20/best-test policy, generate/edit/preview/cancel, PostgreSQL draft with immutable source snapshot and revision/lock/idempotent retry, reload/class return. Additive migration20261117010000_PupilFeedbackDrafts, intentionally unmapped SQL table (EF domain snapshot unchanged). Local environment unavailable; LOCAL_NODE/DB/Chromium NOT_RUN; pure JS syntax/policy PASS. Existing workflows contain new tests and automatic readonly Pages byte comparison. No Timeweb checks/live writes/messages.
 
 ## Standing owner instructions
 
