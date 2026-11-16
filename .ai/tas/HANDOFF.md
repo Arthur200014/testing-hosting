@@ -2,10 +2,10 @@
 
 **UPDATED:** 2026-11-16
 **ACTIVE_TASK:** UI-04 IN_PROGRESS — real file attachments.
-**ACTIVE_BRANCH:** `tas/ui04-file-attachments`, backend checkpoint `afc6fd1b4bd2ff8cd2fb5e8fbca5851635c87298`; UI/browser integration in progress, not releasable yet.
+**ACTIVE_BRANCH:** `tas/ui04-file-attachments`; [PR #79](https://github.com/Arthur200014/testing-hosting/pull/79), head `7152a162e09e804b34ce5e9601a4bed843c7ca51`; implementation complete, isolated CI pending.
 **MERGED_SHA:** `3774a94857dacd33b4342314a739ba2c08b748dc`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43777340175](https://github.com/Arthur200014/testing-hosting/actions/runs/43777340175) PASS; published teacher.html, teacher-data.mjs and teacher-library.mjs fetched and byte-compared with main: PASS. API/schema unchanged in this block. Timeweb native main auto-deploy owner-confirmed; independent API revision UNKNOWN.
-**NEXT_ACTION:** Finish file upload/download UI and isolated browser acceptance on active branch; inspect backend CI, fix failures, then PR/merge/Pages. Existing PostgreSQL is durable storage for this bounded slice (5 MiB/file, 100 MiB/workspace), metadata/content separated. No new production infrastructure or Timeweb checks. Recordings remain separate.
+**NEXT_ACTION:** Finish #79 isolated file upload/download/reuse/permissions browser and PostgreSQL checks; fix actual failures, merge after green and confirm Pages. PostgreSQL stores bounded files (5 MiB/file, 100 MiB/workspace), metadata/content separate. Two concurrent uploads/API instance cap memory. No new production infrastructure or Timeweb checks. Recordings remain separate.
 
 ## Standing owner instructions
 
