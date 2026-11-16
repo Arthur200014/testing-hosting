@@ -417,7 +417,8 @@ public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiF
             db.NativeHomeworkAssignments.AddRange(Enumerable.Range(1,301).Select(i=>new NativeHomeworkAssignment {
                 Id=Guid.NewGuid(),WorkspaceId=north.WorkspaceId,TaskId=task.Id,ProgramId=program,MembershipId=second,StudentId=member.StudentId,
                 RequestId=Guid.NewGuid(),AssignedAt=DateTimeOffset.UtcNow.AddMinutes(i),DeadlineAt=DateTimeOffset.UtcNow.AddDays(2).AddMinutes(i),
-                Answer=i==1?"Answer":null,SubmittedAt=i==1?DateTimeOffset.UtcNow:null,ScorePercent=i==1?0:null,GradedAt=i==1?DateTimeOffset.UtcNow:null
+                Answer=i==1?"Answer":null,SubmissionId=i==1?Guid.NewGuid():null,SubmittedAt=i==1?DateTimeOffset.UtcNow:null,
+                ScorePercent=i==1?0:null,GradeRequestId=i==1?Guid.NewGuid():null,GradedAt=i==1?DateTimeOffset.UtcNow:null
             }));
             await db.SaveChangesAsync();
         }
