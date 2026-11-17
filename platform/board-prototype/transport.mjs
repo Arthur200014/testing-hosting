@@ -7,7 +7,7 @@ import {MAX_FILE_BYTES,references} from './files.mjs';
 // Isolated experiment only. No executable entry point or production configuration.
 // Scene payloads stay opaque; reconstruction/reconciliation belongs to the editor.
 export async function startTestTransport({ key, journal, revoked = () => false,
-  authorize = async () => true, clock = Date.now, port = 0, maxConnections = 256, maxRoomConnections = 24 }) {
+  authorize = async () => true, acknowledge = () => true, clock = Date.now, port = 0, maxConnections = 256, maxRoomConnections = 24 }) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Invalid test port');
   const http = createServer((_, res) => { res.writeHead(404); res.end(); });
   const io = new Server(http, { serveClient: false, transports: ['websocket'],
@@ -58,6 +58,8 @@ export async function startTestTransport({ key, journal, revoked = () => false,
           const result = await action(payload);
           // Recheck before any data leaves the process, including slow storage reads.
           await check('replay');
+          // Test-only fault injection models a durable commit whose acknowledgement is lost.
+          if (!acknowledge({event,scope,result,claims:socket.data.claims})) { socket.disconnect(true); return; }
           if (socket.connected) ack({ ok: true, ...result });
         } catch {
           if (socket.connected) ack({ ok: false, error: 'REQUEST_FAILED' });

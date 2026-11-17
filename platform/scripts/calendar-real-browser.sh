@@ -28,6 +28,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: IntegrationTests
       BoardPrototype__Enabled: "true"
+      BoardPrototype__PermitLifetimeSeconds: "12"
       BoardPrototype__SigningKey: ${TAS_BOARD_SIGNING_KEY}
       BoardPrototype__SceneRootKey: ${TAS_BOARD_SCENE_ROOT_KEY}
       Cors__AllowedOrigins__1: http://127.0.0.1:8768

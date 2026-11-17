@@ -20,7 +20,7 @@ function App() {
       const permit = config.session ? await lessonPermit(config.session) : config.permit;
       if (config.session && permit.keyVersion !== 1) throw new Error('Unsupported scene key version');
       const sceneKey = config.session ? permit.sceneKey : config.sceneKey;
-      client = connectScene({ ...config, permit, sceneKey, api, reconcileElements, CaptureUpdateAction, convertToExcalidrawElements, status: setStatus, onReady:()=>setLoaded(true), onAttachments:setAttachments });
+      client = connectScene({ ...config, permit, sceneKey, renewPermit:config.session?()=>lessonPermit(config.session):undefined, api, reconcileElements, CaptureUpdateAction, convertToExcalidrawElements, status: setStatus, onReady:()=>setLoaded(true), onAttachments:setAttachments });
     };
     start().catch(() => setStatus('Нет доступа к занятию'));
   }} onChange={(elements,appState,files) => client?.changed(elements,files)} initialData={{appState:{currentItemFontFamily:1}}}

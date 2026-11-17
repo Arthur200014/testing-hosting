@@ -23,7 +23,15 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
   const lesson=beforeLessons.find(x=>x.groupClassId===group.id);assert.ok(lesson);
   const solo=beforeLessons.find(x=>x.individualClassId===north.item.id);assert.ok(solo);
   const learners=await Promise.all(north.students.map(s=>call('student-sessions',null,{workspace:north.workspace,code:s.inviteCode})));
-  let journal=await openPostgresJournal(connection),room=await startTestTransport({key,journal,authorize:apiAccess(api)});
+  let dropAcks=false,dropped=0;
+  // Identity selects this isolated fault target; authorization stays server-side.
+  const teacherId=JSON.parse(Buffer.from(north.token.split('.')[1],'base64url').toString()).sub.replaceAll('-','');
+  let journal=await openPostgresJournal(connection),room=await startTestTransport({key,journal,authorize:apiAccess(api),
+    acknowledge:({event,claims})=>{if(dropAcks&&event==='submit'&&claims.user===teacherId){dropped++;return false;}return true;}});
+  const container=execFileSync('docker',['ps','--filter','label=com.docker.compose.project='+project,'--filter','label=com.docker.compose.service=api','--format','{{.ID}}'],{encoding:'utf8'}).trim();
+  assert.match(container,/^[a-f0-9]{12,64}$/);let apiStopped=false;
+  const until=async(check,label,timeout=20000)=>{const end=Date.now()+timeout;while(!await check()){assert.ok(Date.now()<end,label);await new Promise(r=>setTimeout(r,100));}};
+  async function apiReady(){await until(async()=>{try{return(await fetch(api+'/health/ready',{signal:AbortSignal.timeout(2000)})).ok;}catch{return false;}},'API recovery',45000);}
   const cwd=process.cwd();process.chdir(new URL('.',import.meta.url).pathname);
   const site=await createServer({server:{host:'127.0.0.1',port:8768,strictPort:true}});await site.listen();
   const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
@@ -33,7 +41,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
   async function page(accessToken,role,lessonId=lesson.id,allowed=true){
     const context=await browser.newContext({viewport:{width:1100,height:800}});
     await context.route('**/*',route=>{const u=new URL(route.request().url());return ['127.0.0.1','localhost'].includes(u.hostname)||['data:','blob:'].includes(u.protocol)?route.continue():route.abort();});
-    const p=await context.newPage();p.on('pageerror',e=>errors.push(e.message));
+    const p=await context.newPage();p.permits=[];p.on('response',async r=>{if(r.url().endsWith('/permit')&&r.ok()){try{p.permits.push(await r.json());}catch{}}});p.on('pageerror',e=>errors.push(e.message));
     p.on('websocket',ws=>ws.on('framesent',({payload})=>{
       if(typeof payload==='string'&&payload.startsWith('40{')){
         const fields=Object.keys(JSON.parse(payload.slice(2))).sort();
@@ -85,8 +93,45 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     await teacher.waitForFunction(()=>{const x=window.__BOARD_EDITOR,e=x.getSceneElements().find(e=>e.type==='image'&&e.x===280);return e&&x.getAppState().selectedElementIds[e.id];});
     await teacher.keyboard.press('Backspace');for(const p of [teacher,a,b])await count(p,4);
     await teacher.getByRole('button',{name:'Undo',exact:true}).click();for(const p of [teacher,a,b]){await count(p,5);await saved(p);}
+    // Dedicated runner uses real 12-second API permits, no forged credentials.
+    await until(()=>[teacher,a,b].every(p=>p.permits.length>=2),'Actual-session permit renewal');
+    await until(()=>Date.now()>=groupPermit.expiresAt*1000,'Original permit expiry');
+    await call('board-prototype/access',null,{token:groupPermit.token},404);
+    for(const p of [teacher,a,b]){
+      assert.ok(p.permits.length>=2);assert.equal(p.permits.at(-1).sceneKey,groupPermit.sceneKey);
+      assert.notEqual(p.permits[0].token,p.permits.at(-1).token);await saved(p);
+    }
+    console.log('PASS: expired original API permit denied; same browsers renew actual sessions with stable keys.');
+
+    // Commit succeeds but no success acknowledgement reaches this browser.
+    const beforeLost=await journal.replay(scope),originalAppend=journal.append,attempts=[];
+    journal.append=async(s,f)=>{if(s.workspace===scope.workspace&&s.board===scope.board&&f.user===teacherId)attempts.push({id:f.messageId,iv:Buffer.from(f.iv),ciphertext:Buffer.from(f.ciphertext),fileIds:f.fileIds});return originalAppend(s,f);};
+    dropAcks=true;await draw(teacher,800,200);
+    await until(()=>dropped>0,'Durable append with lost ack');
+    await teacher.waitForFunction(()=>document.querySelector('#status')?.textContent!=='Сохранено');
+    assert.equal((await journal.replay(scope)).length,beforeLost.length+1);
+    dropAcks=false;
+    for(const p of [teacher,a,b]){await count(p,6);await saved(p);}
+    const retries=attempts.filter(x=>x.id===attempts[0].id);
+    assert.ok(retries.length>=2,'Lost acknowledgement must cause retry');
+    for(const attempt of retries)assert.deepEqual(attempt,retries[0],'Retry changed immutable frame bytes/ID');
+    assert.equal((await journal.replay(scope)).length,beforeLost.length+new Set(attempts.map(x=>x.id)).size,'Retry duplicated durable frame');
+    journal.append=originalAppend;
+    console.log('PASS: lost commit acknowledgement reconnects and retries exact frame without duplicate revision.');
+
+    // Stop actual disposable API: introspection and renewal fail. Keep editor open.
+    const beforeOffline=await journal.replay(scope);
+    execFileSync('docker',['stop','--time','2',container],{stdio:'pipe'});apiStopped=true;
+    await teacher.waitForFunction(()=>document.querySelector('#status')?.textContent!=='Сохранено');
+    await input.setInputFiles({name:'offline.png',mimeType:'image/png',buffer:png});await count(teacher,7);
+    await until(()=>Date.now()>Math.max(...teacher.permits.map(p=>p.expiresAt))*1000,'Permit expires while API offline');
+    assert.deepEqual(await journal.replay(scope),beforeOffline);assert.equal((await active(b)).length,6);
+    assert.notEqual(await teacher.locator('#status').textContent(),'Сохранено');
+    execFileSync('docker',['start',container],{stdio:'pipe'});apiStopped=false;await apiReady();
+    for(const p of [teacher,a,b]){await count(p,7);await saved(p);}
+    console.log('PASS: actual API stop/expired permits, pending PNG/scene retained, restart and automatic recovery without page reload.');
     const expected=await active(teacher);assert.deepEqual(await active(a),expected);assert.deepEqual(await active(b),expected);
-    const expectedFiles={imageHashes:[createHash('sha256').update(png).digest('hex'),createHash('sha256').update(jpeg).digest('hex')],pdfHash:createHash('sha256').update(pdf).digest('hex'),pdfName:'lesson.pdf'};
+    const expectedFiles={imageHashes:[createHash('sha256').update(png).digest('hex'),createHash('sha256').update(jpeg).digest('hex'),createHash('sha256').update(png).digest('hex')],pdfHash:createHash('sha256').update(pdf).digest('hex'),pdfName:'lesson.pdf'};
 
     await page(south.token,'teacher',lesson.id,false);
     await page(learners[1].accessToken,'student',solo.id,false);
@@ -107,8 +152,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     assert.deepEqual(errors,[]);
     await stop();
     // Existing disposable compose project only, never a production container name.
-    const id=execFileSync('docker',['ps','--filter','label=com.docker.compose.project='+project,'--filter','label=com.docker.compose.service=api','--format','{{.ID}}'],{encoding:'utf8'}).trim();
-    assert.match(id,/^[a-f0-9]{12,64}$/);execFileSync('docker',['restart',id],{stdio:'pipe'});
+    execFileSync('docker',['restart',container],{stdio:'pipe'});
     let ready=false;for(let i=0;i<45;i++){try{if((await fetch(api+'/health/ready',{signal:AbortSignal.timeout(2000)})).ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,1000));}assert.ok(ready);
     await call('board-prototype/access',null,{token:oldTeacher.token},404);
     recoveryDir=await mkdtemp(join(tmpdir(),'tas-board-recovery-'));
@@ -118,5 +162,5 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     assert.ok(result.includes('PASS: fresh harness process'),'Recovery worker did not finish');
     console.log(result.trim());
     console.log('PASS: real .NET sessions, authorized scope-separated scene keys, connected revocation, API restart and durable PNG/PDF, file outage/no false save, image undo and full harness-process/browser/room/pool recovery. No production data.');
-  }finally{await stop();if(recoveryDir)await rm(recoveryDir,{recursive:true,force:true});process.chdir(cwd);}
+  }finally{if(apiStopped)execFileSync('docker',['start',container],{stdio:'pipe'});await stop();if(recoveryDir)await rm(recoveryDir,{recursive:true,force:true});process.chdir(cwd);}
 }

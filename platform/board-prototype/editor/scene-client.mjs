@@ -8,17 +8,52 @@ const hash=async b=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-25
 export async function lessonPermit({apiBase,lessonId,accessToken,role}){
   if(!['teacher','student'].includes(role)||!/^[0-9a-f-]{36}$/i.test(lessonId))throw new Error('Invalid lesson');
   const u=new URL(apiBase);if(!['127.0.0.1','localhost'].includes(u.hostname))throw new Error('Isolated API required');
-  const r=await fetch(`${u.origin}/api/v1/${role}/board-prototype/lessons/${lessonId}/permit`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`},cache:'no-store'});
-  if(!r.ok)throw new Error('Lesson access denied');return r.json();
+  const r=await fetch(`${u.origin}/api/v1/${role}/board-prototype/lessons/${lessonId}/permit`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`},cache:'no-store',signal:AbortSignal.timeout(5000),redirect:'error'});
+  if(!r.ok){const e=new Error([401,403,404].includes(r.status)?'Доступ к занятию отозван':'API временно недоступен');e.denied=[401,403,404].includes(r.status);throw e;}return r.json();
 }
-export function connectScene({url,permit,sceneKey,api,reconcileElements,CaptureUpdateAction,convertToExcalidrawElements,status,onReady=()=>{},onAttachments=()=>{}}){
+export function connectScene({url,permit,sceneKey,api,reconcileElements,CaptureUpdateAction,convertToExcalidrawElements,renewPermit,status,onReady=()=>{},onAttachments=()=>{}}){
   if(!['127.0.0.1','localhost'].includes(new URL(url).hostname))throw new Error('Isolated room required');
   const raw=bytes(sceneKey);if(raw.byteLength!==32)throw new Error('A valid scene key is required');
   const key=crypto.subtle.importKey('raw',raw,'AES-GCM',false,['encrypt','decrypt']);
-  const socket=io(url,{auth:{token:permit.token,workspace:permit.workspace,board:permit.board},transports:['websocket'],reconnection:true});
+  const socket=io(url,{auth:{token:permit.token,workspace:permit.workspace,board:permit.board},transports:['websocket'],reconnection:false,autoConnect:false,timeout:5000});
   let after=0,ready=false,stopped=false,unsupported=false,inflight,dirty=new Map(),seen=new Map(),rpc=Promise.resolve();
   const uploads=new Map(),confirmed=new Set(),files=new Map(),attached=new Map(),pendingAttachments=new Set(),newImages=new Set(),decodedImages=new Set();
-  const request=(event,payload)=>{const result=rpc.catch(()=>{}).then(()=>socket.timeout(3000).emitWithAck(event,payload));rpc=result.catch(()=>{});return result;};
+  let currentPermit=permit,retryAt=0,backoff=500,terminal;
+  const renewAt=p=>p.expiresAt ? p.expiresAt*1000-Math.min(15000,Math.max(1000,(p.expiresAt*1000-Date.now())/3)) : Infinity;
+  let renewalAt=renewAt(permit),hasConnected=false;
+  async function ensureConnection(){
+    if(stopped)throw new Error('Доска закрыта');
+    if(terminal)throw terminal;
+    if(Date.now()<retryAt)throw new Error('Ожидание восстановления соединения');
+    if(socket.connected&&Date.now()<renewalAt)return;
+    try{
+      if(renewPermit&&(hasConnected||Date.now()>=renewalAt)){
+        const next=await renewPermit();
+        if(stopped)throw new Error('Доска закрыта');
+        if(next.workspace!==permit.workspace||next.board!==permit.board||next.keyVersion!==1||next.sceneKey!==sceneKey
+          ||!Number.isSafeInteger(next.expiresAt)||next.expiresAt*1000<=Date.now()){
+          terminal=new Error('Изменились область или ключ доски — требуется повторный вход');throw terminal;
+        }
+        currentPermit=next;renewalAt=renewAt(next);
+      }
+      socket.disconnect();
+      socket.auth={token:currentPermit.token,workspace:currentPermit.workspace,board:currentPermit.board};
+      await new Promise((resolve,reject)=>{
+        const done=error=>{socket.off('connect',ok);socket.off('connect_error',bad);socket.off('disconnect',gone);error?reject(error):resolve();};
+        const ok=()=>done(),bad=e=>done(e),gone=()=>done(new Error('Соединение прервано'));
+        socket.once('connect',ok);socket.once('connect_error',bad);socket.once('disconnect',gone);socket.connect();
+      });
+      if(stopped){socket.disconnect();throw new Error('Доска закрыта');}
+      hasConnected=true;backoff=500;retryAt=0;
+    }catch(e){
+      if(e.denied)terminal=e;
+      socket.disconnect();retryAt=Date.now()+backoff;backoff=Math.min(10000,backoff*2);throw e;
+    }
+  }
+  // Serialise reconnect/renewal with every RPC; pending frames keep their exact bytes/ID.
+  const request=(event,payload)=>{const result=rpc.catch(()=>{}).then(async()=>{
+    await ensureConnection();return socket.timeout(3000).emitWithAck(event,payload);
+  });rpc=result.catch(()=>{});return result;};
   const remember=elements=>{for(const e of elements)seen.set(e.id,signature(e));};
   function captureImage(id,binary){
     if(confirmed.has(id)||uploads.has(id))return;
@@ -75,13 +110,12 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements,CaptureU
   socket.on('connect_error',()=>status('Нет доступа или соединения'));
   async function loop(){
     try{
-      if(!socket.connected)return;
       if(!inflight&&(dirty.size||pendingAttachments.size)){
         const elements=[...dirty.values()],attachments=[...pendingAttachments],fileIds=refs(elements,attachments);
         for(const id of fileIds)if(!confirmed.has(id)){
           const f=uploads.get(id);if(!f)throw new Error('File data unavailable');
           const r=await request('file:put',f);if(!r.ok)throw new Error('Файл не удалось сохранить');
-          if(r.file.sha256!==await hash(f.data))throw new Error('File acknowledgement mismatch');
+          if(r.file.id!==id||r.file.sha256!==await hash(f.data))throw new Error('File acknowledgement mismatch');
           confirmed.add(id);files.set(id,{...r.file,data:f.data});uploads.delete(id);
         }
         const iv=crypto.getRandomValues(new Uint8Array(12));
@@ -91,7 +125,7 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements,CaptureU
         for(const e of elements)if(signature(dirty.get(e.id)??{})===signature(e))dirty.delete(e.id);
         for(const id of attachments)pendingAttachments.delete(id);
       }
-      if(inflight){const r=await request('submit',inflight);if(!r.ok)throw new Error(r.error);inflight=undefined;}
+      if(inflight){const r=await request('submit',inflight);if(!r.ok)throw new Error(r.error);if(r.messageId!==inflight.messageId||!Number.isSafeInteger(r.seq)||r.seq<1)throw new Error('Invalid scene acknowledgement');inflight=undefined;}
       for(;;){
         const r=await request('replay',{after});if(!r.ok)throw new Error(r.error);
         for(const frame of r.frames){
@@ -120,7 +154,7 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements,CaptureU
         }if(!r.more)break;
       }
       if(!ready){ready=true;onReady();}
-      if(!dirty.size&&!pendingAttachments.size&&!uploads.size&&!inflight&&!unsupported)status('Сохранено');
+      if(socket.connected&&!dirty.size&&!pendingAttachments.size&&!uploads.size&&!inflight&&!unsupported)status('Сохранено');
     }catch(e){status('Не сохранено: '+e.message);}
     finally{if(!stopped)setTimeout(loop,150);}
   }

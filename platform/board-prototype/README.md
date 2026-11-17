@@ -133,8 +133,14 @@ fresh test-project label, never a production name.
 An operation admitted before a concurrent revocation may finish its durable
 append; returning data/acknowledgement still requires a successful subsequent
 check. This is not a transactional cross-service revocation fence. Failure of
-API validation disconnects clients; automatic session/permit renewal and large
-reconnect/fault profiles remain pending. The250ms sweep is a polling interval,
+API validation disconnects clients. Session-backed editors now obtain replacement
+permits on disconnect and before expiry, with bounded exponential retry (0.5–10s).
+Renewal must preserve workspace, board, v1 key and key version; mismatch or access
+revocation stops reconnection. Existing bearer-session expiry still requires login;
+there is no automatic API-login refresh. Pending local files and encrypted frames
+remain in memory with exact retry IDs/bytes, not durable offline browser storage.
+Closing/reloading an unsaved tab can still lose pending work. Large reconnect/fault
+profiles remain pending. The250ms sweep is a polling interval,
 not a measured revocation latency guarantee under load. The original synthetic
 browser runner remains useful for isolated editor checks but is not real-login
 acceptance by itself.
@@ -202,5 +208,8 @@ bytes, injects a file-store failure and checks no false save/revision advance,
 retries, deletes/undoes an image, then verifies image hashes/PDF bytes in the fresh
 recovery process after restart. Focused tests cover MIME/CRC/size/name/id policy,
 foreign/viewer denial, missing references, retries, count/byte/pixel quotas and
-pool restart. Long reconnect/permit renewal, compaction and21/210-browser load
-acceptance remain before GO or deployment.
+pool restart. The dedicated API runner issues 12-second permits (isolated option
+bounded5–120s; default120s), verifies renewal/old-token expiry, drops a durable
+submit acknowledgement and checks exact retry/no duplicate, then stops the actual
+API while a PNG/scene remains pending and recovers without reloading the editor.
+Compaction, backup restore and21/210-browser acceptance remain before GO/deployment.

@@ -28,6 +28,9 @@ public static class BoardPrototypeEndpoints
             || CryptographicOperations.FixedTimeEquals(sceneRoot, apiKey)
             || CryptographicOperations.FixedTimeEquals(sceneRoot, key))
             throw new InvalidOperationException("Distinct board signing, scene-root and API keys required.");
+        // Short lifetimes exercise real expiry/reconnect in the isolated integration runner.
+        var lifetime = app.Configuration.GetValue<int?>("BoardPrototype:PermitLifetimeSeconds") ?? 120;
+        if (lifetime is < 5 or > 120) throw new InvalidOperationException("Board permit lifetime must be 5–120 seconds.");
         foreach (var role in new[] { "teacher", "student" })
         {
             var policy = role;
@@ -41,7 +44,7 @@ public static class BoardPrototypeEndpoints
                     var workspace = Guid.Parse(principal.FindFirstValue("workspace_id")!);
                     var user = Guid.Parse(principal.FindFirstValue("sub")!);
                     var claims = new Permit(workspace.ToString("N"), "lesson-" + lessonId.ToString("N"), user.ToString("N"),
-                        "editor", "tas-board-prototype", now, Math.Min(now + 120, authExpiry), Guid.NewGuid().ToString("N"),
+                        "editor", "tas-board-prototype", now, Math.Min(now + lifetime, authExpiry), Guid.NewGuid().ToString("N"),
                         principal.FindFirstValue("membership_id")!, policy, principal.FindFirstValue("jti") ?? "",
                         principal.FindFirstValue("workspace_role") ?? "", lessonId);
                     var body = Base64Url(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(claims)));
