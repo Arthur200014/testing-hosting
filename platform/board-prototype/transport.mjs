@@ -6,17 +6,19 @@ import { bindRoom } from './room.mjs';
 // Isolated experiment only. No executable entry point or production configuration.
 // Scene payloads stay opaque; reconstruction/reconciliation belongs to the editor.
 export async function startTestTransport({ key, journal, revoked = () => false,
-  clock = Date.now, port = 0, maxConnections = 256, maxRoomConnections = 24 }) {
+  authorize = async () => true, clock = Date.now, port = 0, maxConnections = 256, maxRoomConnections = 24 }) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Invalid test port');
   const http = createServer((_, res) => { res.writeHead(404); res.end(); });
   const io = new Server(http, { serveClient: false, transports: ['websocket'],
     maxHttpBufferSize: 270000, perMessageDeflate: false, allowUpgrades: false });
   const connections = new Set(), counts = new Map();
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     try {
       const { token, workspace, board } = socket.handshake.auth ?? {};
       const scope = Object.freeze({ workspace, board });
       const claims = authorizeEvent(key, token, scope, 'replay', { now: clock(), revoked });
+      if (!await authorize({ token, scope, claims })) throw new Error('Access denied');
+      authorizeEvent(key, token, scope, 'replay', { now: clock(), revoked });
       const roomId = `${workspace}/${board}`;
       if (connections.size >= maxConnections || (counts.get(roomId) ?? 0) >= maxRoomConnections)
         throw new Error('Connection quota');
@@ -31,7 +33,11 @@ export async function startTestTransport({ key, journal, revoked = () => false,
     let room;
     try { room = bindRoom({ key, token, scope, journal, revoked, clock }); }
     catch { connections.delete(socket); counts.set(roomId, counts.get(roomId) - 1); socket.disconnect(true); return; }
-    const check = event => authorizeEvent(key, token, scope, event, { now: clock(), revoked });
+    const check = async event => {
+      const claims = authorizeEvent(key, token, scope, event, { now: clock(), revoked });
+      if (!await authorize({token,scope,claims})) throw new Error('Access denied');
+      authorizeEvent(key, token, scope, event, { now: clock(), revoked });
+    };
     let pending = false, windowAt = clock(), requests = 0;
     socket.on('disconnect', () => {
       connections.delete(socket);
@@ -41,15 +47,15 @@ export async function startTestTransport({ key, journal, revoked = () => false,
     function handle(event, action) {
       socket.on(event, async (payload, ack) => {
         if (typeof ack !== 'function') return;
-        try { check(event === 'submit' ? 'scene' : 'replay'); }
-        catch { ack({ ok: false, error: 'ACCESS_DENIED' }); socket.disconnect(true); return; }
         if (clock() - windowAt >= 1000) { windowAt = clock(); requests = 0; }
         if (++requests > 50 || pending) { ack({ ok: false, error: 'BUSY' }); return; }
         pending = true;
         try {
+          try { await check(event === 'submit' ? 'scene' : 'replay'); }
+          catch { ack({ok:false,error:'ACCESS_DENIED'}); socket.disconnect(true); return; }
           const result = await action(payload);
           // Recheck before any data leaves the process, including slow storage reads.
-          check('replay');
+          await check('replay');
           if (socket.connected) ack({ ok: true, ...result });
         } catch {
           if (socket.connected) ack({ ok: false, error: 'REQUEST_FAILED' });
@@ -74,8 +80,13 @@ export async function startTestTransport({ key, journal, revoked = () => false,
   });
   const sweep = setInterval(() => {
     for (const socket of connections) {
-      try { authorizeEvent(key, socket.data.token, socket.data.scope, 'replay', { now: clock(), revoked }); }
-      catch { socket.disconnect(true); }
+      if (socket.data.checking) continue;
+      socket.data.checking = true;
+      Promise.resolve().then(async () => {
+        const {token,scope,claims} = socket.data;
+        authorizeEvent(key,token,scope,'replay',{now:clock(),revoked});
+        if (!await authorize({token,scope,claims})) throw new Error('Access denied');
+      }).catch(() => socket.disconnect(true)).finally(() => { socket.data.checking = false; });
     }
   }, 250);
   sweep.unref();

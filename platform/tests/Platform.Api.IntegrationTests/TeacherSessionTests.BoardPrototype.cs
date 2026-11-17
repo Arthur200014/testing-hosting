@@ -52,6 +52,10 @@ public sealed partial class TeacherSessionTests
         Assert.True(response.Headers.CacheControl!.NoStore);
         var result=await response.Content.ReadFromJsonAsync<JsonElement>();
         var token=result.GetProperty("token").GetString()!;var parts=token.Split('.');
+        var access="/api/v1/board-prototype/access";
+        Assert.Equal(HttpStatusCode.NoContent,(await client.PostAsJsonAsync(access,new {token})).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync(access,new {token=token+"x"})).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync(access,new {token="malformed"})).StatusCode);
         var actual=Base64UrlEncoder.DecodeBytes(parts[1]);
         Assert.Equal(System.Security.Cryptography.HMACSHA256.HashData(Convert.FromBase64String(boardKey),System.Text.Encoding.UTF8.GetBytes(parts[0])),actual);
         var body=JsonDocument.Parse(Base64UrlEncoder.DecodeBytes(parts[0])).RootElement;
@@ -68,13 +72,20 @@ public sealed partial class TeacherSessionTests
             return new JwtSecurityTokenHandler().WriteToken(jwt);
         }
         client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",StudentToken(first,firstStudent));
-        Assert.Equal(HttpStatusCode.OK,(await client.PostAsync(studentPath,null)).StatusCode);
+        var studentPermitResponse=await client.PostAsync(studentPath,null);
+        Assert.Equal(HttpStatusCode.OK,studentPermitResponse.StatusCode);
+        var studentPermit=(await studentPermitResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("token").GetString()!;
+        Assert.Equal(HttpStatusCode.NoContent,(await client.PostAsJsonAsync(access,new {token=studentPermit})).StatusCode);
         await using(var scope=factory.Services.CreateAsyncScope()) {
             var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
             (await db.WorkspaceStudentMemberships.SingleAsync(x=>x.Id==first)).IsActive=false;
             await db.SaveChangesAsync();
         }
         Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsync(studentPath,null)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync(access,new {token=studentPermit})).StatusCode);
+        client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",session.AccessToken);
+        Assert.Equal(HttpStatusCode.NoContent,(await client.PostAsync("/api/v1/teacher-sessions/logout",null)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync(access,new {token})).StatusCode);
         client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",StudentToken(foreign,foreignStudent));
         Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsync(studentPath,null)).StatusCode);
         client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",StudentToken(first,foreignStudent));

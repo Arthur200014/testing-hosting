@@ -146,3 +146,16 @@ test('revocation during a storage read never releases the already-read scene', a
   const result = await pending;
   assert.equal(result.ok, false); assert.equal(result.frames, undefined);
 });
+
+test('async API authorization is checked on connected operations and idle revocation', async t => {
+  let allowed = true;
+  const f = await fixture(t,false,{authorize:async()=>allowed});
+  const s=scope(),c=await f.client(auth(s));
+  assert.equal((await request(c,'submit',frame('authorized'))).ok,true);
+  allowed=false;
+  assert.equal((await request(c,'replay',{after:0})).error,'ACCESS_DENIED');
+  await assert.rejects(f.client(auth(s,'new')),/denied/);
+  allowed=true;const idle=await f.client(auth(s,'idle'));
+  const disconnected=new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('Idle access not revoked')),2000);idle.once('disconnect',()=>{clearTimeout(timer);resolve();});});
+  allowed=false;await disconnected;
+});

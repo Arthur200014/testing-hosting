@@ -47,6 +47,11 @@ await call('teacher/schedule-rules/'+north.rule.id,south.token,{expectedRevision
 const beforeLessons=await call('teacher/lessons',north.token);
 const beforeRules=await call('teacher/schedule-rules',north.token);
 assert.equal(beforeLessons.length,3);
+if(process.env.TAS_BOARD_TEST_ONLY==='1') {
+  const { runApiBoardBrowser } = await import('./board-prototype/api-browser.mjs');
+  await runApiBoardBrowser({api,accounts,group,beforeLessons,call});
+  process.exit(0);
+}
 const browser=await chromium.launch({headless:true});
 try {
   const context=await browser.newContext({viewport:{width:1348,height:926},timezoneId:'America/Los_Angeles',locale:'ru-RU'});

@@ -2,8 +2,8 @@
 
 Branch-only experiment. No production service, Pages navigation, Timeweb call,
 Firebase writer change, paid SDK, vendor account or vendor key is introduced.
-P2 remains partial: actual .NET-session browser wiring, membership revocation,
-files/compaction and full21/210-browser fault/convergence acceptance are pending.
+P2 now includes a real .NET-session/revocation browser runner; files/compaction,
+key delivery and full21/210-browser fault/convergence acceptance remain pending.
 
 ## Dependencies and licence gate
 
@@ -61,9 +61,11 @@ class checks precede two-minute, no-store permits. No URL tokens.
 
 transport.mjs exports startTestTransport only, with loopback listeners and no
 production entry point. Every submit/replay and outgoing read rechecks signed
-scope/role/expiry and an injected revocation predicate. The predicate is still
-a test hook, not a connection to actual .NET membership revocation. Viewer
-writes fail on the server. No client-controlled join/broadcast destination.
+scope/role/expiry. The real API runner supplies apiAccess: signed permits are
+rechecked against current .NET teacher sessions, memberships and lesson/class
+access before each operation, before returning results, and during a250ms idle
+sweep. API timeout/denial/outage fails closed. The relay receives neither user
+API JWTs nor the API signing key. Viewer writes fail on the server. No client-controlled join/broadcast destination.
 
 One request per connection,50 requests/second,256 connections total,24 per room,
 256KiB scene frames and8-frame replay pages bound work. PostgreSQL row locks
@@ -97,6 +99,40 @@ helper exists, but needs wiring into the existing isolated .NET browser runner.
 
 Transport tests also exercise a short10-room ×21-protocol-client save/restore
 profile, quotas, retries, delayed operations and injected storage failures.
-Protocol counts are not P3/P4 browser or sustained-load acceptance. Membership
-revocation bridge, files, key distribution, compaction, prolonged reconnect and
-full concurrency/fault acceptance remain before GO and any application merge.
+Protocol counts are not P3/P4 browser or sustained-load acceptance. Files, key distribution, compaction, prolonged reconnect and full concurrency/
+fault acceptance remain before GO and any application merge.
+
+## Actual .NET session bridge
+
+`TAS_BOARD_TEST_ONLY=1 bash platform/scripts/calendar-real-browser.sh` (from the
+repository root, using the workflow's installed browser dependencies) reuses the
+existing disposable API/PostgreSQL bootstrap and HTTP fixtures. The mode sets a
+fresh dedicated room key, isolated IntegrationTests-only API endpoints, a
+loopback PostgreSQL port and the dedicated tas_board_test_api DB. No production
+compose/configuration file is changed; its override exists only in a temporary
+directory. Cleanup retains the existing per-project disposal rules.
+
+After ordinary teacher/student session exchange, three browser contexts request
+permits through the real .NET HTTP endpoints. Node validates those signed permits
+online without receiving API JWTs. Permit TTL is capped by the authenticating
+JWT expiry. Introspection reconstructs only signed identity/session claims and
+reuses the current active-teacher authorization policy plus the same lesson/
+class/student access checks as issuance. Both routes remain disabled by default
+and fail startup outside Development/IntegrationTests if explicitly enabled.
+
+The runner checks teacher+two pupils drawing/persistence, foreign teacher and
+nonparticipant rejection, an already-connected pupil after membership archive,
+a connected teacher after logout, refusal to issue replacement permits, then
+API/room/database-pool restart and fresh-browser recovery for the remaining
+pupil. Archive/logout use ordinary HTTP actions on freshly generated synthetic
+fixtures only. The API restart targets a container discovered by the exact
+fresh test-project label, never a production name.
+
+An operation admitted before a concurrent revocation may finish its durable
+append; returning data/acknowledgement still requires a successful subsequent
+check. This is not a transactional cross-service revocation fence. Failure of
+API validation disconnects clients; automatic session/permit renewal and large
+reconnect/fault profiles remain pending. The250ms sweep is a polling interval,
+not a measured revocation latency guarantee under load. The original synthetic
+browser runner remains useful for isolated editor checks but is not real-login
+acceptance by itself.

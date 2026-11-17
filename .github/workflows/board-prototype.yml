@@ -5,10 +5,16 @@ on:
     paths:
       - 'platform/board-prototype/**'
       - '.github/workflows/board-prototype.yml'
+      - 'platform/src/Platform.Api/Boards/**'
+      - 'platform/calendar-real-browser.mjs'
+      - 'platform/scripts/calendar-real-browser.sh'
   pull_request:
     paths:
       - 'platform/board-prototype/**'
       - '.github/workflows/board-prototype.yml'
+      - 'platform/src/Platform.Api/Boards/**'
+      - 'platform/calendar-real-browser.mjs'
+      - 'platform/scripts/calendar-real-browser.sh'
 permissions:
   contents: read
 jobs:
@@ -38,7 +44,7 @@ jobs:
       - name: Verify all runtime licences and font notices
         run: npm --prefix platform/board-prototype run licenses
       - name: Real Socket.IO persistence and restart with PostgreSQL
-        run: node --test platform/board-prototype/transport.test.mjs
+        run: node --test platform/board-prototype/transport.test.mjs platform/board-prototype/api-access.test.mjs
       - name: PostgreSQL multi-writer persistence and recovery
         run: node --test platform/board-prototype/postgres.test.mjs
       - name: Room authorization and durable replay
@@ -67,3 +73,20 @@ jobs:
         run: cd platform/board-prototype && npm run editor:build
       - name: Verify built fonts and notice distribution
         run: cd platform/board-prototype && npm run licenses:built
+
+  dotnet-board-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm --prefix platform/board-prototype ci --ignore-scripts --no-audit --no-fund
+      - name: Install existing runner browser dependency
+        run: npm install --no-save --no-package-lock playwright@1.56.1
+      - run: cd platform/board-prototype && npx playwright install --with-deps chromium
+      - name: Actual .NET sessions, connected access revocation and restart
+        env:
+          TAS_BOARD_TEST_ONLY: '1'
+        run: bash platform/scripts/calendar-real-browser.sh
