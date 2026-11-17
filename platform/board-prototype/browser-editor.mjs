@@ -47,7 +47,7 @@ try {
   assert.deepEqual(await active(a),await active(teacher)); assert.deepEqual(await active(b),await active(teacher));
   await teacher.getByTitle(/Selection/).first().click(); await teacher.mouse.click(300,250); await teacher.keyboard.press('Backspace');
   for(const p of [teacher,a,b]) await count(p,2);
-  await teacher.getByTitle(/Undo/).first().click();
+  await teacher.getByRole('button',{name:'Undo',exact:true}).click();
   for(const p of [teacher,a,b]) await count(p,3);
   const expected = await active(teacher);
   // Wait for durable ack and catch-up before stopping both the transport and storage pool.
