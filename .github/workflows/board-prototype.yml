@@ -90,3 +90,29 @@ jobs:
         env:
           TAS_BOARD_TEST_ONLY: '1'
         run: bash platform/scripts/calendar-real-browser.sh
+
+
+  dotnet-board-group:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm --prefix platform/board-prototype ci --ignore-scripts --no-audit --no-fund
+      - name: Install existing runner browser dependency
+        run: npm install --no-save --no-package-lock playwright@1.56.1
+      - run: cd platform/board-prototype && npx playwright install --with-deps chromium
+      - name: Actual API teacher and twenty pupil browser convergence
+        env:
+          TAS_BOARD_TEST_ONLY: '1'
+          TAS_BOARD_GROUP_TEST_ONLY: '1'
+        run: bash platform/scripts/calendar-real-browser.sh
+      - name: Retain synthetic group result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: board-p3-group-result
+          path: test-results/board-group-result.json
+          if-no-files-found: warn

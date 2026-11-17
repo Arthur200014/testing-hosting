@@ -250,3 +250,28 @@ files are temporary0600 synthetic data and removed by the runner. API metadata a
 scene-root configuration are separate recovery prerequisites, not contained in this
 board-only dump. Production backup/restore automation and offline tab durability
 are not implemented. No production schema, service or configuration is changed.
+
+
+## P3 actual group runner
+
+`TAS_BOARD_TEST_ONLY=1 TAS_BOARD_GROUP_TEST_ONLY=1 bash platform/scripts/calendar-real-browser.sh`
+creates one synthetic20-member group through existing API operations and obtains
+20 distinct actual pupil sessions, respecting unchanged per-IP login limits/429s.
+It uses21 separate Chromium contexts/editors connected simultaneously and the
+normal120s board permit lifetime; the smaller expiry/fault runner keeps12s.
+
+The group scenario compares every serialized element field, order, versions,
+nonces, tombstones, image SHA-256 and PDF attachment presence across all clients.
+It exercises21 simultaneous drawings, a same-element conflict, simultaneous
+removals/undo, two offline writers with lost acknowledgement/exact retry, late
+join, PNG/PDF, stale checkpoint interleaving, room/storage-pool restart with a
+pending teacher edit and all21 editor reloads. Foreign/nonparticipant access and
+connected membership revocation use actual API checks. A test-only transport
+controller closes selected sockets after their browser context goes offline;
+there is no additional network/production endpoint.
+
+`test-results/board-group-result.json` records PASS/FAIL, phase durations, actual
+principal counts and convergence hashes; no login codes, tokens or keys. CI retains
+this synthetic artifact. P3 results do not establish P4 ten-room/210-browser
+capacity or production acceptance. All existing safety/isolated-database guards
+and the P2 backup/expiry runner remain in place.

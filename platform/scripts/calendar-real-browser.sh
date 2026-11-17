@@ -17,6 +17,8 @@ export TAS_REAL_API=http://127.0.0.1:18081 TAS_REAL_SITE=http://127.0.0.1:8767
 compose=(docker compose --env-file .env.example -p "$project")
 if [[ "${TAS_BOARD_TEST_ONLY:-0}" == 1 ]]; then
   export POSTGRES_DB=tas_board_test_api
+  export TAS_BOARD_PERMIT_LIFETIME_SECONDS=12
+  if [[ "${TAS_BOARD_GROUP_TEST_ONLY:-0}" == 1 ]]; then export TAS_BOARD_PERMIT_LIFETIME_SECONDS=120; fi
   export TAS_BOARD_SIGNING_KEY="$(openssl rand -base64 32)"
   export TAS_BOARD_SCENE_ROOT_KEY="$(openssl rand -base64 32)"
   export BOARD_TEST_DATABASE_URL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@127.0.0.1:15439/$POSTGRES_DB"
@@ -28,7 +30,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: IntegrationTests
       BoardPrototype__Enabled: "true"
-      BoardPrototype__PermitLifetimeSeconds: "12"
+      BoardPrototype__PermitLifetimeSeconds: "${TAS_BOARD_PERMIT_LIFETIME_SECONDS}"
       BoardPrototype__SigningKey: ${TAS_BOARD_SIGNING_KEY}
       BoardPrototype__SceneRootKey: ${TAS_BOARD_SCENE_ROOT_KEY}
       Cors__AllowedOrigins__1: http://127.0.0.1:8768

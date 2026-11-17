@@ -18,6 +18,8 @@ async function call(path,token,body,expected=200,method=body?'POST':'GET') {
   const text=await res.text();
   return text?JSON.parse(text):null;
 }
+const boardGroup=process.env.TAS_BOARD_GROUP_TEST_ONLY==='1';
+if(boardGroup)assert.equal(process.env.TAS_BOARD_TEST_ONLY,'1');
 const accounts={};
 for(const side of ['north','south']) {
   const workspace='tas-calendar-'+side, email='calendar-'+side+'@example.invalid';
@@ -25,13 +27,13 @@ for(const side of ['north','south']) {
   const token=login.accessToken;
   const [program]=await call('teacher/programs',token);
   const students=[];
-  for(let i=1;i<=(side==='north'?2:1);i++) students.push(await call('teacher/students',token,{requestId:randomUUID(),programId:program.id,studentName:'Тест '+side+' ученик '+i},201));
+  for(let i=1;i<=(side==='north'?(boardGroup?20:2):1);i++) students.push(await call('teacher/students',token,{requestId:randomUUID(),programId:program.id,studentName:'Тест '+side+' ученик '+i},201));
   const item=await call('teacher/classes',token,{requestId:randomUUID(),studentMembershipId:students[0].membershipId,title:'Тестовый класс '+side,durationMinutes:side==='north'?90:60},201);
   const rule=await call('teacher/schedule-rules',token,{requestId:randomUUID(),classId:item.id,classKind:'individual',daysMask:1,startMinute:960,durationMinutes:60,timeZoneId:'Europe/Moscow'},201);
   accounts[side]={workspace,email,token,students,item,rule};
 }
 const north=accounts.north, south=accounts.south;
-const group=await call('teacher/groups',north.token,{requestId:randomUUID(),title:'Тестовая пара',memberIds:north.students.map(s=>s.membershipId),durationMinutes:120},201);
+const group=await call('teacher/groups',north.token,{requestId:randomUUID(),title:boardGroup?'Тестовая группа 20':'Тестовая пара',memberIds:north.students.map(s=>s.membershipId),durationMinutes:120},201);
 for(let i=0;i<3;i++) {
   const body={requestId:randomUUID(),title:'Сохранённое занятие '+(i+1),lessonAt:`2026-11-16T${String(6+i).padStart(2,'0')}:00:00Z`,
     ...(i===2?{groupClassId:group.id}:{individualClassId:north.item.id}),
@@ -48,7 +50,7 @@ const beforeLessons=await call('teacher/lessons',north.token);
 const beforeRules=await call('teacher/schedule-rules',north.token);
 assert.equal(beforeLessons.length,3);
 if(process.env.TAS_BOARD_TEST_ONLY==='1') {
-  const { runApiBoardBrowser } = await import('./board-prototype/api-browser.mjs');
+  const { runApiBoardBrowser } = await import(boardGroup?'./board-prototype/group-browser.mjs':'./board-prototype/api-browser.mjs');
   await runApiBoardBrowser({api,accounts,group,beforeLessons,call});
   process.exit(0);
 }

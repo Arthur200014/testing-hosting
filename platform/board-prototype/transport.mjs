@@ -114,5 +114,7 @@ export async function startTestTransport({ key, journal, revoked = () => false,
     http.once('error', reject); http.listen(port, '127.0.0.1', resolve);
   }).catch(async error => { clearInterval(sweep); await io.close(); throw error; });
   return { url: `http://127.0.0.1:${http.address().port}`,
+    // Test controller only; never exposed as a network operation.
+    disconnectUser(user) { for(const socket of connections)if(socket.data.claims.user===user)socket.disconnect(true); },
     async close() { clearInterval(sweep); await new Promise(resolve => io.close(resolve)); } };
 }
