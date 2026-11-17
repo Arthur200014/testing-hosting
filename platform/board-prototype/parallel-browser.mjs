@@ -96,7 +96,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
   // barriers after dispatched input; scene and durability checks below still apply.
   const draw=async(p,x,y)=>{await p.getByTitle(/Rectangle/).first().click({noWaitAfter:true});await p.waitForFunction(()=>window.__BOARD_EDITOR.getAppState().activeTool.type==='rectangle');await p.mouse.move(x,y);await p.mouse.down();await p.mouse.move(x+65,y+45,{steps:3});await p.mouse.up();};
   async function select(p,id){const e=await p.evaluate(id=>window.__BOARD_EDITOR.getSceneElements().find(e=>e.id===id),id);assert.ok(e);
-    await p.getByTitle(/Selection/).first().click({noWaitAfter:true});await p.waitForFunction(()=>window.__BOARD_EDITOR.getAppState().activeTool.type==='selection');await p.mouse.move(e.x-5,e.y-5);await p.mouse.down();await p.mouse.move(e.x+e.width+5,e.y+e.height+5,{steps:3});await p.mouse.up();
+    await p.getByTitle(/Selection/).first().click({noWaitAfter:true});await p.waitForFunction(()=>window.__BOARD_EDITOR.getAppState().activeTool.type==='selection');await p.mouse.click(e.x+e.width/2,e.y);
     await p.waitForFunction(id=>{const s=window.__BOARD_EDITOR.getAppState().selectedElementIds;return s[id]&&Object.values(s).filter(Boolean).length===1;},id);
   }
   async function converge(room,active,deleted){

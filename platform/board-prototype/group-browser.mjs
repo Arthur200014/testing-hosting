@@ -88,7 +88,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
   }
   async function select(p,id){
     const e=await p.evaluate(id=>window.__BOARD_EDITOR.getSceneElements().find(e=>e.id===id),id);assert.ok(e);
-    await p.getByTitle(/Selection/).first().click();await p.mouse.move(e.x-6,e.y-6);await p.mouse.down();await p.mouse.move(e.x+e.width+6,e.y+e.height+6,{steps:5});await p.mouse.up();
+    await p.getByTitle(/Selection/).first().click();await p.mouse.click(e.x+e.width/2,e.y);
     await p.waitForFunction(id=>{const s=window.__BOARD_EDITOR.getAppState().selectedElementIds;return s[id]&&Object.values(s).filter(Boolean).length===1;},id);
   }
   try{
