@@ -53,3 +53,9 @@ test('deduplicates changes and ignores blank lines', () => {
   assert.equal(r.changed_count, 2);
   assert.equal(r.run_backend, true);
 });
+
+test('board core uses dedicated CI without unrelated backend suite', () => {
+  const r = pick(['platform/board-prototype/core.test.mjs'], 'tas/ui06-board-prototype');
+  assert.deepEqual([r.run_shared, r.run_backend, r.run_web, r.run_task], [false, false, false, false]);
+  assert.equal(pick(['platform/src/Platform.Api/Program.cs', 'platform/board-prototype/access.mjs']).run_backend, true);
+});

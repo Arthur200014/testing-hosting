@@ -1204,6 +1204,8 @@ app.MapPost("/api/v1/homework-submissions", async (
     };
 }).RequireAuthorization("student");
 
+TestingHosting.Platform.Boards.BoardPrototypeEndpoints.Map(app);
+
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = registration => registration.Tags.Contains("ready") });
 app.MapHealthChecks("/health/migrations", new HealthCheckOptions { Predicate = registration => registration.Tags.Contains("migrations") });

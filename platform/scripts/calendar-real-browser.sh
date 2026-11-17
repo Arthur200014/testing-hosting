@@ -15,6 +15,28 @@ export API_PORT=18081 CORS_ALLOWED_ORIGIN=http://127.0.0.1:8767
 export TAS_REAL_COMPOSE_PROJECT="$project"
 export TAS_REAL_API=http://127.0.0.1:18081 TAS_REAL_SITE=http://127.0.0.1:8767
 compose=(docker compose --env-file .env.example -p "$project")
+if [[ "${TAS_BOARD_TEST_ONLY:-0}" == 1 ]]; then
+  export POSTGRES_DB=tas_board_test_api
+  export TAS_BOARD_PERMIT_LIFETIME_SECONDS=12
+  if [[ "${TAS_BOARD_GROUP_TEST_ONLY:-0}" == 1 || "${TAS_BOARD_PARALLEL_TEST_ONLY:-0}" == 1 || "${TAS_BOARD_SOAK_GROUP_ONLY:-0}" == 1 ]]; then export TAS_BOARD_PERMIT_LIFETIME_SECONDS=120; fi
+  export TAS_BOARD_SIGNING_KEY="$(openssl rand -base64 32)"
+  export TAS_BOARD_SCENE_ROOT_KEY="$(openssl rand -base64 32)"
+  export BOARD_TEST_DATABASE_URL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@127.0.0.1:15439/$POSTGRES_DB"
+  cat > "$task_dir/board.yaml" <<'YAML'
+services:
+  db:
+    ports: ["127.0.0.1:15439:5432"]
+  api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: IntegrationTests
+      BoardPrototype__Enabled: "true"
+      BoardPrototype__PermitLifetimeSeconds: "${TAS_BOARD_PERMIT_LIFETIME_SECONDS}"
+      BoardPrototype__SigningKey: ${TAS_BOARD_SIGNING_KEY}
+      BoardPrototype__SceneRootKey: ${TAS_BOARD_SCENE_ROOT_KEY}
+      Cors__AllowedOrigins__1: http://127.0.0.1:8768
+YAML
+  compose+=(-f compose.yaml -f "$task_dir/board.yaml")
+fi
 site_pid=''
 cleanup() {
   local code=$?
@@ -44,6 +66,10 @@ INSERT INTO platform."Programs" ("Id","WorkspaceId","Code","DisplayName","IsActi
 SELECT gen_random_uuid(),"Id",'TEST-MATH','Учебная математика',true,NOW()
 FROM platform."Workspaces" WHERE "Slug" IN ('tas-calendar-north','tas-calendar-south');
 SQL
+if [[ "${TAS_BOARD_TEST_ONLY:-0}" == 1 ]]; then
+  env -u JWT_SIGNING_KEY -u STUDENT_CODE_PEPPER -u TAS_BOARD_SCENE_ROOT_KEY node platform/calendar-real-browser.mjs
+  exit 0
+fi
 mkdir -p "$task_dir/site/platform"
 for file in student.html material-file.mjs lesson-recordings.mjs student-card.mjs pupil-history.mjs pupil-feedback.mjs teacher.html teacher-report.mjs teacher-data.mjs teacher-library.mjs teacher-mutation.mjs teacher-calendar.mjs homework-deadline.mjs class-native-homework.mjs class-materials-ui.mjs lesson-materials-ui.mjs lesson-topics-ui.mjs class-program-ui.mjs meleto-fidelity.css; do
   cp "platform/$file" "$task_dir/site/platform/$file"

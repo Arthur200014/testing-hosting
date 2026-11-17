@@ -20,7 +20,7 @@ using TestingHosting.Platform.TestAttempts;
 
 namespace TestingHosting.Platform.IntegrationTests;
 
-public sealed class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiFactory>
+public sealed partial class TeacherSessionTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private const string Password = "Synthetic-Teacher-Password-Only-123!";
     private const string ClaimCode = "synthetic-claim-code-for-integration-tests-only-2026";

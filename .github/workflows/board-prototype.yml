@@ -1,0 +1,230 @@
+name: Isolated board prototype
+on:
+  push:
+    branches: ['tas/**']
+    paths:
+      - 'platform/board-prototype/**'
+      - '.github/workflows/board-prototype.yml'
+      - 'platform/src/Platform.Api/Boards/**'
+      - 'platform/tests/Platform.Api.IntegrationTests/TeacherSessionTests.BoardPrototype.cs'
+      - 'platform/calendar-real-browser.mjs'
+      - 'platform/scripts/calendar-real-browser.sh'
+  pull_request:
+    paths:
+      - 'platform/board-prototype/**'
+      - '.github/workflows/board-prototype.yml'
+      - 'platform/src/Platform.Api/Boards/**'
+      - 'platform/tests/Platform.Api.IntegrationTests/TeacherSessionTests.BoardPrototype.cs'
+      - 'platform/calendar-real-browser.mjs'
+      - 'platform/scripts/calendar-real-browser.sh'
+permissions:
+  contents: read
+concurrency:
+  group: isolated-board-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  cancel-superseded:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Cancel only superseded prototype runs on this owned branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TEST_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          SOURCE_REPO: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+        run: |
+          python3 - <<'PY'
+          import os,json,urllib.request,urllib.parse,urllib.error
+          repo='Arthur200014/testing-hosting'
+          if os.environ['GITHUB_REPOSITORY']!=repo or os.environ['SOURCE_REPO']!=repo: raise SystemExit(0)
+          base='https://api.github.com/repos/'+repo
+          headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','User-Agent':'isolated-board-ci'}
+          url=base+'/actions/workflows/board-prototype.yml/runs?'+urllib.parse.urlencode({'branch':'tas/ui06-board-prototype','per_page':50})
+          with urllib.request.urlopen(urllib.request.Request(url,headers=headers)) as response: runs=json.load(response)['workflow_runs']
+          for run in runs:
+              if run['id']==int(os.environ['GITHUB_RUN_ID']) or run['head_sha']==os.environ['TEST_HEAD'] or run['status']=='completed': continue
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(base+'/actions/runs/'+str(run['id'])+'/cancel',headers=headers,data=b'',method='POST')): pass
+                  print('Cancelled superseded prototype run',run['id'])
+              except urllib.error.HTTPError as error: print('Cancellation unavailable',run['id'],error.code)
+          PY
+
+  room-core:
+    needs: cancel-superseded
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: tas_board_test
+          POSTGRES_USER: board_test
+          POSTGRES_PASSWORD: synthetic-board-test-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U board_test -d tas_board_test"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      BOARD_TEST_DATABASE_URL: postgres://board_test:synthetic-board-test-only@127.0.0.1:5432/tas_board_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked free transport and database dependencies
+        run: npm --prefix platform/board-prototype ci --ignore-scripts --no-audit --no-fund
+      - name: Verify all runtime licences and font notices
+        run: npm --prefix platform/board-prototype run licenses
+      - name: Real Socket.IO persistence and restart with PostgreSQL
+        run: node --test platform/board-prototype/transport.test.mjs platform/board-prototype/api-access.test.mjs platform/board-prototype/reconnect.test.mjs platform/board-prototype/reconcile.test.mjs
+      - name: PostgreSQL multi-writer persistence and recovery
+        # Files share test-only bootstrap DDL. Do not queue ALTER TABLE behind
+        # another file's deliberately held checkpoint transaction/MVCC read.
+        # Competing writers and pools within each test remain concurrent.
+        run: node --test --test-concurrency=1 platform/board-prototype/postgres.test.mjs platform/board-prototype/files.test.mjs platform/board-prototype/checkpoint.test.mjs
+      - name: Room authorization and durable replay
+        run: node --test platform/board-prototype/core.test.mjs
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Live board API access predicates with PostgreSQL
+        env:
+          TEST_DATABASE_CONNECTION_STRING: Host=127.0.0.1;Port=5432;Database=tas_board_test;Username=board_test;Password=synthetic-board-test-only
+        run: dotnet test platform/tests/Platform.Api.IntegrationTests/Platform.Api.IntegrationTests.csproj --configuration Release --filter FullyQualifiedName~BoardPrototype --logger 'console;verbosity=normal'
+      - name: Install isolated Chromium
+        run: cd platform/board-prototype && npx playwright install --with-deps chromium
+      - name: Actual Excalidraw browser persistence with PostgreSQL
+        run: cd platform/board-prototype && npm run editor:browser
+      - name: CI scope regression
+        run: node --test scripts/tas-ci-scope.test.mjs
+
+  editor-license-clearance:
+    needs: cancel-superseded
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm --prefix platform/board-prototype ci --ignore-scripts --no-audit --no-fund
+      # Changes to versions, integrity, notices or font bytes require explicit review.
+      - run: npm --prefix platform/board-prototype run licenses:full
+      - name: Licence gate negative regressions
+        run: cd platform/board-prototype && node --test licence-audit.test.mjs
+      - name: Build isolated editor with retained notices
+        run: cd platform/board-prototype && npm run editor:build
+      - name: Verify built fonts and notice distribution
+        run: cd platform/board-prototype && npm run licenses:built
+
+  dotnet-board-browser:
+    needs: cancel-superseded
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm --prefix platform/board-prototype ci --ignore-scripts --no-audit --no-fund
+      - name: Install existing runner browser dependency
+        run: npm install --no-save --no-package-lock playwright@1.56.1
+      - run: cd platform/board-prototype && npx playwright install --with-deps chromium
+      - name: Actual .NET sessions, connected access revocation and restart
+        env:
+          TAS_BOARD_TEST_ONLY: '1'
+        run: bash platform/scripts/calendar-real-browser.sh
+
+
+  dotnet-board-group:
+    needs: cancel-superseded
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm --prefix platform/board-prototype ci --ignore-scripts --no-audit --no-fund
+      - name: Install existing runner browser dependency
+        run: npm install --no-save --no-package-lock playwright@1.56.1
+      - run: cd platform/board-prototype && npx playwright install --with-deps chromium
+      - name: Actual API teacher and twenty pupil browser convergence
+        env:
+          TAS_BOARD_TEST_ONLY: '1'
+          TAS_BOARD_GROUP_TEST_ONLY: '1'
+        run: bash platform/scripts/calendar-real-browser.sh
+      - name: Retain synthetic group result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: board-p3-group-result
+          path: test-results/board-group-result.json
+          if-no-files-found: warn
+
+
+  dotnet-board-parallel:
+    needs: cancel-superseded
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm --prefix platform/board-prototype ci --ignore-scripts --no-audit --no-fund
+      - name: Install existing runner browser dependency
+        run: npm install --no-save --no-package-lock playwright@1.56.1
+      - run: cd platform/board-prototype && npx playwright install --with-deps chromium
+      - name: Actual API two-room 40-editor synchronization profile
+        env:
+          TAS_BOARD_TEST_ONLY: '1'
+          TAS_BOARD_PARALLEL_TEST_ONLY: '1'
+        run: bash platform/scripts/calendar-real-browser.sh
+      - name: Retain runner resource evidence even on failure
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          paths=['/proc/meminfo','/sys/fs/cgroup/memory.max','/sys/fs/cgroup/memory.current','/sys/fs/cgroup/memory.events','/sys/fs/cgroup/cpu.max']
+          evidence={p:pathlib.Path(p).read_text() for p in paths if pathlib.Path(p).exists()}
+          out=pathlib.Path('test-results/board-parallel-host.json');out.parent.mkdir(exist_ok=True);out.write_text(json.dumps(evidence,indent=2))
+          PY
+      - name: Retain synthetic parallel-room result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: board-p4-parallel-result
+          path: |
+            test-results/board-parallel-result.json
+            test-results/board-parallel-host.json
+          if-no-files-found: warn
+
+
+  dotnet-board-group-soak:
+    needs: cancel-superseded
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm --prefix platform/board-prototype ci --ignore-scripts --no-audit --no-fund
+      - run: npm install --no-save --no-package-lock playwright@1.56.1
+      - run: cd platform/board-prototype && npx playwright install --with-deps chromium
+      - name: Actual API 21-editor fifteen-minute mixed-load acceptance
+        env:
+          TAS_BOARD_TEST_ONLY: '1'
+          TAS_BOARD_SOAK_GROUP_ONLY: '1'
+        run: bash platform/scripts/calendar-real-browser.sh
+      - name: Retain synthetic group-soak result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: board-p3-soak-result
+          path: test-results/board-group-soak-result.json
+          if-no-files-found: warn
