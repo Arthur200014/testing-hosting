@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 const root = dirname(fileURLToPath(import.meta.url));
 const lock = JSON.parse(await readFile(join(root, 'package-lock.json')));
 const manifest = JSON.parse(await readFile(join(root, 'package.json')));
+const transportOnly = process.argv.includes('--transport-only');
+const scope = JSON.parse(await readFile(join(root, 'transport-license-scope.json')));
 const allowed = new Set(['MIT', 'ISC', 'BSD-2-Clause', 'BSD-3-Clause', 'Apache-2.0', '(MIT OR CC0-1.0)']);
 for (const [name, version] of Object.entries(manifest.dependencies)) {
   if (!/^\d+\.\d+\.\d+$/.test(version) || lock.packages[''].dependencies[name] !== version)
@@ -11,10 +13,11 @@ for (const [name, version] of Object.entries(manifest.dependencies)) {
 }
 let report = '# Locked prototype runtime dependency notices\n\n'
   + 'Generated from package-lock.json and installed package licence/NOTICE files.\n'
-  + 'Covers pg and Socket.IO only; the editor graph is not installed or audited yet.\n\n';
+  + (transportOnly ? 'Covers pg and Socket.IO only; the editor graph is excluded and remains unaudited.\n\n' : 'Covers locked editor, React, pg and Socket.IO runtime packages; development build/test tools excluded.\n\n');
 let count = 0;
 for (const [path, entry] of Object.entries(lock.packages).sort(([a], [b]) => a.localeCompare(b))) {
-  if (!path) continue;
+  if (!path || entry.dev || (transportOnly && !scope[path])) continue;
+  if (transportOnly && scope[path] !== entry.version) throw new Error('Previously audited version changed: '+path);
   const dir = join(root, path), pkg = JSON.parse(await readFile(join(dir, 'package.json')));
   const license = pkg.license ?? (pkg.name === 'xmlhttprequest-ssl' && pkg.version === '2.1.2' && pkg.licenses?.length === 1 ? pkg.licenses[0].type : undefined);
   if (pkg.version !== entry.version || !entry.integrity || !allowed.has(license))

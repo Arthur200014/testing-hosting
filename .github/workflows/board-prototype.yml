@@ -14,7 +14,7 @@ permissions:
 jobs:
   room-core:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     services:
       postgres:
         image: postgres:17-alpine
@@ -35,7 +35,7 @@ jobs:
           node-version: '22'
       - name: Install locked free transport and database dependencies
         run: npm --prefix platform/board-prototype ci --ignore-scripts --no-audit --no-fund
-      - name: Verify locked dependency licences and notices
+      - name: Verify previously audited transport licences and notices
         run: npm --prefix platform/board-prototype run licenses
       - name: Real Socket.IO persistence and restart with PostgreSQL
         run: node --test platform/board-prototype/transport.test.mjs
@@ -43,5 +43,22 @@ jobs:
         run: node --test platform/board-prototype/postgres.test.mjs
       - name: Room authorization and durable replay
         run: node --test platform/board-prototype/core.test.mjs
+      - name: Install isolated Chromium
+        run: cd platform/board-prototype && npx playwright install --with-deps chromium
+      - name: Actual Excalidraw browser persistence with PostgreSQL
+        run: cd platform/board-prototype && npm run editor:browser
       - name: CI scope regression
         run: node --test scripts/tas-ci-scope.test.mjs
+
+  editor-license-clearance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm --prefix platform/board-prototype ci --ignore-scripts --no-audit --no-fund
+      # Deliberate release gate: the new editor graph must pass full clearance,
+      # independently of the previously audited 43 transport packages.
+      - run: npm --prefix platform/board-prototype run licenses:full

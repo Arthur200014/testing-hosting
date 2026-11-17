@@ -102,3 +102,35 @@ licence/NOTICE texts in THIRD_PARTY_NOTICES.txt. Two pg packages embed MIT in
 README; one legacy package declares its MIT licence via `licenses`. The future
 editor dependency graph still requires its own audit. Updating dependencies
 requires reviewing notices and regenerating them with `node audit-licenses.mjs --write`.
+
+## Real editor checkpoint (P2 still incomplete)
+
+The isolated Vite entry `editor/` uses pinned Excalidraw0.18.0/React18.3.1,
+local fonts and the authenticated transport. `npm run editor:browser` launches
+three distinct Chromium contexts with **synthetic issuer permits**, draws real
+rectangles concurrently, deletes/undoes through the editor, restarts transport
+and storage, then opens a fresh context and checks viewer/foreign isolation.
+BOARD_TEST_DATABASE_URL selects the existing dedicated loopback PostgreSQL
+adapter; without it the runner explicitly reports filesystem test evidence only.
+No .NET session or permit endpoint is mocked: this runner does not exercise them.
+The loopback-only `lessonPermit` client is provided, but actual login/issuance
+integration remains to be wired into the existing isolated .NET runner.
+
+Client updates use Excalidraw's exported element reconciliation and tombstones,
+not last-full-scene-wins. Remote replay uses CaptureUpdateAction.NEVER to keep it
+out of local undo. AES-GCM test-room keys are separate from permit signing keys;
+this is not an E2EE production claim or a key-distribution implementation. There
+is one serialized send/replay loop, retries retain the same encrypted payload
+and messageId, and edits during encryption remain pending. Images/files,
+compaction, long offline edits, full reconnect/convergence and21/210 browser
+profiles remain unaccepted. The scene key and initial permits are supplied only
+in memory by the synthetic runner. There is no public launch/navigation entry.
+
+**Release blocker:** installing the editor introduced234 additional runtime
+packages (including bundled diagram import dependencies). EDITOR_LICENSE_REVIEW.json
+is a metadata inventory, **not approval**. Missing npm notices, bundled fonts,
+EPL-2.0 and dual-licence choices require review and retention before merge/GO.
+`npm run licenses` explicitly verifies only the prior43 transport packages via
+transport-license-scope.json; `npm run licenses:full` intentionally fails closed
+on unreviewed editor packages. CI has a separate hard licence-clearance gate;
+passing browser tests does not bypass it. No production distribution is enabled.
