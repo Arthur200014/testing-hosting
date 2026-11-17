@@ -3,7 +3,7 @@
 Branch-only experiment. No production service, Pages navigation, Timeweb call,
 Firebase writer change, paid SDK, vendor account or vendor key is introduced.
 P2 includes actual .NET sessions, reconnect and encrypted checkpoint/backup recovery.
-Full21/210-browser fault/convergence acceptance remains pending.
+Full21/40-browser fault/convergence acceptance is required before GO.
 
 ## Dependencies and licence gate
 
@@ -221,7 +221,7 @@ pool restart. The dedicated API runner issues 12-second permits (isolated option
 bounded5–120s; default120s), verifies renewal/old-token expiry, drops a durable
 submit acknowledgement and checks exact retry/no duplicate, then stops the actual
 API while a PNG/scene remains pending and recovers without reloading the editor.
-Full21/210-browser acceptance remains before GO/deployment.
+Full21/40-browser acceptance remains before GO; production enablement is separate.
 
 
 ## Ordered encrypted checkpoints and isolated backup
@@ -281,7 +281,7 @@ there is no additional network/production endpoint.
 
 `test-results/board-group-result.json` records PASS/FAIL, phase durations, actual
 principal counts and convergence hashes; no login codes, tokens or keys. CI retains
-this synthetic artifact. P3 results do not establish P4 ten-room/210-browser
+this synthetic artifact. P3 results do not establish P4 two-room/40-browser
 capacity or production acceptance. All existing safety/isolated-database guards
 and the P2 backup/expiry runner remain in place.
 
@@ -300,19 +300,19 @@ and the existing small real-editor runner guard this before the21-editor scenari
 ## P4 actual parallel-room capacity profile
 
 `TAS_BOARD_TEST_ONLY=1 TAS_BOARD_PARALLEL_TEST_ONLY=1 bash platform/scripts/calendar-real-browser.sh`
-uses10 lesson rooms across2 isolated workspaces. Each room has21 independent real
-editor contexts. The42 authenticated identities (2 teachers +40 pupils) legitimately
-participate in five lessons each; report210 browser contexts separately from the
-42 unique subjects. API login limits remain unchanged, so setup takes several
+uses2 lesson rooms across2 isolated workspaces. Each room has20 independent real
+editor contexts (1 teacher +19 pupils). All40 editors have distinct authenticated
+identities:2 teachers +38 pupils, with no identity reused between editors.
+This owner-approved40-editor profile replaces the210-editor acceptance target. API login limits remain unchanged, so setup takes several
 minutes. Every editor obtains its own board-scoped permit through the actual API.
 
 The runner uses the normal production-built frontend on loopback, not development
-React overhead or simulated Socket.IO load. All210 editors stay open together.
+React overhead or simulated Socket.IO load. All40 editors stay open together.
 The profile covers parallel drawing, same-element conflicts, deletion/undo,
 offline writers/lost ack, PNG/PDF, checkpoints, shared relay/pool restart with
-pending teacher edits, ten cold reloads/PDF downloads, a tab closing during commit, actual isolated DB
+pending teacher edits, two cold reloads/PDF downloads, a tab closing during commit, actual isolated DB
 pause/unpause with pending writes, and a minimum15min mixed text/image/delete/undo/checkpoint workload.
-Full element/order/tombstone/file hashes must agree within each room; ten room
+Full element/order/tombstone/file hashes must agree within each room; two room
 hashes must stay distinct. Cross-workspace access is rejected by the actual API.
 
 `board-parallel-result.json` records achieved and target counts, phase durations,
@@ -330,7 +330,7 @@ A measured<1GiB host/cgroup memory headroom stops with BLOCKED rather than riski
 an unreported OOM or claiming PASS with fewer editors. Runner evidence is retained
 on failure too. No new infrastructure, production service, writer switch or real
 student data is involved. P4 must run before GO; adding this runner is not proof
-of210-editor capacity.
+of40-editor capacity;210-editor capacity remains unverified.
 
 
 `TAS_BOARD_TEST_ONLY=1 TAS_BOARD_SOAK_GROUP_ONLY=1 bash platform/scripts/calendar-real-browser.sh`
@@ -339,7 +339,7 @@ and a minimum15min mixed workload, writing board-group-soak-result.json. The P3
 functional runner is separate evidence and does not substitute for this duration.
 Metrics include p50/p95, fixed action seed, pinned component/browser versions,
 connection/disconnection counts, negative acknowledgements and peak in-flight
-operations. All210-editor and21-editor prolonged criteria must pass before GO.
+operations. All40-editor and21-editor prolonged criteria must pass before GO.
 
 
 The prolonged harness respects the normal10min API JWT lifetime. It uses ordinary
@@ -360,4 +360,7 @@ before/after revalidation remains mandatory. The periodic sweep skips only a
 redundant check when a live validation completed within250ms; every idle socket
 still revalidates, and no cached positive result authorizes reads/writes.
 Class/archive/enrollment/participant/workspace denial and idle revocation have
-focused regressions. The fifteen-minute210 profile must be rerun before any GO.
+focused regressions. A later210-editor run opened all210 contexts but timed out on a Chromium tool
+click before steady load (run44170721900). On18 November the owner reduced P4
+acceptance to40 editors. The15min duration,500ms delivery/2s acknowledgement
+budgets, isolation and recovery gates remain unchanged;210 is not a GO gate.

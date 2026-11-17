@@ -19,7 +19,8 @@ const numericFile=async path=>{try{const s=(await readFile(path,'utf8')).trim();
 export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}){
   assert.equal(process.env.TAS_BOARD_TEST_ONLY,'1');
   const groupSoak=process.env.TAS_BOARD_SOAK_GROUP_ONLY==='1';assert.ok(groupSoak||process.env.TAS_BOARD_PARALLEL_TEST_ONLY==='1');
-  const workspaceCount=groupSoak?1:2,roomCount=groupSoak?1:10,lessonsPerWorkspace=groupSoak?1:5,targetContexts=roomCount*21;
+  const workspaceCount=groupSoak?1:2,lessonsPerWorkspace=1,editorsPerRoom=groupSoak?21:20;
+  const roomCount=workspaceCount*lessonsPerWorkspace,pupilsPerRoom=editorsPerRoom-1,targetContexts=roomCount*editorsPerRoom;
   const label=groupSoak?'P3 soak':'P4';
   const project=process.env.TAS_REAL_COMPOSE_PROJECT;assert.match(project,/^tas-calendar-browser-[a-zA-Z0-9-]+$/);
   assert.equal(new URL(api).hostname,'127.0.0.1');assert.ok(!process.env.JWT_SIGNING_KEY&&!process.env.TAS_BOARD_SCENE_ROOT_KEY);
@@ -149,7 +150,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     const loginStart=performance.now();
     for(const profile of profiles){
       const a=profile.account;assert.equal(a.students.length,20);
-      for(const student of a.students){for(;;){
+      for(const student of a.students.slice(0,pupilsPerRoom)){for(;;){
         // Initial logins and renewals share the unchanged student-IP limiter.
         // Give already-issued sessions priority instead of consuming the last
         // login slots with new principals while older credentials expire.
@@ -160,7 +161,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
         assert.equal(r.status,200);const token=(await r.json()).accessToken;profile.tokens.push(token);subjects.add(actor(token));authentication.logins++;break;
       }}
     }
-    assert.equal(subjects.size,workspaceCount*21);
+    assert.equal(subjects.size,workspaceCount*editorsPerRoom);
     containerIds=(await command('docker',['ps','--filter','label=com.docker.compose.project='+project,'--format','{{.ID}}'])).stdout.trim().split('\n').filter(Boolean);
     journal=await openPostgresJournal(process.env.BOARD_TEST_DATABASE_URL);trackCommits();relay=await openRelay();const port=Number(new URL(relay.url).port);
     const cwd=process.cwd();process.chdir(new URL('.',import.meta.url).pathname);
@@ -169,51 +170,50 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     await phase(targetContexts+' simultaneous actual editors in '+roomCount+' rooms',async()=>{
       for(const room of rooms){
         await headroom();room.pages.push(await page({role:'teacher'},room.profile.account.token,room.lesson.id,true,()=>room.profile.account.token));
-        for(let i=0;i<20;i+=3){await headroom();room.pages.push(...await Promise.all(room.profile.tokens.slice(i,i+3).map((t,j)=>page({role:'student'},t,room.lesson.id,true,()=>room.profile.tokens[i+j]))));}
-        assert.equal(room.pages.length,21);console.log('P4 startup contexts: '+browser.contexts().length);
+        for(let i=0;i<pupilsPerRoom;i+=3){await headroom();room.pages.push(...await Promise.all(room.profile.tokens.slice(i,Math.min(i+3,pupilsPerRoom)).map((t,j)=>page({role:'student'},t,room.lesson.id,true,()=>room.profile.tokens[i+j]))));}
+        assert.equal(room.pages.length,editorsPerRoom);console.log('P4 startup contexts: '+browser.contexts().length);
       }
       assert.equal(browser.contexts().length,targetContexts);await Promise.all(rooms.map(r=>converge(r,0,0)));
     });
     await phase('parallel draw, same-element edit, delete and undo',async()=>{
-      await Promise.all(rooms.flatMap(r=>r.pages.map((p,i)=>draw(p,260+(i%5)*105,150+Math.floor(i/5)*105))));await Promise.all(rooms.map(r=>converge(r,21,0)));
+      await Promise.all(rooms.flatMap(r=>r.pages.map((p,i)=>draw(p,260+(i%5)*105,150+Math.floor(i/5)*105))));await Promise.all(rooms.map(r=>converge(r,editorsPerRoom,0)));
       assert.equal(new Set(rooms.map(r=>r.hash)).size,roomCount,'Rooms mixed their scenes');
       for(const r of rooms)r.ids=await r.pages[0].evaluate(()=>window.__BOARD_EDITOR.getSceneElements().map(e=>({id:e.id,x:e.x,y:e.y})));
       const target=r=>r.ids.find(e=>e.x===260&&e.y===150).id;
       await Promise.all(rooms.flatMap(r=>[select(r.pages[0],target(r)),select(r.pages[1],target(r))]));
-      await Promise.all(rooms.flatMap(r=>[r.pages[0].keyboard.press('ArrowRight'),r.pages[1].keyboard.press('ArrowLeft')]));await Promise.all(rooms.map(r=>converge(r,21,0)));
-      await Promise.all(rooms.map(async r=>{const id=r.ids.find(e=>e.x===575&&e.y===150).id;await select(r.pages[3],id);await r.pages[3].keyboard.press('Backspace');}));await Promise.all(rooms.map(r=>converge(r,20,1)));
-      await Promise.all(rooms.map(r=>r.pages[3].getByRole('button',{name:'Undo',exact:true}).click({noWaitAfter:true})));await Promise.all(rooms.map(r=>converge(r,21,0)));
+      await Promise.all(rooms.flatMap(r=>[r.pages[0].keyboard.press('ArrowRight'),r.pages[1].keyboard.press('ArrowLeft')]));await Promise.all(rooms.map(r=>converge(r,editorsPerRoom,0)));
+      await Promise.all(rooms.map(async r=>{const id=r.ids.find(e=>e.x===575&&e.y===150).id;await select(r.pages[3],id);await r.pages[3].keyboard.press('Backspace');}));await Promise.all(rooms.map(r=>converge(r,editorsPerRoom-1,1)));
+      await Promise.all(rooms.map(r=>r.pages[3].getByRole('button',{name:'Undo',exact:true}).click({noWaitAfter:true})));await Promise.all(rooms.map(r=>converge(r,editorsPerRoom,0)));
     });
-    await phase('ten offline writers and lost durable acknowledgement',async()=>{
+    await phase('offline writers in every room and lost durable acknowledgement',async()=>{
       const heads=await Promise.all(rooms.map(r=>journal.read(r.scope)));
       for(const r of rooms){await r.pages[5].context().setOffline(true);relay.disconnectUser(actor(r.profile.tokens[4]));}
-      // Identity is legitimately shared across five room tabs; all its sockets
-      // disconnect, but only each selected context is offline and edits locally.
+      // One independently authenticated pupil in every room edits offline.
       await Promise.all(rooms.map(r=>draw(r.pages[5],680,680)));
       for(let i=0;i<rooms.length;i++){await rooms[i].pages[5].waitForFunction(()=>document.querySelector('#status')?.textContent!=='Сохранено');assert.equal((await journal.read(rooms[i].scope)).head,heads[i].head);}
-      dropActor=actor(rooms[0].profile.tokens[4]);await Promise.all(rooms.map(r=>r.pages[5].context().setOffline(false)));await Promise.all(rooms.map(r=>converge(r,22,0)));assert.equal(dropCount,1);
+      dropActor=actor(rooms[0].profile.tokens[4]);await Promise.all(rooms.map(r=>r.pages[5].context().setOffline(false)));await Promise.all(rooms.map(r=>converge(r,editorsPerRoom+1,0)));assert.equal(dropCount,1);
     });
-    await phase('files and checkpoints across ten active rooms',async()=>{
-      await Promise.all(rooms.map(r=>r.pages[0].getByTestId('board-file').setInputFiles({name:'room-'+r.number+'.png',mimeType:'image/png',buffer:png})));await Promise.all(rooms.map(r=>converge(r,23,0)));
+    await phase('files and checkpoints across all active rooms',async()=>{
+      await Promise.all(rooms.map(r=>r.pages[0].getByTestId('board-file').setInputFiles({name:'room-'+r.number+'.png',mimeType:'image/png',buffer:png})));await Promise.all(rooms.map(r=>converge(r,editorsPerRoom+2,0)));
       await Promise.all(rooms.map(r=>r.pages[0].getByTestId('board-file').setInputFiles({name:'room-'+r.number+'.pdf',mimeType:'application/pdf',buffer:pdf})));
-      for(const r of rooms)await Promise.all(r.pages.map(p=>p.getByRole('button',{name:'room-'+r.number+'.pdf',exact:true}).waitFor()));await Promise.all(rooms.map(r=>converge(r,23,0)));
+      for(const r of rooms)await Promise.all(r.pages.map(p=>p.getByRole('button',{name:'room-'+r.number+'.pdf',exact:true}).waitFor()));await Promise.all(rooms.map(r=>converge(r,editorsPerRoom+2,0)));
       await Promise.all(rooms.map(r=>r.pages[0].getByTestId('board-checkpoint').click({noWaitAfter:true})));
-      await Promise.all(rooms.map(r=>r.pages[0].getByTestId('checkpoint-status').filter({hasText:/Контрольная точка: [0-9]+/}).waitFor({timeout:120000})));await Promise.all(rooms.map(r=>converge(r,23,0)));
+      await Promise.all(rooms.map(r=>r.pages[0].getByTestId('checkpoint-status').filter({hasText:/Контрольная точка: [0-9]+/}).waitFor({timeout:120000})));await Promise.all(rooms.map(r=>converge(r,editorsPerRoom+2,0)));
     });
     await phase('shared relay and storage restart with pending work',async()=>{
       await relay.close();await journal.close();await Promise.all(rooms.map(r=>draw(r.pages[0],575,680)));
-      journal=await openPostgresJournal(process.env.BOARD_TEST_DATABASE_URL);trackCommits();relay=await openRelay(port);await Promise.all(rooms.map(r=>converge(r,24,0)));
-      // One cold participant per room reloads while the other200 editors stay open.
-      await Promise.all(rooms.map(async r=>{await r.pages[20].reload();await r.pages[20].waitForFunction(()=>document.querySelector('#status')?.textContent==='Сохранено',null,{timeout:120000});}));await Promise.all(rooms.map(r=>converge(r,24,0)));
+      journal=await openPostgresJournal(process.env.BOARD_TEST_DATABASE_URL);trackCommits();relay=await openRelay(port);await Promise.all(rooms.map(r=>converge(r,editorsPerRoom+3,0)));
+      // One cold participant per room reloads while all other editors stay open.
+      await Promise.all(rooms.map(async r=>{await r.pages.at(-1).reload();await r.pages.at(-1).waitForFunction(()=>document.querySelector('#status')?.textContent==='Сохранено',null,{timeout:120000});}));await Promise.all(rooms.map(r=>converge(r,editorsPerRoom+3,0)));
       assert.equal(browser.contexts().length,targetContexts);
-      await Promise.all(rooms.map(async r=>{const download=r.pages[20].waitForEvent('download');await r.pages[20].getByRole('button',{name:'room-'+r.number+'.pdf',exact:true}).click({noWaitAfter:true});const parts=[],stream=await(await download).createReadStream();for await(const b of stream)parts.push(b);assert.ok(Buffer.concat(parts).equals(pdf));}));
+      await Promise.all(rooms.map(async r=>{const download=r.pages.at(-1).waitForEvent('download');await r.pages.at(-1).getByRole('button',{name:'room-'+r.number+'.pdf',exact:true}).click({noWaitAfter:true});const parts=[],stream=await(await download).createReadStream();for await(const b of stream)parts.push(b);assert.ok(Buffer.concat(parts).equals(pdf));}));
     });
     await phase('closed tab during commit and actual isolated database outage',async()=>{
       const r=rooms[0],append=journal.append;let release,arrived=false;
       journal.append=async(s,f)=>{if(!arrived&&s.workspace===r.scope.workspace&&s.board===r.scope.board){arrived=true;await new Promise(a=>release=a);}return append(s,f);};
       await draw(r.pages[6],470,625);await until(()=>!!release,'Pending commit arrival');
       try{await r.pages[6].context().close();}finally{release();}journal.append=append;
-      r.pages[6]=await page({role:'student'},r.profile.tokens[5],r.lesson.id,true,()=>r.profile.tokens[5]);await converge(r,25,0);
+      r.pages[6]=await page({role:'student'},r.profile.tokens[5],r.lesson.id,true,()=>r.profile.tokens[5]);await converge(r,editorsPerRoom+4,0);
       const db=(await command('docker',['ps','--filter','label=com.docker.compose.project='+project,'--filter','label=com.docker.compose.service=db','--format','{{.ID}}'])).stdout.trim();assert.match(db,/^[a-f0-9]{12,64}$/);
       await command('docker',['pause',db]);
       try{
@@ -221,19 +221,19 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
         await Promise.all(rooms.map(r=>draw(r.pages[0],365,625)));
         for(const r of rooms)assert.notEqual(await r.pages[0].locator('#status').textContent(),'Сохранено');
       }finally{await command('docker',['unpause',db]);}
-      await Promise.all(rooms.map((r,i)=>converge(r,i===0?26:25,0)));
+      await Promise.all(rooms.map((r,i)=>converge(r,editorsPerRoom+(i===0?5:4),0)));
     });
     await phase('workspace isolation',async()=>{
       if(groupSoak){const a=accounts.south,response=await call('teacher-sessions',null,{workspace:a.workspace,email:a.email,password:process.env.TAS_REAL_TEST_PASSWORD});a.token=response.accessToken;}
       await page({role:'teacher'},accounts.south.token,rooms[0].lesson.id,false);
-      if(!groupSoak)await page({role:'student'},profiles[0].tokens[0],rooms[5].lesson.id,false);
+      if(!groupSoak)await page({role:'student'},profiles[0].tokens[0],rooms[lessonsPerWorkspace].lesson.id,false);
       assert.equal(new Set(rooms.map(r=>r.hash)).size,roomCount);assert.deepEqual(errors,[]);
     });
     await phase('steady mixed workload 15min',async()=>{
       // Existing image/PDF are present throughout; actual text editing, deletion,
       // undo, added images and checkpoints continue during the full15 minutes.
       await Promise.all(rooms.map(async r=>{const p=r.pages[2];await p.getByTitle(/^Text/).first().click({noWaitAfter:true});await p.waitForFunction(()=>window.__BOARD_EDITOR.getAppState().activeTool.type==='text');await p.mouse.click(260,700);await p.keyboard.type('Room '+r.number);await p.keyboard.press('Escape');}));
-      await Promise.all(rooms.map((r,i)=>converge(r,i===0?27:26,0)));
+      await Promise.all(rooms.map((r,i)=>converge(r,editorsPerRoom+(i===0?6:5),0)));
       for(const r of rooms)r.textId=await r.pages[2].evaluate(()=>window.__BOARD_EDITOR.getSceneElements().find(e=>e.type==='text').id);
       const began=performance.now();steadyStarted=began;let cycle=0;
       while(performance.now()-began<900000){
@@ -265,7 +265,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
   finally{clearInterval(authTimer);clearInterval(sampler);if(browser)await browser.close();if(site)await new Promise(r=>site.httpServer.close(r));if(relay)await relay.close();if(journal)await journal.close();}
   async function save(status,error){
     await mkdir(new URL('.',output),{recursive:true});const measuredSteadyMs=steadyDurationMs||(steadyStarted?performance.now()-steadyStarted:0);const counts=Object.fromEntries(Object.entries(operations).map(([k,v])=>[k,{count:v.count,nacks:v.nacks,meanMs:v.count?v.sumMs/v.count:0,maxMs:v.maxMs,p50Ms:percentile(v.samples,.5),p95Ms:percentile(v.samples),sampleCount:v.samples.length}]));
-    const result={status,profile:{targetRooms:roomCount,rooms:rooms.length,readyEditors:rooms.reduce((n,r)=>n+r.pages.length,0),perRoomReadyEditors:rooms.map(r=>r.pages.length),contexts:browser?.contexts().length??0,authenticatedIdentities:subjects.size,identitiesPerRoom:21,workspaces:workspaceCount,sessionReuse:'same 21 authorized identities per workspace across five lesson rooms'},host,phases,durationMs:Math.round(performance.now()-start),scenarioSeed:'grid-mixed-v1',versions:{node:process.version,chromium:browser?.version(),excalidraw:'0.18.1',react:'18.3.1',socketIO:'4.8.1'},steadyDurationMs:measuredSteadyMs,delivery:{definition:'durable COMMIT completion to client ordered frame application, live steady phase only; local clock',samples:deliveries.length,receivers:deliveryReceivers.size,droppedMetrics,p50Ms:percentile(deliveries,.5),p95Ms:percentile(deliveries)},connections,authentication,peakPendingOperations:peakPending,finalScenes:rooms.map(r=>({active:r.active,deleted:r.deleted})),convergenceP95Ms:percentile(latencies),operations:counts,negativeAcknowledgementsByReason:failures,
+    const result={status,profile:{targetRooms:roomCount,rooms:rooms.length,readyEditors:rooms.reduce((n,r)=>n+r.pages.length,0),perRoomReadyEditors:rooms.map(r=>r.pages.length),contexts:browser?.contexts().length??0,authenticatedIdentities:subjects.size,targetEditors:targetContexts,identitiesPerRoom:editorsPerRoom,workspaces:workspaceCount,sessionReuse:'one independent authorized identity per editor; one lesson room per workspace'},host,phases,durationMs:Math.round(performance.now()-start),scenarioSeed:'grid-mixed-v1',versions:{node:process.version,chromium:browser?.version(),excalidraw:'0.18.1',react:'18.3.1',socketIO:'4.8.1'},steadyDurationMs:measuredSteadyMs,delivery:{definition:'durable COMMIT completion to client ordered frame application, live steady phase only; local clock',samples:deliveries.length,receivers:deliveryReceivers.size,droppedMetrics,p50Ms:percentile(deliveries,.5),p95Ms:percentile(deliveries)},connections,authentication,peakPendingOperations:peakPending,finalScenes:rooms.map(r=>({active:r.active,deleted:r.deleted})),convergenceP95Ms:percentile(latencies),operations:counts,negativeAcknowledgementsByReason:failures,
       resources:{peakBrowserRssSumBytes:peakBrowserRss,peakBrowserCpuPercentOfOneCore:peakBrowserCpu,peakNodeCpuPercentOfOneCore:peakNodeCpu,peakCgroupBytes:peakCgroup,containerPeaks,samples,notes:'RSS is a sum of process RSS and includes shared mappings; cgroup memory is recorded separately. CPU percent uses one core=100%.'},errors:errors.slice(0,10),error:error?{name:error.name,message:String(error.message).slice(0,180)}:null,production:'NOT_RUN'};
     await writeFile(output,JSON.stringify(result,null,2));console.log('P4 result: '+JSON.stringify({status,contexts:result.profile.contexts,identities:subjects.size,steadyDurationMs:measuredSteadyMs,deliveryP95Ms:result.delivery.p95Ms,ackP95Ms:counts.submit?.p95Ms,convergenceP95Ms:result.convergenceP95Ms,peakBrowserRssSumBytes:peakBrowserRss,error:result.error}));
   }
