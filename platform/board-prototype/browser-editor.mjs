@@ -45,7 +45,16 @@ try {
   await Promise.all([draw(teacher,300,220),draw(a,420,300),draw(b,650,420)]);
   for(const p of [teacher,a,b]) await count(p,3);
   assert.deepEqual(await active(a),await active(teacher)); assert.deepEqual(await active(b),await active(teacher));
-  await teacher.getByTitle(/Selection/).first().click(); await teacher.mouse.click(300,250); await teacher.keyboard.press('Backspace');
+  await teacher.getByTitle(/Selection/).first().click();
+  // Select by an enclosing marquee, independent of randomized rough-stroke hit testing.
+  await teacher.mouse.move(280,200); await teacher.mouse.down();
+  await teacher.mouse.move(410,310,{steps:5}); await teacher.mouse.up();
+  await teacher.waitForFunction(()=>{
+    const api=window.__BOARD_EDITOR, own=api.getSceneElements().find(e=>e.x===300&&e.y===220);
+    const selected=api.getAppState().selectedElementIds;
+    return own&&selected[own.id]&&Object.values(selected).filter(Boolean).length===1;
+  });
+  await teacher.keyboard.press('Backspace');
   for(const p of [teacher,a,b]) await count(p,2);
   await teacher.getByRole('button',{name:'Undo',exact:true}).click();
   for(const p of [teacher,a,b]) await count(p,3);
