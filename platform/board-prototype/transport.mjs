@@ -7,7 +7,7 @@ import {MAX_FILE_BYTES,references} from './files.mjs';
 // Isolated experiment only. No executable entry point or production configuration.
 // Scene payloads stay opaque; reconstruction/reconciliation belongs to the editor.
 export async function startTestTransport({ key, journal, revoked = () => false,
-  authorize = async () => true, acknowledge = () => true, clock = Date.now, port = 0, maxConnections = 256, maxRoomConnections = 24 }) {
+  authorize = async () => true, acknowledge = () => true, observe = () => {}, clock = Date.now, port = 0, maxConnections = 256, maxRoomConnections = 24 }) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Invalid test port');
   const http = createServer((_, res) => { res.writeHead(404); res.end(); });
   const io = new Server(http, { serveClient: false, transports: ['websocket'],
@@ -50,20 +50,20 @@ export async function startTestTransport({ key, journal, revoked = () => false,
       socket.on(event, async (payload, ack) => {
         if (typeof ack !== 'function') return;
         if (clock() - windowAt >= 1000) { windowAt = clock(); requests = 0; }
-        if (++requests > 50 || pending) { ack({ ok: false, error: 'BUSY' }); return; }
-        pending = true;
+        if (++requests > 50 || pending) { ack({ ok: false, error: 'BUSY' });observe({event,durationMs:0,acknowledged:false,reason:'BUSY'}); return; }
+        pending = true;const started=performance.now();let acknowledged=false,reason='DISCONNECTED';
         try {
           try { await check(['submit','file:put','checkpoint'].includes(event) ? 'scene' : 'replay'); }
-          catch { ack({ok:false,error:'ACCESS_DENIED'}); socket.disconnect(true); return; }
+          catch { reason='ACCESS_DENIED';ack({ok:false,error:'ACCESS_DENIED'}); socket.disconnect(true); return; }
           const result = await action(payload);
           // Recheck before any data leaves the process, including slow storage reads.
           await check('replay');
           // Test-only fault injection models a durable commit whose acknowledgement is lost.
-          if (!acknowledge({event,scope,result,claims:socket.data.claims})) { socket.disconnect(true); return; }
-          if (socket.connected) ack({ ok: true, ...result });
+          if (!acknowledge({event,scope,result,claims:socket.data.claims})) { reason='INJECTED_ACK_LOSS'; socket.disconnect(true); return; }
+          if (socket.connected) { ack({ ok: true, ...result }); acknowledged=true; }
         } catch {
-          if (socket.connected) ack({ ok: false, error: 'REQUEST_FAILED' });
-        } finally { pending = false; }
+          reason='REQUEST_FAILED';if (socket.connected) ack({ ok: false, error: 'REQUEST_FAILED' });
+        } finally { pending = false;observe({event,durationMs:performance.now()-started,acknowledged,...(!acknowledged?{reason}:{})}); }
       });
     }
     handle('submit', async payload => {

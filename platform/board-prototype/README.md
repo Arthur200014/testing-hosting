@@ -286,3 +286,35 @@ It never synthesizes logical versions for index repair. Once pending edits are
 acknowledged, the editor adopts its full ordered durable projection; all fields,
 not only versions/shape count, must agree. Pure collision/edit/delete/undo tests
 and the existing small real-editor runner guard this before the21-editor scenario.
+
+
+## P4 actual parallel-room capacity profile
+
+`TAS_BOARD_TEST_ONLY=1 TAS_BOARD_PARALLEL_TEST_ONLY=1 bash platform/scripts/calendar-real-browser.sh`
+uses10 lesson rooms across2 isolated workspaces. Each room has21 independent real
+editor contexts. The42 authenticated identities (2 teachers +40 pupils) legitimately
+participate in five lessons each; report210 browser contexts separately from the
+42 unique subjects. API login limits remain unchanged, so setup takes several
+minutes. Every editor obtains its own board-scoped permit through the actual API.
+
+The runner uses the normal production-built frontend on loopback, not development
+React overhead or simulated Socket.IO load. All210 editors stay open together.
+The profile covers parallel drawing, same-element conflicts, deletion/undo,
+offline writers/lost ack, PNG/PDF, checkpoints, shared relay/pool restart with
+pending teacher edits, ten cold reloads/PDF downloads and a60s sustained phase.
+Full element/order/tombstone/file hashes must agree within each room; ten room
+hashes must stay distinct. Cross-workspace access is rejected by the actual API.
+
+`board-parallel-result.json` records achieved and target counts, phase durations,
+server operation latency/nacks, full-state settling time, browser RSS/CPU, relay
+CPU, isolated API/database CPU/memory and cgroup/host bounds. CPU100% means one
+core; summed process RSS includes shared mappings and is not unique physical RAM.
+Prototype budgets are p95 post-input convergence<=30s and sampled server-submit
+acknowledgement<=3s (the existing RPC timeout), not a production SLA. Replay
+latencies are capped samples with total operation counts explicitly retained.
+
+A measured<1GiB host/cgroup memory headroom stops with BLOCKED rather than risking
+an unreported OOM or claiming PASS with fewer editors. Runner evidence is retained
+on failure too. No new infrastructure, production service, writer switch or real
+student data is involved. P4 must run before GO; adding this runner is not proof
+of210-editor capacity.

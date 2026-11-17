@@ -1,3 +1,4 @@
+import {editorSnapshot} from './browser-probes.mjs';
 import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
@@ -58,18 +59,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
   const count=(p,n)=>p.waitForFunction(n=>window.__BOARD_EDITOR.getSceneElements().length===n,n,{timeout:45000});
   // Hash every serialized element field, including versions/nonces/order and
   // tombstones, plus exact binary contents. Never compare only shape counts.
-  const state=p=>p.evaluate(async()=>{
-    const stable=x=>Array.isArray(x)?x.map(stable):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,stable(x[k])])):x;
-    const a=window.__BOARD_EDITOR,e=a.getSceneElementsIncludingDeleted(),f=a.getFiles(),out=[];
-    for(const id of [...new Set(e.filter(x=>x.type==='image').map(x=>x.fileId))].sort()){
-      if(!f[id])return {status:'missing image',hash:null};
-      const raw=Uint8Array.from(atob(f[id].dataURL.split(',')[1]),x=>x.charCodeAt(0));
-      out.push({id,mimeType:f[id].mimeType,sha256:Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',raw)),x=>x.toString(16).padStart(2,'0')).join('')});
-    }
-    const data=JSON.stringify({order:e.map(x=>x.id),elements:e.map(stable),files:out,attachments:[...document.querySelectorAll('[data-testid=board-download]')].map(x=>x.textContent).sort()});
-    return {status:document.querySelector('#status')?.textContent,active:e.filter(x=>!x.isDeleted).length,deleted:e.filter(x=>x.isDeleted).length,images:out.length,
-      hash:Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(data))),x=>x.toString(16).padStart(2,'0')).join('')};
-  });
+  const state=p=>p.evaluate(editorSnapshot);
   async function converge(active,deleted,list=pages){
     let previous;
     try{await until(async()=>{

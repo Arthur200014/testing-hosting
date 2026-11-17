@@ -18,7 +18,7 @@ compose=(docker compose --env-file .env.example -p "$project")
 if [[ "${TAS_BOARD_TEST_ONLY:-0}" == 1 ]]; then
   export POSTGRES_DB=tas_board_test_api
   export TAS_BOARD_PERMIT_LIFETIME_SECONDS=12
-  if [[ "${TAS_BOARD_GROUP_TEST_ONLY:-0}" == 1 ]]; then export TAS_BOARD_PERMIT_LIFETIME_SECONDS=120; fi
+  if [[ "${TAS_BOARD_GROUP_TEST_ONLY:-0}" == 1 || "${TAS_BOARD_PARALLEL_TEST_ONLY:-0}" == 1 ]]; then export TAS_BOARD_PERMIT_LIFETIME_SECONDS=120; fi
   export TAS_BOARD_SIGNING_KEY="$(openssl rand -base64 32)"
   export TAS_BOARD_SCENE_ROOT_KEY="$(openssl rand -base64 32)"
   export BOARD_TEST_DATABASE_URL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@127.0.0.1:15439/$POSTGRES_DB"

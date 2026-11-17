@@ -116,3 +116,40 @@ jobs:
           name: board-p3-group-result
           path: test-results/board-group-result.json
           if-no-files-found: warn
+
+
+  dotnet-board-parallel:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm --prefix platform/board-prototype ci --ignore-scripts --no-audit --no-fund
+      - name: Install existing runner browser dependency
+        run: npm install --no-save --no-package-lock playwright@1.56.1
+      - run: cd platform/board-prototype && npx playwright install --with-deps chromium
+      - name: Actual API ten-room 210-editor capacity profile
+        env:
+          TAS_BOARD_TEST_ONLY: '1'
+          TAS_BOARD_PARALLEL_TEST_ONLY: '1'
+        run: bash platform/scripts/calendar-real-browser.sh
+      - name: Retain runner resource evidence even on failure
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          paths=['/proc/meminfo','/sys/fs/cgroup/memory.max','/sys/fs/cgroup/memory.current','/sys/fs/cgroup/memory.events','/sys/fs/cgroup/cpu.max']
+          evidence={p:pathlib.Path(p).read_text() for p in paths if pathlib.Path(p).exists()}
+          out=pathlib.Path('test-results/board-parallel-host.json');out.parent.mkdir(exist_ok=True);out.write_text(json.dumps(evidence,indent=2))
+          PY
+      - name: Retain synthetic parallel-room result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: board-p4-parallel-result
+          path: |
+            test-results/board-parallel-result.json
+            test-results/board-parallel-host.json
+          if-no-files-found: warn
