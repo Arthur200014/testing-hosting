@@ -97,20 +97,25 @@ public static class BoardPrototypeEndpoints
     {
         if (!Guid.TryParse(principal.FindFirstValue("workspace_id"), out var workspace)
             || !Guid.TryParse(principal.FindFirstValue("sub"), out var user)) return false;
-        if (!await db.Workspaces.AnyAsync(x => x.Id == workspace && x.IsActive, ct)) return false;
-        var lesson = await db.Lessons.AsNoTracking().Where(x => x.WorkspaceId == workspace && x.Id == lessonId)
-            .Select(x => new { x.IndividualClassId, x.GroupClassId }).SingleOrDefaultAsync(ct);
-        if (lesson is null) return false;
-        if (lesson.IndividualClassId is Guid individual && !await db.TeacherClasses.AnyAsync(x => x.WorkspaceId == workspace && x.Id == individual && !x.IsArchived, ct)) return false;
-        if (lesson.GroupClassId is Guid group && !await db.TeacherGroupClasses.AnyAsync(x => x.WorkspaceId == workspace && x.Id == group && !x.IsArchived, ct)) return false;
-        if (role == "student")
-        {
-            if (!Guid.TryParse(principal.FindFirstValue("membership_id"), out var membership)
-                || !await db.WorkspaceStudentMemberships.AnyAsync(x => x.Id == membership && x.WorkspaceId == workspace && x.StudentId == user && x.IsActive, ct)
-                || !await db.LessonParticipants.AnyAsync(x => x.WorkspaceId == workspace && x.LessonId == lessonId && x.MembershipId == membership && x.StudentId == user, ct)) return false;
-            if (lesson.GroupClassId is Guid groupId && !await db.TeacherGroupEnrollments.AnyAsync(x => x.WorkspaceId == workspace && x.GroupClassId == groupId && x.MembershipId == membership && x.IsApproved, ct)) return false;
-        }
-        return true;
+        if (role is not ("teacher" or "student")) return false;
+        var student = role == "student";
+        var membership = Guid.Empty;
+        if (student && !Guid.TryParse(principal.FindFirstValue("membership_id"), out membership)) return false;
+        // One fresh, parameterized SQL snapshot per check; no authorization cache.
+        // Preserve every workspace/class/participant/enrollment predicate while
+        // avoiding six sequential round trips on each live student validation.
+        return await db.Lessons.AsNoTracking().AnyAsync(lesson =>
+            lesson.WorkspaceId == workspace && lesson.Id == lessonId &&
+            db.Workspaces.Any(x => x.Id == workspace && x.IsActive) &&
+            (lesson.IndividualClassId == null || db.TeacherClasses.Any(x =>
+                x.WorkspaceId == workspace && x.Id == lesson.IndividualClassId && !x.IsArchived)) &&
+            (lesson.GroupClassId == null || db.TeacherGroupClasses.Any(x =>
+                x.WorkspaceId == workspace && x.Id == lesson.GroupClassId && !x.IsArchived)) &&
+            (!student ||
+                db.WorkspaceStudentMemberships.Any(x => x.Id == membership && x.WorkspaceId == workspace && x.StudentId == user && x.IsActive) &&
+                db.LessonParticipants.Any(x => x.WorkspaceId == workspace && x.LessonId == lesson.Id && x.MembershipId == membership && x.StudentId == user) &&
+                (lesson.GroupClassId == null || db.TeacherGroupEnrollments.Any(x =>
+                    x.WorkspaceId == workspace && x.GroupClassId == lesson.GroupClassId && x.MembershipId == membership && x.IsApproved))), ct);
     }
     private static string Base64Url(byte[] value) => Convert.ToBase64String(value).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 }

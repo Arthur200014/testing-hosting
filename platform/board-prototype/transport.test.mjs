@@ -180,3 +180,10 @@ test('PostgreSQL wire files: durable reference gate, viewer/foreign denial, immu
     assert.deepEqual(Buffer.from((await request(restored,'file:get',{id:'photo'})).file.data),png);
     assert.deepEqual((await request(restored,'replay',{after:0})).frames[0].fileIds,['photo']);
   });
+
+
+test('idle socket still loses access through periodic validation without an RPC',async t=>{
+  let denied=false;const f=await fixture(t,false,{authorize:async()=>!denied}),c=await f.client(auth(scope()));
+  const disconnected=new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('Idle access revocation did not disconnect')),2000);c.once('disconnect',()=>{clearTimeout(timer);resolve();});});
+  denied=true;await disconnected;assert.equal(c.connected,false);
+});

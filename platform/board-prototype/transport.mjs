@@ -26,7 +26,7 @@ export async function startTestTransport({ key, journal, revoked = () => false,
         throw new Error('Connection quota');
       // Reserve synchronously in middleware, including pending handshakes.
       connections.add(socket); counts.set(roomId, (counts.get(roomId) ?? 0) + 1);
-      socket.data = { scope, token, roomId, claims };
+      socket.data = { scope, token, roomId, claims, verifiedAt:clock() };
       next();
     } catch { next(new Error('Room access denied')); }
   });
@@ -40,6 +40,7 @@ export async function startTestTransport({ key, journal, revoked = () => false,
       const claims = authorizeEvent(key, token, scope, event, { now: clock(), revoked });
       if (!await authorize({token,scope,claims})) throw new Error('Access denied');
       authorizeEvent(key, token, scope, event, { now: clock(), revoked });
+      socket.data.verifiedAt=clock();
     };
     let pending = false, windowAt = clock(), requests = 0;
     socket.on('disconnect', reason => {
@@ -103,12 +104,15 @@ export async function startTestTransport({ key, journal, revoked = () => false,
   });
   const sweep = setInterval(() => {
     for (const socket of connections) {
-      if (socket.data.checking) continue;
+      // Active RPCs already perform fresh before/after checks. Only avoid a
+      // duplicate periodic check; no cached result authorizes any operation.
+      if (socket.data.checking || clock()-socket.data.verifiedAt<250) continue;
       socket.data.checking = true;
       Promise.resolve().then(async () => {
         const {token,scope,claims} = socket.data;
         authorizeEvent(key,token,scope,'replay',{now:clock(),revoked});
         if (!await authorize({token,scope,claims})) throw new Error('Access denied');
+        authorizeEvent(key,token,scope,'replay',{now:clock(),revoked});socket.data.verifiedAt=clock();
       }).catch(() => socket.disconnect(true)).finally(() => { socket.data.checking = false; });
     }
   }, 250);

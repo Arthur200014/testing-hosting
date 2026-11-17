@@ -340,3 +340,15 @@ Playwright binding supplies each page only its own current API token before the
 normal permit request, including after reload. No API key reaches the relay, no
 JWT/permit expiry is weakened, and no production login-refresh implementation is
 claimed. Authentication expiry while respecting the limiter fails acceptance.
+
+
+The first210-editor run reached91 ready editors/94 contexts but failed startup:
+replay p95~2057ms,998 negative replies and813 disconnects, on4 cores. Browser
+summed RSS is shared-mapping-inclusive and did not establish an OOM; API/database
+CPU saturation was observed. Access predicates now use one fresh correlated SQL
+snapshot instead of up to six sequential student round trips. Per-operation
+before/after revalidation remains mandatory. The periodic sweep skips only a
+redundant check when a live validation completed within250ms; every idle socket
+still revalidates, and no cached positive result authorizes reads/writes.
+Class/archive/enrollment/participant/workspace denial and idle revocation have
+focused regressions. The fifteen-minute210 profile must be rerun before any GO.

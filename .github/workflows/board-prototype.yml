@@ -6,6 +6,7 @@ on:
       - 'platform/board-prototype/**'
       - '.github/workflows/board-prototype.yml'
       - 'platform/src/Platform.Api/Boards/**'
+      - 'platform/tests/Platform.Api.IntegrationTests/TeacherSessionTests.BoardPrototype.cs'
       - 'platform/calendar-real-browser.mjs'
       - 'platform/scripts/calendar-real-browser.sh'
   pull_request:
@@ -13,6 +14,7 @@ on:
       - 'platform/board-prototype/**'
       - '.github/workflows/board-prototype.yml'
       - 'platform/src/Platform.Api/Boards/**'
+      - 'platform/tests/Platform.Api.IntegrationTests/TeacherSessionTests.BoardPrototype.cs'
       - 'platform/calendar-real-browser.mjs'
       - 'platform/scripts/calendar-real-browser.sh'
 permissions:
@@ -82,6 +84,13 @@ jobs:
         run: node --test platform/board-prototype/postgres.test.mjs platform/board-prototype/files.test.mjs platform/board-prototype/checkpoint.test.mjs
       - name: Room authorization and durable replay
         run: node --test platform/board-prototype/core.test.mjs
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Live board API access predicates with PostgreSQL
+        env:
+          TEST_DATABASE_CONNECTION_STRING: Host=127.0.0.1;Port=5432;Database=tas_board_test;Username=board_test;Password=synthetic-board-test-only
+        run: dotnet test platform/tests/Platform.Api.IntegrationTests/Platform.Api.IntegrationTests.csproj --configuration Release --filter FullyQualifiedName~BoardPrototype --logger 'console;verbosity=normal'
       - name: Install isolated Chromium
         run: cd platform/board-prototype && npx playwright install --with-deps chromium
       - name: Actual Excalidraw browser persistence with PostgreSQL

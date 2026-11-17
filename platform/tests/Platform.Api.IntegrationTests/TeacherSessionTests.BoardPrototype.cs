@@ -113,4 +113,89 @@ public sealed partial class TeacherSessionTests
         client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",StudentToken(first,foreignStudent));
         Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsync(studentPath,null)).StatusCode);
     }
+
+    [Fact]
+    public async Task BoardPrototypeLiveAccessRechecksClassEnrollmentParticipantAndWorkspace()
+    {
+        await ResetAsync(factory);
+        var owner=await SeedAsync(factory,"board-live","board-live@example.invalid","owner");
+        var member=await SeedStudentAsync(factory,owner.WorkspaceId,"Synthetic live pupil",true);
+        Guid student;
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            student=await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().WorkspaceStudentMemberships
+                .Where(x=>x.Id==member).Select(x=>x.StudentId).SingleAsync();
+        }
+        using var enabled=factory.WithWebHostBuilder(builder=>builder.ConfigureAppConfiguration((_,c)=>c.AddInMemoryCollection(new Dictionary<string,string?> {
+            ["BoardPrototype:Enabled"]="true",
+            ["BoardPrototype:SigningKey"]=Convert.ToBase64String(Enumerable.Repeat((byte)0x79,32).ToArray()),
+            ["BoardPrototype:SceneRootKey"]=Convert.ToBase64String(Enumerable.Repeat((byte)0x6b,32).ToArray())
+        })));
+        using var client=enabled.CreateClient();
+        var teacher=(await (await LoginAsync(client,"board-live","board-live@example.invalid",Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        var jwt=new JwtSecurityToken(ApiFactory.Issuer,ApiFactory.Audience,new[]{
+            new Claim("sub",student.ToString()),new Claim("workspace_id",owner.WorkspaceId.ToString()),
+            new Claim("membership_id",member.ToString()),new Claim("role","student")
+        },expires:DateTime.UtcNow.AddMinutes(3),signingCredentials:new SigningCredentials(
+            new SymmetricSecurityKey(Convert.FromBase64String(ApiFactory.SigningKey)),SecurityAlgorithms.HmacSha256));
+        var pupil=new JwtSecurityTokenHandler().WriteToken(jwt);
+        client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",teacher.AccessToken);
+        var classResponse=await client.PostAsJsonAsync("/api/v1/teacher/classes",new {
+            requestId=Guid.NewGuid(),studentMembershipId=member,title="Synthetic individual",durationMinutes=60 });
+        Assert.Equal(HttpStatusCode.Created,classResponse.StatusCode);
+        var individual=(await classResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        var groupResponse=await client.PostAsJsonAsync("/api/v1/teacher/groups",new {
+            requestId=Guid.NewGuid(),title="Synthetic group",memberIds=new[]{member},durationMinutes=60 });
+        Assert.Equal(HttpStatusCode.Created,groupResponse.StatusCode);
+        var group=(await groupResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        async Task<Guid> Lesson(Guid? individualId,Guid? groupId) {
+            var response=await client.PostAsJsonAsync("/api/v1/teacher/lessons",new {
+                requestId=Guid.NewGuid(),title="Synthetic live lesson",lessonAt=DateTimeOffset.UtcNow,
+                individualClassId=individualId,groupClassId=groupId,
+                participants=new[]{new {membershipId=member,durationMinutes=60,attendanceStatus="Unknown"}} });
+            Assert.Equal(HttpStatusCode.Created,response.StatusCode);
+            return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("lessonId").GetGuid();
+        }
+        var solo=await Lesson(individual,null);var together=await Lesson(null,group);
+        async Task<string?> Permit(string role,Guid lesson,bool allowed=true) {
+            client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",role=="teacher"?teacher.AccessToken:pupil);
+            var response=await client.PostAsync("/api/v1/"+role+"/board-prototype/lessons/"+lesson+"/permit",null);
+            Assert.Equal(allowed?HttpStatusCode.OK:HttpStatusCode.NotFound,response.StatusCode);
+            return allowed?(await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("token").GetString():null;
+        }
+        async Task Access(string token,bool allowed) {
+            Assert.Equal(allowed?HttpStatusCode.NoContent:HttpStatusCode.NotFound,
+                (await client.PostAsJsonAsync("/api/v1/board-prototype/access",new {token})).StatusCode);
+        }
+        var soloTeacher=(await Permit("teacher",solo))!;var soloStudent=(await Permit("student",solo))!;
+        var groupTeacher=(await Permit("teacher",together))!;var groupStudent=(await Permit("student",together))!;
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            await db.TeacherClasses.Where(x=>x.Id==individual).ExecuteUpdateAsync(s=>s.SetProperty(x=>x.IsArchived,true));
+        }
+        await Permit("teacher",solo,false);await Permit("student",solo,false);await Access(soloTeacher,false);await Access(soloStudent,false);
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            await db.TeacherClasses.Where(x=>x.Id==individual).ExecuteUpdateAsync(s=>s.SetProperty(x=>x.IsArchived,false));
+            await db.TeacherGroupClasses.Where(x=>x.Id==group).ExecuteUpdateAsync(s=>s.SetProperty(x=>x.IsArchived,true));
+        }
+        await Permit("teacher",together,false);await Permit("student",together,false);await Access(groupTeacher,false);await Access(groupStudent,false);
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            await db.TeacherGroupClasses.Where(x=>x.Id==group).ExecuteUpdateAsync(s=>s.SetProperty(x=>x.IsArchived,false));
+            await db.TeacherGroupEnrollments.Where(x=>x.GroupClassId==group&&x.MembershipId==member).ExecuteUpdateAsync(s=>s.SetProperty(x=>x.IsApproved,false));
+        }
+        await Permit("teacher",together);await Permit("student",together,false);await Access(groupStudent,false);await Access(soloStudent,true);
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            await db.TeacherGroupEnrollments.Where(x=>x.GroupClassId==group&&x.MembershipId==member).ExecuteUpdateAsync(s=>s.SetProperty(x=>x.IsApproved,true));
+            await db.LessonParticipants.Where(x=>x.LessonId==together&&x.MembershipId==member).ExecuteDeleteAsync();
+        }
+        await Permit("teacher",together);await Permit("student",together,false);await Access(groupStudent,false);await Access(soloStudent,true);
+        await using(var scope=factory.Services.CreateAsyncScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            await db.Workspaces.Where(x=>x.Id==owner.WorkspaceId).ExecuteUpdateAsync(s=>s.SetProperty(x=>x.IsActive,false));
+        }
+        await Access(soloStudent,false);await Access(groupTeacher,false);
+    }
+
 }
