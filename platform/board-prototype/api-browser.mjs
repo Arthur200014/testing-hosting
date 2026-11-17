@@ -55,7 +55,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     await call('teacher-sessions/logout',north.token,{},204);
     await call('board-prototype/access',null,{token:oldTeacher.token},404);
     await teacher.waitForFunction(()=>document.querySelector('#status')?.textContent!=='Сохранено');
-    await call(permitPath('teacher'),north.token,{},401);
+    await call(permitPath('teacher'),north.token,{},403);
     await Promise.all(browser.contexts().map(c=>c.close()));
     await room.close();await journal.close();
     // Existing disposable compose project only, never a production container name.
