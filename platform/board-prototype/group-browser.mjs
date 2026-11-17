@@ -88,8 +88,13 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
   }
   async function select(p,id){
     const e=await p.evaluate(id=>window.__BOARD_EDITOR.getSceneElements().find(e=>e.id===id),id);assert.ok(e);
-    await p.getByTitle(/Selection/).first().click();await p.mouse.click(e.x+e.width/2,e.y);
-    await p.waitForFunction(id=>{const s=window.__BOARD_EDITOR.getAppState().selectedElementIds;return s[id]&&Object.values(s).filter(Boolean).length===1;},id);
+    await p.keyboard.press('Escape');await p.getByTitle(/Selection/).first().click({noWaitAfter:true});
+    await p.waitForFunction(()=>window.__BOARD_EDITOR.getAppState().activeTool.type==='selection');
+    // The synthetic grid leaves this canvas point empty. Clear the old selection
+    // before touching a border: an existing selection exposes resize handles.
+    await p.mouse.click(950,650);await p.waitForFunction(()=>!Object.values(window.__BOARD_EDITOR.getAppState().selectedElementIds).some(Boolean));
+    await p.mouse.click(e.x+e.width/2,e.y);
+    await p.waitForFunction(id=>{const s=window.__BOARD_EDITOR.getAppState().selectedElementIds;return s[id]&&Object.values(s).filter(Boolean).length===1&&window.__BOARD_EDITOR.getSceneElements().some(e=>e.id===id);},id);
   }
   try{
     await phase('21 actual principals and simultaneous draw',async()=>{
@@ -110,6 +115,15 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       await Promise.all([select(pages[3],own(3)),select(pages[4],own(4))]);
       await Promise.all([pages[3].keyboard.press('Backspace'),pages[4].keyboard.press('Backspace')]);await converge(19,2);
       await pages[3].getByRole('button',{name:'Undo',exact:true}).click();await converge(20,1);
+      // Repeated native edits catch stale selections and accidental resize-handle
+      // interaction; retain the original20/1 scene for the following phases.
+      await pages[4].getByRole('button',{name:'Undo',exact:true}).click();await converge(21,0);
+      for(let cycle=0;cycle<3;cycle++){
+        await Promise.all([select(pages[3],own(3)),select(pages[4],own(4))]);
+        await Promise.all([pages[3].keyboard.press('Backspace'),pages[4].keyboard.press('Backspace')]);await converge(19,2);
+        await Promise.all([pages[3].getByRole('button',{name:'Undo',exact:true}).click(),pages[4].getByRole('button',{name:'Undo',exact:true}).click()]);await converge(21,0);
+      }
+      await select(pages[4],own(4));await pages[4].keyboard.press('Backspace');await converge(20,1);
     });
     await phase('offline pending edits, lost commit ack and late join',async()=>{
       await pages[20].context().close();pages.pop();

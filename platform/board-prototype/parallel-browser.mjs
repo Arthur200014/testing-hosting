@@ -95,9 +95,15 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
   // Editor controls never navigate. Do not wait on unrelated page navigation
   // barriers after dispatched input; scene and durability checks below still apply.
   const draw=async(p,x,y)=>{await p.getByTitle(/Rectangle/).first().click({noWaitAfter:true});await p.waitForFunction(()=>window.__BOARD_EDITOR.getAppState().activeTool.type==='rectangle');await p.mouse.move(x,y);await p.mouse.down();await p.mouse.move(x+65,y+45,{steps:3});await p.mouse.up();};
-  async function select(p,id){const e=await p.evaluate(id=>window.__BOARD_EDITOR.getSceneElements().find(e=>e.id===id),id);assert.ok(e);
-    await p.getByTitle(/Selection/).first().click({noWaitAfter:true});await p.waitForFunction(()=>window.__BOARD_EDITOR.getAppState().activeTool.type==='selection');await p.mouse.click(e.x+e.width/2,e.y);
-    await p.waitForFunction(id=>{const s=window.__BOARD_EDITOR.getAppState().selectedElementIds;return s[id]&&Object.values(s).filter(Boolean).length===1;},id);
+  async function select(p,id){
+    const e=await p.evaluate(id=>window.__BOARD_EDITOR.getSceneElements().find(e=>e.id===id),id);assert.ok(e);
+    await p.keyboard.press('Escape');await p.getByTitle(/Selection/).first().click({noWaitAfter:true});
+    await p.waitForFunction(()=>window.__BOARD_EDITOR.getAppState().activeTool.type==='selection');
+    // The synthetic grid leaves this canvas point empty. Clear the old selection
+    // before touching a border: an existing selection exposes resize handles.
+    await p.mouse.click(950,650);await p.waitForFunction(()=>!Object.values(window.__BOARD_EDITOR.getAppState().selectedElementIds).some(Boolean));
+    await p.mouse.click(e.x+e.width/2,e.y);
+    await p.waitForFunction(id=>{const s=window.__BOARD_EDITOR.getAppState().selectedElementIds;return s[id]&&Object.values(s).filter(Boolean).length===1&&window.__BOARD_EDITOR.getSceneElements().some(e=>e.id===id);},id);
   }
   async function converge(room,active,deleted){
     let previous;const t=performance.now();
