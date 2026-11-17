@@ -92,9 +92,11 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     await p.waitForFunction(t=>document.querySelector('#status')?.textContent===t,allowed?'Сохранено':'Нет доступа к занятию',{timeout:90000});
     if(!allowed){await context.close();return null;}return p;
   }
-  const draw=async(p,x,y)=>{await p.getByTitle(/Rectangle/).first().click();await p.mouse.move(x,y);await p.mouse.down();await p.mouse.move(x+65,y+45,{steps:3});await p.mouse.up();};
+  // Editor controls never navigate. Do not wait on unrelated page navigation
+  // barriers after dispatched input; scene and durability checks below still apply.
+  const draw=async(p,x,y)=>{await p.getByTitle(/Rectangle/).first().click({noWaitAfter:true});await p.waitForFunction(()=>window.__BOARD_EDITOR.getAppState().activeTool.type==='rectangle');await p.mouse.move(x,y);await p.mouse.down();await p.mouse.move(x+65,y+45,{steps:3});await p.mouse.up();};
   async function select(p,id){const e=await p.evaluate(id=>window.__BOARD_EDITOR.getSceneElements().find(e=>e.id===id),id);assert.ok(e);
-    await p.getByTitle(/Selection/).first().click();await p.mouse.move(e.x-5,e.y-5);await p.mouse.down();await p.mouse.move(e.x+e.width+5,e.y+e.height+5,{steps:3});await p.mouse.up();
+    await p.getByTitle(/Selection/).first().click({noWaitAfter:true});await p.waitForFunction(()=>window.__BOARD_EDITOR.getAppState().activeTool.type==='selection');await p.mouse.move(e.x-5,e.y-5);await p.mouse.down();await p.mouse.move(e.x+e.width+5,e.y+e.height+5,{steps:3});await p.mouse.up();
     await p.waitForFunction(id=>{const s=window.__BOARD_EDITOR.getAppState().selectedElementIds;return s[id]&&Object.values(s).filter(Boolean).length===1;},id);
   }
   async function converge(room,active,deleted){
@@ -169,7 +171,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       await Promise.all(rooms.flatMap(r=>[select(r.pages[0],target(r)),select(r.pages[1],target(r))]));
       await Promise.all(rooms.flatMap(r=>[r.pages[0].keyboard.press('ArrowRight'),r.pages[1].keyboard.press('ArrowLeft')]));await Promise.all(rooms.map(r=>converge(r,21,0)));
       await Promise.all(rooms.map(async r=>{const id=r.ids.find(e=>e.x===575&&e.y===150).id;await select(r.pages[3],id);await r.pages[3].keyboard.press('Backspace');}));await Promise.all(rooms.map(r=>converge(r,20,1)));
-      await Promise.all(rooms.map(r=>r.pages[3].getByRole('button',{name:'Undo',exact:true}).click()));await Promise.all(rooms.map(r=>converge(r,21,0)));
+      await Promise.all(rooms.map(r=>r.pages[3].getByRole('button',{name:'Undo',exact:true}).click({noWaitAfter:true})));await Promise.all(rooms.map(r=>converge(r,21,0)));
     });
     await phase('ten offline writers and lost durable acknowledgement',async()=>{
       const heads=await Promise.all(rooms.map(r=>journal.read(r.scope)));
@@ -184,7 +186,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       await Promise.all(rooms.map(r=>r.pages[0].getByTestId('board-file').setInputFiles({name:'room-'+r.number+'.png',mimeType:'image/png',buffer:png})));await Promise.all(rooms.map(r=>converge(r,23,0)));
       await Promise.all(rooms.map(r=>r.pages[0].getByTestId('board-file').setInputFiles({name:'room-'+r.number+'.pdf',mimeType:'application/pdf',buffer:pdf})));
       for(const r of rooms)await Promise.all(r.pages.map(p=>p.getByRole('button',{name:'room-'+r.number+'.pdf',exact:true}).waitFor()));await Promise.all(rooms.map(r=>converge(r,23,0)));
-      await Promise.all(rooms.map(r=>r.pages[0].getByTestId('board-checkpoint').click()));
+      await Promise.all(rooms.map(r=>r.pages[0].getByTestId('board-checkpoint').click({noWaitAfter:true})));
       await Promise.all(rooms.map(r=>r.pages[0].getByTestId('checkpoint-status').filter({hasText:/Контрольная точка: [0-9]+/}).waitFor({timeout:120000})));await Promise.all(rooms.map(r=>converge(r,23,0)));
     });
     await phase('shared relay and storage restart with pending work',async()=>{
@@ -193,7 +195,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       // One cold participant per room reloads while the other200 editors stay open.
       await Promise.all(rooms.map(async r=>{await r.pages[20].reload();await r.pages[20].waitForFunction(()=>document.querySelector('#status')?.textContent==='Сохранено',null,{timeout:120000});}));await Promise.all(rooms.map(r=>converge(r,24,0)));
       assert.equal(browser.contexts().length,targetContexts);
-      await Promise.all(rooms.map(async r=>{const download=r.pages[20].waitForEvent('download');await r.pages[20].getByRole('button',{name:'room-'+r.number+'.pdf',exact:true}).click();const parts=[],stream=await(await download).createReadStream();for await(const b of stream)parts.push(b);assert.ok(Buffer.concat(parts).equals(pdf));}));
+      await Promise.all(rooms.map(async r=>{const download=r.pages[20].waitForEvent('download');await r.pages[20].getByRole('button',{name:'room-'+r.number+'.pdf',exact:true}).click({noWaitAfter:true});const parts=[],stream=await(await download).createReadStream();for await(const b of stream)parts.push(b);assert.ok(Buffer.concat(parts).equals(pdf));}));
     });
     await phase('closed tab during commit and actual isolated database outage',async()=>{
       const r=rooms[0],append=journal.append;let release,arrived=false;
@@ -219,21 +221,21 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     await phase('steady mixed workload 15min',async()=>{
       // Existing image/PDF are present throughout; actual text editing, deletion,
       // undo, added images and checkpoints continue during the full15 minutes.
-      await Promise.all(rooms.map(async r=>{const p=r.pages[2];await p.getByTitle(/^Text/).first().click();await p.mouse.click(260,700);await p.keyboard.type('Room '+r.number);await p.keyboard.press('Escape');}));
+      await Promise.all(rooms.map(async r=>{const p=r.pages[2];await p.getByTitle(/^Text/).first().click({noWaitAfter:true});await p.waitForFunction(()=>window.__BOARD_EDITOR.getAppState().activeTool.type==='text');await p.mouse.click(260,700);await p.keyboard.type('Room '+r.number);await p.keyboard.press('Escape');}));
       await Promise.all(rooms.map((r,i)=>converge(r,i===0?27:26,0)));
       for(const r of rooms)r.textId=await r.pages[2].evaluate(()=>window.__BOARD_EDITOR.getSceneElements().find(e=>e.type==='text').id);
       const began=performance.now();steadyStarted=began;let cycle=0;
       while(performance.now()-began<900000){
         const tick=performance.now();cycle++;
-        await Promise.all(rooms.map(async r=>{const p=r.pages[2],e=await p.evaluate(id=>window.__BOARD_EDITOR.getSceneElements().find(e=>e.id===id),r.textId);await p.getByTitle(/Selection/).first().click();await p.mouse.dblclick(e.x+5,e.y+e.height/2);await p.keyboard.press('ControlOrMeta+A');const text='Room '+r.number+' cycle '+cycle;await p.keyboard.type(text);await p.keyboard.press('Escape');await p.waitForFunction(({id,text})=>{const e=window.__BOARD_EDITOR.getSceneElements().find(e=>e.id===id);return (e?.originalText??e?.text)===text;},{id:r.textId,text});}));
+        await Promise.all(rooms.map(async r=>{const p=r.pages[2],e=await p.evaluate(id=>window.__BOARD_EDITOR.getSceneElements().find(e=>e.id===id),r.textId);await p.getByTitle(/Selection/).first().click({noWaitAfter:true});await p.waitForFunction(()=>window.__BOARD_EDITOR.getAppState().activeTool.type==='selection');await p.mouse.dblclick(e.x+5,e.y+e.height/2);await p.keyboard.press('ControlOrMeta+A');const text='Room '+r.number+' cycle '+cycle;await p.keyboard.type(text);await p.keyboard.press('Escape');await p.waitForFunction(({id,text})=>{const e=window.__BOARD_EDITOR.getSceneElements().find(e=>e.id===id);return (e?.originalText??e?.text)===text;},{id:r.textId,text});}));
         await Promise.all(rooms.map(r=>converge(r,r.active,0)));
         if(cycle%3===0){
           await Promise.all(rooms.map(async r=>{await select(r.pages[3],r.ids.find(e=>e.x===575&&e.y===150).id);await r.pages[3].keyboard.press('Backspace');}));
-          await Promise.all(rooms.map(r=>converge(r,r.active-1,1)));await Promise.all(rooms.map(r=>r.pages[3].getByRole('button',{name:'Undo',exact:true}).click()));await Promise.all(rooms.map(r=>converge(r,r.active+1,0)));
+          await Promise.all(rooms.map(r=>converge(r,r.active-1,1)));await Promise.all(rooms.map(r=>r.pages[3].getByRole('button',{name:'Undo',exact:true}).click({noWaitAfter:true})));await Promise.all(rooms.map(r=>converge(r,r.active+1,0)));
         }
         if(cycle%5===0){await Promise.all(rooms.map(r=>r.pages[0].getByTestId('board-file').setInputFiles({name:'cycle-'+cycle+'.png',mimeType:'image/png',buffer:png})));await Promise.all(rooms.map(r=>converge(r,r.active+1,0)));}
         if(cycle%7===0){
-          const prior=await Promise.all(rooms.map(r=>r.pages[0].getByTestId('checkpoint-status').textContent()));await Promise.all(rooms.map(r=>r.pages[0].getByTestId('board-checkpoint').click()));
+          const prior=await Promise.all(rooms.map(r=>r.pages[0].getByTestId('checkpoint-status').textContent()));await Promise.all(rooms.map(r=>r.pages[0].getByTestId('board-checkpoint').click({noWaitAfter:true})));
           await Promise.all(rooms.map((r,i)=>r.pages[0].waitForFunction(old=>document.querySelector('[data-testid=checkpoint-status]')?.textContent!==old,prior[i],{timeout:120000})));await Promise.all(rooms.map(r=>converge(r,r.active,0)));
         }
         if(cycle%6===0)console.log(label+' steady seconds: '+Math.round((performance.now()-began)/1000)+'; contexts: '+browser.contexts().length);

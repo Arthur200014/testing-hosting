@@ -51,7 +51,21 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     await p.addInitScript(config=>{window.__BOARD_TEST_CONFIG=config;},{url:room.url,session:{apiBase:api,accessToken:token,role,lessonId}});
     await p.goto('http://127.0.0.1:8768');
     await p.waitForFunction(t=>document.querySelector('#status')?.textContent===t,allowed?'Сохранено':'Нет доступа к занятию',{timeout:45000});
-    if(!allowed){await c.close();return null;}return p;
+    if(!allowed){await c.close();return null;}
+    // Synthetic input evidence distinguishes a missing native action from an
+    // acknowledged edit later overwritten by replay. Keep assertions unchanged.
+    await p.evaluate(()=>{
+      window.__BOARD_KEY_TRACE=[];
+      window.addEventListener('keydown',event=>{
+        if(!['Backspace','ArrowLeft','ArrowRight'].includes(event.key))return;
+        const api=window.__BOARD_EDITOR,ids=Object.keys(api.getAppState().selectedElementIds).filter(id=>api.getAppState().selectedElementIds[id]);
+        const snapshot=()=>api.getSceneElementsIncludingDeleted().filter(e=>ids.includes(e.id)).map(e=>({id:e.id,version:e.version,nonce:e.versionNonce,deleted:e.isDeleted}));
+        const row={key:event.key,target:event.target?.tagName,selected:ids,before:snapshot(),at:Date.now()};
+        if(window.__BOARD_KEY_TRACE.length<16)window.__BOARD_KEY_TRACE.push(row);
+        setTimeout(()=>{row.after=snapshot();row.prevented=event.defaultPrevented;},0);
+        setTimeout(()=>{row.later=snapshot();},250);
+      },true);
+    });return p;
   }
   const at=i=>({x:260+(i%5)*110,y:150+Math.floor(i/5)*110});
   async function draw(p,x,y){await p.getByTitle(/Rectangle/).first().click();await p.mouse.move(x,y);await p.mouse.down();await p.mouse.move(x+95,y+70,{steps:5});await p.mouse.up();}
@@ -68,6 +82,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       if(ok&&previous===first.hash){records.push({active,deleted,principals:list.length,hash:first.hash});return true;}
       previous=ok?first.hash:undefined;return false;
     },'Full group state divergence');}catch(e){console.error('P3 divergence summary',JSON.stringify(await Promise.all(list.map(state))));
+      console.error('P3 native input evidence',JSON.stringify((await Promise.all(list.map((p,i)=>p.evaluate(i=>({i,keys:window.__BOARD_KEY_TRACE??[]}),i)))).filter(x=>x.keys.length)));
       const rows=await Promise.all(list.slice(0,3).map(p=>p.evaluate(()=>window.__BOARD_EDITOR.getSceneElementsIncludingDeleted()))),base=new Map(rows[0].map(e=>[e.id,e]));
       console.error('P3 differing fields',JSON.stringify(rows.slice(1).map(items=>items.flatMap(e=>{const a=base.get(e.id);return a?[{id:e.id,fields:Object.keys(e).filter(k=>JSON.stringify(e[k])!==JSON.stringify(a[k]))}]:[{missing:true}];}).filter(e=>e.missing||e.fields.length).slice(0,3))));throw e;}
   }
