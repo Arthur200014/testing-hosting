@@ -35,7 +35,7 @@ jobs:
           node-version: '22'
       - name: Install locked free transport and database dependencies
         run: npm --prefix platform/board-prototype ci --ignore-scripts --no-audit --no-fund
-      - name: Verify previously audited transport licences and notices
+      - name: Verify all runtime licences and font notices
         run: npm --prefix platform/board-prototype run licenses
       - name: Real Socket.IO persistence and restart with PostgreSQL
         run: node --test platform/board-prototype/transport.test.mjs
@@ -59,6 +59,11 @@ jobs:
         with:
           node-version: '22'
       - run: npm --prefix platform/board-prototype ci --ignore-scripts --no-audit --no-fund
-      # Deliberate release gate: the new editor graph must pass full clearance,
-      # independently of the previously audited 43 transport packages.
+      # Changes to versions, integrity, notices or font bytes require explicit review.
       - run: npm --prefix platform/board-prototype run licenses:full
+      - name: Licence gate negative regressions
+        run: cd platform/board-prototype && node --test licence-audit.test.mjs
+      - name: Build isolated editor with retained notices
+        run: cd platform/board-prototype && npm run editor:build
+      - name: Verify built fonts and notice distribution
+        run: cd platform/board-prototype && npm run licenses:built
