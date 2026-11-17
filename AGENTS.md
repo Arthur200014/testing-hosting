@@ -51,6 +51,12 @@ Additional research, architecture review, independent review, and agents are **o
 - Keep HANDOFF on main current after release or interruption: ACTIVE_BRANCH/PR, implementation status, release evidence, live tests and any blocker must reflect reality. Never leave main saying ACTIVE_BRANCH=none while unfinished work exists. Main's release requirements also apply while resuming an older task branch; retain them when merging branch instructions.
 - Documentation-only updates require content/diff verification and commit/push, not an application redeploy or live data writes. Distinguish these from application releases.
 
+## TAS board prototype — owner decision 2026-11-17
+
+- Before the next visual UI-06 block, implement and validate the isolated free-software board prototype described in `docs/architecture/tas-board-prototype.md`; then resume the Meleto queue. This is an explicit owner-approved plan, not a requirement to plan every ordinary UI task.
+- Only commercially usable free/open-source components with no mandatory vendor subscription, SDK key or per-user/board fee. Excalidraw and excalidraw-room are candidates; verify pinned dependencies/licences. Infrastructure and integration costs remain separate.
+- Prototype only on isolated synthetic workspaces; acceptance includes 1 teacher + 20 pupils, parallel rooms, access isolation and persistence after restart. Do not deploy a new production service, switch legacy Firebase writers, or claim realtime readiness before the plan's checks pass.
+
 ## Git and continuation
 - Before writing, verify the current target branch and file revision. Never overwrite concurrent edits, use force-push, or include unrelated files.
 - Small complete changes: commit + push once. For a long or interrupted TAS task, resume/use `tas/<TASK_ID>` and checkpoint **after meaningful milestones or before context exhaustion**, not every 3–5 minutes.

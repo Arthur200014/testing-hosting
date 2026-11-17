@@ -1,15 +1,18 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-17
-**ACTIVE_TASK:** UI-05 pupil feedback draft released.
+**ACTIVE_TASK:** UI-06-P free collaborative board prototype planned; implementation NOT_STARTED. UI-05 released; next visual block paused until prototype decision.
 **ACTIVE_BRANCH:** none.
 **MERGED_SHA:** `283e8e9a309329e8aab9ca74bc114d034cef7a88`, [PR #89](https://github.com/Arthur200014/testing-hosting/pull/89).
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43964949913](https://github.com/Arthur200014/testing-hosting/actions/runs/43964949913) PASS; workflow-only verification fix `5d34f9828cc47e0a3c511e947687d06a17cd8d29` also published via [Pages 43965381081](https://github.com/Arthur200014/testing-hosting/actions/runs/43965381081). [Publication check 43965468835](https://github.com/Arthur200014/testing-hosting/actions/runs/43965468835), job publication, PASS: actual teacher.html, teacher-data.mjs, student-card.mjs, pupil-history.mjs, pupil-feedback.mjs and teacher-report.mjs byte-match application release283e8e9; verification fix changes no frontend bytes.
 **API_DEPLOYMENT:** Native Timeweb main auto-deploy is owner-configured. New additive migration `20261117010000_PupilFeedbackDrafts` passes isolated deployment/startup/restore checks. Independent running API revision/migration application UNKNOWN / NOT_VERIFIED; LIVE_WRITE_NOT_RUN in owner-approved isolated-only mode.
-**NEXT_ACTION:** UI-06 class/lesson board scenario, not a tiny UI task: inspect only applicable board references51–52 and existing board routes/storage/auth; class/lesson → exact owned board → edit/save/cancel → reopen/reload → return, with independent pair/foreign access checks in isolated workspaces. Reuse current implementation where possible; do not change/delete live legacy Firebase boards or switch writer incidentally. Complete CI/merge/Pages/publication/HANDOFF. Feedback sending, notifications/payments and broader multiple-study changes remain outside this next block.
+**NEXT_ACTION:** Create `tas/ui06-board-prototype` from current main and implement P1→P2 of [board prototype architecture/instructions](../../docs/architecture/tas-board-prototype.md): pin MIT Excalidraw/collaboration versions, inspect only related auth/board/storage code, define one durable save/recovery path, then isolated synthetic class/lesson → board → edit/save → reload/restart. Continue P3/P4: 1 teacher +20 pupils and 10×21 parallel clients, ownership/read-only/foreign/reconnect/conflict checks. No production deployment/new service or legacy Firebase writer change in this prototype. After GO resume UI-06 refs51–52 and RELEASE_PLAN; chat remains separate.
+
+**PLAN_UPDATE:** 2026-11-17 documentation-only update; architecture, RELEASE_PLAN, PHASE_CHECKLISTS and AGENTS aligned. App/deploy unchanged. Documentation content/link/scope checks PASS; prototype functional/access/persistence/load checks NOT_RUN. Current AGENTS/HANDOFF and source inspected through GitHub; executor unavailable.
 
 ## Standing owner instructions
 
+- Only free commercial-use board components: no paid SDK/subscription/key or per-user/board vendor fees. Hosting/development costs remain. Prototype before further visual work; retain completed UI and return to UI-06 after GO.
 - Take substantial connected blocks for individual/group contexts; follow RELEASE_PLAN, not old Mxx/Pxx boards.
 - Persistence tests use isolated synthetic API/PostgreSQL/Chromium workspaces only. **Do not check Timeweb** or request production credentials; independent production revision/live writes are not blockers in this approved mode.
 - Never use real students, lessons, scores, settings or credentials as write targets; never retarget seed/reset/import/browser scripts to production, rerun completed imports, change writer or provision infrastructure incidentally. No invitations/notifications/payments sent.
