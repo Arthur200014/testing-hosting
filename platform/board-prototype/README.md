@@ -60,3 +60,45 @@ revocation at a real Socket.IO connection: the network adapter remains pending.
 The pg dependency is pinned with package-lock.json; installed dependency metadata
 uses MIT/ISC. This audit covers the current database-driver graph ONLY, not the
 future editor/Socket.IO graph. No claim of completed P2 or a usable board is made.
+
+## P2 network checkpoint: authorized Socket.IO + durable replay
+
+`transport.mjs` exports `startTestTransport` for the isolated runner only. It
+binds exclusively to 127.0.0.1, starts no production service, and is not wired to
+Pages, Timeweb or application navigation. Socket.IO server/client are pinned to
+4.8.1. Run `npm ci --ignore-scripts`, `npm run licenses`, then `npm test` here.
+CI provides its own loopback PostgreSQL; local runs explicitly skip DB checks
+when BOARD_TEST_DATABASE_URL is absent. Never point this variable at production.
+
+The handshake auth object carries the dedicated permit plus workspace/board,
+never a URL token. There is no client-controlled join/broadcast destination.
+Every submit/replay and outgoing replay result rechecks signed scope, role,
+expiry and the injected revocation predicate. A 250ms sweep disconnects denied
+idle clients. This predicate is a test hook: connection to actual .NET membership
+revocation remains pending; do not claim immediate production revocation.
+
+One submit/replay per connection may be outstanding; 50 requests/second,
+256 total and 24 per room are the current caps. Binary scenes are capped at
+256KiB and database history at 32MiB/10,000 frames per room. Replay pages contain
+at most 8 frames. Slow clients pull their own ordered pages rather than receiving
+an unbounded broadcast queue. Clients must page/retry BUSY, deduplicate by seq
+and retain messageId for retry. A submit response acknowledges the PostgreSQL
+COMMIT (or filesystem test fsync), never local browser state. Storage failures
+return failure. This contract is application-specific Socket.IO, not a drop-in
+excalidraw-room client protocol.
+
+Tests use real loopback WebSocket connections with distinct synthetic identities:
+teacher + two pupils, retries/conflicts, read-only/forged/foreign/expired/revoked
+access, bounded replay, quota, delayed write/read, injected storage outage,
+transport restart and new journal/pool replay. CI also exercises ten rooms ×21
+protocol clients and recovery, and prints duration/RSS for that short profile.
+These are **not real browsers, a sustained benchmark, actual Excalidraw scene
+convergence or P3/P4 acceptance**. Browser editor/.NET issuance wiring, files,
+checkpoint/compaction, full revocation integration and fault acceptance remain.
+
+`audit-licenses.mjs` checks all 43 currently locked pg/Socket.IO package versions,
+integrities and reviewed MIT/ISC/BSD metadata and compares retained copyright/
+licence/NOTICE texts in THIRD_PARTY_NOTICES.txt. Two pg packages embed MIT in
+README; one legacy package declares its MIT licence via `licenses`. The future
+editor dependency graph still requires its own audit. Updating dependencies
+requires reviewing notices and regenerating them with `node audit-licenses.mjs --write`.

@@ -72,11 +72,11 @@ export async function openJournal(directory) {
         chain = work.catch(() => {});
         return work;
       },
-      async replay(s, after = 0) {
+      async replay(s, after = 0, limit = 10000) {
         await chain;
         if (closed || poisoned) throw new Error('Journal unavailable');
-        if (!Number.isSafeInteger(after) || after < 0) throw new Error('Invalid replay cursor');
-        return structuredClone((rooms.get(scope(s)) ?? []).filter(r => r.seq > after));
+        if (!Number.isSafeInteger(after) || after < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 10000) throw new Error('Invalid replay cursor');
+        return structuredClone((rooms.get(scope(s)) ?? []).filter(r => r.seq > after).slice(0, limit));
       },
       async close() {
         closing = true; await chain; closed = true;

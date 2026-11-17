@@ -47,9 +47,9 @@ export async function openPostgresJournal(connectionString) {
         return dto(row);
       } catch(e) { await c.query('ROLLBACK'); throw e; } finally { c.release(); }
     },
-    async replay(scope, after=0) {
-      if (!Number.isSafeInteger(after) || after<0) throw new Error('Invalid replay cursor');
-      return (await pool.query('SELECT * FROM board_frames WHERE workspace=$1 AND board=$2 AND seq>$3 ORDER BY seq',[...checkScope(scope),after])).rows.map(dto);
+    async replay(scope, after=0, limit=10000) {
+      if (!Number.isSafeInteger(after) || after<0 || !Number.isSafeInteger(limit) || limit<1 || limit>10000) throw new Error('Invalid replay cursor');
+      return (await pool.query('SELECT * FROM board_frames WHERE workspace=$1 AND board=$2 AND seq>$3 ORDER BY seq LIMIT $4',[...checkScope(scope),after,limit])).rows.map(dto);
     },
     async close() { await pool.end(); },
   };
