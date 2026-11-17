@@ -15,13 +15,15 @@ export function connectScene({ url, permit, sceneKey, api, reconcileElements, Ca
   if (!['127.0.0.1','localhost'].includes(new URL(url).hostname)) throw new Error('Isolated room required');
   const socket = io(url, { auth: permit, transports:['websocket'], reconnection:true });
   const key = crypto.subtle.importKey('raw', bytes(sceneKey), 'AES-GCM', false, ['encrypt','decrypt']);
-  let after = 0, ready = false, stopped = false, inflight, dirty = new Map(), seen = new Map();
+  let after = 0, ready = false, stopped = false, unsupported = false, inflight, dirty = new Map(), seen = new Map();
   const remember = elements => { for (const e of elements) seen.set(e.id, signature(e)); };
   const request = (event, payload) => socket.timeout(3000).emitWithAck(event,payload);
   const changed = elements => {
     if (!ready) return;
+    unsupported = elements.some(e => e.type === 'image' && !e.isDeleted);
+    if (unsupported) status('Изображения пока не поддерживаются — не сохранено');
     for (const e of elements) if (seen.get(e.id) !== signature(e)) {
-      if (e.type === 'image') { status('Изображения пока не поддерживаются'); return; }
+      if (e.type === 'image') continue;
       dirty.set(e.id, structuredClone(e)); seen.set(e.id, signature(e));
     }
     if (dirty.size) status('Не сохранено');
@@ -63,7 +65,7 @@ export function connectScene({ url, permit, sceneKey, api, reconcileElements, Ca
         if (!result.more) break;
       }
       ready = true;
-      if (!dirty.size && !inflight) status('Сохранено');
+      if (!dirty.size && !inflight && !unsupported) status('Сохранено');
     } catch (e) { status('Не сохранено: ' + e.message); }
     finally { if (!stopped) setTimeout(loop,150); }
   }
