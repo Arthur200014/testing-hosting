@@ -99,8 +99,8 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     await until(()=>Date.now()>=groupPermit.expiresAt*1000,'Original permit expiry');
     await call('board-prototype/access',null,{token:groupPermit.token},404);
     for(const p of [teacher,a,b]){
-      assert.ok(p.permits.length>=2);assert.equal(p.permits.at(-1).sceneKey,groupPermit.sceneKey);
-      assert.notEqual(p.permits[0].token,p.permits.at(-1).token);await saved(p);
+      assert.ok(p.permits.length>=2);assert.ok(p.permits.at(-1).sceneKey===groupPermit.sceneKey,'Renewal changed scene key');
+      assert.ok(p.permits[0].token!==p.permits.at(-1).token,'Renewal reused permit');await saved(p);
     }
     console.log('PASS: expired original API permit denied; same browsers renew actual sessions with stable keys.');
 
