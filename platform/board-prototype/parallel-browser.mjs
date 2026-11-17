@@ -107,26 +107,28 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
   }
   async function phase(name,run){activePhase=name;const t=performance.now();await run();phases[name]=Math.round(performance.now()-t);console.log('PASS '+label+': '+name);}
   try{
-    const profiles=[];const loginStart=performance.now();
-    for(const a of [accounts.north,accounts.south].slice(0,workspaceCount)){
-      assert.equal(a.students.length,20);subjects.add(actor(a.token));const tokens=[];
-      for(const student of a.students){for(;;){
-        const r=await fetch(api+'/api/v1/student-sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({workspace:a.workspace,code:student.inviteCode})});
-        if(r.status===429){assert.ok(performance.now()-loginStart<600000,'Login rate-limit budget exceeded');await wait(15000);continue;}
-        assert.equal(r.status,200);const token=(await r.json()).accessToken;tokens.push(token);subjects.add(actor(token));break;
-      }}
-      profiles.push({account:a,tokens});
-    }
-    assert.equal(subjects.size,workspaceCount*21);
+    const profiles=[accounts.north,accounts.south].slice(0,workspaceCount).map(account=>({account,tokens:[]}));
+    for(const profile of profiles)subjects.add(actor(profile.account.token));
     for(let w=0;w<workspaceCount;w++){
       const profile=profiles[w],a=profile.account;
       const g=w===0?group:await call('teacher/groups',a.token,{requestId:randomUUID(),title:'Parallel test group',memberIds:a.students.map(s=>s.membershipId),durationMinutes:60},201);
       for(let i=0;i<lessonsPerWorkspace;i++){
         const lesson=w===0&&i===0?beforeLessons.find(l=>l.groupClassId===group.id):await call('teacher/lessons',a.token,{requestId:randomUUID(),title:'Parallel test lesson '+i,lessonAt:`2026-11-17T${String(6+i).padStart(2,'0')}:00:00Z`,groupClassId:g.id,participants:a.students.map(s=>({membershipId:s.membershipId,durationMinutes:60,attendanceStatus:'Unknown'}))},201);
+        lesson.id??=lesson.lessonId;assert.match(lesson.id,/^[0-9a-f-]{36}$/i,'Actual lesson ID required');
         const permit=await call('teacher/board-prototype/lessons/'+lesson.id+'/permit',a.token,{});
         rooms.push({number:rooms.length,profile,lesson,scope:{workspace:permit.workspace,board:permit.board},pages:[]});
       }
     }
+    const loginStart=performance.now();
+    for(const profile of profiles){
+      const a=profile.account;assert.equal(a.students.length,20);
+      for(const student of a.students){for(;;){
+        const r=await fetch(api+'/api/v1/student-sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({workspace:a.workspace,code:student.inviteCode})});
+        if(r.status===429){assert.ok(performance.now()-loginStart<600000,'Login rate-limit budget exceeded');await wait(15000);continue;}
+        assert.equal(r.status,200);const token=(await r.json()).accessToken;profile.tokens.push(token);subjects.add(actor(token));break;
+      }}
+    }
+    assert.equal(subjects.size,workspaceCount*21);
     containerIds=(await command('docker',['ps','--filter','label=com.docker.compose.project='+project,'--format','{{.ID}}'])).stdout.trim().split('\n').filter(Boolean);
     journal=await openPostgresJournal(process.env.BOARD_TEST_DATABASE_URL);trackCommits();relay=await openRelay();const port=Number(new URL(relay.url).port);
     const cwd=process.cwd();process.chdir(new URL('.',import.meta.url).pathname);
