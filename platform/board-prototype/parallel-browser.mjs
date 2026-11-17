@@ -26,7 +26,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
   const key=Buffer.from(process.env.TAS_BOARD_SIGNING_KEY,'base64');assert.equal(key.length,32);
   const output=new URL(groupSoak?'../../test-results/board-group-soak-result.json':'../../test-results/board-parallel-result.json',import.meta.url),start=performance.now();
   const rooms=[],errors=[],samples=[],phases={},latencies=[],operations={},failures={},subjects=new Set(),commits=new Map(),deliveries=[],seenDeliveries=new Set(),deliveryReceivers=new Set(),connections={connected:0,disconnected:0,peak:0,byPhase:{}};let peakPending=0,droppedMetrics=0,steadyDurationMs=0,steadyStarted=0;
-  let journal,relay,site,browser,cdp,sampler,busy=false,metricsError,dropActor,dropCount=0,activePhase='setup',authTimer,authBusy=false,authError;const authentication={logins:0,renewals:0,rateLimited:0,policy:'ordinary API re-login, unchanged JWT lifetime and per-IP limits'};const authRetry={teacher:0,student:0};
+  let journal,relay,site,browser,cdp,sampler,busy=false,metricsError,dropActor,dropCount=0,activePhase='setup',authTimer,authBusy=false,authError;const authentication={logins:0,renewals:0,rateLimited:0,initialLoginDeferrals:0,policy:'ordinary API re-login, unchanged JWT lifetime and per-IP limits'};const authRetry={teacher:0,student:0};
   let peakBrowserRss=0,peakBrowserCpu=0,peakNodeCpu=0,peakCgroup=0,lastSample=performance.now(),lastNode=process.cpuUsage();
   const cpuByPid=new Map(),containerPeaks={};let containerIds=[];const limit=await numericFile('/sys/fs/cgroup/memory.max');
   const host={cores:os.availableParallelism(),totalMemoryBytes:os.totalmem(),cgroupMemoryLimitBytes:limit};
@@ -150,8 +150,13 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     for(const profile of profiles){
       const a=profile.account;assert.equal(a.students.length,20);
       for(const student of a.students){for(;;){
+        // Initial logins and renewals share the unchanged student-IP limiter.
+        // Give already-issued sessions priority instead of consuming the last
+        // login slots with new principals while older credentials expire.
+        await refreshSessions();if(authError)throw authError;
+        if(authBusy||profiles.some(p=>p.tokens.some(t=>expiry(t)-Date.now()<=120000))){authentication.initialLoginDeferrals++;await wait(1000);continue;}
         const r=await fetch(api+'/api/v1/student-sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({workspace:a.workspace,code:student.inviteCode})});
-        if(r.status===429){assert.ok(performance.now()-loginStart<600000,'Login rate-limit budget exceeded');await wait(15000);continue;}
+        if(r.status===429){assert.ok(performance.now()-loginStart<720000,'Login rate-limit budget exceeded');await wait(15000);continue;}
         assert.equal(r.status,200);const token=(await r.json()).accessToken;profile.tokens.push(token);subjects.add(actor(token));authentication.logins++;break;
       }}
     }
