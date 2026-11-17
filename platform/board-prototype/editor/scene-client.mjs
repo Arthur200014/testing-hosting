@@ -59,7 +59,10 @@ export function connectScene({ url, permit, sceneKey, api, reconcileElements, Ca
           if (!Array.isArray(remote.elements) || remote.elements.some(e => e.type === 'image')) throw new Error('Unsupported frame');
           const merged = reconcileElements(api.getSceneElementsIncludingDeleted(), remote.elements, api.getAppState());
           remember(merged);
-          api.updateScene({elements:merged,captureUpdate:CaptureUpdateAction.NEVER});
+          const current = api.getSceneElementsIncludingDeleted();
+          // Own durable echoes must not reset pending local undo capture.
+          if (current.length !== merged.length || current.some((e,i) => e.id !== merged[i].id || signature(e) !== signature(merged[i])))
+            api.updateScene({elements:merged,captureUpdate:CaptureUpdateAction.NEVER});
           after = frame.seq;
         }
         if (!result.more) break;
