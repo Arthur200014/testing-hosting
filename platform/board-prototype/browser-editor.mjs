@@ -57,6 +57,13 @@ async function fullConvergence(list){
 }
 
 try {
+  // Exercise the text path used by prolonged load before the long API runner.
+  const textScope={...scope,board:'text-regression'},textPages=await Promise.all([page('text-teacher','editor',textScope),page('text-pupil','editor',textScope)]);
+  const writer=textPages[0];await writer.getByTitle(/^Text/).first().click();await writer.mouse.click(260,600);await writer.keyboard.type('Room 0');await writer.keyboard.press('Escape');
+  for(const p of textPages)await count(p,1);await fullConvergence(textPages);
+  await writer.getByTitle(/Selection/).first().click();await writer.mouse.dblclick(265,610);await writer.keyboard.press('ControlOrMeta+A');await writer.keyboard.type('Room 0 cycle 2');await writer.keyboard.press('Escape');
+  await writer.waitForFunction(()=>window.__BOARD_EDITOR.getSceneElements().some(e=>(e.originalText??e.text)==='Room 0 cycle 2'));await fullConvergence(textPages);
+  for(const p of textPages)await p.context().close();
   const [teacher,a,b] = await Promise.all([page('teacher'),page('pupil-a'),page('pupil-b')]);
   await Promise.all([draw(teacher,300,220),draw(a,420,300),draw(b,650,420)]);
   for(const p of [teacher,a,b]) await count(p,3);

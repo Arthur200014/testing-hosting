@@ -301,7 +301,8 @@ The runner uses the normal production-built frontend on loopback, not developmen
 React overhead or simulated Socket.IO load. All210 editors stay open together.
 The profile covers parallel drawing, same-element conflicts, deletion/undo,
 offline writers/lost ack, PNG/PDF, checkpoints, shared relay/pool restart with
-pending teacher edits, ten cold reloads/PDF downloads and a minimum15min mixed text/image/delete/undo/checkpoint workload.
+pending teacher edits, ten cold reloads/PDF downloads, a tab closing during commit, actual isolated DB
+pause/unpause with pending writes, and a minimum15min mixed text/image/delete/undo/checkpoint workload.
 Full element/order/tombstone/file hashes must agree within each room; ten room
 hashes must stay distinct. Cross-workspace access is rejected by the actual API.
 

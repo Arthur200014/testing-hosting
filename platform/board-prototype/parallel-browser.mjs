@@ -176,6 +176,21 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       assert.equal(browser.contexts().length,targetContexts);
       await Promise.all(rooms.map(async r=>{const download=r.pages[20].waitForEvent('download');await r.pages[20].getByRole('button',{name:'room-'+r.number+'.pdf',exact:true}).click();const parts=[],stream=await(await download).createReadStream();for await(const b of stream)parts.push(b);assert.ok(Buffer.concat(parts).equals(pdf));}));
     });
+    await phase('closed tab during commit and actual isolated database outage',async()=>{
+      const r=rooms[0],append=journal.append;let release,arrived=false;
+      journal.append=async(s,f)=>{if(!arrived&&s.workspace===r.scope.workspace&&s.board===r.scope.board){arrived=true;await new Promise(a=>release=a);}return append(s,f);};
+      await draw(r.pages[6],470,625);await until(()=>!!release,'Pending commit arrival');
+      try{await r.pages[6].context().close();}finally{release();}journal.append=append;
+      r.pages[6]=await page({role:'student'},r.profile.tokens[5],r.lesson.id);await converge(r,25,0);
+      const db=(await command('docker',['ps','--filter','label=com.docker.compose.project='+project,'--filter','label=com.docker.compose.service=db','--format','{{.ID}}'])).stdout.trim();assert.match(db,/^[a-f0-9]{12,64}$/);
+      await command('docker',['pause',db]);
+      try{
+        await Promise.all(rooms.map(r=>r.pages[0].waitForFunction(()=>document.querySelector('#status')?.textContent!=='Сохранено',null,{timeout:20000})));
+        await Promise.all(rooms.map(r=>draw(r.pages[0],365,625)));
+        for(const r of rooms)assert.notEqual(await r.pages[0].locator('#status').textContent(),'Сохранено');
+      }finally{await command('docker',['unpause',db]);}
+      await Promise.all(rooms.map((r,i)=>converge(r,i===0?26:25,0)));
+    });
     await phase('workspace isolation',async()=>{
       await page({role:'teacher'},accounts.south.token,rooms[0].lesson.id,false);
       if(!groupSoak)await page({role:'student'},profiles[0].tokens[0],rooms[5].lesson.id,false);
@@ -185,7 +200,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       // Existing image/PDF are present throughout; actual text editing, deletion,
       // undo, added images and checkpoints continue during the full15 minutes.
       await Promise.all(rooms.map(async r=>{const p=r.pages[2];await p.getByTitle(/^Text/).first().click();await p.mouse.click(260,700);await p.keyboard.type('Room '+r.number);await p.keyboard.press('Escape');}));
-      await Promise.all(rooms.map(r=>converge(r,25,0)));
+      await Promise.all(rooms.map((r,i)=>converge(r,i===0?27:26,0)));
       for(const r of rooms)r.textId=await r.pages[2].evaluate(()=>window.__BOARD_EDITOR.getSceneElements().find(e=>e.type==='text').id);
       const began=performance.now();steadyStarted=began;let cycle=0;
       while(performance.now()-began<900000){
