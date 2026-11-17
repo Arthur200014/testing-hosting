@@ -54,8 +54,16 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcil
     }
   }
   // Serialise reconnect/renewal with every RPC; pending frames keep their exact bytes/ID.
-  const request=(event,payload)=>{const result=rpc.catch(()=>{}).then(async()=>{
-    await ensureConnection();return socket.timeout(3000).emitWithAck(event,payload);
+  let waitingReplay=false,cancelSent=false;
+  function cancelReplay(){if(waitingReplay&&!cancelSent&&socket.connected){cancelSent=true;socket.emit('replay:cancel');}}
+  const request=(event,payload)=>{if(event!=='replay')cancelReplay();const result=rpc.catch(()=>{}).then(async()=>{
+    await ensureConnection();
+    if(event==='replay'){
+      waitingReplay=true;cancelSent=false;
+      try{return await socket.timeout(3000).emitWithAck(event,{...payload,wait:ready&&!dirty.size&&!pendingAttachments.size&&!uploads.size&&!inflight&&!checkpointTask});}
+      finally{waitingReplay=false;}
+    }
+    return socket.timeout(3000).emitWithAck(event,payload);
   });rpc=result.catch(()=>{});return result;};
   const remember=elements=>{for(const e of elements)seen.set(e.id,signature(e));};
   function captureImage(id,binary){
@@ -77,7 +85,7 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcil
     const active=new Set(elements.filter(e=>e.type==='image'&&!e.isDeleted).map(e=>e.fileId));
     for(const id of uploads.keys())if(!newImages.has(id)&&!active.has(id)&&!pendingAttachments.has(id)&&!inflight?.fileIds.includes(id))uploads.delete(id);
     if(unsupported)status('Файл недоступен или не поддерживается — не сохранено');
-    else if(modified)status('Не сохранено');
+    else if(modified){status('Не сохранено');cancelReplay();}
   };
   async function getFile(id,fresh=false){
     if(!fresh&&files.has(id))return files.get(id);
@@ -87,6 +95,7 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcil
     const file={...f,data};files.set(id,file);confirmed.add(id);return file;
   }
   async function addFile(file){
+    cancelReplay();
     if(!ready)throw new Error('Доска ещё загружается');
     if(!file.size||file.size>2*1024*1024||!['image/png','image/jpeg','application/pdf'].includes(file.type))throw new Error('Разрешены PNG, JPEG и PDF до 2 МиБ');
     const data=new Uint8Array(await file.arrayBuffer()),id=crypto.randomUUID();
@@ -103,7 +112,7 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcil
       const elements=convertToExcalidrawElements([{type:'image',fileId:id,status:'saved',x:280+120*api.getSceneElements().filter(e=>e.type==='image').length,y:440,width,height}]);
       api.updateScene({elements:[...api.getSceneElementsIncludingDeleted(),...elements],captureUpdate:CaptureUpdateAction.IMMEDIATELY});
     }
-    status('Не сохранено');
+    status('Не сохранено');cancelReplay();
   }
   async function downloadFile(id){
     const f=await getFile(id,true),u=URL.createObjectURL(new Blob([f.data],{type:f.mimeType}));
@@ -112,7 +121,7 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcil
   socket.on('disconnect',()=>status('Нет связи — правки не подтверждены'));
   socket.on('connect_error',()=>status('Нет доступа или соединения'));
   async function loop(){
-    try{
+    let failed=false;try{
       if(!inflight&&(dirty.size||pendingAttachments.size)){
         const elements=[...dirty.values()],attachments=[...pendingAttachments],fileIds=refs(elements,attachments);
         for(const id of fileIds)if(!confirmed.has(id)){
@@ -196,12 +205,12 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcil
         }
       }
       if(socket.connected&&!dirty.size&&!pendingAttachments.size&&!uploads.size&&!inflight&&!unsupported&&!checkpointTask)status('Сохранено');
-    }catch(e){status('Не сохранено: '+e.message);}
-    finally{if(!stopped)setTimeout(loop,150);}
+    }catch(e){failed=true;status('Не сохранено: '+e.message);}
+    finally{if(!stopped)setTimeout(loop,!failed&&(dirty.size||pendingAttachments.size||inflight||checkpointTask)?0:150);}
   }
   loop();return {changed,addFile,downloadFile,checkpoint(){
     if(!ready)return Promise.reject(new Error('Доска ещё загружается'));
-    if(!checkpointTask){let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});checkpointTask={promise,resolve,reject};status('Создание контрольной точки');}
+    if(!checkpointTask){let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});checkpointTask={promise,resolve,reject};status('Создание контрольной точки');cancelReplay();}
     return checkpointTask.promise;
   },close(){stopped=true;checkpointTask?.reject(new Error('Доска закрыта'));socket.close();},get ready(){return ready;}};
 }

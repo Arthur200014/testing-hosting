@@ -13,6 +13,14 @@ export async function startTestTransport({ key, journal, revoked = () => false,
   const io = new Server(http, { serveClient: false, transports: ['websocket'],
     maxHttpBufferSize: MAX_FILE_BYTES+32768, perMessageDeflate: false, allowUpgrades: false });
   const connections = new Set(), counts = new Map();let activeOperations=0;
+  const waiters=new Map();
+  const notify=scope=>{for(const release of waiters.get(scope.workspace+'/'+scope.board)??[])release();};
+  function waiter(socket){
+    const id=socket.data.roomId,set=waiters.get(id)??new Set();waiters.set(id,set);
+    let done=false,timer,resolve;const promise=new Promise(r=>resolve=r);
+    const release=()=>{if(done)return;done=true;clearTimeout(timer);set.delete(release);if(!set.size)waiters.delete(id);if(socket.data.cancelReplay===release)socket.data.cancelReplay=undefined;resolve();};
+    set.add(release);socket.data.cancelReplay=release;timer=setTimeout(release,1000);return{promise,release};
+  }
   io.use(async (socket, next) => {
     try {
       if(Object.keys(socket.handshake.auth??{}).some(k=>!['token','workspace','board'].includes(k)))throw new Error('Unexpected auth fields');
@@ -43,7 +51,11 @@ export async function startTestTransport({ key, journal, revoked = () => false,
       socket.data.verifiedAt=clock();
     };
     let pending = false, windowAt = clock(), requests = 0;
+    // Cancellation can only wake this socket's own pending replay. It returns
+    // no data and never substitutes for the live post-read authorization check.
+    socket.on('replay:cancel',()=>{socket.data.cancelRequested=true;socket.data.cancelReplay?.();});
     socket.on('disconnect', reason => {
+      socket.data.cancelReplay?.();
       observe({event:'connection',phase:'disconnected',reason,connections:connections.size-1});
       connections.delete(socket);
       const n = counts.get(roomId) - 1;
@@ -75,13 +87,15 @@ export async function startTestTransport({ key, journal, revoked = () => false,
         throw new Error('Binary frame required');
       const saved = await room.submit({ messageId: payload.messageId,
         ciphertext: payload.ciphertext, iv: payload.iv, fileIds:references(payload.fileIds) });
+      notify(scope);
       // A sequence acknowledgement is produced only after durable append completes.
       // No blind room broadcast: every client pulls authorized ordered pages.
       return { seq: saved.seq, messageId: saved.messageId };
     });
     handle('checkpoint',async payload=>{
       if(socket.data.claims.authRole!=='teacher'||!journal.checkpoint)throw new Error('Teacher checkpoint required');
-      return journal.checkpoint(scope,{base:payload?.base,messageId:payload?.messageId,ciphertext:payload?.ciphertext,iv:payload?.iv,fileIds:payload?.fileIds,user:socket.data.claims.user});
+      const result=await journal.checkpoint(scope,{base:payload?.base,messageId:payload?.messageId,ciphertext:payload?.ciphertext,iv:payload?.iv,fileIds:payload?.fileIds,user:socket.data.claims.user});
+      if(result.accepted)notify(scope);return result;
     });
     handle('file:put', async payload => {
       if(!journal.putFile)throw new Error('File storage unavailable');
@@ -97,9 +111,15 @@ export async function startTestTransport({ key, journal, revoked = () => false,
     handle('replay', async payload => {
       const after = payload?.after;
       if (!Number.isSafeInteger(after) || after < 0) throw new Error('Invalid cursor');
-      if(journal.read)return journal.read(scope,after,8);
-      const frames = await journal.replay(scope, after, 8);
-      return { frames, next: frames.at(-1)?.seq ?? after, more: frames.length === 8 };
+      const waiting=payload?.wait===true?waiter(socket):null;
+      const read=async()=>{if(journal.read)return journal.read(scope,after,8);const frames=await journal.replay(scope,after,8);return{frames,next:frames.at(-1)?.seq??after,more:frames.length===8};};
+      try{
+        // Register before reading: a concurrent commit cannot slip between the
+        // empty read and waiter registration. Signals carry no network payload.
+        const view=await read();
+        if(waiting&&!view.checkpoint&&!view.frames.length&&!socket.data.cancelRequested){await waiting.promise;socket.data.cancelRequested=false;return read();}
+        socket.data.cancelRequested=false;return view;
+      }finally{waiting?.release();}
     });
   });
   const sweep = setInterval(() => {

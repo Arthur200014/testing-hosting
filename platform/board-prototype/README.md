@@ -68,6 +68,11 @@ access before each operation, before returning results, and during a250ms idle
 sweep. API timeout/denial/outage fails closed. The relay receives neither user
 API JWTs nor the API signing key. Viewer writes fail on the server. No client-controlled join/broadcast destination.
 
+Idle editors request a bounded one-second waiting replay. A durable commit wakes
+only that room's waiters; local edits cancel only their own pending wait. Signals
+carry no scene data. Each reply still performs fresh post-read authorization;
+the timeout discovers commits from other writers. Initial catch-up stays immediate.
+
 One request per connection,50 requests/second,256 connections total,24 per room,
 256KiB scene frames and8-frame replay pages bound work. PostgreSQL row locks
 serialize monotonic revisions; per-user message IDs are idempotent and conflicting

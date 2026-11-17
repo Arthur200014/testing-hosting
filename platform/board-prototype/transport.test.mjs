@@ -187,3 +187,30 @@ test('idle socket still loses access through periodic validation without an RPC'
   const disconnected=new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('Idle access revocation did not disconnect')),2000);c.once('disconnect',()=>{clearTimeout(timer);resolve();});});
   denied=true;await disconnected;assert.equal(c.connected,false);
 });
+
+
+test('long replay wakes only after durable commit; own cancellation cannot wake another socket',async t=>{
+  const f=await fixture(t),s=scope(),a=await f.client(auth(s,'a')),b=await f.client(auth(s,'b'));
+  let settled=false;const pending=request(a,'replay',{after:0,wait:true}).then(x=>{settled=true;return x;});
+  while((await request(a,'replay',{after:0})).error!=='BUSY')await new Promise(r=>setImmediate(r));
+  b.emit('replay:cancel');await new Promise(r=>setTimeout(r,30));assert.equal(settled,false);
+  assert.equal((await request(b,'submit',frame('wake'))).ok,true);
+  assert.equal((await pending).frames[0].messageId,'wake');
+  const cancelled=request(a,'replay',{after:1,wait:true});
+  a.emit('replay:cancel');assert.deepEqual((await cancelled).frames,[]);
+});
+test('replay cancellation before authorization completes is remembered; post-wait revocation returns no frames',async t=>{
+  let block=false,release,deny=false;
+  const f=await fixture(t,false,{authorize:async()=>{if(block){block=false;await new Promise(r=>release=r);}return !deny;}}),s=scope(),a=await f.client(auth(s));
+  block=true;const cancelled=request(a,'replay',{after:0,wait:true});
+  while(!release)await new Promise(r=>setImmediate(r));a.emit('replay:cancel');release();assert.deepEqual((await cancelled).frames,[]);
+  const waiting=request(a,'replay',{after:0,wait:true}).catch(()=>({ok:false}));
+  while((await request(a,'replay',{after:0})).error!=='BUSY')await new Promise(r=>setImmediate(r));
+  deny=true;await f.journal.append(s,{...frame('revoked-secret'),user:'teacher'});
+  const result=await waiting;assert.notEqual(result.ok,true);assert.equal(result.frames,undefined);
+});
+test('long replay timeout still discovers commits from another writer without an in-process signal',async t=>{
+  const f=await fixture(t),s=scope(),a=await f.client(auth(s));const waiting=request(a,'replay',{after:0,wait:true});
+  while((await request(a,'replay',{after:0})).error!=='BUSY')await new Promise(r=>setImmediate(r));
+  await f.journal.append(s,{...frame('external'),user:'teacher'});assert.equal((await waiting).frames[0].messageId,'external');
+});
