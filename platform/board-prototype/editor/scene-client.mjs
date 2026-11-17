@@ -12,7 +12,7 @@ export async function lessonPermit({apiBase,lessonId,accessToken,role}){
   const r=await fetch(`${u.origin}/api/v1/${role}/board-prototype/lessons/${lessonId}/permit`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`},cache:'no-store',signal:AbortSignal.timeout(5000),redirect:'error'});
   if(!r.ok){const e=new Error([401,403,404].includes(r.status)?'Доступ к занятию отозван':'API временно недоступен');e.denied=[401,403,404].includes(r.status);throw e;}return r.json();
 }
-export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcileScene,CaptureUpdateAction,convertToExcalidrawElements,renewPermit,status,onReady=()=>{},onAttachments=()=>{}}){
+export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcileScene,CaptureUpdateAction,convertToExcalidrawElements,renewPermit,status,onReady=()=>{},onAttachments=()=>{},onApplied=()=>{}}){
   if(!['127.0.0.1','localhost'].includes(new URL(url).hostname))throw new Error('Isolated room required');
   const raw=bytes(sceneKey);if(raw.byteLength!==32)throw new Error('A valid scene key is required');
   const key=crypto.subtle.importKey('raw',raw,'AES-GCM',false,['encrypt','decrypt']);
@@ -162,7 +162,7 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcil
           if(current.length!==merged.length||current.some((e,i)=>e.id!==merged[i].id||signature(e)!==signature(merged[i])))api.updateScene({elements:merged,captureUpdate:CaptureUpdateAction.NEVER});
           for(const id of attachments)attached.set(id,files.get(id));
           if(attachments.length)onAttachments([...attached.values()].map(({id,name,mimeType,size,sha256})=>({id,name,mimeType,size,sha256})));
-          after=frame.seq;
+          after=frame.seq;onApplied({seq:after,at:Date.now()});
         }if(!r.more)break;
       }
       // Publish the same durable projection on every quiescent replica. Native

@@ -301,7 +301,7 @@ The runner uses the normal production-built frontend on loopback, not developmen
 React overhead or simulated Socket.IO load. All210 editors stay open together.
 The profile covers parallel drawing, same-element conflicts, deletion/undo,
 offline writers/lost ack, PNG/PDF, checkpoints, shared relay/pool restart with
-pending teacher edits, ten cold reloads/PDF downloads and a60s sustained phase.
+pending teacher edits, ten cold reloads/PDF downloads and a minimum15min mixed text/image/delete/undo/checkpoint workload.
 Full element/order/tombstone/file hashes must agree within each room; ten room
 hashes must stay distinct. Cross-workspace access is rejected by the actual API.
 
@@ -309,8 +309,11 @@ hashes must stay distinct. Cross-workspace access is rejected by the actual API.
 server operation latency/nacks, full-state settling time, browser RSS/CPU, relay
 CPU, isolated API/database CPU/memory and cgroup/host bounds. CPU100% means one
 core; summed process RSS includes shared mappings and is not unique physical RAM.
-Prototype budgets are p95 post-input convergence<=30s and sampled server-submit
-acknowledgement<=3s (the existing RPC timeout), not a production SLA. Replay
+Plan acceptance requires p95 live durable-frame delivery<=500ms and server-submit
+acknowledgement<=2s, not a production SLA. Delivery is measured from COMMIT completion
+to ordered application in each browser, on the same host clock, during steady live
+load; cold recovery/intentional offline delays are excluded and tested separately.
+The looser full-state settling watchdog is a diagnostic timeout, not the latency gate. Replay
 latencies are capped samples with total operation counts explicitly retained.
 
 A measured<1GiB host/cgroup memory headroom stops with BLOCKED rather than risking
@@ -318,3 +321,12 @@ an unreported OOM or claiming PASS with fewer editors. Runner evidence is retain
 on failure too. No new infrastructure, production service, writer switch or real
 student data is involved. P4 must run before GO; adding this runner is not proof
 of210-editor capacity.
+
+
+`TAS_BOARD_TEST_ONLY=1 TAS_BOARD_SOAK_GROUP_ONLY=1 bash platform/scripts/calendar-real-browser.sh`
+runs the same resource/latency instrumentation with one room/21 unique principals
+and a minimum15min mixed workload, writing board-group-soak-result.json. The P3
+functional runner is separate evidence and does not substitute for this duration.
+Metrics include p50/p95, fixed action seed, pinned component/browser versions,
+connection/disconnection counts, negative acknowledgements and peak in-flight
+operations. All210-editor and21-editor prolonged criteria must pass before GO.

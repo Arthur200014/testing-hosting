@@ -12,7 +12,7 @@ export async function startTestTransport({ key, journal, revoked = () => false,
   const http = createServer((_, res) => { res.writeHead(404); res.end(); });
   const io = new Server(http, { serveClient: false, transports: ['websocket'],
     maxHttpBufferSize: MAX_FILE_BYTES+32768, perMessageDeflate: false, allowUpgrades: false });
-  const connections = new Set(), counts = new Map();
+  const connections = new Set(), counts = new Map();let activeOperations=0;
   io.use(async (socket, next) => {
     try {
       if(Object.keys(socket.handshake.auth??{}).some(k=>!['token','workspace','board'].includes(k)))throw new Error('Unexpected auth fields');
@@ -32,6 +32,7 @@ export async function startTestTransport({ key, journal, revoked = () => false,
   });
   io.on('connection', socket => {
     const { scope, token, roomId } = socket.data;
+    observe({event:'connection',phase:'connected',connections:connections.size});
     let room;
     try { room = bindRoom({ key, token, scope, journal, revoked, clock }); }
     catch { connections.delete(socket); counts.set(roomId, counts.get(roomId) - 1); socket.disconnect(true); return; }
@@ -41,7 +42,8 @@ export async function startTestTransport({ key, journal, revoked = () => false,
       authorizeEvent(key, token, scope, event, { now: clock(), revoked });
     };
     let pending = false, windowAt = clock(), requests = 0;
-    socket.on('disconnect', () => {
+    socket.on('disconnect', reason => {
+      observe({event:'connection',phase:'disconnected',reason,connections:connections.size-1});
       connections.delete(socket);
       const n = counts.get(roomId) - 1;
       if (n) counts.set(roomId, n); else counts.delete(roomId);
@@ -51,6 +53,7 @@ export async function startTestTransport({ key, journal, revoked = () => false,
         if (typeof ack !== 'function') return;
         if (clock() - windowAt >= 1000) { windowAt = clock(); requests = 0; }
         if (++requests > 50 || pending) { ack({ ok: false, error: 'BUSY' });observe({event,durationMs:0,acknowledged:false,reason:'BUSY'}); return; }
+        observe({event,phase:'started',pendingOperations:++activeOperations});
         pending = true;const started=performance.now();let acknowledged=false,reason='DISCONNECTED';
         try {
           try { await check(['submit','file:put','checkpoint'].includes(event) ? 'scene' : 'replay'); }
@@ -63,7 +66,7 @@ export async function startTestTransport({ key, journal, revoked = () => false,
           if (socket.connected) { ack({ ok: true, ...result }); acknowledged=true; }
         } catch {
           reason='REQUEST_FAILED';if (socket.connected) ack({ ok: false, error: 'REQUEST_FAILED' });
-        } finally { pending = false;observe({event,durationMs:performance.now()-started,acknowledged,...(!acknowledged?{reason}:{})}); }
+        } finally { pending = false;observe({event,pendingOperations:activeOperations--,durationMs:performance.now()-started,acknowledged,...(!acknowledged?{reason}:{})}); }
       });
     }
     handle('submit', async payload => {

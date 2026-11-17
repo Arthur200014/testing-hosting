@@ -120,7 +120,7 @@ jobs:
 
   dotnet-board-parallel:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -152,4 +152,29 @@ jobs:
           path: |
             test-results/board-parallel-result.json
             test-results/board-parallel-host.json
+          if-no-files-found: warn
+
+
+  dotnet-board-group-soak:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm --prefix platform/board-prototype ci --ignore-scripts --no-audit --no-fund
+      - run: npm install --no-save --no-package-lock playwright@1.56.1
+      - run: cd platform/board-prototype && npx playwright install --with-deps chromium
+      - name: Actual API 21-editor fifteen-minute mixed-load acceptance
+        env:
+          TAS_BOARD_TEST_ONLY: '1'
+          TAS_BOARD_SOAK_GROUP_ONLY: '1'
+        run: bash platform/scripts/calendar-real-browser.sh
+      - name: Retain synthetic group-soak result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: board-p3-soak-result
+          path: test-results/board-group-soak-result.json
           if-no-files-found: warn

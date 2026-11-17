@@ -7,6 +7,7 @@ import { connectScene, lessonPermit } from './scene-client.mjs';
 window.EXCALIDRAW_ASSET_PATH = '/excalidraw-assets/';
 let client, starting = false;
 const config = window.__BOARD_TEST_CONFIG;
+if(config?.metrics)window.__BOARD_METRICS={startedAt:Date.now(),applied:[],dropped:0};
 function App() {
   const [status, setStatus] = React.useState('Загрузка доски');
   const [checkpointBusy,setCheckpointBusy]=React.useState(false),[checkpointStatus,setCheckpointStatus]=React.useState('');
@@ -21,7 +22,7 @@ function App() {
       const permit = config.session ? await lessonPermit(config.session) : config.permit;
       if (config.session && permit.keyVersion !== 1) throw new Error('Unsupported scene key version');
       const sceneKey = config.session ? permit.sceneKey : config.sceneKey;
-      client = connectScene({ ...config, permit, sceneKey, renewPermit:config.session?()=>lessonPermit(config.session):undefined, api, CaptureUpdateAction, convertToExcalidrawElements, status: setStatus, onReady:()=>setLoaded(true), onAttachments:setAttachments });
+      client = connectScene({ ...config, permit, sceneKey, renewPermit:config.session?()=>lessonPermit(config.session):undefined, api, CaptureUpdateAction, convertToExcalidrawElements, status: setStatus, onReady:()=>setLoaded(true), onAttachments:setAttachments, onApplied:config.metrics?entry=>{const m=window.__BOARD_METRICS;if(m.applied.length<2000)m.applied.push(entry);else m.dropped++;}:undefined });
     };
     start().catch(() => setStatus('Нет доступа к занятию'));
   }} onChange={(elements,appState,files) => client?.changed(elements,files)} initialData={{appState:{currentItemFontFamily:1}}}

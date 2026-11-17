@@ -18,8 +18,9 @@ async function call(path,token,body,expected=200,method=body?'POST':'GET') {
   const text=await res.text();
   return text?JSON.parse(text):null;
 }
+const boardSoak=process.env.TAS_BOARD_SOAK_GROUP_ONLY==='1';
 const boardParallel=process.env.TAS_BOARD_PARALLEL_TEST_ONLY==='1';
-const boardGroup=process.env.TAS_BOARD_GROUP_TEST_ONLY==='1'||boardParallel;
+const boardGroup=process.env.TAS_BOARD_GROUP_TEST_ONLY==='1'||boardParallel||boardSoak;
 if(boardGroup)assert.equal(process.env.TAS_BOARD_TEST_ONLY,'1');
 const accounts={};
 for(const side of ['north','south']) {
@@ -51,7 +52,7 @@ const beforeLessons=await call('teacher/lessons',north.token);
 const beforeRules=await call('teacher/schedule-rules',north.token);
 assert.equal(beforeLessons.length,3);
 if(process.env.TAS_BOARD_TEST_ONLY==='1') {
-  const { runApiBoardBrowser } = await import(boardParallel?'./board-prototype/parallel-browser.mjs':boardGroup?'./board-prototype/group-browser.mjs':'./board-prototype/api-browser.mjs');
+  const { runApiBoardBrowser } = await import(boardParallel||boardSoak?'./board-prototype/parallel-browser.mjs':boardGroup?'./board-prototype/group-browser.mjs':'./board-prototype/api-browser.mjs');
   await runApiBoardBrowser({api,accounts,group,beforeLessons,call});
   process.exit(0);
 }
