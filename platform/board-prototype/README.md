@@ -94,8 +94,8 @@ issuer permits, real drawing/delete/undo, transport/storage-pool restart and
 fresh-browser replay, viewer write rejection and foreign-workspace isolation.
 It uses PostgreSQL when configured, otherwise explicitly reports filesystem-only
 evidence. External browser requests are blocked: fonts/modules are local. It
-does not yet exercise actual .NET login/permit issuance. The loopback lessonPermit
-helper exists, but needs wiring into the existing isolated .NET browser runner.
+does not exercise actual .NET login/permit issuance. That stronger check uses
+api-browser.mjs and the existing isolated .NET runner, described below.
 
 Transport tests also exercise a short10-room ×21-protocol-client save/restore
 profile, quotas, retries, delayed operations and injected storage failures.
