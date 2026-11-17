@@ -53,7 +53,7 @@ export async function startTestTransport({ key, journal, revoked = () => false,
         if (++requests > 50 || pending) { ack({ ok: false, error: 'BUSY' }); return; }
         pending = true;
         try {
-          try { await check(['submit','file:put'].includes(event) ? 'scene' : 'replay'); }
+          try { await check(['submit','file:put','checkpoint'].includes(event) ? 'scene' : 'replay'); }
           catch { ack({ok:false,error:'ACCESS_DENIED'}); socket.disconnect(true); return; }
           const result = await action(payload);
           // Recheck before any data leaves the process, including slow storage reads.
@@ -75,6 +75,10 @@ export async function startTestTransport({ key, journal, revoked = () => false,
       // No blind room broadcast: every client pulls authorized ordered pages.
       return { seq: saved.seq, messageId: saved.messageId };
     });
+    handle('checkpoint',async payload=>{
+      if(socket.data.claims.authRole!=='teacher'||!journal.checkpoint)throw new Error('Teacher checkpoint required');
+      return journal.checkpoint(scope,{base:payload?.base,messageId:payload?.messageId,ciphertext:payload?.ciphertext,iv:payload?.iv,fileIds:payload?.fileIds,user:socket.data.claims.user});
+    });
     handle('file:put', async payload => {
       if(!journal.putFile)throw new Error('File storage unavailable');
       const {data,...file}=await journal.putFile(scope,{id:payload?.id,name:payload?.name,mimeType:payload?.mimeType,data:payload?.data,user:socket.data.claims.user});
@@ -89,6 +93,7 @@ export async function startTestTransport({ key, journal, revoked = () => false,
     handle('replay', async payload => {
       const after = payload?.after;
       if (!Number.isSafeInteger(after) || after < 0) throw new Error('Invalid cursor');
+      if(journal.read)return journal.read(scope,after,8);
       const frames = await journal.replay(scope, after, 8);
       return { frames, next: frames.at(-1)?.seq ?? after, more: frames.length === 8 };
     });

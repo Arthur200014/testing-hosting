@@ -3,7 +3,7 @@ const bytes=b=>Uint8Array.from(atob(b),x=>x.charCodeAt(0));
 const b64=b=>{let s='';for(let i=0;i<b.length;i+=8192)s+=String.fromCharCode(...b.subarray(i,i+8192));return btoa(s);};
 const signature=e=>`${e.version}:${e.versionNonce}:${e.isDeleted}`;
 const ids=list=>{if(!Array.isArray(list)||list.length>64||list.some(x=>typeof x!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(x)))throw new Error('Invalid file references');return [...new Set(list)].sort();};
-const refs=(elements,attachments=[])=>ids([...new Set([...elements.filter(e=>e.type==='image'&&!e.isDeleted).map(e=>e.fileId),...attachments])]);
+const refs=(elements,attachments=[],includeDeleted=false)=>ids([...new Set([...elements.filter(e=>e.type==='image'&&(includeDeleted||!e.isDeleted)).map(e=>e.fileId),...attachments])]);
 const hash=async b=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',b)),v=>v.toString(16).padStart(2,'0')).join('');
 export async function lessonPermit({apiBase,lessonId,accessToken,role}){
   if(!['teacher','student'].includes(role)||!/^[0-9a-f-]{36}$/i.test(lessonId))throw new Error('Invalid lesson');
@@ -18,6 +18,8 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements,CaptureU
   const socket=io(url,{auth:{token:permit.token,workspace:permit.workspace,board:permit.board},transports:['websocket'],reconnection:false,autoConnect:false,timeout:5000});
   let after=0,ready=false,stopped=false,unsupported=false,inflight,dirty=new Map(),seen=new Map(),rpc=Promise.resolve();
   const uploads=new Map(),confirmed=new Set(),files=new Map(),attached=new Map(),pendingAttachments=new Set(),newImages=new Set(),decodedImages=new Set();
+  let durableElements=[],checkpointTask,checkpointPayload;const durableAttachments=new Set();
+  const checkpointAAD=base=>new TextEncoder().encode(`tas-board-checkpoint:v1:${permit.workspace}:${permit.board}:${base}`);
   let currentPermit=permit,retryAt=0,backoff=500,terminal;
   const renewAt=p=>p.expiresAt ? p.expiresAt*1000-Math.min(15000,Math.max(1000,(p.expiresAt*1000-Date.now())/3)) : Infinity;
   let renewalAt=renewAt(permit),hasConnected=false;
@@ -128,15 +130,17 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements,CaptureU
       if(inflight){const r=await request('submit',inflight);if(!r.ok)throw new Error(r.error);if(r.messageId!==inflight.messageId||!Number.isSafeInteger(r.seq)||r.seq<1)throw new Error('Invalid scene acknowledgement');inflight=undefined;}
       for(;;){
         const r=await request('replay',{after});if(!r.ok)throw new Error(r.error);
-        for(const frame of r.frames){
-          if(frame.seq!==after+1)throw new Error('Non-contiguous replay');
-          const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:bytes(frame.iv)},await key,bytes(frame.ciphertext));
+        for(const frame of [...(r.checkpoint?[r.checkpoint]:[]),...r.frames]){
+          const isCheckpoint=frame.kind==='checkpoint';
+          if(isCheckpoint ? !Number.isSafeInteger(frame.seq)||frame.seq<=after : frame.seq!==after+1)throw new Error('Non-contiguous replay');
+          const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:bytes(frame.iv),...(isCheckpoint?{additionalData:checkpointAAD(frame.seq)}:{})},await key,bytes(frame.ciphertext));
           const remote=JSON.parse(new TextDecoder().decode(plain));
           if(!Array.isArray(remote.elements))throw new Error('Unsupported frame');
-          const attachments=remote.attachments??[],fileIds=refs(remote.elements,attachments);
+          const attachments=remote.attachments??[],fileIds=refs(remote.elements,attachments,isCheckpoint);
+          if(isCheckpoint&&(remote.kind!=='checkpoint-v1'||remote.base!==frame.seq||new Set(remote.elements.map(e=>e.id)).size!==remote.elements.length))throw new Error('Invalid checkpoint');
           if(JSON.stringify(fileIds)!==JSON.stringify(ids(frame.fileIds??[])))throw new Error('File reference mismatch');
           for(const id of fileIds)await getFile(id);
-          for(const id of new Set(remote.elements.filter(e=>e.type==='image'&&!e.isDeleted).map(e=>e.fileId))){
+          for(const id of new Set(remote.elements.filter(e=>e.type==='image'&&(isCheckpoint||!e.isDeleted)).map(e=>e.fileId))){
             const f=files.get(id);if(!f.mimeType.startsWith('image/'))throw new Error('Invalid image reference');
             if(!decodedImages.has(id)){
               const image=await createImageBitmap(new Blob([f.data],{type:f.mimeType}));
@@ -148,6 +152,10 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements,CaptureU
           // Excalidraw may mutate its scene before delivering onChange. Capture
           // those local versions BEFORE remembering a reconciled replay, otherwise
           // the delayed callback would consider an unsent edit already seen.
+          // This materialized state contains only ordered durable records, never
+          // transient selections, edits or delayed editor callbacks. Keep tombstones.
+          durableElements=reconcileElements(durableElements,structuredClone(remote.elements),{});
+          for(const id of attachments)durableAttachments.add(id);
           const current=api.getSceneElementsIncludingDeleted();changed(current,api.getFiles());
           const merged=reconcileElements(current,remote.elements,api.getAppState());remember(merged);
           if(current.length!==merged.length||current.some((e,i)=>e.id!==merged[i].id||signature(e)!==signature(merged[i])))api.updateScene({elements:merged,captureUpdate:CaptureUpdateAction.NEVER});
@@ -157,9 +165,32 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements,CaptureU
         }if(!r.more)break;
       }
       if(!ready){ready=true;onReady();}
-      if(socket.connected&&!dirty.size&&!pendingAttachments.size&&!uploads.size&&!inflight&&!unsupported)status('Сохранено');
+      if(checkpointTask){
+        if(!checkpointPayload&&!dirty.size&&!pendingAttachments.size&&!inflight&&!unsupported){
+          if(!after){checkpointTask.reject(new Error('Доска пуста'));checkpointTask=undefined;}
+          else{
+            const base=after,elements=structuredClone(durableElements),attachments=[...durableAttachments],iv=crypto.getRandomValues(new Uint8Array(12));
+            const ciphertext=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:checkpointAAD(base)},await key,new TextEncoder().encode(JSON.stringify({kind:'checkpoint-v1',base,elements,attachments})));
+            if(ciphertext.byteLength>2097152){checkpointTask.reject(new Error('Контрольная точка больше 2 МиБ'));checkpointTask=undefined;}
+            else checkpointPayload={base,messageId:crypto.randomUUID(),iv,ciphertext:new Uint8Array(ciphertext),fileIds:refs(elements,attachments,true)};
+          }
+        }
+        if(checkpointPayload){
+          const r=await request('checkpoint',checkpointPayload);if(!r.ok)throw new Error(r.error);
+          if(r.accepted){
+            if(r.base!==checkpointPayload.base||r.messageId!==checkpointPayload.messageId)throw new Error('Invalid checkpoint acknowledgement');
+            checkpointTask.resolve(r.base);checkpointTask=undefined;
+          }
+          checkpointPayload=undefined; // stale base: catch up before generating a new checkpoint ID
+        }
+      }
+      if(socket.connected&&!dirty.size&&!pendingAttachments.size&&!uploads.size&&!inflight&&!unsupported&&!checkpointTask)status('Сохранено');
     }catch(e){status('Не сохранено: '+e.message);}
     finally{if(!stopped)setTimeout(loop,150);}
   }
-  loop();return {changed,addFile,downloadFile,close(){stopped=true;socket.close();},get ready(){return ready;}};
+  loop();return {changed,addFile,downloadFile,checkpoint(){
+    if(!ready)return Promise.reject(new Error('Доска ещё загружается'));
+    if(!checkpointTask){let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});checkpointTask={promise,resolve,reject};status('Создание контрольной точки');}
+    return checkpointTask.promise;
+  },close(){stopped=true;checkpointTask?.reject(new Error('Доска закрыта'));socket.close();},get ready(){return ready;}};
 }

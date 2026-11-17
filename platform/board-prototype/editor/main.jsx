@@ -9,6 +9,7 @@ let client, starting = false;
 const config = window.__BOARD_TEST_CONFIG;
 function App() {
   const [status, setStatus] = React.useState('Загрузка доски');
+  const [checkpointBusy,setCheckpointBusy]=React.useState(false),[checkpointStatus,setCheckpointStatus]=React.useState('');
   const [loaded,setLoaded]=React.useState(false),[attachments,setAttachments]=React.useState([]),[fileError,setFileError]=React.useState('');
   if (!config) return <p>Откройте доску через изолированный тестовый runner.</p>;
   return <><Excalidraw viewModeEnabled={!loaded} excalidrawAPI={api => {
@@ -24,6 +25,6 @@ function App() {
     };
     start().catch(() => setStatus('Нет доступа к занятию'));
   }} onChange={(elements,appState,files) => client?.changed(elements,files)} initialData={{appState:{currentItemFontFamily:1}}}
-    UIOptions={{canvasActions:{loadScene:false,saveAsImage:false,export:false}}}/><output id="status">{status}</output><aside id="files"><label>Добавить PNG, JPEG или PDF<input data-testid="board-file" type="file" accept="image/png,image/jpeg,application/pdf" disabled={!loaded} onChange={async e=>{const file=e.currentTarget.files?.[0];e.currentTarget.value='';if(file){setFileError('');try{await client.addFile(file);}catch(error){setFileError(error.message);}}}}/></label>{fileError&&<p role="alert">{fileError}</p>}{attachments.map(f=><div key={f.id}><button data-testid="board-download" onClick={async()=>{setFileError('');try{await client.downloadFile(f.id);}catch{setFileError('Нет доступа к файлу');}}}>{f.name}</button></div>)}</aside></>;
+    UIOptions={{canvasActions:{loadScene:false,saveAsImage:false,export:false}}}/><output id="status">{status}</output><aside id="files">{config.session?.role==='teacher'&&<><button data-testid="board-checkpoint" disabled={!loaded||checkpointBusy} onClick={async()=>{setCheckpointBusy(true);try{const base=await client.checkpoint();setCheckpointStatus(`Контрольная точка: ${base}`);}catch(e){setCheckpointStatus(e.message);}finally{setCheckpointBusy(false);}}}>Создать контрольную точку</button><output data-testid="checkpoint-status">{checkpointStatus}</output></>}<label>Добавить PNG, JPEG или PDF<input data-testid="board-file" type="file" accept="image/png,image/jpeg,application/pdf" disabled={!loaded} onChange={async e=>{const file=e.currentTarget.files?.[0];e.currentTarget.value='';if(file){setFileError('');try{await client.addFile(file);}catch(error){setFileError(error.message);}}}}/></label>{fileError&&<p role="alert">{fileError}</p>}{attachments.map(f=><div key={f.id}><button data-testid="board-download" onClick={async()=>{setFileError('');try{await client.downloadFile(f.id);}catch{setFileError('Нет доступа к файлу');}}}>{f.name}</button></div>)}</aside></>;
 }
 createRoot(document.getElementById('root')).render(<App/>);

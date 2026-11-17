@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { png,pdf,jpeg } from './file-fixtures.mjs';
 import { execFileSync } from 'node:child_process';
 import { createServer } from 'vite';
 import { chromium } from '@playwright/test';
-import { openPostgresJournal } from './postgres.mjs';
+import { openPostgresJournal, assertTestDatabase } from './postgres.mjs';
 import { startTestTransport } from './transport.mjs';
 import { apiAccess } from './api-access.mjs';
 
@@ -23,11 +23,11 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
   const lesson=beforeLessons.find(x=>x.groupClassId===group.id);assert.ok(lesson);
   const solo=beforeLessons.find(x=>x.individualClassId===north.item.id);assert.ok(solo);
   const learners=await Promise.all(north.students.map(s=>call('student-sessions',null,{workspace:north.workspace,code:s.inviteCode})));
-  let dropAcks=false,dropped=0;
+  let dropAcks=false,dropped=0,dropCheckpointAck=false,checkpointAckLost=0;
   // Identity selects this isolated fault target; authorization stays server-side.
   const teacherId=JSON.parse(Buffer.from(north.token.split('.')[1],'base64url').toString()).sub.replaceAll('-','');
   let journal=await openPostgresJournal(connection),room=await startTestTransport({key,journal,authorize:apiAccess(api),
-    acknowledge:({event,claims})=>{if(dropAcks&&event==='submit'&&claims.user===teacherId){dropped++;return false;}return true;}});
+    acknowledge:({event,claims,result})=>{if(event==='checkpoint'&&result.accepted&&dropCheckpointAck){dropCheckpointAck=false;checkpointAckLost++;return false;}if(dropAcks&&event==='submit'&&claims.user===teacherId){dropped++;return false;}return true;}});
   const container=execFileSync('docker',['ps','--filter','label=com.docker.compose.project='+project,'--filter','label=com.docker.compose.service=api','--format','{{.ID}}'],{encoding:'utf8'}).trim();
   assert.match(container,/^[a-f0-9]{12,64}$/);let apiStopped=false;
   const until=async(check,label,timeout=20000)=>{const end=Date.now()+timeout;while(!await check()){assert.ok(Date.now()<end,label);await new Promise(r=>setTimeout(r,100));}};
@@ -36,7 +36,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
   const site=await createServer({server:{host:'127.0.0.1',port:8768,strictPort:true}});await site.listen();
   const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
   const errors=[];
-  let stopped=false,recoveryDir;
+  let stopped=false,recoveryDir,restoreDatabase,dbContainer;
   async function stop(){if(stopped)return;stopped=true;await browser.close();await site.close();await room.close();await journal.close();}
   async function page(accessToken,role,lessonId=lesson.id,allowed=true){
     const context=await browser.newContext({viewport:{width:1100,height:800}});
@@ -107,7 +107,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     // Commit succeeds but no success acknowledgement reaches this browser.
     const beforeLost=await journal.replay(scope),originalAppend=journal.append,attempts=[];
     journal.append=async(s,f)=>{if(s.workspace===scope.workspace&&s.board===scope.board&&f.user===teacherId)attempts.push({id:f.messageId,iv:Buffer.from(f.iv),ciphertext:Buffer.from(f.ciphertext),fileIds:f.fileIds});return originalAppend(s,f);};
-    dropAcks=true;await draw(teacher,800,200);
+    dropAcks=true;await draw(teacher,700,180);
     await until(()=>dropped>0,'Durable append with lost ack');
     await teacher.waitForFunction(()=>document.querySelector('#status')?.textContent!=='Сохранено');
     assert.equal((await journal.replay(scope)).length,beforeLost.length+1);
@@ -131,6 +131,49 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     execFileSync('docker',['start',container],{stdio:'pipe'});apiStopped=false;await apiReady();
     for(const p of [teacher,a,b]){await count(p,7);await saved(p);}
     console.log('PASS: actual API stop/expired permits, pending PNG/scene retained, restart and automatic recovery without page reload.');
+    // Preserve a deletion tombstone in the checkpoint, not only visible objects.
+    await teacher.getByTitle(/Selection/).first().click();
+    await teacher.mouse.move(280,200);await teacher.mouse.down();await teacher.mouse.move(410,310,{steps:5});await teacher.mouse.up();
+    await teacher.waitForFunction(()=>{const a=window.__BOARD_EDITOR,e=a.getSceneElements().find(e=>e.x===300&&e.y===220);return e&&a.getAppState().selectedElementIds[e.id]&&Object.values(a.getAppState().selectedElementIds).filter(Boolean).length===1;});
+    await teacher.keyboard.press('Backspace');for(const p of [teacher,a,b]){await count(p,6);await saved(p);}
+    const expectedDeleted=await teacher.evaluate(()=>window.__BOARD_EDITOR.getSceneElementsIncludingDeleted().filter(e=>e.isDeleted).map(e=>({id:e.id,version:e.version})));
+    assert.ok(expectedDeleted.length>0);
+    // A pupil appends after the teacher captured its checkpoint base. The stale
+    // attempt must not prune anything; the client catches up and retries a new base.
+    const compactedSample=(await journal.replay(scope))[0];
+    const originalCheckpoint=journal.checkpoint;let releaseCheckpoint,attempted=0,stale=0;
+    journal.checkpoint=async(s,p)=>{if(++attempted===1)await new Promise(r=>releaseCheckpoint=r);const r=await originalCheckpoint(s,p);if(!r.accepted)stale++;return r;};
+    dropCheckpointAck=true;await teacher.getByTestId('board-checkpoint').click();
+    await until(()=>!!releaseCheckpoint,'Checkpoint arrival');
+    try{await draw(b,800,600);await count(b,7);await saved(b);}finally{releaseCheckpoint();}
+    await teacher.getByTestId('checkpoint-status').filter({hasText:/Контрольная точка: [0-9]+/}).waitFor({timeout:20000});
+    for(const p of [teacher,a,b]){await count(p,7);await saved(p);}
+    assert.ok(stale>0,'Concurrent append must reject old checkpoint base');assert.equal(checkpointAckLost,1);
+    journal.checkpoint=originalCheckpoint;
+    const checkpointView=await journal.read(scope);assert.ok(checkpointView.checkpoint);assert.equal(checkpointView.frames.length,0);
+    const checkpointBase=checkpointView.checkpoint.seq;
+    await draw(teacher,650,600);for(const p of [teacher,a,b]){await count(p,8);await saved(p);}
+    assert.ok((await journal.read(scope)).frames.length>0,'Post-checkpoint tail must be exercised');
+    console.log('PASS: teacher checkpoint retains tombstone/images/PDF, stale concurrent base rejected, lost checkpoint ack retried, tail continues.');
+
+    // Actual pg_dump/pg_restore into another freshly created loopback test DB.
+    // API metadata remains in its original isolated DB; only board storage is restored.
+    dbContainer=execFileSync('docker',['ps','--filter','label=com.docker.compose.project='+project,'--filter','label=com.docker.compose.service=db','--format','{{.ID}}'],{encoding:'utf8'}).trim();assert.match(dbContainer,/^[a-f0-9]{12,64}$/);
+    const dbUrl=new URL(connection),dbUser=decodeURIComponent(dbUrl.username),sourceDatabase=dbUrl.pathname.slice(1);
+    assert.match(dbUser,/^[a-zA-Z0-9_]+$/);assert.match(sourceDatabase,/^tas_board_test[a-z0-9_]*$/);
+    restoreDatabase='tas_board_test_restore_'+randomUUID().replaceAll('-','');dbUrl.pathname='/'+restoreDatabase;
+    const restoreConnection=dbUrl.toString();assertTestDatabase(restoreConnection);
+    const backup=execFileSync('docker',['exec',dbContainer,'pg_dump','-U',dbUser,'-d',sourceDatabase,'--format=custom','--no-owner','--no-acl','--table=public.board_*'],{maxBuffer:67108864});
+    recoveryDir=await mkdtemp(join(tmpdir(),'tas-board-recovery-'));await writeFile(join(recoveryDir,'board.dump'),backup,{mode:0o600,flag:'wx'});
+    execFileSync('docker',['exec',dbContainer,'createdb','-U',dbUser,restoreDatabase],{stdio:'pipe'});
+    assert.throws(()=>execFileSync('docker',['exec','-i',dbContainer,'pg_restore','-U',dbUser,'-d',restoreDatabase,'--exit-on-error','--no-owner','--no-acl'],{input:backup.subarray(0,64),stdio:'pipe'}),'Truncated backup must fail');
+    execFileSync('docker',['exec',dbContainer,'dropdb','-U',dbUser,restoreDatabase],{stdio:'pipe'});execFileSync('docker',['exec',dbContainer,'createdb','-U',dbUser,restoreDatabase],{stdio:'pipe'});
+    execFileSync('docker',['exec','-i',dbContainer,'pg_restore','-U',dbUser,'-d',restoreDatabase,'--exit-on-error','--no-owner','--no-acl'],{input:backup,stdio:'pipe'});
+    const restoredJournal=await openPostgresJournal(restoreConnection);try{
+      assert.deepEqual(await restoredJournal.read(scope),await journal.read(scope));
+      const retry=await restoredJournal.append(scope,{user:compactedSample.user,messageId:compactedSample.messageId,iv:Buffer.from(compactedSample.iv,'base64'),ciphertext:Buffer.from(compactedSample.ciphertext,'base64'),fileIds:compactedSample.fileIds});
+      assert.equal(retry.seq,compactedSample.seq,'Backup lost compacted retry receipt');assert.deepEqual(await restoredJournal.read(scope),await journal.read(scope));
+    }finally{await restoredJournal.close();}
     const expected=await active(teacher);assert.deepEqual(await active(a),expected);assert.deepEqual(await active(b),expected);
     const expectedFiles={imageHashes:[createHash('sha256').update(png).digest('hex'),createHash('sha256').update(jpeg).digest('hex'),createHash('sha256').update(png).digest('hex')],pdfHash:createHash('sha256').update(pdf).digest('hex'),pdfName:'lesson.pdf'};
 
@@ -156,12 +199,11 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     execFileSync('docker',['restart',container],{stdio:'pipe'});
     let ready=false;for(let i=0;i<45;i++){try{if((await fetch(api+'/health/ready',{signal:AbortSignal.timeout(2000)})).ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,1000));}assert.ok(ready);
     await call('board-prototype/access',null,{token:oldTeacher.token},404);
-    recoveryDir=await mkdtemp(join(tmpdir(),'tas-board-recovery-'));
     const fixture=join(recoveryDir,'fixture.json');
-    await writeFile(fixture,JSON.stringify({api,lessonId:lesson.id,workspace:north.workspace,code:north.students[1].inviteCode,revokedCode:north.students[0].inviteCode,expected,files:expectedFiles}),{mode:0o600,flag:'wx'});
-    const result=execFileSync(process.execPath,[new URL('./api-browser-recovery.mjs',import.meta.url).pathname,fixture],{encoding:'utf8',timeout:60000});
+    await writeFile(fixture,JSON.stringify({api,lessonId:lesson.id,workspace:north.workspace,code:north.students[1].inviteCode,revokedCode:north.students[0].inviteCode,expected,expectedDeleted,checkpointBase,files:expectedFiles}),{mode:0o600,flag:'wx'});
+    const result=execFileSync(process.execPath,[new URL('./api-browser-recovery.mjs',import.meta.url).pathname,fixture],{encoding:'utf8',timeout:60000,env:{...process.env,BOARD_TEST_DATABASE_URL:restoreConnection}});
     assert.ok(result.includes('PASS: fresh harness process'),'Recovery worker did not finish');
     console.log(result.trim());
-    console.log('PASS: real .NET sessions, authorized scope-separated scene keys, connected revocation, API restart and durable PNG/PDF, file outage/no false save, image undo and full harness-process/browser/room/pool recovery. No production data.');
-  }finally{if(apiStopped)execFileSync('docker',['start',container],{stdio:'pipe'});await stop();if(recoveryDir)await rm(recoveryDir,{recursive:true,force:true});process.chdir(cwd);}
+    console.log('PASS: real .NET sessions, authorized scope-separated scene keys, connected revocation, API restart and durable PNG/PDF, file outage/no false save, image undo and full harness-process/browser/room/pool recovery. Checkpoint + tail restored from real pg_dump in a separate test DB after interrupted restore. No production data.');
+  }finally{if(apiStopped)execFileSync('docker',['start',container],{stdio:'pipe'});await stop();if(restoreDatabase&&dbContainer){const user=decodeURIComponent(new URL(connection).username);execFileSync('docker',['exec',dbContainer,'dropdb','--if-exists','-U',user,restoreDatabase],{stdio:'pipe'});}if(recoveryDir)await rm(recoveryDir,{recursive:true,force:true});process.chdir(cwd);}
 }

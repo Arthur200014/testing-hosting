@@ -2,8 +2,8 @@
 
 Branch-only experiment. No production service, Pages navigation, Timeweb call,
 Firebase writer change, paid SDK, vendor account or vendor key is introduced.
-P2 now includes a real .NET-session/revocation browser runner; compaction,
-full21/210-browser fault/convergence acceptance remain pending.
+P2 includes actual .NET sessions, reconnect and encrypted checkpoint/backup recovery.
+Full21/210-browser fault/convergence acceptance remains pending.
 
 ## Dependencies and licence gate
 
@@ -212,4 +212,41 @@ pool restart. The dedicated API runner issues 12-second permits (isolated option
 bounded5–120s; default120s), verifies renewal/old-token expiry, drops a durable
 submit acknowledgement and checks exact retry/no duplicate, then stops the actual
 API while a PNG/scene remains pending and recovers without reloading the editor.
-Compaction, backup restore and21/210-browser acceptance remain before GO/deployment.
+Full21/210-browser acceptance remains before GO/deployment.
+
+
+## Ordered encrypted checkpoints and isolated backup
+
+The teacher-only checkpoint control materializes the ordered durable replay using
+Excalidraw reconciliation with no transient editor state. It includes every element
+and deletion tombstone, all known attachment references and deleted-image references;
+unsent local edits are never part of the checkpoint. AES-GCM authenticates v1 scope
+and base revision as additional data. Checkpoints are bounded at2MiB.
+
+The relay cannot decrypt or prove snapshot completeness: the authorized teacher
+client is a trusted checkpoint publisher, not an untrusted student or viewer.
+This is not a cryptographic proof of honest teacher replay. Students/viewers cannot
+publish checkpoints. File bytes remain plaintext in trusted test PostgreSQL.
+
+One room-head transaction requires the exact current revision, checks durable file
+references, writes the snapshot and SHA-256 retry receipts, removes covered frame
+ciphertexts and commits together. A stale base changes nothing; clients catch up
+before generating a new ID. Repeating an acknowledged or unacknowledged checkpoint
+is idempotent, including after newer writes/checkpoints. Receipts preserve exact
+frame retry identity after compaction; changed bytes/IV/references are rejected.
+A repeatable-read response contains one consistent snapshot plus ordered tail.
+No files/tombstones are garbage-collected. Compaction replaces edit history, not
+an audit/history archive. The existing10,000 lifetime frame limit remains; receipt
+metadata is bounded by that limit and at most one checkpoint per revision.
+
+The actual API browser runner interleaves a pupil append with a stale teacher base,
+loses a successful checkpoint acknowledgement, then appends a post-checkpoint tail.
+It uses pg_dump for all public.board_* tables and pg_restore into a separately
+created tas_board_test_restore_* database. A deliberately truncated restore fails;
+the disposable target is recreated for full restore. A new process/browser obtains
+fresh actual API access and checks the snapshot, tail, deletion tombstone and exact
+image/PDF hashes; a compacted-frame retry verifies restored receipts too. Backup
+files are temporary0600 synthetic data and removed by the runner. API metadata and
+scene-root configuration are separate recovery prerequisites, not contained in this
+board-only dump. Production backup/restore automation and offline tab durability
+are not implemented. No production schema, service or configuration is changed.
