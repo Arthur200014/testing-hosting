@@ -26,7 +26,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
   const key=Buffer.from(process.env.TAS_BOARD_SIGNING_KEY,'base64');assert.equal(key.length,32);
   const output=new URL(groupSoak?'../../test-results/board-group-soak-result.json':'../../test-results/board-parallel-result.json',import.meta.url),start=performance.now();
   const rooms=[],errors=[],samples=[],phases={},latencies=[],operations={},failures={},subjects=new Set(),commits=new Map(),deliveries=[],seenDeliveries=new Set(),deliveryReceivers=new Set(),connections={connected:0,disconnected:0,peak:0,byPhase:{}};let peakPending=0,droppedMetrics=0,steadyDurationMs=0,steadyStarted=0;
-  let journal,relay,site,browser,cdp,sampler,busy=false,metricsError,dropActor,dropCount=0,activePhase='setup';
+  let journal,relay,site,browser,cdp,sampler,busy=false,metricsError,dropActor,dropCount=0,activePhase='setup',authTimer,authBusy=false,authError;const authentication={logins:0,renewals:0,rateLimited:0,policy:'ordinary API re-login, unchanged JWT lifetime and per-IP limits'};const authRetry={teacher:0,student:0};
   let peakBrowserRss=0,peakBrowserCpu=0,peakNodeCpu=0,peakCgroup=0,lastSample=performance.now(),lastNode=process.cpuUsage();
   const cpuByPid=new Map(),containerPeaks={};let containerIds=[];const limit=await numericFile('/sys/fs/cgroup/memory.max');
   const host={cores:os.availableParallelism(),totalMemoryBytes:os.totalmem(),cgroupMemoryLimitBytes:limit};
@@ -58,7 +58,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     const info=await readFile('/proc/meminfo','utf8'),available=Number(/MemAvailable:\s+(\d+)/.exec(info)?.[1]??0)*1024;
     if(available<1073741824||limit&&current&&limit-current<1073741824)throw new RunnerBlocked('Measured runner memory headroom below 1GiB');
   }
-  const until=async(check,label,timeout=120000)=>{const end=performance.now()+timeout;while(!await check()){if(metricsError)throw metricsError;assert.ok(performance.now()<end,label);await wait(300);}};
+  const until=async(check,label,timeout=120000)=>{const end=performance.now()+timeout;while(!await check()){if(authError)throw authError;if(metricsError)throw metricsError;assert.ok(performance.now()<end,label);await wait(300);}};
   async function sample(){
     if(busy||!cdp)return;busy=true;
     try{
@@ -83,11 +83,11 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       if(activePhase==='steady mixed workload 15min')await collectDelivery();await headroom();
     }catch(e){metricsError=e;}finally{busy=false;}
   }
-  async function page(account,session,lessonId,allowed=true){
+  async function page(account,session,lessonId,allowed=true,tokenProvider){
     const context=await browser.newContext({viewport:{width:1100,height:800}});
     await context.route('**/*',r=>{const u=new URL(r.request().url());return ['127.0.0.1','localhost'].includes(u.hostname)||['data:','blob:'].includes(u.protocol)?r.continue():r.abort();});
-    const p=await context.newPage();p.on('pageerror',e=>errors.push(e.message));p.on('crash',()=>errors.push('Editor process crashed'));
-    await p.addInitScript(config=>{window.__BOARD_TEST_CONFIG=config;},{url:relay.url,metrics:true,session:{apiBase:api,accessToken:session,role:account.role,lessonId}});
+    const p=await context.newPage();await p.exposeFunction('__BOARD_SESSION_TOKEN',tokenProvider??(()=>session));p.on('pageerror',e=>errors.push(e.message));p.on('crash',()=>errors.push('Editor process crashed'));
+    await p.addInitScript(config=>{window.__BOARD_TEST_CONFIG=config;},{url:relay.url,metrics:true,sessionProvider:true,session:{apiBase:api,accessToken:session,role:account.role,lessonId}});
     await p.goto('http://127.0.0.1:8768',{timeout:90000});
     await p.waitForFunction(t=>document.querySelector('#status')?.textContent===t,allowed?'Сохранено':'Нет доступа к занятию',{timeout:90000});
     if(!allowed){await context.close();return null;}return p;
@@ -109,6 +109,25 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
   try{
     const profiles=[accounts.north,accounts.south].slice(0,workspaceCount).map(account=>({account,tokens:[]}));
     for(const profile of profiles)subjects.add(actor(profile.account.token));
+    const expiry=token=>JSON.parse(Buffer.from(token.split('.')[1],'base64url')).exp*1000;
+    async function refreshSessions(){
+      if(authBusy)return;authBusy=true;
+      try{
+        const jobs=profiles.flatMap(profile=>[{profile,role:'teacher',index:-1,token:profile.account.token},...profile.tokens.map((token,index)=>({profile,role:'student',index,token}))]).sort((a,b)=>expiry(a.token)-expiry(b.token));
+        for(const job of jobs){
+          const now=Date.now();if(expiry(job.token)-now>120000)continue;
+          if(now<(authRetry[job.role]??0)){if(expiry(job.token)<=now)throw new Error('Actual API session expired while respecting login limiter');continue;}
+          const a=job.profile.account,body=job.role==='teacher'?{workspace:a.workspace,email:a.email,password:process.env.TAS_REAL_TEST_PASSWORD}:{workspace:a.workspace,code:a.students[job.index].inviteCode};
+          const response=await fetch(api+'/api/v1/'+job.role+'-sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+          if(response.status===429){authentication.rateLimited++;authRetry[job.role]=Date.now()+15000;continue;}
+          assert.equal(response.status,200,'Ordinary test-session re-login');const token=(await response.json()).accessToken;
+          assert.ok(actor(token)===actor(job.token),'Re-login changed principal');authentication.renewals++;
+          if(job.role==='teacher')a.token=token;else job.profile.tokens[job.index]=token;
+        }
+      }catch(e){authError=e;}finally{authBusy=false;}
+    }
+    authTimer=setInterval(()=>refreshSessions(),5000);
+
     for(let w=0;w<workspaceCount;w++){
       const profile=profiles[w],a=profile.account;
       const g=w===0?group:await call('teacher/groups',a.token,{requestId:randomUUID(),title:'Parallel test group',memberIds:a.students.map(s=>s.membershipId),durationMinutes:60},201);
@@ -125,7 +144,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       for(const student of a.students){for(;;){
         const r=await fetch(api+'/api/v1/student-sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({workspace:a.workspace,code:student.inviteCode})});
         if(r.status===429){assert.ok(performance.now()-loginStart<600000,'Login rate-limit budget exceeded');await wait(15000);continue;}
-        assert.equal(r.status,200);const token=(await r.json()).accessToken;profile.tokens.push(token);subjects.add(actor(token));break;
+        assert.equal(r.status,200);const token=(await r.json()).accessToken;profile.tokens.push(token);subjects.add(actor(token));authentication.logins++;break;
       }}
     }
     assert.equal(subjects.size,workspaceCount*21);
@@ -136,8 +155,8 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     browser=await chromium.launch({headless:true,args:['--no-sandbox']});cdp=await browser.newBrowserCDPSession();await sample();sampler=setInterval(()=>sample(),5000);
     await phase(targetContexts+' simultaneous actual editors in '+roomCount+' rooms',async()=>{
       for(const room of rooms){
-        await headroom();room.pages.push(await page({role:'teacher'},room.profile.account.token,room.lesson.id));
-        for(let i=0;i<20;i+=3){await headroom();room.pages.push(...await Promise.all(room.profile.tokens.slice(i,i+3).map(t=>page({role:'student'},t,room.lesson.id))));}
+        await headroom();room.pages.push(await page({role:'teacher'},room.profile.account.token,room.lesson.id,true,()=>room.profile.account.token));
+        for(let i=0;i<20;i+=3){await headroom();room.pages.push(...await Promise.all(room.profile.tokens.slice(i,i+3).map((t,j)=>page({role:'student'},t,room.lesson.id,true,()=>room.profile.tokens[i+j]))));}
         assert.equal(room.pages.length,21);console.log('P4 startup contexts: '+browser.contexts().length);
       }
       assert.equal(browser.contexts().length,targetContexts);await Promise.all(rooms.map(r=>converge(r,0,0)));
@@ -181,7 +200,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       journal.append=async(s,f)=>{if(!arrived&&s.workspace===r.scope.workspace&&s.board===r.scope.board){arrived=true;await new Promise(a=>release=a);}return append(s,f);};
       await draw(r.pages[6],470,625);await until(()=>!!release,'Pending commit arrival');
       try{await r.pages[6].context().close();}finally{release();}journal.append=append;
-      r.pages[6]=await page({role:'student'},r.profile.tokens[5],r.lesson.id);await converge(r,25,0);
+      r.pages[6]=await page({role:'student'},r.profile.tokens[5],r.lesson.id,true,()=>r.profile.tokens[5]);await converge(r,25,0);
       const db=(await command('docker',['ps','--filter','label=com.docker.compose.project='+project,'--filter','label=com.docker.compose.service=db','--format','{{.ID}}'])).stdout.trim();assert.match(db,/^[a-f0-9]{12,64}$/);
       await command('docker',['pause',db]);
       try{
@@ -192,6 +211,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       await Promise.all(rooms.map((r,i)=>converge(r,i===0?26:25,0)));
     });
     await phase('workspace isolation',async()=>{
+      if(groupSoak){const a=accounts.south,response=await call('teacher-sessions',null,{workspace:a.workspace,email:a.email,password:process.env.TAS_REAL_TEST_PASSWORD});a.token=response.accessToken;}
       await page({role:'teacher'},accounts.south.token,rooms[0].lesson.id,false);
       if(!groupSoak)await page({role:'student'},profiles[0].tokens[0],rooms[5].lesson.id,false);
       assert.equal(new Set(rooms.map(r=>r.hash)).size,roomCount);assert.deepEqual(errors,[]);
@@ -221,7 +241,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       }
       steadyDurationMs=performance.now()-began;assert.ok(steadyDurationMs>=900000);await Promise.all(rooms.map(r=>converge(r,r.active,0)));
     });
-    clearInterval(sampler);while(busy)await wait(100);await sample();if(metricsError)throw metricsError;assert.ok(samples.some(s=>s.contexts===targetContexts),'Full-profile metrics missing');
+    clearInterval(sampler);while(busy)await wait(100);await sample();if(authError)throw authError;if(metricsError)throw metricsError;assert.ok(samples.some(s=>s.contexts===targetContexts),'Full-profile metrics missing');
     assert.ok(deliveries.length>=targetContexts*10&&deliveryReceivers.size===targetContexts&&droppedMetrics===0,'Delivery samples missing or truncated');
     assert.ok(percentile(deliveries)<=500,'p95 live durable-frame delivery exceeded plan 500ms budget');
     assert.ok(percentile(operations.submit?.samples??[])<=2000,'p95 server submit acknowledgement exceeded plan 2s budget');
@@ -229,10 +249,10 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     assert.ok(Object.keys(containerPeaks).length>=2,'API/database metrics missing');
     await save('PASS');console.log('PASS '+label+': '+roomCount+' rooms, '+workspaceCount+' workspaces, '+targetContexts+' actual editors, '+subjects.size+' identities; 15min mixed workload, strict convergence, isolation/recovery, delivery and durable-ack budgets PASS.');
   }catch(e){await save(e instanceof RunnerBlocked?'BLOCKED':'FAIL',e);throw e;}
-  finally{clearInterval(sampler);if(browser)await browser.close();if(site)await new Promise(r=>site.httpServer.close(r));if(relay)await relay.close();if(journal)await journal.close();}
+  finally{clearInterval(authTimer);clearInterval(sampler);if(browser)await browser.close();if(site)await new Promise(r=>site.httpServer.close(r));if(relay)await relay.close();if(journal)await journal.close();}
   async function save(status,error){
     await mkdir(new URL('.',output),{recursive:true});const measuredSteadyMs=steadyDurationMs||(steadyStarted?performance.now()-steadyStarted:0);const counts=Object.fromEntries(Object.entries(operations).map(([k,v])=>[k,{count:v.count,nacks:v.nacks,meanMs:v.count?v.sumMs/v.count:0,maxMs:v.maxMs,p50Ms:percentile(v.samples,.5),p95Ms:percentile(v.samples),sampleCount:v.samples.length}]));
-    const result={status,profile:{targetRooms:roomCount,rooms:rooms.length,readyEditors:rooms.reduce((n,r)=>n+r.pages.length,0),perRoomReadyEditors:rooms.map(r=>r.pages.length),contexts:browser?.contexts().length??0,authenticatedIdentities:subjects.size,identitiesPerRoom:21,workspaces:workspaceCount,sessionReuse:'same 21 authorized identities per workspace across five lesson rooms'},host,phases,durationMs:Math.round(performance.now()-start),scenarioSeed:'grid-mixed-v1',versions:{node:process.version,chromium:browser?.version(),excalidraw:'0.18.1',react:'18.3.1',socketIO:'4.8.1'},steadyDurationMs:measuredSteadyMs,delivery:{definition:'durable COMMIT completion to client ordered frame application, live steady phase only; local clock',samples:deliveries.length,receivers:deliveryReceivers.size,droppedMetrics,p50Ms:percentile(deliveries,.5),p95Ms:percentile(deliveries)},connections,peakPendingOperations:peakPending,finalScenes:rooms.map(r=>({active:r.active,deleted:r.deleted})),convergenceP95Ms:percentile(latencies),operations:counts,negativeAcknowledgementsByReason:failures,
+    const result={status,profile:{targetRooms:roomCount,rooms:rooms.length,readyEditors:rooms.reduce((n,r)=>n+r.pages.length,0),perRoomReadyEditors:rooms.map(r=>r.pages.length),contexts:browser?.contexts().length??0,authenticatedIdentities:subjects.size,identitiesPerRoom:21,workspaces:workspaceCount,sessionReuse:'same 21 authorized identities per workspace across five lesson rooms'},host,phases,durationMs:Math.round(performance.now()-start),scenarioSeed:'grid-mixed-v1',versions:{node:process.version,chromium:browser?.version(),excalidraw:'0.18.1',react:'18.3.1',socketIO:'4.8.1'},steadyDurationMs:measuredSteadyMs,delivery:{definition:'durable COMMIT completion to client ordered frame application, live steady phase only; local clock',samples:deliveries.length,receivers:deliveryReceivers.size,droppedMetrics,p50Ms:percentile(deliveries,.5),p95Ms:percentile(deliveries)},connections,authentication,peakPendingOperations:peakPending,finalScenes:rooms.map(r=>({active:r.active,deleted:r.deleted})),convergenceP95Ms:percentile(latencies),operations:counts,negativeAcknowledgementsByReason:failures,
       resources:{peakBrowserRssSumBytes:peakBrowserRss,peakBrowserCpuPercentOfOneCore:peakBrowserCpu,peakNodeCpuPercentOfOneCore:peakNodeCpu,peakCgroupBytes:peakCgroup,containerPeaks,samples,notes:'RSS is a sum of process RSS and includes shared mappings; cgroup memory is recorded separately. CPU percent uses one core=100%.'},errors:errors.slice(0,10),error:error?{name:error.name,message:String(error.message).slice(0,180)}:null,production:'NOT_RUN'};
     await writeFile(output,JSON.stringify(result,null,2));console.log('P4 result: '+JSON.stringify({status,contexts:result.profile.contexts,identities:subjects.size,steadyDurationMs:measuredSteadyMs,deliveryP95Ms:result.delivery.p95Ms,ackP95Ms:counts.submit?.p95Ms,convergenceP95Ms:result.convergenceP95Ms,peakBrowserRssSumBytes:peakBrowserRss,error:result.error}));
   }

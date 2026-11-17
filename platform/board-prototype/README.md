@@ -331,3 +331,12 @@ functional runner is separate evidence and does not substitute for this duration
 Metrics include p50/p95, fixed action seed, pinned component/browser versions,
 connection/disconnection counts, negative acknowledgements and peak in-flight
 operations. All210-editor and21-editor prolonged criteria must pass before GO.
+
+
+The prolonged harness respects the normal10min API JWT lifetime. It uses ordinary
+teacher/student re-login (owned synthetic credentials/invite codes) before expiry,
+with unchanged per-IP rate limits, and records successful renewals/429s. A scoped
+Playwright binding supplies each page only its own current API token before the
+normal permit request, including after reload. No API key reaches the relay, no
+JWT/permit expiry is weakened, and no production login-refresh implementation is
+claimed. Authentication expiry while respecting the limiter fails acceptance.

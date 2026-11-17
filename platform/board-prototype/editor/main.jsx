@@ -19,10 +19,13 @@ function App() {
     // Test harness can inspect the real editor state; no substitute scene model.
     window.__BOARD_EDITOR = api;
     const start = async () => {
-      const permit = config.session ? await lessonPermit(config.session) : config.permit;
+      // Isolated load harness can supply a token from ordinary API re-login.
+      // This never bypasses permit issuance or adds an API/relay credential.
+      const getPermit=async()=>lessonPermit({...config.session,accessToken:config.sessionProvider?await window.__BOARD_SESSION_TOKEN():config.session.accessToken});
+      const permit = config.session ? await getPermit() : config.permit;
       if (config.session && permit.keyVersion !== 1) throw new Error('Unsupported scene key version');
       const sceneKey = config.session ? permit.sceneKey : config.sceneKey;
-      client = connectScene({ ...config, permit, sceneKey, renewPermit:config.session?()=>lessonPermit(config.session):undefined, api, CaptureUpdateAction, convertToExcalidrawElements, status: setStatus, onReady:()=>setLoaded(true), onAttachments:setAttachments, onApplied:config.metrics?entry=>{const m=window.__BOARD_METRICS;if(m.applied.length<2000)m.applied.push(entry);else m.dropped++;}:undefined });
+      client = connectScene({ ...config, permit, sceneKey, renewPermit:config.session?getPermit:undefined, api, CaptureUpdateAction, convertToExcalidrawElements, status: setStatus, onReady:()=>setLoaded(true), onAttachments:setAttachments, onApplied:config.metrics?entry=>{const m=window.__BOARD_METRICS;if(m.applied.length<2000)m.applied.push(entry);else m.dropped++;}:undefined });
     };
     start().catch(() => setStatus('Нет доступа к занятию'));
   }} onChange={(elements,appState,files) => client?.changed(elements,files)} initialData={{appState:{currentItemFontFamily:1}}}
