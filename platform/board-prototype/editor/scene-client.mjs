@@ -145,8 +145,11 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements,CaptureU
             }
             if(!api.getFiles()[id])api.addFiles([{id:f.id,mimeType:f.mimeType,dataURL:`data:${f.mimeType};base64,${b64(f.data)}`,created:new Date(f.createdAt).getTime()}]);
           }
-          const merged=reconcileElements(api.getSceneElementsIncludingDeleted(),remote.elements,api.getAppState());remember(merged);
-          const current=api.getSceneElementsIncludingDeleted();
+          // Excalidraw may mutate its scene before delivering onChange. Capture
+          // those local versions BEFORE remembering a reconciled replay, otherwise
+          // the delayed callback would consider an unsent edit already seen.
+          const current=api.getSceneElementsIncludingDeleted();changed(current,api.getFiles());
+          const merged=reconcileElements(current,remote.elements,api.getAppState());remember(merged);
           if(current.length!==merged.length||current.some((e,i)=>e.id!==merged[i].id||signature(e)!==signature(merged[i])))api.updateScene({elements:merged,captureUpdate:CaptureUpdateAction.NEVER});
           for(const id of attachments)attached.set(id,files.get(id));
           if(attachments.length)onAttachments([...attached.values()].map(({id,name,mimeType,size,sha256})=>({id,name,mimeType,size,sha256})));

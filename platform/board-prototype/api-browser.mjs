@@ -52,7 +52,8 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     await p.goto('http://127.0.0.1:8768');
     await p.waitForFunction(text=>document.querySelector('#status')?.textContent===text,allowed?'Сохранено':'Нет доступа к занятию');return p;
   }
-  const count=(p,n)=>p.waitForFunction(n=>window.__BOARD_EDITOR.getSceneElements().length===n,n,{timeout:15000});
+  const count=async(p,n)=>{try{await p.waitForFunction(n=>window.__BOARD_EDITOR.getSceneElements().length===n,n,{timeout:15000});}
+    catch(e){console.error('Scene count mismatch',JSON.stringify(await p.evaluate(()=>({status:document.querySelector('#status')?.textContent,elements:window.__BOARD_EDITOR.getSceneElementsIncludingDeleted().map(e=>({id:e.id,type:e.type,version:e.version,isDeleted:e.isDeleted})),selected:window.__BOARD_EDITOR.getAppState().selectedElementIds}))));throw e;}};
   const active=p=>p.evaluate(()=>window.__BOARD_EDITOR.getSceneElements().map(e=>({id:e.id,x:e.x,y:e.y,type:e.type})).sort((a,b)=>a.id.localeCompare(b.id)));
   const saved=p=>p.waitForFunction(()=>document.querySelector('#status')?.textContent==='Сохранено');
   async function draw(p,x,y){await p.getByTitle(/Rectangle/).first().click();await p.mouse.move(x,y);await p.mouse.down();await p.mouse.move(x+95,y+70,{steps:5});await p.mouse.up();}

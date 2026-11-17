@@ -24,7 +24,7 @@ async function fixture(t,{acknowledge,renew}={}){
   t.after(async()=>{client.close();await room.close();await journal.close();await rm(dir,{recursive:true,force:true});});
   await until(()=>client.ready&&text==='Сохранено');
   return {journal,scope,sceneKey,get status(){return text;},get calls(){return calls;},
-    change(version){elements=[{id:'local',type:'rectangle',version,versionNonce:version,isDeleted:false}];client.changed(elements);}};
+    change(version,notify=true){elements=[{id:'local',type:'rectangle',version,versionNonce:version,isDeleted:false}];if(notify)client.changed(elements);}};
 }
 for(const field of ['workspace','board','sceneKey','keyVersion'])test(`reconnect refuses changed ${field} and retains unsaved edit`,async t=>{
   let disconnect=false;
@@ -41,13 +41,13 @@ test('revoked renewal fails closed without repeated credential requests',async t
   f.change(1);await until(()=>f.status.includes('Access revoked'));
   assert.equal(f.calls,1);assert.deepEqual(await f.journal.replay(f.scope),[]);
 });
-test('lost ack plus renewal outage keeps exact ciphertext/ID and newer local edit',async t=>{
+test('lost ack plus renewal outage retains exact retry and local mutation before onChange',async t=>{
   let lose=true,failRenew=false,dropped=false;
   const f=await fixture(t,{acknowledge:({event})=>{if(event==='submit'&&lose){dropped=true;failRenew=true;return false;}return true;},
     renew:p=>{if(failRenew)throw new Error('API unavailable');return p;}});
   const original=f.journal.append,attempts=[];
   f.journal.append=async(s,frame)=>{attempts.push(structuredClone(frame));return original(s,frame);};
-  f.change(1);await until(()=>dropped);f.change(2);await until(()=>f.status.includes('API unavailable'));
+  f.change(1);await until(()=>dropped);f.change(2,false);await until(()=>f.status.includes('API unavailable'));
   assert.notEqual(f.status,'Сохранено');assert.equal((await f.journal.replay(f.scope)).length,1);
   lose=false;failRenew=false;await until(()=>f.status==='Сохранено');
   const retries=attempts.filter(x=>x.messageId===attempts[0].messageId);assert.ok(retries.length>=2);
