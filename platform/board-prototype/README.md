@@ -2,7 +2,7 @@
 
 Branch-only experiment. No production service, Pages navigation, Timeweb call,
 Firebase writer change, paid SDK, vendor account or vendor key is introduced.
-P2 now includes a real .NET-session/revocation browser runner; files/compaction,
+P2 now includes a real .NET-session/revocation browser runner; compaction,
 full21/210-browser fault/convergence acceptance remain pending.
 
 ## Dependencies and licence gate
@@ -88,7 +88,7 @@ and CaptureUpdateAction.NEVER for remote updates. Redundant own echoes do not
 reset local undo capture. One send/replay loop retains exact encrypted bytes/
 messageId on retry and preserves edits made during encryption. AES-GCM scene keys come from authorized API permit replies; the real-session
 runner never supplies a scene key. This is not a production E2EE claim.
-Images/files are unsupported and remain explicitly unsaved.
+Supported image/PDF storage is described below; rejected or unavailable files remain explicitly unsaved.
 
 browser-editor.mjs uses three actual separate Chromium contexts with synthetic
 issuer permits, real drawing/delete/undo, transport/storage-pool restart and

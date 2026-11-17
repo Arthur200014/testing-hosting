@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { validateFile,references } from './files.mjs';
-import { png,pdf } from './file-fixtures.mjs';
+import { png,pdf,jpeg } from './file-fixtures.mjs';
 import { openPostgresJournal } from './postgres.mjs';
 const image=(id='picture')=>({id,name:'picture.png',mimeType:'image/png',data:png,user:'teacher'});
 test('file policy validates PNG pixels/CRC, PDF, type, size, ids and names',()=>{
   assert.equal(validateFile(image()).pixels,4);
+  assert.equal(validateFile({...image(),mimeType:"image/jpeg",data:jpeg}).pixels,4);
   assert.equal(validateFile({id:'pdf',name:'lesson.pdf',mimeType:'application/pdf',data:pdf}).size,pdf.length);
   for(const f of [{...image(),mimeType:'image/jpeg'},{...image(),name:'../escape.png'},{...image(),id:'foreign/id'},{...image(),data:Buffer.alloc(2*1024*1024+1)},{...image(),mimeType:'image/svg+xml',data:Buffer.from('<svg/>')}])assert.throws(()=>validateFile(f));
   const corrupt=Buffer.from(png);corrupt[45]^=1;assert.throws(()=>validateFile({...image(),data:corrupt}));

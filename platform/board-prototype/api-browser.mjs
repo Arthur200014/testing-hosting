@@ -3,7 +3,7 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { png,pdf } from './file-fixtures.mjs';
+import { png,pdf,jpeg } from './file-fixtures.mjs';
 import { execFileSync } from 'node:child_process';
 import { createServer } from 'vite';
 import { chromium } from '@playwright/test';
@@ -71,8 +71,8 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     assert.ok(Buffer.concat(parts).equals(pdf),'PDF bytes differ');
     // A failed file write must neither advance the scene revision nor claim saved.
     const beforeFailure=await journal.replay(scope),originalPut=journal.putFile;
-    let outage=true;journal.putFile=async(s,f)=>{if(outage&&f.name==='retry.png')throw new Error('synthetic file-store outage');return originalPut(s,f);};
-    await input.setInputFiles({name:'retry.png',mimeType:'image/png',buffer:png});
+    let outage=true;journal.putFile=async(s,f)=>{if(outage)throw new Error('synthetic file-store outage');return originalPut(s,f);};
+    await input.setInputFiles({name:'retry.jpg',mimeType:'image/jpeg',buffer:jpeg});
     await count(teacher,5);await teacher.waitForFunction(()=>document.querySelector('#status')?.textContent.includes('Файл не удалось сохранить'));
     assert.equal((await active(b)).length,4);assert.deepEqual(await journal.replay(scope),beforeFailure);
     outage=false;journal.putFile=originalPut;
@@ -83,7 +83,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     await teacher.keyboard.press('Backspace');for(const p of [teacher,a,b])await count(p,4);
     await teacher.getByRole('button',{name:'Undo',exact:true}).click();for(const p of [teacher,a,b]){await count(p,5);await saved(p);}
     const expected=await active(teacher);assert.deepEqual(await active(a),expected);assert.deepEqual(await active(b),expected);
-    const expectedFiles={imageHashes:[createHash('sha256').update(png).digest('hex'),createHash('sha256').update(png).digest('hex')],pdfHash:createHash('sha256').update(pdf).digest('hex'),pdfName:'lesson.pdf'};
+    const expectedFiles={imageHashes:[createHash('sha256').update(png).digest('hex'),createHash('sha256').update(jpeg).digest('hex')],pdfHash:createHash('sha256').update(pdf).digest('hex'),pdfName:'lesson.pdf'};
 
     await page(south.token,'teacher',lesson.id,false);
     await page(learners[1].accessToken,'student',solo.id,false);
