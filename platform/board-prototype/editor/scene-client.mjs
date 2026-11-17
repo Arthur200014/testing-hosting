@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import {reconcileScene,sceneFingerprint} from './reconcile.mjs';
 const bytes=b=>Uint8Array.from(atob(b),x=>x.charCodeAt(0));
 const b64=b=>{let s='';for(let i=0;i<b.length;i+=8192)s+=String.fromCharCode(...b.subarray(i,i+8192));return btoa(s);};
 const signature=e=>`${e.version}:${e.versionNonce}:${e.isDeleted}`;
@@ -11,7 +12,7 @@ export async function lessonPermit({apiBase,lessonId,accessToken,role}){
   const r=await fetch(`${u.origin}/api/v1/${role}/board-prototype/lessons/${lessonId}/permit`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`},cache:'no-store',signal:AbortSignal.timeout(5000),redirect:'error'});
   if(!r.ok){const e=new Error([401,403,404].includes(r.status)?'Доступ к занятию отозван':'API временно недоступен');e.denied=[401,403,404].includes(r.status);throw e;}return r.json();
 }
-export function connectScene({url,permit,sceneKey,api,reconcileElements,CaptureUpdateAction,convertToExcalidrawElements,renewPermit,status,onReady=()=>{},onAttachments=()=>{}}){
+export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcileScene,CaptureUpdateAction,convertToExcalidrawElements,renewPermit,status,onReady=()=>{},onAttachments=()=>{}}){
   if(!['127.0.0.1','localhost'].includes(new URL(url).hostname))throw new Error('Isolated room required');
   const raw=bytes(sceneKey);if(raw.byteLength!==32)throw new Error('A valid scene key is required');
   const key=crypto.subtle.importKey('raw',raw,'AES-GCM',false,['encrypt','decrypt']);
@@ -163,6 +164,16 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements,CaptureU
           if(attachments.length)onAttachments([...attached.values()].map(({id,name,mimeType,size,sha256})=>({id,name,mimeType,size,sha256})));
           after=frame.seq;
         }if(!r.more)break;
+      }
+      // Publish the same durable projection on every quiescent replica. Native
+      // editor index repairs must not turn into per-browser random logical edits.
+      if(ready)changed(api.getSceneElementsIncludingDeleted(),api.getFiles());
+      const editing=api.getAppState();
+      if(!dirty.size&&!inflight&&!pendingAttachments.size&&!unsupported&&!editing.editingTextElement&&!editing.resizingElement&&!editing.newElement){
+        const canonical=structuredClone(durableElements),current=api.getSceneElementsIncludingDeleted();
+        if(sceneFingerprint(current)!==sceneFingerprint(canonical)){
+          remember(canonical);api.updateScene({elements:canonical,captureUpdate:CaptureUpdateAction.NEVER});
+        }
       }
       if(!ready){ready=true;onReady();}
       if(checkpointTask){

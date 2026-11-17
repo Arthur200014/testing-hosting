@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { Excalidraw, reconcileElements, CaptureUpdateAction, convertToExcalidrawElements } from '@excalidraw/excalidraw';
+import { Excalidraw, CaptureUpdateAction, convertToExcalidrawElements } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import { connectScene, lessonPermit } from './scene-client.mjs';
 // Local fonts only; no vendor/CDN subscription or remote asset dependency.
@@ -21,7 +21,7 @@ function App() {
       const permit = config.session ? await lessonPermit(config.session) : config.permit;
       if (config.session && permit.keyVersion !== 1) throw new Error('Unsupported scene key version');
       const sceneKey = config.session ? permit.sceneKey : config.sceneKey;
-      client = connectScene({ ...config, permit, sceneKey, renewPermit:config.session?()=>lessonPermit(config.session):undefined, api, reconcileElements, CaptureUpdateAction, convertToExcalidrawElements, status: setStatus, onReady:()=>setLoaded(true), onAttachments:setAttachments });
+      client = connectScene({ ...config, permit, sceneKey, renewPermit:config.session?()=>lessonPermit(config.session):undefined, api, CaptureUpdateAction, convertToExcalidrawElements, status: setStatus, onReady:()=>setLoaded(true), onAttachments:setAttachments });
     };
     start().catch(() => setStatus('Нет доступа к занятию'));
   }} onChange={(elements,appState,files) => client?.changed(elements,files)} initialData={{appState:{currentItemFontFamily:1}}}

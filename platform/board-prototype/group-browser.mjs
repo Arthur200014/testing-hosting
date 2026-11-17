@@ -77,7 +77,9 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       const ok=all.every(x=>x.status==='Сохранено'&&x.active===active&&x.deleted===deleted&&x.hash&&x.hash===first.hash);
       if(ok&&previous===first.hash){records.push({active,deleted,principals:list.length,hash:first.hash});return true;}
       previous=ok?first.hash:undefined;return false;
-    },'Full group state divergence');}catch(e){console.error('P3 divergence summary',JSON.stringify(await Promise.all(list.map(state))));throw e;}
+    },'Full group state divergence');}catch(e){console.error('P3 divergence summary',JSON.stringify(await Promise.all(list.map(state))));
+      const rows=await Promise.all(list.slice(0,3).map(p=>p.evaluate(()=>window.__BOARD_EDITOR.getSceneElementsIncludingDeleted()))),base=new Map(rows[0].map(e=>[e.id,e]));
+      console.error('P3 differing fields',JSON.stringify(rows.slice(1).map(items=>items.flatMap(e=>{const a=base.get(e.id);return a?[{id:e.id,fields:Object.keys(e).filter(k=>JSON.stringify(e[k])!==JSON.stringify(a[k]))}]:[{missing:true}];}).filter(e=>e.missing||e.fields.length).slice(0,3))));throw e;}
   }
   async function select(p,id){
     const e=await p.evaluate(id=>window.__BOARD_EDITOR.getSceneElements().find(e=>e.id===id),id);assert.ok(e);

@@ -275,3 +275,14 @@ principal counts and convergence hashes; no login codes, tokens or keys. CI reta
 this synthetic artifact. P3 results do not establish P4 ten-room/210-browser
 capacity or production acceptance. All existing safety/isolated-database guards
 and the P2 backup/expiry runner remain in place.
+
+
+Group convergence requires a deterministic index repair path. Excalidraw0.18.1's
+native reconcileElements repairs duplicate fractional indices by mutateElement,
+which generates fresh versions/nonces/timestamps per replica. The protocol now
+uses the same version/lowest-nonce/editing conflict rules with immutable,
+deterministic index repair via the already-reviewed fractional-indexing3.2.0.
+It never synthesizes logical versions for index repair. Once pending edits are
+acknowledged, the editor adopts its full ordered durable projection; all fields,
+not only versions/shape count, must agree. Pure collision/edit/delete/undo tests
+and the existing small real-editor runner guard this before the21-editor scenario.

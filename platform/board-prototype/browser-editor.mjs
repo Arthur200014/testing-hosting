@@ -40,10 +40,27 @@ async function draw(p,x,y) {
 }
 const active = p => p.evaluate(()=>window.__BOARD_EDITOR.getSceneElements().map(e=>({id:e.id,type:e.type,x:e.x,y:e.y})).sort((a,b)=>a.id.localeCompare(b.id)));
 async function count(p,n) { await p.waitForFunction(n=>window.__BOARD_EDITOR.getSceneElements().length===n,n,{timeout:15000}); }
+const full=p=>p.evaluate(()=>{
+  const stable=x=>Array.isArray(x)?x.map(stable):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,stable(x[k])])):x;
+  return JSON.stringify(stable(window.__BOARD_EDITOR.getSceneElementsIncludingDeleted()));
+});
+async function fullConvergence(list){
+  let last;
+  for(let i=0;i<40;i++){
+    const states=await Promise.all(list.map(full));
+    if(states.every(x=>x===states[0])&&last===states[0])return;
+    last=states.every(x=>x===states[0])?states[0]:undefined;await new Promise(r=>setTimeout(r,250));
+  }
+  const states=(await Promise.all(list.map(full))).map(JSON.parse),base=new Map(states[0].map(e=>[e.id,e]));
+  console.error('Editor full-field differences',JSON.stringify(states.slice(1).map(rows=>rows.flatMap(e=>{const a=base.get(e.id);return a?[{id:e.id,fields:Object.keys(e).filter(k=>JSON.stringify(e[k])!==JSON.stringify(a[k]))}]:[{missing:true}];}).filter(e=>e.missing||e.fields.length))));
+  throw new Error('Real editor full-field convergence failed');
+}
+
 try {
   const [teacher,a,b] = await Promise.all([page('teacher'),page('pupil-a'),page('pupil-b')]);
   await Promise.all([draw(teacher,300,220),draw(a,420,300),draw(b,650,420)]);
   for(const p of [teacher,a,b]) await count(p,3);
+  await fullConvergence([teacher,a,b]);
   assert.deepEqual(await active(a),await active(teacher)); assert.deepEqual(await active(b),await active(teacher));
   await teacher.getByTitle(/Selection/).first().click();
   // Select by an enclosing marquee, independent of randomized rough-stroke hit testing.
@@ -58,6 +75,7 @@ try {
   for(const p of [teacher,a,b]) await count(p,2);
   await teacher.getByRole('button',{name:'Undo',exact:true}).click();
   for(const p of [teacher,a,b]) await count(p,3);
+  await fullConvergence([teacher,a,b]);
   const expected = await active(teacher);
   // Wait for durable ack and catch-up before stopping both the transport and storage pool.
   for(const p of [teacher,a,b]) await p.waitForFunction(()=>document.querySelector('#status')?.textContent==='Сохранено');
