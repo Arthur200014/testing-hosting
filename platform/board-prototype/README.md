@@ -72,6 +72,10 @@ Idle editors request a bounded one-second waiting replay. A durable commit wakes
 only that room's waiters; local edits cancel only their own pending wait. Signals
 carry no scene data. Each reply still performs fresh post-read authorization;
 the timeout discovers commits from other writers. Initial catch-up stays immediate.
+The periodic sweep skips connections with an active operation: that operation
+already checks access before work and before its reply. This avoids concurrent
+idle probes during the bounded wait; sockets without an operation are still
+checked every250ms. Revocation during a wait prevents the reply from exposing data.
 
 One request per connection,50 requests/second,256 connections total,24 per room,
 256KiB scene frames and8-frame replay pages bound work. PostgreSQL row locks

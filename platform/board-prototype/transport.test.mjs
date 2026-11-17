@@ -214,3 +214,14 @@ test('long replay timeout still discovers commits from another writer without an
   while((await request(a,'replay',{after:0})).error!=='BUSY')await new Promise(r=>setImmediate(r));
   await f.journal.append(s,{...frame('external'),user:'teacher'});assert.equal((await waiting).frames[0].messageId,'external');
 });
+
+test('pending replay avoids duplicate idle checks but revalidates after its bounded wait',async t=>{
+  let checks=0,denied=false,readStarted;
+  const firstRead=new Promise(r=>readStarted=r);
+  const f=await fixture(t,false,{authorize:async()=>{checks++;return !denied;}}),s=scope(),a=await f.client(auth(s));
+  const replay=f.journal.replay.bind(f.journal);f.journal.replay=async(...args)=>{readStarted();return replay(...args);};
+  const pending=request(a,'replay',{after:0,wait:true});await firstRead;
+  const before=checks;await new Promise(r=>setTimeout(r,600));assert.equal(checks,before);
+  denied=true;await f.journal.append(s,{...frame('hidden-after-revocation'),user:'teacher'});
+  const result=await pending;assert.equal(result.ok,false);assert.equal(result.frames,undefined);assert.ok(checks>before);
+});

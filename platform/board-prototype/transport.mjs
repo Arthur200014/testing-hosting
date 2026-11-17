@@ -67,7 +67,7 @@ export async function startTestTransport({ key, journal, revoked = () => false,
         if (clock() - windowAt >= 1000) { windowAt = clock(); requests = 0; }
         if (++requests > 50 || pending) { ack({ ok: false, error: 'BUSY' });observe({event,durationMs:0,acknowledged:false,reason:'BUSY'}); return; }
         observe({event,phase:'started',pendingOperations:++activeOperations});
-        pending = true;const started=performance.now();let acknowledged=false,reason='DISCONNECTED';
+        pending = true;socket.data.pendingOperation=true;const started=performance.now();let acknowledged=false,reason='DISCONNECTED';
         try {
           try { await check(['submit','file:put','checkpoint'].includes(event) ? 'scene' : 'replay'); }
           catch { reason='ACCESS_DENIED';ack({ok:false,error:'ACCESS_DENIED'}); socket.disconnect(true); return; }
@@ -79,7 +79,7 @@ export async function startTestTransport({ key, journal, revoked = () => false,
           if (socket.connected) { ack({ ok: true, ...result }); acknowledged=true; }
         } catch {
           reason='REQUEST_FAILED';if (socket.connected) ack({ ok: false, error: 'REQUEST_FAILED' });
-        } finally { pending = false;observe({event,pendingOperations:activeOperations--,durationMs:performance.now()-started,acknowledged,...(!acknowledged?{reason}:{})}); }
+        } finally { pending = false;socket.data.pendingOperation=false;observe({event,pendingOperations:activeOperations--,durationMs:performance.now()-started,acknowledged,...(!acknowledged?{reason}:{})}); }
       });
     }
     handle('submit', async payload => {
@@ -125,8 +125,10 @@ export async function startTestTransport({ key, journal, revoked = () => false,
   const sweep = setInterval(() => {
     for (const socket of connections) {
       // Active RPCs already perform fresh before/after checks. Only avoid a
-      // duplicate periodic check; no cached result authorizes any operation.
-      if (socket.data.checking || clock()-socket.data.verifiedAt<250) continue;
+      // duplicate periodic check while an operation is in flight. Waiting replay
+      // is bounded to one second and must revalidate before returning any data.
+      // No cached result authorizes an operation; idle sockets still get swept.
+      if (socket.data.pendingOperation || socket.data.checking || clock()-socket.data.verifiedAt<250) continue;
       socket.data.checking = true;
       Promise.resolve().then(async () => {
         const {token,scope,claims} = socket.data;
