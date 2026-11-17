@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
+import { png,pdf } from './file-fixtures.mjs';
 import { execFileSync } from 'node:child_process';
 import { createServer } from 'vite';
 import { chromium } from '@playwright/test';
@@ -58,17 +60,41 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     const [teacher,a,b]=await Promise.all([page(north.token,'teacher'),page(learners[0].accessToken,'student'),page(learners[1].accessToken,'student')]);
     await Promise.all([draw(teacher,300,220),draw(a,420,300),draw(b,650,420)]);
     for(const p of [teacher,a,b]){await count(p,3);await saved(p);}
+    const scope={workspace:groupPermit.workspace,board:groupPermit.board};
+    const input=teacher.getByTestId('board-file');
+    await input.setInputFiles({name:'picture.png',mimeType:'image/png',buffer:png});
+    for(const p of [teacher,a,b]){await count(p,4);await saved(p);}
+    await input.setInputFiles({name:'lesson.pdf',mimeType:'application/pdf',buffer:pdf});
+    for(const p of [teacher,a,b]){await p.getByRole('button',{name:'lesson.pdf',exact:true}).waitFor();await saved(p);}
+    const download=teacher.waitForEvent('download');await teacher.getByRole('button',{name:'lesson.pdf',exact:true}).click();
+    const stream=await(await download).createReadStream(),parts=[];for await(const part of stream)parts.push(part);
+    assert.ok(Buffer.concat(parts).equals(pdf),'PDF bytes differ');
+    // A failed file write must neither advance the scene revision nor claim saved.
+    const beforeFailure=await journal.replay(scope),originalPut=journal.putFile;
+    let outage=true;journal.putFile=async(s,f)=>{if(outage&&f.name==='retry.png')throw new Error('synthetic file-store outage');return originalPut(s,f);};
+    await input.setInputFiles({name:'retry.png',mimeType:'image/png',buffer:png});
+    await count(teacher,5);await teacher.waitForFunction(()=>document.querySelector('#status')?.textContent.includes('Файл не удалось сохранить'));
+    assert.equal((await active(b)).length,4);assert.deepEqual(await journal.replay(scope),beforeFailure);
+    outage=false;journal.putFile=originalPut;
+    for(const p of [teacher,a,b]){await count(p,5);await saved(p);}
+    // Removing an image must retain its bytes for undo and previous revisions.
+    await teacher.getByTitle(/Selection/).first().click();await teacher.mouse.click(320,480);
+    await teacher.waitForFunction(()=>{const x=window.__BOARD_EDITOR,e=x.getSceneElements().find(e=>e.type==='image'&&e.x===280);return e&&x.getAppState().selectedElementIds[e.id];});
+    await teacher.keyboard.press('Backspace');for(const p of [teacher,a,b])await count(p,4);
+    await teacher.getByRole('button',{name:'Undo',exact:true}).click();for(const p of [teacher,a,b]){await count(p,5);await saved(p);}
     const expected=await active(teacher);assert.deepEqual(await active(a),expected);assert.deepEqual(await active(b),expected);
+    const expectedFiles={imageHashes:[createHash('sha256').update(png).digest('hex'),createHash('sha256').update(png).digest('hex')],pdfHash:createHash('sha256').update(pdf).digest('hex'),pdfName:'lesson.pdf'};
+
     await page(south.token,'teacher',lesson.id,false);
     await page(learners[1].accessToken,'student',solo.id,false);
     const oldStudent=await call(permitPath('student'),learners[0].accessToken,{});
     await call('teacher/students/'+north.students[0].membershipId+'/archive',north.token,{});
     await call('board-prototype/access',null,{token:oldStudent.token},404);
     await a.waitForFunction(()=>document.querySelector('#status')?.textContent!=='Сохранено');
-    const scope={workspace:oldStudent.workspace,board:oldStudent.board};
+    await a.getByRole('button',{name:'lesson.pdf',exact:true}).click();await a.getByRole('alert').filter({hasText:'Нет доступа к файлу'}).waitFor();
     const prior=await journal.replay(scope);await draw(a,800,500);
     // A fresh authorized read establishes a barrier after the attempted unauthorized edit.
-    const proof=await page(learners[1].accessToken,'student');await count(proof,3);assert.deepEqual(await active(proof),expected);
+    const proof=await page(learners[1].accessToken,'student');await count(proof,expected.length);assert.deepEqual(await active(proof),expected);
     assert.deepEqual(await journal.replay(scope),prior);
     const oldTeacher=await call(permitPath('teacher'),north.token,{});
     await call('teacher-sessions/logout',north.token,{},204);
@@ -84,10 +110,10 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     await call('board-prototype/access',null,{token:oldTeacher.token},404);
     recoveryDir=await mkdtemp(join(tmpdir(),'tas-board-recovery-'));
     const fixture=join(recoveryDir,'fixture.json');
-    await writeFile(fixture,JSON.stringify({api,lessonId:lesson.id,workspace:north.workspace,code:north.students[1].inviteCode,revokedCode:north.students[0].inviteCode,expected}),{mode:0o600,flag:'wx'});
+    await writeFile(fixture,JSON.stringify({api,lessonId:lesson.id,workspace:north.workspace,code:north.students[1].inviteCode,revokedCode:north.students[0].inviteCode,expected,files:expectedFiles}),{mode:0o600,flag:'wx'});
     const result=execFileSync(process.execPath,[new URL('./api-browser-recovery.mjs',import.meta.url).pathname,fixture],{encoding:'utf8',timeout:60000});
     assert.ok(result.includes('PASS: fresh harness process'),'Recovery worker did not finish');
     console.log(result.trim());
-    console.log('PASS: real .NET sessions, authorized scope-separated scene keys, connected revocation, API restart and full harness-process/browser/room/pool recovery. No production data.');
+    console.log('PASS: real .NET sessions, authorized scope-separated scene keys, connected revocation, API restart and durable PNG/PDF, file outage/no false save, image undo and full harness-process/browser/room/pool recovery. No production data.');
   }finally{await stop();if(recoveryDir)await rm(recoveryDir,{recursive:true,force:true});process.chdir(cwd);}
 }

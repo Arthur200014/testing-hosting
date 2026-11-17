@@ -171,3 +171,36 @@ then decrypts/replays the existing PostgreSQL scene. Revoked-pupil login and roo
 handshake field checks remain active. Tests also check the exact derivation
 vector, shared teacher/pupil key, different lesson/workspace keys, key absence
 from the signed permit and invalid/missing/shared master rejection.
+
+## Isolated image/PDF checkpoint
+
+PNG (8-bit, non-interlaced) and JPEG images can be added through the file input;
+PDFs are download-only attachments. SVG/HTML/other formats are rejected. This
+prototype stores attachments as plaintext bytes in the trusted PostgreSQL test
+store; encrypted scene frames contain references only. This is not E2EE or an
+antivirus/content-safety claim. Image headers/dimensions and PNG CRC/inflate/filter
+bounds are checked; the receiving browser also decodes images. PDF checks are
+header/end-marker checks, not full document validation. No public file URLs exist.
+
+Limits:2MiB per file,64 immutable files/16MiB/16M decoded pixels per room,
+2048x2048 per image. File retries are idempotent, conflicts cannot overwrite bytes.
+file:put requires editor access; file:get requires current bound room read access.
+Both recheck online access before operations/results. Downloads revalidate even
+when bytes are cached. Generic filenames are metadata, never filesystem paths.
+
+PostgreSQL files and frames use the same room-head transaction lock. Frame append
+checks all declared file references in that scope before COMMIT acknowledgement.
+Clients upload first, then submit encrypted references, and validate reference
+agreement/hash/decoding during replay. Deleted image bytes remain for undo and
+old revisions. No eager deletion/GC or PDF-removal UI is provided yet; orphan
+uploads count toward quotas. The filesystem test adapter rejects file references.
+Schema extension is performed only by the existing dedicated loopback test adapter;
+no production migration/configuration is changed.
+
+The real API browser scenario adds PNG/PDF through controls, downloads exact PDF
+bytes, injects a file-store failure and checks no false save/revision advance,
+retries, deletes/undoes an image, then verifies image hashes/PDF bytes in the fresh
+recovery process after restart. Focused tests cover MIME/CRC/size/name/id policy,
+foreign/viewer denial, missing references, retries, count/byte/pixel quotas and
+pool restart. Long reconnect/permit renewal, compaction and21/210-browser load
+acceptance remain before GO or deployment.

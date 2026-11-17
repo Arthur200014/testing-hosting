@@ -1,5 +1,6 @@
 // Fresh process: no old browser, crypto key, API JWT, room objects or pools survive.
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import { resolve, dirname, basename } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -17,7 +18,7 @@ assert.equal(dirname(dirname(file)),resolve(tmpdir()));
 assert.match(basename(dirname(file)),/^tas-board-recovery-/);
 assert.equal((await stat(file)).mode & 0o077,0);
 const fixture=JSON.parse(await readFile(file,'utf8'));
-assert.deepEqual(Object.keys(fixture).sort(),['api','code','expected','lessonId','revokedCode','workspace']);
+assert.deepEqual(Object.keys(fixture).sort(),['api','code','expected','files','lessonId','revokedCode','workspace']);
 const api=new URL(fixture.api);assert.equal(api.protocol,'http:');assert.equal(api.hostname,'127.0.0.1');
 const key=Buffer.from(process.env.TAS_BOARD_SIGNING_KEY??'','base64');assert.equal(key.length,32);
 const journal=await openPostgresJournal(process.env.BOARD_TEST_DATABASE_URL);
@@ -45,8 +46,19 @@ try {
   await p.waitForFunction(n=>document.querySelector('#status')?.textContent==='Сохранено'&&window.__BOARD_EDITOR.getSceneElements().length===n,fixture.expected.length,{timeout:20000});
   const restored=await p.evaluate(()=>window.__BOARD_EDITOR.getSceneElements().map(e=>({id:e.id,x:e.x,y:e.y,type:e.type})).sort((a,b)=>a.id.localeCompare(b.id)));
   assert.deepEqual(restored,fixture.expected);
+  const images=await p.evaluate(async()=>{
+    const a=window.__BOARD_EDITOR,files=a.getFiles(),out=[];
+    for(const e of a.getSceneElements().filter(e=>e.type==='image')){
+      const f=files[e.fileId],raw=Uint8Array.from(atob(f.dataURL.split(',')[1]),x=>x.charCodeAt(0));
+      out.push(Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',raw)),x=>x.toString(16).padStart(2,'0')).join(''));
+    }return out.sort();
+  });
+  assert.deepEqual(images,fixture.files.imageHashes.sort());
+  const download=p.waitForEvent('download');await p.getByRole('button',{name:fixture.files.pdfName,exact:true}).click();
+  const parts=[],stream=await(await download).createReadStream();for await(const part of stream)parts.push(part);
+  assert.equal(createHash('sha256').update(Buffer.concat(parts)).digest('hex'),fixture.files.pdfHash,'Restored PDF differs');
   const revoked=await fetch(api.origin+'/api/v1/student-sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({workspace:fixture.workspace,code:fixture.revokedCode})});
   assert.ok(!revoked.ok,'Archived pupil cannot obtain a fresh session');
   assert.deepEqual(errors,[]);
-  console.log('PASS: fresh harness process and browser obtain an authorized scene key after API/room/pool restart; persisted scene decrypted without an old key/token; room handshake contains permit scope only.');
+  console.log('PASS: fresh harness process and browser obtain an authorized scene key after API/room/pool restart; persisted scene and PNG/PDF bytes restored without an old key/token; room handshake contains permit scope only.');
 }finally{await browser.close();await site.close();await room.close();await journal.close();}

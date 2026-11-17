@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 import { authorizeEvent } from './access.mjs';
 import { bindRoom } from './room.mjs';
+import {MAX_FILE_BYTES,references} from './files.mjs';
 
 // Isolated experiment only. No executable entry point or production configuration.
 // Scene payloads stay opaque; reconstruction/reconciliation belongs to the editor.
@@ -10,7 +11,7 @@ export async function startTestTransport({ key, journal, revoked = () => false,
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Invalid test port');
   const http = createServer((_, res) => { res.writeHead(404); res.end(); });
   const io = new Server(http, { serveClient: false, transports: ['websocket'],
-    maxHttpBufferSize: 270000, perMessageDeflate: false, allowUpgrades: false });
+    maxHttpBufferSize: MAX_FILE_BYTES+32768, perMessageDeflate: false, allowUpgrades: false });
   const connections = new Set(), counts = new Map();
   io.use(async (socket, next) => {
     try {
@@ -52,7 +53,7 @@ export async function startTestTransport({ key, journal, revoked = () => false,
         if (++requests > 50 || pending) { ack({ ok: false, error: 'BUSY' }); return; }
         pending = true;
         try {
-          try { await check(event === 'submit' ? 'scene' : 'replay'); }
+          try { await check(['submit','file:put'].includes(event) ? 'scene' : 'replay'); }
           catch { ack({ok:false,error:'ACCESS_DENIED'}); socket.disconnect(true); return; }
           const result = await action(payload);
           // Recheck before any data leaves the process, including slow storage reads.
@@ -67,10 +68,21 @@ export async function startTestTransport({ key, journal, revoked = () => false,
       if (!payload || !Buffer.isBuffer(payload.ciphertext) || !Buffer.isBuffer(payload.iv))
         throw new Error('Binary frame required');
       const saved = await room.submit({ messageId: payload.messageId,
-        ciphertext: payload.ciphertext, iv: payload.iv });
+        ciphertext: payload.ciphertext, iv: payload.iv, fileIds:references(payload.fileIds) });
       // A sequence acknowledgement is produced only after durable append completes.
       // No blind room broadcast: every client pulls authorized ordered pages.
       return { seq: saved.seq, messageId: saved.messageId };
+    });
+    handle('file:put', async payload => {
+      if(!journal.putFile)throw new Error('File storage unavailable');
+      const {data,...file}=await journal.putFile(scope,{id:payload?.id,name:payload?.name,mimeType:payload?.mimeType,data:payload?.data,user:socket.data.claims.user});
+      return {file};
+    });
+    handle('file:get', async payload => {
+      if(!journal.getFile)throw new Error('File storage unavailable');
+      const file=await journal.getFile(scope,payload?.id);
+      if(!file)throw new Error('File not found');
+      return {file};
     });
     handle('replay', async payload => {
       const after = payload?.after;

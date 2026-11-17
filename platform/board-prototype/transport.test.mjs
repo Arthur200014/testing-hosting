@@ -160,3 +160,23 @@ test('async API authorization is checked on connected operations and idle revoca
   const disconnected=new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('Idle access not revoked')),2000);idle.once('disconnect',()=>{clearTimeout(timer);resolve();});});
   allowed=false;await disconnected;
 });
+
+test('PostgreSQL wire files: durable reference gate, viewer/foreign denial, immutable retry and restart',
+  {skip:!process.env.BOARD_TEST_DATABASE_URL},async t=>{
+    const {png}=await import('./file-fixtures.mjs');
+    const f=await fixture(t,true),s=scope();
+    const c=await f.client(auth(s)),foreign=await f.client(auth({...s,workspace:'foreign-'+randomUUID()}));
+    const put={id:'photo',name:'photo.png',mimeType:'image/png',data:png};
+    assert.equal((await request(c,'submit',{...frame('missing'),fileIds:['photo']})).ok,false);
+    assert.equal((await request(c,'file:put',put)).ok,true);
+    assert.equal((await request(c,'file:put',put)).ok,true);
+    assert.equal((await request(c,'file:put',{...put,name:'changed.png'})).ok,false);
+    assert.equal((await request(foreign,'file:get',{id:'photo'})).ok,false);
+    const viewer=await f.client(auth(s,'viewer','viewer'));
+    assert.equal((await request(viewer,'file:get',{id:'photo'})).ok,true);
+    assert.equal((await request(viewer,'file:put',{...put,id:'forbidden'})).error,'ACCESS_DENIED');
+    assert.equal((await request(c,'submit',{...frame('saved'),fileIds:['photo']})).seq,1);
+    await f.restart();const restored=await f.client(auth(s,'fresh'));
+    assert.deepEqual(Buffer.from((await request(restored,'file:get',{id:'photo'})).file.data),png);
+    assert.deepEqual((await request(restored,'replay',{after:0})).frames[0].fileIds,['photo']);
+  });

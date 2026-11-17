@@ -1,3 +1,4 @@
+import {references} from './files.mjs';
 import { open, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -39,7 +40,8 @@ export async function openJournal(directory) {
     }
     rows.forEach(apply);
     return {
-      append(s, { messageId, user, ciphertext, iv }) {
+      append(s, { messageId, user, ciphertext, iv, fileIds }) {
+        if(references(fileIds).length)return Promise.reject(new Error('Files require PostgreSQL adapter'));
         if (closing || closed) return Promise.reject(new Error('Journal unavailable'));
         const work = chain.then(async () => {
           if (closed || poisoned) throw new Error('Journal unavailable');
