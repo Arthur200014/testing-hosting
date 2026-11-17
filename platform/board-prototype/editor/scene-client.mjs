@@ -13,8 +13,12 @@ export async function lessonPermit({ apiBase, lessonId, accessToken, role }) {
 }
 export function connectScene({ url, permit, sceneKey, api, reconcileElements, CaptureUpdateAction, status }) {
   if (!['127.0.0.1','localhost'].includes(new URL(url).hostname)) throw new Error('Isolated room required');
-  const socket = io(url, { auth: permit, transports:['websocket'], reconnection:true });
-  const key = crypto.subtle.importKey('raw', bytes(sceneKey), 'AES-GCM', false, ['encrypt','decrypt']);
+  const raw = bytes(sceneKey);
+  if (raw.byteLength !== 32) throw new Error('A valid scene key is required');
+  const key = crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt','decrypt']);
+  // The API reply includes the scene key. Explicitly exclude it from room auth.
+  const socket = io(url, { auth: { token:permit.token, workspace:permit.workspace, board:permit.board },
+    transports:['websocket'], reconnection:true });
   let after = 0, ready = false, stopped = false, unsupported = false, inflight, dirty = new Map(), seen = new Map();
   const remember = elements => { for (const e of elements) seen.set(e.id, signature(e)); };
   const request = (event, payload) => socket.timeout(3000).emitWithAck(event,payload);

@@ -63,6 +63,7 @@ test('wire rejects forged scope, viewer writes, expired/revoked access and arbit
   const s = scope(), valid = auth(s, 'teacher', 'editor', time);
   await assert.rejects(f.client({ ...valid, board: 'foreign' }), /denied/);
   await assert.rejects(f.client({ ...valid, token: valid.token + 'x' }), /denied/);
+  await assert.rejects(f.client({ ...valid, sceneKey: 'must-not-be-handshake-input' }), /denied/);
   const viewer = await f.client(auth(s, 'viewer', 'viewer', time));
   assert.deepEqual((await request(viewer, 'replay', { after: 0 })).frames, []);
   assert.equal((await request(viewer, 'submit', frame('blocked'))).error, 'ACCESS_DENIED');

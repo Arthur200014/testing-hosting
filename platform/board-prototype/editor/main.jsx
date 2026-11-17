@@ -17,7 +17,9 @@ function App() {
     window.__BOARD_EDITOR = api;
     const start = async () => {
       const permit = config.session ? await lessonPermit(config.session) : config.permit;
-      client = connectScene({ ...config, permit, api, reconcileElements, CaptureUpdateAction, status: setStatus });
+      if (config.session && permit.keyVersion !== 1) throw new Error('Unsupported scene key version');
+      const sceneKey = config.session ? permit.sceneKey : config.sceneKey;
+      client = connectScene({ ...config, permit, sceneKey, api, reconcileElements, CaptureUpdateAction, status: setStatus });
     };
     start().catch(() => setStatus('Нет доступа к занятию'));
   }} onChange={elements => client?.changed(elements)} initialData={{appState:{currentItemFontFamily:1}}}

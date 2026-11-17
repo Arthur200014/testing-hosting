@@ -21,8 +21,13 @@ public static class BoardPrototypeEndpoints
         if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("IntegrationTests"))
             throw new InvalidOperationException("Board prototype requires an isolated development environment.");
         var key = Convert.FromBase64String(app.Configuration["BoardPrototype:SigningKey"] ?? "");
-        if (key.Length < 32 || app.Configuration["BoardPrototype:SigningKey"] == app.Configuration["Jwt:SigningKey"])
-            throw new InvalidOperationException("Dedicated board signing key required.");
+        var sceneRoot = Convert.FromBase64String(app.Configuration["BoardPrototype:SceneRootKey"] ?? "");
+        var apiKey = Convert.FromBase64String(app.Configuration["Jwt:SigningKey"] ?? "");
+        if (key.Length < 32 || sceneRoot.Length < 32
+            || CryptographicOperations.FixedTimeEquals(key, apiKey)
+            || CryptographicOperations.FixedTimeEquals(sceneRoot, apiKey)
+            || CryptographicOperations.FixedTimeEquals(sceneRoot, key))
+            throw new InvalidOperationException("Distinct board signing, scene-root and API keys required.");
         foreach (var role in new[] { "teacher", "student" })
         {
             var policy = role;
@@ -41,7 +46,10 @@ public static class BoardPrototypeEndpoints
                         principal.FindFirstValue("workspace_role") ?? "", lessonId);
                     var body = Base64Url(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(claims)));
                     var token = body + "." + Base64Url(HMACSHA256.HashData(key, Encoding.UTF8.GetBytes(body)));
-                    return Results.Ok(new { token, claims.workspace, claims.board, expiresAt = claims.exp });
+                    // Stable, domain-separated per-workspace/lesson key. Never put it in the permit/relay.
+                    var context = Encoding.UTF8.GetBytes("tas-board-scene:v1\n" + claims.workspace + "\n" + claims.board);
+                    var sceneKey = Convert.ToBase64String(HMACSHA256.HashData(sceneRoot, context));
+                    return Results.Ok(new { token, claims.workspace, claims.board, expiresAt = claims.exp, sceneKey, keyVersion = 1 });
                 }).RequireAuthorization(policy);
         }
         // A valid room permit is the credential here, never an API JWT or a key in a URL.

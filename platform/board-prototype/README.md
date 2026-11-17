@@ -3,7 +3,7 @@
 Branch-only experiment. No production service, Pages navigation, Timeweb call,
 Firebase writer change, paid SDK, vendor account or vendor key is introduced.
 P2 now includes a real .NET-session/revocation browser runner; files/compaction,
-key delivery and full21/210-browser fault/convergence acceptance remain pending.
+full21/210-browser fault/convergence acceptance remain pending.
 
 ## Dependencies and licence gate
 
@@ -55,8 +55,9 @@ and legacy font leakage fail closed. CI keeps licence and browser jobs separate.
 
 The API BoardPrototype:Enabled flag defaults to false. Only Development and
 IntegrationTests can register /api/v1/{teacher|student}/board-prototype/lessons/{guid}/permit.
-BoardPrototype:SigningKey must be separate from the API JWT key, base64 and at
-least32 bytes. Existing active teacher-session and student membership/lesson/
+BoardPrototype:SigningKey and BoardPrototype:SceneRootKey must each contain at
+least32 bytes, base64 encoded, distinct from each other and the API JWT key.
+Comparison uses decoded bytes, including whitespace-equivalent encodings. Existing active teacher-session and student membership/lesson/
 class checks precede two-minute, no-store permits. No URL tokens.
 
 transport.mjs exports startTestTransport only, with loopback listeners and no
@@ -85,8 +86,8 @@ checks. Never point the runner at real students/workspaces.
 editor/ uses Excalidraw's exported reconciliation, element versions/tombstones
 and CaptureUpdateAction.NEVER for remote updates. Redundant own echoes do not
 reset local undo capture. One send/replay loop retains exact encrypted bytes/
-messageId on retry and preserves edits made during encryption. AES-GCM test-room
-keys are separate from signing keys; this is not production E2EE or key delivery.
+messageId on retry and preserves edits made during encryption. AES-GCM scene keys come from authorized API permit replies; the real-session
+runner never supplies a scene key. This is not a production E2EE claim.
 Images/files are unsupported and remain explicitly unsaved.
 
 browser-editor.mjs uses three actual separate Chromium contexts with synthetic
@@ -99,7 +100,7 @@ api-browser.mjs and the existing isolated .NET runner, described below.
 
 Transport tests also exercise a short10-room ×21-protocol-client save/restore
 profile, quotas, retries, delayed operations and injected storage failures.
-Protocol counts are not P3/P4 browser or sustained-load acceptance. Files, key distribution, compaction, prolonged reconnect and full concurrency/
+Protocol counts are not P3/P4 browser or sustained-load acceptance. Files, compaction, prolonged reconnect and full concurrency/
 fault acceptance remain before GO and any application merge.
 
 ## Actual .NET session bridge
@@ -107,7 +108,8 @@ fault acceptance remain before GO and any application merge.
 `TAS_BOARD_TEST_ONLY=1 bash platform/scripts/calendar-real-browser.sh` (from the
 repository root, using the workflow's installed browser dependencies) reuses the
 existing disposable API/PostgreSQL bootstrap and HTTP fixtures. The mode sets a
-fresh dedicated room key, isolated IntegrationTests-only API endpoints, a
+fresh dedicated room signing key and API-only scene-root secret, isolated
+IntegrationTests-only API endpoints, a
 loopback PostgreSQL port and the dedicated tas_board_test_api DB. No production
 compose/configuration file is changed; its override exists only in a temporary
 directory. Cleanup retains the existing per-project disposal rules.
@@ -136,3 +138,36 @@ reconnect/fault profiles remain pending. The250ms sweep is a polling interval,
 not a measured revocation latency guarantee under load. The original synthetic
 browser runner remains useful for isolated editor checks but is not real-login
 acceptance by itself.
+
+## Authorized stable scene keys (v1)
+
+After ordinary session, workspace/class/lesson/membership checks, permit issuance
+returns the32-byte sceneKey and keyVersion1 over the authorized no-store response.
+The key is HMAC-SHA256 of a domain-separated version/workspace/board context under
+the separate API-only SceneRootKey. All participants of the same board receive
+the same key; different boards/scopes get different keys. It depends on neither
+user/session/permit IDs nor process-local random state. No scene writer or schema
+change is added. This is server-trusted encryption, not E2EE or an external SDK.
+
+The master is a persistence dependency: retain it with the server's protected
+configuration/backups. Missing or shared root keys fail startup when the isolated
+feature is enabled. Replacing the root is **not a rotation procedure** and prevents
+decryption of prior ciphertext; rotation/migration is not implemented. The
+feature remains off in production and no production secrets/settings are changed.
+
+The root never enters a permit, browser response, relay handshake, Node harness
+environment or recovery fixture. Only a derived per-board key goes to authorized
+API callers. The browser explicitly selects token/workspace/board for the room
+handshake; the relay rejects additional auth fields. API JWT signing material is
+also stripped from the board harness environment. The synthetic editor-only
+runner retains its explicit random test key, but cannot establish API key delivery.
+
+The real API scenario now closes the first browser, Vite/room and DB pool, restarts
+the actual API, and starts api-browser-recovery.mjs in a new Node process. A private
+0600 temporary fixture contains only synthetic login code/context and expected
+scene metadata, no old bearer token or encryption key; it is removed in finally.
+The new process signs in again and the new browser fetches its own key from .NET,
+then decrypts/replays the existing PostgreSQL scene. Revoked-pupil login and room
+handshake field checks remain active. Tests also check the exact derivation
+vector, shared teacher/pupil key, different lesson/workspace keys, key absence
+from the signed permit and invalid/missing/shared master rejection.

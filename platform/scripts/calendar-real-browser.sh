@@ -18,6 +18,7 @@ compose=(docker compose --env-file .env.example -p "$project")
 if [[ "${TAS_BOARD_TEST_ONLY:-0}" == 1 ]]; then
   export POSTGRES_DB=tas_board_test_api
   export TAS_BOARD_SIGNING_KEY="$(openssl rand -base64 32)"
+  export TAS_BOARD_SCENE_ROOT_KEY="$(openssl rand -base64 32)"
   export BOARD_TEST_DATABASE_URL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@127.0.0.1:15439/$POSTGRES_DB"
   cat > "$task_dir/board.yaml" <<'YAML'
 services:
@@ -28,6 +29,7 @@ services:
       ASPNETCORE_ENVIRONMENT: IntegrationTests
       BoardPrototype__Enabled: "true"
       BoardPrototype__SigningKey: ${TAS_BOARD_SIGNING_KEY}
+      BoardPrototype__SceneRootKey: ${TAS_BOARD_SCENE_ROOT_KEY}
       Cors__AllowedOrigins__1: http://127.0.0.1:8768
 YAML
   compose+=(-f compose.yaml -f "$task_dir/board.yaml")
@@ -62,7 +64,7 @@ SELECT gen_random_uuid(),"Id",'TEST-MATH','Учебная математика',
 FROM platform."Workspaces" WHERE "Slug" IN ('tas-calendar-north','tas-calendar-south');
 SQL
 if [[ "${TAS_BOARD_TEST_ONLY:-0}" == 1 ]]; then
-  node platform/calendar-real-browser.mjs
+  env -u JWT_SIGNING_KEY -u STUDENT_CODE_PEPPER -u TAS_BOARD_SCENE_ROOT_KEY node platform/calendar-real-browser.mjs
   exit 0
 fi
 mkdir -p "$task_dir/site/platform"

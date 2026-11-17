@@ -14,6 +14,7 @@ export async function startTestTransport({ key, journal, revoked = () => false,
   const connections = new Set(), counts = new Map();
   io.use(async (socket, next) => {
     try {
+      if(Object.keys(socket.handshake.auth??{}).some(k=>!['token','workspace','board'].includes(k)))throw new Error('Unexpected auth fields');
       const { token, workspace, board } = socket.handshake.auth ?? {};
       const scope = Object.freeze({ workspace, board });
       const claims = authorizeEvent(key, token, scope, 'replay', { now: clock(), revoked });

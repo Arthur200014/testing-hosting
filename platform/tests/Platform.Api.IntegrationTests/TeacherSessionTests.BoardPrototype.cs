@@ -22,6 +22,19 @@ public sealed partial class TeacherSessionTests
     }
 
     [Fact]
+    public void BoardPrototypeRejectsMissingOrSharedSceneRoot()
+    {
+        var roomKey=Convert.ToBase64String(Enumerable.Repeat((byte)0x79,32).ToArray());
+        foreach(var root in new string?[] { null, roomKey, roomKey+"\n", ApiFactory.SigningKey })
+        {
+            using var invalid=factory.WithWebHostBuilder(builder=>builder.ConfigureAppConfiguration((_,c)=>c.AddInMemoryCollection(new Dictionary<string,string?> {
+                ["BoardPrototype:Enabled"]="true", ["BoardPrototype:SigningKey"]=roomKey, ["BoardPrototype:SceneRootKey"]=root
+            })));
+            Assert.Throws<InvalidOperationException>(()=>invalid.CreateClient());
+        }
+    }
+
+    [Fact]
     public async Task BoardPrototypePermitChecksTeacherWorkspaceAndStudentParticipation()
     {
         await ResetAsync(factory);
@@ -40,7 +53,8 @@ public sealed partial class TeacherSessionTests
         }
         var boardKey=Convert.ToBase64String(Enumerable.Repeat((byte)0x79,32).ToArray());
         using var enabled=factory.WithWebHostBuilder(builder=>builder.ConfigureAppConfiguration((_,c)=>c.AddInMemoryCollection(new Dictionary<string,string?> {
-            ["BoardPrototype:Enabled"]="true", ["BoardPrototype:SigningKey"]=boardKey
+            ["BoardPrototype:Enabled"]="true", ["BoardPrototype:SigningKey"]=boardKey,
+            ["BoardPrototype:SceneRootKey"]=Convert.ToBase64String(Enumerable.Repeat((byte)0x6b,32).ToArray())
         })));
         using var client=enabled.CreateClient();
         var path="/api/v1/teacher/board-prototype/lessons/"+lesson+"/permit";
@@ -51,6 +65,11 @@ public sealed partial class TeacherSessionTests
         Assert.Equal(HttpStatusCode.OK,response.StatusCode);
         Assert.True(response.Headers.CacheControl!.NoStore);
         var result=await response.Content.ReadFromJsonAsync<JsonElement>();
+        var sceneKey=Convert.FromBase64String(result.GetProperty("sceneKey").GetString()!);
+        Assert.Equal(32,sceneKey.Length);
+        Assert.Equal(1,result.GetProperty("keyVersion").GetInt32());
+        var context=System.Text.Encoding.UTF8.GetBytes("tas-board-scene:v1\n"+owner.WorkspaceId.ToString("N")+"\nlesson-"+lesson.ToString("N"));
+        Assert.True(sceneKey.SequenceEqual(System.Security.Cryptography.HMACSHA256.HashData(Enumerable.Repeat((byte)0x6b,32).ToArray(),context)),"Scene key derivation mismatch");
         var token=result.GetProperty("token").GetString()!;var parts=token.Split('.');
         var access="/api/v1/board-prototype/access";
         Assert.Equal(HttpStatusCode.NoContent,(await client.PostAsJsonAsync(access,new {token})).StatusCode);
@@ -62,6 +81,7 @@ public sealed partial class TeacherSessionTests
         Assert.Equal(owner.WorkspaceId.ToString("N"),body.GetProperty("workspace").GetString());
         Assert.Equal("lesson-"+lesson.ToString("N"),body.GetProperty("board").GetString());
         Assert.Equal(120,body.GetProperty("exp").GetInt64()-body.GetProperty("iat").GetInt64());
+        Assert.False(body.TryGetProperty("sceneKey",out _));
         Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsync(path.Replace(lesson.ToString(),Guid.NewGuid().ToString()),null)).StatusCode);
         var other=(await (await LoginAsync(client,"board-foreign","board-foreign@example.invalid",Password)).Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
         client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",other.AccessToken);
@@ -74,7 +94,9 @@ public sealed partial class TeacherSessionTests
         client.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",StudentToken(first,firstStudent));
         var studentPermitResponse=await client.PostAsync(studentPath,null);
         Assert.Equal(HttpStatusCode.OK,studentPermitResponse.StatusCode);
-        var studentPermit=(await studentPermitResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("token").GetString()!;
+        var studentReply=await studentPermitResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(studentReply.GetProperty("sceneKey").GetString()==result.GetProperty("sceneKey").GetString(),"Participants must share the authorized scene key");
+        var studentPermit=studentReply.GetProperty("token").GetString()!;
         Assert.Equal(HttpStatusCode.NoContent,(await client.PostAsJsonAsync(access,new {token=studentPermit})).StatusCode);
         await using(var scope=factory.Services.CreateAsyncScope()) {
             var db=scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
