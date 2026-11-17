@@ -1,14 +1,14 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-17
-**ACTIVE_TASK:** UI-06-P free collaborative board prototype planned; implementation NOT_STARTED. UI-05 released; next visual block paused until prototype decision.
-**ACTIVE_BRANCH:** none.
+**ACTIVE_TASK:** UI-06-P P1 PARTIAL: isolated permit/replay core implemented and CI-tested; editor/.NET/PostgreSQL/browser integration NOT_STARTED. Next visual block remains paused.
+**ACTIVE_BRANCH:** `tas/ui06-board-prototype`, [draft PR #90](https://github.com/Arthur200014/testing-hosting/pull/90), head `08f9b4c12dded4ef28cf3591c405be4ebef46541`. Keep prototype unmerged/unexposed until acceptance.
 **MERGED_SHA:** `283e8e9a309329e8aab9ca74bc114d034cef7a88`, [PR #89](https://github.com/Arthur200014/testing-hosting/pull/89).
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 43964949913](https://github.com/Arthur200014/testing-hosting/actions/runs/43964949913) PASS; workflow-only verification fix `5d34f9828cc47e0a3c511e947687d06a17cd8d29` also published via [Pages 43965381081](https://github.com/Arthur200014/testing-hosting/actions/runs/43965381081). [Publication check 43965468835](https://github.com/Arthur200014/testing-hosting/actions/runs/43965468835), job publication, PASS: actual teacher.html, teacher-data.mjs, student-card.mjs, pupil-history.mjs, pupil-feedback.mjs and teacher-report.mjs byte-match application release283e8e9; verification fix changes no frontend bytes.
 **API_DEPLOYMENT:** Native Timeweb main auto-deploy is owner-configured. New additive migration `20261117010000_PupilFeedbackDrafts` passes isolated deployment/startup/restore checks. Independent running API revision/migration application UNKNOWN / NOT_VERIFIED; LIVE_WRITE_NOT_RUN in owner-approved isolated-only mode.
-**NEXT_ACTION:** Create `tas/ui06-board-prototype` from current main and implement P1→P2 of [board prototype architecture/instructions](../../docs/architecture/tas-board-prototype.md): pin MIT Excalidraw/collaboration versions, inspect only related auth/board/storage code, define one durable save/recovery path, then isolated synthetic class/lesson → board → edit/save → reload/restart. Continue P3/P4: 1 teacher +20 pupils and 10×21 parallel clients, ownership/read-only/foreign/reconnect/conflict checks. No production deployment/new service or legacy Firebase writer change in this prototype. After GO resume UI-06 refs51–52 and RELEASE_PLAN; chat remains separate.
+**NEXT_ACTION:** Resume PR #90. Complete P1 dependency lock/transitive licence audit and connect P2 real pinned Excalidraw + authorized Socket.IO room to existing .NET session/class/lesson access and transactional PostgreSQL append/replay. Use one ordered durable write path; filesystem journal is a test adapter only. Verify 1 teacher +2 pupils → edit/save → fresh browser after room/API restart with read-only/foreign denial. Then P3/P4 actual 21 browser principals and 10×21 load/restore. No Timeweb/live data, legacy Firebase switch or new production service. After GO return to UI-06 refs51–52.
 
-**PLAN_UPDATE:** 2026-11-17 documentation-only update; architecture, RELEASE_PLAN, PHASE_CHECKLISTS and AGENTS aligned. App/deploy unchanged. Documentation content/link/scope checks PASS; prototype functional/access/persistence/load checks NOT_RUN. Current AGENTS/HANDOFF and source inspected through GitHub; executor unavailable.
+**PROTOTYPE_CHECKPOINT:** [08f9b4c](https://github.com/Arthur200014/testing-hosting/commit/08f9b4c12dded4ef28cf3591c405be4ebef46541), branch-only code under `platform/board-prototype/`; dedicated workflow and CI selector regression. [Room-core CI 43987192350](https://github.com/Arthur200014/testing-hosting/actions/runs/43987192350), job133718280735: **7 core tests +13 selector tests PASS**. [TAS CI 43987192326](https://github.com/Arthur200014/testing-hosting/actions/runs/43987192326) scope/gate PASS; unrelated jobs skipped. These are core tests, not browser or load acceptance. Browser/PostgreSQL/drawing convergence/file restore/P3–P4 NOT_RUN; local execution unavailable. Native relay source inspected: arbitrary joins/broadcasts, no tenant auth or persistence; cannot deploy unchanged. Source MIT commits recorded, full transitive audit/lockfile pending.
 
 ## Standing owner instructions
 
@@ -16,6 +16,7 @@
 - Take substantial connected blocks for individual/group contexts; follow RELEASE_PLAN, not old Mxx/Pxx boards.
 - Persistence tests use isolated synthetic API/PostgreSQL/Chromium workspaces only. **Do not check Timeweb** or request production credentials; independent production revision/live writes are not blockers in this approved mode.
 - Never use real students, lessons, scores, settings or credentials as write targets; never retarget seed/reset/import/browser scripts to production, rerun completed imports, change writer or provision infrastructure incidentally. No invitations/notifications/payments sent.
+- Prototype filesystem journal acknowledges full append+fsync, fences single ownership and rejects corrupt/torn tails; not production crash recovery or the planned PostgreSQL backend. Opaque frame replay is not yet proven to reconstruct an Excalidraw scene.
 - Tests and runner are committed in Git. Current local execution environment was unavailable; use existing CI for checks, do not claim local runs or manual screenshot review.
 
 ## Completed #89
