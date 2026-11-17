@@ -71,9 +71,12 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
     assert.ok(Buffer.concat(parts).equals(pdf),'PDF bytes differ');
     // A failed file write must neither advance the scene revision nor claim saved.
     const beforeFailure=await journal.replay(scope),originalPut=journal.putFile;
-    let outage=true;journal.putFile=async(s,f)=>{if(outage)throw new Error('synthetic file-store outage');return originalPut(s,f);};
+    let outage=true,failures=0;journal.putFile=async(s,f)=>{if(outage){failures++;throw new Error('synthetic file-store outage');}return originalPut(s,f);};
     await input.setInputFiles({name:'retry.jpg',mimeType:'image/jpeg',buffer:jpeg});
-    await count(teacher,5);await teacher.waitForFunction(()=>document.querySelector('#status')?.textContent.includes('Файл не удалось сохранить'));
+    await count(teacher,5);
+    for(let i=0;i<100&&!failures;i++)await new Promise(r=>setTimeout(r,50));
+    assert.ok(failures>0,'Injected file-store failure must be reached');
+    await teacher.waitForFunction(()=>document.querySelector('#status')?.textContent.startsWith('Не сохранено'));
     assert.equal((await active(b)).length,4);assert.deepEqual(await journal.replay(scope),beforeFailure);
     outage=false;journal.putFile=originalPut;
     for(const p of [teacher,a,b]){await count(p,5);await saved(p);}

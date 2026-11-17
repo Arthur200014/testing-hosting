@@ -29,17 +29,17 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements,CaptureU
     uploads.set(id,{id,name:`image-${id}.${m[1]==='image/png'?'png':'jpg'}`,mimeType:m[1],data});
   }
   const changed=(elements,binary=api.getFiles())=>{
-    if(!ready)return;unsupported=false;
+    if(!ready)return;unsupported=false;let modified=false;
     for(const e of elements){
       if(e.type==='image')newImages.delete(e.fileId);
       try{if(e.type==='image'&&!e.isDeleted)captureImage(e.fileId,binary[e.fileId]);}
       catch{unsupported=true;continue;}
-      if(seen.get(e.id)!==signature(e)){dirty.set(e.id,structuredClone(e));seen.set(e.id,signature(e));}
+      if(seen.get(e.id)!==signature(e)){dirty.set(e.id,structuredClone(e));seen.set(e.id,signature(e));modified=true;}
     }
     const active=new Set(elements.filter(e=>e.type==='image'&&!e.isDeleted).map(e=>e.fileId));
     for(const id of uploads.keys())if(!newImages.has(id)&&!active.has(id)&&!pendingAttachments.has(id)&&!inflight?.fileIds.includes(id))uploads.delete(id);
     if(unsupported)status('Файл недоступен или не поддерживается — не сохранено');
-    else if(dirty.size)status('Не сохранено');
+    else if(modified)status('Не сохранено');
   };
   async function getFile(id,fresh=false){
     if(!fresh&&files.has(id))return files.get(id);
