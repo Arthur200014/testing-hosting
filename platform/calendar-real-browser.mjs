@@ -152,6 +152,12 @@ try {
   assert.deepEqual(await call(settingsPath,north.token),expectedSettings);
   assert.deepEqual(await call(settingsPath,south.token),settingsDefaults);
   await page.screenshot({path:output+'/70_profile_payment_details_real.png'});
+  await page.setViewportSize({width:390,height:844});
+  await page.locator('[data-profile-section="profilePaymentDetails"]').click();
+  assert.equal(await page.evaluate(() => document.activeElement.id),'profilePaymentDetails');
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    'mobile profile fits the viewport without horizontal scrolling');
+  await page.setViewportSize({width:1348,height:926});
 
   await page.clock.setFixedTime(new Date(new Date(beforeLessons[0].lessonAt).getTime()-15*60000));
   await page.locator('.nav [data-view="lessons"]').click();
