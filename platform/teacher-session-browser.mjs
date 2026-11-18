@@ -59,6 +59,7 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
     'teacher/homework/assignments': [],
     'teacher/homework/native/assignments': [],
     'teacher/subscriptions': [],
+    'teacher/profile/settings': {lessonReminders:false,overdueInvoiceReminders:false,paymentRecipient:null,paymentBank:null,paymentUrl:null},
     'teacher/programs': [{ id: '11111111-1111-4111-8111-111111111111',
       displayName: fixtures[workspace].program }]
   };

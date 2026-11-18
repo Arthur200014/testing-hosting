@@ -246,6 +246,7 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
   if (path === 'teacher/classes') return send(classes);
   if (path === 'teacher/groups') return send(groups);
   if (path === 'teacher/schedule-rules') return send(scheduleRules);
+  if (path === 'teacher/profile/settings') return send({lessonReminders:false,overdueInvoiceReminders:false,paymentRecipient:null,paymentBank:null,paymentUrl:null});
   if (path === 'teacher/students') return send(students);
   if (path === 'teacher/programs') return send([
     {id:'66666666-6666-4666-8666-666666666666', displayName:'Профильная математика'}
