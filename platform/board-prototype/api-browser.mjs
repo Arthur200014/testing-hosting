@@ -207,6 +207,57 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       assert.notEqual(independentPermit.board,legacyPermit.board);
       assert.notEqual(independentPermit.sceneKey,legacyPermit.sceneKey);
       console.log('PASS: independent board exact scene follows its class and lesson links, owner-only access and legacy board isolation');
+      await p.locator('.nav [data-view="boards"]').click();
+      await p.getByRole('button',{name:'Новая папка',exact:true}).click();
+      let folderDialog = p.getByRole('dialog',{name:'Новая папка',exact:true});
+      await folderDialog.getByLabel('Название папки').fill('Подготовка к ЕГЭ');
+      await folderDialog.getByRole('button',{name:'Сохранить',exact:true}).click();
+      await p.getByRole('button',{name:'Переименовать папку',exact:true}).waitFor();
+      const folderFilter = p.locator('[data-board-folder]');
+      const folderId = await folderFilter.inputValue();
+      assert.match(folderId,/^[0-9a-f-]{36}$/i);
+      await p.getByRole('button',{name:'Переименовать папку',exact:true}).click();
+      folderDialog = p.getByRole('dialog',{name:'Переименовать папку',exact:true});
+      await folderDialog.getByLabel('Название папки').fill('Мои доски ЕГЭ');
+      await folderDialog.getByRole('button',{name:'Сохранить',exact:true}).click();
+      await folderFilter.locator('option:checked').filter({hasText:/^Мои доски ЕГЭ$/}).waitFor({state:'attached'});
+      await folderFilter.selectOption('unfiled');
+      await card().getByRole('button',{name:'В папку',exact:true}).click();
+      const moveDialog = p.getByRole('dialog',{name:'Переместить доску',exact:true});
+      await moveDialog.getByLabel('Папка').selectOption(folderId);
+      await moveDialog.getByRole('button',{name:'Сохранить',exact:true}).click();
+      const star = card().getByRole('button',{name:'Избранное',exact:true});
+      await star.click();
+      await card().locator('[data-board-favorite][aria-pressed="true"]').waitFor();
+      await p.locator('[data-board-favorites-only]').check();
+      await p.locator('#refresh').click();
+      await p.waitForFunction(() => !document.getElementById('refresh').disabled);
+      assert.equal(await folderFilter.inputValue(),folderId);
+      const organized = (await ownerBoards()).find(x=>x.id===boardId);
+      assert.deepEqual([organized.folderId,organized.isFavorite,organized.lessonId,organized.individualClassId],
+        [folderId,true,solo.id,north.item.id]);
+      const foldersPath = 'teacher/board-prototype/boards/folders';
+      assert.equal((await call(foldersPath,south.token)).some(x=>x.id===folderId),false);
+      await call(path+'/folder',south.token,{folderId:null},404,'PUT');
+      await call(path+'/favorite',south.token,{isFavorite:false},404,'PUT');
+      const foreignFolder = randomUUID();
+      await call(foldersPath+'/'+foreignFolder,south.token,{title:'Чужая папка'},200,'PUT');
+      await call(path+'/folder',north.token,{folderId:foreignFolder},404,'PUT');
+      await launch().click();
+      await p.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
+      assert.deepEqual(await active(frame()),independentScene,'Organization must keep the same scene');
+      await p.getByRole('button',{name:'Назад к доскам'}).click();
+      await star.click();
+      await cards.getByText('Доски по этим условиям не найдены.').waitFor();
+      await p.locator('[data-board-favorites-only]').uncheck();
+      await card().getByRole('button',{name:'В папку',exact:true}).click();
+      await moveDialog.getByLabel('Папка').selectOption('');
+      await moveDialog.getByRole('button',{name:'Сохранить',exact:true}).click();
+      await card().locator('[data-board-favorite][aria-pressed="false"]').waitFor();
+      const unfiled = (await ownerBoards()).find(x=>x.id===boardId);
+      assert.deepEqual([unfiled.folderId,unfiled.isFavorite,unfiled.lessonId],[null,false,solo.id]);
+      console.log('PASS: board folder creation/rename, move/unfile, favorite filtering, owner isolation and same saved scene');
+
 
 
     } finally { await cabinet.close(); }
