@@ -1,17 +1,23 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** Read-only board grants implemented in isolated mode, preserving edit grants and invalidating stale permits on role changes. Acceptance running.
-**ACTIVE_BRANCH:** `tas/ui06-board-viewer`, [draft PR #96](https://github.com/Arthur200014/testing-hosting/pull/96), head `64ee546c13d6b5755ec2ba2aba4f2d7f84a14916`.
-**MERGED_SHA:** `517f92f183ca0cf54effd11a3e2a36ccf7010469`.
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44322269203](https://github.com/Arthur200014/testing-hosting/actions/runs/44322269203) PASS. Published teacher.html, student.html, teacher-data.mjs, board-catalog-ui.mjs and lesson-board-ui.mjs match the merge. Feature remains isolated.
-**API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. Automated readonly health PASS (44322826684); running API revision and migration independently NOT_VERIFIED. Additive IndependentBoardSharing migration verified on isolated PostgreSQL. Production board writes NOT_RUN; feature gate off.
-**NEXT_ACTION:** Finish focused Chromium/PostgreSQL checks for PR #96, then publish. The 40-editor profile is manual only; do not run for ordinary feature work.
+**ACTIVE_TASK:** Read-only grants released in isolated mode. Teacher sets no access/view/edit per student; existing edit grants preserved. Role changes invalidate stale permits. Viewer opens the same saved scene without write or upload permissions.
+**ACTIVE_BRANCH:** none. [PR #96](https://github.com/Arthur200014/testing-hosting/pull/96) merged, tested head `5a8f34c7c71c6fdcbc1be7e85627cb27bb4f3512`.
+**MERGED_SHA:** `b89fc0a7f011edc3d2c9e123f0cd6b1434b171c6`.
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44351616808](https://github.com/Arthur200014/testing-hosting/actions/runs/44351616808) PASS; teacher.html and student.html match the merged release. Feature remains isolated.
+**API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. Automated readonly health PASS (44352233992); running API revision and migration independently NOT_VERIFIED. Additive IndependentBoardGrantRoles migration verified on isolated PostgreSQL. Production board writes NOT_RUN; feature gate off.
+**NEXT_ACTION:** Continue UI-06 access with an authenticated board link that respects existing per-student grants, with no anonymous access and the isolated gate preserved. Keep 40-editor load manual and run only when necessary.
+
+## Read-only grants verification
+
+- [Board CI 44349354183](https://github.com/Arthur200014/testing-hosting/actions/runs/44349354183): Chromium/API/PostgreSQL PASS for edit → view → edit, saved scene, file-input disabled, and invalidation of both old editor and old viewer permits. Core authorization tests cover viewer scene/file-write denial. Functional group, editor build/licenses and ordinary restart/recovery PASS. Sustained 21 at report: in_progress. The manual-only 40-editor job was skipped.
+- [PostgreSQL 44351618627](https://github.com/Arthur200014/testing-hosting/actions/runs/44351618627) and [browser 44351618707](https://github.com/Arthur200014/testing-hosting/actions/runs/44351618707) post-merge PASS. Local syntax, diff and CI selector 13/13 PASS.
+- Previous PR #95 40-editor retry [134876838795](https://github.com/Arthur200014/testing-hosting/actions/runs/44320358897/job/134876838795) PASS. No new 40-editor test was dispatched.
 
 ## Explicit student board access verification
 
 - [Board CI 44320358897](https://github.com/Arthur200014/testing-hosting/actions/runs/44320358897): Chromium with real isolated API/PostgreSQL PASS for teacher grant from catalog, student cabinet open/edit, teacher reopen with the saved edit, ungranted/foreign denial, revoke and regrant rejecting the old permit. Core, group, sustained 21, restart/restore and licenses PASS. JavaScript syntax, diff and selector 13/13 PASS.
-- Supplemental sustained 40 first attempt: 40 editors across 2 rooms, 15 minutes, delivery p95 503ms above 500ms, durable ack p95 848ms within target. Failed job retry accepted; no threshold change. Previous PR #94 repeat [job 134841239720](https://github.com/Arthur200014/testing-hosting/actions/runs/44312063271/job/134841239720) PASS, delivery p95 334ms and durable ack p95 649ms.
+- Supplemental sustained 40 first attempt: 40 editors across 2 rooms, 15 minutes, delivery p95 503ms above 500ms, durable ack p95 848ms within target. Failed job retry later PASS; no threshold change. Previous PR #94 repeat [job 134841239720](https://github.com/Arthur200014/testing-hosting/actions/runs/44312063271/job/134841239720) PASS, delivery p95 334ms and durable ack p95 649ms.
 - Post-merge [PostgreSQL 44322270439](https://github.com/Arthur200014/testing-hosting/actions/runs/44322270439) and [browser 44322270368](https://github.com/Arthur200014/testing-hosting/actions/runs/44322270368) PASS. Changed isolated board API/permit, additive migration, teacher/student cabinets, editor launcher and existing browser scenario. Granting access sends no notification.
 
 ## Board organization verification
