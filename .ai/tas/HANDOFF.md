@@ -1,12 +1,12 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** Independent board slice COMPLETE. Create, rename and link a private board to a class, group or lesson. Open linked boards from the lesson card. Drawing follows the stable board ID on relinking; original lesson rooms remain distinct.
-**ACTIVE_BRANCH:** none. [PR #93](https://github.com/Arthur200014/testing-hosting/pull/93) merged, tested head `af8aa58dbfa3fe505a6bf1b8ba14acbc9a6e5008`.
+**ACTIVE_TASK:** Board organization implemented for independent boards: create/rename folders, move/unfile boards, toggle/filter favorites. Isolated browser and PostgreSQL acceptance pending.
+**ACTIVE_BRANCH:** `tas/ui06-board-organization`, [draft PR #94](https://github.com/Arthur200014/testing-hosting/pull/94), head `e62dcbb8f0297a893532249e28d17ef53e8fc1f9`.
 **MERGED_SHA:** `c14a622712a8bb5c6c3685694c3331fe0c238cbc`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44296855483](https://github.com/Arthur200014/testing-hosting/actions/runs/44296855483) PASS. Published teacher.html, teacher-data.mjs, board-catalog-ui.mjs and lesson-board-ui.mjs byte-match the verified release. Feature enabled on isolated stand only.
 **API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy from main. Automated readonly health PASS (44297331720), deployed API revision and migration independently NOT_VERIFIED. Additive IndependentBoards migration exercised on isolated PostgreSQL. Production board writes NOT_RUN; feature gate off.
-**NEXT_ACTION:** Implement board folders and favorites in the catalog (reference 64), preserving the independent board ID and class/lesson associations. Keep sharing/access as a separate scope and the production board gate off.
+**NEXT_ACTION:** Verify and publish PR #94 after isolated Chromium/PostgreSQL coverage for persistence, owner scope and unchanged scene/lesson association. Keep production board gate off.
 
 ## Independent board verification
 
