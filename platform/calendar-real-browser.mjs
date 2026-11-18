@@ -97,9 +97,63 @@ try {
     await page.locator('#calendarDate').dispatchEvent('change');
     await page.locator('[data-calendar-mode="month"]').click();
   }
-  // UI-04: use the real isolated API/DB to create and assign a class task,
-  // reload, then confirm tenant isolation. No fixtures or route interception.
   await login(north);
+  // UI-07: use the actual role, save the profile and package, and re-open both views.
+  await call('teacher/profile', null, undefined, 401);
+  await page.locator('#openTeacherProfile').click();
+  await page.getByText('Владелец пространства · '+north.workspace, {exact:true}).waitFor();
+  await page.getByText(north.email, {exact:true}).waitFor();
+  const profileForm = page.locator('#teacherProfileForm');
+  const displayName = profileForm.locator('[name="displayName"]');
+  const originalName = await displayName.inputValue();
+  await displayName.fill('Несохранённое имя');
+  await profileForm.getByRole('button', {name:'Отменить'}).click();
+  assert.equal(await displayName.inputValue(), originalName);
+  await displayName.fill('Тестовый преподаватель Север');
+  const saveProfile = page.waitForResponse(r => r.url() === api+'/api/v1/teacher/profile' && r.request().method() === 'PATCH');
+  await profileForm.getByRole('button', {name:'Сохранить'}).click();
+  assert.equal((await saveProfile).status(), 200);
+  await page.locator('#workspaceName:text-is("Тестовый преподаватель Север")').waitFor();
+  await page.getByRole('heading', {name:'Подписка платформы'}).waitFor();
+  await page.screenshot({path:output+'/55_teacher_profile_real.png'});
+  const southProfile = await call('teacher/profile', south.token);
+  assert.equal(southProfile.email, south.email);
+  assert.notEqual(southProfile.displayName, 'Тестовый преподаватель Север');
+
+  await page.getByRole('button', {name:'Перейти к абонементам учеников'}).click();
+  const pupil = north.students[0].membershipId;
+  const editPackage = page.locator('[data-edit-sub="'+pupil+'"]');
+  const packageForm = page.locator('#subscriptionForm');
+  await editPackage.click();
+  await packageForm.locator('[name="packageSize"]').fill('4');
+  await packageForm.getByRole('button', {name:'Отменить'}).click();
+  assert.equal(await packageForm.locator('[name="packageSize"]').inputValue(), '8');
+  await editPackage.click();
+  await packageForm.locator('[name="packageSize"]').fill('6');
+  await packageForm.locator('[name="lessonPrice"]').fill('1250');
+  const savePackage = page.waitForResponse(r => r.url() === api+'/api/v1/teacher/subscriptions/'+pupil && r.request().method() === 'POST');
+  await packageForm.getByRole('button', {name:'Сохранить'}).click();
+  assert.ok((await savePackage).ok());
+  await page.locator('#subscriptionRows').getByText(/Стоимость пакета: 7\s500 ₽/).waitFor();
+  await page.locator('[data-sub-status]').selectOption('set');
+  assert.equal(await page.locator('#subscriptionRows [data-edit-sub]').count(), 1);
+  await page.locator('[data-sub-search]').fill('Чужой ученик');
+  assert.equal(await page.locator('#subscriptionRows [data-edit-sub]').count(), 0);
+  await login(north);
+  await page.locator('#openTeacherProfile').click();
+  await displayName.waitFor();
+  assert.equal(await displayName.inputValue(), 'Тестовый преподаватель Север');
+  assert.equal((await call('teacher/subscriptions', north.token)).find(item => item.membershipId === pupil).lessonPrice, 1250);
+  await page.getByRole('button', {name:'Перейти к абонементам учеников'}).click();
+  await page.locator('#subscriptionRows').getByText(/Стоимость пакета: 7\s500 ₽/).waitFor();
+  await page.screenshot({path:output+'/53_tuition_packages_real.png'});
+  await editPackage.click();
+  assert.equal(await packageForm.locator('[name="packageSize"]').inputValue(), '6');
+  assert.equal(await packageForm.locator('[name="lessonPrice"]').inputValue(), '1250');
+  await packageForm.getByRole('button', {name:'Отменить'}).click();
+  await page.locator('.nav [data-view="overview"]').click();
+
+  // UI-04: create and assign a class task, reload, then confirm tenant isolation.
   await page.locator('[data-open-class="'+north.item.id+'"]').click();
   await page.locator('.class-detail-tabs [data-class-detail-tab="materials"]').click();
   await page.locator('#classMaterialLinkForm [name="title"]').fill('Конспект к занятию');
