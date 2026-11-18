@@ -1,12 +1,17 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** Independent boards, creation/editing and optional class/group/lesson links implemented behind the isolated gate. Browser and PostgreSQL acceptance is running.
-**ACTIVE_BRANCH:** `tas/ui06-independent-boards`, [draft PR #93](https://github.com/Arthur200014/testing-hosting/pull/93), head `af8aa58dbfa3fe505a6bf1b8ba14acbc9a6e5008`.
-**MERGED_SHA:** `793b50ed2577f38be660487b4836b7264d22ee81`.
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44289106323](https://github.com/Arthur200014/testing-hosting/actions/runs/44289106323) PASS. Published `teacher.html`, `teacher-data.mjs`, `board-catalog-ui.mjs` and `lesson-board-ui.mjs` byte-match the verified release. UI enabled on isolated stand only.
-**API_DEPLOYMENT:** Owner-configured native Timeweb main auto-deploy; do not check Timeweb. Independent running revision/migrations UNKNOWN / NOT_VERIFIED; production board writes NOT_RUN in approved isolated-only mode. No production schema/config/writer switch in this prototype.
-**NEXT_ACTION:** Verify PR #93 in Chromium and PostgreSQL, including create → draw → link → reopen with the same scene, foreign owner denial and original lesson identities. Merge and verify frontend publication after green checks; production access gate stays off.
+**ACTIVE_TASK:** Independent board slice COMPLETE. Create, rename and link a private board to a class, group or lesson. Open linked boards from the lesson card. Drawing follows the stable board ID on relinking; original lesson rooms remain distinct.
+**ACTIVE_BRANCH:** none. [PR #93](https://github.com/Arthur200014/testing-hosting/pull/93) merged, tested head `af8aa58dbfa3fe505a6bf1b8ba14acbc9a6e5008`.
+**MERGED_SHA:** `c14a622712a8bb5c6c3685694c3331fe0c238cbc`.
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44296855483](https://github.com/Arthur200014/testing-hosting/actions/runs/44296855483) PASS. Published teacher.html, teacher-data.mjs, board-catalog-ui.mjs and lesson-board-ui.mjs byte-match the verified release. Feature enabled on isolated stand only.
+**API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy from main. Automated readonly health PASS (44297331720), deployed API revision and migration independently NOT_VERIFIED. Additive IndependentBoards migration exercised on isolated PostgreSQL. Production board writes NOT_RUN; feature gate off.
+**NEXT_ACTION:** Implement board folders and favorites in the catalog (reference 64), preserving the independent board ID and class/lesson associations. Keep sharing/access as a separate scope and the production board gate off.
+
+## Independent board verification
+
+- [Board CI 44295251946](https://github.com/Arthur200014/testing-hosting/actions/runs/44295251946): all jobs PASS, including 21/40 sustained profiles. Chromium with real isolated API/PostgreSQL verified create → draw → link → reopen with the exact scene, foreign list/permit/update denial, mismatched lesson and class rejection, distinct legacy keys, and restart/backup recovery. Local JS syntax/diff and CI selector 13/13 PASS.
+- Post-merge [PostgreSQL 44296857690](https://github.com/Arthur200014/testing-hosting/actions/runs/44296857690) and [browser 44296857630](https://github.com/Arthur200014/testing-hosting/actions/runs/44296857630) PASS. Files: teacher/catalog/board launcher, isolated board API/permit, additive migration, and existing browser scenario. Linking does not grant student access.
 
 ## UI-06 catalog verification
 
