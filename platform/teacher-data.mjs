@@ -1,4 +1,5 @@
 export const teacherPaths = {
+  profile: 'profile',
   boardFolders: 'board-prototype/boards/folders',
   boardRecords: 'board-prototype/boards',
   classes: 'classes', groups: 'groups', scheduleRules: 'schedule-rules', programs: 'programs', students: 'students', lessons: 'lessons',
@@ -42,6 +43,7 @@ export function teacherResourcePath(key) {
 }
 
 export const teacherNeeds = {
+  profile: ['profile'],
   boards: ['classes', 'groups', 'lessons', 'students', 'boardRecords', 'boardFolders'],
   overview: ['classes', 'groups', 'students', 'lessons', 'scheduleRules'],
   students: ['students', 'programs'],
@@ -66,6 +68,7 @@ export const teacherMutationKeys = {
   lessonTopicSetForm: ['lessonTopicSets'], topicLessonAttachForm: ['lessonTopicSets'],
   classTopicForm: ['classTopics'], topicMaterialAttachForm: ['topicMaterialLinks'], topicTaskAttachForm: ['topicTaskLinks'],
   catalogForm: ['catalog'], homeworkForm: ['assignments'],
+  teacherProfileForm: ['profile'],
   subscriptionForm: ['subscriptions']
 };
 

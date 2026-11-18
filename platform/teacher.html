@@ -115,7 +115,7 @@
     .top .eyebrow { display: none; }
     .top h1 { font-size: 1.1rem; letter-spacing: -.02em; }
     .top .subtitle { display: none; }
-    .teacher-chip { display: flex; align-items: center; gap: 10px; min-width: 190px; padding: 7px 10px; border-radius: 10px; background: #f5f3ff; }
+    .teacher-chip { display: flex; align-items: center; gap: 10px; min-width: 190px; padding: 7px 10px; border: 0; border-radius: 10px; background: #f5f3ff; text-align: left; }
     .teacher-avatar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: #fff; background: #7968f8; font-weight: 700; }
     .teacher-chip strong, .teacher-chip small { display: block; }
     .teacher-chip small { color: #86869a; font-size: .72rem; }
@@ -243,7 +243,7 @@
       .class-date { width: 100%; }
       .class-open { margin-left: 0; text-align: left; }
       .teacher-chip { min-width: 0; }
-      .teacher-chip div { display: none; }
+      .teacher-chip > span:last-child { display: none; }
       .learning-type { grid-template-columns: 62px 1fr; }
       .learning-type-icon { height: 58px; }
     }
@@ -327,7 +327,7 @@
       <div class="top">
         <div class="top-heading"><p class="eyebrow">Teacher AI Student</p><h1 id="viewTitle">Мои классы</h1><p id="viewSubtitle" class="subtitle"></p></div>
         <button id="refresh" class="secondary" type="button" title="Обновить данные">Обновить</button>
-        <div class="teacher-chip"><span class="teacher-avatar">T</span><div><strong id="workspaceName"></strong><small>Преподаватель</small></div></div>
+        <button type="button" id="openTeacherProfile" class="teacher-chip" aria-label="Открыть профиль"><span class="teacher-avatar" aria-hidden="true">T</span><span><strong id="workspaceName"></strong><small id="teacherRoleLabel">Преподаватель</small></span></button>
       </div>
       <div id="notice" class="banner" role="status" hidden></div>
       <div id="content"></div>
@@ -372,7 +372,8 @@
       const date = value => value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
       const money = value => value == null ? '—' : new Intl.NumberFormat('ru-RU').format(Number(value)) + ' ₽';
       const nowLocal = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
-      const names = { boards: ['Доски','Доски занятий'], library: ['Библиотека','Шаблоны заданий и материалы'], overview: ['Мои классы', 'Обучения, расписание и быстрые действия'], students: ['Ученики', 'Список, программы и новые ученики'], lessons: ['Календарь', 'Парные уроки и отдельная посещаемость'], homework: ['Задания', 'Каталог и назначения'], subscriptions: ['Оплата', 'Текущее состояние без выдуманных платежей'], results: ['Результаты', 'Доступная история тестов и пробников'], report: ['Отчёт ученика', 'Последние восемь занятий и результаты за этот период'] };
+      const billingFilters = {query:'', status:''};
+      const names = { profile: ['Профиль','Личные данные и доступ к кабинету'], boards: ['Доски','Доски занятий'], library: ['Библиотека','Шаблоны заданий и материалы'], overview: ['Мои классы', 'Обучения, расписание и быстрые действия'], students: ['Ученики', 'Список, программы и новые ученики'], lessons: ['Календарь', 'Парные уроки и отдельная посещаемость'], homework: ['Задания', 'Каталог и назначения'], subscriptions: ['Оплата', 'Пакеты и стоимость занятий'], results: ['Результаты', 'Доступная история тестов и пробников'], report: ['Отчёт ученика', 'Последние восемь занятий и результаты за этот период'] };
       const needs = teacherNeeds;
       const list = (items, empty, item) => items.length ? `<div class="list">${items.map(item).join('')}</div>` : `<div class="empty">${safe(empty)}</div>`;
       const studentName = id => state.data.students?.find(x => x.membershipId === id)?.studentName || 'Ученик';
@@ -386,6 +387,8 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
+        Object.assign(billingFilters, {query:'',status:''});
+        $('teacherRoleLabel').textContent = 'Преподаватель';
         lessonBoard.close();
         boardSettings?.close();
         Object.assign(boardFilters, { search:'', classId:'', sort:'date', folderId:'', favorites:false });
@@ -460,6 +463,8 @@
           body => api('teacher/' + path, { method: 'POST', body }));
       }
       function setView(view) {
+        if (state.view !== view && document.querySelector('#teacherProfileForm[data-dirty="1"], #subscriptionForm[data-dirty="1"]') &&
+            !confirm('Отменить несохранённые изменения?')) return Promise.resolve();
         if (view === 'boards' && !lessonBoard.enabled) return Promise.resolve();
         if(state.view!==view && !canLeaveStudentEdit()) return Promise.resolve();
         if(state.view==='library' && state.view!==view && state.fileUpload?.file) {
@@ -1832,18 +1837,61 @@
           <div class="card stack"><div class="section-head"><h2>Недавние назначения</h2><span class="muted small">${d.assignments?.length || 0}</span></div>${list((d.assignments || []).slice(0, 80), 'Назначений пока нет.', x => `<div class="item"><div><strong>${safe(x.name)}</strong><small>${safe(studentName(x.membershipId))} · до ${safe(date(x.deadlineAt))}</small></div><span class="pill ${x.submittedAt ? '' : 'warn'}">${x.submittedAt ? 'Сдано' : 'Ожидается'}</span></div>`)}</div></div>
           <div class="card stack" style="grid-column:1 / -1"><div class="section-head"><h2>Сдачи домашних работ</h2><span class="muted small">${d.submissions?.length || 0}</span></div>${list((d.submissions || []).slice(0, 80), 'Сдач пока нет.', x => `<div class="item"><div><strong>${safe(studentName(x.membershipId))}</strong><small>${safe(date(x.completedAt))}${x.isLate ? ' · после срока' : ''}</small></div><span class="pill">${safe(x.scorePercent)}%</span></div>`)}</div></div>`;
       }
+      const teacherRoleLabel = role => ({owner:'Владелец пространства',teacher:'Преподаватель'})[role] || role;
+      function profile() {
+        const account = state.data.profile;
+        return `<div class="grid two">
+          <section class="card stack"><h2>Личные данные</h2>
+            <form id="teacherProfileForm" class="stack">
+              <label>Имя в кабинете<input name="displayName" value="${safe(account.displayName || '')}" maxlength="120" autocomplete="name" required></label>
+              <p><strong>Email для входа</strong><br>${safe(account.email)}</p>
+              <div class="row"><button class="primary" type="submit">Сохранить</button>
+                <button class="secondary" type="button" data-cancel-account-form="teacherProfileForm">Отменить</button></div>
+            </form>
+          </section>
+          <div class="stack"><section class="card stack"><h2>Роль и пространство</h2>
+            <p>${safe(teacherRoleLabel(account.role))} · ${safe(account.workspace)}</p>
+            <a href="./student.html">Вход в кабинет ученика</a>
+          </section>
+          <section class="card stack"><h2>Подписка платформы</h2>
+            <p class="muted">Данные о тарифе платформы пока недоступны.</p>
+            <button class="secondary" type="button" data-class-section="subscriptions">Перейти к абонементам учеников</button>
+          </section></div></div>`;
+      }
+      function subscriptionRows() {
+        const d = state.data;
+        const packages = new Map((d.subscriptions || []).map(item => [item.membershipId,item]));
+        const query = billingFilters.query.trim().toLocaleLowerCase('ru-RU');
+        const rows = (d.students || []).filter(student => {
+          if (query && ![student.studentName,student.programName].some(value =>
+              String(value || '').toLocaleLowerCase('ru-RU').includes(query))) return false;
+          const sub = packages.get(student.membershipId);
+          return billingFilters.status === '' || (billingFilters.status === 'set' ? !!sub : !sub);
+        }).map(student => {
+          const sub = packages.get(student.membershipId);
+          const details = sub ? `${sub.packageSize} занятий · ${sub.lessonPrice == null ? 'цена не задана' : safe(money(sub.lessonPrice)) + ' / урок'}` : 'Абонемент не настроен';
+          return `<div class="item"><div><strong>${safe(student.studentName)}</strong>
+            <small>${safe(student.programName)} · ${details}</small>
+            ${sub?.lessonPrice != null ? `<small>Стоимость пакета: ${safe(money(sub.lessonPrice * sub.packageSize))}</small>` : ''}
+            ${sub?.resetAt ? `<small>Начало пакета: ${safe(date(sub.resetAt))}</small>` : ''}</div>
+            <button class="secondary small-button" type="button" data-edit-sub="${safe(student.membershipId)}">${sub ? 'Изменить' : 'Настроить'}</button></div>`;
+        });
+        return rows.length ? `<div class="list">${rows.join('')}</div>` : '<div class="empty">Нет учеников по выбранным условиям.</div>';
+      }
       function subscriptions() {
         const d = state.data;
-        const rows = (d.students || []).map(x => {
-          const sub = (d.subscriptions || []).find(s => s.membershipId === x.membershipId);
-          return `<div class="item"><div><strong>${safe(x.studentName)}</strong><small>${safe(x.programName)} · пакет ${sub ? sub.packageSize + ' занятий' : 'не задан'} · цена ${safe(money(sub?.lessonPrice))}</small></div><button class="secondary small-button" type="button" data-edit-sub="${safe(x.membershipId)}">${sub ? 'Изменить' : 'Настроить'}</button></div>`;
-        });
-        return `<div class="grid two"><div class="card stack"><h2>Абонементы учеников</h2>${rows.length ? `<div class="list">${rows.join('')}</div>` : '<div class="empty">Нет учеников.</div>'}</div>
-          <div class="card stack"><div><h2>Состояние абонемента</h2><p class="muted small">Пустая цена остаётся неизвестной. Сохранение не создаёт платёж.</p></div>
+        return `<div class="grid two"><div class="card stack"><h2>Абонементы учеников</h2>
+          <div class="form-row"><label>Поиск ученика<input type="search" data-sub-search value="${safe(billingFilters.query)}"></label>
+            <label>Настройка пакета<select data-sub-status><option value="">Все</option>
+              <option value="set" ${billingFilters.status === 'set' ? 'selected' : ''}>Настроен</option>
+              <option value="unset" ${billingFilters.status === 'unset' ? 'selected' : ''}>Не настроен</option>
+            </select></label></div><div id="subscriptionRows">${subscriptionRows()}</div></div>
+          <div class="card stack"><div><h2>Настройка абонемента</h2><p class="muted small">Здесь задаются размер и стоимость пакета занятий.</p></div>
           <form id="subscriptionForm" class="stack"><label><span>Ученик</span><select name="membershipId" required><option value="">Выберите ученика</option>${options(d.students || [], 'membershipId', 'studentName')}</select></label>
           <div class="form-row"><label><span>Размер пакета</span><input name="packageSize" type="number" min="1" max="1000" value="8" required></label><label><span>Цена урока, ₽</span><input name="lessonPrice" type="number" min="0" step="0.01" placeholder="Неизвестно"></label></div>
           <div class="form-row"><label><span>Начало пакета</span><input name="resetAt" type="datetime-local"></label><label><span>Базовое число занятий</span><input name="baseLessonCount" type="number" min="0" placeholder="Неизвестно"></label></div>
-          <button class="primary" type="submit">Сохранить состояние</button></form></div></div>`;
+          <div class="row"><button class="primary" type="submit">Сохранить</button>
+          <button class="secondary" type="button" data-cancel-account-form="subscriptionForm">Отменить</button></div></form></div></div>`;
       }
       function results() {
         const d = state.data;
@@ -1902,8 +1950,12 @@
         return renderLibrary(state.data,state.library,safe,state.fileUpload);
       }
       function render() {
+        if (state.data.profile) {
+          $('workspaceName').textContent = state.data.profile.displayName || state.data.profile.workspace;
+          $('teacherRoleLabel').textContent = teacherRoleLabel(state.data.profile.role);
+        }
         // Related reads may finish while the teacher is already typing in a lesson form.
-        const drafts=[...document.querySelectorAll('[data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"], #libraryAttachForm[data-dirty="1"], #libraryRenameForm[data-dirty="1"], #libraryMoveForm[data-dirty="1"], #libraryFolderForm[data-dirty="1"], #recordingForm[data-dirty="1"], #studentEditForm[data-dirty="1"], [data-student-grade][data-dirty="1"], #pupilFeedbackForm[data-dirty="1"]')].map(form=>({
+        const drafts=[...document.querySelectorAll('#teacherProfileForm[data-dirty="1"], #subscriptionForm[data-dirty="1"], [data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"], #libraryAttachForm[data-dirty="1"], #libraryRenameForm[data-dirty="1"], #libraryMoveForm[data-dirty="1"], #libraryFolderForm[data-dirty="1"], #recordingForm[data-dirty="1"], #studentEditForm[data-dirty="1"], [data-student-grade][data-dirty="1"], #pupilFeedbackForm[data-dirty="1"]')].map(form=>({
           id:form.id, classId:form.dataset.classId, lessonId:form.dataset.lessonId, libraryItem:form.dataset.libraryItem, studentId:form.dataset.studentId, revision:form.dataset.revision,
           fields:[...form.querySelectorAll('input[name],textarea[name],select[name]')].map(input=>({
             name:input.name,type:input.type,value:input.value,checked:input.checked
@@ -1920,7 +1972,7 @@
             return;
           }
         }
-        $('content').innerHTML = ({ overview, students, lessons, homework, library, subscriptions, results, report, boards })[state.view]();
+        $('content').innerHTML = ({ overview, students, lessons, homework, library, subscriptions, results, report, boards, profile })[state.view]();
         for(const draft of drafts) {
           const form=document.getElementById(draft.id);
           if(!form || form.dataset.classId!==draft.classId || form.dataset.lessonId!==draft.lessonId || form.dataset.libraryItem!==draft.libraryItem || form.dataset.studentId!==draft.studentId) continue;
@@ -2108,6 +2160,22 @@
       });
       document.addEventListener('reset',event=>{if(event.target.matches('[data-student-grade]')) {if(event.target.querySelector('button[type="submit"]')?.disabled) event.preventDefault();else delete event.target.dataset.dirty;}});
       $('refresh').addEventListener('click', () => refresh(true));
+      $('openTeacherProfile').addEventListener('click', () => setView('profile'));
+      $('content').addEventListener('input', event => {
+        const target = event.target;
+        if (target.matches('[data-sub-search]')) {
+          billingFilters.query = target.value;
+          $('subscriptionRows').innerHTML = subscriptionRows();
+        }
+        const form = target.closest('#teacherProfileForm, #subscriptionForm');
+        if (form) form.dataset.dirty = '1';
+      });
+      $('content').addEventListener('change', event => {
+        if (!event.target.matches('[data-sub-status]')) return;
+        billingFilters.status = event.target.value;
+        $('subscriptionRows').innerHTML = subscriptionRows();
+      });
+
       $('logout').addEventListener('click', async () => {
         if(!canLeaveStudentEdit()) return;
         try { await api('teacher-sessions/logout', { method: 'POST' }); } catch (_) {}
@@ -2239,6 +2307,7 @@
         if (event.target.matches('#subscriptionForm select[name="membershipId"]')) {
           const form = event.target.form;
           const sub = (state.data.subscriptions || []).find(x => x.membershipId === event.target.value);
+          form.dataset.revision = sub?.updatedAt || '';
           form.elements.packageSize.value = sub?.packageSize ?? 8;
           form.elements.lessonPrice.value = sub?.lessonPrice ?? '';
           form.elements.baseLessonCount.value = sub?.baseLessonCount ?? '';
@@ -2246,6 +2315,14 @@
         }
       });
       $('content').addEventListener('click', async event => {
+        const cancelAccount = event.target.closest('[data-cancel-account-form]');
+        if (cancelAccount) {
+          const form = $(cancelAccount.dataset.cancelAccountForm);
+          if (!form || form.querySelector('button[type=submit]').disabled) return;
+          delete form.dataset.dirty;
+          render();
+          return;
+        }
         const boardButton = event.target.closest('[data-open-lesson-board]');
         if (lessonBoard.enabled && state.view === 'overview' && state.selectedLesson) {
           const target = event.target.closest('[data-open-independent-board]');
@@ -2936,7 +3013,7 @@
         const studentReport = event.target.closest('[data-report]');
         if (studentReport) { state.reportStudent = studentReport.dataset.report; setView('report'); return; }
         const edit = event.target.closest('[data-edit-sub]');
-        if (edit) { const form = $('subscriptionForm'); form.elements.membershipId.value = edit.dataset.editSub; form.elements.membershipId.dispatchEvent(new Event('change')); form.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+        if (edit) { const form = $('subscriptionForm'); form.elements.membershipId.value = edit.dataset.editSub; form.elements.membershipId.dispatchEvent(new Event('change', {bubbles:true})); form.dataset.dirty = '1'; form.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
         const archive = event.target.closest('[data-archive]');
         if (archive) {
           const student = state.data.students.find(x => x.membershipId === archive.dataset.archive);
@@ -3403,12 +3480,14 @@
           await mutation('homework', 'homework/assignments', () => ({ catalogItemId: catalog.id, assignedAt: new Date(formValue(form, 'assignedAt')).toISOString(), deadlineHours: Number(formValue(form, 'deadlineHours')), membershipIds: ids.map(x => x.value) }));
           form.reset();
         });
+        if (form.id === 'teacherProfileForm') onForm(form, async () => {
+          await api('teacher/profile', {method:'PUT',body:{displayName:formValue(form,'displayName')}});
+        });
         if (form.id === 'subscriptionForm') onForm(form, async () => {
           const id = formValue(form, 'membershipId'); if (!id) throw new Error('Выберите ученика.');
-          const previous = state.data.subscriptions.find(x => x.membershipId === id);
           const value = formValue(form, 'lessonPrice'); const count = formValue(form, 'baseLessonCount'); const reset = formValue(form, 'resetAt');
           try {
-            await api('teacher/subscriptions/' + encodeURIComponent(id), { method: 'POST', body: { packageSize: Number(formValue(form, 'packageSize')), lessonPrice: value === '' ? null : Number(value), baseLessonCount: count === '' ? null : Number(count), resetAt: reset ? new Date(reset).toISOString() : null, expectedUpdatedAt: previous?.updatedAt || null } });
+            await api('teacher/subscriptions/' + encodeURIComponent(id), { method: 'POST', body: { packageSize: Number(formValue(form, 'packageSize')), lessonPrice: value === '' ? null : Number(value), baseLessonCount: count === '' ? null : Number(count), resetAt: reset ? new Date(reset).toISOString() : null, expectedUpdatedAt: form.dataset.revision || null } });
           } catch (error) {
             if (!error.status || error.status >= 500) error.retrySameRequest = true;
             throw error;
