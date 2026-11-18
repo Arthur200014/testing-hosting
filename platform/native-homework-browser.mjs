@@ -127,6 +127,7 @@ async function mockApi(page) {
         'teacher/homework/native/tasks': tasks,
         'teacher/homework/native/assignments': assignments,
         'teacher/subscriptions': [],
+        'teacher/profile/settings': {lessonReminders:false,overdueInvoiceReminders:false,paymentRecipient:null,paymentBank:null,paymentUrl:null},
         'teacher/tests/history': [],
         'teacher/tests/attempts': [],
         'teacher/mocks/results': [],
