@@ -352,7 +352,7 @@
     import { renderClassProgram, topicsForClass } from './class-program-ui.mjs';
     import { renderLessonTopics, lessonBelongsToClass, lessonTopicChange } from './lesson-topics-ui.mjs';
     import { renderLessonMaterials } from './lesson-materials-ui.mjs';
-    import { createLessonBoard } from './lesson-board-ui.mjs';
+    import { createLessonBoard, studentBoardLink } from './lesson-board-ui.mjs';
     import { lessonBoardEntries, renderBoardCards } from './board-catalog-ui.mjs';
     (() => {
       'use strict';
@@ -942,6 +942,10 @@
         dialog.innerHTML = `<section class="stack">
           <h2>Доступ к доске</h2><strong>${safe(board.title)}</strong>
           <p>Выберите роль для каждого ученика.</p>
+          <label>Ссылка для ученика<input type="url" data-board-link readonly value="${safe(studentBoardLink(location.href, board.id))}"></label>
+          <button type="button" class="secondary" data-copy-board-link>Скопировать ссылку</button>
+          <p class="muted">Ссылка откроет доску после входа с выданным доступом.</p>
+          <p role="status" data-copy-board-status></p>
           <p role="alert" hidden></p><div data-board-members>Загрузка…</div>
           <button type="button" class="secondary" data-close-board-access>Закрыть</button>
         </section>`;
@@ -950,6 +954,18 @@
         const path = 'teacher/board-prototype/boards/' + board.id + '/members';
         const students = state.data.students || [];
         dialog.querySelector('[data-close-board-access]').onclick = () => dialog.close();
+        const boardLink = dialog.querySelector('[data-board-link]');
+        const copyStatus = dialog.querySelector('[data-copy-board-status]');
+        dialog.querySelector('[data-copy-board-link]').addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(boardLink.value);
+            copyStatus.textContent = 'Ссылка скопирована.';
+          } catch {
+            boardLink.focus();
+            boardLink.select();
+            copyStatus.textContent = 'Скопируйте выделенную ссылку вручную.';
+          }
+        });
         dialog.addEventListener('close', () => { dialog.remove(); if (boardSettings === dialog) boardSettings = null; }, {once:true});
         document.body.append(dialog);
         dialog.showModal();
