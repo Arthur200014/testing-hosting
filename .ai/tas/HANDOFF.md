@@ -1,12 +1,12 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** UI-06 lesson-board catalog complete and published behind the isolated gate. Search, class/group filter, date/title sorting, class shortcuts and lesson/editor links use existing lesson scenes.
-**ACTIVE_BRANCH:** none. [PR #92](https://github.com/Arthur200014/testing-hosting/pull/92) merged, tested head `0cd646fe8a37e24b1d2d86492d88f9162c9b6412`.
+**ACTIVE_TASK:** Independent boards, creation/editing and optional class/group/lesson links implemented behind the isolated gate. Browser and PostgreSQL acceptance is running.
+**ACTIVE_BRANCH:** `tas/ui06-independent-boards`, [draft PR #93](https://github.com/Arthur200014/testing-hosting/pull/93), head `af8aa58dbfa3fe505a6bf1b8ba14acbc9a6e5008`.
 **MERGED_SHA:** `793b50ed2577f38be660487b4836b7264d22ee81`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44289106323](https://github.com/Arthur200014/testing-hosting/actions/runs/44289106323) PASS. Published `teacher.html`, `teacher-data.mjs`, `board-catalog-ui.mjs` and `lesson-board-ui.mjs` byte-match the verified release. UI enabled on isolated stand only.
 **API_DEPLOYMENT:** Owner-configured native Timeweb main auto-deploy; do not check Timeweb. Independent running revision/migrations UNKNOWN / NOT_VERIFIED; production board writes NOT_RUN in approved isolated-only mode. No production schema/config/writer switch in this prototype.
-**NEXT_ACTION:** Continue UI-06 with independent board records and explicit class/lesson associations, preserving existing lesson board identities and keeping the board gate off on production. Catalog is already implemented for existing lesson boards (reference 64).
+**NEXT_ACTION:** Verify PR #93 in Chromium and PostgreSQL, including create → draw → link → reopen with the same scene, foreign owner denial and original lesson identities. Merge and verify frontend publication after green checks; production access gate stays off.
 
 ## UI-06 catalog verification
 
