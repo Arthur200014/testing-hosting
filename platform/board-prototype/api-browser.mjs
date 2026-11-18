@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -33,7 +33,27 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
   const until=async(check,label,timeout=20000)=>{const end=Date.now()+timeout;while(!await check()){assert.ok(Date.now()<end,label);await new Promise(r=>setTimeout(r,100));}};
   async function apiReady(){await until(async()=>{try{return(await fetch(api+'/health/ready',{signal:AbortSignal.timeout(2000)})).ok;}catch{return false;}},'API recovery',45000);}
   const cwd=process.cwd();process.chdir(new URL('.',import.meta.url).pathname);
-  const site=await createServer({server:{host:'127.0.0.1',port:8768,strictPort:true}});await site.listen();
+  const site=await createServer({server:{host:'127.0.0.1',port:8768,strictPort:true},plugins:[{
+    name:'isolated-teacher-cabinet',
+    configureServer(server) {
+      server.middlewares.use(async (req,res,next) => {
+        const match = /^\/cabinet\/(teacher\.html|[a-z-]+\.mjs|meleto-fidelity\.css)$/.exec(req.url);
+        if (req.method !== 'GET' || !match) return next();
+        const name = match[1];
+        try {
+          let body = await readFile(new URL('../'+name,import.meta.url),'utf8');
+          if (name === 'teacher.html') {
+            const production = "const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';";
+            assert.ok(body.includes(production));
+            body = body.replace(production,'const API = '+JSON.stringify(api)+';');
+          }
+          const type = name.endsWith('.html')?'text/html':name.endsWith('.css')?'text/css':'text/javascript';
+          res.setHeader('Content-Type',type+'; charset=utf-8');
+          res.end(body);
+        } catch (error) { next(error); }
+      });
+    }
+  }]});await site.listen();
   const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
   const errors=[];
   let stopped=false,recoveryDir,restoreDatabase,dbContainer;
@@ -59,6 +79,57 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
   async function draw(p,x,y){await p.getByTitle(/Rectangle/).first().click();await p.mouse.move(x,y);await p.mouse.down();await p.mouse.move(x+95,y+70,{steps:5});await p.mouse.up();}
   const permitPath=(role,id=lesson.id)=>`${role}/board-prototype/lessons/${id}/permit`;
   try {
+    const cabinet = await browser.newContext({viewport:{width:1200,height:900}});
+    try {
+      await cabinet.route('**/*',route => ['127.0.0.1','localhost'].includes(new URL(route.request().url()).hostname) ? route.continue() : route.abort());
+      await cabinet.addInitScript(url => { if (window === window.top) window.__TAS_ISOLATED_BOARD_RELAY = url; },room.url);
+      const p = await cabinet.newPage();
+      await p.goto('http://127.0.0.1:8768/cabinet/teacher.html');
+      await p.locator('#loginForm [name="workspace"]').fill(north.workspace);
+      await p.locator('#loginForm [name="email"]').fill(north.email);
+      await p.locator('#loginForm [name="password"]').fill(process.env.TAS_REAL_TEST_PASSWORD);
+      await p.locator('#loginForm button[type="submit"]').click();
+      await p.locator('[data-open-class="'+north.item.id+'"]').click();
+      await p.locator('.class-detail-tabs [data-class-detail-tab="schedule"]').click();
+      await p.locator('[data-open-class-lesson="'+solo.id+'"]').click();
+      const trigger = p.getByRole('button',{name:'Перейти к доске',exact:true});
+      const back = p.getByRole('button',{name:'Назад к занятию'});
+      const frame = () => p.frames().find(f => f.parentFrame() === p.mainFrame());
+      const open = async () => { await trigger.click(); await p.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor(); return frame(); };
+      const editor = await open();
+      await count(editor,0);
+      const bounds = await p.locator('dialog iframe').boundingBox();
+      await editor.getByTitle(/Rectangle/).first().click();
+      await p.mouse.move(bounds.x+300,bounds.y+220);
+      await p.mouse.down();
+      await p.mouse.move(bounds.x+390,bounds.y+290,{steps:5});
+      await p.mouse.up();
+      await count(editor,1);
+      await saved(editor);
+      const original = await active(editor);
+      await editor.getByTitle(/Rectangle/).first().click();
+      await p.mouse.move(bounds.x+550,bounds.y+320);
+      await p.mouse.down();
+      await p.mouse.move(bounds.x+630,bounds.y+375,{steps:5});
+      await p.mouse.up();
+      await count(editor,2);
+      await saved(editor);
+      await editor.getByRole('button',{name:'Undo',exact:true}).click();
+      await count(editor,1);
+      await saved(editor);
+      await back.click();
+      await p.locator('.class-lesson-detail h1').getByText(solo.title,{exact:true}).waitFor();
+      await trigger.evaluate(node => { if (document.activeElement !== node) throw new Error('Board trigger focus not restored'); });
+      assert.deepEqual(await active(await open()),original);
+      await back.click();
+      await p.locator('[data-back-class-lessons]').click();
+      const other = beforeLessons.find(x=>x.id!==solo.id && x.individualClassId===north.item.id);
+      assert.ok(other);
+      await p.locator('[data-open-class-lesson="'+other.id+'"]').click();
+      await count(await open(),0);
+      await back.click();
+      console.log('PASS: teacher cabinet lesson board entry, draw/undo, fresh editor persisted reload, return and distinct lesson scene');
+    } finally { await cabinet.close(); }
     const groupPermit=await call(permitPath('teacher'),north.token,{});
     const soloPermit=await call(permitPath('teacher',solo.id),north.token,{});
     const [southLesson]=await call('teacher/lessons',south.token);

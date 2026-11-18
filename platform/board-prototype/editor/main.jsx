@@ -6,8 +6,8 @@ import { connectScene, lessonPermit } from './scene-client.mjs';
 // Local fonts only; no vendor/CDN subscription or remote asset dependency.
 window.EXCALIDRAW_ASSET_PATH = '/excalidraw-assets/';
 let client, starting = false;
-const config = window.__BOARD_TEST_CONFIG;
-if(config?.metrics)window.__BOARD_METRICS={startedAt:Date.now(),applied:[],dropped:0};
+let config = window.__BOARD_TEST_CONFIG;
+
 function App() {
   const [status, setStatus] = React.useState('Загрузка доски');
   const [checkpointBusy,setCheckpointBusy]=React.useState(false),[checkpointStatus,setCheckpointStatus]=React.useState('');
@@ -31,4 +31,25 @@ function App() {
   }} onChange={(elements,appState,files) => client?.changed(elements,files)} initialData={{appState:{currentItemFontFamily:1}}}
     UIOptions={{canvasActions:{loadScene:false,saveAsImage:false,export:false}}}/><output id="status">{status}</output><aside id="files">{config.session?.role==='teacher'&&<><button data-testid="board-checkpoint" disabled={!loaded||checkpointBusy} onClick={async()=>{setCheckpointBusy(true);try{const base=await client.checkpoint();setCheckpointStatus(`Контрольная точка: ${base}`);}catch(e){setCheckpointStatus(e.message);}finally{setCheckpointBusy(false);}}}>Создать контрольную точку</button><output data-testid="checkpoint-status">{checkpointStatus}</output></>}<label>Добавить PNG, JPEG или PDF<input data-testid="board-file" type="file" accept="image/png,image/jpeg,application/pdf" disabled={!loaded} onChange={async e=>{const file=e.currentTarget.files?.[0];e.currentTarget.value='';if(file){setFileError('');try{await client.addFile(file);}catch(error){setFileError(error.message);}}}}/></label>{fileError&&<p role="alert">{fileError}</p>}{attachments.map(f=><div key={f.id}><button data-testid="board-download" onClick={async()=>{setFileError('');try{await client.downloadFile(f.id);}catch{setFileError('Нет доступа к файлу');}}}>{f.name}</button></div>)}</aside></>;
 }
-createRoot(document.getElementById('root')).render(<App/>);
+const root = createRoot(document.getElementById('root'));
+function renderEditor() {
+  if (config?.metrics) window.__BOARD_METRICS = {startedAt:Date.now(),applied:[],dropped:0};
+  root.render(<App/>);
+}
+renderEditor();
+
+if (!config && window.parent !== window && location.hostname === '127.0.0.1') {
+  window.addEventListener('message', event => {
+    if (config || event.source !== window.parent || event.origin !== location.origin) return;
+    const { type, relay, session } = event.data ?? {};
+    if (type !== 'tas:open-lesson-board' || session?.role !== 'teacher' || !session.accessToken) return;
+    try {
+      if (![relay, session.apiBase].every(value => {
+        const url = new URL(value);
+        return url.protocol === 'http:' && url.hostname === '127.0.0.1';
+      })) return;
+    } catch { return; }
+    config = { url:relay, session };
+    renderEditor();
+  });
+}

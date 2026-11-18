@@ -352,10 +352,12 @@
     import { renderClassProgram, topicsForClass } from './class-program-ui.mjs';
     import { renderLessonTopics, lessonBelongsToClass, lessonTopicChange } from './lesson-topics-ui.mjs';
     import { renderLessonMaterials } from './lesson-materials-ui.mjs';
+    import { createLessonBoard } from './lesson-board-ui.mjs';
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
       const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, studentCard:null, studentSearch:'', editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', topicFilter: 'all', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', groupEdit: '', groupCreate: false, lastClassInvitation: null, learningModal: false, classCreate: false, lessonPlan: null, scheduleEdit: null, calendarDate: calendarDay(), calendarMode: 'day', periodPreview: null };
+      const lessonBoard = createLessonBoard(API, () => state.token);
       state.library = newLibraryState();
       const $ = id => document.getElementById(id);
       const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -376,6 +378,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
+        lessonBoard.close();
         state.library=newLibraryState();state.libraryStorageKey='';state.fileUpload=null;
         state.resultDraft=null;state.studentCard=null;state.studentSearch='';
         state.selectedLesson=null; state.lessonFilter='all';
@@ -775,7 +778,7 @@
             ${renderLessonTopics(lesson, item, state.data, safe, list)}
             ${renderLessonMaterials(lesson, state.data, item.isArchived, safe, list)}
             ${renderContextHomework(item,state.data,safe,date,list,nativeGradeControls,lesson)}
-          </div><aside class="lesson-detail-side"><section class="card stack"><button class="primary" disabled title="Доска занятия пока недоступна">Перейти к доске</button></section>
+          </div><aside class="lesson-detail-side"><section class="card stack"><button type="button" class="primary" data-open-lesson-board="${safe(lesson.id)}" ${lessonBoard.enabled && !item.isArchived ? '' : 'disabled title="Доска занятия пока недоступна"'}>Перейти к доске</button></section>
             <section class="card stack"><div class="section-head"><h2>Участники</h2><button type="button" class="secondary" data-edit-lesson="${safe(lesson.id)}">Посещаемость и завершение</button></div>
               ${participants.map(p=>`<div class="item" data-lesson-participant="${safe(p.membershipId)}"><div><button type="button" class="class-text-link" data-open-student="${safe(p.membershipId)}">${safe(studentName(p.membershipId))}</button><small>${safe(labels[p.attendanceStatus] || p.attendanceStatus)} · ${p.durationMinutes} мин</small>
                 ${p.reaction?`<p data-student-reaction>${safe({positive:'😊',neutral:'😐',negative:'🙁'}[p.reaction] || p.reaction)}</p>`:''}${p.feedback?`<p data-student-feedback>${safe(p.feedback)}</p>`:''}</div>
@@ -1965,6 +1968,11 @@
         }
       });
       $('content').addEventListener('click', async event => {
+        const boardButton = event.target.closest('[data-open-lesson-board]');
+        if (boardButton && !boardButton.disabled && boardButton.dataset.openLessonBoard === state.selectedLesson) {
+          lessonBoard.open(state.selectedLesson, boardButton);
+          return;
+        }
         const download=event.target.closest('[data-file-download]');
         if(download) {
           download.disabled=true;
