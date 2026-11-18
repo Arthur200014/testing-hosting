@@ -1,12 +1,12 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** Read-only grants released in isolated mode. Teacher sets no access/view/edit per student; existing edit grants preserved. Role changes invalidate stale permits. Viewer opens the same saved scene without write or upload permissions.
-**ACTIVE_BRANCH:** none. [PR #96](https://github.com/Arthur200014/testing-hosting/pull/96) merged, tested head `5a8f34c7c71c6fdcbc1be7e85627cb27bb4f3512`.
+**ACTIVE_TASK:** Authenticated link flow implemented end to end in isolated mode. Teacher copies a board link beside grant controls; student sign-in opens the board under existing role, with revoked links denied. Acceptance running.
+**ACTIVE_BRANCH:** `tas/ui06-board-links`, [draft PR #97](https://github.com/Arthur200014/testing-hosting/pull/97), head `a3b704c0c257785ce0e173c8a09d66f44ab625d0`.
 **MERGED_SHA:** `b89fc0a7f011edc3d2c9e123f0cd6b1434b171c6`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44351616808](https://github.com/Arthur200014/testing-hosting/actions/runs/44351616808) PASS; teacher.html and student.html match the merged release. Feature remains isolated.
 **API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. Automated readonly health PASS (44352233992); running API revision and migration independently NOT_VERIFIED. Additive IndependentBoardGrantRoles migration verified on isolated PostgreSQL. Production board writes NOT_RUN; feature gate off.
-**NEXT_ACTION:** Continue UI-06 access with an authenticated board link that respects existing per-student grants, with no anonymous access and the isolated gate preserved. Keep 40-editor load manual and run only when necessary.
+**NEXT_ACTION:** Finish focused browser/API acceptance of PR #97 and publish. Keep production board gate off and leave 40-editor load manual.
 
 ## Read-only grants verification
 
