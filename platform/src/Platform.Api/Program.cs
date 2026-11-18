@@ -128,6 +128,14 @@ builder.Services.AddRateLimiter(options =>
             Window = TimeSpan.FromSeconds(studentSessionOptions.RateLimitWindowSeconds),
             QueueLimit = 0, AutoReplenishment = true
         }));
+    options.AddPolicy("teacher-password-change", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = studentSessionOptions.RateLimitPermitLimit,
+            Window = TimeSpan.FromSeconds(studentSessionOptions.RateLimitWindowSeconds),
+            QueueLimit = 0, AutoReplenishment = true
+        }));
     options.AddPolicy("student-sessions", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
