@@ -59,8 +59,11 @@ public sealed class TeacherSessionService(
             return null;
         }
 
-        // Serialize session creation with access revocation on the membership row.
+        // Recheck the verified hash under the same account lock used by password changes.
+        // Take the account lock before the membership lock in both flows.
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        if (!await LockPasswordAsync(user.Id, hash, cancellationToken)) return null;
+
         var membershipLock = await db.Database.SqlQuery<Guid>($"""
             SELECT "Id" AS "Value" FROM platform."WorkspaceMemberships"
             WHERE "Id"={membership.Id} AND "IsActive" AND "Role"={membership.Role} FOR UPDATE
@@ -77,6 +80,56 @@ public sealed class TeacherSessionService(
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return tokens.Issue(session, membership);
+    }
+
+    public async Task<bool> ChangePasswordAsync(
+        ClaimsPrincipal principal, string currentPassword, string newPassword, CancellationToken ct)
+    {
+        var teacherId = Guid.Parse(principal.FindFirstValue(JwtRegisteredClaimNames.Sub)!);
+        var membershipId = Guid.Parse(principal.FindFirstValue("membership_id")!);
+        var sessionId = Guid.Parse(principal.FindFirstValue(JwtRegisteredClaimNames.Jti)!);
+        var role = principal.FindFirstValue("workspace_role")!;
+        var user = await db.TeacherUsers.AsNoTracking().SingleOrDefaultAsync(t => t.Id == teacherId, ct);
+        if (user?.PasswordHash is not { Length: > 0 } hash ||
+            passwordHasher.VerifyHashedPassword(user, hash, currentPassword) == PasswordVerificationResult.Failed)
+            return false;
+
+        var nextHash = passwordHasher.HashPassword(user, newPassword);
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        if (!await LockPasswordAsync(teacherId, hash, ct)) return false;
+
+        var activeMembership = await db.Database.SqlQuery<Guid>($"""
+            SELECT m."Id" AS "Value" FROM platform."WorkspaceMemberships" m
+            JOIN platform."Workspaces" w ON w."Id"=m."WorkspaceId"
+            WHERE m."Id"={membershipId} AND m."IsActive" AND m."Role"={role} AND w."IsActive"
+            FOR UPDATE OF m
+            """).ToListAsync(ct);
+        if (activeMembership.Count == 0) return false;
+
+        var now = clock.GetUtcNow();
+        var activeSession = await db.Database.SqlQuery<Guid>($"""
+            SELECT "Id" AS "Value" FROM platform."TeacherSessions"
+            WHERE "Id"={sessionId} AND "MembershipId"={membershipId} AND "RevokedAt" IS NULL AND "ExpiresAt">{now}
+            FOR UPDATE
+            """).ToListAsync(ct);
+        if (activeSession.Count == 0) return false;
+
+        await db.TeacherUsers.Where(t => t.Id == teacherId)
+            .ExecuteUpdateAsync(update => update.SetProperty(t => t.PasswordHash, nextHash), ct);
+        await db.TeacherSessions.Where(s => s.Membership.TeacherUserId == teacherId && s.RevokedAt == null)
+            .ExecuteUpdateAsync(update => update.SetProperty(s => s.RevokedAt, now), ct);
+        await transaction.CommitAsync(ct);
+        return true;
+    }
+
+    private async Task<bool> LockPasswordAsync(Guid teacherId, string verifiedHash, CancellationToken ct)
+    {
+        var users = await db.Database.SqlQuery<Guid>($"""
+            SELECT "Id" AS "Value" FROM platform."TeacherUsers"
+            WHERE "Id"={teacherId} AND "IsActive" AND "PasswordHash"={verifiedHash}
+            FOR UPDATE
+            """).ToListAsync(ct);
+        return users.Count == 1;
     }
 
     public async Task RevokeCurrentAsync(ClaimsPrincipal principal, CancellationToken cancellationToken)

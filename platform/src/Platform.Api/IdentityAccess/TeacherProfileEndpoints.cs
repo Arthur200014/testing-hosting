@@ -8,6 +8,7 @@ internal static class TeacherProfileEndpoints
 {
     public sealed record ProfileRow(string Email, string Workspace, string Role, string? DisplayName);
     public sealed record UpdateRequest(string? DisplayName);
+    public sealed record PasswordRequest(string? CurrentPassword, string? NewPassword);
 
     public static void Map(WebApplication app)
     {
@@ -18,6 +19,26 @@ internal static class TeacherProfileEndpoints
             var row = await Current(db, principal).SingleOrDefaultAsync(ct);
             return row is null ? Results.NotFound() : Results.Ok(row);
         });
+
+        profile.MapPost("/password", async (PasswordRequest input, ClaimsPrincipal principal,
+            TeacherSessionService sessions, HttpContext http, CancellationToken ct) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+            if (input.CurrentPassword is not { Length: > 0 and <= 1024 } current)
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                    { ["currentPassword"] = ["Введите текущий пароль."] });
+            if (input.NewPassword is not { Length: >= 16 and <= 1024 } next)
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                    { ["newPassword"] = ["Новый пароль должен содержать от 16 до 1024 символов."] });
+            if (current == next)
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                    { ["newPassword"] = ["Новый пароль должен отличаться от текущего."] });
+
+            return await sessions.ChangePasswordAsync(principal, current, next, ct)
+                ? Results.NoContent()
+                : Results.ValidationProblem(new Dictionary<string, string[]>
+                    { ["currentPassword"] = ["Текущий пароль неверен или сессия завершилась."] });
+        }).RequireRateLimiting("teacher-password-change");
 
         profile.MapPatch("", async (UpdateRequest input, ClaimsPrincipal principal, PlatformDbContext db, HttpContext http, CancellationToken ct) =>
         {

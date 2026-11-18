@@ -67,12 +67,12 @@ try {
   });
   const page=await context.newPage();
   const errors=[]; page.on('pageerror',e=>errors.push(e.message));
-  async function login(account, target = page) {
+  async function login(account, target = page, credential = password, expected = 200) {
     await target.goto(site+'/platform/teacher.html');
     assert.deepEqual(errors,[],'Teacher page modules must initialize before login');
     await target.locator('#loginForm [name="workspace"]').fill(account.workspace);
     await target.locator('#loginForm [name="email"]').fill(account.email);
-    await target.locator('#loginForm [name="password"]').fill(password);
+    await target.locator('#loginForm [name="password"]').fill(credential);
     async function submitLogin() {
       const response=target.waitForResponse(r=>r.url()===api+'/api/v1/teacher-sessions' && r.request().method()==='POST');
       await target.locator('#loginForm button[type="submit"]').click();
@@ -84,10 +84,11 @@ try {
     if(response.status()===429) {
       const retryAfter=Number(response.headers()['retry-after']);
       await target.waitForTimeout((Number.isFinite(retryAfter) && retryAfter>0 ? Math.min(retryAfter,60) : 60)*1000);
-      await target.locator('#loginForm [name="password"]').fill(password);
+      await target.locator('#loginForm [name="password"]').fill(credential);
       response=await submitLogin();
     }
-    assert.equal(response.status(),200,'Synthetic teacher login must succeed after respecting the rate window');
+    assert.equal(response.status(),expected,'Synthetic teacher login after respecting the rate window');
+    if(expected!==200) return;
     await target.locator('#app:not([hidden])').waitFor();
     await target.locator('#notice').waitFor({state:'hidden'});
     return response.json();
@@ -1433,6 +1434,60 @@ try {
     assert.equal(newSession.teacherId,invitedSession.teacherId);
     await call('teacher/me',invitedSession.accessToken,undefined,403);
     await call('teacher/me',newSession.accessToken);
+    // The same synthetic identity belongs to both workspaces.
+    const otherInvite=await call(accessPath+'/invitations',north.token,{email:teacher.email},201);
+    const otherWorkspace={...teacher,workspace:north.workspace};
+    const redeemOtherWorkspace=()=>fetch(api+'/api/v1/'+acceptPath,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({...otherWorkspace,code:otherInvite.code,password})
+    });
+    let redemption=await redeemOtherWorkspace();
+    if(redemption.status===429) {
+      await invitedPage.waitForTimeout(60000);
+      redemption=await redeemOtherWorkspace();
+    }
+    assert.equal(redemption.status,204);
+    const otherTab=await context.newPage();
+    const otherSession=await login(otherWorkspace,otherTab);
+    assert.equal(otherSession.teacherId,newSession.teacherId);
+    await invitedPage.locator('#openTeacherProfile').click();
+    const passwordForm=invitedPage.locator('#teacherPasswordForm');
+    const newPassword='  '+randomUUID()+'  ';
+    const setPasswords=async (current, next, confirm=next) => {
+      for (const [field,value] of Object.entries({currentPassword:current,newPassword:next,confirmPassword:confirm}))
+        await passwordForm.locator('[name="'+field+'"]').fill(value);
+    };
+    const submitPassword=()=>passwordForm.getByRole('button',{name:'Сменить пароль'}).click();
+    const passwordPath='teacher/profile/password';
+    await call(passwordPath,null,{currentPassword:password,newPassword},401);
+    await setPasswords(password,newPassword);
+    await passwordForm.getByRole('button',{name:'Отменить'}).click();
+    assert.equal(await passwordForm.locator('[name="currentPassword"]').inputValue(),'');
+    await setPasswords(password,newPassword,password);
+    await submitPassword();
+    await passwordForm.getByRole('alert').filter({hasText:'не совпадают'}).waitFor();
+    await setPasswords(password+'wrong',newPassword);
+    await submitPassword();
+    await passwordForm.getByRole('alert').filter({hasText:'Текущий пароль неверен'}).waitFor();
+    await call('teacher/me',newSession.accessToken);
+    await call('teacher/me',otherSession.accessToken);
+    await setPasswords(password,newPassword);
+    await submitPassword();
+    await invitedPage.locator('#loginStatus').filter({hasText:'Пароль изменён'}).waitFor();
+    await call('teacher/me',newSession.accessToken,undefined,403);
+    await call('teacher/me',otherSession.accessToken,undefined,403);
+    await call('teacher/me',south.token);
+    await call('teacher/me',north.token);
+    await invitedPage.reload();
+    await login(teacher,invitedPage,password,401);
+    const changedSession=await login(teacher,invitedPage,newPassword);
+    assert.equal(changedSession.teacherId,newSession.teacherId);
+    await login(otherWorkspace,otherTab,newPassword);
+    await invitedPage.locator('#openTeacherProfile').click();
+    await passwordForm.locator('[name="currentPassword"]').waitFor();
+    assert.equal(await passwordForm.locator('[name="newPassword"]').inputValue(),'');
+    await invitedPage.screenshot({path:output+'/58_password_form_real.png'});
+    await otherTab.close();
     await invitedPage.close();
   }
   assert.deepEqual(errors,[]);
