@@ -6,7 +6,7 @@
 **MERGED_SHA:** `90f7cd5c7074da9a76fc1360b413719f842dff12`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44355458778](https://github.com/Arthur200014/testing-hosting/actions/runs/44355458778) PASS; published teacher.html, student.html and lesson-board-ui.mjs match the verified commit. Board feature remains isolated.
 **API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. Automated readonly health PASS (44355975331); running API revision independently NOT_VERIFIED. This slice uses existing API/permissions with no migration. Production board writes NOT_RUN; feature gate off.
-**NEXT_ACTION:** Continue UI-06 with one complete chat flow (references 51–52): conversation list, opening a participant-scoped conversation, teacher/student text messages, persistence after reload and isolated permission/acceptance checks. Keep board load-40 manual, only when necessary.
+**NEXT_ACTION:** Finish UI-06 with one board workspace block (references 66–68): editor menu, background/grid settings and tool presets. Verify save/cancel/reopen and existing viewer/edit permissions in isolation. Then move to UI-07 (billing, profile, roles and subscription). Keep board load-40 manual, only when necessary.
 
 ## Authenticated board link verification
 
@@ -59,7 +59,7 @@
 ## Standing owner instructions / limits
 
 - Only commercially usable free/open-source board components; no mandatory SDK key, subscription or per-user/board fee. Both notice files and reviewed font licences must remain. Hosting/development costs are separate.
-- Preserve the completed UI and follow RELEASE_PLAN; old Mxx/Pxx queues are historical. Next visual block is UI-06 frames51–52, not the separate chat64–69 scenario.
+- Preserve the completed UI and follow RELEASE_PLAN; old Mxx/Pxx queues are historical. Owner removed in-app chat (references 51–52) from the implementation plan on 2026-11-18.
 - Do not check Timeweb or request production credentials. Never write to real pupils, lessons, scores, settings or credentials; no invitations/notifications/payments, imports, production reset scripts, new service/infrastructure or Firebase writer switch incidentally.
 - Durable adapter is PostgreSQL; filesystem is test-only. Fresh API session/membership checks apply before work and returned results. An append admitted before concurrent revocation may finish; this is not a transactional cross-service fence.
 - API-issued scene keys survive fresh-process recovery only while scene-root/context v1 stays stable. Root rotation/migration is not implemented. PNG/JPEG/PDF files are plaintext in the trusted scoped test store; preserve access/quota/hash checks.
