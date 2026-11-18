@@ -67,15 +67,15 @@ try {
   });
   const page=await context.newPage();
   const errors=[]; page.on('pageerror',e=>errors.push(e.message));
-  async function login(account) {
-    await page.goto(site+'/platform/teacher.html');
+  async function login(account, target = page) {
+    await target.goto(site+'/platform/teacher.html');
     assert.deepEqual(errors,[],'Teacher page modules must initialize before login');
-    await page.locator('#loginForm [name="workspace"]').fill(account.workspace);
-    await page.locator('#loginForm [name="email"]').fill(account.email);
-    await page.locator('#loginForm [name="password"]').fill(password);
+    await target.locator('#loginForm [name="workspace"]').fill(account.workspace);
+    await target.locator('#loginForm [name="email"]').fill(account.email);
+    await target.locator('#loginForm [name="password"]').fill(password);
     async function submitLogin() {
-      const response=page.waitForResponse(r=>r.url()===api+'/api/v1/teacher-sessions' && r.request().method()==='POST');
-      await page.locator('#loginForm button[type="submit"]').click();
+      const response=target.waitForResponse(r=>r.url()===api+'/api/v1/teacher-sessions' && r.request().method()==='POST');
+      await target.locator('#loginForm button[type="submit"]').click();
       return response;
     }
     let response=await submitLogin();
@@ -83,13 +83,14 @@ try {
     // Respect that production-equivalent limit; do not weaken it for the test.
     if(response.status()===429) {
       const retryAfter=Number(response.headers()['retry-after']);
-      await page.waitForTimeout((Number.isFinite(retryAfter) && retryAfter>0 ? Math.min(retryAfter,60) : 60)*1000);
-      await page.locator('#loginForm [name="password"]').fill(password);
+      await target.waitForTimeout((Number.isFinite(retryAfter) && retryAfter>0 ? Math.min(retryAfter,60) : 60)*1000);
+      await target.locator('#loginForm [name="password"]').fill(password);
       response=await submitLogin();
     }
     assert.equal(response.status(),200,'Synthetic teacher login must succeed after respecting the rate window');
-    await page.locator('#app:not([hidden])').waitFor();
-    await page.locator('#notice').waitFor({state:'hidden'});
+    await target.locator('#app:not([hidden])').waitFor();
+    await target.locator('#notice').waitFor({state:'hidden'});
+    return response.json();
   }
   async function month(day='2026-11-16') {
     await page.locator('[data-view="lessons"]').click();
@@ -1369,6 +1370,71 @@ try {
   await page.locator('[data-calendar-month-day="2026-11-16"] .calendar-month-event.is-saved').filter({hasText:'Чужое контрольное занятие'}).waitFor();
   assert.equal(await page.getByText('Урок через настоящий браузер',{exact:true}).count(),0);
   assert.equal((await call('teacher/lessons',south.token)).length,1);
+  {
+    // Workspace access via an actual one-time code, with no email delivery.
+    const accessPath='teacher/workspace-access';
+    const teacher={workspace:south.workspace,email:'calendar-coteacher@example.invalid'};
+    await page.locator('#openTeacherProfile').click();
+    await page.getByRole('button',{name:'Управление доступом'}).click();
+    const inviteForm=page.locator('#teacherInviteForm');
+    await inviteForm.locator('[name="email"]').fill(teacher.email);
+    await inviteForm.getByRole('button',{name:'Создать код'}).click();
+    const secretField=page.locator('#teacherInvitationCode');
+    await secretField.waitFor();
+    const code=await secretField.inputValue();
+    assert.match(code,/^[0-9A-F]{48}$/);
+    const invitations=await call(accessPath,south.token);
+    assert.equal(invitations.invitations.length,1);
+    assert.equal(invitations.invitations[0].email,teacher.email);
+    assert.equal(Object.hasOwn(invitations.invitations[0],'code'),false);
+    assert.equal((await call(accessPath,north.token)).invitations.length,0);
+    await call(accessPath+'/invitations/'+invitations.invitations[0].id+'/revoke',north.token,{},404);
+    await call(accessPath+'/members/'+invitations.members.find(m=>m.role==='owner').id+'/revoke',south.token,{},404);
+    await page.getByRole('button',{name:'Скрыть код'}).click();
+
+    const acceptPath='teacher-invitation-acceptance';
+    await call(acceptPath,null,{...teacher,email:'other@example.invalid',code,password},404);
+    const invitedPage=await context.newPage();
+    invitedPage.on('pageerror',e=>errors.push(e.message));
+    await invitedPage.goto(site+'/platform/teacher.html');
+    await invitedPage.locator('#toggleTeacherInvitation').click();
+    const accept=invitedPage.locator('#acceptTeacherInvitationForm');
+    for(const [field,value] of Object.entries({...teacher,code,password}))
+      await accept.locator('[name="'+field+'"]').fill(value);
+    await accept.getByRole('button',{name:'Принять приглашение'}).click();
+    await invitedPage.locator('#loginStatus').filter({hasText:'Доступ открыт'}).waitFor();
+    const invitedSession=await login(teacher,invitedPage);
+    assert.equal(invitedSession.workspaceRole,'teacher');
+    await invitedPage.locator('#openTeacherProfile').click();
+    await invitedPage.getByText('Преподаватель · '+south.workspace,{exact:true}).waitFor();
+    assert.equal(await invitedPage.getByRole('button',{name:'Управление доступом'}).count(),0);
+    await call(accessPath,invitedSession.accessToken,undefined,403);
+    assert.equal((await call('teacher/students',invitedSession.accessToken)).length,1);
+    await call(acceptPath,null,{...teacher,code,password},404);
+    await page.locator('#refresh').click();
+    const member=(await call(accessPath,south.token)).members.find(m=>m.email===teacher.email);
+    assert.equal(member.isActive,true);
+    const revoke=page.locator('[data-revoke-workspace-member="'+member.id+'"]');
+    page.once('dialog',d=>d.dismiss());
+    await revoke.click();
+    assert.equal((await call(accessPath,south.token)).members.find(m=>m.id===member.id).isActive,true);
+    page.once('dialog',d=>d.accept());
+    await revoke.click();
+    await page.getByText('Преподаватель · Доступ закрыт',{exact:true}).waitFor();
+    await call('teacher/me',invitedSession.accessToken,undefined,403);
+    await page.screenshot({path:output+'/60_workspace_access_real.png'});
+
+    const cancelled=await call(accessPath+'/invitations',south.token,{email:teacher.email},201);
+    await call(accessPath+'/invitations/'+cancelled.id+'/revoke',south.token,{},204);
+    await call(acceptPath,null,{...teacher,code:cancelled.code,password},404);
+    const reissued=await call(accessPath+'/invitations',south.token,{email:teacher.email},201);
+    await call(acceptPath,null,{...teacher,code:reissued.code,password},204);
+    const newSession=await login(teacher,invitedPage);
+    assert.equal(newSession.teacherId,invitedSession.teacherId);
+    await call('teacher/me',invitedSession.accessToken,undefined,403);
+    await call('teacher/me',newSession.accessToken);
+    await invitedPage.close();
+  }
   assert.deepEqual(errors,[]);
   console.log('PASS: TWO persisted test teachers, students/classes/group/rules/lessons; REAL API+PostgreSQL browser save/reload, month, idempotency and tenant boundaries. No production accounts used.');
 } finally { await browser.close(); }
