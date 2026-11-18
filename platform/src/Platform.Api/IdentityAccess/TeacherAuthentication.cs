@@ -59,6 +59,14 @@ public sealed class TeacherSessionService(
             return null;
         }
 
+        // Serialize session creation with access revocation on the membership row.
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var membershipLock = await db.Database.SqlQuery<Guid>($"""
+            SELECT "Id" AS "Value" FROM platform."WorkspaceMemberships"
+            WHERE "Id"={membership.Id} AND "IsActive" AND "Role"={membership.Role} FOR UPDATE
+            """).ToListAsync(cancellationToken);
+        if (membershipLock.Count == 0) return null;
+
         var now = clock.GetUtcNow();
         var session = new TeacherSession
         {
@@ -67,6 +75,7 @@ public sealed class TeacherSessionService(
         };
         db.TeacherSessions.Add(session);
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return tokens.Issue(session, membership);
     }
 

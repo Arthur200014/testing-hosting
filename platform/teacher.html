@@ -300,8 +300,18 @@
         <label><span>Код подтверждения владельца</span><input name="claimCode" type="password" minlength="24" required autocomplete="off"></label>
         <button class="primary" type="submit">Создать аккаунт</button>
       </form>
+      <form id="acceptTeacherInvitationForm" class="stack" hidden>
+        <label>Пространство<input name="workspace" required autocomplete="organization" spellcheck="false"></label>
+        <label>Почта из приглашения<input name="email" type="email" required autocomplete="username" maxlength="320"></label>
+        <label>Код приглашения<input name="code" type="password" required autocomplete="off" maxlength="48" spellcheck="false"></label>
+        <label>Пароль<input name="password" type="password" required autocomplete="current-password" maxlength="1024"></label>
+        <p class="muted small">Если у вас уже есть аккаунт, используйте его пароль. Для нового аккаунта придумайте пароль от 16 символов.</p>
+        <button class="primary" type="submit">Принять приглашение</button>
+      </form>
+      <p id="loginStatus" class="banner" role="status" hidden></p>
       <p id="loginError" class="banner error" role="alert" hidden></p>
       <p class="muted small" style="margin-top:20px"><button id="toggleRegistration" class="text-button" type="button">Зарегистрироваться как владелец</button></p>
+      <p class="muted small"><button id="toggleTeacherInvitation" class="text-button" type="button">Войти по приглашению</button></p>
       <p class="muted small" style="margin-top:10px">Отдельный кабинет. Действующая форма преподавателя продолжает работать.</p>
     </div>
   </div>
@@ -375,10 +385,11 @@
       const billingFilters = {query:'', status:''};
       const blankLedger = () => ({ query:'', status:'', membership:'', selected:'' });
       let ledger = blankLedger();
+      let teacherInvitation = null;
       const invoicePaymentsKey = id => 'invoicePayments:' + id;
       const moscowToday = () => new Intl.DateTimeFormat('sv-SE', {timeZone:'Europe/Moscow',
         year:'numeric', month:'2-digit', day:'2-digit'}).format(new Date());
-      const names = { invoices:['Оплата','Счета и поступления за обучение'], profile: ['Профиль','Личные данные и доступ к кабинету'], boards: ['Доски','Доски занятий'], library: ['Библиотека','Шаблоны заданий и материалы'], overview: ['Мои классы', 'Обучения, расписание и быстрые действия'], students: ['Ученики', 'Список, программы и новые ученики'], lessons: ['Календарь', 'Парные уроки и отдельная посещаемость'], homework: ['Задания', 'Каталог и назначения'], subscriptions: ['Оплата', 'Пакеты и стоимость занятий'], results: ['Результаты', 'Доступная история тестов и пробников'], report: ['Отчёт ученика', 'Последние восемь занятий и результаты за этот период'] };
+      const names = { workspaceAccess:['Доступ','Преподаватели и приглашения рабочей области'], invoices:['Оплата','Счета и поступления за обучение'], profile: ['Профиль','Личные данные и доступ к кабинету'], boards: ['Доски','Доски занятий'], library: ['Библиотека','Шаблоны заданий и материалы'], overview: ['Мои классы', 'Обучения, расписание и быстрые действия'], students: ['Ученики', 'Список, программы и новые ученики'], lessons: ['Календарь', 'Парные уроки и отдельная посещаемость'], homework: ['Задания', 'Каталог и назначения'], subscriptions: ['Оплата', 'Пакеты и стоимость занятий'], results: ['Результаты', 'Доступная история тестов и пробников'], report: ['Отчёт ученика', 'Последние восемь занятий и результаты за этот период'] };
       const needs = teacherNeeds;
       const list = (items, empty, item) => items.length ? `<div class="list">${items.map(item).join('')}</div>` : `<div class="empty">${safe(empty)}</div>`;
       const studentName = id => state.data.students?.find(x => x.membershipId === id)?.studentName || 'Ученик';
@@ -394,6 +405,9 @@
       function logout(message = '') {
         Object.assign(billingFilters, {query:'',status:''});
         ledger = blankLedger();
+        teacherInvitation = null;
+        document.querySelector('[data-invitation-code-card]')?.remove();
+        setLoginMode('login');
         $('teacherRoleLabel').textContent = 'Преподаватель';
         lessonBoard.close();
         boardSettings?.close();
@@ -420,7 +434,7 @@
         if (!response.ok) {
           const reason = response.status === 401 ? 'Неверные данные для входа или сессия истекла.'
             : response.status === 404 ? 'Запись или программа не найдена в вашем пространстве.'
-            : response.status === 409 ? (path.startsWith('teacher/tuition-invoices') ? data?.title : null) ||
+            : response.status === 409 ? (path.startsWith('teacher/tuition-invoices') || path.startsWith('teacher/workspace-access') ? data?.title : null) ||
               'Конфликт с уже сохранённой записью. Обновите данные.'
             : response.status === 400 ? Object.values(data?.errors || {}).flat().join(' ') || 'Проверьте заполненные поля.'
             : data?.title || 'Сервер временно недоступен.';
@@ -470,7 +484,7 @@
           body => api('teacher/' + path, { method: 'POST', body }));
       }
       function setView(view) {
-        if (state.view !== view && document.querySelector('#teacherProfileForm[data-dirty="1"], #subscriptionForm[data-dirty="1"], #invoiceForm[data-dirty="1"], #invoicePaymentForm[data-dirty="1"]') &&
+        if (state.view !== view && document.querySelector('#teacherInviteForm[data-dirty="1"], #teacherProfileForm[data-dirty="1"], #subscriptionForm[data-dirty="1"], #invoiceForm[data-dirty="1"], #invoicePaymentForm[data-dirty="1"]') &&
             !confirm('Отменить несохранённые изменения?')) return Promise.resolve();
         if (view === 'boards' && !lessonBoard.enabled) return Promise.resolve();
         if(state.view!==view && !canLeaveStudentEdit()) return Promise.resolve();
@@ -496,6 +510,7 @@
             !confirm('Отменить несохранённую тему или материал программы?')) return Promise.resolve();
         if(state.view==='library' && view!=='library' && state.library.recordingContext) state.library=leaveLessonRecordings(state.library);
         if(view!=='students') state.studentCard=null;
+        if (view !== 'workspaceAccess') teacherInvitation = null;
         state.view = view;
         if (view !== 'lessons') state.lessonPlan = null;
         if (view !== 'overview') state.scheduleEdit = null;
@@ -1857,11 +1872,43 @@
           </section>
           <div class="stack"><section class="card stack"><h2>Роль и пространство</h2>
             <p>${safe(teacherRoleLabel(account.role))} · ${safe(account.workspace)}</p>
+            ${account.role === 'owner' ? '<button type="button" class="secondary" data-class-section="workspaceAccess">Управление доступом</button>' : ''}
             <a href="./student.html">Вход в кабинет ученика</a>
           </section>
           <section class="card stack"><h2>Подписка платформы</h2>
             <p class="muted">Данные о тарифе платформы пока недоступны.</p>
             <button class="secondary" type="button" data-class-section="subscriptions">Перейти к абонементам учеников</button>
+          </section></div></div>`;
+      }
+      function workspaceAccess() {
+        const access = state.data.workspaceAccess;
+        const codeCard = teacherInvitation ? `<section class="card stack" data-invitation-code-card>
+          <h2>Код для преподавателя</h2>
+          <p>${safe(teacherInvitation.email)} · до ${safe(date(teacherInvitation.expiresAt))}</p>
+          <p class="muted small">Передайте название пространства и код адресату лично. Код показывается только сейчас.</p>
+          <label>Пространство<input readonly value="${safe(state.data.profile.workspace)}"></label>
+          <label>Одноразовый код<input id="teacherInvitationCode" readonly value="${safe(teacherInvitation.code)}"></label>
+          <button type="button" class="secondary" data-hide-teacher-invitation>Скрыть код</button>
+        </section>` : '';
+        return `<div class="row" style="margin-bottom:16px"><button type="button" class="secondary" data-class-section="profile">Вернуться в профиль</button></div>
+          <div class="grid two"><section class="card stack"><h2>Преподаватели</h2>
+            <p class="muted small">Преподаватель работает с учениками, занятиями и оплатой в этом пространстве. Доступом управляет владелец.</p>
+            ${list(access.members,'Участников пока нет.', member => `<div class="item"><div><strong>${safe(member.email)}</strong>
+              <small>${safe(teacherRoleLabel(member.role))} · ${member.isActive ? 'Доступ открыт' : 'Доступ закрыт'}</small></div>
+              ${member.isActive && member.role === 'teacher' ? `<button type="button" class="secondary" data-revoke-workspace-member="${safe(member.id)}">Закрыть доступ</button>` : ''}
+            </div>`)}
+          </section><div class="stack">
+          <section class="card stack"><h2>Пригласить преподавателя</h2>
+            <form id="teacherInviteForm" class="stack">
+              <label>Почта преподавателя<input name="email" type="email" maxlength="320" required></label>
+              <button type="submit" class="primary">Создать код</button>
+            </form>
+          </section>
+          ${codeCard}
+          <section class="card stack"><h2>Ожидают принятия</h2>
+            ${list(access.invitations, 'Действующих приглашений нет.', invitation => `<div class="item"><div><strong>${safe(invitation.email)}</strong>
+              <small>До ${safe(date(invitation.expiresAt))}</small></div>
+              <button type="button" class="secondary" data-revoke-teacher-invitation="${safe(invitation.id)}">Отменить приглашение</button></div>`)}
           </section></div></div>`;
       }
       function billingTabs(active) {
@@ -2048,7 +2095,7 @@
           $('teacherRoleLabel').textContent = teacherRoleLabel(state.data.profile.role);
         }
         // Related reads may finish while the teacher is already typing in a lesson form.
-        const drafts=[...document.querySelectorAll('#teacherProfileForm[data-dirty="1"], #subscriptionForm[data-dirty="1"], #invoiceForm[data-dirty="1"], #invoicePaymentForm[data-dirty="1"], [data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"], #libraryAttachForm[data-dirty="1"], #libraryRenameForm[data-dirty="1"], #libraryMoveForm[data-dirty="1"], #libraryFolderForm[data-dirty="1"], #recordingForm[data-dirty="1"], #studentEditForm[data-dirty="1"], [data-student-grade][data-dirty="1"], #pupilFeedbackForm[data-dirty="1"]')].map(form=>({
+        const drafts=[...document.querySelectorAll('#teacherInviteForm[data-dirty="1"], #teacherProfileForm[data-dirty="1"], #subscriptionForm[data-dirty="1"], #invoiceForm[data-dirty="1"], #invoicePaymentForm[data-dirty="1"], [data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"], #libraryAttachForm[data-dirty="1"], #libraryRenameForm[data-dirty="1"], #libraryMoveForm[data-dirty="1"], #libraryFolderForm[data-dirty="1"], #recordingForm[data-dirty="1"], #studentEditForm[data-dirty="1"], [data-student-grade][data-dirty="1"], #pupilFeedbackForm[data-dirty="1"]')].map(form=>({
           id:form.id, classId:form.dataset.classId, lessonId:form.dataset.lessonId, libraryItem:form.dataset.libraryItem, studentId:form.dataset.studentId, revision:form.dataset.revision,
           fields:[...form.querySelectorAll('input[name],textarea[name],select[name]')].map(input=>({
             name:input.name,type:input.type,value:input.value,checked:input.checked
@@ -2065,7 +2112,7 @@
             return;
           }
         }
-        $('content').innerHTML = ({ overview, students, lessons, homework, library, subscriptions, invoices, results, report, boards, profile })[state.view]();
+        $('content').innerHTML = ({ overview, students, lessons, homework, library, subscriptions, invoices, results, report, boards, profile, workspaceAccess })[state.view]();
         for(const draft of drafts) {
           const form=document.getElementById(draft.id);
           if(!form || form.dataset.classId!==draft.classId || form.dataset.lessonId!==draft.lessonId || form.dataset.libraryItem!==draft.libraryItem || form.dataset.studentId!==draft.studentId) continue;
@@ -2185,12 +2232,43 @@
         } catch (error) { form.elements.password.value = ''; $('loginError').textContent = error.message; $('loginError').hidden = false; }
         finally { setBusy(form, false); }
       });
-      $('toggleRegistration').addEventListener('click', () => {
-        const registering = $('registerForm').hidden;
-        $('registerForm').hidden = !registering; $('loginForm').hidden = registering;
-        $('loginTitle').textContent = registering ? 'Регистрация владельца' : 'Ваши занятия в одном месте';
-        $('toggleRegistration').textContent = registering ? 'Уже есть аккаунт? Войти' : 'Зарегистрироваться как владелец';
+      function setLoginMode(mode) {
+        $('loginForm').hidden = mode !== 'login';
+        $('registerForm').hidden = mode !== 'owner';
+        $('acceptTeacherInvitationForm').hidden = mode !== 'invite';
+        $('loginTitle').textContent = {login:'Ваши занятия в одном месте',owner:'Регистрация владельца',invite:'Вход по приглашению'}[mode];
+        $('toggleRegistration').textContent = mode === 'owner' ? 'Уже есть аккаунт? Войти' : 'Зарегистрироваться как владелец';
+        $('toggleTeacherInvitation').textContent = mode === 'invite' ? 'Вернуться ко входу' : 'Войти по приглашению';
+        if (mode !== 'invite') $('acceptTeacherInvitationForm').reset();
+        if (mode !== 'owner') {
+          for (const name of ['password','confirmPassword','claimCode']) $('registerForm').elements.namedItem(name).value = '';
+        }
         $('loginError').hidden = true;
+        $('loginStatus').hidden = true;
+      }
+      $('toggleRegistration').addEventListener('click', () => setLoginMode($('registerForm').hidden ? 'owner' : 'login'));
+      $('toggleTeacherInvitation').addEventListener('click', () => setLoginMode($('acceptTeacherInvitationForm').hidden ? 'invite' : 'login'));
+      $('acceptTeacherInvitationForm').addEventListener('submit', async event => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const workspace = formValue(form,'workspace'), email = formValue(form,'email');
+        setBusy(form,true); $('loginError').hidden = true;
+        try {
+          await api('teacher-invitation-acceptance', {method:'POST',token:'',body:{
+            workspace, email, code:formValue(form,'code'), password:form.elements.password.value
+          }});
+          setLoginMode('login');
+          $('loginForm').elements.workspace.value = workspace;
+          $('loginForm').elements.email.value = email;
+          $('loginStatus').textContent = 'Доступ открыт. Войдите со своим паролем.';
+          $('loginStatus').hidden = false;
+          $('loginForm').elements.password.focus();
+        } catch (error) {
+          form.elements.password.value = '';
+          $('loginError').textContent = error.status === 404 ? 'Проверьте пространство, почту и срок действия кода.'
+            : error.status === 429 ? 'Слишком много попыток. Попробуйте позже.' : error.message;
+          $('loginError').hidden = false;
+        } finally { setBusy(form,false); }
       });
       $('registerForm').addEventListener('submit', async event => {
         event.preventDefault(); const form = event.currentTarget;
@@ -2264,7 +2342,7 @@
           ledger.query = target.value;
           $('invoiceRows').innerHTML = invoiceRows();
         }
-        const form = target.closest('#teacherProfileForm, #subscriptionForm, #invoiceForm, #invoicePaymentForm');
+        const form = target.closest('#teacherInviteForm, #teacherProfileForm, #subscriptionForm, #invoiceForm, #invoicePaymentForm');
         if (form) form.dataset.dirty = '1';
       });
       $('content').addEventListener('change', event => {
@@ -2417,6 +2495,24 @@
         }
       });
       $('content').addEventListener('click', async event => {
+        const revokeAccess = event.target.closest('[data-revoke-workspace-member], [data-revoke-teacher-invitation]');
+        if (revokeAccess) {
+          const member = revokeAccess.dataset.revokeWorkspaceMember;
+          if (!confirm(member ? 'Закрыть доступ преподавателю к этому пространству?' : 'Отменить приглашение?')) return;
+          const generation = state.generation;
+          revokeAccess.disabled = true;
+          try {
+            const id = member || revokeAccess.dataset.revokeTeacherInvitation;
+            await api('teacher/workspace-access/' + (member ? 'members/' : 'invitations/') + id + '/revoke',{method:'POST'});
+            if (generation !== state.generation) return;
+            if (teacherInvitation?.id === id) teacherInvitation = null;
+            invalidate(['workspaceAccess']);
+            await refresh();
+          } catch (error) { if (generation === state.generation) showNotice(error.message,true); }
+          finally { revokeAccess.disabled = false; }
+          return;
+        }
+        if (event.target.closest('[data-hide-teacher-invitation]')) { teacherInvitation = null; render(); return; }
         const invoiceTarget = event.target.closest('[data-open-invoice], [data-close-invoice], [data-invoices-for]');
         if (invoiceTarget) {
           const draft = document.querySelector('#invoiceForm[data-dirty="1"], #invoicePaymentForm[data-dirty="1"]');
@@ -3614,6 +3710,11 @@
         });
         if (form.id === 'invoiceCancelForm' && confirm('Отменить этот счёт?')) onForm(form, async () => {
           await api('teacher/tuition-invoices/' + form.dataset.studentId + '/cancel', {method:'POST'});
+        });
+        if (form.id === 'teacherInviteForm') onForm(form, async () => {
+          const generation = state.generation;
+          const invitation = await api('teacher/workspace-access/invitations',{method:'POST',body:{email:formValue(form,'email')}});
+          if (generation === state.generation && state.view === 'workspaceAccess') teacherInvitation = invitation;
         });
         if (form.id === 'teacherProfileForm') onForm(form, async () => {
           await api('teacher/profile', {method:'PATCH',body:{displayName:formValue(form,'displayName')}});

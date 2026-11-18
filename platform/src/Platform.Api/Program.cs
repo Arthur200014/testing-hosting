@@ -100,6 +100,9 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("student", policy => policy.RequireAuthenticatedUser().RequireClaim("role", "student"));
     options.AddPolicy("teacher", policy => policy.RequireAuthenticatedUser()
         .RequireClaim("role", "teacher").AddRequirements(new ActiveTeacherSessionRequirement()));
+    options.AddPolicy("workspace-owner", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim("role", "teacher").RequireClaim("workspace_role", "owner")
+        .AddRequirements(new ActiveTeacherSessionRequirement()));
 });
 builder.Services.AddCors(options => options.AddPolicy("browser", policy =>
     policy.WithOrigins(StartupConfiguration.GetAllowedOrigins(builder.Configuration))
@@ -110,6 +113,14 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddConcurrencyLimiter("file-uploads", limiter => { limiter.PermitLimit=2;limiter.QueueLimit=0; });
     options.AddPolicy("teacher-sessions", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = studentSessionOptions.RateLimitPermitLimit,
+            Window = TimeSpan.FromSeconds(studentSessionOptions.RateLimitWindowSeconds),
+            QueueLimit = 0, AutoReplenishment = true
+        }));
+    options.AddPolicy("teacher-invitation-acceptance", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
         {
@@ -206,6 +217,7 @@ app.MapGet("/api/v1/teacher/me", (ClaimsPrincipal principal) => Results.Ok(new
 })).RequireAuthorization("teacher");
 
 TeacherProfileEndpoints.Map(app);
+WorkspaceAccessEndpoints.Map(app);
 TestingHosting.Platform.Billing.TuitionLedgerEndpoints.Map(app);
 
 app.MapGet("/api/v1/teacher/programs", async (
