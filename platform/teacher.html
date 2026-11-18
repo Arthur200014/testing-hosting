@@ -417,6 +417,7 @@
         state.selectedLesson=null; state.lessonFilter='all';
         state.generation++; state.viewLoadId++; state.token = ''; state.expiresAt = ''; state.data = {}; state.loadedAt = {}; state.inflight = {}; state.pending = {}; state.keyVersions = {}; state.inviteCode = ''; state.resultStudent = ''; state.reportStudent = ''; state.editStudent = ''; state.editSnapshot = null; state.editLesson = null; state.classSearch = ''; state.classTab = 'classes'; state.classDetailTab = 'summary'; state.classStatsMonth = new Date().toISOString().slice(0,7); state.classStatsExpanded = ''; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; state.lessonPlan = null; state.scheduleEdit = null; state.calendarDate = calendarDay(); state.calendarMode = 'day'; state.periodPreview=null;
         document.body.classList.remove('calendar-plan-open');
+        $('content').replaceChildren();
         $('app').hidden = true; $('loginScreen').hidden = false;
         $('loginError').textContent = message; $('loginError').hidden = !message;
       }
@@ -469,6 +470,10 @@
           classTasks ? ['programs','nativeTasks',contextHomeworkKey(teacherClasses().find(x=>x.id===state.selectedClass))] :
           view === 'overview' && state.classTab === 'statistics' ? ['assignments','nativeAssignments'] : [];
         const loading = [...new Set([...needs[view], ...extra])].map(key => loadKey(key, force));
+        if (['profile','lessons','invoices'].includes(view)) {
+          // The calendar and ledger must stay usable during an API rollout.
+          loading.push(loadKey('profileSettings', force).catch(() => {}));
+        }
         render();
         const results = await Promise.allSettled(loading);
         if (!state.token || loadId !== state.viewLoadId) return;
@@ -484,7 +489,7 @@
           body => api('teacher/' + path, { method: 'POST', body }));
       }
       function setView(view) {
-        if (state.view !== view && document.querySelector('#teacherInviteForm[data-dirty="1"], #teacherProfileForm[data-dirty="1"], #subscriptionForm[data-dirty="1"], #invoiceForm[data-dirty="1"], #invoicePaymentForm[data-dirty="1"]') &&
+        if (state.view !== view && document.querySelector('#teacherInviteForm[data-dirty="1"], #teacherProfileForm[data-dirty="1"], #teacherRemindersForm[data-dirty="1"], #teacherPaymentDetailsForm[data-dirty="1"], #subscriptionForm[data-dirty="1"], #invoiceForm[data-dirty="1"], #invoicePaymentForm[data-dirty="1"]') &&
             !confirm('Отменить несохранённые изменения?')) return Promise.resolve();
         if (view === 'boards' && !lessonBoard.enabled) return Promise.resolve();
         if(state.view!==view && !canLeaveStudentEdit()) return Promise.resolve();
@@ -1741,6 +1746,17 @@
           </table></div>`;
       }
       function updateCalendarClock() {
+        const reminder = $('calendarLessonReminder');
+        if (reminder) {
+          const now = Date.now();
+          const upcoming = (state.data.lessons || []).filter(lesson => {
+            const start = new Date(lesson.lessonAt).getTime();
+            return !lesson.completedAt && start >= now && start <= now + 60 * 60 * 1000;
+          }).sort((a,b) => new Date(a.lessonAt) - new Date(b.lessonAt))[0];
+          const message = upcoming ? 'Занятие в ближайший час · ' + (upcoming.title || 'Занятие') + ' · ' + date(upcoming.lessonAt) : '';
+          if (reminder.textContent !== message) reminder.textContent = message;
+          reminder.hidden = !message;
+        }
         const grid = document.querySelector('.calendar-week-grid');
         if (!grid) return;
         const today = calendarDay(), time = calendarTime(Date.now());
@@ -1817,7 +1833,9 @@
       function lessons() {
         if (state.lessonPlan) return state.lessonPlan.fromCalendar ? `<div inert aria-hidden="true">${calendarView()}</div>${calendarLessonDialog()}` : lessonPlanner();
         const d = state.data;
-        return calendarView() + `<details class="calendar-history"><summary>Журнал и посещаемость</summary><div class="grid two"><div class="card stack"><div class="section-head"><h2>Провести занятие</h2></div><form id="lessonForm" class="stack">
+        const reminder = d.profileSettings?.lessonReminders
+          ? '<p id="calendarLessonReminder" class="banner" role="status" hidden></p>' : '';
+        return reminder + calendarView() + `<details class="calendar-history"><summary>Журнал и посещаемость</summary><div class="grid two"><div class="card stack"><div class="section-head"><h2>Провести занятие</h2></div><form id="lessonForm" class="stack">
           <label><span>Дата и время</span><input name="lessonAt" type="datetime-local" value="${nowLocal()}" required></label>
           <div class="form-row"><label><span>Длительность, минут</span><input name="durationMinutes" type="number" min="1" max="1440" value="60" required></label><label><span>Номера заданий</span><input name="taskNumbers" placeholder="например, 6, 13"></label></div>
           <label><span>Тема и комментарий</span><textarea name="topicComment" maxlength="4096"></textarea></label>
@@ -1859,10 +1877,39 @@
           <div class="card stack" style="grid-column:1 / -1"><div class="section-head"><h2>Сдачи домашних работ</h2><span class="muted small">${d.submissions?.length || 0}</span></div>${list((d.submissions || []).slice(0, 80), 'Сдач пока нет.', x => `<div class="item"><div><strong>${safe(studentName(x.membershipId))}</strong><small>${safe(date(x.completedAt))}${x.isLate ? ' · после срока' : ''}</small></div><span class="pill">${safe(x.scorePercent)}%</span></div>`)}</div></div>`;
       }
       const teacherRoleLabel = role => ({owner:'Владелец пространства',teacher:'Преподаватель'})[role] || role;
+      function profileSettings() {
+        const settings = state.data.profileSettings;
+        const unavailable = '<p class="muted">Настройки пока недоступны. Попробуйте обновить страницу.</p>';
+        return `<section id="profileReminders" class="card stack" tabindex="-1"><h2>Уведомления</h2>
+          <p class="muted">Напоминания показываются в календаре и в разделе «Оплата». Почта, мессенджеры и уведомления браузера пока недоступны.</p>
+          ${settings ? `<form id="teacherRemindersForm" class="stack">
+            <div class="check-list">
+              <label><input type="checkbox" name="lessonReminders" ${settings.lessonReminders ? 'checked' : ''}> Занятие начнётся в ближайший час</label>
+              <label><input type="checkbox" name="overdueInvoiceReminders" ${settings.overdueInvoiceReminders ? 'checked' : ''}> Есть просроченные счета</label>
+            </div>
+            <div class="row"><button type="submit" class="primary">Сохранить напоминания</button>
+              <button class="secondary" type="button" data-cancel-account-form="teacherRemindersForm">Отменить</button></div>
+          </form>` : unavailable}
+        </section>
+        <section id="profilePaymentDetails" class="card stack" tabindex="-1"><h2>Реквизиты для оплаты</h2>
+          <p class="muted">Укажите ссылку на оплату, выданную банком. Сохранённые реквизиты можно скопировать и передать плательщику вручную.</p>
+          ${settings ? `<form id="teacherPaymentDetailsForm" class="stack">
+            <label>Получатель<input name="recipient" maxlength="120" value="${safe(settings.paymentRecipient)}" required></label>
+            <label>Банк получателя<input name="bank" maxlength="120" value="${safe(settings.paymentBank)}" required></label>
+            <label>Ссылка на оплату<input name="url" type="url" maxlength="500" value="${safe(settings.paymentUrl)}" required></label>
+            <div class="row"><button class="primary" type="submit">Сохранить реквизиты</button>
+              <button class="secondary" type="button" data-cancel-account-form="teacherPaymentDetailsForm">Отменить</button></div>
+            ${settings.paymentUrl ? '<div class="row"><button class="secondary" type="button" data-copy-payment-details>Скопировать сохранённые реквизиты</button><button class="secondary" type="button" data-clear-payment-details>Очистить реквизиты</button></div>' : ''}
+          </form>` : unavailable}
+        </section>`;
+      }
       function profile() {
         const account = state.data.profile;
-        return `<div class="grid two">
-          <div class="stack"><section class="card stack"><h2>Личные данные</h2>
+        return `<nav class="row" aria-label="Разделы профиля" style="margin-bottom:16px">
+          ${[['profilePersonal','Личные данные'],['profileReminders','Уведомления'],['profilePaymentDetails','Реквизиты'],['profilePassword','Смена пароля']]
+            .map(([id,label]) => `<button type="button" class="secondary small-button" data-profile-section="${id}">${label}</button>`).join('')}
+          </nav><div class="grid two">
+          <div class="stack"><section id="profilePersonal" class="card stack" tabindex="-1"><h2>Личные данные</h2>
             <form id="teacherProfileForm" class="stack">
               <label>Имя в кабинете<input name="displayName" value="${safe(account.displayName || '')}" maxlength="120" autocomplete="name" required></label>
               <p><strong>Email для входа</strong><br><span>${safe(account.email)}</span></p>
@@ -1870,7 +1917,8 @@
                 <button class="secondary" type="button" data-cancel-account-form="teacherProfileForm">Отменить</button></div>
             </form>
           </section>
-          <section class="card stack"><h2>Смена пароля</h2>
+          ${profileSettings()}
+          <section id="profilePassword" class="card stack" tabindex="-1"><h2>Смена пароля</h2>
             <form id="teacherPasswordForm" class="stack">
               <label>Текущий пароль<input name="currentPassword" type="password" maxlength="1024" autocomplete="current-password" required></label>
               <label>Новый пароль<input name="newPassword" type="password" minlength="16" maxlength="1024" autocomplete="new-password" required></label>
@@ -1986,7 +2034,12 @@
           ${student.membershipId === ledger.membership ? 'selected' : ''}>${safe(student.studentName)}</option>`).join('');
         const archived = ledger.membership && !students.some(student => student.membershipId === ledger.membership);
         const scopedName = state.data.invoices.find(invoice => invoice.membershipId === ledger.membership)?.studentName;
-        return billingTabs('invoices') + `<div class="grid two">
+        const today = moscowToday();
+        const overdue = state.data.profileSettings?.overdueInvoiceReminders
+          ? state.data.invoices.filter(invoice => invoiceStatus(invoice, today) === 'overdue').length : 0;
+        return billingTabs('invoices') + (overdue ? `<div class="banner row" style="margin-bottom:14px">
+          <span>Просроченные счета · ${overdue}</span>
+          <button type="button" class="secondary small-button" data-show-overdue-invoices>Показать просроченные</button></div>` : '') + `<div class="grid two">
           <section class="card stack"><h2>Счета учеников</h2>
             <label>Поиск по ученику или назначению<input type="search" data-invoice-search value="${safe(ledger.query)}"></label>
             <div class="form-row">
@@ -2106,7 +2159,7 @@
           $('teacherRoleLabel').textContent = teacherRoleLabel(state.data.profile.role);
         }
         // Related reads may finish while the teacher is already typing in a lesson form.
-        const drafts=[...document.querySelectorAll('#teacherInviteForm[data-dirty="1"], #teacherProfileForm[data-dirty="1"], #subscriptionForm[data-dirty="1"], #invoiceForm[data-dirty="1"], #invoicePaymentForm[data-dirty="1"], [data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"], #libraryAttachForm[data-dirty="1"], #libraryRenameForm[data-dirty="1"], #libraryMoveForm[data-dirty="1"], #libraryFolderForm[data-dirty="1"], #recordingForm[data-dirty="1"], #studentEditForm[data-dirty="1"], [data-student-grade][data-dirty="1"], #pupilFeedbackForm[data-dirty="1"]')].map(form=>({
+        const drafts=[...document.querySelectorAll('#teacherInviteForm[data-dirty="1"], #teacherProfileForm[data-dirty="1"], #teacherRemindersForm[data-dirty="1"], #teacherPaymentDetailsForm[data-dirty="1"], #subscriptionForm[data-dirty="1"], #invoiceForm[data-dirty="1"], #invoicePaymentForm[data-dirty="1"], [data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"], #libraryAttachForm[data-dirty="1"], #libraryRenameForm[data-dirty="1"], #libraryMoveForm[data-dirty="1"], #libraryFolderForm[data-dirty="1"], #recordingForm[data-dirty="1"], #studentEditForm[data-dirty="1"], [data-student-grade][data-dirty="1"], #pupilFeedbackForm[data-dirty="1"]')].map(form=>({
           id:form.id, classId:form.dataset.classId, lessonId:form.dataset.lessonId, libraryItem:form.dataset.libraryItem, studentId:form.dataset.studentId, revision:form.dataset.revision,
           fields:[...form.querySelectorAll('input[name],textarea[name],select[name]')].map(input=>({
             name:input.name,type:input.type,value:input.value,checked:input.checked
@@ -2353,7 +2406,7 @@
           ledger.query = target.value;
           $('invoiceRows').innerHTML = invoiceRows();
         }
-        const form = target.closest('#teacherInviteForm, #teacherProfileForm, #subscriptionForm, #invoiceForm, #invoicePaymentForm');
+        const form = target.closest('#teacherInviteForm, #teacherProfileForm, #teacherRemindersForm, #teacherPaymentDetailsForm, #subscriptionForm, #invoiceForm, #invoicePaymentForm');
         if (form) form.dataset.dirty = '1';
       });
       $('content').addEventListener('change', event => {
@@ -2506,6 +2559,31 @@
         }
       });
       $('content').addEventListener('click', async event => {
+        const profileSection = event.target.closest('[data-profile-section]');
+        if (profileSection) { $(profileSection.dataset.profileSection)?.focus(); return; }
+        if (event.target.closest('[data-show-overdue-invoices]')) {
+          Object.assign(ledger, {query:'', status:'overdue', membership:''});
+          $('content').querySelector('[data-invoice-search]').value = '';
+          $('content').querySelector('[data-invoice-filter="status"]').value = 'overdue';
+          $('content').querySelector('[data-invoice-filter="membership"]').value = '';
+          $('invoiceRows').innerHTML = invoiceRows();
+          $('content').querySelector('[data-invoice-filter="status"]').focus();
+          return;
+        }
+        if (event.target.closest('[data-copy-payment-details]')) {
+          const {paymentRecipient, paymentBank, paymentUrl} = state.data.profileSettings;
+          try {
+            await navigator.clipboard.writeText([paymentRecipient, paymentBank, paymentUrl].join('\n'));
+            showNotice('Сохранённые реквизиты скопированы.');
+          } catch { showNotice('Не удалось скопировать. Скопируйте данные из полей вручную.', true); }
+          return;
+        }
+        if (event.target.closest('[data-clear-payment-details]')) {
+          const form = $('teacherPaymentDetailsForm');
+          if (!form || form.querySelector('button[type="submit"]').disabled || !confirm('Очистить сохранённые реквизиты?')) return;
+          await onForm(form, () => api('teacher/profile/settings/payment-details/clear', {method:'POST'}));
+          return;
+        }
         const revokeAccess = event.target.closest('[data-revoke-workspace-member], [data-revoke-teacher-invitation]');
         if (revokeAccess) {
           const member = revokeAccess.dataset.revokeWorkspaceMember;
@@ -3764,6 +3842,13 @@
           if (generation === state.generation && state.view === 'workspaceAccess') teacherInvitation = invitation;
         });
         if (form.id === 'teacherPasswordForm') return changeTeacherPassword(form);
+        if (form.id === 'teacherRemindersForm') return onForm(form, () => api('teacher/profile/settings/reminders', {
+          method:'PATCH', body:{lessonReminders:form.elements.lessonReminders.checked,
+            overdueInvoiceReminders:form.elements.overdueInvoiceReminders.checked}
+        }));
+        if (form.id === 'teacherPaymentDetailsForm') return onForm(form, () => api('teacher/profile/settings/payment-details', {
+          method:'PATCH', body:{recipient:formValue(form,'recipient'), bank:formValue(form,'bank'), url:formValue(form,'url')}
+        }));
         if (form.id === 'teacherProfileForm') onForm(form, async () => {
           await api('teacher/profile', {method:'PATCH',body:{displayName:formValue(form,'displayName')}});
         });
