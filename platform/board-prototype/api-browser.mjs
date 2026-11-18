@@ -276,12 +276,32 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       assert.deepEqual(await call(rosterPath,north.token),[{membershipId:member,role:'editor'}]);
       assert.ok((await call(studentPath,studentToken)).some(x=>x.id===boardId));
       await call(studentPath+'/'+boardId+'/permit',learners[1].accessToken,{},404);
+      const boardLink = await accessDialog.getByLabel('Ссылка для ученика').inputValue();
+      const parsedLink = new URL(boardLink);
+      assert.equal(parsedLink.pathname,'/cabinet/student.html');
+      assert.equal(parsedLink.search,'');
+      assert.equal(parsedLink.hash,'#board='+boardId);
+      await cabinet.grantPermissions(['clipboard-read','clipboard-write'],{origin:parsedLink.origin});
+      await accessDialog.getByRole('button',{name:'Скопировать ссылку',exact:true}).click();
+      await accessDialog.getByText('Ссылка скопирована.',{exact:true}).waitFor();
+      assert.equal(await p.evaluate(()=>navigator.clipboard.readText()),boardLink);
       const pupil = await cabinet.newPage();
-      await pupil.goto('http://127.0.0.1:8768/cabinet/student.html');
-      await pupil.locator('[name="workspace"]').fill(north.workspace);
-      await pupil.locator('#loginForm [name="code"]').fill(north.students[0].inviteCode);
-      await pupil.locator('#loginForm button').click();
-      await pupil.getByRole('button',{name:title,exact:true}).click();
+      let beforeLogin = true;
+      const earlyRequests = [];
+      pupil.on('request', req => {
+        if (beforeLogin && req.url().includes('/board-prototype/boards')) earlyRequests.push(req.url());
+      });
+      await pupil.goto(boardLink);
+      await pupil.locator('#boardLoginHint').waitFor();
+      assert.equal(await pupil.locator('dialog iframe').count(),0);
+      assert.deepEqual(earlyRequests,[]);
+      beforeLogin = false;
+      const loginPupil = async () => {
+        await pupil.locator('[name="workspace"]').fill(north.workspace);
+        await pupil.locator('#loginForm [name="code"]').fill(north.students[0].inviteCode);
+        await pupil.locator('#loginForm button').click();
+      };
+      await loginPupil();
       await pupil.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
       const pupilFrame = pupil.frames().find(f=>f.parentFrame()===pupil.mainFrame());
       assert.deepEqual(await active(pupilFrame),independentScene);
@@ -314,9 +334,12 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       assert.equal(viewer.role,'viewer');
       assert.equal(viewer.sceneKey,independentPermit.sceneKey);
       await call('board-prototype/access',null,{token:viewer.token},204);
-      await pupil.getByRole('button',{name:'Обновить доски'}).click();
-      await pupil.locator('#studentBoardList').getByText('Только просмотр',{exact:false}).waitFor();
-      await pupil.getByRole('button',{name:title,exact:true}).click();
+      const reopenLink = () => pupil.evaluate(async link => {
+        location.hash = '';
+        await new Promise(resolve => setTimeout(resolve,0));
+        location.hash = new URL(link).hash;
+      },boardLink);
+      await reopenLink();
       const viewerEditor = pupil.frameLocator('dialog iframe');
       await viewerEditor.getByTestId('board-read-only').waitFor();
       await viewerEditor.locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
@@ -331,13 +354,18 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       assert.equal(restoredEditor.role,'editor');
       await memberSwitch.selectOption('');
       await p.waitForFunction(id=>!document.querySelector('[data-board-member="'+id+'"]')?.disabled,member);
+      await pupil.reload();
+      await pupil.locator('#boardLoginHint').waitFor();
+      await loginPupil();
+      await pupil.locator('#boardLinkStatus').getByText('По этой ссылке доска недоступна для вашего аккаунта.').waitFor();
+      assert.equal(await pupil.locator('dialog iframe').count(),0);
       await pupil.close();
       await accessDialog.getByRole('button',{name:'Закрыть'}).click();
       await launch().click();
       await p.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
       await count(frame(),2);
       await p.getByRole('button',{name:'Назад к доскам'}).click();
-      console.log('PASS: explicit board grant, student cabinet edit, persistent shared scene, revoke, regrant and viewer/editor role transitions');
+      console.log('PASS: explicit board grant, student cabinet edit, persistent shared scene, revoke, regrant, role transitions and authenticated board link');
 
 
 

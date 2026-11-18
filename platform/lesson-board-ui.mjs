@@ -1,3 +1,17 @@
+const boardIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function studentBoardLink(pageUrl, boardId) {
+  if (!boardIdPattern.test(boardId)) return null;
+  const url = new URL('./student.html', pageUrl);
+  url.hash = 'board=' + boardId.toLowerCase();
+  return url.href;
+}
+
+export function boardIdFromLink(hash) {
+  const id = /^#board=(.+)$/.exec(hash)?.[1];
+  return id && boardIdPattern.test(id) ? id.toLowerCase() : null;
+}
+
 // The isolated runner supplies the relay explicitly. Production hosts cannot enable it.
 export function createLessonBoard(apiBase, accessToken, role = 'teacher') {
   const relay = window.__TAS_ISOLATED_BOARD_RELAY;
@@ -17,7 +31,7 @@ export function createLessonBoard(apiBase, accessToken, role = 'teacher') {
   }
 
   function open(lessonId, backLabel = 'Назад к занятию', independent = false) {
-    if (!enabled || dialog || !accessToken() || !lessonId) return;
+    if (!enabled || dialog || !accessToken() || !lessonId) return false;
     dialog = document.createElement('dialog');
     dialog.setAttribute('aria-label', 'Доска занятия');
     dialog.style.cssText = 'box-sizing:border-box;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;background:white;';
@@ -55,6 +69,7 @@ export function createLessonBoard(apiBase, accessToken, role = 'teacher') {
     dialog.append(toolbar, frame);
     document.body.append(dialog);
     dialog.showModal();
+    return true;
   }
 
   return { enabled, open, close };
