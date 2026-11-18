@@ -1,12 +1,18 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** UI-07 tuition ledger. Student invoice, partial manual receipts, calculated remaining balance, invoice filters and unpaid cancellation are implemented.
-**ACTIVE_BRANCH:** tas/ui07-invoice-ledger, [draft PR #99](https://github.com/Arthur200014/testing-hosting/pull/99). Implementation pushed; isolated verification pending.
-**MERGED_SHA:** `ff53bcb38ec52456eed0ffaaba65376c6f7ce80c` (prior profile and package delivery).
-**RELEASE_STATE:** Ledger IN_PROGRESS. Prior profile/package frontend published and isolated tests passed.
-**API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. Prior API revision NOT_VERIFIED. No synthetic live credentials confirmed.
-**NEXT_ACTION:** Finish isolated ledger tests, merge and verify Pages publication. Board settings (66–68) stay deferred. The 40-editor test is manual.
+**ACTIVE_TASK:** UI-07 tuition ledger published. Teachers create student invoices, record partial or full manual receipts, see residual balances, filter invoice statuses, and cancel unpaid invoices.
+**ACTIVE_BRANCH:** none. [PR #99](https://github.com/Arthur200014/testing-hosting/pull/99) merged.
+**MERGED_SHA:** `86c3d1d76f499a2e667726235491b5b00b15e20a`.
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [GitHub Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44375147497) and [published file comparison](https://github.com/Arthur200014/testing-hosting/actions/runs/44375594237) PASS. Public teacher.html and teacher-data.mjs match the release content.
+**API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. [Automated read-only health](https://github.com/Arthur200014/testing-hosting/actions/runs/44375594225) PASS. Running API revision NOT_VERIFIED. Authenticated live ledger writes NOT_RUN because no dedicated live synthetic workspace with known test credentials is confirmed. No charges, notifications or changes to live student records were performed.
+**NEXT_ACTION:** Continue UI-07 with actual workspace role management and access rules. Add real subscription plan data once the tariff is defined. Editor settings and presets (66–68) remain deferred. Keep load-40 manual.
+
+## UI-07 tuition ledger verification
+
+- [Isolated Chromium/API/PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44372751468) PASS on the final application tree. Checked invoice creation, manual partial payment and reset, balance and receipts after relogin, exact retry, tenant isolation, concurrent overpayment protection and cancellation. Inspected the synthetic ledger capture at 1348 × 926.
+- [Post-merge PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44375148691) PASS, including additive ledger migration and startup. The [redundant post-merge browser run](https://github.com/Arthur200014/testing-hosting/actions/runs/44375148632) was still running at handoff. JS syntax, teacher-data 9/9 and diff PASS. No manual 40-editor test.
+- Student invoices are separate from package settings and platform subscription. Receipts are teacher-recorded. The ledger does not initiate charges or send invoices. Unpaid cancellation is audited by timestamp, and a paid or partially paid invoice cannot be cancelled.
 
 
 ## UI-07 first delivery verification
