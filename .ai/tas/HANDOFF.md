@@ -1,8 +1,8 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** UI-06 lesson board entry implemented behind the isolated feature gate. Chromium/API/PostgreSQL acceptance is pending in PR #91. Previous isolated 21/40 acceptance remains PASS.
-**ACTIVE_BRANCH:** `tas/ui06-lesson-board`, [draft PR #91](https://github.com/Arthur200014/testing-hosting/pull/91), head `41b923212cebdcb9720622d7bc8c702b5b7d32d6`.
+**ACTIVE_TASK:** UI-06 lesson board entry implemented behind the isolated feature gate. Initial Chromium run reached draw/undo but exposed lost focus after a lesson refresh; fixed and rechecking in PR #91. Previous isolated 21/40 acceptance remains PASS.
+**ACTIVE_BRANCH:** `tas/ui06-lesson-board`, [draft PR #91](https://github.com/Arthur200014/testing-hosting/pull/91), head `b5a3d489b628601e5136cad07de49779f965b565`.
 **MERGED_SHA:** `defcdb5f4b3ebbddcb55abeff654047feea88ba0`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages44190117603](https://github.com/Arthur200014/testing-hosting/actions/runs/44190117603) PASS at the merge SHA. Independent readonly check: actual teacher.html, teacher-data.mjs, student-card.mjs, pupil-history.mjs, pupil-feedback.mjs and teacher-report.mjs all byte-match this SHA. Prototype is disabled by default, forbidden in Production and absent from working lesson navigation; no new service or production board enablement.
 **API_DEPLOYMENT:** Owner-configured native Timeweb main auto-deploy; do not check Timeweb. Independent running revision/migrations UNKNOWN / NOT_VERIFIED; production board writes NOT_RUN in approved isolated-only mode. No production schema/config/writer switch in this prototype.
