@@ -110,11 +110,12 @@ try {
   await profileForm.getByRole('button', {name:'Отменить'}).click();
   assert.equal(await displayName.inputValue(), originalName);
   await displayName.fill('Тестовый преподаватель Север');
-  const saveProfile = page.waitForResponse(r => r.url() === api+'/api/v1/teacher/profile' && r.request().method() === 'PUT');
+  const saveProfile = page.waitForResponse(r => r.url() === api+'/api/v1/teacher/profile' && r.request().method() === 'PATCH');
   await profileForm.getByRole('button', {name:'Сохранить'}).click();
   assert.equal((await saveProfile).status(), 200);
   await page.locator('#workspaceName:text-is("Тестовый преподаватель Север")').waitFor();
   await page.getByRole('heading', {name:'Подписка платформы'}).waitFor();
+  await page.screenshot({path:output+'/55_teacher_profile_real.png'});
   const southProfile = await call('teacher/profile', south.token);
   assert.equal(southProfile.email, south.email);
   assert.notEqual(southProfile.displayName, 'Тестовый преподаватель Север');
@@ -145,6 +146,11 @@ try {
   assert.equal((await call('teacher/subscriptions', north.token)).find(item => item.membershipId === pupil).lessonPrice, 1250);
   await page.getByRole('button', {name:'Перейти к абонементам учеников'}).click();
   await page.locator('#subscriptionRows').getByText(/Стоимость пакета: 7\s500 ₽/).waitFor();
+  await page.screenshot({path:output+'/53_tuition_packages_real.png'});
+  await editPackage.click();
+  assert.equal(await packageForm.locator('[name="packageSize"]').inputValue(), '6');
+  assert.equal(await packageForm.locator('[name="lessonPrice"]').inputValue(), '1250');
+  await packageForm.getByRole('button', {name:'Отменить'}).click();
   await page.locator('.nav [data-view="overview"]').click();
 
   // UI-04: create and assign a class task, reload, then confirm tenant isolation.

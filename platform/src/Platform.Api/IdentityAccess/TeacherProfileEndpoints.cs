@@ -19,7 +19,7 @@ internal static class TeacherProfileEndpoints
             return row is null ? Results.NotFound() : Results.Ok(row);
         });
 
-        profile.MapPut("", async (UpdateRequest input, ClaimsPrincipal principal, PlatformDbContext db, HttpContext http, CancellationToken ct) =>
+        profile.MapPatch("", async (UpdateRequest input, ClaimsPrincipal principal, PlatformDbContext db, HttpContext http, CancellationToken ct) =>
         {
             http.Response.Headers.CacheControl = "no-store";
             var name = input.DisplayName?.Trim() ?? "";
