@@ -1,12 +1,17 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** UI-06 lesson board catalog implemented. Scope: existing lesson boards, individual/group filters, search/sort, catalog-to-editor/lesson navigation. Browser acceptance pending in PR #92.
-**ACTIVE_BRANCH:** `tas/ui06-board-catalog`, [PR #92](https://github.com/Arthur200014/testing-hosting/pull/92), head `0cd646fe8a37e24b1d2d86492d88f9162c9b6412`.
-**MERGED_SHA:** `8b37d289840c77349400b864bb6b6ed1cb689530`.
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44284850953](https://github.com/Arthur200014/testing-hosting/actions/runs/44284850953) PASS. Published `platform/teacher.html` and `platform/lesson-board-ui.mjs` independently byte-match the merge. Board editor/relay remain isolated; production board live writes NOT_RUN.
+**ACTIVE_TASK:** UI-06 lesson-board catalog complete and published behind the isolated gate. Search, class/group filter, date/title sorting, class shortcuts and lesson/editor links use existing lesson scenes.
+**ACTIVE_BRANCH:** none. [PR #92](https://github.com/Arthur200014/testing-hosting/pull/92) merged, tested head `0cd646fe8a37e24b1d2d86492d88f9162c9b6412`.
+**MERGED_SHA:** `793b50ed2577f38be660487b4836b7264d22ee81`.
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44289106323](https://github.com/Arthur200014/testing-hosting/actions/runs/44289106323) PASS. Published `teacher.html`, `teacher-data.mjs`, `board-catalog-ui.mjs` and `lesson-board-ui.mjs` byte-match the verified release. UI enabled on isolated stand only.
 **API_DEPLOYMENT:** Owner-configured native Timeweb main auto-deploy; do not check Timeweb. Independent running revision/migrations UNKNOWN / NOT_VERIFIED; production board writes NOT_RUN in approved isolated-only mode. No production schema/config/writer switch in this prototype.
-**NEXT_ACTION:** Finish catalog CI acceptance with isolated Chromium/API/PostgreSQL and publish PR #92 with the board gate off on production. Then continue UI-06 with independent board records; this catalog uses existing lesson scenes.
+**NEXT_ACTION:** Continue UI-06 with independent board records and explicit class/lesson associations, preserving existing lesson board identities and keeping the board gate off on production. Catalog is already implemented for existing lesson boards (reference 64).
+
+## UI-06 catalog verification
+
+- [Board CI 44287671190](https://github.com/Arthur200014/testing-hosting/actions/runs/44287671190): catalog and prior lesson-editor browser flows PASS with real isolated API/PostgreSQL, including same saved scene from both entry points, class/group filter, search, links and focus. Core/access/recovery, group and licenses PASS. Supplementary capacity status at close: dotnet-board-group-soak IN_PROGRESS, dotnet-board-parallel IN_PROGRESS. No changes to relay or persistence. Prior release rechecks at 21 and 40 both PASS.
+- [PostgreSQL 44289109635](https://github.com/Arthur200014/testing-hosting/actions/runs/44289109635) and [browser 44289109792](https://github.com/Arthur200014/testing-hosting/actions/runs/44289109792) PASS. Local search/sort/projection smoke, JS/shell syntax, diff and CI scope 13/13 PASS. Manual visual fidelity comparison and live board writes NOT_RUN. Timeweb automated readonly health PASS; active API revision still NOT_VERIFIED.
 
 ## UI-06 lesson board verification
 
