@@ -19,19 +19,24 @@
     button:disabled { opacity: .5; }
     .muted { color: #a9b9d1; }
     .prompt, .answer { white-space: pre-wrap; overflow-wrap: anywhere; }
+    a { color: #d5d0ff; text-underline-offset: .24em; }
+    :is(a, button, input, textarea):focus-visible { outline: 3px solid #ffc66d; outline-offset: 3px; }
+    .entry-link { display: inline-flex; align-items: center; min-height: 44px; padding-inline: 6px; }
+    @media (max-width: 480px) { body { padding: 16px; } main { margin-block: 8px; } .card { padding: 16px; } }
     .error { color: #ffb5af; }
+    #notice.error { min-height: 1.5em; }
     [hidden] { display: none !important; }
     #studentFiles { overflow-wrap:anywhere; }
   </style>
 </head>
 <body>
-  <main><h1>Мои домашние задания</h1><p id="notice" role="status" class="muted"></p>
+  <main><a class="entry-link" href="./">О платформе</a><h1>Мои домашние задания</h1><p id="notice" role="status" tabindex="-1" class="muted"></p>
     <section id="login" class="card"><h2>Войти по коду ученика</h2>
       <p id="boardLoginHint" class="muted" hidden>Войдите по коду ученика, чтобы открыть доску.</p>
       <form id="loginForm"><label>Пространство преподавателя<input name="workspace" required autocomplete="off"></label>
         <label>Код ученика<input name="code" required autocomplete="off"></label><button type="submit">Войти</button></form>
     </section>
-    <section id="dashboard" hidden><p><span id="studentName"></span> · <button id="logout" type="button">Выйти</button></p>
+    <section id="dashboard" aria-label="Кабинет ученика" tabindex="-1" hidden><p><span id="studentName"></span> · <button id="logout" type="button">Выйти</button></p>
       <section class="card"><h2>Приглашение в класс</h2><p class="muted">После входа введите полученный от преподавателя код приглашения. Это не код доступа к кабинету.</p><form id="classInvitationForm"><label>Одноразовый код приглашения<input name="code" maxlength="64" minlength="64" pattern="[A-Fa-f0-9]{64}" autocomplete="off" required></label><button type="submit">Подтвердить приглашение</button></form></section>
       <section class="card"><h2>Приглашение в группу</h2>
         <p class="muted">Код группы передаёт преподаватель. Авторизация ученика остаётся прежней; места ограничены настройками группы.</p>
@@ -159,8 +164,9 @@
       try {
         const session = await api('student-sessions', { workspace: form.elements.workspace.value.trim(), code: form.elements.code.value.trim() }, false);
         token = session.accessToken; $('studentName').textContent = session.student?.displayName || 'Ученик';
-        form.elements.code.value = ''; $('login').hidden = true; $('dashboard').hidden = false; await Promise.all([refresh(),loadSharedBoards()]);
-      } catch (error) { message(error.message, true); } finally { button.disabled = false; }
+        form.elements.code.value = ''; $('login').hidden = true; $('dashboard').hidden = false; $('dashboard').focus();
+        await Promise.all([refresh(),loadSharedBoards()]);
+      } catch (error) { message(error.message, true); $('notice').focus(); } finally { button.disabled = false; }
     });
     $('dashboard').addEventListener('submit', async event => {
       event.preventDefault(); const form = event.target;
@@ -193,7 +199,7 @@
       try { await api('homework/native/submissions', { assignmentId: id, submissionId, answer }); pending.delete(id); await refresh(); }
       catch (error) { if (error.status && error.status < 500) pending.delete(id); message(error.message, true); button.disabled = false; }
     });
-    $('logout').addEventListener('click', () => { token = ''; sharedBoards.close(); sharedBoardIds.clear(); pendingBoardId = sharedBoards.enabled ? boardIdFromLink(location.hash) : null; boardLinkMessage(''); $('studentBoardList').replaceChildren(); pending.clear(); $('dashboard').hidden = true; $('login').hidden = false; $('assignments').replaceChildren();$('studentFiles').replaceChildren();$('studentRecordings').replaceChildren(); message('Вы вышли.'); });
+    $('logout').addEventListener('click', () => { token = ''; sharedBoards.close(); sharedBoardIds.clear(); pendingBoardId = sharedBoards.enabled ? boardIdFromLink(location.hash) : null; boardLinkMessage(''); $('studentBoardList').replaceChildren(); pending.clear(); $('dashboard').hidden = true; $('login').hidden = false; $('assignments').replaceChildren();$('studentFiles').replaceChildren();$('studentRecordings').replaceChildren(); message('Вы вышли.'); $('loginForm').elements.workspace.focus(); });
   </script>
 </body>
 </html>

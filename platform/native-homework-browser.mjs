@@ -43,6 +43,7 @@ async function mockApi(page) {
       return send({ accessToken: 'teacher-test-token', expiresAt: new Date(Date.now() + 300000).toISOString() });
     if (path === 'student-sessions' && request.method() === 'POST') {
       assert.equal(body.workspace, 'synthetic');
+      if (body.code === 'incorrect') return send({ title: 'Invalid synthetic student code' }, 401);
       assert.equal(body.code, 'SYNTHETIC-CODE');
       return send({ accessToken: 'student-test-token', student: { displayName: 'Test Student' } });
     }
@@ -198,6 +199,12 @@ try {
   await teacher.locator('#content').getByText('Встроенные ДЗ и ответы').waitFor({ state: 'attached' });
 
   await student.goto(base + '/platform/student.html');
+  await student.locator('#loginForm [name="workspace"]').fill('synthetic');
+  await student.locator('#loginForm [name="code"]').fill('incorrect');
+  await student.locator('#loginForm button').click();
+  await student.locator('#notice.error').waitFor();
+  assert.equal(await student.evaluate(() => document.activeElement.id), 'notice');
+  assert.equal(await student.locator('#dashboard').isVisible(), false);
   await student.locator('#loginForm [name="workspace"]').fill('synthetic');
   await student.locator('#loginForm [name="code"]').fill('SYNTHETIC-CODE');
   await student.locator('#loginForm button').click();
