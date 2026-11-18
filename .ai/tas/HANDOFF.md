@@ -6,7 +6,7 @@
 **MERGED_SHA:** `517f92f183ca0cf54effd11a3e2a36ccf7010469`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44322269203](https://github.com/Arthur200014/testing-hosting/actions/runs/44322269203) PASS. Published teacher.html, student.html, teacher-data.mjs, board-catalog-ui.mjs and lesson-board-ui.mjs match the merge. Feature remains isolated.
 **API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. Automated readonly health PASS (44322826684); running API revision and migration independently NOT_VERIFIED. Additive IndependentBoardSharing migration verified on isolated PostgreSQL. Production board writes NOT_RUN; feature gate off.
-**NEXT_ACTION:** Check [40-editor repeat, CI 44320358897](https://github.com/Arthur200014/testing-hosting/actions/runs/44320358897): first run completed 15 minutes but p95 delivery 503ms exceeded 500ms; retry accepted. Then continue UI-06 access with an explicit read-only grant, preserving owner/edit access and the isolated gate.
+**NEXT_ACTION:** Continue UI-06 access with an explicit read-only grant, preserving owner/edit access and the isolated gate. The 40-editor capacity profile is manual only (Actions → Isolated board prototype → Run workflow). Use it for relevant synchronization/capacity changes or by request. The previous retry is supplemental evidence, not a prerequisite for ordinary feature work.
 
 ## Explicit student board access verification
 

@@ -1,5 +1,6 @@
 name: Isolated board prototype
 on:
+  workflow_dispatch:
   push:
     branches: ['tas/**']
     paths:
@@ -20,10 +21,11 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: isolated-board-${{ github.head_ref || github.ref_name }}
+  group: isolated-board-${{ github.event_name == 'workflow_dispatch' && 'load-40' || 'checks' }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 jobs:
   cancel-superseded:
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     permissions:
@@ -167,7 +169,7 @@ jobs:
 
 
   dotnet-board-parallel:
-    needs: cancel-superseded
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
