@@ -1,16 +1,24 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**PREVIOUS_TASK:** UI-07 password change in the teacher profile. A verified current password is required. The password and revocation of all teacher sessions for that account are committed together. No schema change.
-**ACTIVE_TASK:** UI-07 profile navigation, in-cabinet reminders and private payment details. [PR #102](https://github.com/Arthur200014/testing-hosting/pull/102) open at `dc5a7ee9d201877475ae48c8fd492e859ce2aea1`. Isolated verification and release pending.
-**ACTIVE_BRANCH:** `tas/ui07-profile-settings`.
-**MERGED_SHA:** `16da7641b438f68929ece0821e6df43d415059f8`.
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED + LIVE_API_ROUTE_VERIFIED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44390018731) and [public file comparison](https://github.com/Arthur200014/testing-hosting/actions/runs/44390520564) PASS. The published login page opened in Chromium.
-**API_DEPLOYMENT:** Timeweb native rollout reached the public API. The new password route changed from HTTP 404 to 401 for an anonymous request from the published Pages origin. CORS preflight 204, ready and migrations 200, [read-only health](https://github.com/Arthur200014/testing-hosting/actions/runs/44390520656) PASS. Running API SHA UNKNOWN.
-**LIVE_WRITE_NOT_RUN:** No designated live synthetic workspace with confirmed test access. The separate isolated Chromium/API/PostgreSQL run verified save, reload, old-password rejection and new-password sign-in.
-**NEXT_ACTION:** Verify settings save/cancel/reload and membership isolation in Chromium/API/PostgreSQL, then merge and confirm Pages and Timeweb. Live password acceptance remains pending a designated workspace. Tariff facts and board settings remain deferred.
+**ACTIVE_TASK:** UI-07 profile navigation, member-specific payment details and reminders. Calendar reminders cover the next hour. The tuition ledger includes an overdue shortcut. Payment details store a recipient, bank and HTTPS payment link for manual copy. Mobile profile fits 390px.
+**ACTIVE_BRANCH:** none. [Application PR #102](https://github.com/Arthur200014/testing-hosting/pull/102) and [test fixture PR #103](https://github.com/Arthur200014/testing-hosting/pull/103) merged.
+**MERGED_SHA:** `14b90178a84f8728ec0bf9a83f94b5cea6304b6e` (application), `15b98d4161ccd1fb01f74d51cfab50842165fcf5` (test fixtures).
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED + LIVE_API_ROUTE_VERIFIED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44395363307) and [published file comparison](https://github.com/Arthur200014/testing-hosting/actions/runs/44395940645) PASS. Public teacher.html and teacher-data.mjs match the application tree.
+**API_DEPLOYMENT:** Live teacher profile settings route changed from HTTP 404 to 401 and was reached from the published Pages origin in Chromium. Timeweb ready/migrations 200 and [read-only health](https://github.com/Arthur200014/testing-hosting/actions/runs/44395940500) PASS. Running API SHA UNKNOWN.
+**LIVE_WRITE_NOT_RUN:** No designated synthetic workspace with confirmed access to the live site. Isolated real API and PostgreSQL save/re-entry passed. Browser checks used synthetic data only.
+**NEXT_ACTION:** UI-08 public landing (reference 71), mobile navigation and the accessibility review of key teacher/student flows as one block. Verify the outstanding live settings and password save/re-entry when dedicated synthetic access is available. Tariff facts and board settings (66–68) remain pending. Keep load-40 manual.
+
+## UI-07 profile settings verification
+
+- Isolated Chromium/API/PostgreSQL 17 PASS for profile anchors, save/clear/cancel, copy, relogin, membership isolation across workspaces for the same account, calendar and overdue invoice reminders, and mobile overflow at 390px. Settings migration is additive.
+- [TAS gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44394743654), [PostgreSQL pre-merge](https://github.com/Arthur200014/testing-hosting/actions/runs/44394743990) and [PostgreSQL post-merge](https://github.com/Arthur200014/testing-hosting/actions/runs/44395364408) PASS. JS syntax, diff and teacher-data 9/9 PASS.
+- The initial browser run rejected the new GET in legacy fixtures. PR #103 updated only the three strict fixtures. [Full corrected Chromium/API/PostgreSQL run](https://github.com/Arthur200014/testing-hosting/actions/runs/44395956948) PASS on the final tree, including the older synthetic browser checks. [Post-fixture main PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44396532281) PASS. [Redundant main browser run](https://github.com/Arthur200014/testing-hosting/actions/runs/44396532085) is still in progress.
+- Paths: `platform/teacher.html`, `platform/teacher-data.mjs`, profile settings endpoints under `IdentityAccess/`, additive migration `20261118210000_TeacherWorkspaceSettings.cs` and existing browser scripts. External notification channels and online payment processing remain pending.
 
 ## UI-07 password change verification
+
+- [PR #101](https://github.com/Arthur200014/testing-hosting/pull/101) / `16da7641b438f68929ece0821e6df43d415059f8`. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44390018731) and [public file comparison](https://github.com/Arthur200014/testing-hosting/actions/runs/44390520564) PASS. Live password route 401 without auth, ready and migrations 200, running API SHA UNKNOWN. LIVE_WRITE_NOT_RUN for lack of designated test access.
 
 - Isolated Chromium/actual API/PostgreSQL 17 PASS for cancel, mismatched confirmation, wrong current password, successful change, revocation across two workspaces, unaffected unrelated accounts, reload and password persistence. Independent concurrent change probe PASS. One of two requests commits.
 - [TAS CI gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44388723357), [.NET/PostgreSQL before merge](https://github.com/Arthur200014/testing-hosting/actions/runs/44388723343), and [PostgreSQL after merge](https://github.com/Arthur200014/testing-hosting/actions/runs/44390019917) PASS. .NET build, teacher-data 9/9, JS syntax and diff PASS. [Full isolated browser before merge](https://github.com/Arthur200014/testing-hosting/actions/runs/44388723281) and [after merge](https://github.com/Arthur200014/testing-hosting/actions/runs/44390019816) PASS.
