@@ -1,12 +1,13 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** UI-07 partial. Teacher profile and student package pricing merged. Teacher display name is persisted, workspace role is read from actual membership, and package amount is calculated from price per lesson and package size.
-**ACTIVE_BRANCH:** none. [PR #98](https://github.com/Arthur200014/testing-hosting/pull/98) merged.
-**MERGED_SHA:** `ff53bcb38ec52456eed0ffaaba65376c6f7ce80c`.
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44361177791](https://github.com/Arthur200014/testing-hosting/actions/runs/44361177791) PASS. [Published byte comparison 44361723045](https://github.com/Arthur200014/testing-hosting/actions/runs/44361723045) PASS, including teacher.html and teacher-data.mjs.
-**API_DEPLOYMENT:** Native Timeweb auto-deploy configured by owner. [Automated read-only health 44361722255](https://github.com/Arthur200014/testing-hosting/actions/runs/44361722255) PASS. Running API revision NOT_VERIFIED. Authenticated live profile/package writes NOT_RUN: no confirmed synthetic live workspace with authorized credentials. Production data untouched by tests.
-**NEXT_ACTION:** Continue UI-07 with a tenant-scoped student invoice and payment ledger. Add the platform plan when real tariff data is defined. Keep extending roles only with actual workspace grants. Board editor menu/settings/presets (66–68) are deferred. Keep load-40 manual.
+**ACTIVE_TASK:** UI-07 tuition ledger. Student invoice, partial manual receipts, calculated remaining balance, invoice filters and unpaid cancellation are implemented.
+**ACTIVE_BRANCH:** tas/ui07-invoice-ledger, [draft PR #99](https://github.com/Arthur200014/testing-hosting/pull/99). Implementation pushed; isolated verification pending.
+**MERGED_SHA:** `ff53bcb38ec52456eed0ffaaba65376c6f7ce80c` (prior profile and package delivery).
+**RELEASE_STATE:** Ledger IN_PROGRESS. Prior profile/package frontend published and isolated tests passed.
+**API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. Prior API revision NOT_VERIFIED. No synthetic live credentials confirmed.
+**NEXT_ACTION:** Finish isolated ledger tests, merge and verify Pages publication. Board settings (66–68) stay deferred. The 40-editor test is manual.
+
 
 ## UI-07 first delivery verification
 
