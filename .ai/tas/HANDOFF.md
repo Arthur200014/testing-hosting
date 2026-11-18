@@ -1,14 +1,19 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** UI-06 lesson board entry implemented behind the isolated feature gate. Initial Chromium run reached draw/undo but exposed lost focus after a lesson refresh; fixed and rechecking in PR #91. Previous isolated 21/40 acceptance remains PASS.
-**ACTIVE_BRANCH:** `tas/ui06-lesson-board`, [draft PR #91](https://github.com/Arthur200014/testing-hosting/pull/91), head `b5a3d489b628601e5136cad07de49779f965b565`.
-**MERGED_SHA:** `defcdb5f4b3ebbddcb55abeff654047feea88ba0`.
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages44190117603](https://github.com/Arthur200014/testing-hosting/actions/runs/44190117603) PASS at the merge SHA. Independent readonly check: actual teacher.html, teacher-data.mjs, student-card.mjs, pupil-history.mjs, pupil-feedback.mjs and teacher-report.mjs all byte-match this SHA. Prototype is disabled by default, forbidden in Production and absent from working lesson navigation; no new service or production board enablement.
+**ACTIVE_TASK:** UI-06 lesson-board entry complete in isolated mode. Teacher opens the exact board, draws/undoes, reopens the persisted scene, and returns with focus to the same lesson. A second lesson has a separate scene. Production switch remains off.
+**ACTIVE_BRANCH:** none. [PR #91](https://github.com/Arthur200014/testing-hosting/pull/91) merged, tested head `b5a3d489b628601e5136cad07de49779f965b565`.
+**MERGED_SHA:** `8b37d289840c77349400b864bb6b6ed1cb689530`.
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44284850953](https://github.com/Arthur200014/testing-hosting/actions/runs/44284850953) PASS. Published `platform/teacher.html` and `platform/lesson-board-ui.mjs` independently byte-match the merge. Board editor/relay remain isolated; production board live writes NOT_RUN.
 **API_DEPLOYMENT:** Owner-configured native Timeweb main auto-deploy; do not check Timeweb. Independent running revision/migrations UNKNOWN / NOT_VERIFIED; production board writes NOT_RUN in approved isolated-only mode. No production schema/config/writer switch in this prototype.
-**NEXT_ACTION:** Finish PR #91 acceptance. Test class → lesson → authorized board → draw/undo → reopen with persistence → return to same lesson and separate board for another lesson, using existing Chromium/API/PostgreSQL runner. Local JS/shell syntax, scope 13/13 and diff PASS. After required green checks merge/publish with production flag off. Boards reference is 64–65 in the screen index; 51–52 are messenger screens.
+**NEXT_ACTION:** Continue UI-06 with the board catalog (reference 64) and its class/lesson associations. Reference 65 is the board workspace; 51–52 are messenger screens and are a separate scenario. Keep board access and scene storage isolated for the next development checks until a production integration is ready.
 
-## Acceptance evidence
+## UI-06 lesson board verification
+
+- [Board CI 44283225083](https://github.com/Arthur200014/testing-hosting/actions/runs/44283225083): new teacher-cabinet navigation, draw/undo, reopen and distinct lesson scenes PASS in Chromium with real isolated API/PostgreSQL. Initial focus regression reproduced and fixed. Core, access/restart/backup, functional group and licenses PASS. Repeated 21/40 capacity jobs were streaming at release close; original 21/40 evidence below remains PASS. Transport and persistence logic did not change.
+- Post-merge [PostgreSQL 44284851968](https://github.com/Arthur200014/testing-hosting/actions/runs/44284851968) and [browser 44284852041](https://github.com/Arthur200014/testing-hosting/actions/runs/44284852041) PASS. Local syntax/diff and selector 13/13 PASS. Changed `teacher.html`, `lesson-board-ui.mjs`, prototype editor bootstrap, and existing browser runners. Manual reference comparison NOT_RUN; this slice uses the existing Excalidraw editor.
+
+## Prior prototype acceptance evidence
 
 - Post-merge main regressions: [PostgreSQL44190121162](https://github.com/Arthur200014/testing-hosting/actions/runs/44190121162) **PASS**, including isolated backup/restore/rollback; [browser44190121273](https://github.com/Arthur200014/testing-hosting/actions/runs/44190121273) **PASS**, including two persisted synthetic teachers, actual isolated API/PostgreSQL save/reload, idempotency and tenant boundaries. Node browser policy74/74 PASS. No pending targeted checks.
 
