@@ -42,7 +42,7 @@ if (!config && window.parent !== window && location.hostname === '127.0.0.1') {
   window.addEventListener('message', event => {
     if (config || event.source !== window.parent || event.origin !== location.origin) return;
     const { type, relay, session } = event.data ?? {};
-    if (type !== 'tas:open-lesson-board' || session?.role !== 'teacher' || !session.accessToken) return;
+    if (type !== 'tas:open-lesson-board' || !['teacher','student'].includes(session?.role) || !session.accessToken) return;
     try {
       if (![relay, session.apiBase].every(value => {
         const url = new URL(value);

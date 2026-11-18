@@ -933,6 +933,45 @@
         });
       }
 
+      async function openBoardAccess(board) {
+        if (boardSettings?.open) return;
+        const dialog = document.createElement('dialog');
+        boardSettings = dialog;
+        dialog.className = 'card';
+        dialog.setAttribute('aria-label', 'Доступ к доске');
+        dialog.innerHTML = `<section class="stack">
+          <h2>Доступ к доске</h2><strong>${safe(board.title)}</strong>
+          <p>Выбранные ученики смогут открывать и редактировать доску.</p>
+          <p role="alert" hidden></p><div data-board-members>Загрузка…</div>
+          <button type="button" class="secondary" data-close-board-access>Закрыть</button>
+        </section>`;
+        const list = dialog.querySelector('[data-board-members]');
+        const error = dialog.querySelector('[role="alert"]');
+        const path = 'teacher/board-prototype/boards/' + board.id + '/members';
+        const students = state.data.students || [];
+        dialog.querySelector('[data-close-board-access]').onclick = () => dialog.close();
+        dialog.addEventListener('close', () => { dialog.remove(); if (boardSettings === dialog) boardSettings = null; }, {once:true});
+        document.body.append(dialog);
+        dialog.showModal();
+        try {
+          const allowed = new Set(await api(path));
+          if (!dialog.open) return;
+          list.innerHTML = students.length ? students.map(student => `<label class="row">
+            <input type="checkbox" data-board-member="${safe(student.membershipId)}" ${allowed.has(student.membershipId) ? 'checked' : ''}>
+            ${safe(student.studentName)} · ${safe(student.programName || '')}</label>`).join('') : 'В пространстве пока нет учеников.';
+          list.addEventListener('change', async event => {
+            const checkbox = event.target.closest('[data-board-member]');
+            if (!checkbox) return;
+            const granted = checkbox.checked;
+            checkbox.disabled = true;
+            error.hidden = true;
+            try { await api(path + '/' + checkbox.dataset.boardMember, { method:granted ? 'PUT' : 'DELETE' }); }
+            catch (e) { checkbox.checked = !granted; error.textContent = e.message; error.hidden = false; }
+            finally { checkbox.disabled = false; }
+          });
+        } catch (e) { list.textContent = ''; error.textContent = e.message; error.hidden = false; }
+      }
+
       function openBoardMove(board) {
         const folders = state.data.boardFolders || [];
         openBoardOrganization({
@@ -2194,6 +2233,12 @@
           }
         }
         if (lessonBoard.enabled && state.view === 'boards') {
+          const share = event.target.closest('[data-share-board]');
+          if (share) {
+            const board = (state.data.boardRecords || []).find(item => item.id === share.dataset.shareBoard);
+            if (board) await openBoardAccess(board);
+            return;
+          }
           const newFolder = event.target.closest('[data-new-board-folder]');
           const renameFolder = event.target.closest('[data-rename-board-folder]');
           if (newFolder || renameFolder) {

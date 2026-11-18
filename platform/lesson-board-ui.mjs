@@ -1,5 +1,5 @@
 // The isolated runner supplies the relay explicitly. Production hosts cannot enable it.
-export function createLessonBoard(apiBase, accessToken) {
+export function createLessonBoard(apiBase, accessToken, role = 'teacher') {
   const relay = window.__TAS_ISOLATED_BOARD_RELAY;
   const enabled = location.hostname === '127.0.0.1' && [relay, apiBase].every(value => {
     try {
@@ -35,7 +35,7 @@ export function createLessonBoard(apiBase, accessToken) {
       if (frame.contentDocument?.URL !== new URL('/', location.origin).href) return;
       frame.contentWindow.postMessage({
         type:'tas:open-lesson-board', relay,
-        session:{ apiBase, accessToken:accessToken(), role:'teacher', ...(independent ? {boardId:lessonId} : {lessonId}) }
+        session:{ apiBase, accessToken:accessToken(), role, ...(independent ? {boardId:lessonId} : {lessonId}) }
       }, location.origin);
     });
 
