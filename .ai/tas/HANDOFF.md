@@ -1,12 +1,13 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** UI-07 tuition ledger published. Teachers create student invoices, record partial or full manual receipts, see residual balances, filter invoice statuses, and cancel unpaid invoices.
-**ACTIVE_BRANCH:** none. [PR #99](https://github.com/Arthur200014/testing-hosting/pull/99) merged.
-**MERGED_SHA:** `86c3d1d76f499a2e667726235491b5b00b15e20a`.
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [GitHub Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44375147497) and [published file comparison](https://github.com/Arthur200014/testing-hosting/actions/runs/44375594237) PASS. Public teacher.html and teacher-data.mjs match the release content.
-**API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. [Automated read-only health](https://github.com/Arthur200014/testing-hosting/actions/runs/44375594225) PASS. Running API revision NOT_VERIFIED. Authenticated live ledger writes NOT_RUN because no dedicated live synthetic workspace with known test credentials is confirmed. No charges, notifications or changes to live student records were performed.
-**NEXT_ACTION:** Continue UI-07 with actual workspace role management and access rules. Add real subscription plan data once the tariff is defined. Editor settings and presets (66–68) remain deferred. Keep load-40 manual.
+**ACTIVE_TASK:** UI-07 workspace access: owner-only roster, one-time teacher codes, activation and session revocation.
+**ACTIVE_BRANCH:** tas/ui07-workspace-access, [PR #100](https://github.com/Arthur200014/testing-hosting/pull/100). Implementation pushed, isolated verification pending.
+**MERGED_SHA:** `86c3d1d76f499a2e667726235491b5b00b15e20a` (prior tuition ledger).
+**RELEASE_STATE:** New access feature IN_PROGRESS. Previous ledger is published and verified on isolated Chromium/API/PostgreSQL.
+**API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. No independent live revision or synthetic live credentials verified.
+**NEXT_ACTION:** Verify the workspace invitation and revocation flow in isolated CI, merge, and verify Pages publication. Board editor settings remain deferred. Keep load-40 manual.
+
 
 ## UI-07 tuition ledger verification
 
