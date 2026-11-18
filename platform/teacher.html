@@ -317,7 +317,7 @@
         <button type="button" data-coming="Чат"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a8 8 0 0 1-8 8c-1.6 0-2.8-.3-4.3-1.1L3 20l1.5-4.7A8 8 0 1 1 20 11.5z"/></svg></span>Чат</button>
         <button type="button" data-view="library"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v11H3z"/></svg></span>Библиотека</button>
         <button type="button" data-view="students"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m2 9 10-5 10 5-10 5z"/><path d="M6 12.5v4c4 3 8 3 12 0v-4M21 9v7"/></svg></span>Ученики</button>
-        <button type="button" data-view="subscriptions"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18M17 14h2"/></svg></span>Оплата</button>
+        <button type="button" data-view="invoices"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18M17 14h2"/></svg></span>Оплата</button>
         <button type="button" data-view="results" class="nav-extra"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18 19 5M9 5h10v10"/></svg></span>Результаты</button>
         <button type="button" data-view="report"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span>Отчёт</button>
       </nav>
@@ -373,7 +373,12 @@
       const money = value => value == null ? '—' : new Intl.NumberFormat('ru-RU').format(Number(value)) + ' ₽';
       const nowLocal = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
       const billingFilters = {query:'', status:''};
-      const names = { profile: ['Профиль','Личные данные и доступ к кабинету'], boards: ['Доски','Доски занятий'], library: ['Библиотека','Шаблоны заданий и материалы'], overview: ['Мои классы', 'Обучения, расписание и быстрые действия'], students: ['Ученики', 'Список, программы и новые ученики'], lessons: ['Календарь', 'Парные уроки и отдельная посещаемость'], homework: ['Задания', 'Каталог и назначения'], subscriptions: ['Оплата', 'Пакеты и стоимость занятий'], results: ['Результаты', 'Доступная история тестов и пробников'], report: ['Отчёт ученика', 'Последние восемь занятий и результаты за этот период'] };
+      const blankLedger = () => ({ query:'', status:'', membership:'', selected:'' });
+      let ledger = blankLedger();
+      const invoicePaymentsKey = id => 'invoicePayments:' + id;
+      const moscowToday = () => new Intl.DateTimeFormat('sv-SE', {timeZone:'Europe/Moscow',
+        year:'numeric', month:'2-digit', day:'2-digit'}).format(new Date());
+      const names = { invoices:['Оплата','Счета и поступления за обучение'], profile: ['Профиль','Личные данные и доступ к кабинету'], boards: ['Доски','Доски занятий'], library: ['Библиотека','Шаблоны заданий и материалы'], overview: ['Мои классы', 'Обучения, расписание и быстрые действия'], students: ['Ученики', 'Список, программы и новые ученики'], lessons: ['Календарь', 'Парные уроки и отдельная посещаемость'], homework: ['Задания', 'Каталог и назначения'], subscriptions: ['Оплата', 'Пакеты и стоимость занятий'], results: ['Результаты', 'Доступная история тестов и пробников'], report: ['Отчёт ученика', 'Последние восемь занятий и результаты за этот период'] };
       const needs = teacherNeeds;
       const list = (items, empty, item) => items.length ? `<div class="list">${items.map(item).join('')}</div>` : `<div class="empty">${safe(empty)}</div>`;
       const studentName = id => state.data.students?.find(x => x.membershipId === id)?.studentName || 'Ученик';
@@ -388,6 +393,7 @@
       }
       function logout(message = '') {
         Object.assign(billingFilters, {query:'',status:''});
+        ledger = blankLedger();
         $('teacherRoleLabel').textContent = 'Преподаватель';
         lessonBoard.close();
         boardSettings?.close();
@@ -414,7 +420,8 @@
         if (!response.ok) {
           const reason = response.status === 401 ? 'Неверные данные для входа или сессия истекла.'
             : response.status === 404 ? 'Запись или программа не найдена в вашем пространстве.'
-            : response.status === 409 ? 'Конфликт с уже сохранённой записью. Обновите данные.'
+            : response.status === 409 ? (path.startsWith('teacher/tuition-invoices') ? data?.title : null) ||
+              'Конфликт с уже сохранённой записью. Обновите данные.'
             : response.status === 400 ? Object.values(data?.errors || {}).flat().join(' ') || 'Проверьте заполненные поля.'
             : data?.title || 'Сервер временно недоступен.';
           const error = new Error(reason); error.status = response.status; throw error;
@@ -442,7 +449,7 @@
         const selectedLessonDetail = view === 'overview' && !!state.selectedClass && !!state.selectedLesson;
         const selectedProgramClass = view === 'overview' && state.selectedClass && state.classDetailTab === 'program' &&
           teacherClasses().some(item => item.id === state.selectedClass && item.persistent);
-        const extra = selectedStudentCard ? ['classes','groups','lessons',...(state.studentCard.tab==='feedback'?[pupilFeedbackKey(state.studentCard)]:[]),...(['tasks','results'].includes(state.studentCard.tab)?[studentHomeworkKey(state.studentCard)]:[])] : selectedLessonDetail ? [...(lessonBoard.enabled ? ['boardRecords'] : []),'recordings','materials','lessonMaterialLinks','classTopics','topicMaterialLinks','topicTaskLinks','lessonTopicSets','programs','nativeTasks',contextHomeworkKey(teacherClasses().find(x=>x.id===state.selectedClass),(state.data.lessons || []).find(x=>x.id===state.selectedLesson))] :
+        const extra = view === 'invoices' && ledger.selected ? [invoicePaymentsKey(ledger.selected)] : selectedStudentCard ? ['classes','groups','lessons',...(state.studentCard.tab==='feedback'?[pupilFeedbackKey(state.studentCard)]:[]),...(['tasks','results'].includes(state.studentCard.tab)?[studentHomeworkKey(state.studentCard)]:[])] : selectedLessonDetail ? [...(lessonBoard.enabled ? ['boardRecords'] : []),'recordings','materials','lessonMaterialLinks','classTopics','topicMaterialLinks','topicTaskLinks','lessonTopicSets','programs','nativeTasks',contextHomeworkKey(teacherClasses().find(x=>x.id===state.selectedClass),(state.data.lessons || []).find(x=>x.id===state.selectedLesson))] :
           selectedProgramClass ? ['classTopics','topicMaterialLinks','materials','topicTaskLinks','nativeTasks','lessonTopicSets'] :
           selectedMaterialClass ? ['materials','classMaterialLinks'] :
           classTasks ? ['programs','nativeTasks',contextHomeworkKey(teacherClasses().find(x=>x.id===state.selectedClass))] :
@@ -463,7 +470,7 @@
           body => api('teacher/' + path, { method: 'POST', body }));
       }
       function setView(view) {
-        if (state.view !== view && document.querySelector('#teacherProfileForm[data-dirty="1"], #subscriptionForm[data-dirty="1"]') &&
+        if (state.view !== view && document.querySelector('#teacherProfileForm[data-dirty="1"], #subscriptionForm[data-dirty="1"], #invoiceForm[data-dirty="1"], #invoicePaymentForm[data-dirty="1"]') &&
             !confirm('Отменить несохранённые изменения?')) return Promise.resolve();
         if (view === 'boards' && !lessonBoard.enabled) return Promise.resolve();
         if(state.view!==view && !canLeaveStudentEdit()) return Promise.resolve();
@@ -493,7 +500,7 @@
         if (view !== 'lessons') state.lessonPlan = null;
         if (view !== 'overview') state.scheduleEdit = null;
         if (view !== 'overview') { state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; }
-        document.querySelectorAll('[data-view]').forEach(x => x.classList.toggle('active', x.dataset.view === view));
+        document.querySelectorAll('[data-view]').forEach(x => x.classList.toggle('active', x.dataset.view === view || (x.dataset.view === 'invoices' && view === 'subscriptions')));
         $('viewTitle').textContent = names[view][0]; $('viewSubtitle').textContent = names[view][1];
         return refresh();
       }
@@ -721,7 +728,7 @@
           materials: ['Материалы', 'Материалы и библиотека пока не привязаны к группе.'],
           program: ['Программа', 'Редактор программы для группового класса будет подключён позднее.'],
           homework: ['Задания', 'Задания ученикам доступны в общем разделе, группового назначения пока нет.'],
-          payment: ['Оплата', 'Стоимость группы сохраняется как условие. Реальные счета и платежи не создаются.']
+          payment: ['Оплата', 'Счета и поступления доступны в разделе «Оплата».']
         };
         const body = tab === 'summary'
           ? `<section class="class-summary"><p class="class-caption">Обучение</p>
@@ -753,7 +760,7 @@
                 <p class="muted">${placeholders[tab]?.[1]}</p>
                 ${tab === 'schedule' ? '<button type="button" class="secondary" data-view-calendar>Открыть календарь</button>' : ''}
                 ${tab === 'homework' ? '<button type="button" class="secondary" data-class-section="homework">Открыть задания</button>' : ''}
-                ${tab === 'payment' ? '<button type="button" class="secondary" data-class-section="subscriptions">Абонементы</button>' : ''}
+                ${tab === 'payment' ? '<button type="button" class="secondary" data-class-section="invoices">Открыть счета</button>' : ''}
               </section>`;
         return `<div class="class-detail group-detail">
           <div class="class-detail-banner cover-${safe(item.coverStyle || 'lavender')}">
@@ -1119,8 +1126,7 @@
           homework: classNativeTasksTab(item),
           payment: `<section class="class-subsection class-feature-note"><h3>Оплата</h3>
             <p>${item.priceAmount == null ? 'Стоимость не задана.' : 'Условие: ' + safe(item.priceAmount) + ' ' + safe(item.priceCurrency) + (item.priceBasis === 'month' ? ' в месяц' : ' за занятие')}</p>
-            <p class="muted small">Здесь не создаются счета и платежи.</p>
-            <button type="button" class="secondary" data-class-section="subscriptions">Открыть абонементы</button></section>`,
+            <button type="button" class="secondary" data-invoices-for="${safe(item.studentMembershipId)}">Счета ученика</button></section>`,
           information: `<section class="class-subsection">${metadata}
             ${item.persistent ? classInvitePanel(item) : '<p class="muted small">Этот класс отображается из существующей карточки ученика.</p>'}
             <p class="class-archive-note">Архивирование класса не удаляет ученика, занятия и историю.</p></section>`
@@ -1858,6 +1864,93 @@
             <button class="secondary" type="button" data-class-section="subscriptions">Перейти к абонементам учеников</button>
           </section></div></div>`;
       }
+      function billingTabs(active) {
+        return `<div class="row" style="margin-bottom:16px">
+          <button type="button" class="${active === 'invoices' ? 'primary' : 'secondary'}" data-class-section="invoices"
+            ${active === 'invoices' ? 'aria-current="page"' : ''}>Счета</button>
+          <button type="button" class="${active === 'subscriptions' ? 'primary' : 'secondary'}" data-class-section="subscriptions"
+            ${active === 'subscriptions' ? 'aria-current="page"' : ''}>Абонементы</button></div>`;
+      }
+      const invoiceStatuses = {open:'К оплате', partial:'Частично оплачен', overdue:'Просрочен', paid:'Оплачен', cancelled:'Отменён'};
+      const remaining = invoice => (Math.round(invoice.amount * 100) - Math.round(invoice.paid * 100)) / 100;
+      const invoiceDay = value => value ? value.split('-').reverse().join('.') : '—';
+      function invoiceStatus(invoice, today) {
+        if (invoice.cancelledAt) return 'cancelled';
+        if (remaining(invoice) === 0) return 'paid';
+        if (invoice.dueOn && invoice.dueOn < today) return 'overdue';
+        return invoice.paid > 0 ? 'partial' : 'open';
+      }
+      function invoiceRows() {
+        const query = ledger.query.trim().toLocaleLowerCase('ru-RU');
+        const today = moscowToday();
+        const rows = (state.data.invoices || []).filter(invoice =>
+          (!ledger.membership || invoice.membershipId === ledger.membership) &&
+          (!ledger.status || invoiceStatus(invoice, today) === ledger.status) &&
+          (!query || [invoice.studentName,invoice.description].some(value => value.toLocaleLowerCase('ru-RU').includes(query))));
+        return list(rows, 'Счетов по выбранным условиям нет.', invoice => {
+          const status = invoiceStatus(invoice, today);
+          return `<div class="item"><div><strong>${safe(invoice.studentName)} · ${safe(invoice.description)}</strong>
+            <small>${safe(money(invoice.amount))} · ${invoiceStatuses[status]}${invoice.dueOn ? ' · до ' + safe(invoiceDay(invoice.dueOn)) : ''}</small></div>
+            <button type="button" class="secondary" data-open-invoice="${safe(invoice.id)}"
+              aria-label="Открыть счёт: ${safe(invoice.description)}">Открыть</button></div>`;
+        });
+      }
+      function invoiceDetail(invoice) {
+        const balance = remaining(invoice);
+        const today = moscowToday();
+        const status = invoiceStatus(invoice, today);
+        const payments = state.data[invoicePaymentsKey(invoice.id)];
+        return `<section class="card stack" data-invoice-detail>
+          <div class="section-head"><h2>${safe(invoice.description)}</h2><button type="button" class="secondary" data-close-invoice>Закрыть счёт</button></div>
+          <p>${safe(invoice.studentName)} · ${invoiceStatuses[status]}</p>
+          <p>Сумма ${safe(money(invoice.amount))} · Получено ${safe(money(invoice.paid))}
+            ${invoice.dueOn ? ' · Срок ' + safe(invoiceDay(invoice.dueOn)) : ''}</p>
+          ${invoice.cancelledAt ? '' : `<p><strong>Остаток ${safe(money(balance))}</strong></p>`}
+          <h3>Поступления</h3>${payments ? list(payments, 'Поступлений пока нет.', payment =>
+            `<div class="item"><div><strong>${safe(money(payment.amount))}</strong>
+              <small>${safe(invoiceDay(payment.receivedOn))}${payment.note ? ' · ' + safe(payment.note) : ''}</small></div></div>`) : '<p class="muted">Загружаем поступления…</p>'}
+          ${!invoice.cancelledAt && balance > 0 ? `<h3>Записать полученную оплату</h3>
+            <form id="invoicePaymentForm" class="stack" data-student-id="${safe(invoice.id)}">
+              <div class="form-row"><label>Сумма, ₽<input name="amount" type="number" min="0.01" max="${safe(balance)}" step="0.01" required></label>
+                <label>Дата поступления<input name="receivedOn" type="date" value="${today}" max="${today}" required></label></div>
+              <label>Примечание<input name="note" maxlength="200"></label>
+              <div class="row"><button type="submit" class="primary">Записать оплату</button>
+                <button type="button" class="secondary" data-cancel-account-form="invoicePaymentForm">Сбросить ввод</button></div>
+            </form>` : ''}
+          ${!invoice.cancelledAt && invoice.paid === 0 ? `<form id="invoiceCancelForm" data-student-id="${safe(invoice.id)}">
+            <button type="submit" class="secondary danger">Отменить счёт</button></form>` : ''}
+        </section>`;
+      }
+      function invoices() {
+        const students = state.data.students || [];
+        const selected = state.data.invoices.find(invoice => invoice.id === ledger.selected);
+        const studentOptions = students.map(student => `<option value="${safe(student.membershipId)}"
+          ${student.membershipId === ledger.membership ? 'selected' : ''}>${safe(student.studentName)}</option>`).join('');
+        const archived = ledger.membership && !students.some(student => student.membershipId === ledger.membership);
+        const scopedName = state.data.invoices.find(invoice => invoice.membershipId === ledger.membership)?.studentName;
+        return billingTabs('invoices') + `<div class="grid two">
+          <section class="card stack"><h2>Счета учеников</h2>
+            <label>Поиск по ученику или назначению<input type="search" data-invoice-search value="${safe(ledger.query)}"></label>
+            <div class="form-row">
+              <label>Статус<select data-invoice-filter="status"><option value="">Все статусы</option>
+                ${Object.entries(invoiceStatuses).map(([id,label]) => `<option value="${id}" ${ledger.status === id ? 'selected' : ''}>${label}</option>`).join('')}
+              </select></label>
+              <label>Ученик<select data-invoice-filter="membership"><option value="">Все ученики</option>${studentOptions}
+                ${archived ? `<option value="${safe(ledger.membership)}" selected>${safe(scopedName || 'Ученик из архива')}</option>` : ''}
+              </select></label></div>
+            <div id="invoiceRows">${invoiceRows()}</div>
+          </section>
+          ${selected ? invoiceDetail(selected) : `<section class="card stack"><h2>Новый счёт</h2>
+            <form id="invoiceForm" class="stack">
+              <label>Ученик<select name="membershipId" required><option value="">Выберите ученика</option>${studentOptions}</select></label>
+              <label>Назначение<input name="description" maxlength="160" required></label>
+              <div class="form-row"><label>Сумма, ₽<input name="amount" type="number" min="0.01" max="9999999999.99" step="0.01" required></label>
+                <label>Оплатить до<input name="dueOn" type="date"></label></div>
+              <div class="row"><button type="submit" class="primary" ${students.length ? '' : 'disabled'}>Создать счёт</button>
+                <button type="button" class="secondary" data-cancel-account-form="invoiceForm">Сбросить ввод</button></div>
+            </form></section>`}
+        </div>`;
+      }
       function subscriptionRows() {
         const d = state.data;
         const packages = new Map((d.subscriptions || []).map(item => [item.membershipId,item]));
@@ -1880,7 +1973,7 @@
       }
       function subscriptions() {
         const d = state.data;
-        return `<div class="grid two"><div class="card stack"><h2>Абонементы учеников</h2>
+        return billingTabs('subscriptions') + `<div class="grid two"><div class="card stack"><h2>Абонементы учеников</h2>
           <div class="form-row"><label>Поиск ученика<input type="search" data-sub-search value="${safe(billingFilters.query)}"></label>
             <label>Настройка пакета<select data-sub-status><option value="">Все</option>
               <option value="set" ${billingFilters.status === 'set' ? 'selected' : ''}>Настроен</option>
@@ -1955,7 +2048,7 @@
           $('teacherRoleLabel').textContent = teacherRoleLabel(state.data.profile.role);
         }
         // Related reads may finish while the teacher is already typing in a lesson form.
-        const drafts=[...document.querySelectorAll('#teacherProfileForm[data-dirty="1"], #subscriptionForm[data-dirty="1"], [data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"], #libraryAttachForm[data-dirty="1"], #libraryRenameForm[data-dirty="1"], #libraryMoveForm[data-dirty="1"], #libraryFolderForm[data-dirty="1"], #recordingForm[data-dirty="1"], #studentEditForm[data-dirty="1"], [data-student-grade][data-dirty="1"], #pupilFeedbackForm[data-dirty="1"]')].map(form=>({
+        const drafts=[...document.querySelectorAll('#teacherProfileForm[data-dirty="1"], #subscriptionForm[data-dirty="1"], #invoiceForm[data-dirty="1"], #invoicePaymentForm[data-dirty="1"], [data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"], #lessonTopicSetForm[data-dirty="1"], #lessonMaterialAttachForm[data-dirty="1"], #libraryAttachForm[data-dirty="1"], #libraryRenameForm[data-dirty="1"], #libraryMoveForm[data-dirty="1"], #libraryFolderForm[data-dirty="1"], #recordingForm[data-dirty="1"], #studentEditForm[data-dirty="1"], [data-student-grade][data-dirty="1"], #pupilFeedbackForm[data-dirty="1"]')].map(form=>({
           id:form.id, classId:form.dataset.classId, lessonId:form.dataset.lessonId, libraryItem:form.dataset.libraryItem, studentId:form.dataset.studentId, revision:form.dataset.revision,
           fields:[...form.querySelectorAll('input[name],textarea[name],select[name]')].map(input=>({
             name:input.name,type:input.type,value:input.value,checked:input.checked
@@ -1972,7 +2065,7 @@
             return;
           }
         }
-        $('content').innerHTML = ({ overview, students, lessons, homework, library, subscriptions, results, report, boards, profile })[state.view]();
+        $('content').innerHTML = ({ overview, students, lessons, homework, library, subscriptions, invoices, results, report, boards, profile })[state.view]();
         for(const draft of drafts) {
           const form=document.getElementById(draft.id);
           if(!form || form.dataset.classId!==draft.classId || form.dataset.lessonId!==draft.lessonId || form.dataset.libraryItem!==draft.libraryItem || form.dataset.studentId!==draft.studentId) continue;
@@ -2167,10 +2260,19 @@
           billingFilters.query = target.value;
           $('subscriptionRows').innerHTML = subscriptionRows();
         }
-        const form = target.closest('#teacherProfileForm, #subscriptionForm');
+        if (target.matches('[data-invoice-search]')) {
+          ledger.query = target.value;
+          $('invoiceRows').innerHTML = invoiceRows();
+        }
+        const form = target.closest('#teacherProfileForm, #subscriptionForm, #invoiceForm, #invoicePaymentForm');
         if (form) form.dataset.dirty = '1';
       });
       $('content').addEventListener('change', event => {
+        if (event.target.matches('[data-invoice-filter]')) {
+          ledger[event.target.dataset.invoiceFilter] = event.target.value;
+          $('invoiceRows').innerHTML = invoiceRows();
+          return;
+        }
         if (!event.target.matches('[data-sub-status]')) return;
         billingFilters.status = event.target.value;
         $('subscriptionRows').innerHTML = subscriptionRows();
@@ -2315,6 +2417,21 @@
         }
       });
       $('content').addEventListener('click', async event => {
+        const invoiceTarget = event.target.closest('[data-open-invoice], [data-close-invoice], [data-invoices-for]');
+        if (invoiceTarget) {
+          const draft = document.querySelector('#invoiceForm[data-dirty="1"], #invoicePaymentForm[data-dirty="1"]');
+          if (draft?.querySelector('button[type="submit"]').disabled) return;
+          if (draft && !confirm('Отменить несохранённый ввод?')) return;
+          if (draft) delete draft.dataset.dirty;
+          if (invoiceTarget.dataset.invoicesFor) {
+            ledger = {...blankLedger(), membership:invoiceTarget.dataset.invoicesFor};
+            await setView('invoices');
+          } else {
+            ledger.selected = invoiceTarget.dataset.openInvoice || '';
+            await refresh();
+          }
+          return;
+        }
         const cancelAccount = event.target.closest('[data-cancel-account-form]');
         if (cancelAccount) {
           const form = $(cancelAccount.dataset.cancelAccountForm);
@@ -3479,6 +3596,24 @@
           if (!catalog || catalog.programId !== program) throw new Error('Выберите ДЗ той же программы, что у учеников.');
           await mutation('homework', 'homework/assignments', () => ({ catalogItemId: catalog.id, assignedAt: new Date(formValue(form, 'assignedAt')).toISOString(), deadlineHours: Number(formValue(form, 'deadlineHours')), membershipIds: ids.map(x => x.value) }));
           form.reset();
+        });
+        if (form.id === 'invoiceForm') onForm(form, async () => {
+          const invoice = await mutation('tuitionInvoice', 'tuition-invoices', () => ({
+            membershipId: formValue(form,'membershipId'), description: formValue(form,'description'),
+            amount: Number(formValue(form,'amount')), dueOn: formValue(form,'dueOn') || null
+          }));
+          ledger.selected = invoice.id;
+        });
+        if (form.id === 'invoicePaymentForm') onForm(form, async () => {
+          const id = form.dataset.studentId;
+          form.libraryKeys = ['invoices', invoicePaymentsKey(id)];
+          await mutation('tuitionPayment:' + id, 'tuition-invoices/' + id + '/payments', () => ({
+            amount: Number(formValue(form,'amount')), receivedOn: formValue(form,'receivedOn'),
+            note: formValue(form,'note') || null
+          }));
+        });
+        if (form.id === 'invoiceCancelForm' && confirm('Отменить этот счёт?')) onForm(form, async () => {
+          await api('teacher/tuition-invoices/' + form.dataset.studentId + '/cancel', {method:'POST'});
         });
         if (form.id === 'teacherProfileForm') onForm(form, async () => {
           await api('teacher/profile', {method:'PATCH',body:{displayName:formValue(form,'displayName')}});

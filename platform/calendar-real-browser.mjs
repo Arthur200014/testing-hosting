@@ -139,7 +139,69 @@ try {
   assert.equal(await page.locator('#subscriptionRows [data-edit-sub]').count(), 1);
   await page.locator('[data-sub-search]').fill('Чужой ученик');
   assert.equal(await page.locator('#subscriptionRows [data-edit-sub]').count(), 0);
+
+  // Create a student invoice and record a confirmed manual receipt through the cabinet.
+  await page.locator('.nav [data-view="invoices"]').click();
+  const invoiceForm = page.locator('#invoiceForm');
+  await invoiceForm.locator('[name="membershipId"]').selectOption(pupil);
+  await invoiceForm.locator('[name="description"]').fill('Обучение за ноябрь');
+  await invoiceForm.locator('[name="amount"]').fill('1250.50');
+  await invoiceForm.getByRole('button',{name:'Создать счёт'}).click();
+  const invoiceDetail = page.locator('[data-invoice-detail]');
+  await invoiceDetail.getByRole('heading',{name:'Обучение за ноябрь'}).waitFor();
+  const [tuition] = await call('teacher/tuition-invoices', north.token);
+  assert.equal(tuition.amount,1250.5);
+  const paymentForm = page.locator('#invoicePaymentForm');
+  await paymentForm.locator('[name="amount"]').fill('100');
+  await paymentForm.getByRole('button',{name:'Сбросить ввод'}).click();
+  assert.equal(await paymentForm.locator('[name="amount"]').inputValue(),'');
+  await paymentForm.locator('[name="amount"]').fill('500.25');
+  await paymentForm.locator('[name="note"]').fill('Тестовое поступление');
+  const receivedOn = await paymentForm.locator('[name="receivedOn"]').inputValue();
+  await paymentForm.getByRole('button',{name:'Записать оплату'}).click();
+  await invoiceDetail.getByText('Остаток 750,25 ₽',{exact:true}).waitFor();
+  await invoiceDetail.getByText(/Тестовое поступление/).waitFor();
+  await page.screenshot({path:output+'/53_tuition_invoice_real.png'});
+  assert.deepEqual(await call('teacher/tuition-invoices',south.token),[]);
+  await call('teacher/tuition-invoices/'+tuition.id+'/payments',south.token,undefined,404);
+  const settledPath = 'teacher/tuition-invoices/'+tuition.id;
+  const payment = {requestId:randomUUID(),amount:750.25,receivedOn,note:'Остаток'};
+  await call(settledPath+'/payments',south.token,payment,404);
+  await call(settledPath+'/payments',north.token,{...payment,amount:751},409);
+
   await login(north);
+  await page.locator('.nav [data-view="invoices"]').click();
+  await page.locator('[data-invoice-filter="status"]').selectOption('partial');
+  await page.getByRole('button',{name:'Открыть счёт: Обучение за ноябрь'}).click();
+  await invoiceDetail.getByText('Остаток 750,25 ₽',{exact:true}).waitFor();
+  await invoiceDetail.getByText(/Тестовое поступление/).waitFor();
+  await call(settledPath+'/payments',north.token,payment,201);
+  await call(settledPath+'/payments',north.token,payment);
+  await call(settledPath+'/cancel',north.token,{},409);
+  await page.locator('#refresh').click();
+  await invoiceDetail.getByText('Остаток 0 ₽',{exact:true}).waitFor();
+  assert.equal((await call(settledPath+'/payments',north.token)).length,2);
+
+  // Identical create retry is idempotent. Competing receipts cannot overpay, and a cancelled invoice stays closed.
+  const create = {requestId:randomUUID(),membershipId:pupil,description:'Проверка конкуренции оплат',amount:100};
+  await call('teacher/tuition-invoices',south.token,create,404);
+  const race = await call('teacher/tuition-invoices',north.token,create,201);
+  assert.equal((await call('teacher/tuition-invoices',north.token,create)).id,race.id);
+  const racePath = 'teacher/tuition-invoices/'+race.id;
+  const replies = await Promise.all([1,2].map(() => fetch(api+'/api/v1/'+racePath+'/payments', {
+    method:'POST',headers:{Authorization:'Bearer '+north.token,'Content-Type':'application/json'},
+    body:JSON.stringify({requestId:randomUUID(),amount:60,receivedOn})
+  })));
+  assert.deepEqual(replies.map(r=>r.status).sort(),[201,409]);
+  assert.equal((await call(racePath+'/payments',north.token)).length,1);
+  const cancelled = await call('teacher/tuition-invoices',north.token,{...create,requestId:randomUUID(),description:'Отмена счёта'},201);
+  await page.locator('#refresh').click();
+  await page.locator('[data-invoice-filter="status"]').selectOption('open');
+  await page.locator('[data-open-invoice="'+cancelled.id+'"]').click();
+  page.once('dialog',dialog=>dialog.accept());
+  await invoiceDetail.getByRole('button',{name:'Отменить счёт'}).click();
+  await invoiceDetail.getByText(/ · Отменён$/).waitFor();
+  await call('teacher/tuition-invoices/'+cancelled.id+'/payments',north.token,{...payment,amount:1},409);
   await page.locator('#openTeacherProfile').click();
   await displayName.waitFor();
   assert.equal(await displayName.inputValue(), 'Тестовый преподаватель Север');

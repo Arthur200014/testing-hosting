@@ -1,5 +1,5 @@
 export const teacherPaths = {
-  profile: 'profile',
+  profile: 'profile', invoices: 'tuition-invoices',
   boardFolders: 'board-prototype/boards/folders',
   boardRecords: 'board-prototype/boards',
   classes: 'classes', groups: 'groups', scheduleRules: 'schedule-rules', programs: 'programs', students: 'students', lessons: 'lessons',
@@ -20,6 +20,8 @@ export function contextHomeworkKey(item, lesson = null) {
 }
 export function teacherResourcePath(key) {
   if (Object.hasOwn(teacherPaths, key)) return teacherPaths[key];
+  const payment = /^invoicePayments:([0-9a-f-]{36})$/i.exec(key);
+  if (payment) return 'tuition-invoices/' + payment[1] + '/payments';
   const feedback=/^pupilFeedback:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(key);
   if(feedback) return 'students/'+feedback[1]+'/feedback';
   const pupil = /^studentHomework:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):(tasks|results):(\d{1,8})(?::(all|\d{4}-\d{2}):(all|(?:group|individual)~[0-9a-f-]{36}))?$/i.exec(key);
@@ -44,6 +46,7 @@ export function teacherResourcePath(key) {
 
 export const teacherNeeds = {
   profile: ['profile'],
+  invoices: ['students','invoices'],
   boards: ['classes', 'groups', 'lessons', 'students', 'boardRecords', 'boardFolders'],
   overview: ['classes', 'groups', 'students', 'lessons', 'scheduleRules'],
   students: ['students', 'programs'],
@@ -69,6 +72,7 @@ export const teacherMutationKeys = {
   classTopicForm: ['classTopics'], topicMaterialAttachForm: ['topicMaterialLinks'], topicTaskAttachForm: ['topicTaskLinks'],
   catalogForm: ['catalog'], homeworkForm: ['assignments'],
   teacherProfileForm: ['profile'],
+  invoiceForm: ['invoices'], invoiceCancelForm: ['invoices'],
   subscriptionForm: ['subscriptions']
 };
 

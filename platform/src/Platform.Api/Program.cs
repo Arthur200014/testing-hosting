@@ -206,6 +206,7 @@ app.MapGet("/api/v1/teacher/me", (ClaimsPrincipal principal) => Results.Ok(new
 })).RequireAuthorization("teacher");
 
 TeacherProfileEndpoints.Map(app);
+TestingHosting.Platform.Billing.TuitionLedgerEndpoints.Map(app);
 
 app.MapGet("/api/v1/teacher/programs", async (
     ClaimsPrincipal principal, PlatformDbContext db, CancellationToken cancellationToken) =>
