@@ -1,8 +1,8 @@
-export function lessonBoardEntries({ lessons = [], classes = [], groups = [] }) {
+export function lessonBoardEntries({ lessons = [], classes = [], groups = [], boardRecords = [] }) {
   const individual = new Map(classes.map(item => [item.id, item]));
   const group = new Map(groups.map(item => [item.id, item]));
 
-  return lessons.flatMap(lesson => {
+  const lessonEntries = lessons.flatMap(lesson => {
     const classId = lesson.groupClassId || lesson.individualClassId || '';
     const owner = lesson.groupClassId ? group.get(classId) : individual.get(classId);
     if (classId && (!owner || owner.isArchived)) return [];
@@ -14,6 +14,12 @@ export function lessonBoardEntries({ lessons = [], classes = [], groups = [] }) 
       lessonAt: lesson.lessonAt
     }];
   });
+  return [...lessonEntries, ...boardRecords.map(board => {
+    const classId = board.groupClassId || board.individualClassId || '';
+    const owner = board.groupClassId ? group.get(classId) : individual.get(classId);
+    return {...board, boardId:board.id, classId, classTitle:owner?.title || (classId ? 'Класс недоступен' : 'Без класса'),
+      lessonAt:board.updatedAt, canOpenLesson:lessonEntries.some(item => item.lessonId === board.lessonId && item.classId)};
+  })];
 }
 
 export function renderBoardCards(entries, filters, safe, date) {
@@ -29,7 +35,9 @@ export function renderBoardCards(entries, filters, safe, date) {
   if (!matches.length) return '<p class="empty">' + (entries.length ? 'Доски по этим условиям не найдены.' : 'Здесь появятся доски ваших занятий.') + '</p>';
   return matches.map(item => `<article class="card stack">
     <div><h2>${safe(item.title)}</h2><p class="muted">${safe(item.classTitle)} · ${safe(date(item.lessonAt))}</p></div>
-    <div class="class-banner-buttons"><button type="button" class="primary" data-open-lesson-board="${safe(item.lessonId)}">Открыть доску</button>
-    ${item.classId ? `<button type="button" class="secondary" data-board-lesson-details="${safe(item.lessonId)}">К занятию</button>` : ''}</div>
+    <div class="class-banner-buttons"><button type="button" class="primary" ${item.boardId ? `data-open-independent-board="${safe(item.boardId)}"` :
+      `data-open-lesson-board="${safe(item.lessonId)}"`}>Открыть доску</button>
+    ${item.boardId ? `<button type="button" class="secondary" data-edit-independent-board="${safe(item.boardId)}">Настройки</button>` : ''}
+    ${(item.boardId ? item.canOpenLesson : item.classId) ? `<button type="button" class="secondary" data-board-lesson-details="${safe(item.lessonId)}">К занятию</button>` : ''}</div>
   </article>`).join('');
 }
