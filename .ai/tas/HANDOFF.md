@@ -1,12 +1,12 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** Board folders and favorites COMPLETE and published in isolated mode for independent boards. Create/rename folders, move/unfile boards, toggle/filter favorites, preserve drawing and lesson links. Supplemental 40-editor repeat is running after session renewal limiter interruption.
-**ACTIVE_BRANCH:** none. [PR #94](https://github.com/Arthur200014/testing-hosting/pull/94) merged, tested head `e62dcbb8f0297a893532249e28d17ef53e8fc1f9`.
+**ACTIVE_TASK:** Explicit student board grants, owner controls and student cabinet entry implemented behind the isolated gate. Browser and PostgreSQL acceptance is running.
+**ACTIVE_BRANCH:** `tas/ui06-board-sharing`, [draft PR #95](https://github.com/Arthur200014/testing-hosting/pull/95), head `c7ff60beb9ac04fa57dff9dab0a150b76f73133a`.
 **MERGED_SHA:** `a417edbcc78f11eaa887b36edb61cb6fca97459d`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44314384681](https://github.com/Arthur200014/testing-hosting/actions/runs/44314384681) PASS; published teacher.html, teacher-data.mjs and board-catalog-ui.mjs independently byte-match. Feature remains isolated.
 **API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. Automated readonly health PASS (44314930989); running API revision and migration independently NOT_VERIFIED. Additive BoardOrganization migration verified on isolated PostgreSQL. Production board writes NOT_RUN; feature gate off.
-**NEXT_ACTION:** Check [40-editor repeat, job 134841239720](https://github.com/Arthur200014/testing-hosting/actions/runs/44312063271/job/134841239720). First attempt stopped at session renewal under login limiter; no transport/access threshold changed. Continue UI-06 with explicit board sharing/access in isolated workspace after verifying or triaging the repeat.
+**NEXT_ACTION:** Finish PR #95 isolated Chromium/PostgreSQL acceptance and publish after green checks. Check previous 40-editor retry separately; latest status in_progress. Production board gate stays off.
 
 ## Board organization verification
 
