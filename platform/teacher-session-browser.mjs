@@ -30,6 +30,7 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
   if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
   if (path === 'teacher-sessions' && req.method() === 'POST') {
     assert.ok(['north', 'south'].includes(body.workspace));
+    if (body.password === 'incorrect') return send({ title: 'Invalid synthetic login' }, 401);
     return send({ accessToken: 'synthetic-' + body.workspace,
       expiresAt: new Date(Date.now() + 300000).toISOString() });
   }
@@ -76,8 +77,48 @@ async function login(workspace) {
   assert.equal(await page.locator('#workspaceName').textContent(), workspace);
 }
 try {
-  await page.goto(base + '/platform/teacher.html');
+  await page.goto(base + '/platform/');
+  await page.getByRole('heading', { name: 'Возможности платформы' }).waitFor({state:'attached'});
+  await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.getAttribute('href')), '#main');
+  await page.keyboard.press('Enter');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'main');
+  for (const width of [320, 390]) {
+    await page.setViewportSize({width, height:844});
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  }
+  await page.getByRole('link', { name: 'Войти ученику' }).click();
+  await page.locator('#loginForm [name="code"]').waitFor();
+  await page.getByRole('link', { name: 'О платформе' }).press('Enter');
+  await page.getByRole('link', { name: 'Войти преподавателю' }).click();
+  const loginForm = page.locator('#loginForm');
+  await loginForm.locator('[name="workspace"]').fill('north');
+  await loginForm.locator('[name="email"]').fill('synthetic@example.invalid');
+  await loginForm.locator('[name="password"]').fill('incorrect');
+  await loginForm.getByRole('button', {name:'Войти', exact:true}).click();
+  await page.locator('#loginError').waitFor();
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'loginError');
   await login('north');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'teacherMain');
+  const menu = page.locator('#teacherNavToggle');
+  const navigation = page.locator('#teacherNav');
+  await navigation.waitFor({state:'hidden'});
+  await menu.focus();
+  await menu.press('Enter');
+  await navigation.waitFor();
+  await navigation.locator('[aria-current="page"]').focus();
+  await page.keyboard.press('Escape');
+  assert.equal(await menu.getAttribute('aria-expanded'), 'false');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'teacherNavToggle');
+  await menu.press('Enter');
+  await navigation.locator('[data-view="students"]').click();
+  assert.equal(await navigation.locator('[data-view="students"]').getAttribute('aria-current'), 'page');
+  await navigation.waitFor({state:'hidden'});
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'teacherMain');
+  await menu.click();
+  await navigation.locator('[data-view="overview"]').click();
+  await page.setViewportSize({width:1348,height:926});
+  await navigation.waitFor();
   await page.locator('[data-open-class="11111111-1111-4111-8111-111111111111"]').waitFor();
   assert.equal(northLessonsStarted, true);
   await page.locator('[data-open-learning]').click();
@@ -86,6 +127,7 @@ try {
   await page.locator('.learning-modal').waitFor({ state: 'detached' });
   await page.locator('#logout').click();
   await page.locator('#loginScreen:not([hidden])').waitFor();
+  assert.equal(await page.evaluate(() => document.activeElement.name), 'workspace');
   await login('south');
   await page.locator('[data-open-class]').first().waitFor();
   assert.equal(await page.locator('[data-open-class]').count(), 2);

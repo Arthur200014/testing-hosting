@@ -50,7 +50,7 @@
     .nav button { width: 100%; text-align: left; color: #9fb0ca; font-weight: 600; background: transparent; padding: 11px 13px; }
     .nav button.active, .nav button:hover { background: #273850; color: #fff; }
     .side-foot { margin-top: auto; display: grid; gap: 10px; padding: 10px; }
-    main { min-width: 0; padding: 31px clamp(18px, 3vw, 44px) 58px; max-width: 1550px; width: 100%; margin: 0 auto; }
+    #teacherMain { min-width: 0; padding: 31px clamp(18px, 3vw, 44px) 58px; max-width: 1550px; width: 100%; margin: 0 auto; }
     .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 27px; }
     .eyebrow { color: #f8b547; text-transform: uppercase; font-size: .73rem; letter-spacing: .15em; font-weight: 800; margin-bottom: 7px; }
     .subtitle { margin-top: 8px; color: #9fb0ca; }
@@ -109,7 +109,7 @@
     .side-foot { color: #fff; padding: 8px; }
     .side-foot .muted { color: #e5e0ff; }
     .side-foot .secondary { width: 100%; color: #fff; border-color: #ffffff44; background: #ffffff16; }
-    main { max-width: none; margin: 0; padding: 0 24px 46px; background: #f5f5f6; }
+    #teacherMain { max-width: none; margin: 0; padding: 0 24px 46px; background: #f5f5f6; }
     .top { min-height: 72px; align-items: center; justify-content: flex-end; margin: 0 -24px 0; padding: 0 24px; border-bottom: 1px solid #ebebf0; background: #fff; }
     .top-heading { margin-right: auto; }
     .top .eyebrow { display: none; }
@@ -226,16 +226,24 @@
       .today-panel { min-height: auto; padding-top: 20px; border-top: 1px solid #ebebf0; border-left: 0; }
       .today-inner { position: static; padding-left: 0; }
     }
+    #teacherNavToggle { display: none; }
+    .skip-content { position: absolute; top: 8px; left: 8px; z-index: 40; padding: 11px; background: white; transform: translateY(-150%); }
+    .skip-content:focus { transform: none; }
+    :is(a, button):focus-visible { outline: 3px solid #4b31a5; outline-offset: 3px; }
+    aside :is(a, button):focus-visible { outline-color: #fff; }
     @media (max-width: 760px) {
       .shell { display: block; }
-      aside { position: sticky; top: 0; z-index: 5; padding: 10px 14px; display: block; border-right: 0; border-bottom: 0; }
+      aside { position: sticky; top: 0; z-index: 30; padding: 10px 14px; display: block; border-right: 0; border-bottom: 0; }
       aside .brand, .side-foot span { display: none; }
-      .side-foot { display: block; margin-top: 7px; padding: 0; }
-      .side-foot button { padding: 6px 10px; }
-      .nav { display: flex; overflow-x: auto; gap: 5px; }
-      .nav button { width: auto; white-space: nowrap; padding: 9px 12px; }
-      main { padding: 0 16px 40px; }
-      .top { align-items: center; margin-inline: -16px; }
+      .side-foot { position: absolute; top: 10px; right: 14px; padding: 0; }
+      .side-foot button { padding: 6px 10px; min-height: 44px; }
+      #teacherNavToggle { display: inline-flex; align-items: center; min-height: 44px; }
+      #teacherNavToggle[aria-expanded="false"] + .nav { display: none; }
+      .nav { margin-top: 7px; padding: 4px; max-height: 55dvh; overflow-y: auto; }
+      .nav button { min-height: 44px; padding: 9px 12px; }
+      #teacherMain { scroll-margin-top: 72px; }
+      #teacherMain { padding: 0 16px 40px; }
+      #teacherMain > .top { top: 64px; align-items: center; margin-inline: -16px; }
       .two, .three, .four, .form-row, .form-row.three { grid-template-columns: 1fr; }
       .card { padding: 17px; }
       .classes-heading, .classes-toolbar, .class-card-body { align-items: stretch; flex-direction: column; }
@@ -251,7 +259,7 @@
       :root, body { color: #172033; background: #fff; }
       .shell { display: block; }
       aside, #refresh, #notice, #printReport, #reportStudentLabel { display: none !important; }
-      main { padding: 0; max-width: none; }
+      #teacherMain { padding: 0; max-width: none; }
       .card, .item { color: #172033; background: #fff; box-shadow: none; border-color: #cbd5e1; break-inside: avoid; }
       .muted, .subtitle, .metric-note, .item small { color: #475569; }
       .pill { color: #172033; background: #e2e8f0; }
@@ -279,7 +287,7 @@
   <link rel="stylesheet" href="./meleto-fidelity.css">
 </head>
 <body>
-  <div id="loginScreen" class="login-screen">
+  <main id="loginScreen" class="login-screen" aria-labelledby="loginTitle">
     <div class="card login-card">
       <div class="brand"><span class="brand-mark">✦</span><span>Teacher AI Student<small>КАБИНЕТ ПРЕПОДАВАТЕЛЯ</small></span></div>
       <p class="eyebrow">Новая платформа</p>
@@ -309,22 +317,23 @@
         <button class="primary" type="submit">Принять приглашение</button>
       </form>
       <p id="loginStatus" class="banner" role="status" hidden></p>
-      <p id="loginError" class="banner error" role="alert" hidden></p>
+      <p id="loginError" class="banner error" role="alert" tabindex="-1" hidden></p>
       <p class="muted small" style="margin-top:20px"><button id="toggleRegistration" class="text-button" type="button">Зарегистрироваться как владелец</button></p>
       <p class="muted small"><button id="toggleTeacherInvitation" class="text-button" type="button">Войти по приглашению</button></p>
-      <p class="muted small" style="margin-top:10px">Отдельный кабинет. Действующая форма преподавателя продолжает работать.</p>
+      <p class="muted small" style="margin-top:10px"><a href="./">О платформе</a> · <a href="./student.html">Кабинет ученика</a></p>
     </div>
-  </div>
+  </main>
 
   <div id="app" class="shell" hidden>
+    <a class="skip-content" href="#teacherMain">Перейти к содержанию</a>
     <aside>
       <div class="brand"><span class="brand-mark">T</span><span>Teacher AI Student<small>ОБРАЗОВАНИЕ</small></span></div>
-      <nav class="nav" aria-label="Разделы">
-        <button type="button" data-view="overview" class="active"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5c3-.9 5.7-.8 9 1.2 3.3-2 6-2.1 9-1.2v13c-3-.8-5.7-.7-9 1.3-3.3-2-6-2.1-9-1.3z"/><path d="M12 6.7v13.1"/></svg></span>Мои классы</button>
+      <button id="teacherNavToggle" class="secondary small-button" type="button" aria-expanded="false" aria-controls="teacherNav">Разделы</button>
+      <nav id="teacherNav" class="nav" aria-label="Разделы кабинета">
+        <button type="button" data-view="overview" class="active" aria-current="page"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5c3-.9 5.7-.8 9 1.2 3.3-2 6-2.1 9-1.2v13c-3-.8-5.7-.7-9 1.3-3.3-2-6-2.1-9-1.3z"/><path d="M12 6.7v13.1"/></svg></span>Мои классы</button>
         <button type="button" data-view="homework"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h9l3 3V20H6z"/><path d="M15 3.5v3h3"/><path d="m9 13 2 2 4-4"/></svg></span>Задания</button>
         <button type="button" data-view="lessons"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="15" rx="2"/><path d="M7 3v5M17 3v5M3.5 10h17"/></svg></span>Календарь</button>
-        <button type="button" data-coming="Доски"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="13" rx="2"/><path d="M9 20.5h6M12 17.5v3"/></svg></span>Доски</button>
-        <button type="button" data-coming="Чат"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a8 8 0 0 1-8 8c-1.6 0-2.8-.3-4.3-1.1L3 20l1.5-4.7A8 8 0 1 1 20 11.5z"/></svg></span>Чат</button>
+        <button type="button" data-coming="Доски" disabled title="Доски пока недоступны"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="13" rx="2"/><path d="M9 20.5h6M12 17.5v3"/></svg></span>Доски</button>
         <button type="button" data-view="library"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v11H3z"/></svg></span>Библиотека</button>
         <button type="button" data-view="students"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m2 9 10-5 10 5-10 5z"/><path d="M6 12.5v4c4 3 8 3 12 0v-4M21 9v7"/></svg></span>Ученики</button>
         <button type="button" data-view="invoices"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18M17 14h2"/></svg></span>Оплата</button>
@@ -333,7 +342,7 @@
       </nav>
       <div class="side-foot"><button id="logout" class="secondary small-button" type="button">Выйти</button></div>
     </aside>
-    <main>
+    <main id="teacherMain" tabindex="-1" aria-label="Содержимое кабинета">
       <div class="top">
         <div class="top-heading"><p class="eyebrow">Teacher AI Student</p><h1 id="viewTitle">Мои классы</h1><p id="viewSubtitle" class="subtitle"></p></div>
         <button id="refresh" class="secondary" type="button" title="Обновить данные">Обновить</button>
@@ -375,6 +384,8 @@
         const entry = document.querySelector('[data-coming="Доски"]');
         delete entry.dataset.coming;
         entry.dataset.view = 'boards';
+        entry.disabled = false;
+        entry.removeAttribute('title');
       }
       state.library = newLibraryState();
       const $ = id => document.getElementById(id);
@@ -420,6 +431,8 @@
         $('content').replaceChildren();
         $('app').hidden = true; $('loginScreen').hidden = false;
         $('loginError').textContent = message; $('loginError').hidden = !message;
+        $('teacherNavToggle').setAttribute('aria-expanded', 'false');
+        (message ? $('loginError') : $('loginForm').elements.workspace).focus();
       }
       async function api(path, { method = 'GET', body, token = state.token } = {}) {
         let response;
@@ -520,7 +533,12 @@
         if (view !== 'lessons') state.lessonPlan = null;
         if (view !== 'overview') state.scheduleEdit = null;
         if (view !== 'overview') { state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.groupCreate = false; state.lastClassInvitation = null; state.learningModal = false; state.classCreate = false; }
-        document.querySelectorAll('[data-view]').forEach(x => x.classList.toggle('active', x.dataset.view === view || (x.dataset.view === 'invoices' && view === 'subscriptions')));
+        document.querySelectorAll('[data-view]').forEach(button => {
+          const current = button.dataset.view === view || (button.dataset.view === 'invoices' && view === 'subscriptions');
+          button.classList.toggle('active', current);
+          if (current) button.setAttribute('aria-current', 'page');
+          else button.removeAttribute('aria-current');
+        });
         $('viewTitle').textContent = names[view][0]; $('viewSubtitle').textContent = names[view][1];
         return refresh();
       }
@@ -2212,7 +2230,9 @@
         state.library=newLibraryState();state.libraryStorageKey='tas:library-folder:'+session.workspaceId+':'+session.teacherId;
         try { state.library.folderId=sessionStorage.getItem(state.libraryStorageKey) || ''; } catch {}
         $('workspaceName').textContent = workspace; $('loginScreen').hidden = true; $('app').hidden = false;
-        return setView('overview');
+        const loading = setView('overview');
+        $('teacherMain').focus();
+        return loading;
       }
       function canLeaveStudentEdit() {
         const form=document.querySelector('#studentEditForm, [data-student-grade], #pupilFeedbackForm');
@@ -2293,7 +2313,7 @@
           const session = await api('teacher-sessions', { method: 'POST', token: '', body: { workspace, email: formValue(form, 'email'), password: form.elements.password.value } });
           form.elements.password.value = '';
           await enterSession(session, workspace);
-        } catch (error) { form.elements.password.value = ''; $('loginError').textContent = error.message; $('loginError').hidden = false; }
+        } catch (error) { form.elements.password.value = ''; $('loginError').textContent = error.message; $('loginError').hidden = false; $('loginError').focus(); }
         finally { setBusy(form, false); }
       });
       function setLoginMode(mode) {
@@ -2385,12 +2405,33 @@
         else return;
         updateBoardCards();
       });
-      document.querySelector('.nav').addEventListener('click', event => {
-        const coming = event.target.closest('[data-coming]');
-        if (coming) { showNotice('Раздел «' + coming.dataset.coming + '» будет подключён на своём этапе. Данные не изменены.'); return; }
-        const button = event.target.closest('[data-view]'); if(button?.dataset.view==='students' && state.view==='students' && state.studentCard) {if(!canLeaveStudentEdit()) return;state.studentCard=null;render();return;} if (button) {
-          if (button.dataset.view === 'boards') Object.assign(boardFilters, { search:'', classId:'', folderId:'', favorites:false });
-          setView(button.dataset.view);
+      const mobileNavToggle = $('teacherNavToggle');
+      mobileNavToggle.addEventListener('click', () => {
+        mobileNavToggle.setAttribute('aria-expanded', String(mobileNavToggle.getAttribute('aria-expanded') !== 'true'));
+      });
+      mobileNavToggle.closest('aside').addEventListener('keydown', event => {
+        if (event.key !== 'Escape' || !mobileNavToggle.getClientRects().length ||
+            mobileNavToggle.getAttribute('aria-expanded') !== 'true') return;
+        event.preventDefault();
+        mobileNavToggle.setAttribute('aria-expanded','false');
+        mobileNavToggle.focus();
+      });
+      $('teacherNav').addEventListener('click', event => {
+        const button = event.target.closest('[data-view]');
+        if (!button) return;
+        const view = button.dataset.view;
+        if (view === 'students' && state.view === 'students' && state.studentCard) {
+          if (!canLeaveStudentEdit()) return;
+          state.studentCard = null;
+          render();
+        } else {
+          if (view === 'boards') Object.assign(boardFilters, { search:'', classId:'', sort:'date', folderId:'', favorites:false });
+          setView(view);
+          if (state.view !== view) return;
+        }
+        if (mobileNavToggle.getClientRects().length) {
+          mobileNavToggle.setAttribute('aria-expanded','false');
+          $('teacherMain').focus();
         }
       });
       document.addEventListener('reset',event=>{if(event.target.matches('[data-student-grade]')) {if(event.target.querySelector('button[type="submit"]')?.disabled) event.preventDefault();else delete event.target.dataset.dirty;}});
