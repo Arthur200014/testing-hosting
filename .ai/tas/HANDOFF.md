@@ -1,12 +1,12 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** UI-06 lesson-board entry complete in isolated mode. Teacher opens the exact board, draws/undoes, reopens the persisted scene, and returns with focus to the same lesson. A second lesson has a separate scene. Production switch remains off.
-**ACTIVE_BRANCH:** none. [PR #91](https://github.com/Arthur200014/testing-hosting/pull/91) merged, tested head `b5a3d489b628601e5136cad07de49779f965b565`.
+**ACTIVE_TASK:** UI-06 lesson board catalog implemented. Scope: existing lesson boards, individual/group filters, search/sort, catalog-to-editor/lesson navigation. Browser acceptance pending in PR #92.
+**ACTIVE_BRANCH:** `tas/ui06-board-catalog`, [PR #92](https://github.com/Arthur200014/testing-hosting/pull/92), head `0cd646fe8a37e24b1d2d86492d88f9162c9b6412`.
 **MERGED_SHA:** `8b37d289840c77349400b864bb6b6ed1cb689530`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44284850953](https://github.com/Arthur200014/testing-hosting/actions/runs/44284850953) PASS. Published `platform/teacher.html` and `platform/lesson-board-ui.mjs` independently byte-match the merge. Board editor/relay remain isolated; production board live writes NOT_RUN.
 **API_DEPLOYMENT:** Owner-configured native Timeweb main auto-deploy; do not check Timeweb. Independent running revision/migrations UNKNOWN / NOT_VERIFIED; production board writes NOT_RUN in approved isolated-only mode. No production schema/config/writer switch in this prototype.
-**NEXT_ACTION:** Continue UI-06 with the board catalog (reference 64) and its class/lesson associations. Reference 65 is the board workspace; 51–52 are messenger screens and are a separate scenario. Keep board access and scene storage isolated for the next development checks until a production integration is ready.
+**NEXT_ACTION:** Finish catalog CI acceptance with isolated Chromium/API/PostgreSQL and publish PR #92 with the board gate off on production. Then continue UI-06 with independent board records; this catalog uses existing lesson scenes.
 
 ## UI-06 lesson board verification
 
