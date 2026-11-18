@@ -1,12 +1,12 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** Board prototype acceptance COMPLETE: GO for isolated 21-editor single-room and 40-editor two-room profiles. Owner replaced the failed210 target with40;210 capacity remains NOT_VERIFIED. UI-06 integration is the next separate scenario.
-**ACTIVE_BRANCH:** none; [PR #90](https://github.com/Arthur200014/testing-hosting/pull/90) merged, tested head `271a691bb671e4af3e4631b83218a44dad88d637`.
+**ACTIVE_TASK:** UI-06 lesson board entry implemented behind the isolated feature gate. Chromium/API/PostgreSQL acceptance is pending in PR #91. Previous isolated 21/40 acceptance remains PASS.
+**ACTIVE_BRANCH:** `tas/ui06-lesson-board`, [draft PR #91](https://github.com/Arthur200014/testing-hosting/pull/91), head `41b923212cebdcb9720622d7bc8c702b5b7d32d6`.
 **MERGED_SHA:** `defcdb5f4b3ebbddcb55abeff654047feea88ba0`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages44190117603](https://github.com/Arthur200014/testing-hosting/actions/runs/44190117603) PASS at the merge SHA. Independent readonly check: actual teacher.html, teacher-data.mjs, student-card.mjs, pupil-history.mjs, pupil-feedback.mjs and teacher-report.mjs all byte-match this SHA. Prototype is disabled by default, forbidden in Production and absent from working lesson navigation; no new service or production board enablement.
 **API_DEPLOYMENT:** Owner-configured native Timeweb main auto-deploy; do not check Timeweb. Independent running revision/migrations UNKNOWN / NOT_VERIFIED; production board writes NOT_RUN in approved isolated-only mode. No production schema/config/writer switch in this prototype.
-**NEXT_ACTION:** Resume UI-06 / RELEASE_PLAN frames51–52: class/lesson → exact own board → edit/undo → reload/re-enter → original context. Implement integration as a separate disabled-feature scenario with isolated synthetic API/PostgreSQL checks. Do not rerun the completed prototype load tests or restart component research without a relevant code change/failure.
+**NEXT_ACTION:** Finish PR #91 acceptance. Test class → lesson → authorized board → draw/undo → reopen with persistence → return to same lesson and separate board for another lesson, using existing Chromium/API/PostgreSQL runner. Local JS/shell syntax, scope 13/13 and diff PASS. After required green checks merge/publish with production flag off. Boards reference is 64–65 in the screen index; 51–52 are messenger screens.
 
 ## Acceptance evidence
 
