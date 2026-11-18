@@ -1,17 +1,16 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** UI-07 workspace access published. The owner manages teacher members, creates or cancels one-time invitations, and revokes access. Invite acceptance establishes a teacher membership. Revocation closes sessions for that workspace and a fresh grant does not revive them.
-**ACTIVE_BRANCH:** none. [PR #100](https://github.com/Arthur200014/testing-hosting/pull/100) merged.
-**MERGED_SHA:** `6e2f3c98144db3a627bc809d3b0936c34e42d4bb`.
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44382095436) and [published file comparison](https://github.com/Arthur200014/testing-hosting/actions/runs/44382500784) PASS. Public teacher.html and teacher-data.mjs match the release.
-**API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. [Read-only health](https://github.com/Arthur200014/testing-hosting/actions/runs/44382500486) PASS. Running API revision NOT_VERIFIED. Authenticated live write acceptance NOT_RUN because no dedicated live synthetic workspace with known test credentials is confirmed. No codes or notices were sent externally.
-**NEXT_ACTION:** Continue UI-07 with authenticated password change in profile and safe session revocation. Real tariff data remains pending approved plan details. Board editor settings and presets (66–68) remain deferred. Keep load-40 manual.
+**ACTIVE_TASK:** UI-07 teacher password change and account-wide session revocation. Implemented; release verification in progress.
+**ACTIVE_BRANCH:** `tas/ui07-password-change` / [PR #101](https://github.com/Arthur200014/testing-hosting/pull/101) / `3a83fd8cf16660d27ae4f920938f656128cf7ae0`.
+**RELEASE_STATE:** PR open. .NET build, teacher-data (9/9), JavaScript syntax, diff PASS. Isolated Chromium/API/PostgreSQL and branch CI pending. No new application version published.
+**PREVIOUS_RELEASE:** [PR #100](https://github.com/Arthur200014/testing-hosting/pull/100), `6e2f3c98144db3a627bc809d3b0936c34e42d4bb`. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44382095436), [published file comparison](https://github.com/Arthur200014/testing-hosting/actions/runs/44382500784), and [read-only API health](https://github.com/Arthur200014/testing-hosting/actions/runs/44382500486) PASS. Running API revision UNKNOWN. Workspace access endpoint rejects anonymous calls. LIVE_WRITE_NOT_RUN: no confirmed dedicated live synthetic workspace with known test access.
+**NEXT_ACTION:** Verify isolated browser acceptance and required checks for PR #101, merge, verify Pages/API and attempt live acceptance only with a designated test workspace. Real tariff data remains pending approved plan details. Settings and presets (66–68) remain deferred. Keep load-40 manual.
 
 ## UI-07 workspace access verification
 
 - [Isolated Chromium/API/PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44379734839) PASS. Verified issuance and acceptance, email binding, reuse/cancel rejection, teacher entry and ordinary data access, owner-only management and cross-workspace denial, confirmation cancel, access revocation and regrant without reviving the old session. Inspected the synthetic roster capture at 1348 × 926.
-- [Post-merge PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44382096052) PASS, including migration/startup. [Redundant post-merge browser rerun](https://github.com/Arthur200014/testing-hosting/actions/runs/44382096101) in progress at handoff. JS syntax, teacher-data 9/9 and diff PASS. No manual 40-editor run.
+- [Post-merge PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44382096052) PASS, including migration/startup. [Redundant post-merge browser rerun](https://github.com/Arthur200014/testing-hosting/actions/runs/44382096101) PASS. JS syntax, teacher-data 9/9 and diff PASS. No manual 40-editor run.
 - Codes expire after 48 hours and are stored as hashes. The owner passes a code privately to the intended recipient. Renewed access requires a fresh invitation. Ownership transfer and new account types are outside this delivery.
 
 
