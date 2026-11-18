@@ -13,7 +13,7 @@ public static class BoardPrototypeEndpoints
 {
     public sealed record AccessRequest(string? Token);
     private sealed record Permit(string workspace, string board, string user, string role, string aud,
-        long iat, long exp, string jti, string member, string authRole, string session, string workspaceRole, Guid lesson);
+        long iat, long exp, string jti, string member, string authRole, string session, string workspaceRole, Guid lesson, Guid? independentBoard = null);
 
     public static void Map(WebApplication app)
     {
@@ -39,21 +39,32 @@ public static class BoardPrototypeEndpoints
                 {
                     http.Response.Headers.CacheControl = "no-store";
                     if (!await CanAccess(principal, policy, lessonId, db, ct)) return Results.NotFound();
-                    var now = clock.GetUtcNow().ToUnixTimeSeconds();
-                    if (!long.TryParse(principal.FindFirstValue("exp"), out var authExpiry) || authExpiry <= now) return Results.Unauthorized();
-                    var workspace = Guid.Parse(principal.FindFirstValue("workspace_id")!);
-                    var user = Guid.Parse(principal.FindFirstValue("sub")!);
-                    var claims = new Permit(workspace.ToString("N"), "lesson-" + lessonId.ToString("N"), user.ToString("N"),
-                        "editor", "tas-board-prototype", now, Math.Min(now + lifetime, authExpiry), Guid.NewGuid().ToString("N"),
-                        principal.FindFirstValue("membership_id")!, policy, principal.FindFirstValue("jti") ?? "",
-                        principal.FindFirstValue("workspace_role") ?? "", lessonId);
-                    var body = Base64Url(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(claims)));
-                    var token = body + "." + Base64Url(HMACSHA256.HashData(key, Encoding.UTF8.GetBytes(body)));
-                    // Stable, domain-separated per-workspace/lesson key. Never put it in the permit/relay.
-                    var context = Encoding.UTF8.GetBytes("tas-board-scene:v1\n" + claims.workspace + "\n" + claims.board);
-                    var sceneKey = Convert.ToBase64String(HMACSHA256.HashData(sceneRoot, context));
-                    return Results.Ok(new { token, claims.workspace, claims.board, expiresAt = claims.exp, sceneKey, keyVersion = 1 });
+                    return Issue(principal, policy, lessonId, null, clock);
                 }).RequireAuthorization(policy);
+        }
+        IndependentBoardEndpoints.Map(app,
+            async (Guid boardId, ClaimsPrincipal principal, PlatformDbContext db, TimeProvider clock, HttpContext http, CancellationToken ct) =>
+            {
+                http.Response.Headers.CacheControl = "no-store";
+                if (!await IndependentBoardEndpoints.OwnsAsync(principal, boardId, db, ct)) return Results.NotFound();
+                return Issue(principal, "teacher", Guid.Empty, boardId, clock);
+            });
+        IResult Issue(ClaimsPrincipal principal, string policy, Guid lessonId, Guid? boardId, TimeProvider clock)
+        {
+            var now = clock.GetUtcNow().ToUnixTimeSeconds();
+            if (!long.TryParse(principal.FindFirstValue("exp"), out var authExpiry) || authExpiry <= now) return Results.Unauthorized();
+            var workspace = Guid.Parse(principal.FindFirstValue("workspace_id")!);
+            var user = Guid.Parse(principal.FindFirstValue("sub")!);
+            var room = boardId.HasValue ? "board-" + boardId.Value.ToString("N") : "lesson-" + lessonId.ToString("N");
+            var claims = new Permit(workspace.ToString("N"), room, user.ToString("N"),
+                "editor", "tas-board-prototype", now, Math.Min(now + lifetime, authExpiry), Guid.NewGuid().ToString("N"),
+                principal.FindFirstValue("membership_id")!, policy, principal.FindFirstValue("jti") ?? "",
+                principal.FindFirstValue("workspace_role") ?? "", lessonId, boardId);
+            var body = Base64Url(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(claims)));
+            var token = body + "." + Base64Url(HMACSHA256.HashData(key, Encoding.UTF8.GetBytes(body)));
+            var context = Encoding.UTF8.GetBytes("tas-board-scene:v1\n" + claims.workspace + "\n" + claims.board);
+            var sceneKey = Convert.ToBase64String(HMACSHA256.HashData(sceneRoot, context));
+            return Results.Ok(new { token, claims.workspace, claims.board, expiresAt = claims.exp, sceneKey, keyVersion = 1 });
         }
         // A valid room permit is the credential here, never an API JWT or a key in a URL.
         // Feature/environment guards above apply to this route too. Nothing is cached.
@@ -69,7 +80,9 @@ public static class BoardPrototypeEndpoints
                 new Claim("jti", permit.session), new Claim("workspace_role", permit.workspaceRole)
             }, "board-permit"));
             if (!(await authorization.AuthorizeAsync(principal, null, permit.authRole)).Succeeded
-                || !await CanAccess(principal, permit.authRole, permit.lesson, db, ct)) return Results.NotFound();
+                || !(permit.independentBoard is Guid board
+                    ? await IndependentBoardEndpoints.OwnsAsync(principal, board, db, ct)
+                    : await CanAccess(principal, permit.authRole, permit.lesson, db, ct))) return Results.NotFound();
             return Results.NoContent();
         });
     }
@@ -87,7 +100,10 @@ public static class BoardPrototypeEndpoints
                 || c.session is null || c.workspaceRole is null
                 || c.authRole is not ("teacher" or "student") || c.iat > now || c.exp <= now || c.exp <= c.iat || c.exp - c.iat > 120
                 || !Guid.TryParse(c.workspace, out _) || !Guid.TryParse(c.user, out _) || !Guid.TryParse(c.member, out _)
-                || !Guid.TryParse(c.jti, out _) || c.lesson == Guid.Empty || c.board != "lesson-" + c.lesson.ToString("N")
+                || !Guid.TryParse(c.jti, out _)
+                || (c.independentBoard is Guid board
+                    ? board == Guid.Empty || c.lesson != Guid.Empty || c.authRole != "teacher" || c.board != "board-" + board.ToString("N")
+                    : c.lesson == Guid.Empty || c.board != "lesson-" + c.lesson.ToString("N"))
                 || (c.authRole == "teacher" && !Guid.TryParse(c.session, out _))) return null;
             return c;
         }

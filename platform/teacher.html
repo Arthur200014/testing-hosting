@@ -359,6 +359,7 @@
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
       const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, studentCard:null, studentSearch:'', editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', topicFilter: 'all', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', groupEdit: '', groupCreate: false, lastClassInvitation: null, learningModal: false, classCreate: false, lessonPlan: null, scheduleEdit: null, calendarDate: calendarDay(), calendarMode: 'day', periodPreview: null };
       const lessonBoard = createLessonBoard(API, () => state.token);
+      let boardSettings;
       const boardFilters = { search:'', classId:'', sort:'date' };
       if (lessonBoard.enabled) {
         const entry = document.querySelector('[data-coming="Доски"]');
@@ -386,6 +387,7 @@
       }
       function logout(message = '') {
         lessonBoard.close();
+        boardSettings?.close();
         Object.assign(boardFilters, { search:'', classId:'', sort:'date' });
         state.library=newLibraryState();state.libraryStorageKey='';state.fileUpload=null;
         state.resultDraft=null;state.studentCard=null;state.studentSearch='';
@@ -437,7 +439,7 @@
         const selectedLessonDetail = view === 'overview' && !!state.selectedClass && !!state.selectedLesson;
         const selectedProgramClass = view === 'overview' && state.selectedClass && state.classDetailTab === 'program' &&
           teacherClasses().some(item => item.id === state.selectedClass && item.persistent);
-        const extra = selectedStudentCard ? ['classes','groups','lessons',...(state.studentCard.tab==='feedback'?[pupilFeedbackKey(state.studentCard)]:[]),...(['tasks','results'].includes(state.studentCard.tab)?[studentHomeworkKey(state.studentCard)]:[])] : selectedLessonDetail ? ['recordings','materials','lessonMaterialLinks','classTopics','topicMaterialLinks','topicTaskLinks','lessonTopicSets','programs','nativeTasks',contextHomeworkKey(teacherClasses().find(x=>x.id===state.selectedClass),(state.data.lessons || []).find(x=>x.id===state.selectedLesson))] :
+        const extra = selectedStudentCard ? ['classes','groups','lessons',...(state.studentCard.tab==='feedback'?[pupilFeedbackKey(state.studentCard)]:[]),...(['tasks','results'].includes(state.studentCard.tab)?[studentHomeworkKey(state.studentCard)]:[])] : selectedLessonDetail ? [...(lessonBoard.enabled ? ['boardRecords'] : []),'recordings','materials','lessonMaterialLinks','classTopics','topicMaterialLinks','topicTaskLinks','lessonTopicSets','programs','nativeTasks',contextHomeworkKey(teacherClasses().find(x=>x.id===state.selectedClass),(state.data.lessons || []).find(x=>x.id===state.selectedLesson))] :
           selectedProgramClass ? ['classTopics','topicMaterialLinks','materials','topicTaskLinks','nativeTasks','lessonTopicSets'] :
           selectedMaterialClass ? ['materials','classMaterialLinks'] :
           classTasks ? ['programs','nativeTasks',contextHomeworkKey(teacherClasses().find(x=>x.id===state.selectedClass))] :
@@ -787,16 +789,86 @@
         }
         return `<section class="stack" aria-label="Каталог досок">
           <div class="card row">
+            <button type="button" class="primary" data-create-independent-board>Новая доска</button>
             <label>Поиск<input type="search" data-board-search value="${safe(boardFilters.search)}" placeholder="Занятие или класс"></label>
             <label>Класс<select data-board-class><option value="">Все классы</option>${classes.map(([id,title]) =>
               `<option value="${safe(id)}" ${id === boardFilters.classId ? 'selected' : ''}>${safe(title)}</option>`).join('')}</select></label>
-            <label>Сортировка<select data-board-sort><option value="date">По дате занятия</option>
+            <label>Сортировка<select data-board-sort><option value="date">По дате</option>
             <option value="title" ${boardFilters.sort === 'title' ? 'selected' : ''}>По названию</option></select></label>
           </div>
           <div data-board-cards style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px">
             ${renderBoardCards(entries, boardFilters, safe, date)}
           </div>
         </section>`;
+      }
+      function openBoardSettings(record) {
+        if (boardSettings?.open) return;
+        const classes = teacherClasses().filter(item => item.persistent && !item.isArchived);
+        const lessons = (state.data.lessons || []).filter(item => {
+          const classId = item.groupClassId || item.individualClassId;
+          return !classId || classes.some(c => c.id === classId);
+        });
+        const initialClass = record ? record.groupClassId || record.individualClassId || '' : boardFilters.classId;
+        const dialog = document.createElement('dialog');
+        boardSettings = dialog;
+        dialog.className = 'card';
+        dialog.setAttribute('aria-label', record ? 'Настройки доски' : 'Новая доска');
+        dialog.innerHTML = `<form class="stack">
+          <label>Название<input name="title" required maxlength="120" value="${safe(record?.title || '')}"></label>
+          <label>Класс<select name="classId"><option value="">Без класса</option>${options(classes, 'id', x => x.title)}</select></label>
+          <label>Занятие<select name="lessonId"><option value="">Без занятия</option>${options(lessons, 'id', x => (x.title || 'Занятие') + ' · ' + date(x.lessonAt))}</select></label>
+          <p data-board-error role="alert" hidden></p>
+          <div class="row"><button type="submit" class="primary">Сохранить</button>
+          <button type="button" class="secondary" data-cancel-board>Отмена</button></div>
+        </form>`;
+        const form = dialog.querySelector('form');
+        const classSelect = form.elements.classId, lessonSelect = form.elements.lessonId;
+        classSelect.value = initialClass || '';
+        if (!classSelect.value) classSelect.value = '';
+        lessonSelect.value = record?.lessonId || '';
+        if (!lessonSelect.value) lessonSelect.value = '';
+        const syncLessons = () => {
+          for (const option of lessonSelect.options) {
+            const lesson = lessons.find(item => item.id === option.value);
+            option.hidden = option.disabled = !!(lesson && classSelect.value &&
+              classSelect.value !== (lesson.groupClassId || lesson.individualClassId));
+          }
+          if (lessonSelect.selectedOptions[0]?.disabled) lessonSelect.value = '';
+        };
+        syncLessons();
+        classSelect.addEventListener('change', syncLessons);
+        form.querySelector('[data-cancel-board]').addEventListener('click', () => dialog.close());
+        const boardId = record?.id || crypto.randomUUID();
+        const submit = form.querySelector('[type="submit"]');
+        dialog.addEventListener('cancel', event => { if (submit.disabled) event.preventDefault(); });
+        dialog.addEventListener('close', () => { dialog.remove(); if (boardSettings === dialog) boardSettings = null; }, {once:true});
+        form.addEventListener('submit', async event => {
+          event.preventDefault();
+          if (submit.disabled) return;
+          const token = state.token;
+          const chosen = classes.find(item => item.id === classSelect.value);
+          const error = form.querySelector('[data-board-error]');
+          submit.disabled = form.querySelector('[data-cancel-board]').disabled = true;
+          error.hidden = true;
+          try {
+            const saved = await api('teacher/board-prototype/boards/' + boardId, {
+              method:'PUT', token, body:{ title:form.elements.title.value,
+                individualClassId:chosen && chosen.kind !== 'group' ? chosen.id : null,
+                groupClassId:chosen?.kind === 'group' ? chosen.id : null,
+                lessonId:lessonSelect.value || null }
+            });
+            if (state.token !== token) return;
+            dialog.close();
+            Object.assign(boardFilters, { search:'', classId:saved.groupClassId || saved.individualClassId || '' });
+            invalidate(['boardRecords']);
+            await refresh();
+          } catch (e) {
+            error.textContent = e.message;
+            error.hidden = false;
+          } finally { submit.disabled = form.querySelector('[data-cancel-board]').disabled = false; }
+        });
+        document.body.append(dialog);
+        dialog.showModal();
       }
       function updateBoardCards() {
         const cards = document.querySelector('[data-board-cards]');
@@ -817,7 +889,10 @@
             ${renderLessonTopics(lesson, item, state.data, safe, list)}
             ${renderLessonMaterials(lesson, state.data, item.isArchived, safe, list)}
             ${renderContextHomework(item,state.data,safe,date,list,nativeGradeControls,lesson)}
-          </div><aside class="lesson-detail-side"><section class="card stack"><button type="button" class="primary" data-open-lesson-board="${safe(lesson.id)}" ${lessonBoard.enabled && !item.isArchived ? '' : 'disabled title="Доска занятия пока недоступна"'}>Перейти к доске</button></section>
+          </div><aside class="lesson-detail-side"><section class="card stack"><button type="button" class="primary" data-open-lesson-board="${safe(lesson.id)}" ${lessonBoard.enabled && !item.isArchived ? '' : 'disabled title="Доска занятия пока недоступна"'}>Перейти к доске</button>
+            ${lessonBoard.enabled && !item.isArchived ? (state.data.boardRecords || []).filter(board => board.lessonId === lesson.id)
+              .map(board => `<button type="button" class="secondary" data-open-independent-board="${safe(board.id)}">${safe(board.title)}</button>`).join('') : ''}
+          </section>
             <section class="card stack"><div class="section-head"><h2>Участники</h2><button type="button" class="secondary" data-edit-lesson="${safe(lesson.id)}">Посещаемость и завершение</button></div>
               ${participants.map(p=>`<div class="item" data-lesson-participant="${safe(p.membershipId)}"><div><button type="button" class="class-text-link" data-open-student="${safe(p.membershipId)}">${safe(studentName(p.membershipId))}</button><small>${safe(labels[p.attendanceStatus] || p.attendanceStatus)} · ${p.durationMinutes} мин</small>
                 ${p.reaction?`<p data-student-reaction>${safe({positive:'😊',neutral:'😐',negative:'🙁'}[p.reaction] || p.reaction)}</p>`:''}${p.feedback?`<p data-student-feedback>${safe(p.feedback)}</p>`:''}</div>
@@ -1697,6 +1772,7 @@
           }))
         }));
         const focusedBoardLesson = document.activeElement?.dataset.openLessonBoard;
+        const focusedIndependentBoard = document.activeElement?.dataset.openIndependentBoard;
         const calendarDialogWasOpen=!!document.getElementById('calendarLessonDialog');
         document.body.classList.toggle('calendar-plan-open',state.view==='lessons' && !!state.lessonPlan?.fromCalendar);
         if (state.view !== 'overview') {
@@ -1720,6 +1796,7 @@
           if(draft.revision!==undefined) form.dataset.revision=draft.revision;
           if(form.matches('[data-context-assign]')) updateGroupAssignmentChoices(form,state.data);
         }
+        if (focusedIndependentBoard) document.querySelector(`[data-open-independent-board="${CSS.escape(focusedIndependentBoard)}"]`)?.focus();
         if (focusedBoardLesson) document.querySelector(`[data-open-lesson-board="${CSS.escape(focusedBoardLesson)}"]`)?.focus();
         if (state.view === 'students') studentRows();
         if (!calendarDialogWasOpen) document.querySelector('#calendarLessonDialog [name="title"]')?.focus();
@@ -2025,6 +2102,26 @@
       });
       $('content').addEventListener('click', async event => {
         const boardButton = event.target.closest('[data-open-lesson-board]');
+        if (lessonBoard.enabled && state.view === 'overview' && state.selectedLesson) {
+          const target = event.target.closest('[data-open-independent-board]');
+          if (target && (state.data.boardRecords || []).some(board =>
+              board.id === target.dataset.openIndependentBoard && board.lessonId === state.selectedLesson)) {
+            lessonBoard.open(target.dataset.openIndependentBoard, 'Назад к занятию', true);
+            return;
+          }
+        }
+        if (lessonBoard.enabled && state.view === 'boards') {
+          const openBoard = event.target.closest('[data-open-independent-board]');
+          const editBoard = event.target.closest('[data-edit-independent-board]');
+          const createBoard = event.target.closest('[data-create-independent-board]');
+          if (openBoard || editBoard || createBoard) {
+            const record = (state.data.boardRecords || []).find(item => item.id ===
+              (openBoard?.dataset.openIndependentBoard || editBoard?.dataset.editIndependentBoard));
+            if (openBoard && record) lessonBoard.open(record.id, 'Назад к доскам', true);
+            if ((editBoard && record) || createBoard) openBoardSettings(record);
+            return;
+          }
+        }
         const catalog = event.target.closest('[data-class-board-catalog]');
         if (catalog && lessonBoard.enabled) {
           Object.assign(boardFilters, { search:'', classId:catalog.dataset.classBoardCatalog });

@@ -16,7 +16,7 @@ export function createLessonBoard(apiBase, accessToken) {
     dialog = undefined;
   }
 
-  function open(lessonId, backLabel = 'Назад к занятию') {
+  function open(lessonId, backLabel = 'Назад к занятию', independent = false) {
     if (!enabled || dialog || !accessToken() || !lessonId) return;
     dialog = document.createElement('dialog');
     dialog.setAttribute('aria-label', 'Доска занятия');
@@ -35,7 +35,7 @@ export function createLessonBoard(apiBase, accessToken) {
       if (frame.contentDocument?.URL !== new URL('/', location.origin).href) return;
       frame.contentWindow.postMessage({
         type:'tas:open-lesson-board', relay,
-        session:{ apiBase, accessToken:accessToken(), role:'teacher', lessonId }
+        session:{ apiBase, accessToken:accessToken(), role:'teacher', ...(independent ? {boardId:lessonId} : {lessonId}) }
       }, location.origin);
     });
 
@@ -44,7 +44,7 @@ export function createLessonBoard(apiBase, accessToken) {
       if (status && !['Сохранено', 'Загрузка доски', 'Нет доступа к занятию'].includes(status) &&
           !window.confirm('На доске могут быть несохранённые правки. Закрыть доску?')) return;
       close();
-      document.querySelector(`[data-open-lesson-board="${CSS.escape(lessonId)}"]`)?.focus();
+      document.querySelector(`[data-open-${independent ? 'independent' : 'lesson'}-board="${CSS.escape(lessonId)}"]`)?.focus();
     };
     back.addEventListener('click', requestClose);
     dialog.addEventListener('cancel', event => {
