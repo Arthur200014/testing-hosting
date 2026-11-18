@@ -271,9 +271,9 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       await card().getByRole('button',{name:'Доступ',exact:true}).click();
       const accessDialog = p.getByRole('dialog',{name:'Доступ к доске'});
       const memberSwitch = accessDialog.locator('[data-board-member="'+member+'"]');
-      await memberSwitch.check();
+      await memberSwitch.selectOption('editor');
       await p.waitForFunction(id=>!document.querySelector('[data-board-member="'+id+'"]')?.disabled,member);
-      assert.deepEqual(await call(rosterPath,north.token),[member]);
+      assert.deepEqual(await call(rosterPath,north.token),[{membershipId:member,role:'editor'}]);
       assert.ok((await call(studentPath,studentToken)).some(x=>x.id===boardId));
       await call(studentPath+'/'+boardId+'/permit',learners[1].accessToken,{},404);
       const pupil = await cabinet.newPage();
@@ -293,19 +293,43 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       await pupil.mouse.up();
       await count(pupilFrame,2);
       await saved(pupilFrame);
+      await pupil.getByRole('button',{name:'Назад к доскам'}).click();
       const oldPermit = await call(studentPath+'/'+boardId+'/permit',studentToken,{});
       await call('board-prototype/access',null,{token:oldPermit.token},204);
-      await memberSwitch.uncheck();
+      await memberSwitch.selectOption('');
       await p.waitForFunction(id=>!document.querySelector('[data-board-member="'+id+'"]')?.disabled,member);
       await call('board-prototype/access',null,{token:oldPermit.token},404);
       await call(studentPath+'/'+boardId+'/permit',studentToken,{},404);
       assert.ok(!(await call(studentPath,studentToken)).some(x=>x.id===boardId));
-      await memberSwitch.check();
+      await memberSwitch.selectOption('editor');
       await p.waitForFunction(id=>!document.querySelector('[data-board-member="'+id+'"]')?.disabled,member);
       await call('board-prototype/access',null,{token:oldPermit.token},404);
       const reissued = await call(studentPath+'/'+boardId+'/permit',studentToken,{});
       await call('board-prototype/access',null,{token:reissued.token},204);
-      await memberSwitch.uncheck();
+      await memberSwitch.selectOption('viewer');
+      await p.waitForFunction(id=>!document.querySelector('[data-board-member="'+id+'"]')?.disabled,member);
+      assert.deepEqual(await call(rosterPath,north.token),[{membershipId:member,role:'viewer'}]);
+      await call('board-prototype/access',null,{token:reissued.token},404);
+      const viewer = await call(studentPath+'/'+boardId+'/permit',studentToken,{});
+      assert.equal(viewer.role,'viewer');
+      assert.equal(viewer.sceneKey,independentPermit.sceneKey);
+      await call('board-prototype/access',null,{token:viewer.token},204);
+      await pupil.getByRole('button',{name:'Обновить доски'}).click();
+      await pupil.locator('#studentBoardList').getByText('Только просмотр',{exact:false}).waitFor();
+      await pupil.getByRole('button',{name:title,exact:true}).click();
+      const viewerEditor = pupil.frameLocator('dialog iframe');
+      await viewerEditor.getByTestId('board-read-only').waitFor();
+      await viewerEditor.locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
+      assert.ok(await viewerEditor.getByTestId('board-file').isDisabled());
+      const viewerFrame = pupil.frames().find(f=>f.parentFrame()===pupil.mainFrame());
+      await count(viewerFrame,2);
+      await pupil.getByRole('button',{name:'Назад к доскам'}).click();
+      await memberSwitch.selectOption('editor');
+      await p.waitForFunction(id=>!document.querySelector('[data-board-member="'+id+'"]')?.disabled,member);
+      await call('board-prototype/access',null,{token:viewer.token},404);
+      const restoredEditor = await call(studentPath+'/'+boardId+'/permit',studentToken,{});
+      assert.equal(restoredEditor.role,'editor');
+      await memberSwitch.selectOption('');
       await p.waitForFunction(id=>!document.querySelector('[data-board-member="'+id+'"]')?.disabled,member);
       await pupil.close();
       await accessDialog.getByRole('button',{name:'Закрыть'}).click();
@@ -313,7 +337,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       await p.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
       await count(frame(),2);
       await p.getByRole('button',{name:'Назад к доскам'}).click();
-      console.log('PASS: explicit board grant, student cabinet edit, persistent shared scene, revoke and regrant isolation');
+      console.log('PASS: explicit board grant, student cabinet edit, persistent shared scene, revoke, regrant and viewer/editor role transitions');
 
 
 

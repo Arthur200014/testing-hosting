@@ -6,7 +6,9 @@ namespace TestingHosting.Platform.Boards;
 
 internal static class IndependentBoardSharing
 {
-    public sealed record SharedBoard(Guid BoardId, string Title, Guid GrantId);
+    public sealed record SharedBoard(Guid BoardId, string Title, Guid GrantId, string Role);
+    public sealed record GrantRow(Guid MembershipId, string Role);
+    public sealed record GrantInput(string? Role);
 
     public static void Map(WebApplication app, Delegate permit)
     {
@@ -14,23 +16,27 @@ internal static class IndependentBoardSharing
         roster.MapGet("", async (Guid boardId, ClaimsPrincipal principal, PlatformDbContext db, CancellationToken ct) =>
         {
             if (!await IndependentBoardEndpoints.OwnsAsync(principal, boardId, db, ct)) return Results.NotFound();
-            return Results.Ok(await db.Database.SqlQuery<Guid>($"""
-                SELECT g."MembershipId" AS "Value" FROM platform."IndependentBoardGrants" g
+            return Results.Ok(await db.Database.SqlQuery<GrantRow>($"""
+                SELECT g."MembershipId", g."Role" FROM platform."IndependentBoardGrants" g
                 WHERE g."BoardId"={boardId}
                 """).ToListAsync(ct));
         });
 
-        roster.MapPut("/{membershipId:guid}", async (Guid boardId, Guid membershipId, ClaimsPrincipal principal,
+        roster.MapPut("/{membershipId:guid}", async (Guid boardId, Guid membershipId, GrantInput? input, ClaimsPrincipal principal,
             PlatformDbContext db, CancellationToken ct) =>
         {
             if (!await IndependentBoardEndpoints.OwnsAsync(principal, boardId, db, ct)) return Results.NotFound();
+            var role = input?.Role ?? "editor";
+            if (role is not ("editor" or "viewer")) return Results.BadRequest();
             var workspace = Guid.Parse(principal.FindFirstValue("workspace_id")!);
             if (!await db.WorkspaceStudentMemberships.AnyAsync(x => x.Id == membershipId && x.WorkspaceId == workspace && x.IsActive, ct))
                 return Results.NotFound();
             await db.Database.ExecuteSqlInterpolatedAsync($"""
-                INSERT INTO platform."IndependentBoardGrants" ("BoardId","MembershipId","GrantId")
-                VALUES ({boardId},{membershipId},{Guid.NewGuid()})
-                ON CONFLICT ("BoardId","MembershipId") DO NOTHING
+                INSERT INTO platform."IndependentBoardGrants" AS g ("BoardId","MembershipId","GrantId","Role")
+                VALUES ({boardId},{membershipId},{Guid.NewGuid()},{role})
+                ON CONFLICT ("BoardId","MembershipId") DO UPDATE
+                    SET "Role"=EXCLUDED."Role", "GrantId"=EXCLUDED."GrantId"
+                    WHERE g."Role" <> EXCLUDED."Role"
                 """, ct);
             return Results.NoContent();
         });
@@ -50,7 +56,7 @@ internal static class IndependentBoardSharing
         {
             http.Response.Headers.CacheControl = "no-store";
             var boards = await Granted(db, principal).OrderBy(x => x.Title).ThenBy(x => x.BoardId)
-                .Select(x => new { id = x.BoardId, x.Title }).ToListAsync(ct);
+                .Select(x => new { id = x.BoardId, x.Title, x.Role }).ToListAsync(ct);
             return Results.Ok(boards);
         });
         student.MapPost("/{boardId:guid}/permit", permit);
@@ -62,7 +68,7 @@ internal static class IndependentBoardSharing
         Guid.TryParse(principal.FindFirstValue("membership_id"), out var membership);
         Guid.TryParse(principal.FindFirstValue("sub"), out var student);
         return db.Database.SqlQuery<SharedBoard>($"""
-            SELECT b."Id" AS "BoardId", b."Title", g."GrantId"
+            SELECT b."Id" AS "BoardId", b."Title", g."GrantId", g."Role"
             FROM platform."IndependentBoards" b
             JOIN platform."IndependentBoardGrants" g ON g."BoardId"=b."Id"
             JOIN platform."WorkspaceStudentMemberships" m ON m."Id"=g."MembershipId" AND m."WorkspaceId"=b."WorkspaceId"

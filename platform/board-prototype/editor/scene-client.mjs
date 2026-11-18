@@ -14,7 +14,7 @@ export async function lessonPermit({apiBase,lessonId,boardId,accessToken,role}){
   const r=await fetch(`${u.origin}/api/v1/${role}/board-prototype/${boardId ? 'boards' : 'lessons'}/${target}/permit`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`},cache:'no-store',signal:AbortSignal.timeout(5000),redirect:'error'});
   if(!r.ok){const e=new Error([401,403,404].includes(r.status)?'Доступ к занятию отозван':'API временно недоступен');e.denied=[401,403,404].includes(r.status);throw e;}return r.json();
 }
-export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcileScene,CaptureUpdateAction,convertToExcalidrawElements,renewPermit,status,onReady=()=>{},onAttachments=()=>{},onApplied=()=>{}}){
+export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcileScene,CaptureUpdateAction,convertToExcalidrawElements,renewPermit,status,onReady=()=>{},onRoleInvalidated=()=>{},onAttachments=()=>{},onApplied=()=>{}}){
   if(!['127.0.0.1','localhost'].includes(new URL(url).hostname))throw new Error('Isolated room required');
   const raw=bytes(sceneKey);if(raw.byteLength!==32)throw new Error('A valid scene key is required');
   const key=crypto.subtle.importKey('raw',raw,'AES-GCM',false,['encrypt','decrypt']);
@@ -23,6 +23,7 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcil
   const uploads=new Map(),confirmed=new Set(),files=new Map(),attached=new Map(),pendingAttachments=new Set(),newImages=new Set(),decodedImages=new Set();
   let durableElements=[],checkpointTask,checkpointPayload;const durableAttachments=new Set();
   const checkpointAAD=base=>new TextEncoder().encode(`tas-board-checkpoint:v1:${permit.workspace}:${permit.board}:${base}`);
+  const role = permit.role ?? 'editor';
   let currentPermit=permit,retryAt=0,backoff=500,terminal;
   const renewAt=p=>p.expiresAt ? p.expiresAt*1000-Math.min(15000,Math.max(1000,(p.expiresAt*1000-Date.now())/3)) : Infinity;
   let renewalAt=renewAt(permit),hasConnected=false;
@@ -39,6 +40,11 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcil
           ||!Number.isSafeInteger(next.expiresAt)||next.expiresAt*1000<=Date.now()){
           terminal=new Error('Изменились область или ключ доски — требуется повторный вход');throw terminal;
         }
+        if ((next.role ?? 'editor') !== role) {
+          onRoleInvalidated();
+          terminal=new Error('Права на доску изменились. Откройте её заново.');
+          throw terminal;
+        }
         currentPermit=next;renewalAt=renewAt(next);
       }
       socket.disconnect();
@@ -51,7 +57,7 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcil
       if(stopped){socket.disconnect();throw new Error('Доска закрыта');}
       hasConnected=true;backoff=500;retryAt=0;
     }catch(e){
-      if(e.denied)terminal=e;
+      if(e.denied){terminal=e;onRoleInvalidated();}
       socket.disconnect();retryAt=Date.now()+backoff;backoff=Math.min(10000,backoff*2);throw e;
     }
   }
@@ -77,7 +83,7 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcil
     uploads.set(id,{id,name:`image-${id}.${m[1]==='image/png'?'png':'jpg'}`,mimeType:m[1],data});
   }
   const changed=(elements,binary=api.getFiles())=>{
-    if(!ready)return;unsupported=false;let modified=false;
+    if(!ready||terminal||role==='viewer')return;unsupported=false;let modified=false;
     for(const e of elements){
       if(e.type==='image')newImages.delete(e.fileId);
       try{if(e.type==='image'&&!e.isDeleted)captureImage(e.fileId,binary[e.fileId]);}
@@ -97,6 +103,7 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcil
     const file={...f,data};files.set(id,file);confirmed.add(id);return file;
   }
   async function addFile(file){
+    if(terminal||role==='viewer')throw new Error('Доска доступна только для просмотра');
     cancelReplay();
     if(!ready)throw new Error('Доска ещё загружается');
     if(!file.size||file.size>2*1024*1024||!['image/png','image/jpeg','application/pdf'].includes(file.type))throw new Error('Разрешены PNG, JPEG и PDF до 2 МиБ');
@@ -211,6 +218,7 @@ export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcil
     finally{if(!stopped)setTimeout(loop,!failed&&(dirty.size||pendingAttachments.size||inflight||checkpointTask)?0:150);}
   }
   loop();return {changed,addFile,downloadFile,checkpoint(){
+    if(terminal||role==='viewer')return Promise.reject(new Error('Доска доступна только для просмотра'));
     if(!ready)return Promise.reject(new Error('Доска ещё загружается'));
     if(!checkpointTask){let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});checkpointTask={promise,resolve,reject};status('Создание контрольной точки');cancelReplay();}
     return checkpointTask.promise;
