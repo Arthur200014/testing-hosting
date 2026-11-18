@@ -1,12 +1,13 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** Authenticated board sharing flow complete and published in isolated mode. Teacher copies a link; student sign-in opens the existing editor/viewer grant; revoked links show unavailable. No anonymous access.
-**ACTIVE_BRANCH:** none. [PR #97](https://github.com/Arthur200014/testing-hosting/pull/97) merged, tested head `a3b704c0c257785ce0e173c8a09d66f44ab625d0`.
-**MERGED_SHA:** `90f7cd5c7074da9a76fc1360b413719f842dff12`.
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44355458778](https://github.com/Arthur200014/testing-hosting/actions/runs/44355458778) PASS; published teacher.html, student.html and lesson-board-ui.mjs match the verified commit. Board feature remains isolated.
-**API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. Automated readonly health PASS (44355975331); running API revision independently NOT_VERIFIED. This slice uses existing API/permissions with no migration. Production board writes NOT_RUN; feature gate off.
-**NEXT_ACTION:** Finish UI-06 with one board workspace block (references 66–68): editor menu, background/grid settings and tool presets. Verify save/cancel/reopen and existing viewer/edit permissions in isolation. Then move to UI-07 (billing, profile, roles and subscription). Keep board load-40 manual, only when necessary.
+**ACTIVE_TASK:** UI-07 first delivery: teacher profile, actual workspace role and student package pricing. Platform subscription has its own screen state without tariff data.
+**ACTIVE_BRANCH:** tas/ui07-billing-profile, [draft PR #98](https://github.com/Arthur200014/testing-hosting/pull/98). Implementation pushed; isolated CI pending.
+**MERGED_SHA:** `90f7cd5c7074da9a76fc1360b413719f842dff12` (prior board-sharing release).
+**RELEASE_STATE:** UI-07 IN_PROGRESS. Prior board sharing remains published (Pages 44355458778) in isolated mode.
+**API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. Running UI-07 revision and live writes are not verified.
+**NEXT_ACTION:** Close isolated UI-07 save/cancel/reopen and workspace scope checks, then merge and verify publication. Continue UI-07 with a student invoice/payment ledger and platform plan data when available. The owner deferred board editor menu, settings and presets (66–68). The 40-editor board run remains manual.
+
 
 ## Authenticated board link verification
 
