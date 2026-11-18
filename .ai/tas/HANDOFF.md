@@ -1,12 +1,17 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** Authenticated link flow implemented end to end in isolated mode. Teacher copies a board link beside grant controls; student sign-in opens the board under existing role, with revoked links denied. Acceptance running.
-**ACTIVE_BRANCH:** `tas/ui06-board-links`, [draft PR #97](https://github.com/Arthur200014/testing-hosting/pull/97), head `a3b704c0c257785ce0e173c8a09d66f44ab625d0`.
-**MERGED_SHA:** `b89fc0a7f011edc3d2c9e123f0cd6b1434b171c6`.
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44351616808](https://github.com/Arthur200014/testing-hosting/actions/runs/44351616808) PASS; teacher.html and student.html match the merged release. Feature remains isolated.
-**API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. Automated readonly health PASS (44352233992); running API revision and migration independently NOT_VERIFIED. Additive IndependentBoardGrantRoles migration verified on isolated PostgreSQL. Production board writes NOT_RUN; feature gate off.
-**NEXT_ACTION:** Finish focused browser/API acceptance of PR #97 and publish. Keep production board gate off and leave 40-editor load manual.
+**ACTIVE_TASK:** Authenticated board sharing flow complete and published in isolated mode. Teacher copies a link; student sign-in opens the existing editor/viewer grant; revoked links show unavailable. No anonymous access.
+**ACTIVE_BRANCH:** none. [PR #97](https://github.com/Arthur200014/testing-hosting/pull/97) merged, tested head `a3b704c0c257785ce0e173c8a09d66f44ab625d0`.
+**MERGED_SHA:** `90f7cd5c7074da9a76fc1360b413719f842dff12`.
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44355458778](https://github.com/Arthur200014/testing-hosting/actions/runs/44355458778) PASS; published teacher.html, student.html and lesson-board-ui.mjs match the verified commit. Board feature remains isolated.
+**API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. Automated readonly health PASS (44355975331); running API revision independently NOT_VERIFIED. This slice uses existing API/permissions with no migration. Production board writes NOT_RUN; feature gate off.
+**NEXT_ACTION:** Continue UI-06 with one complete chat flow (references 51–52): conversation list, opening a participant-scoped conversation, teacher/student text messages, persistence after reload and isolated permission/acceptance checks. Keep board load-40 manual, only when necessary.
+
+## Authenticated board link verification
+
+- [Board CI 44354734973](https://github.com/Arthur200014/testing-hosting/actions/runs/44354734973): Chromium/API/PostgreSQL PASS for real clipboard copy, no requests/opening before sign-in, automatic editor opening with retained drawing, role change followed through the same link, and revoked link denied after reload and sign-in. Core, recovery and licenses PASS. Functional group success; sustained 21 in_progress at report. Manual 40 skipped.
+- Post-merge [PostgreSQL 44355460385](https://github.com/Arthur200014/testing-hosting/actions/runs/44355460385) and [browser 44355460480](https://github.com/Arthur200014/testing-hosting/actions/runs/44355460480) PASS. Local URL round-trip/invalid input, syntax and diff PASS.
 
 ## Read-only grants verification
 
