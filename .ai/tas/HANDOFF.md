@@ -1,19 +1,27 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-19
-**ACTIVE_TASK:** UI-08 public entry, mobile teacher navigation and keyboard access to both sign-in flows. Local focused browser tests passed. [PR #104](https://github.com/Arthur200014/testing-hosting/pull/104) open at `594fed6bac38dbec7a691080fcf07da0f5cacf99`.
-**ACTIVE_BRANCH:** `tas/ui08-public-entry`.
-**MERGED_SHA:** `14b90178a84f8728ec0bf9a83f94b5cea6304b6e` (application), `15b98d4161ccd1fb01f74d51cfab50842165fcf5` (test fixtures).
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED + LIVE_API_ROUTE_VERIFIED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44395363307) and [published file comparison](https://github.com/Arthur200014/testing-hosting/actions/runs/44395940645) PASS. Public teacher.html and teacher-data.mjs match the application tree.
-**API_DEPLOYMENT:** Live teacher profile settings route changed from HTTP 404 to 401 and was reached from the published Pages origin in Chromium. Timeweb ready/migrations 200 and [read-only health](https://github.com/Arthur200014/testing-hosting/actions/runs/44395940500) PASS. Running API SHA UNKNOWN.
-**LIVE_WRITE_NOT_RUN:** No designated synthetic workspace with confirmed access to the live site. Isolated real API and PostgreSQL save/re-entry passed. Browser checks used synthetic data only.
-**NEXT_ACTION:** Complete UI-08 checks, merge PR #104 and verify the public Pages entry and both existing sign-in routes. UI-07 previously published, including the successful main browser rerun. Live authenticated settings/password verification still requires dedicated synthetic access.
+**ACTIVE_TASK:** UI-08 public entry, mobile teacher navigation, and keyboard-accessible sign-in and sign-out in both cabinets.
+**ACTIVE_BRANCH:** none. [PR #104](https://github.com/Arthur200014/testing-hosting/pull/104) merged.
+**MERGED_SHA:** `c9124bf8fd2e716a7198a80dbcd4fcf222e9eaf7`.
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED + LIVE_PUBLIC_NAV_VERIFIED. [GitHub Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44401862816) PASS. Published landing, teacher and student HTML byte-match the release. Chromium followed both sign-in links and the pupil back link at 390px.
+**API_DEPLOYMENT:** UI-only changes. Live readiness and migrations returned HTTP 200 after rollout; [Timeweb health](https://github.com/Arthur200014/testing-hosting/actions/runs/44402433898) PASS. Running API SHA UNKNOWN.
+**LIVE_WRITE_NOT_RUN:** No dedicated live synthetic workspace/test credentials confirmed. Isolated Chromium with the real API and PostgreSQL verified both sign-in/out paths. No production data was written.
+**NEXT_ACTION:** UI-08 final acceptance of remaining cabinet paths, starting with keyboard/focus through a shared board. Verify outstanding live settings and password save/re-entry once dedicated synthetic access is available. Tariff facts, external payment/notification integrations and board settings (66–68) remain pending. Keep load-40 manual.
+
+## UI-08 public entry verification
+
+- [Public landing](https://arthur200014.github.io/testing-hosting/platform/) shows actual capabilities and links to the teacher and pupil cabinets. Existing direct sign-in URLs remain valid. The mobile teacher section switcher supports keyboard activation, Escape, focus return and current section announcement. Both sign-in forms handle error and entry focus, and logout returns focus to sign-in. The retired chat placeholder was removed.
+- Focused local Chromium tests at 320/390/1348px, JavaScript syntax and diff PASS. Isolated real API/PostgreSQL 17 PASS for navigation and both actual sign-in/out paths with synthetic accounts, and mobile calendar dialog keyboard opening, focus and Escape without creating a lesson. [TAS task gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44401325732), [PostgreSQL before merge](https://github.com/Arthur200014/testing-hosting/actions/runs/44401325602) and [PostgreSQL after merge](https://github.com/Arthur200014/testing-hosting/actions/runs/44401864064) PASS. [Full branch browser regression](https://github.com/Arthur200014/testing-hosting/actions/runs/44401325576) PASS on the exact released application tree. [Redundant main browser rerun](https://github.com/Arthur200014/testing-hosting/actions/runs/44401864027) in progress at handoff.
+- Scope for final acceptance: screen-reader manual testing and cabinet-wide review of unrelated actions were not covered in this delivery. Paths: `platform/index.html`, `platform/teacher.html`, `platform/student.html`, and two existing browser regressions.
 
 ## UI-07 profile settings verification
 
+- [Application PR #102](https://github.com/Arthur200014/testing-hosting/pull/102) / `14b9017` and [fixture PR #103](https://github.com/Arthur200014/testing-hosting/pull/103) / `15b98d4` merged. Pages byte match and live settings route 401 verified. The [main browser rerun](https://github.com/Arthur200014/testing-hosting/actions/runs/44396532085) passed. Live authenticated settings and password writes remain unverified.
+
 - Isolated Chromium/API/PostgreSQL 17 PASS for profile anchors, save/clear/cancel, copy, relogin, membership isolation across workspaces for the same account, calendar and overdue invoice reminders, and mobile overflow at 390px. Settings migration is additive.
 - [TAS gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44394743654), [PostgreSQL pre-merge](https://github.com/Arthur200014/testing-hosting/actions/runs/44394743990) and [PostgreSQL post-merge](https://github.com/Arthur200014/testing-hosting/actions/runs/44395364408) PASS. JS syntax, diff and teacher-data 9/9 PASS.
-- The initial browser run rejected the new GET in legacy fixtures. PR #103 updated only the three strict fixtures. [Full corrected Chromium/API/PostgreSQL run](https://github.com/Arthur200014/testing-hosting/actions/runs/44395956948) PASS on the final tree, including the older synthetic browser checks. [Post-fixture main PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44396532281) PASS. [Redundant main browser run](https://github.com/Arthur200014/testing-hosting/actions/runs/44396532085) is still in progress.
+- The initial browser run rejected the new GET in legacy fixtures. PR #103 updated only the three strict fixtures. [Full corrected Chromium/API/PostgreSQL run](https://github.com/Arthur200014/testing-hosting/actions/runs/44395956948) PASS on the final tree, including the older synthetic browser checks. [Post-fixture main PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44396532281) PASS. [Redundant main browser run](https://github.com/Arthur200014/testing-hosting/actions/runs/44396532085) PASS.
 - Paths: `platform/teacher.html`, `platform/teacher-data.mjs`, profile settings endpoints under `IdentityAccess/`, additive migration `20261118210000_TeacherWorkspaceSettings.cs` and existing browser scripts. External notification channels and online payment processing remain pending.
 
 ## UI-07 password change verification
