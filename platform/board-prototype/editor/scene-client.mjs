@@ -8,7 +8,7 @@ const refs=(elements,attachments=[],includeDeleted=false)=>ids([...new Set([...e
 const hash=async b=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',b)),v=>v.toString(16).padStart(2,'0')).join('');
 export async function lessonPermit({apiBase,lessonId,boardId,accessToken,role}){
   const target = boardId ?? lessonId;
-  if (!['teacher','student'].includes(role) || (boardId && role !== 'teacher') ||
+  if (!['teacher','student'].includes(role) ||
       !/^[0-9a-f-]{36}$/i.test(target)) throw new Error('Invalid board target');
   const u=new URL(apiBase);if(!['127.0.0.1','localhost'].includes(u.hostname))throw new Error('Isolated API required');
   const r=await fetch(`${u.origin}/api/v1/${role}/board-prototype/${boardId ? 'boards' : 'lessons'}/${target}/permit`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`},cache:'no-store',signal:AbortSignal.timeout(5000),redirect:'error'});

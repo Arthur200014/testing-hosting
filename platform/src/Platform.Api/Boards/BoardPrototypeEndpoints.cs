@@ -13,7 +13,7 @@ public static class BoardPrototypeEndpoints
 {
     public sealed record AccessRequest(string? Token);
     private sealed record Permit(string workspace, string board, string user, string role, string aud,
-        long iat, long exp, string jti, string member, string authRole, string session, string workspaceRole, Guid lesson, Guid? independentBoard = null);
+        long iat, long exp, string jti, string member, string authRole, string session, string workspaceRole, Guid lesson, Guid? independentBoard = null, Guid? grant = null);
 
     public static void Map(WebApplication app)
     {
@@ -49,7 +49,15 @@ public static class BoardPrototypeEndpoints
                 if (!await IndependentBoardEndpoints.OwnsAsync(principal, boardId, db, ct)) return Results.NotFound();
                 return Issue(principal, "teacher", Guid.Empty, boardId, clock);
             });
-        IResult Issue(ClaimsPrincipal principal, string policy, Guid lessonId, Guid? boardId, TimeProvider clock)
+        IndependentBoardSharing.Map(app,
+            async (Guid boardId, ClaimsPrincipal principal, PlatformDbContext db, TimeProvider clock, HttpContext http, CancellationToken ct) =>
+            {
+                http.Response.Headers.CacheControl = "no-store";
+                var shared = await IndependentBoardSharing.Granted(db, principal).SingleOrDefaultAsync(x => x.BoardId == boardId, ct);
+                if (shared is null) return Results.NotFound();
+                return Issue(principal, "student", Guid.Empty, boardId, clock, shared.GrantId);
+            });
+        IResult Issue(ClaimsPrincipal principal, string policy, Guid lessonId, Guid? boardId, TimeProvider clock, Guid? grant = null)
         {
             var now = clock.GetUtcNow().ToUnixTimeSeconds();
             if (!long.TryParse(principal.FindFirstValue("exp"), out var authExpiry) || authExpiry <= now) return Results.Unauthorized();
@@ -59,7 +67,7 @@ public static class BoardPrototypeEndpoints
             var claims = new Permit(workspace.ToString("N"), room, user.ToString("N"),
                 "editor", "tas-board-prototype", now, Math.Min(now + lifetime, authExpiry), Guid.NewGuid().ToString("N"),
                 principal.FindFirstValue("membership_id")!, policy, principal.FindFirstValue("jti") ?? "",
-                principal.FindFirstValue("workspace_role") ?? "", lessonId, boardId);
+                principal.FindFirstValue("workspace_role") ?? "", lessonId, boardId, grant);
             var body = Base64Url(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(claims)));
             var token = body + "." + Base64Url(HMACSHA256.HashData(key, Encoding.UTF8.GetBytes(body)));
             var context = Encoding.UTF8.GetBytes("tas-board-scene:v1\n" + claims.workspace + "\n" + claims.board);
@@ -81,7 +89,9 @@ public static class BoardPrototypeEndpoints
             }, "board-permit"));
             if (!(await authorization.AuthorizeAsync(principal, null, permit.authRole)).Succeeded
                 || !(permit.independentBoard is Guid board
-                    ? await IndependentBoardEndpoints.OwnsAsync(principal, board, db, ct)
+                    ? (permit.authRole == "teacher"
+                        ? await IndependentBoardEndpoints.OwnsAsync(principal, board, db, ct)
+                        : await IndependentBoardSharing.Granted(db, principal).AnyAsync(x => x.BoardId == board && x.GrantId == permit.grant, ct))
                     : await CanAccess(principal, permit.authRole, permit.lesson, db, ct))) return Results.NotFound();
             return Results.NoContent();
         });
@@ -102,8 +112,9 @@ public static class BoardPrototypeEndpoints
                 || !Guid.TryParse(c.workspace, out _) || !Guid.TryParse(c.user, out _) || !Guid.TryParse(c.member, out _)
                 || !Guid.TryParse(c.jti, out _)
                 || (c.independentBoard is Guid board
-                    ? board == Guid.Empty || c.lesson != Guid.Empty || c.authRole != "teacher" || c.board != "board-" + board.ToString("N")
-                    : c.lesson == Guid.Empty || c.board != "lesson-" + c.lesson.ToString("N"))
+                    ? board == Guid.Empty || c.lesson != Guid.Empty || c.board != "board-" + board.ToString("N")
+                        || (c.authRole == "teacher" ? c.grant != null : c.grant is null || c.grant == Guid.Empty)
+                    : c.grant != null || c.lesson == Guid.Empty || c.board != "lesson-" + c.lesson.ToString("N"))
                 || (c.authRole == "teacher" && !Guid.TryParse(c.session, out _))) return null;
             return c;
         }

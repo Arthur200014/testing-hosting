@@ -41,6 +41,7 @@ export function renderBoardCards(entries, filters, safe, date) {
     <div class="class-banner-buttons"><button type="button" class="primary" ${item.boardId ? `data-open-independent-board="${safe(item.boardId)}"` :
       `data-open-lesson-board="${safe(item.lessonId)}"`}>Открыть доску</button>
     ${item.boardId ? `<button type="button" class="secondary" data-edit-independent-board="${safe(item.boardId)}">Настройки</button>
+      <button type="button" class="secondary" data-share-board="${safe(item.boardId)}">Доступ</button>
       <button type="button" class="secondary" data-move-board="${safe(item.boardId)}">В папку</button>
       <button type="button" class="secondary" data-board-favorite="${safe(item.boardId)}" aria-pressed="${!!item.isFavorite}">Избранное</button>` : ''}
     ${(item.boardId ? item.canOpenLesson : item.classId) ? `<button type="button" class="secondary" data-board-lesson-details="${safe(item.lessonId)}">К занятию</button>` : ''}</div>
