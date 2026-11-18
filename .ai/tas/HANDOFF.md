@@ -1,12 +1,12 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** Explicit student access released in isolated mode. Teacher grants/revokes edit rights per board, student opens from their cabinet, and old permits remain revoked after regrant. Supplemental 40-editor latency retry pending.
-**ACTIVE_BRANCH:** none. [PR #95](https://github.com/Arthur200014/testing-hosting/pull/95) merged, tested head `c7ff60beb9ac04fa57dff9dab0a150b76f73133a`.
+**ACTIVE_TASK:** Read-only board grants implemented in isolated mode, preserving edit grants and invalidating stale permits on role changes. Acceptance running.
+**ACTIVE_BRANCH:** `tas/ui06-board-viewer`, [draft PR #96](https://github.com/Arthur200014/testing-hosting/pull/96), head `64ee546c13d6b5755ec2ba2aba4f2d7f84a14916`.
 **MERGED_SHA:** `517f92f183ca0cf54effd11a3e2a36ccf7010469`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44322269203](https://github.com/Arthur200014/testing-hosting/actions/runs/44322269203) PASS. Published teacher.html, student.html, teacher-data.mjs, board-catalog-ui.mjs and lesson-board-ui.mjs match the merge. Feature remains isolated.
 **API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. Automated readonly health PASS (44322826684); running API revision and migration independently NOT_VERIFIED. Additive IndependentBoardSharing migration verified on isolated PostgreSQL. Production board writes NOT_RUN; feature gate off.
-**NEXT_ACTION:** Continue UI-06 access with an explicit read-only grant, preserving owner/edit access and the isolated gate. The 40-editor capacity profile is manual only (Actions → Isolated board prototype → Run workflow). Use it for relevant synchronization/capacity changes or by request. The previous retry is supplemental evidence, not a prerequisite for ordinary feature work.
+**NEXT_ACTION:** Finish focused Chromium/PostgreSQL checks for PR #96, then publish. The 40-editor profile is manual only; do not run for ordinary feature work.
 
 ## Explicit student board access verification
 
