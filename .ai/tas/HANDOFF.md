@@ -1,13 +1,23 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** UI-07 teacher password change and account-wide session revocation. Implemented; release verification in progress.
-**ACTIVE_BRANCH:** `tas/ui07-password-change` / [PR #101](https://github.com/Arthur200014/testing-hosting/pull/101) / `3a83fd8cf16660d27ae4f920938f656128cf7ae0`.
-**RELEASE_STATE:** PR open. .NET build, teacher-data (9/9), JavaScript syntax, diff PASS. Isolated Chromium/API/PostgreSQL and branch CI pending. No new application version published.
-**PREVIOUS_RELEASE:** [PR #100](https://github.com/Arthur200014/testing-hosting/pull/100), `6e2f3c98144db3a627bc809d3b0936c34e42d4bb`. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44382095436), [published file comparison](https://github.com/Arthur200014/testing-hosting/actions/runs/44382500784), and [read-only API health](https://github.com/Arthur200014/testing-hosting/actions/runs/44382500486) PASS. Running API revision UNKNOWN. Workspace access endpoint rejects anonymous calls. LIVE_WRITE_NOT_RUN: no confirmed dedicated live synthetic workspace with known test access.
-**NEXT_ACTION:** Verify isolated browser acceptance and required checks for PR #101, merge, verify Pages/API and attempt live acceptance only with a designated test workspace. Real tariff data remains pending approved plan details. Settings and presets (66–68) remain deferred. Keep load-40 manual.
+**ACTIVE_TASK:** UI-07 password change in the teacher profile. A verified current password is required. The password and revocation of all teacher sessions for that account are committed together. No schema change.
+**ACTIVE_BRANCH:** none. [PR #101](https://github.com/Arthur200014/testing-hosting/pull/101) merged.
+**MERGED_SHA:** `16da7641b438f68929ece0821e6df43d415059f8`.
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED + LIVE_API_ROUTE_VERIFIED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44390018731) and [public file comparison](https://github.com/Arthur200014/testing-hosting/actions/runs/44390520564) PASS. The published login page opened in Chromium.
+**API_DEPLOYMENT:** Timeweb native rollout reached the public API. The new password route changed from HTTP 404 to 401 for an anonymous request from the published Pages origin. CORS preflight 204, ready and migrations 200, [read-only health](https://github.com/Arthur200014/testing-hosting/actions/runs/44390520656) PASS. Running API SHA UNKNOWN.
+**LIVE_WRITE_NOT_RUN:** No designated live synthetic workspace with confirmed test access. The separate isolated Chromium/API/PostgreSQL run verified save, reload, old-password rejection and new-password sign-in.
+**NEXT_ACTION:** Verify live save → reload → sign-in when a designated synthetic workspace is available. Resume UI-07 from RELEASE_PLAN in the owner-approved mode. Real tariff data is pending approved plan details. Settings and presets (66–68) remain deferred. Keep load-40 manual.
+
+## UI-07 password change verification
+
+- Isolated Chromium/actual API/PostgreSQL 17 PASS for cancel, mismatched confirmation, wrong current password, successful change, revocation across two workspaces, unaffected unrelated accounts, reload and password persistence. Independent concurrent change probe PASS. One of two requests commits.
+- [TAS CI gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44388723357), [.NET/PostgreSQL before merge](https://github.com/Arthur200014/testing-hosting/actions/runs/44388723343), and [PostgreSQL after merge](https://github.com/Arthur200014/testing-hosting/actions/runs/44390019917) PASS. .NET build, teacher-data 9/9, JS syntax and diff PASS. [Full isolated browser before merge](https://github.com/Arthur200014/testing-hosting/actions/runs/44388723281) and [after merge](https://github.com/Arthur200014/testing-hosting/actions/runs/44390019816) PASS.
+- Changes: `platform/teacher.html`, `TeacherAuthentication.cs`, `TeacherProfileEndpoints.cs`, `Program.cs`, and the existing `platform/calendar-real-browser.mjs` scenario.
 
 ## UI-07 workspace access verification
+
+- [PR #100](https://github.com/Arthur200014/testing-hosting/pull/100) / `6e2f3c98144db3a627bc809d3b0936c34e42d4bb`. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44382095436), [published files](https://github.com/Arthur200014/testing-hosting/actions/runs/44382500784), and [read-only API health](https://github.com/Arthur200014/testing-hosting/actions/runs/44382500486) PASS. The live workspace access endpoint rejects anonymous calls. Running API SHA UNKNOWN, LIVE_WRITE_NOT_RUN for lack of a designated workspace.
 
 - [Isolated Chromium/API/PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44379734839) PASS. Verified issuance and acceptance, email binding, reuse/cancel rejection, teacher entry and ordinary data access, owner-only management and cross-workspace denial, confirmation cancel, access revocation and regrant without reviving the old session. Inspected the synthetic roster capture at 1348 × 926.
 - [Post-merge PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44382096052) PASS, including migration/startup. [Redundant post-merge browser rerun](https://github.com/Arthur200014/testing-hosting/actions/runs/44382096101) PASS. JS syntax, teacher-data 9/9 and diff PASS. No manual 40-editor run.
