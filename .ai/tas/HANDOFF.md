@@ -1,12 +1,18 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** UI-07 workspace access: owner-only roster, one-time teacher codes, activation and session revocation.
-**ACTIVE_BRANCH:** tas/ui07-workspace-access, [PR #100](https://github.com/Arthur200014/testing-hosting/pull/100). Implementation pushed, isolated verification pending.
-**MERGED_SHA:** `86c3d1d76f499a2e667726235491b5b00b15e20a` (prior tuition ledger).
-**RELEASE_STATE:** New access feature IN_PROGRESS. Previous ledger is published and verified on isolated Chromium/API/PostgreSQL.
-**API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. No independent live revision or synthetic live credentials verified.
-**NEXT_ACTION:** Verify the workspace invitation and revocation flow in isolated CI, merge, and verify Pages publication. Board editor settings remain deferred. Keep load-40 manual.
+**ACTIVE_TASK:** UI-07 workspace access published. The owner manages teacher members, creates or cancels one-time invitations, and revokes access. Invite acceptance establishes a teacher membership. Revocation closes sessions for that workspace and a fresh grant does not revive them.
+**ACTIVE_BRANCH:** none. [PR #100](https://github.com/Arthur200014/testing-hosting/pull/100) merged.
+**MERGED_SHA:** `6e2f3c98144db3a627bc809d3b0936c34e42d4bb`.
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44382095436) and [published file comparison](https://github.com/Arthur200014/testing-hosting/actions/runs/44382500784) PASS. Public teacher.html and teacher-data.mjs match the release.
+**API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. [Read-only health](https://github.com/Arthur200014/testing-hosting/actions/runs/44382500486) PASS. Running API revision NOT_VERIFIED. Authenticated live write acceptance NOT_RUN because no dedicated live synthetic workspace with known test credentials is confirmed. No codes or notices were sent externally.
+**NEXT_ACTION:** Continue UI-07 with authenticated password change in profile and safe session revocation. Real tariff data remains pending approved plan details. Board editor settings and presets (66–68) remain deferred. Keep load-40 manual.
+
+## UI-07 workspace access verification
+
+- [Isolated Chromium/API/PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44379734839) PASS. Verified issuance and acceptance, email binding, reuse/cancel rejection, teacher entry and ordinary data access, owner-only management and cross-workspace denial, confirmation cancel, access revocation and regrant without reviving the old session. Inspected the synthetic roster capture at 1348 × 926.
+- [Post-merge PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44382096052) PASS, including migration/startup. [Redundant post-merge browser rerun](https://github.com/Arthur200014/testing-hosting/actions/runs/44382096101) in progress at handoff. JS syntax, teacher-data 9/9 and diff PASS. No manual 40-editor run.
+- Codes expire after 48 hours and are stored as hashes. The owner passes a code privately to the intended recipient. Renewed access requires a fresh invitation. Ownership transfer and new account types are outside this delivery.
 
 
 ## UI-07 tuition ledger verification
