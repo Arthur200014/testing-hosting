@@ -1,16 +1,22 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** Explicit student board grants, owner controls and student cabinet entry implemented behind the isolated gate. Browser and PostgreSQL acceptance is running.
-**ACTIVE_BRANCH:** `tas/ui06-board-sharing`, [draft PR #95](https://github.com/Arthur200014/testing-hosting/pull/95), head `c7ff60beb9ac04fa57dff9dab0a150b76f73133a`.
-**MERGED_SHA:** `a417edbcc78f11eaa887b36edb61cb6fca97459d`.
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44314384681](https://github.com/Arthur200014/testing-hosting/actions/runs/44314384681) PASS; published teacher.html, teacher-data.mjs and board-catalog-ui.mjs independently byte-match. Feature remains isolated.
-**API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. Automated readonly health PASS (44314930989); running API revision and migration independently NOT_VERIFIED. Additive BoardOrganization migration verified on isolated PostgreSQL. Production board writes NOT_RUN; feature gate off.
-**NEXT_ACTION:** Finish PR #95 isolated Chromium/PostgreSQL acceptance and publish after green checks. Check previous 40-editor retry separately; latest status in_progress. Production board gate stays off.
+**ACTIVE_TASK:** Explicit student access released in isolated mode. Teacher grants/revokes edit rights per board, student opens from their cabinet, and old permits remain revoked after regrant. Supplemental 40-editor latency retry pending.
+**ACTIVE_BRANCH:** none. [PR #95](https://github.com/Arthur200014/testing-hosting/pull/95) merged, tested head `c7ff60beb9ac04fa57dff9dab0a150b76f73133a`.
+**MERGED_SHA:** `517f92f183ca0cf54effd11a3e2a36ccf7010469`.
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages 44322269203](https://github.com/Arthur200014/testing-hosting/actions/runs/44322269203) PASS. Published teacher.html, student.html, teacher-data.mjs, board-catalog-ui.mjs and lesson-board-ui.mjs match the merge. Feature remains isolated.
+**API_DEPLOYMENT:** Owner-configured Timeweb native auto-deploy. Automated readonly health PASS (44322826684); running API revision and migration independently NOT_VERIFIED. Additive IndependentBoardSharing migration verified on isolated PostgreSQL. Production board writes NOT_RUN; feature gate off.
+**NEXT_ACTION:** Check [40-editor repeat, CI 44320358897](https://github.com/Arthur200014/testing-hosting/actions/runs/44320358897): first run completed 15 minutes but p95 delivery 503ms exceeded 500ms; retry accepted. Then continue UI-06 access with an explicit read-only grant, preserving owner/edit access and the isolated gate.
+
+## Explicit student board access verification
+
+- [Board CI 44320358897](https://github.com/Arthur200014/testing-hosting/actions/runs/44320358897): Chromium with real isolated API/PostgreSQL PASS for teacher grant from catalog, student cabinet open/edit, teacher reopen with the saved edit, ungranted/foreign denial, revoke and regrant rejecting the old permit. Core, group, sustained 21, restart/restore and licenses PASS. JavaScript syntax, diff and selector 13/13 PASS.
+- Supplemental sustained 40 first attempt: 40 editors across 2 rooms, 15 minutes, delivery p95 503ms above 500ms, durable ack p95 848ms within target. Failed job retry accepted; no threshold change. Previous PR #94 repeat [job 134841239720](https://github.com/Arthur200014/testing-hosting/actions/runs/44312063271/job/134841239720) PASS, delivery p95 334ms and durable ack p95 649ms.
+- Post-merge [PostgreSQL 44322270439](https://github.com/Arthur200014/testing-hosting/actions/runs/44322270439) and [browser 44322270368](https://github.com/Arthur200014/testing-hosting/actions/runs/44322270368) PASS. Changed isolated board API/permit, additive migration, teacher/student cabinets, editor launcher and existing browser scenario. Granting access sends no notification.
 
 ## Board organization verification
 
-- [Board CI 44312063271](https://github.com/Arthur200014/testing-hosting/actions/runs/44312063271): real isolated Chromium/API/PostgreSQL confirmed folder create/rename, move/unfile, mark/unmark favorite, filtering, reload, foreign mutation/folder denial, same saved drawing and lesson links. Core, functional group, restart/restore, licenses and sustained 21 PASS. First 40-editor attempt reached 40 then expired under login limiter; repeat accepted and running at close. Prior PR #93 40-editor evidence remains PASS.
+- [Board CI 44312063271](https://github.com/Arthur200014/testing-hosting/actions/runs/44312063271): real isolated Chromium/API/PostgreSQL confirmed folder create/rename, move/unfile, mark/unmark favorite, filtering, reload, foreign mutation/folder denial, same saved drawing and lesson links. Core, functional group, restart/restore, licenses and sustained 21 PASS. First 40-editor attempt reached 40 then expired under login limiter; repeat PASS (334ms delivery p95, 649ms durable ack p95). Prior PR #93 40-editor evidence remains PASS.
 - Post-merge [PostgreSQL 44314384656](https://github.com/Arthur200014/testing-hosting/actions/runs/44314384656) and [browser 44314385016](https://github.com/Arthur200014/testing-hosting/actions/runs/44314385016) PASS. Local catalog projection, JS syntax/diff and CI selector 13/13 PASS. Changes: isolated board API and additive migration, teacher/catalog UI and existing browser scenario.
 
 ## Independent board verification
