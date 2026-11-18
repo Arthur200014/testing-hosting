@@ -1,5 +1,5 @@
 export const teacherPaths = {
-  profile: 'profile', workspaceAccess: 'workspace-access', invoices: 'tuition-invoices',
+  profile: 'profile', profileSettings: 'profile/settings', workspaceAccess: 'workspace-access', invoices: 'tuition-invoices',
   boardFolders: 'board-prototype/boards/folders',
   boardRecords: 'board-prototype/boards',
   classes: 'classes', groups: 'groups', scheduleRules: 'schedule-rules', programs: 'programs', students: 'students', lessons: 'lessons',
@@ -71,7 +71,8 @@ export const teacherMutationKeys = {
   lessonTopicSetForm: ['lessonTopicSets'], topicLessonAttachForm: ['lessonTopicSets'],
   classTopicForm: ['classTopics'], topicMaterialAttachForm: ['topicMaterialLinks'], topicTaskAttachForm: ['topicTaskLinks'],
   catalogForm: ['catalog'], homeworkForm: ['assignments'],
-  teacherProfileForm: ['profile'], teacherInviteForm: ['workspaceAccess'],
+  teacherProfileForm: ['profile'], teacherRemindersForm: ['profileSettings'], teacherPaymentDetailsForm: ['profileSettings'],
+  teacherInviteForm: ['workspaceAccess'],
   invoiceForm: ['invoices'], invoiceCancelForm: ['invoices'],
   subscriptionForm: ['subscriptions']
 };

@@ -13,6 +13,7 @@ internal static class TeacherProfileEndpoints
     public static void Map(WebApplication app)
     {
         var profile = app.MapGroup("/api/v1/teacher/profile").RequireAuthorization("teacher");
+        TeacherWorkspaceSettingsEndpoints.Map(profile);
         profile.MapGet("", async (ClaimsPrincipal principal, PlatformDbContext db, HttpContext http, CancellationToken ct) =>
         {
             http.Response.Headers.CacheControl = "no-store";

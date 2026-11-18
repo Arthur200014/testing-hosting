@@ -122,6 +122,48 @@ try {
   assert.equal(southProfile.email, south.email);
   assert.notEqual(southProfile.displayName, 'Тестовый преподаватель Север');
 
+
+  const settingsPath = 'teacher/profile/settings';
+  const settingsDefaults = {lessonReminders:false,overdueInvoiceReminders:false,
+    paymentRecipient:null,paymentBank:null,paymentUrl:null};
+  await call(settingsPath,null,undefined,401);
+  assert.deepEqual(await call(settingsPath,south.token),settingsDefaults);
+  const remindersForm = page.locator('#teacherRemindersForm');
+  const reminders = {lessonReminders:true,overdueInvoiceReminders:true};
+  await page.getByRole('navigation',{name:'Разделы профиля'}).getByRole('button',{name:'Уведомления'}).click();
+  assert.equal(await page.evaluate(() => document.activeElement.id),'profileReminders');
+  await remindersForm.locator('[name="lessonReminders"]').check();
+  await remindersForm.getByRole('button',{name:'Отменить'}).click();
+  assert.equal(await remindersForm.locator('[name="lessonReminders"]').isChecked(),false);
+  for(const key of Object.keys(reminders)) await remindersForm.locator('[name="'+key+'"]').check();
+  const savedReminders = page.waitForResponse(r => r.url().endsWith('/'+settingsPath+'/reminders') && r.request().method()==='PATCH');
+  await remindersForm.getByRole('button',{name:'Сохранить напоминания'}).click();
+  assert.equal((await savedReminders).status(),204);
+  await page.locator('#notice').waitFor({state:'hidden'});
+  await page.screenshot({path:output+'/56_profile_notifications_real.png'});
+  const paymentDetailsForm = page.locator('#teacherPaymentDetailsForm');
+  const details = {recipient:'Тестовый получатель',bank:'Тестовый банк',url:'https://payments.example.invalid/link'};
+  await call(settingsPath+'/payment-details',north.token,{...details,url:'javascript:alert(1)'},400,'PATCH');
+  await page.getByRole('navigation',{name:'Разделы профиля'}).getByRole('button',{name:'Реквизиты'}).click();
+  for(const [key,value] of Object.entries(details)) await paymentDetailsForm.locator('[name="'+key+'"]').fill(value);
+  await paymentDetailsForm.getByRole('button',{name:'Сохранить реквизиты'}).click();
+  await paymentDetailsForm.getByRole('button',{name:'Скопировать сохранённые реквизиты'}).waitFor();
+  const expectedSettings = {...reminders,paymentRecipient:details.recipient,paymentBank:details.bank,paymentUrl:details.url};
+  assert.deepEqual(await call(settingsPath,north.token),expectedSettings);
+  assert.deepEqual(await call(settingsPath,south.token),settingsDefaults);
+  await page.screenshot({path:output+'/70_profile_payment_details_real.png'});
+  await page.setViewportSize({width:390,height:844});
+  await page.locator('[data-profile-section="profilePaymentDetails"]').click();
+  assert.equal(await page.evaluate(() => document.activeElement.id),'profilePaymentDetails');
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    'mobile profile fits the viewport without horizontal scrolling');
+  await page.setViewportSize({width:1348,height:926});
+
+  await page.clock.setFixedTime(new Date(new Date(beforeLessons[0].lessonAt).getTime()-15*60000));
+  await page.locator('.nav [data-view="lessons"]').click();
+  await page.locator('#calendarLessonReminder').filter({hasText:'Занятие в ближайший час'}).waitFor();
+  await page.clock.setFixedTime(new Date());
+  await page.locator('#openTeacherProfile').click();
   await page.getByRole('button', {name:'Перейти к абонементам учеников'}).click();
   const pupil = north.students[0].membershipId;
   const editPackage = page.locator('[data-edit-sub="'+pupil+'"]');
@@ -177,6 +219,15 @@ try {
   await page.getByRole('button',{name:'Открыть счёт: Обучение за ноябрь'}).click();
   await invoiceDetail.getByText('Остаток 750,25 ₽',{exact:true}).waitFor();
   await invoiceDetail.getByText(/Тестовое поступление/).waitFor();
+  const overdueInvoice = await call('teacher/tuition-invoices',north.token,{
+    requestId:randomUUID(),membershipId:pupil,description:'Тестовый просроченный счёт',amount:100,dueOn:'2000-01-01'
+  },201);
+  await page.locator('#refresh').click();
+  await page.getByRole('button',{name:'Показать просроченные'}).click();
+  assert.equal(await page.locator('[data-invoice-filter="status"]').inputValue(),'overdue');
+  await page.locator('#invoiceRows [data-open-invoice="'+overdueInvoice.id+'"]').waitFor();
+  assert.equal(await page.locator('#invoiceRows [data-open-invoice="'+tuition.id+'"]').count(),0);
+  await call('teacher/tuition-invoices/'+overdueInvoice.id+'/cancel',north.token,{});
   await call(settledPath+'/payments',north.token,payment,201);
   await call(settledPath+'/payments',north.token,payment);
   await call(settledPath+'/cancel',north.token,{},409);
@@ -207,6 +258,18 @@ try {
   await page.locator('#openTeacherProfile').click();
   await displayName.waitFor();
   assert.equal(await displayName.inputValue(), 'Тестовый преподаватель Север');
+  assert.equal(await remindersForm.locator('[name="overdueInvoiceReminders"]').isChecked(),true);
+  assert.equal(await paymentDetailsForm.locator('[name="url"]').inputValue(),details.url);
+  await paymentDetailsForm.locator('[name="recipient"]').fill('Несохранённый получатель');
+  await paymentDetailsForm.getByRole('button',{name:'Отменить'}).click();
+  assert.equal(await paymentDetailsForm.locator('[name="recipient"]').inputValue(),details.recipient);
+  page.once('dialog',dialog=>dialog.dismiss());
+  await paymentDetailsForm.getByRole('button',{name:'Очистить реквизиты'}).click();
+  assert.deepEqual(await call(settingsPath,north.token),expectedSettings);
+  page.once('dialog',dialog=>dialog.accept());
+  await paymentDetailsForm.getByRole('button',{name:'Очистить реквизиты'}).click();
+  await paymentDetailsForm.getByRole('button',{name:'Очистить реквизиты'}).waitFor({state:'hidden'});
+  assert.deepEqual(await call(settingsPath,north.token),{...settingsDefaults,...reminders});
   assert.equal((await call('teacher/subscriptions', north.token)).find(item => item.membershipId === pupil).lessonPrice, 1250);
   await page.getByRole('button', {name:'Перейти к абонементам учеников'}).click();
   await page.locator('#subscriptionRows').getByText(/Стоимость пакета: 7\s500 ₽/).waitFor();
@@ -1450,6 +1513,9 @@ try {
     const otherTab=await context.newPage();
     const otherSession=await login(otherWorkspace,otherTab);
     assert.equal(otherSession.teacherId,newSession.teacherId);
+    await call(settingsPath+'/reminders',otherSession.accessToken,reminders,204,'PATCH');
+    assert.deepEqual(await call(settingsPath,newSession.accessToken),settingsDefaults);
+    assert.deepEqual(await call(settingsPath,otherSession.accessToken),{...settingsDefaults,...reminders});
     await invitedPage.locator('#openTeacherProfile').click();
     const passwordForm=invitedPage.locator('#teacherPasswordForm');
     const newPassword='  '+randomUUID()+'  ';
