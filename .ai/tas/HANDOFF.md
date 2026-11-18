@@ -1,13 +1,13 @@
 # TEACHER AI STUDENT — HANDOFF
 
-**UPDATED:** 2026-11-18
-**ACTIVE_TASK:** UI-07 profile navigation, member-specific payment details and reminders. Calendar reminders cover the next hour. The tuition ledger includes an overdue shortcut. Payment details store a recipient, bank and HTTPS payment link for manual copy. Mobile profile fits 390px.
-**ACTIVE_BRANCH:** none. [Application PR #102](https://github.com/Arthur200014/testing-hosting/pull/102) and [test fixture PR #103](https://github.com/Arthur200014/testing-hosting/pull/103) merged.
+**UPDATED:** 2026-11-19
+**ACTIVE_TASK:** UI-08 public entry, mobile teacher navigation and keyboard access to both sign-in flows. Local focused browser tests passed. [PR #104](https://github.com/Arthur200014/testing-hosting/pull/104) open at `594fed6bac38dbec7a691080fcf07da0f5cacf99`.
+**ACTIVE_BRANCH:** `tas/ui08-public-entry`.
 **MERGED_SHA:** `14b90178a84f8728ec0bf9a83f94b5cea6304b6e` (application), `15b98d4161ccd1fb01f74d51cfab50842165fcf5` (test fixtures).
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED + LIVE_API_ROUTE_VERIFIED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44395363307) and [published file comparison](https://github.com/Arthur200014/testing-hosting/actions/runs/44395940645) PASS. Public teacher.html and teacher-data.mjs match the application tree.
 **API_DEPLOYMENT:** Live teacher profile settings route changed from HTTP 404 to 401 and was reached from the published Pages origin in Chromium. Timeweb ready/migrations 200 and [read-only health](https://github.com/Arthur200014/testing-hosting/actions/runs/44395940500) PASS. Running API SHA UNKNOWN.
 **LIVE_WRITE_NOT_RUN:** No designated synthetic workspace with confirmed access to the live site. Isolated real API and PostgreSQL save/re-entry passed. Browser checks used synthetic data only.
-**NEXT_ACTION:** UI-08 public landing (reference 71), mobile navigation and the accessibility review of key teacher/student flows as one block. Verify the outstanding live settings and password save/re-entry when dedicated synthetic access is available. Tariff facts and board settings (66–68) remain pending. Keep load-40 manual.
+**NEXT_ACTION:** Complete UI-08 checks, merge PR #104 and verify the public Pages entry and both existing sign-in routes. UI-07 previously published, including the successful main browser rerun. Live authenticated settings/password verification still requires dedicated synthetic access.
 
 ## UI-07 profile settings verification
 
