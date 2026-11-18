@@ -1,13 +1,14 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-18
-**ACTIVE_TASK:** UI-07 password change in the teacher profile. A verified current password is required. The password and revocation of all teacher sessions for that account are committed together. No schema change.
-**ACTIVE_BRANCH:** none. [PR #101](https://github.com/Arthur200014/testing-hosting/pull/101) merged.
+**PREVIOUS_TASK:** UI-07 password change in the teacher profile. A verified current password is required. The password and revocation of all teacher sessions for that account are committed together. No schema change.
+**ACTIVE_TASK:** UI-07 profile navigation, in-cabinet reminders and private payment details. [PR #102](https://github.com/Arthur200014/testing-hosting/pull/102) open at `dc5a7ee9d201877475ae48c8fd492e859ce2aea1`. Isolated verification and release pending.
+**ACTIVE_BRANCH:** `tas/ui07-profile-settings`.
 **MERGED_SHA:** `16da7641b438f68929ece0821e6df43d415059f8`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED + LIVE_API_ROUTE_VERIFIED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44390018731) and [public file comparison](https://github.com/Arthur200014/testing-hosting/actions/runs/44390520564) PASS. The published login page opened in Chromium.
 **API_DEPLOYMENT:** Timeweb native rollout reached the public API. The new password route changed from HTTP 404 to 401 for an anonymous request from the published Pages origin. CORS preflight 204, ready and migrations 200, [read-only health](https://github.com/Arthur200014/testing-hosting/actions/runs/44390520656) PASS. Running API SHA UNKNOWN.
 **LIVE_WRITE_NOT_RUN:** No designated live synthetic workspace with confirmed test access. The separate isolated Chromium/API/PostgreSQL run verified save, reload, old-password rejection and new-password sign-in.
-**NEXT_ACTION:** Verify live save → reload → sign-in when a designated synthetic workspace is available. Resume UI-07 from RELEASE_PLAN in the owner-approved mode. Real tariff data is pending approved plan details. Settings and presets (66–68) remain deferred. Keep load-40 manual.
+**NEXT_ACTION:** Verify settings save/cancel/reload and membership isolation in Chromium/API/PostgreSQL, then merge and confirm Pages and Timeweb. Live password acceptance remains pending a designated workspace. Tariff facts and board settings remain deferred.
 
 ## UI-07 password change verification
 
