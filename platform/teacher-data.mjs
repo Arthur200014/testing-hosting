@@ -40,6 +40,7 @@ export function teacherResourcePath(key) {
 }
 
 export const teacherNeeds = {
+  boards: ['classes', 'groups', 'lessons'],
   overview: ['classes', 'groups', 'students', 'lessons', 'scheduleRules'],
   students: ['students', 'programs'],
   lessons: ['classes', 'groups', 'scheduleRules', 'students', 'programs', 'lessons', 'catalog'],

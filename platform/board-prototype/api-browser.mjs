@@ -129,6 +129,35 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       await count(await open(),0);
       await back.click();
       console.log('PASS: teacher cabinet lesson board entry, draw/undo, fresh editor persisted reload, return and distinct lesson scene');
+      await p.locator('[data-back-class-lessons]').click();
+      await p.locator('[data-class-board-catalog="'+north.item.id+'"]').click();
+      await p.locator('[data-board-class]').waitFor();
+      await p.waitForFunction(() => !document.getElementById('refresh').disabled);
+      assert.equal(await p.locator('[data-board-class]').inputValue(),north.item.id);
+      const cards = p.locator('[data-board-cards]');
+      assert.equal(await cards.locator('[data-open-lesson-board]').count(),
+        beforeLessons.filter(item => item.individualClassId===north.item.id).length);
+      assert.equal(await cards.locator('[data-open-lesson-board="'+lesson.id+'"]').count(),0);
+      await p.locator('[data-board-search]').fill('Нет совпадений 73891');
+      await cards.getByText('Доски по этим условиям не найдены.').waitFor();
+      await p.locator('[data-board-search]').fill(solo.title);
+      const catalogTrigger = cards.locator('[data-open-lesson-board="'+solo.id+'"]');
+      await catalogTrigger.click();
+      await p.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
+      assert.deepEqual(await active(frame()),original,'Catalog and lesson must open the same board');
+      await p.getByRole('button',{name:'Назад к доскам'}).click();
+      assert.equal(await p.locator('[data-board-search]').inputValue(),solo.title);
+      await catalogTrigger.evaluate(node => { if (document.activeElement !== node) throw new Error('Board catalog focus not restored'); });
+      await cards.locator('[data-board-lesson-details="'+solo.id+'"]').click();
+      await p.locator('.class-lesson-detail h1').getByText(solo.title,{exact:true}).waitFor();
+      await p.locator('.nav [data-view="boards"]').click();
+      await p.waitForFunction(() => !document.getElementById('refresh').disabled);
+      assert.equal(await p.locator('[data-board-class]').inputValue(),'');
+      await p.locator('[data-board-class]').selectOption(group.id);
+      await cards.locator('[data-open-lesson-board="'+lesson.id+'"]').waitFor();
+      assert.equal(await cards.locator('[data-open-lesson-board="'+solo.id+'"]').count(),0);
+      console.log('PASS: board catalog class/search filters, persisted shared scene, return focus, lesson and group associations');
+
     } finally { await cabinet.close(); }
     const groupPermit=await call(permitPath('teacher'),north.token,{});
     const soloPermit=await call(permitPath('teacher',solo.id),north.token,{});

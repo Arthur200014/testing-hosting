@@ -353,18 +353,25 @@
     import { renderLessonTopics, lessonBelongsToClass, lessonTopicChange } from './lesson-topics-ui.mjs';
     import { renderLessonMaterials } from './lesson-materials-ui.mjs';
     import { createLessonBoard } from './lesson-board-ui.mjs';
+    import { lessonBoardEntries, renderBoardCards } from './board-catalog-ui.mjs';
     (() => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
       const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, studentCard:null, studentSearch:'', editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', topicFilter: 'all', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', groupEdit: '', groupCreate: false, lastClassInvitation: null, learningModal: false, classCreate: false, lessonPlan: null, scheduleEdit: null, calendarDate: calendarDay(), calendarMode: 'day', periodPreview: null };
       const lessonBoard = createLessonBoard(API, () => state.token);
+      const boardFilters = { search:'', classId:'', sort:'date' };
+      if (lessonBoard.enabled) {
+        const entry = document.querySelector('[data-coming="Доски"]');
+        delete entry.dataset.coming;
+        entry.dataset.view = 'boards';
+      }
       state.library = newLibraryState();
       const $ = id => document.getElementById(id);
       const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const date = value => value ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
       const money = value => value == null ? '—' : new Intl.NumberFormat('ru-RU').format(Number(value)) + ' ₽';
       const nowLocal = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
-      const names = { library: ['Библиотека','Шаблоны заданий и материалы'], overview: ['Мои классы', 'Обучения, расписание и быстрые действия'], students: ['Ученики', 'Список, программы и новые ученики'], lessons: ['Календарь', 'Парные уроки и отдельная посещаемость'], homework: ['Задания', 'Каталог и назначения'], subscriptions: ['Оплата', 'Текущее состояние без выдуманных платежей'], results: ['Результаты', 'Доступная история тестов и пробников'], report: ['Отчёт ученика', 'Последние восемь занятий и результаты за этот период'] };
+      const names = { boards: ['Доски','Доски занятий'], library: ['Библиотека','Шаблоны заданий и материалы'], overview: ['Мои классы', 'Обучения, расписание и быстрые действия'], students: ['Ученики', 'Список, программы и новые ученики'], lessons: ['Календарь', 'Парные уроки и отдельная посещаемость'], homework: ['Задания', 'Каталог и назначения'], subscriptions: ['Оплата', 'Текущее состояние без выдуманных платежей'], results: ['Результаты', 'Доступная история тестов и пробников'], report: ['Отчёт ученика', 'Последние восемь занятий и результаты за этот период'] };
       const needs = teacherNeeds;
       const list = (items, empty, item) => items.length ? `<div class="list">${items.map(item).join('')}</div>` : `<div class="empty">${safe(empty)}</div>`;
       const studentName = id => state.data.students?.find(x => x.membershipId === id)?.studentName || 'Ученик';
@@ -379,6 +386,7 @@
       }
       function logout(message = '') {
         lessonBoard.close();
+        Object.assign(boardFilters, { search:'', classId:'', sort:'date' });
         state.library=newLibraryState();state.libraryStorageKey='';state.fileUpload=null;
         state.resultDraft=null;state.studentCard=null;state.studentSearch='';
         state.selectedLesson=null; state.lessonFilter='all';
@@ -450,6 +458,7 @@
           body => api('teacher/' + path, { method: 'POST', body }));
       }
       function setView(view) {
+        if (view === 'boards' && !lessonBoard.enabled) return Promise.resolve();
         if(state.view!==view && !canLeaveStudentEdit()) return Promise.resolve();
         if(state.view==='library' && state.view!==view && state.fileUpload?.file) {
           if(state.fileUpload.busy) {showNotice('Дождитесь завершения загрузки.',true);return Promise.resolve();}
@@ -763,6 +772,36 @@
           ${body}
         </div>`;
       }
+      function classBoardShortcut(item) {
+        return lessonBoard.enabled && item.persistent && !item.isArchived
+          ? `<button type="button" class="secondary" data-class-board-catalog="${safe(item.id)}">Доски занятий</button>` : '';
+      }
+      function boards() {
+        const entries = lessonBoardEntries(state.data);
+        const classes = [...new Map(entries.filter(item => item.classId).map(item => [item.classId, item.classTitle]))]
+          .sort((a,b) => a[1].localeCompare(b[1], 'ru-RU'));
+        if (boardFilters.classId && !classes.some(([id]) => id === boardFilters.classId)) {
+          const selected = teacherClasses().find(item => item.id === boardFilters.classId && !item.isArchived);
+          if (selected) classes.push([selected.id, selected.title]);
+          else boardFilters.classId = '';
+        }
+        return `<section class="stack" aria-label="Каталог досок">
+          <div class="card row">
+            <label>Поиск<input type="search" data-board-search value="${safe(boardFilters.search)}" placeholder="Занятие или класс"></label>
+            <label>Класс<select data-board-class><option value="">Все классы</option>${classes.map(([id,title]) =>
+              `<option value="${safe(id)}" ${id === boardFilters.classId ? 'selected' : ''}>${safe(title)}</option>`).join('')}</select></label>
+            <label>Сортировка<select data-board-sort><option value="date">По дате занятия</option>
+            <option value="title" ${boardFilters.sort === 'title' ? 'selected' : ''}>По названию</option></select></label>
+          </div>
+          <div data-board-cards style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px">
+            ${renderBoardCards(entries, boardFilters, safe, date)}
+          </div>
+        </section>`;
+      }
+      function updateBoardCards() {
+        const cards = document.querySelector('[data-board-cards]');
+        if (cards) cards.innerHTML = renderBoardCards(lessonBoardEntries(state.data), boardFilters, safe, date);
+      }
       function classLessonDetail(item,lesson) {
         const participants=lesson.participants || [];
         const labels={Present:'Присутствовал',Absent:'Отсутствовал',Unknown:'Не отмечено'};
@@ -875,7 +914,7 @@
               <h2>${safe(item.title)}</h2>
               <div class="class-banner-buttons">
                 <button type="button" class="primary" data-schedule-class="${safe(item.id)}">＋ Добавить занятие</button>
-                <button type="button" class="secondary" disabled title="Доски класса ещё не подключены">▣ Перейти к доске</button>
+                ${classBoardShortcut(item) || '<button type="button" class="secondary" disabled title="Доски класса ещё не подключены">Доски занятий</button>'}
               </div>
             </div>
             <div class="class-detail-banner-art" aria-hidden="true"></div>
@@ -1667,7 +1706,7 @@
             return;
           }
         }
-        $('content').innerHTML = ({ overview, students, lessons, homework, library, subscriptions, results, report })[state.view]();
+        $('content').innerHTML = ({ overview, students, lessons, homework, library, subscriptions, results, report, boards })[state.view]();
         for(const draft of drafts) {
           const form=document.getElementById(draft.id);
           if(!form || form.dataset.classId!==draft.classId || form.dataset.lessonId!==draft.lessonId || form.dataset.libraryItem!==draft.libraryItem || form.dataset.studentId!==draft.studentId) continue;
@@ -1825,10 +1864,25 @@
           $('loginError').hidden = false;
         } finally { setBusy(form, false); }
       });
+      $('content').addEventListener('input', event => {
+        if (event.target.matches('[data-board-search]')) {
+          boardFilters.search = event.target.value;
+          updateBoardCards();
+        }
+      });
+      $('content').addEventListener('change', event => {
+        if (event.target.matches('[data-board-class]')) boardFilters.classId = event.target.value;
+        else if (event.target.matches('[data-board-sort]')) boardFilters.sort = event.target.value;
+        else return;
+        updateBoardCards();
+      });
       document.querySelector('.nav').addEventListener('click', event => {
         const coming = event.target.closest('[data-coming]');
         if (coming) { showNotice('Раздел «' + coming.dataset.coming + '» будет подключён на своём этапе. Данные не изменены.'); return; }
-        const button = event.target.closest('[data-view]'); if(button?.dataset.view==='students' && state.view==='students' && state.studentCard) {if(!canLeaveStudentEdit()) return;state.studentCard=null;render();return;} if (button) setView(button.dataset.view);
+        const button = event.target.closest('[data-view]'); if(button?.dataset.view==='students' && state.view==='students' && state.studentCard) {if(!canLeaveStudentEdit()) return;state.studentCard=null;render();return;} if (button) {
+          if (button.dataset.view === 'boards') Object.assign(boardFilters, { search:'', classId:'' });
+          setView(button.dataset.view);
+        }
       });
       document.addEventListener('reset',event=>{if(event.target.matches('[data-student-grade]')) {if(event.target.querySelector('button[type="submit"]')?.disabled) event.preventDefault();else delete event.target.dataset.dirty;}});
       $('refresh').addEventListener('click', () => refresh(true));
@@ -1971,8 +2025,29 @@
       });
       $('content').addEventListener('click', async event => {
         const boardButton = event.target.closest('[data-open-lesson-board]');
-        if (boardButton && !boardButton.disabled && boardButton.dataset.openLessonBoard === state.selectedLesson) {
-          lessonBoard.open(state.selectedLesson);
+        const catalog = event.target.closest('[data-class-board-catalog]');
+        if (catalog && lessonBoard.enabled) {
+          Object.assign(boardFilters, { search:'', classId:catalog.dataset.classBoardCatalog });
+          await setView('boards');
+          return;
+        }
+        const lessonDetails = event.target.closest('[data-board-lesson-details]');
+        if (state.view === 'boards' && lessonDetails) {
+          const entry = lessonBoardEntries(state.data).find(item => item.lessonId === lessonDetails.dataset.boardLessonDetails);
+          if (!entry?.classId) return;
+          state.selectedClass = entry.classId;
+          state.selectedLesson = entry.lessonId;
+          state.classTab = 'classes';
+          state.classDetailTab = 'schedule';
+          state.editLesson = null;
+          await setView('overview');
+          return;
+        }
+        if (boardButton && !boardButton.disabled) {
+          const lessonId = boardButton.dataset.openLessonBoard;
+          if (state.view === 'boards') {
+            if (lessonBoardEntries(state.data).some(item => item.lessonId === lessonId)) lessonBoard.open(lessonId, 'Назад к доскам');
+          } else if (lessonId === state.selectedLesson) lessonBoard.open(lessonId);
           return;
         }
         const download=event.target.closest('[data-file-download]');
