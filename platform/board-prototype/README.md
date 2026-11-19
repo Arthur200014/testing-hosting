@@ -445,6 +445,10 @@ a startup-generated private header. Scene data lives in schema
 The relay validates the database certificate; the primary API's settings stay
 as configured. With a private database CA, the configured Npgsql root
 certificate must be readable in the container.
+On the default Timeweb `.twc1.net` app domain, the relay includes the
+[Timeweb managed database CA](https://st.timeweb.com/cloud-static/ca.crt) in its
+trusted roots when the connection string does not specify a root certificate.
+The relay still checks the database hostname against its certificate.
 
 Before enabling on Timeweb, verify that the workspace is synthetic, document
 database headroom and record normal API health. With the pilot enabled, check

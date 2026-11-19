@@ -95,6 +95,9 @@ internal sealed class HostedBoardPilot(IConfiguration configuration, IWebHostEnv
             start.Environment["PGPASSWORD"] = db.Password!;
             if (!string.IsNullOrEmpty(db.RootCertificate))
                 start.Environment["TAS_BOARD_HOSTED_PG_CA"] = await File.ReadAllTextAsync(db.RootCertificate, cancellationToken);
+            else if (origin.Host.EndsWith(".twc1.net", StringComparison.OrdinalIgnoreCase))
+                start.Environment["NODE_EXTRA_CA_CERTS"] = Path.Combine(
+                    AppContext.BaseDirectory, "board-cabinet", "board-prototype", "timeweb-postgresql-ca.pem");
             process = new Process { StartInfo = start, EnableRaisingEvents = true };
             process.Exited += (_, _) => log.LogWarning("Hosted board pilot relay stopped. The primary API remains available.");
             process.Start();
