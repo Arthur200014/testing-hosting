@@ -1,13 +1,12 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-19
-**ACTIVE_TASK:** UI-08 final scoped keyboard review for class navigation, calendar planning and pupil homework submission.
-**ACTIVE_BRANCH:** none. [PR #107](https://github.com/Arthur200014/testing-hosting/pull/107) merged.
-**MERGED_SHA:** `bc3ac17823aabd67c10130800b2024da1d656de6`.
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44474036834) PASS. Published teacher and pupil HTML byte-match the release and both sign-in pages opened in Chromium.
-**API_DEPLOYMENT:** UI-only change. Live readiness and migrations returned HTTP 200. Running API SHA UNKNOWN.
-**LIVE_WRITE_NOT_RUN:** Owner authorized a dedicated synthetic workspace. The public registration form can only claim a pre-existing, ownerless workspace configured by the API operator. Creation requires privileged API runtime access for `--bootstrap-teacher`, which was unavailable. No live writes were attempted. Isolated Chromium with the real API and PostgreSQL exercised class focus, lesson creation/cancel and homework submission/reload. Board launch remains loopback-only.
-**NEXT_ACTION:** Provision a dedicated synthetic workspace and owner through the authorized API runtime with `--bootstrap-teacher`. Once secure test-only access is available, run live UI-07 settings/password and class, lesson and homework save/reload. Manual screen-reader review and a public board rollout are outside the completed keyboard pass. Keep load-40 manual.
+**ACTIVE_TASK:** Teacher self-registration and email-first cabinet sign-in.
+**ACTIVE_BRANCH:** `tas/teacher-self-signup`, [PR #108](https://github.com/Arthur200014/testing-hosting/pull/108).
+**RELEASE_STATE:** Branch published, awaiting release checks. Previous UI-only [PR #107](https://github.com/Arthur200014/testing-hosting/pull/107) is merged and [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44474036834) passed for `bc3ac17823aabd67c10130800b2024da1d656de6`.
+**API_DEPLOYMENT:** Signup API is on the task branch. Previous live readiness and migrations returned HTTP 200, with API SHA unknown.
+**LIVE_WRITE_NOT_RUN:** The direct test sign-in failed before self-registration was available. Local Chromium with real isolated API/PostgreSQL passed signup, empty workspace isolation, first class creation and persistence after re-entry. Focused PostgreSQL auth/legacy registration tests and synthetic cabinet browser regressions passed.
+**NEXT_ACTION:** Finish PR #108 checks, merge, verify Pages and Timeweb independently, then register a synthetic account and check persistence on the public site. The legacy imported-workspace claim and staff invitation flows remain available. Board launch remains loopback-only.
 
 ## UI-08 cabinet keyboard acceptance
 
