@@ -16,7 +16,7 @@ export async function lessonPermit({apiBase,lessonId,boardId,accessToken,role}){
 }
 export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcileScene,CaptureUpdateAction,convertToExcalidrawElements,renewPermit,status,onReady=()=>{},onRoleInvalidated=()=>{},onAttachments=()=>{},onApplied=()=>{}}){
   const relay=new URL(url);
-  if(!['127.0.0.1','localhost'].includes(relay.hostname) || relay.protocol!==location.protocol
+  if(!['127.0.0.1','localhost'].includes(relay.hostname) || relay.protocol!==(globalThis.location?.protocol ?? 'http:')
     || (relay.protocol==='https:' && relay.origin!==location.origin))throw new Error('Isolated room required');
   const raw=bytes(sceneKey);if(raw.byteLength!==32)throw new Error('A valid scene key is required');
   const key=crypto.subtle.importKey('raw',raw,'AES-GCM',false,['encrypt','decrypt']);
