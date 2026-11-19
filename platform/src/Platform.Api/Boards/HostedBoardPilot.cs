@@ -89,6 +89,7 @@ internal sealed class HostedBoardPilot(IConfiguration configuration, IWebHostEnv
             start.Environment["TAS_BOARD_STAGING_SIGNING_KEY"] = configuration["BoardPrototype:SigningKey"]!;
             start.Environment["TAS_BOARD_HOSTED_RELAY_KEY"] = relayKey;
             start.Environment["PGHOST"] = db.Host;
+            start.Environment["TAS_BOARD_HOSTED_PG_SSL_MODE"] = db.SslMode.ToString();
             start.Environment["PGPORT"] = db.Port.ToString(System.Globalization.CultureInfo.InvariantCulture);
             start.Environment["PGDATABASE"] = db.Database!;
             start.Environment["PGUSER"] = db.Username!;
