@@ -983,7 +983,7 @@
         });
       }
 
-      async function openBoardAccess(board) {
+      async function openBoardAccess(board, opener) {
         if (boardSettings?.open) return;
         const dialog = document.createElement('dialog');
         boardSettings = dialog;
@@ -991,19 +991,25 @@
         dialog.setAttribute('aria-label', 'Доступ к доске');
         dialog.innerHTML = `<section class="stack">
           <h2>Доступ к доске</h2><strong>${safe(board.title)}</strong>
-          <p>Выберите роль для каждого ученика.</p>
+          <p>Выберите роль ученика и нажмите «Применить».</p>
           <label>Ссылка для ученика<input type="url" data-board-link readonly value="${safe(studentBoardLink(location.href, board.id))}"></label>
           <button type="button" class="secondary" data-copy-board-link>Скопировать ссылку</button>
           <p class="muted">Ссылка откроет доску после входа с выданным доступом.</p>
           <p role="status" data-copy-board-status></p>
-          <p role="alert" hidden></p><div data-board-members>Загрузка…</div>
+          <p role="alert" hidden></p><p role="status" data-board-role-status>Загрузка ролей…</p>
+          <div class="stack" data-board-members></div>
           <button type="button" class="secondary" data-close-board-access>Закрыть</button>
         </section>`;
         const list = dialog.querySelector('[data-board-members]');
         const error = dialog.querySelector('[role="alert"]');
+        const roleStatus = dialog.querySelector('[data-board-role-status]');
+        const close = dialog.querySelector('[data-close-board-access]');
+        const generation = state.generation;
+        let saving = false;
         const path = 'teacher/board-prototype/boards/' + board.id + '/members';
         const students = state.data.students || [];
-        dialog.querySelector('[data-close-board-access]').onclick = () => dialog.close();
+        close.addEventListener('click', () => { if (!saving) dialog.close(); });
+        dialog.addEventListener('cancel', event => { if (saving) event.preventDefault(); });
         const boardLink = dialog.querySelector('[data-board-link]');
         const copyStatus = dialog.querySelector('[data-copy-board-status]');
         dialog.querySelector('[data-copy-board-link]').addEventListener('click', async () => {
@@ -1016,33 +1022,81 @@
             copyStatus.textContent = 'Скопируйте выделенную ссылку вручную.';
           }
         });
-        dialog.addEventListener('close', () => { dialog.remove(); if (boardSettings === dialog) boardSettings = null; }, {once:true});
+        dialog.addEventListener('close', () => {
+          dialog.remove();
+          if (boardSettings === dialog) boardSettings = null;
+          if (generation !== state.generation || state.view !== 'boards') return;
+          const replacement = document.querySelector(`[data-share-board="${CSS.escape(board.id)}"]`);
+          const target = [opener, replacement, $('teacherMain')].find(node =>
+            node instanceof HTMLElement && node.getClientRects().length && !node.matches(':disabled'));
+          target?.focus();
+        }, {once:true});
         document.body.append(dialog);
         dialog.showModal();
+        boardLink.focus();
         try {
           const roles = new Map((await api(path)).map(grant => [grant.membershipId, grant.role]));
           if (!dialog.open) return;
-          list.innerHTML = students.length ? students.map(student => `<label class="row">
-            ${safe(student.studentName)} · ${safe(student.programName || '')}
-            <select data-board-member="${safe(student.membershipId)}">
-              <option value="">Нет доступа</option>
-              <option value="viewer" ${roles.get(student.membershipId) === 'viewer' ? 'selected' : ''}>Только просмотр</option>
-              <option value="editor" ${roles.get(student.membershipId) === 'editor' ? 'selected' : ''}>Редактирование</option>
-            </select></label>`).join('') : 'В пространстве пока нет учеников.';
-          list.addEventListener('change', async event => {
-            const select = event.target.closest('[data-board-member]');
-            if (!select) return;
+          roleStatus.textContent = '';
+          list.innerHTML = students.length ? students.map(student => `<form class="row" data-board-role-form>
+            <label>${safe(student.studentName)} · ${safe(student.programName || '')}
+              <select data-board-member="${safe(student.membershipId)}">
+                <option value="">Нет доступа</option>
+                <option value="viewer" ${roles.get(student.membershipId) === 'viewer' ? 'selected' : ''}>Только просмотр</option>
+                <option value="editor" ${roles.get(student.membershipId) === 'editor' ? 'selected' : ''}>Редактирование</option>
+              </select>
+            </label>
+            <button type="submit" class="secondary" data-apply-board-role aria-disabled="true"
+              aria-label="Применить роль: ${safe(student.studentName)}">Применить</button>
+          </form>`).join('') : 'В пространстве пока нет учеников.';
+          const setActionState = form => {
+            const select = form.querySelector('[data-board-member]');
+            const changed = select.value !== (roles.get(select.dataset.boardMember) || '');
+            form.querySelector('[data-apply-board-role]').setAttribute('aria-disabled', String(saving || !changed));
+          };
+          const setSaving = (value, select) => {
+            saving = value;
+            select.disabled = value;
+            close.setAttribute('aria-disabled', String(value));
+            list.querySelectorAll('[data-board-role-form]').forEach(setActionState);
+          };
+          list.addEventListener('change', event => {
+            if (event.target.matches('[data-board-member]')) setActionState(event.target.form);
+          });
+          list.addEventListener('submit', async event => {
+            event.preventDefault();
+            const form = event.target;
+            const select = form.querySelector('[data-board-member]');
             const id = select.dataset.boardMember;
             const role = select.value;
-            select.disabled = true;
+            if (saving || role === (roles.get(id) || '')) return;
+            form.querySelector('[data-apply-board-role]').focus();
+            setSaving(true, select);
             error.hidden = true;
+            roleStatus.textContent = 'Сохраняем доступ…';
             try {
               await api(path + '/' + id, role ? {method:'PUT',body:{role}} : {method:'DELETE'});
+              if (!dialog.open) return;
               roles.set(id, role);
-            } catch (e) { select.value = roles.get(id) || ''; error.textContent = e.message; error.hidden = false; }
-            finally { select.disabled = false; }
+              roleStatus.textContent = role
+                ? 'Роль сохранена: ' + select.selectedOptions[0].textContent + '.'
+                : 'Доступ отозван.';
+            } catch (e) {
+              if (!dialog.open) return;
+              select.value = roles.get(id) || '';
+              roleStatus.textContent = '';
+              error.textContent = e.message;
+              error.hidden = false;
+            } finally {
+              if (dialog.open) setSaving(false, select);
+            }
           });
-        } catch (e) { list.textContent = ''; error.textContent = e.message; error.hidden = false; }
+        } catch (e) {
+          roleStatus.textContent = '';
+          if (!dialog.open) return;
+          error.textContent = e.message;
+          error.hidden = false;
+        }
       }
 
       function openBoardMove(board) {
@@ -2679,7 +2733,7 @@
           const share = event.target.closest('[data-share-board]');
           if (share) {
             const board = (state.data.boardRecords || []).find(item => item.id === share.dataset.shareBoard);
-            if (board) await openBoardAccess(board);
+            if (board) await openBoardAccess(board, share);
             return;
           }
           const newFolder = event.target.closest('[data-new-board-folder]');
