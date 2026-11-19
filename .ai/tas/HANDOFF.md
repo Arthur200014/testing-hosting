@@ -1,8 +1,8 @@
 # TEACHER AI STUDENT — HANDOFF
 
-**UPDATED:** 2026-11-19
-**ACTIVE_TASK:** Stage 2 isolated board pilot for Timeweb App Platform. The package and isolated gateway tests passed. Cloud deployment and actual browser save/reopen pending.
-**ACTIVE_BRANCH:** [`tas/board-timeweb-pilot`](https://github.com/Arthur200014/testing-hosting/tree/tas/board-timeweb-pilot), `d2f2763`. The pilot branch targets a separate App Platform application. PR #112 remains the last merged application change.
+**UPDATED:** 2026-11-20
+**ACTIVE_TASK:** Assess a test-only board pilot inside the existing `Platform lms` Timeweb application before considering more paid resources.
+**ACTIVE_BRANCH:** [`tas/board-timeweb-pilot`](https://github.com/Arthur200014/testing-hosting/tree/tas/board-timeweb-pilot), `d2f2763`. This validated package expects a separate App Platform application. Its provisioning is on hold. PR #112 remains the last merged application change.
 **MERGED_SHA:** `ef3cbb2ad877577bc60bb00f9d6db93a28e99efa` ([PR #112](https://github.com/Arthur200014/testing-hosting/pull/112)).
 **RELEASE_STATE:** [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44565739420) PASS on #112; public `platform/lesson-board-ui.mjs` matches the merged file. Landing and both sign-in screens opened in the public browser. The editor and relay are currently loopback staging only.
 **API_DEPLOYMENT:** Timeweb readiness and migrations HTTP 200; public board catalog HTTP 404 as intended. [Read-only Timeweb probe](https://github.com/Arthur200014/testing-hosting/actions/runs/44566244357) PASS and API fallback skipped. Native deploy completion NOT_VERIFIED; running API SHA UNKNOWN. LIVE_WRITE_NOT_RUN for boards because the public gate is closed and no private deployed pilot is configured.
@@ -16,7 +16,7 @@
 
 **PILOT_DEPLOYMENT:** [Pilot image](https://github.com/Arthur200014/testing-hosting/actions/runs/44613778951) PASS, including explicit Compose manifest validation, Docker build and runtime package checks. Local gateway smoke used real TLS PostgreSQL and a fixture HTTP API. Host/origin validation, WebSocket commit and isolated journal checks PASS. App Platform setup and deployed browser writes NOT_RUN.
 
-**NEXT_ACTION:** Show the price of a separate Timeweb App Platform pilot and confirm the owner's cost approval before provisioning. Configure the pilot branch with `/compose.board-pilot.yaml`, tester-only ingress and two synthetic databases with scoped roles. Verify HTTPS and WebSocket upgrade, teacher share, pupil save, fresh-session reopen and denial for a second workspace. Keep production board routes disabled and load-40 manual.
+**NEXT_ACTION:** Check the existing PostgreSQL plan, whether it supports additional logical databases and scoped roles, and confirm headroom on the current 1 GB app. Adapt on a branch for a disabled-by-default test route within `Platform lms`, preserving the public API and production board gate. Verify isolated storage, access denial and existing API startup before any live activation. Do not provision another paid app or VPS without the owner's decision. Keep load-40 manual.
 
 ## UI-08 cabinet keyboard acceptance
 
