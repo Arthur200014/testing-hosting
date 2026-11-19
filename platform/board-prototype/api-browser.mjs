@@ -99,7 +99,14 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       const trigger = p.getByRole('button',{name:'Перейти к доске',exact:true});
       const back = p.getByRole('button',{name:'Назад к занятию'});
       const frame = () => p.frames().find(f => f.parentFrame() === p.mainFrame());
-      const open = async () => { await trigger.click(); await p.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor(); return frame(); };
+      const open = async () => {
+        await trigger.press('Enter');
+        await p.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
+        assert.ok(await back.evaluate(node => document.activeElement === node), 'board opens with focus on the return button');
+        await p.keyboard.press('Tab');
+        assert.equal(await p.evaluate(() => document.activeElement.tagName), 'IFRAME', 'Tab enters the board editor');
+        return frame();
+      };
       const editor = await open();
       await count(editor,0);
       const bounds = await p.locator('dialog iframe').boundingBox();
@@ -121,7 +128,8 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       await editor.getByRole('button',{name:'Undo',exact:true}).click();
       await count(editor,1);
       await saved(editor);
-      await back.click();
+      await p.keyboard.press('Alt+Shift+ArrowUp');
+      await p.locator('dialog iframe').waitFor({state:'detached'});
       await p.locator('.class-lesson-detail h1').getByText(solo.title,{exact:true}).waitFor();
       await trigger.evaluate(node => { if (document.activeElement !== node) throw new Error('Board trigger focus not restored'); });
       assert.deepEqual(await active(await open()),original);
@@ -313,7 +321,10 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       await pupil.mouse.up();
       await count(pupilFrame,2);
       await saved(pupilFrame);
-      await pupil.getByRole('button',{name:'Назад к доскам'}).click();
+      await pupil.keyboard.press('Alt+Shift+ArrowUp');
+      await pupil.locator('dialog iframe').waitFor({state:'detached'});
+      const pupilTrigger = pupil.locator('[data-open-independent-board="'+boardId+'"]');
+      assert.ok(await pupilTrigger.evaluate(node => document.activeElement === node), 'shared link returns focus to the pupil board button');
       const oldPermit = await call(studentPath+'/'+boardId+'/permit',studentToken,{});
       await call('board-prototype/access',null,{token:oldPermit.token},204);
       await memberSwitch.selectOption('');
