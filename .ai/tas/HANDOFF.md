@@ -1,14 +1,14 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-19
-**ACTIVE_TASK:** Teacher self-registration and email-first cabinet sign-in released.
+**ACTIVE_TASK:** Teacher self-registration and email-first cabinet sign-in released and verified in the published browser.
 **ACTIVE_BRANCH:** none. [PR #108](https://github.com/Arthur200014/testing-hosting/pull/108) merged.
 **MERGED_SHA:** `131cd4c415166fe2ff0f89855e8777f1a058680e`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44483135767) PASS. Published teacher HTML matches the release. Chromium on the public site confirmed email/password sign-in without a workspace input and opened the registration form.
 **API_DEPLOYMENT:** Live Timeweb behavior verified. Signup creates a new workspace, email/password sign-in works, Pages CORS permits authenticated JSON requests, and readiness and migrations returned HTTP 200. Running API SHA UNKNOWN.
-**LIVE_API_WRITE_PASS:** Created one disposable teacher workspace and one synthetic pupil through the normal public API. Profile, class, lesson and submitted homework answer persisted across fresh teacher and pupil sessions. Public browser forms were checked; authenticated browser save/reload ran against an isolated API/PostgreSQL, with public save/reload verified through the live API.
-**CHECKS:** [TAS gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44480625142), [branch PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44480624974) and [full branch browser](https://github.com/Arthur200014/testing-hosting/actions/runs/44480625030) PASS.
-**NEXT_ACTION:** Finish authenticated acceptance through the published UI when a designated test sign-in is available. Imported-workspace claims and staff invitations retain their separate browser forms. Board launch remains loopback-only. Keep load-40 manual.
+**LIVE_BROWSER_WRITE_PASS:** Published teacher and pupil cabinets against Timeweb. The UI registered an isolated synthetic teacher, saved the profile, and reopened it and the test class after a fresh email/password sign-in. Calendar cancellation wrote no lesson and restored focus. A saved lesson reopened in the calendar. The pupil submitted homework with the keyboard and reopened the persisted answer after fresh sign-in. Synthetic pupil/class/assignment fixtures were provisioned by the public API in the new workspace. Earlier live API write/reload smoke also passed.
+**CHECKS:** [TAS gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44480625142), [branch PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44480624974) and [full branch browser](https://github.com/Arthur200014/testing-hosting/actions/runs/44480625030) PASS. [Post-merge PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44483137201) and [isolated board checks including the 21-editor soak](https://github.com/Arthur200014/testing-hosting/actions/runs/44480632578) PASS. The duplicate main browser run was cancelled.
+**NEXT_ACTION:** Finish UI-08 with a focused manual screen-reader pass for public entry, teacher class/calendar navigation and pupil homework status in the synthetic test context. Board stays loopback-only. Keep load-40 manual.
 
 ## UI-08 cabinet keyboard acceptance
 
