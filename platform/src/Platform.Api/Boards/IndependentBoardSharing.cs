@@ -10,9 +10,9 @@ internal static class IndependentBoardSharing
     public sealed record GrantRow(Guid MembershipId, string Role);
     public sealed record GrantInput(string? Role);
 
-    public static void Map(WebApplication app, Delegate permit)
+    public static void Map(RouteGroupBuilder teacherRoutes, RouteGroupBuilder studentRoutes, Delegate permit)
     {
-        var roster = app.MapGroup("/api/v1/teacher/board-prototype/boards/{boardId:guid}/members").RequireAuthorization("teacher");
+        var roster = teacherRoutes.MapGroup("/boards/{boardId:guid}/members");
         roster.MapGet("", async (Guid boardId, ClaimsPrincipal principal, PlatformDbContext db, CancellationToken ct) =>
         {
             if (!await IndependentBoardEndpoints.OwnsAsync(principal, boardId, db, ct)) return Results.NotFound();
@@ -51,7 +51,7 @@ internal static class IndependentBoardSharing
             return Results.NoContent();
         });
 
-        var student = app.MapGroup("/api/v1/student/board-prototype/boards").RequireAuthorization("student");
+        var student = studentRoutes.MapGroup("/boards");
         student.MapGet("", async (ClaimsPrincipal principal, PlatformDbContext db, HttpContext http, CancellationToken ct) =>
         {
             http.Response.Headers.CacheControl = "no-store";

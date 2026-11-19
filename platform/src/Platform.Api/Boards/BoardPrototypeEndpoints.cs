@@ -18,8 +18,16 @@ public static class BoardPrototypeEndpoints
     public static void Map(WebApplication app)
     {
         if (!app.Configuration.GetValue<bool>("BoardPrototype:Enabled")) return;
-        if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("IntegrationTests"))
-            throw new InvalidOperationException("Board prototype requires an isolated development environment.");
+        Guid? stagingWorkspace = null;
+        if (app.Environment.IsStaging())
+        {
+            if (!Guid.TryParse(app.Configuration["BoardPrototype:StagingWorkspaceId"], out var workspace)
+                || workspace == Guid.Empty)
+                throw new InvalidOperationException("A dedicated board staging workspace is required.");
+            stagingWorkspace = workspace;
+        }
+        else if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("IntegrationTests"))
+            throw new InvalidOperationException("Board prototype requires an isolated development or staging environment.");
         var key = Convert.FromBase64String(app.Configuration["BoardPrototype:SigningKey"] ?? "");
         var sceneRoot = Convert.FromBase64String(app.Configuration["BoardPrototype:SceneRootKey"] ?? "");
         var apiKey = Convert.FromBase64String(app.Configuration["Jwt:SigningKey"] ?? "");
@@ -31,25 +39,42 @@ public static class BoardPrototypeEndpoints
         // Short lifetimes exercise real expiry/reconnect in the isolated integration runner.
         var lifetime = app.Configuration.GetValue<int?>("BoardPrototype:PermitLifetimeSeconds") ?? 120;
         if (lifetime is < 5 or > 120) throw new InvalidOperationException("Board permit lifetime must be 5–120 seconds.");
-        foreach (var role in new[] { "teacher", "student" })
+        RouteGroupBuilder BoardRoutes(string role)
         {
-            var policy = role;
-            app.MapPost("/api/v1/" + policy + "/board-prototype/lessons/{lessonId:guid}/permit",
+            var routes = app.MapGroup("/api/v1/" + role + "/board-prototype").RequireAuthorization(role);
+            if (stagingWorkspace.HasValue)
+                routes.AddEndpointFilter((context, next) =>
+                {
+                    context.HttpContext.Response.Headers.CacheControl = "no-store";
+                    return WorkspaceAllowed(context.HttpContext.User.FindFirstValue("workspace_id"))
+                        ? next(context) : ValueTask.FromResult<object?>(Results.NotFound());
+                });
+            return routes;
+        }
+
+        bool WorkspaceAllowed(string? workspaceId) => !stagingWorkspace.HasValue
+            || (Guid.TryParse(workspaceId, out var workspace) && workspace == stagingWorkspace.Value);
+
+        var teacherRoutes = BoardRoutes("teacher");
+        var studentRoutes = BoardRoutes("student");
+        foreach (var (routes, policy) in new[] { (teacherRoutes, "teacher"), (studentRoutes, "student") })
+        {
+            routes.MapPost("/lessons/{lessonId:guid}/permit",
                 async (Guid lessonId, ClaimsPrincipal principal, PlatformDbContext db, TimeProvider clock, HttpContext http, CancellationToken ct) =>
                 {
                     http.Response.Headers.CacheControl = "no-store";
                     if (!await CanAccess(principal, policy, lessonId, db, ct)) return Results.NotFound();
                     return Issue(principal, policy, lessonId, null, clock);
-                }).RequireAuthorization(policy);
+                });
         }
-        IndependentBoardEndpoints.Map(app,
+        IndependentBoardEndpoints.Map(teacherRoutes,
             async (Guid boardId, ClaimsPrincipal principal, PlatformDbContext db, TimeProvider clock, HttpContext http, CancellationToken ct) =>
             {
                 http.Response.Headers.CacheControl = "no-store";
                 if (!await IndependentBoardEndpoints.OwnsAsync(principal, boardId, db, ct)) return Results.NotFound();
                 return Issue(principal, "teacher", Guid.Empty, boardId, clock);
             });
-        IndependentBoardSharing.Map(app,
+        IndependentBoardSharing.Map(teacherRoutes, studentRoutes,
             async (Guid boardId, ClaimsPrincipal principal, PlatformDbContext db, TimeProvider clock, HttpContext http, CancellationToken ct) =>
             {
                 http.Response.Headers.CacheControl = "no-store";
@@ -81,7 +106,7 @@ public static class BoardPrototypeEndpoints
         {
             http.Response.Headers.CacheControl = "no-store";
             var permit = ReadPermit(key, request.Token, clock.GetUtcNow().ToUnixTimeSeconds());
-            if (permit is null) return Results.NotFound();
+            if (permit is null || !WorkspaceAllowed(permit.workspace)) return Results.NotFound();
             var principal = new ClaimsPrincipal(new ClaimsIdentity(new[] {
                 new Claim("sub", permit.user), new Claim("workspace_id", permit.workspace),
                 new Claim("membership_id", permit.member), new Claim("role", permit.authRole),

@@ -4,6 +4,8 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
@@ -33,6 +35,84 @@ public sealed partial class TeacherSessionTests
             Assert.Throws<InvalidOperationException>(()=>invalid.CreateClient());
         }
     }
+
+    [Fact]
+    public void BoardPrototypeRejectsProductionAndUnconfiguredStaging()
+    {
+        foreach (var (environment, workspaceId) in new[] {
+            ("Production", Guid.NewGuid().ToString()),
+            ("Staging", ""),
+            ("Staging", Guid.Empty.ToString()),
+            ("Staging", "invalid")
+        })
+        {
+            using var invalid = BoardHost(environment, workspaceId);
+            Assert.Throws<InvalidOperationException>(() => invalid.CreateClient());
+        }
+    }
+
+    [Fact]
+    public async Task BoardPrototypeStagingAllowsOnlyTheConfiguredWorkspace()
+    {
+        await ResetAsync(factory);
+        var allowed = await SeedAsync(factory, "board-staging-allowed", "board-staging-allowed@example.invalid", "owner");
+        var excluded = await SeedAsync(factory, "board-staging-excluded", "board-staging-excluded@example.invalid", "owner");
+        foreach (var workspace in new[] { allowed.WorkspaceId, excluded.WorkspaceId })
+        {
+            var pupil = await SeedStudentAsync(factory, workspace, "Synthetic pupil", true);
+            await SeedHistoryAsync(factory, workspace, [pupil]);
+        }
+
+        Dictionary<Guid, Guid> lessons;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            lessons = await db.Lessons.ToDictionaryAsync(lesson => lesson.WorkspaceId, lesson => lesson.Id);
+        }
+
+        const string catalog = "/api/v1/teacher/board-prototype/boards";
+        const string access = "/api/v1/board-prototype/access";
+        using var staging = BoardHost("Staging", allowed.WorkspaceId.ToString());
+        using var client = staging.CreateClient();
+        async Task SelectTeacher(string name)
+        {
+            var response = await LoginAsync(client, name, name + "@example.invalid", Password);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var session = (await response.Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+        }
+
+        await SelectTeacher("board-staging-excluded");
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(catalog)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsync(
+            $"/api/v1/teacher/board-prototype/lessons/{lessons[excluded.WorkspaceId]}/permit", null)).StatusCode);
+
+        await SelectTeacher("board-staging-allowed");
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync(catalog)).StatusCode);
+        using var permit = await client.PostAsync(
+            $"/api/v1/teacher/board-prototype/lessons/{lessons[allowed.WorkspaceId]}/permit", null);
+        Assert.Equal(HttpStatusCode.OK, permit.StatusCode);
+        var token = (await permit.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("token").GetString();
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync(access, new { token })).StatusCode);
+
+        using var reconfigured = BoardHost("Staging", excluded.WorkspaceId.ToString());
+        using var revalidation = reconfigured.CreateClient();
+        Assert.Equal(HttpStatusCode.NotFound, (await revalidation.PostAsJsonAsync(access, new { token })).StatusCode);
+
+        using var disabled = BoardHost("Staging", allowed.WorkspaceId.ToString(), enabled: false);
+        using var disabledClient = disabled.CreateClient();
+        Assert.Equal(HttpStatusCode.NotFound, (await disabledClient.PostAsJsonAsync(access, new { token })).StatusCode);
+    }
+
+    private WebApplicationFactory<Program> BoardHost(string environment, string workspaceId, bool enabled = true)
+        => factory.WithWebHostBuilder(builder => builder.UseEnvironment(environment)
+            .ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["BoardPrototype:Enabled"] = enabled.ToString(),
+                ["BoardPrototype:StagingWorkspaceId"] = workspaceId,
+                ["BoardPrototype:SigningKey"] = Convert.ToBase64String(Enumerable.Repeat((byte)0x79, 32).ToArray()),
+                ["BoardPrototype:SceneRootKey"] = Convert.ToBase64String(Enumerable.Repeat((byte)0x6b, 32).ToArray())
+            })));
 
     [Fact]
     public async Task BoardPrototypePermitChecksTeacherWorkspaceAndStudentParticipation()
