@@ -13,9 +13,9 @@ internal static class IndependentBoardEndpoints
     public sealed record MoveInput(Guid? FolderId);
     public sealed record FavoriteInput(bool IsFavorite);
 
-    public static void Map(WebApplication app, Delegate permit)
+    public static void Map(RouteGroupBuilder teacherRoutes, Delegate permit)
     {
-        var routes = app.MapGroup("/api/v1/teacher/board-prototype/boards").RequireAuthorization("teacher");
+        var routes = teacherRoutes.MapGroup("/boards");
 
         routes.MapGet("", async (ClaimsPrincipal principal, PlatformDbContext db, HttpContext http, CancellationToken ct) =>
         {

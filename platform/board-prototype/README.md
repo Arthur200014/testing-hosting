@@ -364,3 +364,14 @@ focused regressions. A later210-editor run opened all210 contexts but timed out 
 click before steady load (run44170721900). On18 November the owner reduced P4
 acceptance to40 editors. The15min duration,500ms delivery/2s acknowledgement
 budgets, isolation and recovery gates remain unchanged;210 is not a GO gate.
+
+### Workspace gate for a dedicated staging API
+
+The staging API accepts board routes only when all of these settings apply to a deployment that contains synthetic data:
+
+- `ASPNETCORE_ENVIRONMENT=Staging`
+- `BoardPrototype__Enabled=true`
+- `BoardPrototype__StagingWorkspaceId` is the non-empty GUID of the dedicated test workspace.
+- `BoardPrototype__SigningKey` and `BoardPrototype__SceneRootKey` are distinct server secrets. Preserve the scene root across restarts of the same test store.
+
+The gate covers teacher and pupil board routes, including listings, metadata changes, and permits. Relay access checks apply the same workspace restriction to signed permits. Changing the workspace and restarting the API invalidates access for the previous workspace even before existing permits expire. Set `BoardPrototype__Enabled=false` and restart to remove the routes while preserving saved data. The Production environment rejects enablement. The editor and relay still require separate HTTPS staging integration.
