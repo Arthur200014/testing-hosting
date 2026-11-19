@@ -1,17 +1,30 @@
 import { createServer } from 'node:http';
+import { createServer as createHttpsServer } from 'node:https';
 import { Server } from 'socket.io';
 import { authorizeEvent } from './access.mjs';
 import { bindRoom } from './room.mjs';
 import {MAX_FILE_BYTES,references} from './files.mjs';
 
-// Isolated experiment only. No executable entry point or production configuration.
+export function startTestTransport(options) {
+  const server = createServer((_, res) => { res.writeHead(404); res.end(); });
+  return startTransport(server, options);
+}
+
+export function startStagingTransport({tls, handler, authorize, ...options}) {
+  if (!tls?.key || !tls.cert || typeof authorize !== 'function')
+    throw new Error('TLS and API authorization are required for staging');
+  const server = createHttpsServer(tls, handler);
+  const sameOrigin = request => request.headers.origin === `https://127.0.0.1:${server.address()?.port}`;
+  return startTransport(server, {...options, authorize}, sameOrigin);
+}
+
 // Scene payloads stay opaque; reconstruction/reconciliation belongs to the editor.
-export async function startTestTransport({ key, journal, revoked = () => false,
-  authorize = async () => true, acknowledge = () => true, observe = () => {}, clock = Date.now, port = 0, maxConnections = 256, maxRoomConnections = 24 }) {
+async function startTransport(http, { key, journal, revoked = () => false,
+  authorize = async () => true, acknowledge = () => true, observe = () => {}, clock = Date.now, port = 0, maxConnections = 256, maxRoomConnections = 24 }, allowRequest) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Invalid test port');
-  const http = createServer((_, res) => { res.writeHead(404); res.end(); });
   const io = new Server(http, { serveClient: false, transports: ['websocket'],
-    maxHttpBufferSize: MAX_FILE_BYTES+32768, perMessageDeflate: false, allowUpgrades: false });
+    maxHttpBufferSize: MAX_FILE_BYTES+32768, perMessageDeflate: false, allowUpgrades: false,
+    ...(allowRequest && {allowRequest: (request, callback) => callback(null, allowRequest(request))}) });
   const connections = new Set(), counts = new Map();let activeOperations=0;
   const waiters=new Map();
   const notify=scope=>{for(const release of waiters.get(scope.workspace+'/'+scope.board)??[])release();};
@@ -142,7 +155,7 @@ export async function startTestTransport({ key, journal, revoked = () => false,
   await new Promise((resolve, reject) => {
     http.once('error', reject); http.listen(port, '127.0.0.1', resolve);
   }).catch(async error => { clearInterval(sweep); await io.close(); throw error; });
-  return { url: `http://127.0.0.1:${http.address().port}`,
+  return { url: `${allowRequest ? 'https' : 'http'}://127.0.0.1:${http.address().port}`,
     // Test controller only; never exposed as a network operation.
     disconnectUser(user) { for(const socket of connections)if(socket.data.claims.user===user)socket.disconnect(true); },
     async close() { clearInterval(sweep); await new Promise(resolve => io.close(resolve)); } };

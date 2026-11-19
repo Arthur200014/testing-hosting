@@ -9,8 +9,20 @@ export function assertTestDatabase(connectionString) {
     throw new Error('Only dedicated loopback tas_board_test databases are allowed');
 }
 // Dedicated test DB only; production adapter/migrations are deliberately not enabled.
-export async function openPostgresJournal(connectionString, {beforeCheckpointCommit=async()=>{}} = {}) {
+export async function openPostgresJournal(connectionString, options) {
   assertTestDatabase(connectionString);
+  return openJournal(connectionString, options);
+}
+
+export function openStagingPostgresJournal(connectionString) {
+  const url = new URL(connectionString);
+  if (!['postgres:', 'postgresql:'].includes(url.protocol) || url.hostname !== '127.0.0.1'
+      || url.pathname !== '/tas_board_staging' || url.search || url.hash)
+    throw new Error('A dedicated loopback tas_board_staging database is required');
+  return openJournal(connectionString);
+}
+
+async function openJournal(connectionString, {beforeCheckpointCommit=async()=>{}} = {}) {
   const pool = new pg.Pool({ connectionString, max: 12, connectionTimeoutMillis: 3000 });
   await pool.query(`CREATE TABLE IF NOT EXISTS board_heads (
     workspace text NOT NULL, board text NOT NULL, revision integer NOT NULL DEFAULT 0,

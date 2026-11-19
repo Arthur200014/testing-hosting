@@ -48,8 +48,8 @@ if (!config && window.parent !== window && location.hostname === '127.0.0.1') {
     try {
       if (![relay, session.apiBase].every(value => {
         const url = new URL(value);
-        return url.protocol === 'http:' && url.hostname === '127.0.0.1';
-      })) return;
+        return url.protocol === location.protocol && url.hostname === '127.0.0.1' && url.origin === value;
+      }) || (location.protocol === 'https:' && relay !== location.origin)) return;
     } catch { return; }
     config = { url:relay, session };
     renderEditor();

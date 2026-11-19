@@ -14,11 +14,14 @@ export function boardIdFromLink(hash) {
 
 // The isolated runner supplies the relay explicitly. Production hosts cannot enable it.
 export function createLessonBoard(apiBase, accessToken, role = 'teacher') {
-  const relay = window.__TAS_ISOLATED_BOARD_RELAY;
+  const staging = location.protocol === 'https:' && location.hostname === '127.0.0.1' &&
+    ['/cabinet/teacher.html', '/cabinet/student.html'].includes(location.pathname);
+  const relay = staging ? location.origin : window.__TAS_ISOLATED_BOARD_RELAY;
+  const editorPath = staging ? '/board/' : '/';
   const enabled = location.hostname === '127.0.0.1' && [relay, apiBase].every(value => {
     try {
       const url = new URL(value);
-      return url.protocol === 'http:' && url.hostname === '127.0.0.1';
+      return url.protocol === (staging ? 'https:' : 'http:') && url.hostname === '127.0.0.1' && url.origin === value;
     } catch { return false; }
   });
   let dialog;
@@ -50,10 +53,10 @@ export function createLessonBoard(apiBase, accessToken, role = 'teacher') {
     const frame = document.createElement('iframe');
     frame.title = 'Рабочая область доски';
     frame.style.cssText = 'display:block;width:100%;height:calc(100% - 53px);border:0;';
-    frame.src = '/';
+    frame.src = editorPath;
     frame.addEventListener('load', () => {
       const editor = frame.contentDocument;
-      if (editor?.URL !== new URL('/', location.origin).href) return;
+      if (editor?.URL !== new URL(editorPath, location.origin).href) return;
       editor.addEventListener('keydown', exitByShortcut, true);
       frame.contentWindow.postMessage({
         type:'tas:open-lesson-board', relay,
