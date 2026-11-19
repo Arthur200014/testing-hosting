@@ -1,15 +1,24 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-19
-**ACTIVE_TASK:** UI-08 shared-board keyboard opening/exit and cabinet focus restoration in the isolated prototype. Focused Chromium passed. Existing real API/PostgreSQL board check running.
-**ACTIVE_BRANCH:** `tas/ui08-board-keyboard` / [PR #105](https://github.com/Arthur200014/testing-hosting/pull/105) / `47701f894113ab69228e6245fb28a6dcd4e7661e`.
-**MERGED_SHA:** `c9124bf8fd2e716a7198a80dbcd4fcf222e9eaf7`.
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED + LIVE_PUBLIC_NAV_VERIFIED. [GitHub Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44401862816) PASS. Published landing, teacher and student HTML byte-match the release. Chromium followed both sign-in links and the pupil back link at 390px.
-**API_DEPLOYMENT:** UI-only changes. Live readiness and migrations returned HTTP 200 after rollout; [Timeweb health](https://github.com/Arthur200014/testing-hosting/actions/runs/44402433898) PASS. Running API SHA UNKNOWN.
-**LIVE_WRITE_NOT_RUN:** No dedicated live synthetic workspace/test credentials confirmed. Isolated Chromium with the real API and PostgreSQL verified both sign-in/out paths. No production data was written.
-**NEXT_ACTION:** Verify the focused isolated teacher/student board scenario, merge and verify module publication. The board launcher remains intentionally loopback-only. Verify live settings and password save/re-entry only when dedicated synthetic access is available. Keep load-40 manual.
+**ACTIVE_TASK:** UI-08 isolated shared-board keyboard entry, exit and focus restoration.
+**ACTIVE_BRANCH:** none. [PR #105](https://github.com/Arthur200014/testing-hosting/pull/105) merged.
+**MERGED_SHA:** `dd87df3f6659e5f9bb1128c6b950ca13a18b4914`.
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44467656779) PASS. Published `platform/lesson-board-ui.mjs` byte-matches the release. The public teacher cabinet loaded it in Chromium. Board launch remains loopback-only by design.
+**API_DEPLOYMENT:** API-independent change. Public readiness and migration endpoints returned HTTP 200; running API SHA UNKNOWN.
+**LIVE_WRITE_NOT_RUN:** The board is intentionally disabled in public cabinets. Board editing, save and reopen were verified against the real isolated API and PostgreSQL. Live settings/password writes still require confirmed dedicated test access.
+**NEXT_ACTION:** Continue UI-08 keyboard acceptance with the board access/role dialog. Verify focus entry, Escape, and return for teacher and pupil paths on the isolated runner. Public board rollout remains a separate owner decision. Keep load-40 manual.
+
+## UI-08 board keyboard verification
+
+- Enter opens the board and focuses its return button. Tab enters the editor. Alt+Shift+↑ reaches the same close handler from the editor and toolbar. Canceling an unsaved-changes warning keeps editing available. Closing restores focus to the original or rerendered board entry, with a cabinet fallback.
+- Local Chromium PASS for the keyboard path, unsaved confirmation cancel, rerendered opener and fallback. [Actual editor/API/PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44466943068/job/135367024232) PASS for both roles and saved scene reopen. Board room-core, group and licence jobs passed. The unrelated 21-editor soak was still running.
+- [TAS gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44466937507) and [pre-merge PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44466937485) PASS. [Post-merge PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44467657262) PASS.
+- Paths: `platform/lesson-board-ui.mjs` and `platform/board-prototype/api-browser.mjs`.
 
 ## UI-08 public entry verification
+
+- [PR #104](https://github.com/Arthur200014/testing-hosting/pull/104) / `c9124bf`, public entry and mobile cabinet navigation. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44401862816) and [main browser rerun](https://github.com/Arthur200014/testing-hosting/actions/runs/44401864027) PASS.
 
 - [Public landing](https://arthur200014.github.io/testing-hosting/platform/) shows actual capabilities and links to the teacher and pupil cabinets. Existing direct sign-in URLs remain valid. The mobile teacher section switcher supports keyboard activation, Escape, focus return and current section announcement. Both sign-in forms handle error and entry focus, and logout returns focus to sign-in. The retired chat placeholder was removed.
 - Focused local Chromium tests at 320/390/1348px, JavaScript syntax and diff PASS. Isolated real API/PostgreSQL 17 PASS for navigation and both actual sign-in/out paths with synthetic accounts, and mobile calendar dialog keyboard opening, focus and Escape without creating a lesson. [TAS task gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44401325732), [PostgreSQL before merge](https://github.com/Arthur200014/testing-hosting/actions/runs/44401325602) and [PostgreSQL after merge](https://github.com/Arthur200014/testing-hosting/actions/runs/44401864064) PASS. [Full branch browser regression](https://github.com/Arthur200014/testing-hosting/actions/runs/44401325576) PASS on the exact released application tree. [Redundant main browser rerun](https://github.com/Arthur200014/testing-hosting/actions/runs/44401864027) PASS.
