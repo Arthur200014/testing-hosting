@@ -1,5 +1,11 @@
 name: TAS Timeweb read-only health and latency
 on:
+  push:
+    branches: ['tas/**']
+    paths:
+      - 'platform/scripts/timeweb-readonly-check.py'
+      - 'platform/scripts/test_timeweb_readonly_check.py'
+      - '.github/workflows/timeweb-readonly-health.yml'
   workflow_run:
     workflows: ['Homework import integration']
     types: [completed]
@@ -15,12 +21,12 @@ concurrency:
 
 jobs:
   health:
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - name: Validate probe locally (synthetic HTTP)
         run: python3 -m unittest discover -s platform/scripts -p 'test_timeweb_readonly_check.py' -v
-      - name: Measure Timeweb public health / anonymous authorization
+      - name: Check live Timeweb hosted board editor and cabinet (read-only)
         run: python3 platform/scripts/timeweb-readonly-check.py
