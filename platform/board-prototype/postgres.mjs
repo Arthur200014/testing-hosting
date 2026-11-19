@@ -1,5 +1,6 @@
 import pg from 'pg';
 import {createHash} from 'node:crypto';
+import {isIP} from 'node:net';
 import {validateFile,references,MAX_ROOM_FILE_BYTES,MAX_ROOM_PIXELS,validId} from './files.mjs';
 const valid = s => typeof s === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(s);
 export function assertTestDatabase(connectionString) {
@@ -22,6 +23,24 @@ export function openStagingPostgresJournal(connectionString) {
   return openJournal(connectionString);
 }
 
+// Private Timeweb VPC addresses can present a self-signed TLS certificate, while
+// the API's Npgsql Prefer/Require modes do not require CA verification.
+// Keep TLS encryption and never relax certificate checks on public endpoints.
+export function hostedPostgresSsl(host, mode='Prefer', ca) {
+  const policy = String(mode).toLowerCase();
+  if (!['disable', 'allow', 'prefer', 'require', 'verifyca', 'verifyfull'].includes(policy))
+    throw new Error('Unsupported hosted PostgreSQL SSL mode');
+  const octets = isIP(host) === 4 ? host.split('.').map(Number) : [];
+  const privateIp = octets[0] === 10 ||
+    (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+    (octets[0] === 192 && octets[1] === 168);
+  if (policy === 'disable') {
+    if (!privateIp) throw new Error('Unencrypted hosted PostgreSQL requires a private IPv4 address');
+    return false;
+  }
+  return {rejectUnauthorized: !!ca || !privateIp || policy === 'verifyca' || policy === 'verifyfull', ...(ca && {ca})};
+}
+
 export function openHostedPostgresJournal(workspace, ca) {
   if (!/^[0-9a-f]{32}$/.test(workspace ?? '') || !process.env.PGDATABASE)
     throw new Error('A database and isolated board workspace are required');
@@ -29,7 +48,7 @@ export function openHostedPostgresJournal(workspace, ca) {
     workspace,
     poolOptions: {
       options: '-c search_path=tas_board_pilot,pg_catalog',
-      ssl: {rejectUnauthorized: true, ...(ca && {ca})},
+      ssl: hostedPostgresSsl(process.env.PGHOST, process.env.TAS_BOARD_HOSTED_PG_SSL_MODE, ca),
       max: 4,
     },
   });
