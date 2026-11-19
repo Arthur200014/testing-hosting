@@ -1,8 +1,8 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-19
-**ACTIVE_TASK:** Stage 2 board staging. API workspace gate merged and verified on local HTTPS.
-**ACTIVE_BRANCH:** none. [PR #111](https://github.com/Arthur200014/testing-hosting/pull/111) merged.
+**ACTIVE_TASK:** Stage 2 board staging. The HTTPS editor, relay and PostgreSQL save/reopen scenario passed with synthetic accounts.
+**ACTIVE_BRANCH:** `tas/board-https-staging`. [PR #112](https://github.com/Arthur200014/testing-hosting/pull/112) is open.
 **MERGED_SHA:** `29abf2a12789fcf4d971e18b464963ca5068651d` ([PR #111](https://github.com/Arthur200014/testing-hosting/pull/111)).
 **RELEASE_STATE:** PR #110 editor path and PR #111 staging access gate merged. [Pages for #111](https://github.com/Arthur200014/testing-hosting/actions/runs/44546431332) passed. The board editor remains a staging build.
 **API_DEPLOYMENT:** Public readiness and migrations returned HTTP 200, and the board catalog route returned 404. Running API SHA UNKNOWN. Production board editing NOT_RUN because the production guard remains in place.
@@ -12,9 +12,9 @@
 
 **STAGE_1_FUNCTIONAL_PASS:** Published Chromium/Timeweb with a dedicated synthetic workspace. All eight cabinet sections and seven individual class tabs opened; library template transition and folder cancel, pupil report transition, invoice/subscription navigation, and 390px mobile keyboard menu/focus passed. Profile/class, calendar cancel/save/reopen, and pupil answer after re-login passed. Desktop spoken output remains NOT_RUN as described above.
 
-**STAGE_2:** PR #110 nested-path build, font audit, Chromium draw/restart and role isolation passed; isolated transport/access PostgreSQL tests passed 22/22. PR #111 scopes all staging board routes and permit revalidation to one configured workspace. Six board integration tests passed, plus a real local HTTPS ASP.NET/PostgreSQL run with synthetic teacher and pupil accounts in two workspaces. Changing the allowed workspace or disabling the feature invalidated prior permits after API restart. [TAS gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44545629855), [branch PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44545630002), and isolated board browser/core passed. Additional [board jobs](https://github.com/Arthur200014/testing-hosting/actions/runs/44545640774) and [post-merge PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44546434954) were still pending at check time.
+**STAGE_2:** [PR #111 board checks](https://github.com/Arthur200014/testing-hosting/actions/runs/44545640774), including 21 editors, and [post-merge PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44546434954) passed. PR #112 adds the loopback HTTPS relay and a separate `tas_board_staging` PostgreSQL journal. Local Chromium, real ASP.NET and PostgreSQL PASS: teacher created a board, shared it, pupil signed in and edited, both saw the same scene, and a fresh pupil session restored both changes after relay restart. A second synthetic workspace was denied, and prior permits were rejected after switching or disabling the gate. Public board writes NOT_RUN.
 
-**NEXT_ACTION:** Connect the guarded staging API to an HTTPS relay/editor and a dedicated PostgreSQL board store. Verify a normal teacher-to-pupil link, joint edits, fresh login and relay restart in a synthetic workspace. Keep load-40 manual.
+**NEXT_ACTION:** Complete PR #112 checks and merge, then verify backup and restore of the dedicated staging board database and confirm the approved route for a private deployed HTTPS pilot. Keep load-40 manual. Do not enable board routes on the public installation.
 
 ## UI-08 cabinet keyboard acceptance
 
