@@ -15,6 +15,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
     calls = []
     unauthorized = True
     new_preview_route = True
+    board_status = 200
+    teacher_board_status = 200
+    board_signature = True
 
     def do_GET(self):
         Handler.calls.append((self.command, self.path))
@@ -22,11 +25,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
             code = 401 if Handler.unauthorized else 200
         elif self.path in {"/health/live", "/health/ready", "/health/migrations"}:
             code = 200
+        elif self.path == mod.BOARD_CHECKS[0][0]:
+            code = Handler.board_status
+        elif self.path == mod.BOARD_CHECKS[1][0]:
+            code = Handler.teacher_board_status
         else:
             code = 404
         self.send_response(code)
         self.end_headers()
-        self.wfile.write(b"synthetic")
+        if self.path == mod.BOARD_CHECKS[0][0]:
+            body = (mod.BOARD_CHECKS[0][2] if Handler.board_signature
+                    else b"<html><title>Unrelated page</title></html>")
+        elif self.path == mod.BOARD_CHECKS[1][0]:
+            body = b"<title>Teacher AI Student</title>"
+        else:
+            body = b"synthetic"
+        self.wfile.write(body)
 
     def do_POST(self):
         Handler.calls.append((self.command, self.path))
@@ -56,16 +70,47 @@ class ReadOnlyProbeTests(unittest.TestCase):
         Handler.calls = []
         Handler.unauthorized = True
         Handler.new_preview_route = True
+        Handler.board_status = 200
+        Handler.teacher_board_status = 200
+        Handler.board_signature = True
 
-    def test_four_gets_and_anonymous_preview_without_writes(self):
+    def test_hosted_editor_and_cabinet_are_readable_without_writes(self):
         results = mod.check_all(self.origin)
-        self.assertEqual(len(results), 5)
+        self.assertEqual(len(results), 7)
         self.assertTrue(all(item.ok for item in results))
         self.assertEqual(results[-1].status, 401)
         self.assertGreaterEqual(results[0].total_ms, 0)
         expected_calls = [("GET", path) for path, _ in mod.CHECKS]
         expected_calls.append(("POST", mod.NEW_API_PROBE))
+        expected_calls.extend(("GET", path) for path, _, _ in mod.BOARD_CHECKS)
         self.assertEqual(Handler.calls, expected_calls)
+
+    def test_502_editor_is_detected_even_when_main_api_is_healthy(self):
+        Handler.board_status = 502
+        results = mod.check_all(self.origin)
+        self.assertTrue(all(item.ok for item in results[:5]))
+        self.assertFalse(results[5].ok)
+        self.assertEqual(results[5].status, 502)
+        self.assertTrue(results[6].ok)
+
+    def test_404_editor_is_detected(self):
+        Handler.board_status = 404
+        results = mod.check_all(self.origin)
+        self.assertFalse(results[5].ok)
+        self.assertEqual(results[5].status, 404)
+
+    def test_unrelated_http_200_is_not_accepted_as_editor(self):
+        Handler.board_signature = False
+        results = mod.check_all(self.origin)
+        self.assertEqual(results[5].status, 200)
+        self.assertFalse(results[5].ok)
+
+    def test_teacher_cabinet_relay_502_is_detected(self):
+        Handler.teacher_board_status = 502
+        results = mod.check_all(self.origin)
+        self.assertTrue(results[5].ok)
+        self.assertFalse(results[6].ok)
+        self.assertEqual(results[6].status, 502)
 
     def test_old_api_missing_post_route_is_detected(self):
         Handler.new_preview_route = False
