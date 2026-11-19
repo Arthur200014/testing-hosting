@@ -1,18 +1,18 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-19
-**ACTIVE_TASK:** UI-08 public entry, mobile teacher navigation, and keyboard-accessible sign-in and sign-out in both cabinets.
-**ACTIVE_BRANCH:** none. [PR #104](https://github.com/Arthur200014/testing-hosting/pull/104) merged.
+**ACTIVE_TASK:** UI-08 shared-board keyboard opening/exit and cabinet focus restoration in the isolated prototype. Focused Chromium passed. Existing real API/PostgreSQL board check running.
+**ACTIVE_BRANCH:** `tas/ui08-board-keyboard` / [PR #105](https://github.com/Arthur200014/testing-hosting/pull/105) / `47701f894113ab69228e6245fb28a6dcd4e7661e`.
 **MERGED_SHA:** `c9124bf8fd2e716a7198a80dbcd4fcf222e9eaf7`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED + LIVE_PUBLIC_NAV_VERIFIED. [GitHub Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44401862816) PASS. Published landing, teacher and student HTML byte-match the release. Chromium followed both sign-in links and the pupil back link at 390px.
 **API_DEPLOYMENT:** UI-only changes. Live readiness and migrations returned HTTP 200 after rollout; [Timeweb health](https://github.com/Arthur200014/testing-hosting/actions/runs/44402433898) PASS. Running API SHA UNKNOWN.
 **LIVE_WRITE_NOT_RUN:** No dedicated live synthetic workspace/test credentials confirmed. Isolated Chromium with the real API and PostgreSQL verified both sign-in/out paths. No production data was written.
-**NEXT_ACTION:** UI-08 final acceptance of remaining cabinet paths, starting with keyboard/focus through a shared board. Verify outstanding live settings and password save/re-entry once dedicated synthetic access is available. Tariff facts, external payment/notification integrations and board settings (66–68) remain pending. Keep load-40 manual.
+**NEXT_ACTION:** Verify the focused isolated teacher/student board scenario, merge and verify module publication. The board launcher remains intentionally loopback-only. Verify live settings and password save/re-entry only when dedicated synthetic access is available. Keep load-40 manual.
 
 ## UI-08 public entry verification
 
 - [Public landing](https://arthur200014.github.io/testing-hosting/platform/) shows actual capabilities and links to the teacher and pupil cabinets. Existing direct sign-in URLs remain valid. The mobile teacher section switcher supports keyboard activation, Escape, focus return and current section announcement. Both sign-in forms handle error and entry focus, and logout returns focus to sign-in. The retired chat placeholder was removed.
-- Focused local Chromium tests at 320/390/1348px, JavaScript syntax and diff PASS. Isolated real API/PostgreSQL 17 PASS for navigation and both actual sign-in/out paths with synthetic accounts, and mobile calendar dialog keyboard opening, focus and Escape without creating a lesson. [TAS task gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44401325732), [PostgreSQL before merge](https://github.com/Arthur200014/testing-hosting/actions/runs/44401325602) and [PostgreSQL after merge](https://github.com/Arthur200014/testing-hosting/actions/runs/44401864064) PASS. [Full branch browser regression](https://github.com/Arthur200014/testing-hosting/actions/runs/44401325576) PASS on the exact released application tree. [Redundant main browser rerun](https://github.com/Arthur200014/testing-hosting/actions/runs/44401864027) in progress at handoff.
+- Focused local Chromium tests at 320/390/1348px, JavaScript syntax and diff PASS. Isolated real API/PostgreSQL 17 PASS for navigation and both actual sign-in/out paths with synthetic accounts, and mobile calendar dialog keyboard opening, focus and Escape without creating a lesson. [TAS task gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44401325732), [PostgreSQL before merge](https://github.com/Arthur200014/testing-hosting/actions/runs/44401325602) and [PostgreSQL after merge](https://github.com/Arthur200014/testing-hosting/actions/runs/44401864064) PASS. [Full branch browser regression](https://github.com/Arthur200014/testing-hosting/actions/runs/44401325576) PASS on the exact released application tree. [Redundant main browser rerun](https://github.com/Arthur200014/testing-hosting/actions/runs/44401864027) PASS.
 - Scope for final acceptance: screen-reader manual testing and cabinet-wide review of unrelated actions were not covered in this delivery. Paths: `platform/index.html`, `platform/teacher.html`, `platform/student.html`, and two existing browser regressions.
 
 ## UI-07 profile settings verification
