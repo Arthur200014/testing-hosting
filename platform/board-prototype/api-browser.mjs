@@ -264,6 +264,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       await card().getByRole('button',{name:'В папку',exact:true}).click();
       await moveDialog.getByLabel('Папка').selectOption('');
       await moveDialog.getByRole('button',{name:'Сохранить',exact:true}).click();
+      await moveDialog.waitFor({state:'hidden'}); // Wait for the persisted folder update, not the already-false favorite badge.
       await card().locator('[data-board-favorite][aria-pressed="false"]').waitFor();
       const unfiled = (await ownerBoards()).find(x=>x.id===boardId);
       assert.deepEqual([unfiled.folderId,unfiled.isFavorite,unfiled.lessonId],[null,false,solo.id]);
