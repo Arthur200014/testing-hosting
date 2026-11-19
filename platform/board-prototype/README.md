@@ -429,7 +429,8 @@ Confirm access is denied for a pupil in a second synthetic workspace.
 #### Private pilot on Timeweb App Platform
 
 Use a separate App Platform application pointed at the pilot branch in Docker
-Compose mode. The root `docker-compose.yml` on this branch is for that pilot.
+Compose mode. Set the project path to `/compose.board-pilot.yaml` so the
+panel selects the dedicated manifest.
 Apply the Timeweb firewall allowlist to the tester addresses before enabling
 access. Timeweb terminates public TLS; the single upstream port is published
 on host loopback, and the ASP.NET API listens only inside the container.
