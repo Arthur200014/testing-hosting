@@ -78,7 +78,7 @@ class ReadOnlyProbeTests(unittest.TestCase):
         results = mod.check_all(self.origin)
         self.assertEqual(len(results), 7)
         self.assertTrue(all(item.ok for item in results))
-        self.assertEqual(results[-1].status, 401)
+        self.assertEqual(results[len(mod.CHECKS)].status, 401)
         self.assertGreaterEqual(results[0].total_ms, 0)
         expected_calls = [("GET", path) for path, _ in mod.CHECKS]
         expected_calls.append(("POST", mod.NEW_API_PROBE))
