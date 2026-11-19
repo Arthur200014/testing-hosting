@@ -1,16 +1,16 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-19
-**ACTIVE_TASK:** UI-08 accessibility acceptance. Distinguish class actions by name.
-**ACTIVE_BRANCH:** `tas/ui08-class-accessibility`, [PR #109](https://github.com/Arthur200014/testing-hosting/pull/109).
-**MERGED_SHA:** `131cd4c415166fe2ff0f89855e8777f1a058680e`.
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44483135767) PASS. Published teacher HTML matches the release. Chromium on the public site confirmed email/password sign-in without a workspace input and opened the registration form.
-**API_DEPLOYMENT:** Live Timeweb behavior verified. Signup creates a new workspace, email/password sign-in works, Pages CORS permits authenticated JSON requests, and readiness and migrations returned HTTP 200. Running API SHA UNKNOWN.
+**ACTIVE_TASK:** UI-08 class action accessibility correction released and verified on the public site.
+**ACTIVE_BRANCH:** none. [PR #109](https://github.com/Arthur200014/testing-hosting/pull/109) merged.
+**MERGED_SHA:** `5377d37a4f3bbdec6e4f96ccc5339728353559cb`.
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED + LIVE_BROWSER_VERIFIED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44515254759) PASS. Published teacher HTML matches the verified branch. The earlier self-registration release is [PR #108](https://github.com/Arthur200014/testing-hosting/pull/108).
+**API_DEPLOYMENT:** Frontend-only correction. Timeweb readiness and migrations returned HTTP 200. Published teacher and pupil workflows persisted against the live API. Running API SHA UNKNOWN.
 **LIVE_BROWSER_WRITE_PASS:** Published teacher and pupil cabinets against Timeweb. The UI registered an isolated synthetic teacher, saved the profile, and reopened it and the test class after a fresh email/password sign-in. Calendar cancellation wrote no lesson and restored focus. A saved lesson reopened in the calendar. The pupil submitted homework with the keyboard and reopened the persisted answer after fresh sign-in. Synthetic pupil/class/assignment fixtures were provisioned by the public API in the new workspace. Earlier live API write/reload smoke also passed.
-**CHECKS:** [TAS gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44480625142), [branch PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44480624974) and [full branch browser](https://github.com/Arthur200014/testing-hosting/actions/runs/44480625030) PASS. [Post-merge PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44483137201) and [isolated board checks including the 21-editor soak](https://github.com/Arthur200014/testing-hosting/actions/runs/44480632578) PASS. The duplicate main browser run was cancelled.
-**ACCESSIBILITY:** On published Chromium, public entry and sign-in names/order passed. Class action exposed only “Открыть →” for every class. PR #109 names open, schedule and restore actions by class. Local Chromium and isolated API/PostgreSQL pass class labels and focus, named calendar dialog and focus, cancel/save/reopen, and the homework live-region status and persisted reply. Spoken screen-reader output NOT_RUN (the executor has no desktop reader and cannot start D-Bus).
+**CHECKS:** [TAS gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44514432703), [branch PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44514432654), and the changed class browser regression PASS. The broader [browser run](https://github.com/Arthur200014/testing-hosting/actions/runs/44514432646) was still running at handoff. Earlier isolated board checks including the 21-editor soak passed.
+**ACCESSIBILITY:** PASS on published Chromium for public skip navigation, teacher/pupil sign-in names, the class open name, return focus and named calendar dialog. A calendar cancellation wrote no lesson. Save/reopen passed. The homework status region exposed “Ответ отправлен.” to assistive technology, focus moved to the assignment, and the answer persisted after fresh sign-in. Local browser regression also verified plan/restore labels. Spoken screen-reader output NOT_RUN: no desktop reader available and the executor could not start D-Bus.
 
-**NEXT_ACTION:** Finish PR #109 CI, merge, verify published files and rerun the focused browser acceptance. Arrange a supported desktop screen reader for the audio-only manual check. Board stays loopback-only. Keep load-40 manual.
+**NEXT_ACTION:** Continue UI-08 with a focused review of the remaining visible actions and transitions. Verify spoken announcements when a supported desktop screen reader is available. Board stays loopback-only. Keep load-40 manual.
 
 ## UI-08 cabinet keyboard acceptance
 
