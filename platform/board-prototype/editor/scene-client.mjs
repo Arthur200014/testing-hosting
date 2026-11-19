@@ -1,5 +1,7 @@
 import { io } from 'socket.io-client';
 import {reconcileScene,sceneFingerprint} from './reconcile.mjs';
+import {isManagedBoardPilot} from '../../lesson-board-ui.mjs';
+const loopbackHosts = ['127.0.0.1','localhost'];
 const bytes=b=>Uint8Array.from(atob(b),x=>x.charCodeAt(0));
 const b64=b=>{let s='';for(let i=0;i<b.length;i+=8192)s+=String.fromCharCode(...b.subarray(i,i+8192));return btoa(s);};
 const signature=e=>`${e.version}:${e.versionNonce}:${e.isDeleted}`;
@@ -10,13 +12,17 @@ export async function lessonPermit({apiBase,lessonId,boardId,accessToken,role}){
   const target = boardId ?? lessonId;
   if (!['teacher','student'].includes(role) ||
       !/^[0-9a-f-]{36}$/i.test(target)) throw new Error('Invalid board target');
-  const u=new URL(apiBase);if(!['127.0.0.1','localhost'].includes(u.hostname)||u.pathname!=='/'||u.search||u.hash||u.username||u.password||u.protocol!==location.protocol)throw new Error('Isolated API required');
+  const u = new URL(apiBase);
+  const allowed = loopbackHosts.includes(u.hostname) || (isManagedBoardPilot() && apiBase === location.origin);
+  if (!allowed || u.pathname!=='/' || u.search || u.hash || u.username || u.password || u.protocol!==location.protocol)
+    throw new Error('Isolated API required');
   const r=await fetch(`${u.origin}/api/v1/${role}/board-prototype/${boardId ? 'boards' : 'lessons'}/${target}/permit`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`},cache:'no-store',signal:AbortSignal.timeout(5000),redirect:'error'});
   if(!r.ok){const e=new Error([401,403,404].includes(r.status)?'Доступ к занятию отозван':'API временно недоступен');e.denied=[401,403,404].includes(r.status);throw e;}return r.json();
 }
 export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcileScene,CaptureUpdateAction,convertToExcalidrawElements,renewPermit,status,onReady=()=>{},onRoleInvalidated=()=>{},onAttachments=()=>{},onApplied=()=>{}}){
   const relay=new URL(url);
-  if(!['127.0.0.1','localhost'].includes(relay.hostname) || relay.protocol!==(globalThis.location?.protocol ?? 'http:')
+  const allowed = loopbackHosts.includes(relay.hostname) || (isManagedBoardPilot() && url === location.origin);
+  if(!allowed || relay.protocol!==(globalThis.location?.protocol ?? 'http:')
     || (relay.protocol==='https:' && relay.origin!==location.origin))throw new Error('Isolated room required');
   const raw=bytes(sceneKey);if(raw.byteLength!==32)throw new Error('A valid scene key is required');
   const key=crypto.subtle.importKey('raw',raw,'AES-GCM',false,['encrypt','decrypt']);

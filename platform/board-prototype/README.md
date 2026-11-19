@@ -425,3 +425,31 @@ Save a board as the synthetic teacher, grant edit access to the synthetic pupil,
 and check the pupil's edit from both sessions. Restart only the staging relay.
 Reopen the share link after a fresh pupil login and verify the saved scene.
 Confirm access is denied for a pupil in a second synthetic workspace.
+
+#### Private pilot on Timeweb App Platform
+
+Use a separate App Platform application pointed at the pilot branch in Docker
+Compose mode. The root `docker-compose.yml` on this branch is for that pilot.
+Apply the Timeweb firewall allowlist to the tester addresses before enabling
+access. Timeweb terminates public TLS; the single upstream port is published
+on host loopback, and the ASP.NET API listens only inside the container.
+Use the pilot's assigned `https://…twc1.net` origin without a trailing slash.
+A request for another host or a socket from another origin is rejected.
+
+Provision two empty PostgreSQL databases on the approved host, named
+`tas_platform_staging` and `tas_board_staging`, with independent users scoped
+to their respective databases. They may share a cluster that supports isolated
+credentials. Fill the Compose variables in the **pilot application's** settings.
+Use dedicated PostgreSQL URLs without query options. Connections verify TLS.
+If the database issuer is private, set `TAS_BOARD_PILOT_DB_CA` to its PEM CA.
+Independently generate the board signing key, scene key, JWT key and student
+pepper. The container runs application migrations before accepting traffic.
+
+Start with `BOARD_PILOT_ENABLED=false`. Register a synthetic teacher in
+`/cabinet/teacher.html` and use the authenticated `/api/v1/teacher/me` response
+to identify its workspace. Set `BOARD_PILOT_WORKSPACE_ID` to that ID and
+`BOARD_PILOT_ENABLED=true`, then redeploy. The board gate now permits that
+workspace only. Use normal cabinet flows to create the minimal synthetic pupil
+fixture. Check the teacher-share and pupil-edit path, a fresh login after
+restart and denial for a second workspace. Verify HTTPS, the WebSocket upgrade
+and health responses through the deployed Timeweb origin. Leave load-40 manual.

@@ -12,13 +12,20 @@ export function boardIdFromLink(hash) {
   return id && boardIdPattern.test(id) ? id.toLowerCase() : null;
 }
 
-// The isolated runner supplies the relay explicitly. Production hosts cannot enable it.
+export function isManagedBoardPilot() {
+  return location.protocol === 'https:' &&
+    document.querySelector('meta[name="tas-board-pilot"]')?.content === location.origin;
+}
+
+// Only the staging server adds the managed pilot marker to the cabinet HTML.
 export function createLessonBoard(apiBase, accessToken, role = 'teacher') {
-  const staging = location.protocol === 'https:' && location.hostname === '127.0.0.1' &&
+  const managed = isManagedBoardPilot();
+  const staging = location.protocol === 'https:' && (managed || location.hostname === '127.0.0.1') &&
     ['/cabinet/teacher.html', '/cabinet/student.html'].includes(location.pathname);
   const relay = staging ? location.origin : window.__TAS_ISOLATED_BOARD_RELAY;
   const editorPath = staging ? '/board/' : '/';
-  const enabled = location.hostname === '127.0.0.1' && [relay, apiBase].every(value => {
+  const enabled = managed ? staging && apiBase === location.origin :
+    location.hostname === '127.0.0.1' && [relay, apiBase].every(value => {
     try {
       const url = new URL(value);
       return url.protocol === (staging ? 'https:' : 'http:') && url.hostname === '127.0.0.1' && url.origin === value;

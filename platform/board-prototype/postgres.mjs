@@ -1,6 +1,7 @@
 import pg from 'pg';
 import {createHash} from 'node:crypto';
 import {validateFile,references,MAX_ROOM_FILE_BYTES,MAX_ROOM_PIXELS,validId} from './files.mjs';
+import {pilotDatabase} from './pilot-settings.mjs';
 const valid = s => typeof s === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(s);
 export function assertTestDatabase(connectionString) {
   const u = new URL(connectionString);
@@ -22,8 +23,13 @@ export function openStagingPostgresJournal(connectionString) {
   return openJournal(connectionString);
 }
 
-async function openJournal(connectionString, {beforeCheckpointCommit=async()=>{}} = {}) {
-  const pool = new pg.Pool({ connectionString, max: 12, connectionTimeoutMillis: 3000 });
+export function openPilotPostgresJournal(connectionString, approvedHost, ca) {
+  pilotDatabase(connectionString, approvedHost, 'tas_board_staging');
+  return openJournal(connectionString, {ssl: {rejectUnauthorized: true, ...(ca && {ca})}});
+}
+
+async function openJournal(connectionString, {beforeCheckpointCommit=async()=>{}, ssl} = {}) {
+  const pool = new pg.Pool({ connectionString, ssl, max: 12, connectionTimeoutMillis: 3000 });
   await pool.query(`CREATE TABLE IF NOT EXISTS board_heads (
     workspace text NOT NULL, board text NOT NULL, revision integer NOT NULL DEFAULT 0,
     bytes bigint NOT NULL DEFAULT 0, PRIMARY KEY(workspace,board));

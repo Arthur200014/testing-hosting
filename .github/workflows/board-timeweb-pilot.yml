@@ -1,0 +1,41 @@
+name: Board Timeweb pilot image
+
+on:
+  push:
+    branches: [tas/board-timeweb-pilot]
+    paths:
+      - 'docker-compose.yml'
+      - 'platform/Dockerfile.board-pilot*'
+      - 'platform/board-prototype/**'
+      - 'platform/lesson-board-ui.mjs'
+      - '.github/workflows/board-timeweb-pilot.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      TAS_BOARD_PILOT_ORIGIN: https://board-pilot.twc1.net
+      TAS_BOARD_PILOT_DB_HOST: db.example.invalid
+      TAS_BOARD_PILOT_API_DB: postgres://api:fixture@db.example.invalid/tas_platform_staging
+      TAS_BOARD_STAGING_DB: postgres://journal:fixture@db.example.invalid/tas_board_staging
+      TAS_BOARD_STAGING_SIGNING_KEY: synthetic-config-fixture
+      BOARD_PILOT_SCENE_KEY: synthetic-config-fixture
+      BOARD_PILOT_JWT_KEY: synthetic-config-fixture
+      BOARD_PILOT_STUDENT_PEPPER: synthetic-config-fixture
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet
+      - run: docker compose build board-pilot
+      - name: Check packaged API, editor and relay
+        run: |
+          docker compose run --rm --no-deps --entrypoint sh board-pilot -ec '
+            dotnet --list-runtimes
+            test -s /app/api/Platform.Api.dll
+            test -s board-prototype/editor/dist/index.html
+            node --check board-prototype/pilot-entrypoint.mjs
+            node --input-type=module -e "await import(\"./board-prototype/transport.mjs\"); await import(\"./board-prototype/postgres.mjs\")"
+          '

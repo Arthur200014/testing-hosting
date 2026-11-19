@@ -1,0 +1,25 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS api-build
+WORKDIR /source
+COPY Directory.Build.props ./
+COPY src/Platform.Api/ src/Platform.Api/
+RUN dotnet publish src/Platform.Api/Platform.Api.csproj -c Release -o /out /p:UseAppHost=false
+
+FROM node:24-bookworm-slim AS editor-build
+WORKDIR /cabinet
+COPY lesson-board-ui.mjs ./
+WORKDIR /cabinet/board-prototype
+COPY board-prototype/package*.json ./
+RUN npm ci --no-audit --no-fund
+COPY board-prototype/ ./
+RUN npm run editor:build && npm prune --omit=dev --no-audit --no-fund
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+RUN apt-get update && apt-get install --no-install-recommends -y libgssapi-krb5-2 libstdc++6 && rm -rf /var/lib/apt/lists/*
+COPY --from=editor-build /usr/local/bin/node /usr/local/bin/node
+COPY --from=api-build /out/ /app/api/
+WORKDIR /app/cabinet
+COPY teacher.html student.html *.mjs *.css ./
+COPY --from=editor-build /cabinet/board-prototype/ ./board-prototype/
+USER $APP_UID
+EXPOSE 8080
+ENTRYPOINT ["node", "/app/cabinet/board-prototype/pilot-entrypoint.mjs"]

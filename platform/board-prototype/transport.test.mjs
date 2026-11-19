@@ -8,21 +8,52 @@ import { io } from 'socket.io-client';
 import { issuePermit } from './access.mjs';
 import { openJournal } from './journal.mjs';
 import { openPostgresJournal } from './postgres.mjs';
-import { startTestTransport } from './transport.mjs';
+import { startPilotTransport, startTestTransport } from './transport.mjs';
+import { pilotDatabase, pilotOrigin, productionApi } from './pilot-settings.mjs';
 
 const key = randomBytes(32);
 const scope = () => ({ workspace: 'synthetic-' + randomUUID(), board: 'lesson-1' });
 const auth = (s, user = 'teacher', role = 'editor', time = Date.now()) => ({ ...s,
   token: issuePermit(key, { ...s, user, role, exp: Math.floor(time / 1000) + 120 }, time) });
 const frame = id => ({ messageId: id, ciphertext: Buffer.from('scene-' + id), iv: Buffer.alloc(12, 1) });
-async function connect(url, auth) {
-  const client = io(url, { auth, transports: ['websocket'], reconnection: false, timeout: 2000, forceNew: true });
+async function connect(url, auth, extraHeaders) {
+  const client = io(url, { auth, extraHeaders, transports: ['websocket'], reconnection: false, timeout: 2000, forceNew: true });
   try {
     await new Promise((resolve, reject) => { client.once('connect', resolve); client.once('connect_error', reject); });
     return client;
   } catch (e) { client.close(); throw e; }
 }
 const request = (c, event, payload) => c.timeout(3000).emitWithAck(event, payload);
+
+test('managed pilot uses an explicit HTTPS origin and dedicated database', async t => {
+  assert.throws(() => pilotOrigin(productionApi));
+  assert.throws(() => pilotOrigin('http://board-pilot.twc1.net'));
+  assert.throws(() => pilotDatabase('postgres://pilot:example@db.example/platform', 'db.example', 'tas_board_staging'));
+  assert.throws(() => pilotDatabase('postgres://pilot:example@db.example/tas_board_staging?sslmode=disable', 'db.example', 'tas_board_staging'));
+  assert.throws(() => pilotDatabase('postgres://pilot:example@db.example/tas_board_staging', 'other.example', 'tas_board_staging'));
+  assert.equal(pilotDatabase('postgres://pilot:example@db.example/tas_board_staging', 'db.example', 'tas_board_staging').hostname, 'db.example');
+
+  const origin = pilotOrigin('https://board-pilot.twc1.net');
+  const dir = await mkdtemp(join(tmpdir(), 'tas-board-pilot-'));
+  const journal = await openJournal(dir);
+  const relay = await startPilotTransport({key, journal, origin,
+    handler: (_, res) => res.writeHead(204).end(), authorize: async () => true});
+  const clients = [];
+  t.after(async () => {
+    for (const client of clients) client.close();
+    await relay.close();
+    await journal.close();
+    await rm(dir, {recursive: true, force: true});
+  });
+  const upstream = `http://127.0.0.1:${relay.port}`;
+  assert.equal((await fetch(upstream)).status, 404);
+  const claims = auth(scope());
+  await assert.rejects(connect(upstream, claims, {Host: origin.host, Origin: 'https://other.twc1.net'}));
+  await assert.rejects(connect(upstream, claims, {Host: 'other.twc1.net', Origin: origin.origin}));
+  const client = await connect(upstream, claims, {Host: origin.host, Origin: origin.origin});
+  clients.push(client);
+  assert.equal((await request(client, 'submit', frame('pilot-first'))).seq, 1);
+});
 async function fixture(t, postgres = false, options = {}) {
   const dir = postgres ? null : await mkdtemp(join(tmpdir(), 'tas-board-wire-'));
   const open = () => postgres ? openPostgresJournal(process.env.BOARD_TEST_DATABASE_URL) : openJournal(dir);

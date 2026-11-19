@@ -18,9 +18,20 @@ export function startStagingTransport({tls, handler, authorize, ...options}) {
   return startTransport(server, {...options, authorize}, sameOrigin);
 }
 
+export function startPilotTransport({handler, authorize, origin, host = '127.0.0.1', ...options}) {
+  if (origin?.protocol !== 'https:' || typeof authorize !== 'function')
+    throw new Error('An HTTPS pilot origin and API authorization are required');
+  const server = createServer((req, res) => {
+    if (req.headers.host !== origin.host) return res.writeHead(404).end();
+    return handler(req, res);
+  });
+  const sameOrigin = req => req.headers.host === origin.host && req.headers.origin === origin.origin;
+  return startTransport(server, {...options, authorize}, sameOrigin, host, origin.origin);
+}
+
 // Scene payloads stay opaque; reconstruction/reconciliation belongs to the editor.
 async function startTransport(http, { key, journal, revoked = () => false,
-  authorize = async () => true, acknowledge = () => true, observe = () => {}, clock = Date.now, port = 0, maxConnections = 256, maxRoomConnections = 24 }, allowRequest) {
+  authorize = async () => true, acknowledge = () => true, observe = () => {}, clock = Date.now, port = 0, maxConnections = 256, maxRoomConnections = 24 }, allowRequest, host = '127.0.0.1', advertisedUrl) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Invalid test port');
   const io = new Server(http, { serveClient: false, transports: ['websocket'],
     maxHttpBufferSize: MAX_FILE_BYTES+32768, perMessageDeflate: false, allowUpgrades: false,
@@ -153,9 +164,9 @@ async function startTransport(http, { key, journal, revoked = () => false,
   }, 250);
   sweep.unref();
   await new Promise((resolve, reject) => {
-    http.once('error', reject); http.listen(port, '127.0.0.1', resolve);
+    http.once('error', reject); http.listen(port, host, resolve);
   }).catch(async error => { clearInterval(sweep); await io.close(); throw error; });
-  return { url: `${allowRequest ? 'https' : 'http'}://127.0.0.1:${http.address().port}`,
+  return { url: advertisedUrl ?? `${allowRequest ? 'https' : 'http'}://127.0.0.1:${http.address().port}`, port: http.address().port,
     // Test controller only; never exposed as a network operation.
     disconnectUser(user) { for(const socket of connections)if(socket.data.claims.user===user)socket.disconnect(true); },
     async close() { clearInterval(sweep); await new Promise(resolve => io.close(resolve)); } };
