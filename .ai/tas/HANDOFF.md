@@ -1,12 +1,14 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-19
-**ACTIVE_TASK:** Teacher self-registration and email-first cabinet sign-in.
-**ACTIVE_BRANCH:** `tas/teacher-self-signup`, [PR #108](https://github.com/Arthur200014/testing-hosting/pull/108).
-**RELEASE_STATE:** Branch published, awaiting release checks. Previous UI-only [PR #107](https://github.com/Arthur200014/testing-hosting/pull/107) is merged and [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44474036834) passed for `bc3ac17823aabd67c10130800b2024da1d656de6`.
-**API_DEPLOYMENT:** Signup API is on the task branch. Previous live readiness and migrations returned HTTP 200, with API SHA unknown.
-**LIVE_WRITE_NOT_RUN:** The direct test sign-in failed before self-registration was available. Local Chromium with real isolated API/PostgreSQL passed signup, empty workspace isolation, first class creation and persistence after re-entry. Focused PostgreSQL auth/legacy registration tests and synthetic cabinet browser regressions passed.
-**NEXT_ACTION:** Finish PR #108 checks, merge, verify Pages and Timeweb independently, then register a synthetic account and check persistence on the public site. The legacy imported-workspace claim and staff invitation flows remain available. Board launch remains loopback-only.
+**ACTIVE_TASK:** Teacher self-registration and email-first cabinet sign-in released.
+**ACTIVE_BRANCH:** none. [PR #108](https://github.com/Arthur200014/testing-hosting/pull/108) merged.
+**MERGED_SHA:** `131cd4c415166fe2ff0f89855e8777f1a058680e`.
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44483135767) PASS. Published teacher HTML matches the release. Chromium on the public site confirmed email/password sign-in without a workspace input and opened the registration form.
+**API_DEPLOYMENT:** Live Timeweb behavior verified. Signup creates a new workspace, email/password sign-in works, Pages CORS permits authenticated JSON requests, and readiness and migrations returned HTTP 200. Running API SHA UNKNOWN.
+**LIVE_API_WRITE_PASS:** Created one disposable teacher workspace and one synthetic pupil through the normal public API. Profile, class, lesson and submitted homework answer persisted across fresh teacher and pupil sessions. Public browser forms were checked; authenticated browser save/reload ran against an isolated API/PostgreSQL, with public save/reload verified through the live API.
+**CHECKS:** [TAS gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44480625142), [branch PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44480624974) and [full branch browser](https://github.com/Arthur200014/testing-hosting/actions/runs/44480625030) PASS.
+**NEXT_ACTION:** Finish authenticated acceptance through the published UI when a designated test sign-in is available. Imported-workspace claims and staff invitations retain their separate browser forms. Board launch remains loopback-only. Keep load-40 manual.
 
 ## UI-08 cabinet keyboard acceptance
 
