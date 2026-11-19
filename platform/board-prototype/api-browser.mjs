@@ -128,7 +128,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       await editor.getByRole('button',{name:'Undo',exact:true}).click();
       await count(editor,1);
       await saved(editor);
-      await p.keyboard.press('Shift+Escape');
+      await p.keyboard.press('Alt+Shift+ArrowUp');
       await p.locator('dialog iframe').waitFor({state:'detached'});
       await p.locator('.class-lesson-detail h1').getByText(solo.title,{exact:true}).waitFor();
       await trigger.evaluate(node => { if (document.activeElement !== node) throw new Error('Board trigger focus not restored'); });
@@ -321,7 +321,7 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       await pupil.mouse.up();
       await count(pupilFrame,2);
       await saved(pupilFrame);
-      await pupil.keyboard.press('Shift+Escape');
+      await pupil.keyboard.press('Alt+Shift+ArrowUp');
       await pupil.locator('dialog iframe').waitFor({state:'detached'});
       const pupilTrigger = pupil.locator('[data-open-independent-board="'+boardId+'"]');
       assert.ok(await pupilTrigger.evaluate(node => document.activeElement === node), 'shared link returns focus to the pupil board button');

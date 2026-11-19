@@ -43,9 +43,9 @@ export function createLessonBoard(apiBase, accessToken, role = 'teacher') {
     back.className = 'secondary';
     back.type = 'button';
     back.textContent = backLabel;
-    back.setAttribute('aria-keyshortcuts', 'Shift+Escape');
+    back.setAttribute('aria-keyshortcuts', 'Alt+Shift+ArrowUp');
     const shortcut = document.createElement('kbd');
-    shortcut.textContent = 'Shift + Esc';
+    shortcut.textContent = 'Alt+Shift+↑';
     shortcut.setAttribute('aria-hidden', 'true');
     const frame = document.createElement('iframe');
     frame.title = 'Рабочая область доски';
@@ -73,7 +73,7 @@ export function createLessonBoard(apiBase, accessToken, role = 'teacher') {
         !node.matches(':disabled') && node.getClientRects().length)?.focus();
     };
     function exitByShortcut(event) {
-      if (event.key !== 'Escape' || !event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.key !== 'ArrowUp' || !event.shiftKey || !event.altKey || event.ctrlKey || event.metaKey) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       if (!event.repeat) requestClose();
