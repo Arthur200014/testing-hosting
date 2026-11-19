@@ -19,7 +19,7 @@ const lessons = [{
     durationMinutes: 60, taskNumbers: null, topicComment: 'Synthetic lesson' }]
 }];
 let correctedCount = 0;
-let submissionCount = 0, gradingCount = 0;
+let submissionCount = 0, gradingCount = 0, failSubmissionRefresh = false;
 const teacherReads = [];
 const readTotal = () => teacherReads.length;
 const setTextArea = (locator, value) => locator.evaluate((input, next) => {
@@ -111,7 +111,12 @@ async function mockApi(page) {
       assignments[0].answer = body.answer;
       assignments[0].submittedAt = new Date().toISOString();
       submissionCount++;
+      failSubmissionRefresh = true;
       return send({ id: assignments[0].id, submittedAt: assignments[0].submittedAt }, 201);
+    }
+    if (request.method() === 'GET' && path === 'homework/native/assignments' && failSubmissionRefresh) {
+      failSubmissionRefresh = false;
+      return send({ title:'Synthetic refresh failure' }, 503);
     }
     if (request.method() === 'GET') {
       if (path.startsWith('teacher/')) teacherReads.push(path);
@@ -220,7 +225,13 @@ try {
   await teacher.locator('#refresh').click();
   await teacher.locator('#content').getByText('Просрочено · можно сдать').waitFor({ state: 'attached' });
   await setTextArea(student.locator('#assignments textarea[name="answer"]'), 'My explanation');
-  await student.locator('#assignments button[type="submit"]').click();
+  const submitAnswer = student.locator('#assignments button[type="submit"]');
+  await submitAnswer.press('Enter');
+  await student.getByRole('button', {name:'Обновить результат'}).waitFor();
+  assert.match(await student.locator('#notice').textContent(), /Ответ отправлен/);
+  await submitAnswer.press('Enter');
+  await student.locator('#notice').filter({hasText:'Ответ отправлен.'}).waitFor({state:'attached'});
+  assert.ok(await student.locator('[data-work-card]').evaluate(node => node === document.activeElement));
   await student.locator('#assignments .answer').getByText('My explanation').waitFor({ state: 'attached' });
   await student.locator('#assignments').getByText('Сдано с опозданием').waitFor({ state: 'attached' });
   assert.equal(submissionCount, 1);

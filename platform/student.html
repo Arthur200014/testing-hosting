@@ -152,13 +152,22 @@
       catch(error) {message(error.message,true);} finally {if(button.isConnected) button.disabled=false;}
     });
     async function refresh() {
+      const expected = token;
       const items = await api('homework/native/assignments');
-      $('assignments').innerHTML = items.length ? items.map(x => `<article class="card"><h2>${safe(x.title)}</h2>
+      if (token !== expected) return false;
+      const drafts = new Map([...$('assignments').querySelectorAll('[data-assignment]')]
+        .map(form => [form.dataset.assignment, form.elements.answer.value]));
+      $('assignments').innerHTML = items.length ? items.map(x => `<article class="card" data-work-card="${safe(x.id)}" tabindex="-1"><h2>${safe(x.title)}</h2>
         <p class="muted">Срок: ${safe(date(x.deadlineAt))} · <strong>${safe(nativeHomeworkDeadlineStatus(x).label)}</strong></p><p class="prompt">${safe(x.prompt)}</p>
         ${x.submittedAt ? `<p class="muted">Сдано ${safe(date(x.submittedAt))} · ${x.scorePercent == null ? 'без оценки' : safe(x.scorePercent) + '%'}</p><p class="answer">${safe(x.answer)}</p>${x.teacherFeedback ? `<p class="answer">Комментарий преподавателя: ${safe(x.teacherFeedback)}</p>` : ''}${x.gradedAt ? `<p class="muted">Проверено: ${safe(date(x.gradedAt))}</p>` : ''}` :
           `<form data-assignment="${safe(x.id)}"><label>Ваш ответ<textarea name="answer" maxlength="10000" required></textarea></label><button type="submit">Отправить ответ</button></form>`}</article>`).join('') : '<p class="card">Пока нет назначенных заданий.</p>';
+      for (const form of $('assignments').querySelectorAll('[data-assignment]')) {
+        if (drafts.has(form.dataset.assignment)) form.elements.answer.value = drafts.get(form.dataset.assignment);
+      }
       await Promise.all([loadFiles(),loadRecordings()]);
+      if (token !== expected) return false;
       message('Задания загружены.');
+      return true;
     }
     $('loginForm').addEventListener('submit', async event => {
       event.preventDefault(); const form = event.currentTarget; const button = form.querySelector('button'); button.disabled = true;
@@ -192,13 +201,47 @@
         return;
       }
       const id = form.dataset.assignment;
-      const answer = form.elements.answer.value.trim(); if (!answer) return;
-      const button = form.querySelector('button'); button.disabled = true;
+      if (!id) return;
+      const answer = form.elements.answer.value.trim();
+      if (!answer) {
+        message('Введите ответ перед отправкой.', true);
+        form.elements.answer.focus();
+        return;
+      }
       const previous = pending.get(id);
-      if (previous && previous.answer !== answer) { message('Предыдущая отправка не подтверждена. Верните прежний ответ или обновите список.', true); button.disabled = false; return; }
-      const submissionId = previous?.submissionId || crypto.randomUUID(); pending.set(id, { answer, submissionId });
-      try { await api('homework/native/submissions', { assignmentId: id, submissionId, answer }); pending.delete(id); await refresh(); }
-      catch (error) { if (error.status && error.status < 500) pending.delete(id); message(error.message, true); button.disabled = false; }
+      if (previous?.sending) return;
+      if (previous && !previous.accepted && previous.answer !== answer) {
+        message('Предыдущая отправка не подтверждена. Верните прежний ответ или обновите список.', true);
+        return;
+      }
+      const expected = token;
+      const button = form.querySelector('button[type="submit"]');
+      const submission = previous || {answer, submissionId:crypto.randomUUID()};
+      submission.sending = true;
+      pending.set(id, submission);
+      button.setAttribute('aria-disabled', 'true');
+      message(submission.accepted ? 'Обновляем результат…' : 'Отправляем ответ…');
+      try {
+        if (!submission.accepted) {
+          await api('homework/native/submissions', { assignmentId:id, submissionId:submission.submissionId, answer });
+          if (token !== expected) return;
+          submission.accepted = true;
+        }
+        const wasFocused = form.contains(document.activeElement);
+        if (!await refresh() || token !== expected) return;
+        pending.delete(id);
+        message('Ответ отправлен.');
+        if (wasFocused && document.activeElement === document.body)
+          document.querySelector(`[data-work-card="${CSS.escape(id)}"]`)?.focus();
+      } catch (error) {
+        if (token !== expected) return;
+        if (!submission.accepted && error.status && error.status < 500) pending.delete(id);
+        if (submission.accepted && button.isConnected) button.textContent = 'Обновить результат';
+        message(submission.accepted ? 'Ответ отправлен. Не удалось обновить список заданий.' : error.message, true);
+      } finally {
+        submission.sending = false;
+        if (button.isConnected) button.removeAttribute('aria-disabled');
+      }
     });
     $('logout').addEventListener('click', () => { token = ''; sharedBoards.close(); sharedBoardIds.clear(); pendingBoardId = sharedBoards.enabled ? boardIdFromLink(location.hash) : null; boardLinkMessage(''); $('studentBoardList').replaceChildren(); pending.clear(); $('dashboard').hidden = true; $('login').hidden = false; $('assignments').replaceChildren();$('studentFiles').replaceChildren();$('studentRecordings').replaceChildren(); message('Вы вышли.'); $('loginForm').elements.workspace.focus(); });
   </script>
