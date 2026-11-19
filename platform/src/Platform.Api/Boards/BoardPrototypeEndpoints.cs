@@ -18,8 +18,10 @@ public static class BoardPrototypeEndpoints
     public static void Map(WebApplication app)
     {
         if (!app.Configuration.GetValue<bool>("BoardPrototype:Enabled")) return;
+        var pilot = app.Services.GetRequiredService<HostedBoardPilot>();
+        var hostedPilot = pilot.Enabled ? pilot : null;
         Guid? stagingWorkspace = null;
-        if (app.Environment.IsStaging())
+        if (app.Environment.IsStaging() || hostedPilot is not null)
         {
             if (!Guid.TryParse(app.Configuration["BoardPrototype:StagingWorkspaceId"], out var workspace)
                 || workspace == Guid.Empty)
@@ -41,7 +43,8 @@ public static class BoardPrototypeEndpoints
         if (lifetime is < 5 or > 120) throw new InvalidOperationException("Board permit lifetime must be 5–120 seconds.");
         RouteGroupBuilder BoardRoutes(string role)
         {
-            var routes = app.MapGroup("/api/v1/" + role + "/board-prototype").RequireAuthorization(role);
+            var routes = app.MapGroup((hostedPilot is null ? "" : HostedBoardPilot.Prefix)
+                + "/api/v1/" + role + "/board-prototype").RequireAuthorization(role);
             if (stagingWorkspace.HasValue)
                 routes.AddEndpointFilter((context, next) =>
                 {
@@ -105,6 +108,7 @@ public static class BoardPrototypeEndpoints
             TimeProvider clock, IAuthorizationService authorization, HttpContext http, CancellationToken ct) =>
         {
             http.Response.Headers.CacheControl = "no-store";
+            if (hostedPilot is not null && !hostedPilot.IsRelay(http)) return Results.NotFound();
             var permit = ReadPermit(key, request.Token, clock.GetUtcNow().ToUnixTimeSeconds());
             if (permit is null || !WorkspaceAllowed(permit.workspace)) return Results.NotFound();
             var principal = new ClaimsPrincipal(new ClaimsIdentity(new[] {

@@ -12,13 +12,25 @@ export function boardIdFromLink(hash) {
   return id && boardIdPattern.test(id) ? id.toLowerCase() : null;
 }
 
-// The isolated runner supplies the relay explicitly. Production hosts cannot enable it.
+export function hostedBoardPrefix() {
+  return location.protocol === 'https:' && location.pathname.startsWith('/board-pilot/') &&
+    document.querySelector('meta[name="tas-board-hosted"]')?.content === location.origin ? '/board-pilot' : '';
+}
+
+export function boardApiPath(path) {
+  const prefix = /^(teacher|student)\/board-prototype\//.test(path) ? hostedBoardPrefix() : '';
+  return prefix + '/api/v1/' + path;
+}
+
+// Hosted pages are marked by the private pilot relay. Ordinary cabinets stay disabled.
 export function createLessonBoard(apiBase, accessToken, role = 'teacher') {
+  const pilot = hostedBoardPrefix();
   const staging = location.protocol === 'https:' && location.hostname === '127.0.0.1' &&
     ['/cabinet/teacher.html', '/cabinet/student.html'].includes(location.pathname);
-  const relay = staging ? location.origin : window.__TAS_ISOLATED_BOARD_RELAY;
-  const editorPath = staging ? '/board/' : '/';
-  const enabled = location.hostname === '127.0.0.1' && [relay, apiBase].every(value => {
+  const relay = staging || pilot ? location.origin : window.__TAS_ISOLATED_BOARD_RELAY;
+  const editorPath = staging || pilot ? pilot + '/board/' : '/';
+  const enabled = pilot ? apiBase === location.origin && location.pathname === pilot + '/cabinet/' + role + '.html' :
+    location.hostname === '127.0.0.1' && [relay, apiBase].every(value => {
     try {
       const url = new URL(value);
       return url.protocol === (staging ? 'https:' : 'http:') && url.hostname === '127.0.0.1' && url.origin === value;

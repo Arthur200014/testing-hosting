@@ -20,6 +20,7 @@ using TestingHosting.Platform.Subscriptions;
 using TestingHosting.Platform.TestAttempts;
 
 var builder = WebApplication.CreateBuilder(args);
+TestingHosting.Platform.Boards.HostedBoardPilot.Register(builder);
 
 builder.Services.AddSingleton(serviceProvider =>
     StartupConfiguration.GetJwtOptions(serviceProvider.GetRequiredService<IConfiguration>()));
@@ -1239,6 +1240,7 @@ app.MapPost("/api/v1/homework-submissions", async (
 }).RequireAuthorization("student");
 
 TestingHosting.Platform.Boards.BoardPrototypeEndpoints.Map(app);
+app.Services.GetService<TestingHosting.Platform.Boards.HostedBoardPilot>()?.Map(app);
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = registration => registration.Tags.Contains("ready") });

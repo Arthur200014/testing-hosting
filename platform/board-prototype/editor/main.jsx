@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { Excalidraw, CaptureUpdateAction, convertToExcalidrawElements } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import { connectScene, lessonPermit } from './scene-client.mjs';
+import { hostedBoardPrefix } from '../../lesson-board-ui.mjs';
 // Local fonts only; no vendor/CDN subscription or remote asset dependency.
 window.EXCALIDRAW_ASSET_PATH = new URL('./excalidraw-assets/', document.baseURI).href;
 let client, starting = false;
@@ -40,7 +41,8 @@ function renderEditor() {
 }
 renderEditor();
 
-if (!config && window.parent !== window && location.hostname === '127.0.0.1') {
+const hostedPilot = hostedBoardPrefix();
+if (!config && window.parent !== window && (hostedPilot || location.hostname === '127.0.0.1')) {
   window.addEventListener('message', event => {
     if (config || event.source !== window.parent || event.origin !== location.origin) return;
     const { type, relay, session } = event.data ?? {};
@@ -48,7 +50,8 @@ if (!config && window.parent !== window && location.hostname === '127.0.0.1') {
     try {
       if (![relay, session.apiBase].every(value => {
         const url = new URL(value);
-        return url.protocol === location.protocol && url.hostname === '127.0.0.1' && url.origin === value;
+        return hostedPilot ? value === location.origin :
+          url.protocol === location.protocol && url.hostname === '127.0.0.1' && url.origin === value;
       }) || (location.protocol === 'https:' && relay !== location.origin)) return;
     } catch { return; }
     config = { url:relay, session };

@@ -50,7 +50,7 @@
       <section class="card"><h2>Файлы от преподавателя</h2><button type="button" data-refresh-files>Обновить файлы</button><div id="studentFiles"></div></section><section class="card"><h2>Записи занятий</h2><p class="muted">Ссылки на внешний источник. Права просмотра у источника настраиваются отдельно.</p><button type="button" data-refresh-recordings>Обновить записи</button><div id="studentRecordings"></div></section><div id="assignments"></div></section>
   </main>
   <script type="module">
-    import { boardIdFromLink, createLessonBoard } from './lesson-board-ui.mjs';
+    import { boardApiPath, boardIdFromLink, createLessonBoard } from './lesson-board-ui.mjs';
     import { materialAction, saveProtectedFile, fileSize } from './material-file.mjs';
     import { nativeHomeworkDeadlineStatus } from './homework-deadline.mjs';
     import {renderStudentRecordings,recordingSourceLink} from './lesson-recordings.mjs';
@@ -72,7 +72,7 @@
     const date = value => new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
     function message(value, error = false) { $('notice').textContent = value; $('notice').classList.toggle('error', error); }
     async function api(path, body, authorized = true) {
-      const response = await fetch(API + path, { method: body ? 'POST' : 'GET', cache: 'no-store',
+      const response = await fetch(new URL(API).origin + boardApiPath(path), { method: body ? 'POST' : 'GET', cache: 'no-store',
         headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(authorized ? { Authorization: 'Bearer ' + token } : {}) },
         body: body ? JSON.stringify(body) : undefined });
       const data = await response.json().catch(() => null);
