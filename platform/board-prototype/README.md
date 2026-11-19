@@ -391,3 +391,37 @@ Start `node staging.mjs` with these environment variables.
 | `TAS_BOARD_STAGING_PORT` | Optional relay port, defaults to `18448` |
 
 The browser must trust the API and relay certificates for `127.0.0.1`. If the API certificate uses a private CA, supply it to Node via `NODE_EXTRA_CA_CERTS`. Open `/cabinet/teacher.html` on the relay, sign in with a synthetic teacher, create a board and grant edit access to a synthetic pupil. Use the share link in a fresh pupil session, save a change and reopen the link in a fresh session after restarting the relay against the same database.
+
+#### Private pilot on a dedicated host
+
+Choose a staging VPS with SSH access. Run the API and relay on that host using
+the settings above, with separate synthetic application and board databases.
+Keep the API, relay and databases off the public network. For this pilot the only
+client entry is SSH local forwarding. The general staging Caddy setup is not
+needed for this route.
+
+Forward both HTTPS listeners. The browser calls the API directly from the
+cabinet, and the relay checks the cabinet origin. Keep the local and remote
+port numbers identical so imports, sign-in, sharing and Socket.IO use the same
+origins as on the host. In this example the HTTPS API uses port 18447 and the
+relay uses 18448. Set `TAS_PILOT_SSH` to the approved SSH destination, for example
+`staging-user@staging-host`.
+
+```sh
+ssh -NT -o ExitOnForwardFailure=yes \
+  -L 127.0.0.1:18447:127.0.0.1:18447 \
+  -L 127.0.0.1:18448:127.0.0.1:18448 \
+  "$TAS_PILOT_SSH"
+```
+
+Set the staging API CORS origin to `https://127.0.0.1:18448`. Use certificates
+with an IP SAN for `127.0.0.1`, and install only the approved pilot CA trust on
+authorized test clients. Keep TLS verification enabled. Both browser sessions can
+use one tunnel, in separate browser profiles, and open
+`https://127.0.0.1:18448/cabinet/teacher.html` and the resulting pupil share link.
+
+Check API readiness and migrations through the tunnel before testing writes.
+Save a board as the synthetic teacher, grant edit access to the synthetic pupil,
+and check the pupil's edit from both sessions. Restart only the staging relay.
+Reopen the share link after a fresh pupil login and verify the saved scene.
+Confirm access is denied for a pupil in a second synthetic workspace.
