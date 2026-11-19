@@ -1,18 +1,26 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-19
-**ACTIVE_TASK:** UI-08 board sharing dialog keyboard focus, explicit role confirmation, accessible feedback and denied pupil link. Local Chromium PASS. Real board and PostgreSQL CI pending.
-**ACTIVE_BRANCH:** `tas/ui08-board-access` / [PR #106](https://github.com/Arthur200014/testing-hosting/pull/106) / `59e497d41fc1e24bdbf1df6a5d61ab7e48c5ddb7`.
-**MERGED_SHA:** `dd87df3f6659e5f9bb1128c6b950ca13a18b4914`.
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44467656779) PASS. Published `platform/lesson-board-ui.mjs` byte-matches the release. The public teacher cabinet loaded it in Chromium. Board launch remains loopback-only by design.
-**API_DEPLOYMENT:** API-independent change. Public readiness and migration endpoints returned HTTP 200; running API SHA UNKNOWN.
-**LIVE_WRITE_NOT_RUN:** The board is intentionally disabled in public cabinets. Board editing, save and reopen were verified against the real isolated API and PostgreSQL. Live settings/password writes still require confirmed dedicated test access.
-**NEXT_ACTION:** Complete the isolated teacher/student browser checks, merge PR #106 and verify Pages publication. Public board rollout remains a separate owner decision.
+**ACTIVE_TASK:** UI-08 board sharing and role changes, with keyboard entry/exit and explicit Apply.
+**ACTIVE_BRANCH:** none. [PR #106](https://github.com/Arthur200014/testing-hosting/pull/106) merged.
+**MERGED_SHA:** `bbf0bcb5e823ccf5e8ef5c96da09fd0326a9fec3`.
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44470630560) PASS. Both published cabinet pages byte-match the release and were opened in Chromium.
+**API_DEPLOYMENT:** Interface-only change. Live health and migration endpoints returned HTTP 200. Running API SHA UNKNOWN.
+**LIVE_WRITE_NOT_RUN:** Board stays loopback-only. Grant, reopen, revoke and denied link were verified with the real isolated API and PostgreSQL. Live settings/password checks still require dedicated synthetic access.
+**NEXT_ACTION:** Finish UI-08 with one keyboard and focus review across class management, calendar and homework submission. Keep live board rollout a separate owner decision and load-40 manual.
+
+## UI-08 board access verification
+
+- Opening the share dialog focuses the link. Escape cancels the unsubmitted role and returns to the board action. Role selection remains a draft until Apply. Pending saves do not repeat, and the previous saved role is restored on request failure. Save and revoke announce their result. After a shared link is denied, the pupil's focus lands on the access message.
+- Focused Chromium PASS for draft, keyboard commit, Escape, duplicate prevention, failed save and replaced share button. [Actual editor/API/PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44469872926/job/135376495511) PASS for the teacher grant, reopen, authenticated pupil link, editing/view-only changes and revocation. [TAS gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44469855214) and [branch PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44469855239) PASS. [Complete branch cabinet browser](https://github.com/Arthur200014/testing-hosting/actions/runs/44469855205) and [post-merge PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44470631390) PASS. [Redundant main browser rerun](https://github.com/Arthur200014/testing-hosting/actions/runs/44470631277) is still running.
+- Paths: `platform/teacher.html`, `platform/student.html`, and `platform/board-prototype/api-browser.mjs`.
 
 ## UI-08 board keyboard verification
 
+- [PR #105](https://github.com/Arthur200014/testing-hosting/pull/105) / `dd87df3`. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44467656779), public module byte match, and isolated board run including the automatic 21-editor soak PASS.
+
 - Enter opens the board and focuses its return button. Tab enters the editor. Alt+Shift+↑ reaches the same close handler from the editor and toolbar. Canceling an unsaved-changes warning keeps editing available. Closing restores focus to the original or rerendered board entry, with a cabinet fallback.
-- Local Chromium PASS for the keyboard path, unsaved confirmation cancel, rerendered opener and fallback. [Actual editor/API/PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44466943068/job/135367024232) PASS for both roles and saved scene reopen. Board room-core, group and licence jobs passed. The unrelated 21-editor soak was still running.
+- Local Chromium PASS for the keyboard path, unsaved confirmation cancel, rerendered opener and fallback. [Actual editor/API/PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44466943068/job/135367024232) PASS for both roles and saved scene reopen. Board room-core, group and licence jobs passed. The automatic 21-editor soak passed.
 - [TAS gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44466937507) and [pre-merge PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44466937485) PASS. [Post-merge PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44467657262) PASS.
 - Paths: `platform/lesson-board-ui.mjs` and `platform/board-prototype/api-browser.mjs`.
 
