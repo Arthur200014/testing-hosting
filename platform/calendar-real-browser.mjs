@@ -70,7 +70,6 @@ try {
   async function login(account, target = page, credential = password, expected = 200) {
     await target.goto(site+'/platform/teacher.html');
     assert.deepEqual(errors,[],'Teacher page modules must initialize before login');
-    await target.locator('#loginForm [name="workspace"]').fill(account.workspace);
     await target.locator('#loginForm [name="email"]').fill(account.email);
     await target.locator('#loginForm [name="password"]').fill(credential);
     async function submitLogin() {
@@ -78,14 +77,18 @@ try {
       await target.locator('#loginForm button[type="submit"]').click();
       return response;
     }
-    let response=await submitLogin();
-    // The expanded real-browser flow may legitimately consume the configured 5 logins/minute.
-    // Respect that production-equivalent limit; do not weaken it for the test.
+    async function selectWorkspace(response) {
+      if (!response.ok() || !(await response.json()).workspaces) return response;
+      await target.locator('#workspaceChoice select').selectOption(account.workspace);
+      return submitLogin();
+    }
+    let response=await selectWorkspace(await submitLogin());
+    // Respect the production-equivalent rate limit even when account selection takes two requests.
     if(response.status()===429) {
       const retryAfter=Number(response.headers()['retry-after']);
       await target.waitForTimeout((Number.isFinite(retryAfter) && retryAfter>0 ? Math.min(retryAfter,60) : 60)*1000);
       await target.locator('#loginForm [name="password"]').fill(credential);
-      response=await submitLogin();
+      response=await selectWorkspace(await submitLogin());
     }
     assert.equal(response.status(),expected,'Synthetic teacher login after respecting the rate window');
     if(expected!==200) return;

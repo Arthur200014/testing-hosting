@@ -8,6 +8,7 @@ const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1348, height: 926 }, deviceScaleFactor: 1 });
 
 const fixtures = {
+  signup: { students: [], program: 'Основная программа' },
   north: { students: [
     { membershipId: '11111111-1111-4111-8111-111111111111', studentName: 'North learner', programName: 'North subject' }
   ], program: 'North subject' },
@@ -16,7 +17,7 @@ const fixtures = {
     { membershipId: '33333333-3333-4333-8333-333333333333', studentName: 'South learner B', programName: 'South subject' }
   ], program: 'South subject' }
 };
-let failedOnce = false, forceExpiry = false, northLessonsStarted = false;
+let failedOnce = false, forceExpiry = false, northLessonsStarted = false, registered = false;
 const getReads = [];
 await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**', async route => {
   const req = route.request(), path = new URL(req.url()).pathname.replace('/api/v1/', '');
@@ -28,10 +29,18 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
     status, headers, contentType: 'application/json', body: JSON.stringify(value)
   });
   if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+  if (path === 'teacher-signups' && req.method() === 'POST') {
+    assert.deepEqual(body, { email: 'signup@example.invalid', password: 'synthetic-signup-password' });
+    registered = true;
+    return send({ created: true }, 201);
+  }
   if (path === 'teacher-sessions' && req.method() === 'POST') {
-    assert.ok(['north', 'south'].includes(body.workspace));
+    assert.equal(body.workspace, undefined);
+    const workspace = body.email.split('@')[0];
+    assert.ok(Object.hasOwn(fixtures, workspace));
+    if (workspace === 'signup') assert.equal(registered, true);
     if (body.password === 'incorrect') return send({ title: 'Invalid synthetic login' }, 401);
-    return send({ accessToken: 'synthetic-' + body.workspace,
+    return send({ accessToken: 'synthetic-' + workspace, workspace,
       expiresAt: new Date(Date.now() + 300000).toISOString() });
   }
   if (path === 'teacher-sessions/logout' && req.method() === 'POST')
@@ -69,8 +78,7 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
 });
 
 async function login(workspace) {
-  await page.locator('#loginForm [name="workspace"]').fill(workspace);
-  await page.locator('#loginForm [name="email"]').fill('synthetic@example.invalid');
+  await page.locator('#loginForm [name="email"]').fill(workspace + '@example.invalid');
   await page.locator('#loginForm [name="password"]').fill('synthetic-password');
   await page.locator('#loginForm button[type="submit"]').click();
   await page.locator('#app:not([hidden])').waitFor();
@@ -92,8 +100,7 @@ try {
   await page.getByRole('link', { name: 'О платформе' }).press('Enter');
   await page.getByRole('link', { name: 'Войти преподавателю' }).click();
   const loginForm = page.locator('#loginForm');
-  await loginForm.locator('[name="workspace"]').fill('north');
-  await loginForm.locator('[name="email"]').fill('synthetic@example.invalid');
+  await loginForm.locator('[name="email"]').fill('north@example.invalid');
   await loginForm.locator('[name="password"]').fill('incorrect');
   await loginForm.getByRole('button', {name:'Войти', exact:true}).click();
   await page.locator('#loginError').waitFor();
@@ -145,7 +152,7 @@ try {
   assert.ok(await newClass.evaluate(node => node === document.activeElement));
   await page.locator('#logout').click();
   await page.locator('#loginScreen:not([hidden])').waitFor();
-  assert.equal(await page.evaluate(() => document.activeElement.name), 'workspace');
+  assert.equal(await page.evaluate(() => document.activeElement.name), 'email');
   await login('south');
   await page.locator('[data-open-class]').first().waitFor();
   assert.equal(await page.locator('[data-open-class]').count(), 2);
@@ -178,5 +185,19 @@ try {
   await page.locator('#refresh').click();
   await page.locator('#loginScreen:not([hidden])').waitFor();
   assert.equal(await page.locator('#app').isHidden(), true);
-  console.log('PASS: two isolated workspaces, stale-response rejection, offline refresh/retry and expired session logout');
+  assert.equal(await page.locator('#workspaceChoice').isVisible(), false);
+  await page.getByRole('button', { name: 'Зарегистрироваться', exact: true }).click();
+  const signup = page.locator('#registerForm');
+  await signup.locator('[name="email"]').fill('signup@example.invalid');
+  await signup.locator('[name="password"]').fill('synthetic-signup-password');
+  await signup.locator('[name="confirmPassword"]').fill('different-synthetic-password');
+  await signup.getByRole('button', { name: 'Создать аккаунт' }).click();
+  await page.locator('#loginError').filter({ hasText: 'Пароли не совпадают.' }).waitFor();
+  assert.equal(registered, false);
+  await signup.locator('[name="confirmPassword"]').fill('synthetic-signup-password');
+  await signup.getByRole('button', { name: 'Создать аккаунт' }).click();
+  await page.locator('#app:not([hidden])').waitFor();
+  assert.equal(registered, true);
+  assert.equal(await page.locator('#workspaceName').textContent(), 'signup');
+  console.log('PASS: signup, isolated workspaces, stale-response rejection, offline refresh/retry and expired session logout');
 } finally { await browser.close(); }

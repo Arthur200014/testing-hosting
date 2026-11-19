@@ -29,6 +29,7 @@ builder.Services.AddSingleton<IStudentCodeHasher>(serviceProvider =>
 builder.Services.AddScoped<StudentSessionService>();
 builder.Services.AddScoped<TeacherSessionService>();
 builder.Services.AddScoped<TeacherOwnerRegistration>();
+builder.Services.AddScoped<TeacherSignup>();
 builder.Services.AddScoped<TeacherStudentDirectory>();
 builder.Services.AddScoped<TeacherHistoryReader>();
 builder.Services.AddScoped<TeacherLessonService>();
@@ -112,6 +113,12 @@ builder.Services.AddRateLimiter(options =>
     var studentSessionOptions = StartupConfiguration.GetStudentSessionOptions(builder.Configuration);
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddConcurrencyLimiter("file-uploads", limiter => { limiter.PermitLimit=2;limiter.QueueLimit=0; });
+    options.AddPolicy("teacher-signups", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0
+        }));
     options.AddPolicy("teacher-sessions", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
@@ -190,12 +197,16 @@ app.MapPost("/api/v1/student-sessions", async (
 app.MapPost("/api/v1/teacher-sessions", async (
     TeacherLoginRequest request, TeacherSessionService sessions, CancellationToken cancellationToken) =>
 {
-    var session = await sessions.LoginAsync(request, cancellationToken);
-    return session is null
+    var login = await sessions.LoginAsync(request, cancellationToken);
+    return login is null
         ? Results.Json(new { title = "Invalid teacher credentials.", status = 401 }, statusCode: 401,
             contentType: "application/problem+json")
-        : Results.Ok(session);
+        : login.Session is { } session ? Results.Ok(session) : Results.Ok(new { login.Workspaces });
 }).RequireRateLimiting("teacher-sessions");
+
+app.MapPost("/api/v1/teacher-signups", (TeacherSignupRequest request, TeacherSignup signup,
+    CancellationToken cancellationToken) => signup.RegisterAsync(request, cancellationToken))
+    .RequireRateLimiting("teacher-signups");
 
 app.MapPost("/api/v1/teacher-registrations", async (
     TeacherOwnerRegistrationRequest request, TeacherOwnerRegistration registration,
