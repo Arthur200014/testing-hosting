@@ -266,6 +266,12 @@ try {
   await page.locator('[data-open-class]').first().waitFor();
   await page.locator('#notice').waitFor({ state: 'hidden' });
   assert.equal(await page.locator('[data-open-class]').count(), 3);
+  for (const student of students) {
+    const title = [student.studentName, student.grade, student.targetScore].join(' · ');
+    const card = page.locator('.class-card').filter({hasText:title});
+    assert.equal(await card.getByRole('button',{name:'Открыть: '+title,exact:true}).count(),1);
+    assert.equal(await card.getByRole('button',{name:new RegExp('^(Запланировать|Изменить план): '+student.studentName)}).count(),1);
+  }
   await page.evaluate(() => document.fonts.ready);
   const classesArea = await page.locator('.classes-main').boundingBox();
   const todayArea = await page.locator('.today-panel').boundingBox();
@@ -436,6 +442,8 @@ try {
   await page.locator('[data-restore-class]').waitFor();
   assert.equal(archiveWrites, 1);
   assert.equal(await page.locator('[data-open-class]').count(), 1);
+  assert.equal(await page.getByRole('button',{name:'Открыть: '+classes[0].title,exact:true}).count(),1);
+  assert.equal(await page.getByRole('button',{name:'Восстановить: '+classes[0].title,exact:true}).count(),1);
   await page.screenshot({ path: output + '/33_class_archive.png' });
 
   page.once('dialog', dialog => dialog.dismiss());
