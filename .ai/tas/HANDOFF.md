@@ -1,13 +1,13 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-19
-**ACTIVE_TASK:** UI-08 isolated shared-board keyboard entry, exit and focus restoration.
-**ACTIVE_BRANCH:** none. [PR #105](https://github.com/Arthur200014/testing-hosting/pull/105) merged.
+**ACTIVE_TASK:** UI-08 board sharing dialog keyboard focus, explicit role confirmation, accessible feedback and denied pupil link. Local Chromium PASS. Real board and PostgreSQL CI pending.
+**ACTIVE_BRANCH:** `tas/ui08-board-access` / [PR #106](https://github.com/Arthur200014/testing-hosting/pull/106) / `59e497d41fc1e24bdbf1df6a5d61ab7e48c5ddb7`.
 **MERGED_SHA:** `dd87df3f6659e5f9bb1128c6b950ca13a18b4914`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44467656779) PASS. Published `platform/lesson-board-ui.mjs` byte-matches the release. The public teacher cabinet loaded it in Chromium. Board launch remains loopback-only by design.
 **API_DEPLOYMENT:** API-independent change. Public readiness and migration endpoints returned HTTP 200; running API SHA UNKNOWN.
 **LIVE_WRITE_NOT_RUN:** The board is intentionally disabled in public cabinets. Board editing, save and reopen were verified against the real isolated API and PostgreSQL. Live settings/password writes still require confirmed dedicated test access.
-**NEXT_ACTION:** Continue UI-08 keyboard acceptance with the board access/role dialog. Verify focus entry, Escape, and return for teacher and pupil paths on the isolated runner. Public board rollout remains a separate owner decision. Keep load-40 manual.
+**NEXT_ACTION:** Complete the isolated teacher/student browser checks, merge PR #106 and verify Pages publication. Public board rollout remains a separate owner decision.
 
 ## UI-08 board keyboard verification
 
