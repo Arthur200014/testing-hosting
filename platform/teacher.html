@@ -1737,12 +1737,24 @@
         draft.memberIds=[...form.querySelectorAll('[name="planMember"]:checked')].map(x=>x.value);
         plan.draft=draft;
       }
+      function focusCabinetReturn(selector) {
+        const target = document.querySelector(selector);
+        (target || $('teacherMain')).focus();
+      }
+      function closeLearningModal() {
+        state.learningModal = false;
+        render();
+        focusCabinetReturn('[data-open-learning]');
+      }
+      function dialogFields(dialog) {
+        return [...dialog.querySelectorAll('button,input,select,textarea,summary')].filter(el => !el.disabled && el.offsetParent !== null);
+      }
       function cancelLessonPlan() {
         if (document.querySelector('#lessonPlannerForm[data-dirty="1"]') &&
             !confirm('Отменить несохранённое занятие?')) return;
-        const calendar=state.lessonPlan?.fromCalendar;
+        const returnTo = state.lessonPlan?.returnTo;
         state.lessonPlan=null; render();
-        if (calendar) document.querySelector('[data-calendar-new]')?.focus();
+        if (returnTo) focusCabinetReturn(returnTo);
       }
       function calendarLessonDialog() {
         const plan=state.lessonPlan, draft=plan.draft || {}, classMode=plan.createKind==='class';
@@ -2239,8 +2251,13 @@
         }));
         const focusedBoardLesson = document.activeElement?.dataset.openLessonBoard;
         const focusedIndependentBoard = document.activeElement?.dataset.openIndependentBoard;
-        const calendarDialogWasOpen=!!document.getElementById('calendarLessonDialog');
-        document.body.classList.toggle('calendar-plan-open',state.view==='lessons' && !!state.lessonPlan?.fromCalendar);
+        const oldDialog = document.querySelector('#calendarLessonDialog, .learning-modal:not(.count-plan-modal)');
+        const focusIndex = oldDialog ? dialogFields(oldDialog).indexOf(document.activeElement) : -1;
+        const planning = state.view==='lessons' && !!state.lessonPlan?.fromCalendar;
+        const choosing = state.view==='overview' && state.learningModal;
+        document.body.classList.toggle('calendar-plan-open', planning);
+        for (const node of document.querySelectorAll('#app > aside, #app > .skip-content, #teacherMain > .top'))
+          node.inert = planning || choosing;
         if (state.view !== 'overview') {
           const missing = needs[state.view].filter(key => !Object.hasOwn(state.data, key));
           if (missing.length) {
@@ -2265,7 +2282,12 @@
         if (focusedIndependentBoard) document.querySelector(`[data-open-independent-board="${CSS.escape(focusedIndependentBoard)}"]`)?.focus();
         if (focusedBoardLesson) document.querySelector(`[data-open-lesson-board="${CSS.escape(focusedBoardLesson)}"]`)?.focus();
         if (state.view === 'students') studentRows();
-        if (!calendarDialogWasOpen) document.querySelector('#calendarLessonDialog [name="title"]')?.focus();
+        if (choosing) document.querySelector('#content > .classes-layout')?.setAttribute('inert', '');
+        const dialog = document.querySelector('#calendarLessonDialog, .learning-modal:not(.count-plan-modal)');
+        if (dialog) {
+          const preferred = dialogFields(dialog)[focusIndex] || dialog.querySelector('[name="title"], .modal-close');
+          preferred?.focus();
+        }
         updateCalendarClock();
       }
       const formValue = (form, name) => form.elements.namedItem(name)?.value?.trim() || '';
@@ -2943,7 +2965,7 @@
         if (event.target.id === 'printReport') { window.print(); return; }
         if (event.target.closest('[data-retry-overview]')) { await refresh(true); return; }
         if (event.target.matches('.modal-backdrop[data-close-learning]') || event.target.closest('.modal-close[data-close-learning]')) {
-          state.learningModal = false; render(); return;
+          closeLearningModal(); return;
         }
         if (event.target.closest('[data-open-learning]')) {
           state.learningModal = true; render(); document.querySelector('.modal-close')?.focus(); return;
@@ -2969,7 +2991,7 @@
           }
           return;
         }
-        if (event.target.closest('[data-cancel-class]')) { state.classCreate = false; state.groupCreate = false; render(); return; }
+        if (event.target.closest('[data-cancel-class]')) { state.classCreate = false; state.groupCreate = false; render(); focusCabinetReturn('[data-open-learning]'); return; }
         if (event.target.closest('[data-cancel-group-edit]')) {
           if (document.querySelector('#groupEditForm[data-dirty="1"]') &&
               !confirm('Отменить изменения группового класса без сохранения?')) return;
@@ -3152,7 +3174,7 @@
           return;
         }
         const openClass = event.target.closest('[data-open-class]');
-        if (openClass) { state.selectedLesson=null; state.editLesson=null; state.lessonFilter='all'; state.scheduleEdit = null; state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
+        if (openClass) { state.selectedLesson=null; state.editLesson=null; state.lessonFilter='all'; state.scheduleEdit = null; state.selectedClass = openClass.dataset.openClass; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); focusCabinetReturn('[data-back-classes]'); return; }
         if (event.target.closest('[data-back-classes]')) {
           if (document.querySelector('#classNativeTaskForm[data-dirty="1"], #classNativeAssignForm[data-dirty="1"], #groupNativeAssignForm[data-dirty="1"], [data-context-task][data-dirty="1"], [data-context-assign][data-dirty="1"]') &&
               !confirm('Отменить несохранённое задание?')) return;
@@ -3162,7 +3184,11 @@
               !confirm('Отменить несохранённые изменения программы?')) return;
           if (document.querySelector('#classScheduleRuleForm[data-dirty="1"]') &&
               !confirm('Отменить изменения расписания без сохранения?')) return;
-          state.scheduleEdit = null; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render(); return; }
+          const previous = state.selectedClass;
+          state.scheduleEdit = null; state.selectedClass = ''; state.classEdit = ''; state.groupEdit = ''; state.classDetailTab = 'summary'; state.lastClassInvitation = null; render();
+          focusCabinetReturn(previous ? `[data-open-class="${CSS.escape(previous)}"]` : '[data-open-learning]');
+          return;
+        }
         if (event.target.closest('[data-copy-class-invite]')) {
           const code = state.lastClassInvitation?.code;
           if (!code) return;
@@ -3264,7 +3290,7 @@
         const addCalendarDay = event.target.closest('[data-calendar-add-day]');
         if (addCalendarDay) {
           state.calendarDate = addCalendarDay.dataset.calendarAddDay;
-          state.lessonPlan = {kind:'one-time',fromCalendar:true,createKind:'one-time',startAt:localSlotInstant(state.calendarDate,9*60,calendarZone),timeZone:calendarZone};
+          state.lessonPlan = {kind:'one-time',fromCalendar:true,createKind:'one-time',returnTo:`[data-calendar-add-day="${CSS.escape(state.calendarDate)}"]`,startAt:localSlotInstant(state.calendarDate,9*60,calendarZone),timeZone:calendarZone};
           render(); return;
         }
         const calendarShift = event.target.closest('[data-calendar-shift]');
@@ -3283,7 +3309,7 @@
         const createOneTime = event.target.closest('[data-create-one-time]');
         if (createOneTime) {
           state.lessonPlan = createOneTime.hasAttribute('data-calendar-new')
-            ? {kind:'one-time',fromCalendar:true,createKind:'one-time',startAt:localSlotInstant(state.calendarDate,9*60,calendarZone),timeZone:calendarZone}
+            ? {kind:'one-time',fromCalendar:true,createKind:'one-time',returnTo:'[data-calendar-new]',startAt:localSlotInstant(state.calendarDate,9*60,calendarZone),timeZone:calendarZone}
             : {kind:'one-time'};
           render(); document.querySelector('#calendarLessonDialog [name="title"]')?.focus(); return;
         }
@@ -3438,17 +3464,19 @@
             else if (!event.shiftKey && document.activeElement===last) { event.preventDefault(); first?.focus(); }
           }
         }
-        const dialog=document.getElementById('calendarLessonDialog');
-        if (dialog) {
-          if (event.key==='Escape') { event.preventDefault(); cancelLessonPlan(); return; }
-          if (event.key==='Tab') {
-            const fields=[...dialog.querySelectorAll('button,input,select,textarea,summary')].filter(el=>!el.disabled && el.offsetParent!==null);
-            const first=fields[0], last=fields.at(-1);
-            if (event.shiftKey && document.activeElement===first) { event.preventDefault(); last?.focus(); }
-            else if (!event.shiftKey && document.activeElement===last) { event.preventDefault(); first?.focus(); }
+        const dialog = document.querySelector('#calendarLessonDialog, .learning-modal:not(.count-plan-modal)');
+        if (!dialog) return;
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          if (state.learningModal) closeLearningModal(); else cancelLessonPlan();
+        } else if (event.key === 'Tab') {
+          const fields = dialogFields(dialog);
+          const first = fields[0], last = fields.at(-1);
+          if (!dialog.contains(document.activeElement) || document.activeElement === (event.shiftKey ? first : last)) {
+            event.preventDefault();
+            (event.shiftKey ? last : first)?.focus();
           }
         }
-        if (event.key === 'Escape' && state.learningModal) { state.learningModal = false; render(); }
       });
       $('content').addEventListener('input', event => {
         const field = event.target;
@@ -3894,8 +3922,15 @@
               topicComment:formValue(form,'topics') || null
             }))
           };
+          const returnTo = state.lessonPlan?.returnTo;
+          const generation = state.generation;
           await mutation('plannedLesson','lessons',()=>lesson);
+          if (generation !== state.generation) return;
           state.lessonPlan = null;
+          if (returnTo) form.afterSave = async () => {
+            await refresh();
+            if (generation === state.generation && state.view === 'lessons' && !state.lessonPlan) focusCabinetReturn(returnTo);
+          };
         });
         if (form.id === 'lessonForm') onForm(form, async () => {
           const ids = selectedIds(form); const program = oneProgram(ids);

@@ -510,8 +510,15 @@ try {
   await page.locator('#lessonPlannerForm [data-cancel-lesson-plan]').click();
   assert.deepEqual(await call('teacher/lessons',north.token),beforeLessons);
   assert.deepEqual(await call('teacher/schedule-rules',north.token),beforeRules);
-  await page.locator('[data-calendar-new]').click();
+  const calendarLauncher = page.locator('[data-calendar-new]');
+  await calendarLauncher.press('Enter');
   await page.locator('#calendarLessonDialog').waitFor();
+  assert.ok(await page.locator('#lessonPlannerForm [name="title"]').evaluate(node => node === document.activeElement));
+  await page.keyboard.press('Escape');
+  await page.locator('#calendarLessonDialog').waitFor({state:'detached'});
+  assert.ok(await calendarLauncher.evaluate(node => node === document.activeElement));
+  assert.deepEqual(await call('teacher/lessons',north.token),beforeLessons);
+  await calendarLauncher.press('Enter');
   await page.locator('#lessonPlannerForm [name="title"]').fill('Урок через настоящий браузер');
   await page.locator('[data-calendar-plan-kind="class"]').click();
   assert.equal(await page.locator('#lessonPlannerForm [name="title"]').inputValue(),'Урок через настоящий браузер');
@@ -521,8 +528,9 @@ try {
   await page.locator('#lessonPlannerForm [name="description"]').fill('Проверка реального сохранения');
   await page.screenshot({path:output+'/40_calendar_create_real.png'});
   await page.locator('#lessonPlannerForm [name="planMember"][value="'+north.students[0].membershipId+'"]').check();
-  await page.locator('#lessonPlannerForm button[type="submit"]').click();
+  await page.locator('#lessonPlannerForm button[type="submit"]').press('Enter');
   await page.locator('[data-calendar-lesson]').filter({hasText:'Урок через настоящий браузер'}).waitFor();
+  await page.waitForFunction(() => document.activeElement?.matches('[data-calendar-new]'));
   const saved=await call('teacher/lessons',north.token);
   assert.equal(saved.length,4);
   assert.equal(saved.find(l=>l.title==='Урок через настоящий браузер').lessonAt.slice(0,19),'2026-11-16T06:00:00');
@@ -1316,6 +1324,13 @@ try {
   await page.locator('[data-student-related-class="'+group.id+'"]').click();await page.locator('.group-roster-member [data-open-student="'+pupilCardId+'"]').waitFor();await page.locator('.group-roster-member [data-open-student="'+pupilCardId+'"]').click();await page.locator('[data-student-card-month]').fill('2026-11');await page.locator('[data-student-card-month]').dispatchEvent('change');await page.locator('[data-student-related-lesson="'+grouped.id+'"][data-membership-id="'+pupilCardId+'"]').click();await page.locator('[data-lesson-recordings="'+grouped.id+'"]').waitFor();
   await page.reload();await login(north);await openRecordingLesson(north.item.id,recordLesson.id);await page.locator('.class-lesson-detail [data-open-student="'+pupilCardId+'"]').click();await page.locator('[data-student-card] h2').filter({hasText:finalPupilName}).waitFor();await page.locator('[data-student-card-tab="profile"]').click();await page.locator('[data-student-card]').getByText('Сохранено из карточки ученика',{exact:true}).waitFor();
   assert.equal((await call('teacher/students',north.token)).length,pupilsCount,'opening cards creates no duplicate pupil');
+  // Pupil-scoped work pages: real answers, cancel/reset, draft refresh and persisted zero-grade result.
+  const workTask=await call('teacher/homework/native/tasks',north.token,{requestId:randomUUID(),programId:pupilOne.programId,title:'Карточка ученика: проверка ДЗ',prompt:'Вычислите 2 + 2. Условие <не HTML>'},201);
+  let workId,secondWorkId;
+  for(let i=0;i<21;i++) {
+    const assigned=await call('teacher/homework/native/group-assignments',north.token,{requestId:randomUUID(),taskId:workTask.id,membershipIds:i===0?[pupilCardId,pupilTwo.membershipId]:[pupilCardId],deadlineHours:48,groupClassId:group.id},201);
+    workId=assigned[0];if(i===0) secondWorkId=(await call('teacher/students/'+pupilTwo.membershipId+'/homework',north.token)).items.find(x=>x.taskId===workTask.id).id;
+  }
   const profileStudentPage=await context.newPage();profileStudentPage.on('pageerror',e=>errors.push(e.message));await profileStudentPage.goto(site+'/platform/student.html');await profileStudentPage.locator('#loginForm [name="workspace"]').fill(north.workspace);await profileStudentPage.locator('#loginForm [name="code"]').fill(north.students[0].inviteCode);async function submitProfileStudentLogin() {
     const reply=profileStudentPage.waitForResponse(r=>r.url().endsWith('/api/v1/student-sessions') && r.request().method()==='POST');
     await profileStudentPage.locator('#loginForm button[type="submit"]').click();return reply;
@@ -1326,15 +1341,14 @@ try {
     await profileStudentPage.locator('#loginForm [name="code"]').fill(north.students[0].inviteCode);profileLoginReply=await submitProfileStudentLogin();
   }
   assert.equal(profileLoginReply.status(),200,'student login succeeds after respecting the rate window');const profileSession=await profileLoginReply.json();assert.equal(profileSession.student.displayName,finalPupilName,'student session uses persisted display name');
-  await profileStudentPage.locator('#studentName').filter({hasText:finalPupilName}).waitFor();await profileStudentPage.close();
-  // Pupil-scoped work pages: real answers, cancel/reset, draft refresh and persisted zero-grade result.
-  const workTask=await call('teacher/homework/native/tasks',north.token,{requestId:randomUUID(),programId:pupilOne.programId,title:'Карточка ученика: проверка ДЗ',prompt:'Вычислите 2 + 2. Условие <не HTML>'},201);
-  let workId,secondWorkId;
-  for(let i=0;i<21;i++) {
-    const assigned=await call('teacher/homework/native/group-assignments',north.token,{requestId:randomUUID(),taskId:workTask.id,membershipIds:i===0?[pupilCardId,pupilTwo.membershipId]:[pupilCardId],deadlineHours:48,groupClassId:group.id},201);
-    workId=assigned[0];if(i===0) secondWorkId=(await call('teacher/students/'+pupilTwo.membershipId+'/homework',north.token)).items.find(x=>x.taskId===workTask.id).id;
-  }
-  await call('homework/native/submissions',profileSession.accessToken,{submissionId:randomUUID(),assignmentId:workId,answer:'Ответ ученика: 5 < 6'},201);
+  await profileStudentPage.locator('#studentName').filter({hasText:finalPupilName}).waitFor();
+  const answerForm = profileStudentPage.locator('[data-assignment="'+workId+'"]');
+  await answerForm.locator('textarea').fill('Ответ ученика: 5 < 6');
+  await answerForm.locator('button[type="submit"]').press('Enter');
+  const submittedCard = profileStudentPage.locator('[data-work-card="'+workId+'"]');
+  await profileStudentPage.waitForFunction(id => document.activeElement?.dataset.workCard === id,workId);
+  assert.equal(await submittedCard.locator('.answer').textContent(),'Ответ ученика: 5 < 6');
+  await profileStudentPage.close();
   const workPath='teacher/students/'+pupilCardId+'/homework';
   await call(workPath,south.token,undefined,404);
   await page.locator('[data-student-card-tab="tasks"]').click();await page.locator('[data-student-work="'+workId+'"]').waitFor();
