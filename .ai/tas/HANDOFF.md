@@ -1,16 +1,20 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-19
-**ACTIVE_TASK:** UI-08 class action accessibility correction released and verified on the public site.
-**ACTIVE_BRANCH:** none. [PR #109](https://github.com/Arthur200014/testing-hosting/pull/109) merged.
+**ACTIVE_TASK:** Stage 2 board staging preparation. Stage 1 functional cabinet acceptance verified on the published site.
+**ACTIVE_BRANCH:** `tas/board-staging-editor-path`, [PR #110](https://github.com/Arthur200014/testing-hosting/pull/110), `3bd1107253a9483945fc0e71e5ace7051e3ad013`.
 **MERGED_SHA:** `5377d37a4f3bbdec6e4f96ccc5339728353559cb`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED + LIVE_BROWSER_VERIFIED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44515254759) PASS. Published teacher HTML matches the verified branch. The earlier self-registration release is [PR #108](https://github.com/Arthur200014/testing-hosting/pull/108).
 **API_DEPLOYMENT:** Frontend-only correction. Timeweb readiness and migrations returned HTTP 200. Published teacher and pupil workflows persisted against the live API. Running API SHA UNKNOWN.
 **LIVE_BROWSER_WRITE_PASS:** Published teacher and pupil cabinets against Timeweb. The UI registered an isolated synthetic teacher, saved the profile, and reopened it and the test class after a fresh email/password sign-in. Calendar cancellation wrote no lesson and restored focus. A saved lesson reopened in the calendar. The pupil submitted homework with the keyboard and reopened the persisted answer after fresh sign-in. Synthetic pupil/class/assignment fixtures were provisioned by the public API in the new workspace. Earlier live API write/reload smoke also passed.
-**CHECKS:** [TAS gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44514432703), [branch PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44514432654), and the changed class browser regression PASS. The broader [browser run](https://github.com/Arthur200014/testing-hosting/actions/runs/44514432646) was still running at handoff. Earlier isolated board checks including the 21-editor soak passed.
+**CHECKS:** [TAS gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44514432703), [branch PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44514432654), and the changed class browser regression PASS. The [full branch browser run](https://github.com/Arthur200014/testing-hosting/actions/runs/44514432646) and [post-merge PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44515255972) passed. Earlier isolated board checks including the 21-editor soak passed.
 **ACCESSIBILITY:** PASS on published Chromium for public skip navigation, teacher/pupil sign-in names, the class open name, return focus and named calendar dialog. A calendar cancellation wrote no lesson. Save/reopen passed. The homework status region exposed “Ответ отправлен.” to assistive technology, focus moved to the assignment, and the answer persisted after fresh sign-in. Local browser regression also verified plan/restore labels. Spoken screen-reader output NOT_RUN: no desktop reader available and the executor could not start D-Bus.
 
-**NEXT_ACTION:** Continue UI-08 with a focused review of the remaining visible actions and transitions. Verify spoken announcements when a supported desktop screen reader is available. Board stays loopback-only. Keep load-40 manual.
+**STAGE_1_FUNCTIONAL_PASS:** Published Chromium/Timeweb with a dedicated synthetic workspace. All eight cabinet sections and seven individual class tabs opened; library template transition and folder cancel, pupil report transition, invoice/subscription navigation, and 390px mobile keyboard menu/focus passed. Profile/class, calendar cancel/save/reopen, and pupil answer after re-login passed. Desktop spoken output remains NOT_RUN as described above.
+
+**STAGE_2:** The built editor now resolves scripts and local fonts under a nested URL in PR #110. Local built-editor/browser passed with three synthetic sessions, drawing, restart recovery, viewer and cross-workspace isolation using the filesystem test adapter. Separately 22/22 transport/access/reconnect tests passed against isolated PostgreSQL. Font and notice audit passed. No live board route has been enabled. The current frontend, API, relay and journal adapters still enforce prototype isolation.
+
+**NEXT_ACTION:** Finish PR #110 checks and merge when green. Prepare the first HTTPS staging slice with a dedicated PostgreSQL board store, workspace allowlist enforced at permit issuance and revalidation, and a safe disable path. Use the normal teacher-to-pupil link to verify joint editing, fresh login and relay restart in a synthetic workspace before considering public enablement. Keep load-40 manual.
 
 ## UI-08 cabinet keyboard acceptance
 
