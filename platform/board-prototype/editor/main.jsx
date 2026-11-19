@@ -4,7 +4,7 @@ import { Excalidraw, CaptureUpdateAction, convertToExcalidrawElements } from '@e
 import '@excalidraw/excalidraw/index.css';
 import { connectScene, lessonPermit } from './scene-client.mjs';
 // Local fonts only; no vendor/CDN subscription or remote asset dependency.
-window.EXCALIDRAW_ASSET_PATH = '/excalidraw-assets/';
+window.EXCALIDRAW_ASSET_PATH = new URL('./excalidraw-assets/', document.baseURI).href;
 let client, starting = false;
 let config = window.__BOARD_TEST_CONFIG;
 

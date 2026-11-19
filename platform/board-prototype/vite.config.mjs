@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import { cp, mkdir, rm, copyFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 const replacement = resolve('node_modules/@fontsource/arimo/files/arimo-latin-400-normal.woff2');
-export default defineConfig({root:'editor',server:{host:'127.0.0.1',fs:{allow:[process.cwd()]}},
+export default defineConfig({root:'editor',base:'./',server:{host:'127.0.0.1',fs:{allow:[process.cwd()]}},
   plugins:[{name:'reviewed-local-font-assets',enforce:'pre',
     resolveId(source){
       // Replace only the legacy export fallback. Preserve the replacement font bytes/name metadata.
