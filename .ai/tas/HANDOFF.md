@@ -1,18 +1,28 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-19
-**ACTIVE_TASK:** UI-08 class, calendar and homework keyboard/focus packet. Focused synthetic Chromium passed. Actual PostgreSQL/API browser and release pending.
-**ACTIVE_BRANCH:** `tas/ui08-keyboard-cabinet` / [PR #107](https://github.com/Arthur200014/testing-hosting/pull/107) / `0f4f15d48b6b2314c702fcb8bcaf13037506c3dd`.
-**MERGED_SHA:** `bbf0bcb5e823ccf5e8ef5c96da09fd0326a9fec3`.
-**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44470630560) PASS. Both published cabinet pages byte-match the release and were opened in Chromium.
-**API_DEPLOYMENT:** Interface-only change. Live health and migration endpoints returned HTTP 200. Running API SHA UNKNOWN.
-**LIVE_WRITE_NOT_RUN:** Board stays loopback-only. Grant, reopen, revoke and denied link were verified with the real isolated API and PostgreSQL. Live settings/password checks still require dedicated synthetic access.
-**NEXT_ACTION:** Complete real browser and PostgreSQL checks, merge PR #107 and verify both cabinet pages on GitHub Pages. Keep public board rollout a separate owner decision.
+**ACTIVE_TASK:** UI-08 final scoped keyboard review for class navigation, calendar planning and pupil homework submission.
+**ACTIVE_BRANCH:** none. [PR #107](https://github.com/Arthur200014/testing-hosting/pull/107) merged.
+**MERGED_SHA:** `bc3ac17823aabd67c10130800b2024da1d656de6`.
+**RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44474036834) PASS. Published teacher and pupil HTML byte-match the release and both sign-in pages opened in Chromium.
+**API_DEPLOYMENT:** UI-only change. Live readiness and migrations returned HTTP 200. Running API SHA UNKNOWN.
+**LIVE_WRITE_NOT_RUN:** No designated synthetic live workspace with confirmed access. Isolated Chromium with the real API and PostgreSQL exercised class focus, lesson creation/cancel and homework submission/reload. Board launch remains loopback-only.
+**NEXT_ACTION:** Run authenticated live acceptance in a dedicated synthetic workspace when one is available, including UI-07 settings/password and class, lesson and homework save/reload. Manual screen-reader review and a public board rollout are outside the completed keyboard pass. Keep load-40 manual.
+
+## UI-08 cabinet keyboard acceptance
+
+- Class chooser traps Tab, Escape restores the launcher, and leaving a class restores its card's open button. Calendar planner preserves focus on UI rerender and returns to its actual launcher after cancel or save. Homework acknowledges submission, restores focus to the submitted card, preserves other drafts and retries a failed refresh without resending an accepted answer.
+- Focused Chromium PASS for class/menu, same weekly calendar launcher, synthetic accepted-submission refresh failure and retry. Separate local Chromium/ASP.NET Core/PostgreSQL 17 PASS on this tree for real class open/back, lesson cancel and save, keyboard homework submission and persisted answer after re-entry. Real isolated board browser PASS.
+- [TAS gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44471742761) and [branch PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44471742793) PASS. [Post-merge PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44474037568) in progress at handoff.
+- [First full cabinet run](https://github.com/Arthur200014/testing-hosting/actions/runs/44471742776/attempts/1) passed all synthetic browser scenarios, then timed out fetching Ubuntu package indexes during Docker build, before its real API browser assertions. [Branch retry](https://github.com/Arthur200014/testing-hosting/actions/runs/44471742776) in progress at handoff. [Main rerun](https://github.com/Arthur200014/testing-hosting/actions/runs/44474037541) in progress at handoff.
+- Paths: `platform/teacher.html`, `platform/student.html`, and the teacher-session, native-homework and real calendar browser tests.
 
 ## UI-08 board access verification
 
+- [PR #106](https://github.com/Arthur200014/testing-hosting/pull/106) / `bbf0bcb`, published both cabinets. [Post-merge browser rerun](https://github.com/Arthur200014/testing-hosting/actions/runs/44470631277) PASS.
+
 - Opening the share dialog focuses the link. Escape cancels the unsubmitted role and returns to the board action. Role selection remains a draft until Apply. Pending saves do not repeat, and the previous saved role is restored on request failure. Save and revoke announce their result. After a shared link is denied, the pupil's focus lands on the access message.
-- Focused Chromium PASS for draft, keyboard commit, Escape, duplicate prevention, failed save and replaced share button. [Actual editor/API/PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44469872926/job/135376495511) PASS for the teacher grant, reopen, authenticated pupil link, editing/view-only changes and revocation. [TAS gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44469855214) and [branch PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44469855239) PASS. [Complete branch cabinet browser](https://github.com/Arthur200014/testing-hosting/actions/runs/44469855205) and [post-merge PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44470631390) PASS. [Redundant main browser rerun](https://github.com/Arthur200014/testing-hosting/actions/runs/44470631277) is still running.
+- Focused Chromium PASS for draft, keyboard commit, Escape, duplicate prevention, failed save and replaced share button. [Actual editor/API/PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44469872926/job/135376495511) PASS for the teacher grant, reopen, authenticated pupil link, editing/view-only changes and revocation. [TAS gate](https://github.com/Arthur200014/testing-hosting/actions/runs/44469855214) and [branch PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44469855239) PASS. [Complete branch cabinet browser](https://github.com/Arthur200014/testing-hosting/actions/runs/44469855205) and [post-merge PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44470631390) PASS. [Redundant main browser rerun](https://github.com/Arthur200014/testing-hosting/actions/runs/44470631277) PASS.
 - Paths: `platform/teacher.html`, `platform/student.html`, and `platform/board-prototype/api-browser.mjs`.
 
 ## UI-08 board keyboard verification
