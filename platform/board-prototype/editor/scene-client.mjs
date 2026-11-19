@@ -10,12 +10,14 @@ export async function lessonPermit({apiBase,lessonId,boardId,accessToken,role}){
   const target = boardId ?? lessonId;
   if (!['teacher','student'].includes(role) ||
       !/^[0-9a-f-]{36}$/i.test(target)) throw new Error('Invalid board target');
-  const u=new URL(apiBase);if(!['127.0.0.1','localhost'].includes(u.hostname))throw new Error('Isolated API required');
+  const u=new URL(apiBase);if(!['127.0.0.1','localhost'].includes(u.hostname)||u.pathname!=='/'||u.search||u.hash||u.username||u.password||u.protocol!==location.protocol)throw new Error('Isolated API required');
   const r=await fetch(`${u.origin}/api/v1/${role}/board-prototype/${boardId ? 'boards' : 'lessons'}/${target}/permit`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`},cache:'no-store',signal:AbortSignal.timeout(5000),redirect:'error'});
   if(!r.ok){const e=new Error([401,403,404].includes(r.status)?'Доступ к занятию отозван':'API временно недоступен');e.denied=[401,403,404].includes(r.status);throw e;}return r.json();
 }
 export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcileScene,CaptureUpdateAction,convertToExcalidrawElements,renewPermit,status,onReady=()=>{},onRoleInvalidated=()=>{},onAttachments=()=>{},onApplied=()=>{}}){
-  if(!['127.0.0.1','localhost'].includes(new URL(url).hostname))throw new Error('Isolated room required');
+  const relay=new URL(url);
+  if(!['127.0.0.1','localhost'].includes(relay.hostname) || relay.protocol!==location.protocol
+    || (relay.protocol==='https:' && relay.origin!==location.origin))throw new Error('Isolated room required');
   const raw=bytes(sceneKey);if(raw.byteLength!==32)throw new Error('A valid scene key is required');
   const key=crypto.subtle.importKey('raw',raw,'AES-GCM',false,['encrypt','decrypt']);
   const socket=io(url,{auth:{token:permit.token,workspace:permit.workspace,board:permit.board},transports:['websocket'],reconnection:false,autoConnect:false,timeout:5000});

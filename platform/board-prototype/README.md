@@ -374,4 +374,20 @@ The staging API accepts board routes only when all of these settings apply to a 
 - `BoardPrototype__StagingWorkspaceId` is the non-empty GUID of the dedicated test workspace.
 - `BoardPrototype__SigningKey` and `BoardPrototype__SceneRootKey` are distinct server secrets. Preserve the scene root across restarts of the same test store.
 
-The gate covers teacher and pupil board routes, including listings, metadata changes, and permits. Relay access checks apply the same workspace restriction to signed permits. Changing the workspace and restarting the API invalidates access for the previous workspace even before existing permits expire. Set `BoardPrototype__Enabled=false` and restart to remove the routes while preserving saved data. The Production environment rejects enablement. The editor and relay still require separate HTTPS staging integration.
+The gate covers teacher and pupil board routes, including listings, metadata changes, and permits. Relay access checks apply the same workspace restriction to signed permits. Changing the workspace and restarting the API invalidates access for the previous workspace even before existing permits expire. Set `BoardPrototype__Enabled=false` and restart to remove the routes while preserving saved data. The Production environment rejects enablement.
+
+#### Closed HTTPS editor and relay
+
+Run the staged API on HTTPS loopback and set its CORS origin to the relay origin (default `https://127.0.0.1:18448`). Build the editor with `npm ci` and `npm run editor:build` from this directory. Provision a separate loopback PostgreSQL database named `tas_board_staging` for the scene journal with a role permitted to create its tables.
+
+Start `node staging.mjs` with these environment variables.
+
+| Variable | Value |
+| --- | --- |
+| `TAS_BOARD_STAGING_API` | HTTPS origin of the staging API on `127.0.0.1` |
+| `TAS_BOARD_STAGING_DB` | PostgreSQL URL for the dedicated loopback `tas_board_staging` database |
+| `TAS_BOARD_STAGING_SIGNING_KEY` | The staging API's base64 `BoardPrototype__SigningKey` |
+| `TAS_BOARD_STAGING_TLS_CERT`, `TAS_BOARD_STAGING_TLS_KEY` | Paths to the relay's certificate and private key |
+| `TAS_BOARD_STAGING_PORT` | Optional relay port, defaults to `18448` |
+
+The browser must trust the API and relay certificates for `127.0.0.1`. If the API certificate uses a private CA, supply it to Node via `NODE_EXTRA_CA_CERTS`. Open `/cabinet/teacher.html` on the relay, sign in with a synthetic teacher, create a board and grant edit access to a synthetic pupil. Use the share link in a fresh pupil session, save a change and reopen the link in a fresh session after restarting the relay against the same database.
