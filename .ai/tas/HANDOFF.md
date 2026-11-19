@@ -14,7 +14,9 @@
 
 **STAGE_2:** [#112 board CI](https://github.com/Arthur200014/testing-hosting/actions/runs/44552719625) PASS, including 21 editors. [Main PostgreSQL](https://github.com/Arthur200014/testing-hosting/actions/runs/44565739739) and [main cabinet browser](https://github.com/Arthur200014/testing-hosting/actions/runs/44566244359) PASS. Prior isolated HTTPS Chromium/ASP.NET verified teacher save/share, pupil edit and fresh sign-in after relay restart, plus cross-workspace denial. On the merged staging journal, PostgreSQL 17.12 `pg_dump` and `pg_restore` into a fresh loopback database PASS for the encrypted checkpoint, pupil edit, compacted retry receipt and workspace isolation. An independent recovery check restored only `public.board_*` into a separate PostgreSQL 17 cluster. It also verified the exact attachment and that retries did not advance the restored revision. Load-40 was not dispatched.
 
-**NEXT_ACTION:** Confirm the approved private HTTPS pilot host and access path. Deploy the staging-only API, editor and relay with dedicated synthetic workspace and journal, then verify teacher save, pupil edit and fresh-session reopen on that deployed pilot. Keep public board routes disabled and load-40 manual.
+**PILOT_DEPLOYMENT:** The [private access procedure](../../platform/board-prototype/README.md#private-pilot-on-a-dedicated-host) uses SSH local forwarding for the HTTPS API and relay, both on loopback. The two forward mappings passed an OpenSSH configuration check. Deployed pilot acceptance remains NOT_RUN pending the dedicated staging host and approved SSH access.
+
+**NEXT_ACTION:** Confirm the staging VPS hostname/IP and SSH access for the pilot. Deploy the staging API, editor and relay with dedicated synthetic stores, then verify teacher save, pupil edit and fresh-session reopen through the SSH tunnel. Keep public board routes disabled and load-40 manual.
 
 ## UI-08 cabinet keyboard acceptance
 
