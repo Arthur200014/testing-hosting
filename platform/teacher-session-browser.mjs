@@ -29,9 +29,11 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
   });
   if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
   if (path === 'teacher-sessions' && req.method() === 'POST') {
-    assert.ok(['north', 'south'].includes(body.workspace));
+    assert.equal(body.workspace, undefined);
+    const workspace = body.email.split('@')[0];
+    assert.ok(['north', 'south'].includes(workspace));
     if (body.password === 'incorrect') return send({ title: 'Invalid synthetic login' }, 401);
-    return send({ accessToken: 'synthetic-' + body.workspace,
+    return send({ accessToken: 'synthetic-' + workspace, workspace,
       expiresAt: new Date(Date.now() + 300000).toISOString() });
   }
   if (path === 'teacher-sessions/logout' && req.method() === 'POST')
@@ -69,8 +71,7 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
 });
 
 async function login(workspace) {
-  await page.locator('#loginForm [name="workspace"]').fill(workspace);
-  await page.locator('#loginForm [name="email"]').fill('synthetic@example.invalid');
+  await page.locator('#loginForm [name="email"]').fill(workspace + '@example.invalid');
   await page.locator('#loginForm [name="password"]').fill('synthetic-password');
   await page.locator('#loginForm button[type="submit"]').click();
   await page.locator('#app:not([hidden])').waitFor();
@@ -92,8 +93,7 @@ try {
   await page.getByRole('link', { name: 'О платформе' }).press('Enter');
   await page.getByRole('link', { name: 'Войти преподавателю' }).click();
   const loginForm = page.locator('#loginForm');
-  await loginForm.locator('[name="workspace"]').fill('north');
-  await loginForm.locator('[name="email"]').fill('synthetic@example.invalid');
+  await loginForm.locator('[name="email"]').fill('north@example.invalid');
   await loginForm.locator('[name="password"]').fill('incorrect');
   await loginForm.getByRole('button', {name:'Войти', exact:true}).click();
   await page.locator('#loginError').waitFor();
@@ -145,7 +145,7 @@ try {
   assert.ok(await newClass.evaluate(node => node === document.activeElement));
   await page.locator('#logout').click();
   await page.locator('#loginScreen:not([hidden])').waitFor();
-  assert.equal(await page.evaluate(() => document.activeElement.name), 'workspace');
+  assert.equal(await page.evaluate(() => document.activeElement.name), 'email');
   await login('south');
   await page.locator('[data-open-class]').first().waitFor();
   assert.equal(await page.locator('[data-open-class]').count(), 2);

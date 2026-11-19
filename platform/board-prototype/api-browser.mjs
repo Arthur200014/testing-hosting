@@ -89,7 +89,6 @@ export async function runApiBoardBrowser({api,accounts,group,beforeLessons,call}
       await cabinet.addInitScript(url => { if (window === window.top) window.__TAS_ISOLATED_BOARD_RELAY = url; },room.url);
       const p = await cabinet.newPage();
       await p.goto('http://127.0.0.1:8768/cabinet/teacher.html');
-      await p.locator('#loginForm [name="workspace"]').fill(north.workspace);
       await p.locator('#loginForm [name="email"]').fill(north.email);
       await p.locator('#loginForm [name="password"]').fill(process.env.TAS_REAL_TEST_PASSWORD);
       await p.locator('#loginForm button[type="submit"]').click();

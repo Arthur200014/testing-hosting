@@ -40,7 +40,7 @@ async function mockApi(page) {
     const send = (value, status = 200) => route.fulfill({ status,
       contentType: 'application/json', headers, body: JSON.stringify(value) });
     if (path === 'teacher-sessions' && request.method() === 'POST')
-      return send({ accessToken: 'teacher-test-token', expiresAt: new Date(Date.now() + 300000).toISOString() });
+      return send({ accessToken: 'teacher-test-token', workspace: 'synthetic', expiresAt: new Date(Date.now() + 300000).toISOString() });
     if (path === 'student-sessions' && request.method() === 'POST') {
       assert.equal(body.workspace, 'synthetic');
       if (body.code === 'incorrect') return send({ title: 'Invalid synthetic student code' }, 401);
@@ -153,7 +153,6 @@ try {
   await mockApi(teacher);
   await mockApi(student);
   await teacher.goto(base + '/platform/teacher.html');
-  await teacher.locator('#loginForm [name="workspace"]').fill('synthetic');
   await teacher.locator('#loginForm [name="email"]').fill('teacher@example.invalid');
   await teacher.locator('#loginForm [name="password"]').fill('synthetic-password');
   await teacher.locator('#loginForm button[type="submit"]').click();

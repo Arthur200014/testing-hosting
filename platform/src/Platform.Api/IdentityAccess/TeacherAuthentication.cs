@@ -14,7 +14,11 @@ public sealed record TeacherLoginRequest(string? Workspace, string? Email, strin
 
 public sealed record TeacherLoginResponse(
     string AccessToken, string TokenType, DateTimeOffset ExpiresAt,
-    Guid TeacherId, Guid WorkspaceId, string WorkspaceRole);
+    Guid TeacherId, Guid WorkspaceId, string WorkspaceRole, string Workspace);
+
+public sealed record TeacherWorkspaceChoice(string Slug, string Role);
+public sealed record TeacherLoginResult(
+    TeacherLoginResponse? Session = null, IReadOnlyList<TeacherWorkspaceChoice>? Workspaces = null);
 
 public sealed class TeacherSessionService(
     PlatformDbContext db,
@@ -30,34 +34,35 @@ public sealed class TeacherSessionService(
     private static readonly string DummyHash =
         new PasswordHasher<TeacherUser>().HashPassword(DummyUser, "unusable-synthetic-password-for-constant-work");
 
-    public async Task<TeacherLoginResponse?> LoginAsync(TeacherLoginRequest request, CancellationToken cancellationToken)
+    public async Task<TeacherLoginResult?> LoginAsync(TeacherLoginRequest request, CancellationToken cancellationToken)
     {
+        var specificWorkspace = !string.IsNullOrWhiteSpace(request.Workspace);
         var validWorkspace = codeHasher.TryNormalizeWorkspace(request.Workspace, out var slug);
         var email = request.Email?.Trim() ?? "";
-        var normalizedEmail = email.ToUpperInvariant();
         var validEmail = email.Length is >= 3 and <= 320 && email.Contains('@');
         var validPassword = request.Password is { Length: > 0 and <= 1024 };
+        var normalizedEmail = email.ToUpperInvariant();
 
-        // Do the same password verification work even when the identity does not exist.
-        var membership = await db.WorkspaceMemberships
-            .AsNoTracking()
-            .Include(x => x.TeacherUser)
-            .Include(x => x.Workspace)
-            .SingleOrDefaultAsync(x =>
-                x.Workspace.Slug == (validWorkspace ? slug : "invalid-workspace") &&
-                x.TeacherUser.NormalizedEmail == (validEmail ? normalizedEmail : "INVALID@EXAMPLE.INVALID"),
-                cancellationToken);
-
-        var user = membership?.TeacherUser ?? DummyUser;
-        var hash = membership?.TeacherUser.PasswordHash ?? DummyHash;
-        var checkedPassword = passwordHasher.VerifyHashedPassword(user, hash, request.Password ?? "");
-        if (!validWorkspace || !validEmail || !validPassword || membership is null ||
-            checkedPassword == PasswordVerificationResult.Failed ||
-            !membership.TeacherUser.IsActive || !membership.IsActive || !membership.Workspace.IsActive ||
-            membership.Role is not ("owner" or "teacher") || string.IsNullOrWhiteSpace(membership.TeacherUser.PasswordHash))
-        {
+        var user = validEmail ? await db.TeacherUsers.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.NormalizedEmail == normalizedEmail, cancellationToken) : null;
+        var hash = user?.PasswordHash ?? DummyHash;
+        // Keep password verification work for missing accounts and never expose memberships before it succeeds.
+        var checkedPassword = passwordHasher.VerifyHashedPassword(
+            user ?? DummyUser, hash, validPassword ? request.Password! : "");
+        if ((specificWorkspace && !validWorkspace) || !validPassword ||
+            user is not { IsActive: true, PasswordHash.Length: > 0 } ||
+            checkedPassword == PasswordVerificationResult.Failed)
             return null;
-        }
+
+        var memberships = await db.WorkspaceMemberships.AsNoTracking().Include(x => x.Workspace)
+            .Where(x => x.TeacherUserId == user.Id && x.IsActive && x.Workspace.IsActive &&
+                (x.Role == "owner" || x.Role == "teacher") && (!specificWorkspace || x.Workspace.Slug == slug))
+            .OrderBy(x => x.Workspace.Slug)
+            .ToListAsync(cancellationToken);
+        if (memberships.Count == 0) return null;
+        if (memberships.Count > 1)
+            return new(Workspaces: memberships.Select(x => new TeacherWorkspaceChoice(x.Workspace.Slug, x.Role)).ToArray());
+        var membership = memberships[0];
 
         // Recheck the verified hash under the same account lock used by password changes.
         // Take the account lock before the membership lock in both flows.
@@ -65,8 +70,10 @@ public sealed class TeacherSessionService(
         if (!await LockPasswordAsync(user.Id, hash, cancellationToken)) return null;
 
         var membershipLock = await db.Database.SqlQuery<Guid>($"""
-            SELECT "Id" AS "Value" FROM platform."WorkspaceMemberships"
-            WHERE "Id"={membership.Id} AND "IsActive" AND "Role"={membership.Role} FOR UPDATE
+            SELECT m."Id" AS "Value" FROM platform."WorkspaceMemberships" m
+            JOIN platform."Workspaces" w ON w."Id"=m."WorkspaceId"
+            WHERE m."Id"={membership.Id} AND m."IsActive" AND m."Role"={membership.Role} AND w."IsActive"
+            FOR UPDATE OF m
             """).ToListAsync(cancellationToken);
         if (membershipLock.Count == 0) return null;
 
@@ -79,7 +86,7 @@ public sealed class TeacherSessionService(
         db.TeacherSessions.Add(session);
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return tokens.Issue(session, membership);
+        return new(Session: tokens.Issue(session, membership));
     }
 
     public async Task<bool> ChangePasswordAsync(
@@ -168,7 +175,7 @@ public sealed class TeacherTokenIssuer(JwtOptions options)
                 SecurityAlgorithms.HmacSha256));
         return new TeacherLoginResponse(
             new JwtSecurityTokenHandler().WriteToken(token), "Bearer", session.ExpiresAt,
-            membership.TeacherUserId, membership.WorkspaceId, membership.Role);
+            membership.TeacherUserId, membership.WorkspaceId, membership.Role, membership.Workspace.Slug);
     }
 }
 

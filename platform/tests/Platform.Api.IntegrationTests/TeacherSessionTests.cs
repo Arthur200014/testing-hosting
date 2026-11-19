@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Headers;
@@ -1819,6 +1820,65 @@ public sealed partial class TeacherSessionTests(ApiFactory factory) : IClassFixt
     }
 
     [Fact]
+    public async Task PublicSignupCreatesIsolatedOwnerAndLoginOffersOnlyAuthorizedWorkspaces()
+    {
+        await ResetAsync(factory);
+        var existing = await SeedAsync(factory, "existing-owner-cabinet", "existing@example.invalid", "owner");
+        var existingStudent = await SeedStudentAsync(factory, existing.WorkspaceId, "Existing", true);
+        using var client = factory.CreateClient();
+        const string path = "/api/v1/teacher-signups";
+        const string email = "signup@example.invalid";
+        var request = new TeacherSignupRequest(email, Password);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await client.PostAsJsonAsync(path, request with { Password = "short" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await client.PostAsJsonAsync(path, request with { Email = "EXISTING@example.invalid" })).StatusCode);
+        var attempts = await Task.WhenAll(
+            client.PostAsJsonAsync(path, request),
+            client.PostAsJsonAsync(path, request with { Email = email.ToUpperInvariant() }));
+        Assert.Single(attempts, x => x.StatusCode == HttpStatusCode.Created);
+        Assert.Single(attempts, x => x.StatusCode == HttpStatusCode.Conflict);
+
+        var signupLogin = await LoginAsync(client, null, email, Password);
+        Assert.Equal(HttpStatusCode.OK, signupLogin.StatusCode);
+        var session = (await signupLogin.Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        Assert.Equal("owner", session.WorkspaceRole);
+        Assert.StartsWith("teacher-", session.Workspace);
+        Assert.NotEqual(existing.WorkspaceId, session.WorkspaceId);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await LoginAsync(client, "existing-owner-cabinet", email, Password)).StatusCode);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+        Assert.Empty((await client.GetFromJsonAsync<List<TeacherStudentView>>("/api/v1/teacher/students"))!);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/v1/teacher/students/{existingStudent}")).StatusCode);
+        var programs = await client.GetFromJsonAsync<List<JsonElement>>("/api/v1/teacher/programs");
+        Assert.Equal("GENERAL", Assert.Single(programs!).GetProperty("code").GetString());
+        client.DefaultRequestHeaders.Authorization = null;
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            Assert.Equal(2, await db.Workspaces.CountAsync());
+            db.WorkspaceMemberships.Add(new WorkspaceMembership
+            {
+                Id = Guid.NewGuid(), TeacherUserId = session.TeacherId, WorkspaceId = existing.WorkspaceId,
+                Role = "teacher", IsActive = true
+            });
+            await db.SaveChangesAsync();
+        }
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await LoginAsync(client, null, email, "wrong-password")).StatusCode);
+        var choice = await (await LoginAsync(client, null, email, Password)).Content.ReadFromJsonAsync<JsonElement>();
+        Assert.False(choice.TryGetProperty("accessToken", out _));
+        Assert.Equal(new[] { "existing-owner-cabinet", session.Workspace },
+            choice.GetProperty("workspaces").EnumerateArray().Select(x => x.GetProperty("slug").GetString()));
+        var selected = await (await LoginAsync(client, "existing-owner-cabinet", email, Password))
+            .Content.ReadFromJsonAsync<TeacherLoginResponse>();
+        Assert.Equal(existing.WorkspaceId, selected!.WorkspaceId);
+        Assert.Equal("teacher", selected.WorkspaceRole);
+    }
+
+    [Fact]
     public async Task FirstOwnerRegistrationClaimsImportedWorkspaceOnlyOnce()
     {
         await ResetAsync(factory);
@@ -3057,7 +3117,7 @@ public sealed partial class TeacherSessionTests(ApiFactory factory) : IClassFixt
         return new SeededTeacher(workspace.Id, teacher.Id, membership.Id);
     }
 
-    private static Task<HttpResponseMessage> LoginAsync(HttpClient client, string workspace, string email, string password) =>
+    private static Task<HttpResponseMessage> LoginAsync(HttpClient client, string? workspace, string email, string password) =>
         client.PostAsJsonAsync("/api/v1/teacher-sessions", new { workspace, email, password });
 
     private static async Task<Guid> SeedStudentAsync(ApiFactory factory, Guid workspaceId, string name, bool active)

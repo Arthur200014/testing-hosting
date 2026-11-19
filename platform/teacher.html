@@ -292,15 +292,21 @@
       <div class="brand"><span class="brand-mark">✦</span><span>Teacher AI Student<small>КАБИНЕТ ПРЕПОДАВАТЕЛЯ</small></span></div>
       <p class="eyebrow">Новая платформа</p>
       <h1 id="loginTitle">Ваши занятия в одном месте</h1>
-      <p class="subtitle">Войдите в пространство преподавателя, чтобы работать с учениками и занятиями.</p>
+      <p class="subtitle">Войдите в кабинет, чтобы работать с учениками и занятиями.</p>
       <form id="loginForm" class="stack">
-        <label><span>Пространство</span><input name="workspace" required autocomplete="organization" placeholder="например, tas-main" spellcheck="false"></label>
         <label><span>Почта преподавателя</span><input name="email" type="email" required autocomplete="username" placeholder="teacher@example.com"></label>
         <label><span>Пароль</span><input name="password" type="password" required autocomplete="current-password"></label>
+        <label id="workspaceChoice" hidden><span>Выберите кабинет</span><select name="workspace" disabled></select></label>
         <button class="primary" type="submit">Войти</button>
       </form>
       <form id="registerForm" class="stack" hidden>
-        <p class="muted small">Создайте аккаунт владельца для уже импортированного пространства. Код подтверждения задаётся один раз в переменной Timeweb <code>TeacherRegistration__ClaimCode</code> (от 24 символов), а <code>TeacherRegistration__Workspace</code> должен быть <code>tas-main</code>.</p>
+        <label><span>Ваша почта</span><input name="email" type="email" required autocomplete="username" maxlength="320"></label>
+        <label><span>Пароль, от 16 символов</span><input name="password" type="password" minlength="16" maxlength="1024" required autocomplete="new-password"></label>
+        <label><span>Повторите пароль</span><input name="confirmPassword" type="password" minlength="16" maxlength="1024" required autocomplete="new-password"></label>
+        <button class="primary" type="submit">Создать аккаунт</button>
+      </form>
+      <form id="claimOwnerForm" class="stack" hidden>
+        <p class="muted small">Введите данные кабинета с импортированными учениками и код, который выдал администратор.</p>
         <label><span>Пространство с импортированными учениками</span><input name="workspace" value="tas-main" required autocomplete="organization" spellcheck="false"></label>
         <label><span>Ваша почта</span><input name="email" type="email" required autocomplete="username"></label>
         <label><span>Новый пароль, от 16 символов</span><input name="password" type="password" minlength="16" required autocomplete="new-password"></label>
@@ -318,8 +324,9 @@
       </form>
       <p id="loginStatus" class="banner" role="status" hidden></p>
       <p id="loginError" class="banner error" role="alert" tabindex="-1" hidden></p>
-      <p class="muted small" style="margin-top:20px"><button id="toggleRegistration" class="text-button" type="button">Зарегистрироваться как владелец</button></p>
+      <p class="muted small" style="margin-top:20px"><button id="toggleRegistration" class="text-button" type="button">Зарегистрироваться</button></p>
       <p class="muted small"><button id="toggleTeacherInvitation" class="text-button" type="button">Войти по приглашению</button></p>
+      <p class="muted small"><button id="toggleClaimOwner" class="text-button" type="button">Подключить импортированный кабинет</button></p>
       <p class="muted small" style="margin-top:10px"><a href="./">О платформе</a> · <a href="./student.html">Кабинет ученика</a></p>
     </div>
   </main>
@@ -432,7 +439,7 @@
         $('app').hidden = true; $('loginScreen').hidden = false;
         $('loginError').textContent = message; $('loginError').hidden = !message;
         $('teacherNavToggle').setAttribute('aria-expanded', 'false');
-        (message ? $('loginError') : $('loginForm').elements.workspace).focus();
+        (message ? $('loginError') : $('loginForm').elements.email).focus();
       }
       async function api(path, { method = 'GET', body, token = state.token } = {}) {
         let response;
@@ -2299,7 +2306,9 @@
         return programs[0];
       }
       function setBusy(form, value) { form.querySelector('button[type="submit"]').disabled = value; }
-      function enterSession(session, workspace) {
+      function enterSession(session) {
+        clearWorkspaceChoice();
+        const workspace = session.workspace;
         invalidate();
         state.token = session.accessToken; state.expiresAt = session.expiresAt; state.workspace = workspace;
         state.studentCard=null;state.studentSearch='';state.editStudent='';state.editSnapshot=null;
@@ -2381,33 +2390,70 @@
         finally { if (form.isConnected) setBusy(form, false); }
       }
 
+      function clearWorkspaceChoice() {
+        const select = $('loginForm').elements.workspace;
+        select.replaceChildren();
+        select.disabled = true;
+        $('workspaceChoice').hidden = true;
+      }
+      function showLoginError(message) {
+        $('loginError').textContent = message;
+        $('loginError').hidden = false;
+        $('loginError').focus();
+      }
+      function startTeacherSession(email, password, workspace) {
+        return api('teacher-sessions', { method: 'POST', token: '', body: { email, password, workspace } });
+      }
+      function loginMessage(error) {
+        if (error.status === 429) return 'Слишком много попыток. Попробуйте позже.';
+        return error.message;
+      }
+      $('loginForm').elements.email.addEventListener('input', clearWorkspaceChoice);
+      $('loginForm').elements.password.addEventListener('input', clearWorkspaceChoice);
       $('loginForm').addEventListener('submit', async event => {
-        event.preventDefault(); const form = event.currentTarget;
+        event.preventDefault();
+        const form = event.currentTarget;
+        const select = form.elements.workspace;
+        const email = formValue(form, 'email'), password = form.elements.password.value;
         setBusy(form, true); $('loginError').hidden = true;
         try {
-          const workspace = formValue(form, 'workspace');
-          const session = await api('teacher-sessions', { method: 'POST', token: '', body: { workspace, email: formValue(form, 'email'), password: form.elements.password.value } });
+          const session = await startTeacherSession(email, password, select.disabled ? undefined : select.value);
+          if (form.hidden || formValue(form, 'email') !== email || form.elements.password.value !== password) return;
+          if (session.workspaces?.length) {
+            select.replaceChildren(...session.workspaces.map(item =>
+              new Option(item.slug + (item.role === 'owner' ? ' · владелец' : ' · преподаватель'), item.slug)));
+            select.disabled = false;
+            $('workspaceChoice').hidden = false;
+            select.focus();
+            return;
+          }
           form.elements.password.value = '';
-          await enterSession(session, workspace);
-        } catch (error) { form.elements.password.value = ''; $('loginError').textContent = error.message; $('loginError').hidden = false; $('loginError').focus(); }
-        finally { setBusy(form, false); }
+          await enterSession(session);
+        } catch (error) {
+          form.elements.password.value = '';
+          clearWorkspaceChoice();
+          if (!form.hidden) showLoginError(loginMessage(error));
+        } finally { setBusy(form, false); }
       });
+      const loginForms = {login:'loginForm', signup:'registerForm', claim:'claimOwnerForm', invite:'acceptTeacherInvitationForm'};
       function setLoginMode(mode) {
-        $('loginForm').hidden = mode !== 'login';
-        $('registerForm').hidden = mode !== 'owner';
-        $('acceptTeacherInvitationForm').hidden = mode !== 'invite';
-        $('loginTitle').textContent = {login:'Ваши занятия в одном месте',owner:'Регистрация владельца',invite:'Вход по приглашению'}[mode];
-        $('toggleRegistration').textContent = mode === 'owner' ? 'Уже есть аккаунт? Войти' : 'Зарегистрироваться как владелец';
-        $('toggleTeacherInvitation').textContent = mode === 'invite' ? 'Вернуться ко входу' : 'Войти по приглашению';
-        if (mode !== 'invite') $('acceptTeacherInvitationForm').reset();
-        if (mode !== 'owner') {
-          for (const name of ['password','confirmPassword','claimCode']) $('registerForm').elements.namedItem(name).value = '';
+        clearWorkspaceChoice();
+        for (const [key, id] of Object.entries(loginForms)) {
+          const form = $(id);
+          form.hidden = mode !== key;
+          if (form.hidden) for (const field of form.querySelectorAll('input[type="password"]')) field.value = '';
         }
+        $('loginTitle').textContent = {login:'Ваши занятия в одном месте',signup:'Создайте аккаунт преподавателя',claim:'Подключение кабинета',invite:'Вход по приглашению'}[mode];
+        $('toggleRegistration').textContent = mode === 'signup' ? 'Уже есть аккаунт? Войти' : 'Зарегистрироваться';
+        $('toggleClaimOwner').textContent = mode === 'claim' ? 'Вернуться ко входу' : 'Подключить импортированный кабинет';
+        $('toggleTeacherInvitation').textContent = mode === 'invite' ? 'Вернуться ко входу' : 'Войти по приглашению';
         $('loginError').hidden = true;
         $('loginStatus').hidden = true;
+        $(loginForms[mode]).querySelector('input').focus();
       }
-      $('toggleRegistration').addEventListener('click', () => setLoginMode($('registerForm').hidden ? 'owner' : 'login'));
-      $('toggleTeacherInvitation').addEventListener('click', () => setLoginMode($('acceptTeacherInvitationForm').hidden ? 'invite' : 'login'));
+      for (const [button, mode] of [['toggleRegistration','signup'], ['toggleClaimOwner','claim'], ['toggleTeacherInvitation','invite']]) {
+        $(button).addEventListener('click', () => setLoginMode($(loginForms[mode]).hidden ? mode : 'login'));
+      }
       $('acceptTeacherInvitationForm').addEventListener('submit', async event => {
         event.preventDefault();
         const form = event.currentTarget;
@@ -2417,51 +2463,54 @@
           await api('teacher-invitation-acceptance', {method:'POST',token:'',body:{
             workspace, email, code:formValue(form,'code'), password:form.elements.password.value
           }});
+          form.reset();
           setLoginMode('login');
-          $('loginForm').elements.workspace.value = workspace;
           $('loginForm').elements.email.value = email;
           $('loginStatus').textContent = 'Доступ открыт. Войдите со своим паролем.';
           $('loginStatus').hidden = false;
           $('loginForm').elements.password.focus();
         } catch (error) {
           form.elements.password.value = '';
-          $('loginError').textContent = error.status === 404 ? 'Проверьте пространство, почту и срок действия кода.'
-            : error.status === 429 ? 'Слишком много попыток. Попробуйте позже.' : error.message;
-          $('loginError').hidden = false;
+          showLoginError(error.status === 404 ? 'Проверьте пространство, почту и срок действия кода.' : loginMessage(error));
         } finally { setBusy(form,false); }
       });
-      $('registerForm').addEventListener('submit', async event => {
-        event.preventDefault(); const form = event.currentTarget;
-        const password = form.elements.namedItem('password').value;
-        if (password !== form.elements.namedItem('confirmPassword').value) {
-          $('loginError').textContent = 'Пароли не совпадают.'; $('loginError').hidden = false; return;
-        }
-        setBusy(form, true); $('loginError').hidden = true;
-        let created = false;
-        try {
-          const workspace = formValue(form, 'workspace');
-          const email = formValue(form, 'email');
-          await api('teacher-registrations', { method: 'POST', token: '', body: { workspace, email, password, claimCode: formValue(form, 'claimCode') } });
-          created = true;
-          form.elements.namedItem('claimCode').value = '';
-          const session = await api('teacher-sessions', { method: 'POST', token: '', body: { workspace, email, password } });
-          form.reset(); await enterSession(session, workspace);
-        } catch (error) {
-          if (created) {
-            $('loginForm').elements.namedItem('workspace').value = formValue(form, 'workspace');
-            $('loginForm').elements.namedItem('email').value = formValue(form, 'email');
-            $('toggleRegistration').click();
+      for (const formId of ['registerForm', 'claimOwnerForm']) {
+        $(formId).addEventListener('submit', async event => {
+          event.preventDefault();
+          const form = event.currentTarget, claim = formId === 'claimOwnerForm';
+          const password = form.elements.password.value;
+          if (password !== form.elements.confirmPassword.value) {
+            showLoginError('Пароли не совпадают.');
+            return;
           }
-          form.elements.namedItem('password').value = '';
-          form.elements.namedItem('confirmPassword').value = '';
-          form.elements.namedItem('claimCode').value = '';
-          $('loginError').textContent = created ? 'Аккаунт создан. Войдите с выбранной почтой и паролем.'
-            : error.status === 401 ? 'Проверьте код подтверждения и пространство.'
-            : error.status === 503 ? 'Регистрация ещё не включена в Timeweb. Задайте две переменные, указанные выше.'
-            : error.message;
-          $('loginError').hidden = false;
-        } finally { setBusy(form, false); }
-      });
+          setBusy(form, true); $('loginError').hidden = true;
+          const email = formValue(form, 'email');
+          const workspace = claim ? formValue(form, 'workspace') : undefined;
+          let created = false;
+          try {
+            const body = claim ? {workspace, email, password, claimCode:formValue(form,'claimCode')} : {email, password};
+            await api(claim ? 'teacher-registrations' : 'teacher-signups', {method:'POST',token:'',body});
+            created = true;
+            if (form.hidden) return;
+            const session = await startTeacherSession(email, password, workspace);
+            if (form.hidden) return;
+            if (!session.accessToken) throw new Error('Войдите в кабинет.');
+            form.reset();
+            await enterSession(session);
+          } catch (error) {
+            for (const field of form.querySelectorAll('input[type="password"]')) field.value = '';
+            if (form.hidden) return;
+            if (created) {
+              setLoginMode('login');
+              $('loginForm').elements.email.value = email;
+              $('loginStatus').textContent = 'Аккаунт создан. Войдите с выбранной почтой и паролем.';
+              $('loginStatus').hidden = false;
+              $('loginForm').elements.password.focus();
+            } else showLoginError(error.status === 409 ? 'Не удалось создать аккаунт. Если у вас уже есть аккаунт, войдите.'
+              : claim && error.status === 401 ? 'Проверьте код подтверждения и пространство.' : loginMessage(error));
+          } finally { setBusy(form, false); }
+        });
+      }
       $('content').addEventListener('input', event => {
         if (event.target.matches('[data-board-search]')) {
           boardFilters.search = event.target.value;

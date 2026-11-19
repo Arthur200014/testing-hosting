@@ -69,7 +69,7 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
   const send = (value, status = 200) => route.fulfill({ status, headers, contentType: 'application/json', body: JSON.stringify(value) });
   if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
   if (path === 'teacher-sessions' && request.method() === 'POST')
-    return send({ accessToken: 'synthetic-ui-token', expiresAt: new Date(Date.now() + 300000).toISOString() });
+    return send({ accessToken: 'synthetic-ui-token', workspace: 'synthetic', expiresAt: new Date(Date.now() + 300000).toISOString() });
   if (path === 'teacher/schedule-rules' && request.method() === 'POST') {
     const body = request.postDataJSON();
     assert.ok(body.requestId);
@@ -260,7 +260,6 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
 
 try {
   await page.goto(base + '/platform/teacher.html');
-  await page.locator('#loginForm [name="workspace"]').fill('synthetic');
   await page.locator('#loginForm [name="email"]').fill('teacher@example.invalid');
   await page.locator('#loginForm [name="password"]').fill('synthetic-password');
   await page.locator('#loginForm button[type="submit"]').click();
@@ -370,7 +369,6 @@ try {
   await page.getByText(/EUR/).waitFor();
   await page.locator('[data-back-classes]').click();
   await page.reload();
-  await page.locator('#loginForm [name="workspace"]').fill('synthetic');
   await page.locator('#loginForm [name="email"]').fill('teacher@example.invalid');
   await page.locator('#loginForm [name="password"]').fill('synthetic-password');
   await page.locator('#loginForm button[type="submit"]').click();
@@ -452,7 +450,6 @@ try {
   assert.equal(await page.locator('[data-open-class]').count(), 3, 'legacy student projection stays deduplicated');
 
   await page.reload();
-  await page.locator('#loginForm [name="workspace"]').fill('synthetic');
   await page.locator('#loginForm [name="email"]').fill('teacher@example.invalid');
   await page.locator('#loginForm [name="password"]').fill('synthetic-password');
   await page.locator('#loginForm button[type="submit"]').click();
@@ -475,7 +472,6 @@ try {
   await page.screenshot({ path: output + '/03_class_cover_invite.png' });
 
   await page.reload();
-  await page.locator('#loginForm [name="workspace"]').fill('synthetic');
   await page.locator('#loginForm [name="email"]').fill('teacher@example.invalid');
   await page.locator('#loginForm [name="password"]').fill('synthetic-password');
   await page.locator('#loginForm button[type="submit"]').click();
@@ -594,7 +590,6 @@ try {
   assert.equal(await page.locator('[data-invite-code]').textContent(),groupInviteCode);
   assert.equal(groupInvites,1);
   await page.reload();
-  await page.locator('#loginForm [name="workspace"]').fill('synthetic');
   await page.locator('#loginForm [name="email"]').fill('teacher@example.invalid');
   await page.locator('#loginForm [name="password"]').fill('synthetic-password');
   await page.locator('#loginForm button[type="submit"]').click();
@@ -694,7 +689,6 @@ try {
   await page.locator('.class-rule-row').getByText(/16:00/).waitFor();
   assert.equal(scheduleEdits,1);
   await page.reload();
-  await page.locator('#loginForm [name="workspace"]').fill('synthetic');
   await page.locator('#loginForm [name="email"]').fill('teacher@example.invalid');
   await page.locator('#loginForm [name="password"]').fill('synthetic-password');
   await page.locator('#loginForm button[type="submit"]').click();
@@ -733,7 +727,6 @@ try {
   const beforeCalendar = JSON.stringify({lessons,scheduleRules});
   const writesBeforeCalendar = plannedLessonWrites;
   await page.reload();
-  await page.locator('#loginForm [name="workspace"]').fill('synthetic');
   await page.locator('#loginForm [name="email"]').fill('teacher@example.invalid');
   await page.locator('#loginForm [name="password"]').fill('synthetic-password');
   await page.locator('#loginForm button[type="submit"]').click();
@@ -788,7 +781,6 @@ try {
   // Week view reuses the day projection and existing planner, with no implicit writes.
   await page.setViewportSize({width:1348,height:926});
   await page.reload();
-  await page.locator('#loginForm [name="workspace"]').fill('synthetic');
   await page.locator('#loginForm [name="email"]').fill('teacher@example.invalid');
   await page.locator('#loginForm [name="password"]').fill('synthetic-password');
   await page.locator('#loginForm button[type="submit"]').click();
