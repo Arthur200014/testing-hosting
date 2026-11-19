@@ -1,0 +1,28 @@
+name: Hosted board pilot image
+
+on:
+  push:
+    branches: [tas/board-in-existing-app]
+    paths:
+      - 'platform/**'
+      - '.github/workflows/hosted-board-image.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --target runtime --tag tas-hosted-board ./platform
+      - name: Check editor and relay are in the regular API image
+        run: |
+          docker run --rm --entrypoint sh tas-hosted-board -ec '
+            test -s /app/Platform.Api.dll
+            test -s /app/board-cabinet/board-prototype/editor/dist/index.html
+            cd /app/board-cabinet
+            node --check board-prototype/staging.mjs
+            node --input-type=module -e "await import(\"./board-prototype/transport.mjs\"); await import(\"./board-prototype/postgres.mjs\")"
+          '

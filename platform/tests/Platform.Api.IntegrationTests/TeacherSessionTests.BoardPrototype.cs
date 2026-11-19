@@ -51,8 +51,10 @@ public sealed partial class TeacherSessionTests
         }
     }
 
-    [Fact]
-    public async Task BoardPrototypeStagingAllowsOnlyTheConfiguredWorkspace()
+    [Theory]
+    [InlineData("Staging", false)]
+    [InlineData("Production", true)]
+    public async Task BoardPrototypeStagingAllowsOnlyTheConfiguredWorkspace(string environment, bool hosted)
     {
         await ResetAsync(factory);
         var allowed = await SeedAsync(factory, "board-staging-allowed", "board-staging-allowed@example.invalid", "owner");
@@ -70,9 +72,11 @@ public sealed partial class TeacherSessionTests
             lessons = await db.Lessons.ToDictionaryAsync(lesson => lesson.WorkspaceId, lesson => lesson.Id);
         }
 
-        const string catalog = "/api/v1/teacher/board-prototype/boards";
+        const string legacyCatalog = "/api/v1/teacher/board-prototype/boards";
         const string access = "/api/v1/board-prototype/access";
-        using var staging = BoardHost("Staging", allowed.WorkspaceId.ToString());
+        var prefix = hosted ? "/board-pilot" : "";
+        var catalog = prefix + legacyCatalog;
+        using var staging = BoardHost(environment, allowed.WorkspaceId.ToString(), hosted: hosted);
         using var client = staging.CreateClient();
         async Task SelectTeacher(string name)
         {
@@ -85,30 +89,36 @@ public sealed partial class TeacherSessionTests
         await SelectTeacher("board-staging-excluded");
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(catalog)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsync(
-            $"/api/v1/teacher/board-prototype/lessons/{lessons[excluded.WorkspaceId]}/permit", null)).StatusCode);
+            $"{prefix}/api/v1/teacher/board-prototype/lessons/{lessons[excluded.WorkspaceId]}/permit", null)).StatusCode);
 
         await SelectTeacher("board-staging-allowed");
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync(catalog)).StatusCode);
+        if (hosted) Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(legacyCatalog)).StatusCode);
         using var permit = await client.PostAsync(
-            $"/api/v1/teacher/board-prototype/lessons/{lessons[allowed.WorkspaceId]}/permit", null);
+            $"{prefix}/api/v1/teacher/board-prototype/lessons/{lessons[allowed.WorkspaceId]}/permit", null);
         Assert.Equal(HttpStatusCode.OK, permit.StatusCode);
         var token = (await permit.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("token").GetString();
-        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync(access, new { token })).StatusCode);
+        Assert.Equal(hosted ? HttpStatusCode.NotFound : HttpStatusCode.NoContent,
+            (await client.PostAsJsonAsync(access, new { token })).StatusCode);
 
-        using var reconfigured = BoardHost("Staging", excluded.WorkspaceId.ToString());
+        using var reconfigured = BoardHost(environment, excluded.WorkspaceId.ToString(), hosted: hosted);
         using var revalidation = reconfigured.CreateClient();
         Assert.Equal(HttpStatusCode.NotFound, (await revalidation.PostAsJsonAsync(access, new { token })).StatusCode);
 
-        using var disabled = BoardHost("Staging", allowed.WorkspaceId.ToString(), enabled: false);
+        using var disabled = BoardHost(environment, allowed.WorkspaceId.ToString(), enabled: false, hosted: hosted);
         using var disabledClient = disabled.CreateClient();
         Assert.Equal(HttpStatusCode.NotFound, (await disabledClient.PostAsJsonAsync(access, new { token })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await disabledClient.GetAsync(catalog)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await disabledClient.GetAsync("/health/live")).StatusCode);
     }
 
-    private WebApplicationFactory<Program> BoardHost(string environment, string workspaceId, bool enabled = true)
+    private WebApplicationFactory<Program> BoardHost(string environment, string workspaceId, bool enabled = true, bool hosted = false)
         => factory.WithWebHostBuilder(builder => builder.UseEnvironment(environment)
             .ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["BoardPrototype:Enabled"] = enabled.ToString(),
+                ["BoardPrototype:HostedPilot"] = hosted.ToString(),
+                ["BoardPrototype:HostedOrigin"] = "https://board-pilot.example.invalid",
                 ["BoardPrototype:StagingWorkspaceId"] = workspaceId,
                 ["BoardPrototype:SigningKey"] = Convert.ToBase64String(Enumerable.Repeat((byte)0x79, 32).ToArray()),
                 ["BoardPrototype:SceneRootKey"] = Convert.ToBase64String(Enumerable.Repeat((byte)0x6b, 32).ToArray())

@@ -72,12 +72,26 @@ COPY --chown=$APP_UID:$APP_UID --from=importer-build /app/homework-importer ./
 USER $APP_UID
 ENTRYPOINT ["dotnet", "Platform.HomeworkImport.dll"]
 
+FROM node:24-bookworm-slim AS board-editor-build
+WORKDIR /cabinet
+COPY lesson-board-ui.mjs ./
+WORKDIR /cabinet/board-prototype
+COPY board-prototype/package*.json ./
+RUN --mount=type=secret,id=build_ca,required=false \
+    if [ -s /run/secrets/build_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/build_ca; fi && \
+    npm ci --no-audit --no-fund
+COPY board-prototype/ ./
+RUN npm run editor:build && npm prune --omit=dev --no-audit --no-fund
+
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 RUN apt-get update && \
-    apt-get install --no-install-recommends -y libgssapi-krb5-2 && \
+    apt-get install --no-install-recommends -y libgssapi-krb5-2 libstdc++6 && \
     rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --chown=$APP_UID:$APP_UID --from=build /app/publish ./
+COPY --from=board-editor-build /usr/local/bin/node /usr/local/bin/node
+COPY --chown=$APP_UID:$APP_UID teacher.html student.html *.mjs *.css /app/board-cabinet/
+COPY --chown=$APP_UID:$APP_UID --from=board-editor-build /cabinet/board-prototype/ /app/board-cabinet/board-prototype/
 # Opt-in admin console importers; never execute when the web app starts.
 COPY --chown=$APP_UID:$APP_UID --from=importer-build /app/student-importer /app/importers/students/
 COPY --chown=$APP_UID:$APP_UID --from=importer-build /app/homework-importer /app/importers/homework/

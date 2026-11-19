@@ -22,8 +22,22 @@ export function openStagingPostgresJournal(connectionString) {
   return openJournal(connectionString);
 }
 
-async function openJournal(connectionString, {beforeCheckpointCommit=async()=>{}} = {}) {
-  const pool = new pg.Pool({ connectionString, max: 12, connectionTimeoutMillis: 3000 });
+export function openHostedPostgresJournal(workspace, ca) {
+  if (!/^[0-9a-f]{32}$/.test(workspace ?? '') || !process.env.PGDATABASE)
+    throw new Error('A database and isolated board workspace are required');
+  return openJournal(undefined, {
+    workspace,
+    poolOptions: {
+      options: '-c search_path=tas_board_pilot,pg_catalog',
+      ssl: {rejectUnauthorized: true, ...(ca && {ca})},
+      max: 4,
+    },
+  });
+}
+
+async function openJournal(connectionString, {beforeCheckpointCommit=async()=>{}, workspace, poolOptions} = {}) {
+  const pool = new pg.Pool({connectionString, max: 12, connectionTimeoutMillis: 3000, ...poolOptions});
+  if (workspace) await pool.query('CREATE SCHEMA IF NOT EXISTS tas_board_pilot');
   await pool.query(`CREATE TABLE IF NOT EXISTS board_heads (
     workspace text NOT NULL, board text NOT NULL, revision integer NOT NULL DEFAULT 0,
     bytes bigint NOT NULL DEFAULT 0, PRIMARY KEY(workspace,board));
@@ -49,7 +63,8 @@ async function openJournal(connectionString, {beforeCheckpointCommit=async()=>{}
     created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(workspace,board,id),
     FOREIGN KEY(workspace,board) REFERENCES board_heads(workspace,board));`);
   const checkScope = s => {
-    if (!s || !valid(s.workspace) || !valid(s.board)) throw new Error('Invalid scope');
+    if (!s || !valid(s.workspace) || !valid(s.board) || (workspace && s.workspace !== workspace))
+      throw new Error('Invalid scope');
     return [s.workspace,s.board];
   };
   const dto = r => ({ workspace:r.workspace,board:r.board,user:r.actor,messageId:r.message_id,
