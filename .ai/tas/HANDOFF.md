@@ -1,13 +1,13 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-19
-**ACTIVE_TASK:** UI-08 board sharing and role changes, with keyboard entry/exit and explicit Apply.
-**ACTIVE_BRANCH:** none. [PR #106](https://github.com/Arthur200014/testing-hosting/pull/106) merged.
+**ACTIVE_TASK:** UI-08 class, calendar and homework keyboard/focus packet. Focused synthetic Chromium passed. Actual PostgreSQL/API browser and release pending.
+**ACTIVE_BRANCH:** `tas/ui08-keyboard-cabinet` / [PR #107](https://github.com/Arthur200014/testing-hosting/pull/107) / `0f4f15d48b6b2314c702fcb8bcaf13037506c3dd`.
 **MERGED_SHA:** `bbf0bcb5e823ccf5e8ef5c96da09fd0326a9fec3`.
 **RELEASE_STATE:** MERGED + FRONTEND_PUBLISHED. [Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44470630560) PASS. Both published cabinet pages byte-match the release and were opened in Chromium.
 **API_DEPLOYMENT:** Interface-only change. Live health and migration endpoints returned HTTP 200. Running API SHA UNKNOWN.
 **LIVE_WRITE_NOT_RUN:** Board stays loopback-only. Grant, reopen, revoke and denied link were verified with the real isolated API and PostgreSQL. Live settings/password checks still require dedicated synthetic access.
-**NEXT_ACTION:** Finish UI-08 with one keyboard and focus review across class management, calendar and homework submission. Keep live board rollout a separate owner decision and load-40 manual.
+**NEXT_ACTION:** Complete real browser and PostgreSQL checks, merge PR #107 and verify both cabinet pages on GitHub Pages. Keep public board rollout a separate owner decision.
 
 ## UI-08 board access verification
 
