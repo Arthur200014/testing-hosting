@@ -9,6 +9,7 @@ const hosted = origin + '/board-pilot/cabinet/';
 const boardPath = '/board-pilot/api/v1/teacher/board-prototype/boards';
 const password = 'Synthetic-9!' + randomBytes(24).toString('hex');
 const run = randomUUID();
+const secretValues = [password];
 
 async function api(path, token, method = 'GET', body, status = 200) {
   const response = await fetch(origin + path, {
@@ -49,6 +50,7 @@ try {
     const response = await sessionResponse;
     assert.equal(response.status(), 200);
     const session = await response.json();
+    secretValues.push(session.accessToken);
     await page.locator('#app:not([hidden])').waitFor();
     return {page,context,email,session};
   }
@@ -97,6 +99,7 @@ try {
   const [program] = await api('/api/v1/teacher/programs', first.session.accessToken);
   const pupil = await api('/api/v1/teacher/students', first.session.accessToken, 'POST',
     {requestId:randomUUID(),programId:program.id,studentName:'Synthetic live board pupil'}, 201);
+  secretValues.push(pupil.inviteCode);
   await api(boardPath + '/' + board.id + '/members/' + pupil.membershipId,
     first.session.accessToken, 'PUT', {role:'editor'}, 204);
   const pupilContext = await browser.newContext({viewport:{width:1348,height:926}});
@@ -122,6 +125,11 @@ try {
   const reopened = await openBoard(first, board);
   await count(reopened, 2);
   console.log('PASS: published entry, two new teachers, independent boards, cross-workspace denial, teacher/pupil drawing sync and fresh-login persistence on Timeweb');
+} catch (error) {
+  let message = String(error.message);
+  for (const secret of secretValues.filter(Boolean)) message = message.replaceAll(secret, '[redacted]');
+  console.error('FAIL: ' + message);
+  process.exitCode = 1;
 } finally {
   await browser.close();
 }
