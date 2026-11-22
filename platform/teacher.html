@@ -446,15 +446,16 @@
         try {
           response = await fetch(API + boardApiPath(path), {
             method, mode: 'cors', cache: 'no-store',
+            ...(method === 'GET' ? { signal: AbortSignal.timeout(20000) } : {}),
             headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: 'Bearer ' + token } : {}) },
             body: body ? JSON.stringify(body) : undefined
           });
-        } catch (_) { throw new Error('Нет соединения с сервером. Проверьте сеть и доступность API.'); }
+        } catch (error) { throw new Error(error.name === 'TimeoutError' ? 'Сервер не ответил вовремя. Повторите загрузку.' : 'Нет соединения с сервером. Проверьте сеть и доступность API.'); }
         if ((response.status === 401 || response.status === 403) && token && token === state.token) { logout('Сессия завершилась. Войдите ещё раз.'); throw new Error('Сессия завершилась.'); }
         const data = response.status === 204 ? null : await response.json().catch(() => null);
         if (!response.ok) {
           const reason = response.status === 401 ? 'Неверные данные для входа или сессия истекла.'
-            : response.status === 404 ? 'Запись или программа не найдена в вашем пространстве.'
+            : response.status === 404 ? (path.startsWith('teacher/board-prototype/') ? 'Доски недоступны для этого рабочего пространства. Проверьте доступ к пилоту.' : 'Запись или программа не найдена в вашем пространстве.')
             : response.status === 409 ? (path.startsWith('teacher/tuition-invoices') || path.startsWith('teacher/workspace-access') ? data?.title : null) ||
               'Конфликт с уже сохранённой записью. Обновите данные.'
             : response.status === 400 ? Object.values(data?.errors || {}).flat().join(' ') || 'Проверьте заполненные поля.'
@@ -2268,6 +2269,11 @@
         if (state.view !== 'overview') {
           const missing = needs[state.view].filter(key => !Object.hasOwn(state.data, key));
           if (missing.length) {
+            const error = missing.map(key => state.loadErrors?.[key]).find(Boolean);
+            if (error) {
+              $('content').innerHTML = `<div class="card"><h2>Не удалось загрузить раздел</h2><p role="alert">${safe(error.message)}</p><button type="button" class="secondary" data-retry-section>Повторить загрузку</button></div>`;
+              return;
+            }
             $('content').innerHTML = `<div class="card"><h2>Загружаем данные…</h2><p class="muted small" style="margin-top:8px">Получено ${needs[state.view].length - missing.length} из ${needs[state.view].length} разделов.</p></div>`;
             return;
           }
@@ -2725,6 +2731,7 @@
         }
       });
       $('content').addEventListener('click', async event => {
+        if (event.target.closest('[data-retry-section]')) { await refresh(true); return; }
         const profileSection = event.target.closest('[data-profile-section]');
         if (profileSection) { $(profileSection.dataset.profileSection)?.focus(); return; }
         if (event.target.closest('[data-show-overdue-invoices]')) {

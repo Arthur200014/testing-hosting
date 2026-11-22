@@ -166,3 +166,37 @@ test('pupil work cache separates membership, page and results; invalidation reje
  invalidateTeacherKeys(state,[key]);await loadTeacherKey(state,key,async()=>({items:[{scorePercent:0}]}),()=>{});done({items:[]});await old;
  assert.equal(state.data[key].items[0].scorePercent,0);
 });
+
+
+test('initial failed board reads expose an error and a successful retry clears it', async () => {
+  const state = freshState();
+  const denied = Object.assign(new Error('Board workspace denied'), {status:404});
+  let updates = 0;
+  await assert.rejects(loadTeacherKey(state, 'boardRecords', async () => { throw denied; },
+    () => { updates++; }), /denied/);
+  assert.equal(state.loadErrors.boardRecords, denied);
+  assert.equal(Object.hasOwn(state.data, 'boardRecords'), false);
+  assert.equal(updates, 1);
+  await loadTeacherKey(state, 'boardRecords', async () => [], () => { updates++; });
+  assert.equal(state.loadErrors.boardRecords, undefined);
+  assert.deepEqual(state.data.boardRecords, []);
+  assert.equal(updates, 2);
+});
+
+test('late failures cannot contaminate another session or replace post-mutation results', async () => {
+  const state = freshState();
+  for (const reset of [() => invalidateTeacherData(state), () => invalidateTeacherKeys(state, ['boardRecords'])]) {
+    let fail;
+    const pending = loadTeacherKey(state, 'boardRecords', () => new Promise((_, reject) => { fail = reject; }),
+      () => { throw new Error('Stale error update'); });
+    await Promise.resolve();
+    reset();
+    await loadTeacherKey(state, 'boardRecords', async () => [], () => {});
+    const rejection = assert.rejects(pending, /old request/);
+    fail(new Error('old request'));
+    await rejection;
+    assert.deepEqual(state.data.boardRecords, []);
+    assert.equal(state.loadErrors.boardRecords, undefined);
+    invalidateTeacherKeys(state, ['boardRecords']);
+  }
+});

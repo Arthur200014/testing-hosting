@@ -17,6 +17,7 @@ const fixtures = {
     { membershipId: '33333333-3333-4333-8333-333333333333', studentName: 'South learner B', programName: 'South subject' }
   ], program: 'South subject' }
 };
+let initialProgramsFailed = false;
 let failedOnce = false, forceExpiry = false, northLessonsStarted = false, registered = false;
 const getReads = [];
 await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**', async route => {
@@ -49,6 +50,10 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
   const workspace = req.headers()['authorization']?.replace('Bearer synthetic-', '');
   assert.ok(fixtures[workspace], 'Only synthetic workspace tokens are allowed');
   getReads.push({ workspace, path });
+  if (!initialProgramsFailed && workspace === 'south' && path === 'teacher/programs') {
+    initialProgramsFailed = true;
+    return send({title:'Synthetic initial read failure'}, 503);
+  }
   if (forceExpiry && workspace === 'south' && path === 'teacher/students')
     return send({ title: 'Expired synthetic teacher session' }, 403);
   if (!failedOnce && workspace === 'south' && path === 'teacher/students' &&
@@ -158,11 +163,14 @@ try {
   assert.equal(await page.locator('[data-open-class]').count(), 2);
   await page.waitForTimeout(500); // previous North lesson response has now arrived
   await page.locator('[data-view="students"]').click();
+  await page.locator('#content [role="alert"]').filter({hasText:'Synthetic initial read failure'}).waitFor();
+  assert.equal(await page.locator('#content').getByText('Загружаем данные…', {exact:true}).count(), 0);
+  await page.getByRole('button', {name:'Повторить загрузку', exact:true}).click();
   await page.locator('#studentRows').getByText('South learner A').waitFor({ state: 'attached' });
   const text = await page.locator('#studentRows').textContent();
   assert.match(text, /South learner A/);
   assert.doesNotMatch(text, /North learner/);
-  assert.equal(getReads.filter(x => x.workspace === 'south' && x.path === 'teacher/students').length, 1);
+  assert.equal(getReads.filter(x => x.workspace === 'south' && x.path === 'teacher/students').length, 2);
 
   // Emulate a failed GET refresh and confirm the last successful rows stay visible.
   await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/teacher/students',
