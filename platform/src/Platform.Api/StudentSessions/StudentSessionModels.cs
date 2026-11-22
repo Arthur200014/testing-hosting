@@ -15,4 +15,4 @@ public sealed record StudentSessionIdentity(
     Guid StudentId,
     string DisplayName,
     string ProgramId,
-    Guid WorkspaceId);
+    Guid WorkspaceId, byte[]? CodeHashSnapshot = null);

@@ -39,7 +39,8 @@ public sealed class BrowserSessions(PlatformDbContext db, JwtOptions options, Ti
     }
     public async Task WriteStudentAsync(HttpContext http, StudentSessionIdentity identity, CancellationToken ct)
     {
-        var hash = await db.WorkspaceStudentMemberships.Where(x => x.Id == identity.MembershipId).Select(x => x.CodeHash).SingleAsync(ct);
+        var hash = identity.CodeHashSnapshot;
+        if (hash is null) return;
         var session = Guid.NewGuid();
         var expires = clock.GetUtcNow().AddDays(LifetimeDays);
         await db.Database.ExecuteSqlInterpolatedAsync($"""

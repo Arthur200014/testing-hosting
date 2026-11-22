@@ -267,7 +267,7 @@
         if (button.isConnected) button.removeAttribute('aria-disabled');
       }
     });
-    $('logout').addEventListener('click', async () => { if (browserSession.enabled) await fetch(API + 'student-sessions/logout', {method:'POST',credentials:'same-origin'}); browserSession.stop(); token = ''; sharedBoards.close(); sharedBoardIds.clear(); pendingBoardId = sharedBoards.enabled ? boardIdFromLink(location.hash) : null; boardLinkMessage(''); $('studentBoardList').replaceChildren(); pending.clear(); $('dashboard').hidden = true; $('login').hidden = false; $('assignments').replaceChildren();$('studentFiles').replaceChildren();$('studentRecordings').replaceChildren(); message('Вы вышли.'); $('loginForm').elements.workspace.focus(); });
+    $('logout').addEventListener('click', async () => { if (browserSession.enabled) { try { const response = await fetch(API + 'student-sessions/logout', {method:'POST',credentials:'same-origin'}); if (!response.ok) throw new Error(); } catch { message('Не удалось завершить сессию. Повторите выход.',true); return; } } browserSession.stop(); token = ''; sharedBoards.close(); sharedBoardIds.clear(); pendingBoardId = sharedBoards.enabled ? boardIdFromLink(location.hash) : null; boardLinkMessage(''); $('studentBoardList').replaceChildren(); pending.clear(); $('dashboard').hidden = true; $('login').hidden = false; $('assignments').replaceChildren();$('studentFiles').replaceChildren();$('studentRecordings').replaceChildren(); message('Вы вышли.'); $('loginForm').elements.workspace.focus(); });
     browserSession.watch(session => {
       if (token) { token = session.accessToken; sharedBoards.updateToken(); }
     }, () => { token = ''; sharedBoards.close(); $('dashboard').hidden = true; $('login').hidden = false; });

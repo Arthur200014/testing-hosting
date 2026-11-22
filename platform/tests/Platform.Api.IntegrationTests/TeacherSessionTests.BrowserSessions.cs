@@ -69,6 +69,13 @@ public sealed partial class TeacherSessionTests
         var cookie = exchange.Headers.GetValues("Set-Cookie").Single().Split(';')[0];
         client.DefaultRequestHeaders.Add("Cookie", cookie);
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/v1/student-sessions/current")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsync("/api/v1/student-sessions/logout", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.GetAsync("/api/v1/student-sessions/current")).StatusCode);
+        var renewed = await client.PostAsJsonAsync("/api/v1/student-sessions", new {workspace="persistent-pupil",code=pupil.GetProperty("inviteCode").GetString(),persistent=true});
+        Assert.Equal(HttpStatusCode.OK, renewed.StatusCode);
+        client.DefaultRequestHeaders.Remove("Cookie");
+        client.DefaultRequestHeaders.Add("Cookie", renewed.Headers.GetValues("Set-Cookie").Single().Split(';')[0]);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/v1/student-sessions/current")).StatusCode);
         await using (var scope = factory.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();

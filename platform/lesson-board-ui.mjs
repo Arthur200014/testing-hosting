@@ -48,7 +48,7 @@ export function createLessonBoard(apiBase, accessToken, role = 'teacher') {
   function open(lessonId, backLabel = 'Назад к занятию', independent = false, classTarget = null) {
     if (!enabled || dialog || !accessToken() || !lessonId) return false;
     const opener = document.activeElement;
-    const openerSelector = classTarget ? `[data-open-class-board="${CSS.escape(lessonId)}"]` : `[data-open-${independent ? 'independent' : 'lesson'}-board="${CSS.escape(lessonId)}"]`;
+    const openerSelector = classTarget ? `[data-open-class-board="${role === 'student' ? classTarget + '/' : ''}${CSS.escape(lessonId)}"]` : `[data-open-${independent ? 'independent' : 'lesson'}-board="${CSS.escape(lessonId)}"]`;
     dialog = document.createElement('dialog');
     dialog.setAttribute('aria-label', 'Доска занятия');
     dialog.style.cssText = 'box-sizing:border-box;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;background:white;';
