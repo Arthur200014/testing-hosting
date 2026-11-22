@@ -53,7 +53,6 @@ public sealed partial class TeacherSessionTests
 
     [Theory]
     [InlineData("Staging", false)]
-    [InlineData("Production", true)]
     public async Task BoardPrototypeStagingAllowsOnlyTheConfiguredWorkspace(string environment, bool hosted)
     {
         await ResetAsync(factory);
@@ -110,6 +109,48 @@ public sealed partial class TeacherSessionTests
         Assert.Equal(HttpStatusCode.NotFound, (await disabledClient.PostAsJsonAsync(access, new { token })).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await disabledClient.GetAsync(catalog)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await disabledClient.GetAsync("/health/live")).StatusCode);
+    }
+
+    [Fact]
+    public async Task HostedBoardsAllowNewTeachersAndKeepOwnersIsolated()
+    {
+        await ResetAsync(factory);
+        // Existing pilot settings must not exclude newly registered teachers.
+        using var hosted = BoardHost("Production", Guid.NewGuid().ToString(), hosted: true);
+        using var client = hosted.CreateClient();
+        const string catalog = "/board-pilot/api/v1/teacher/board-prototype/boards";
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(catalog)).StatusCode);
+        var boards = new List<Guid>();
+        var sessions = new List<TeacherLoginResponse>();
+        for (var index = 0; index < 2; index++)
+        {
+            client.DefaultRequestHeaders.Authorization = null;
+            var email = $"hosted-new-{index}@example.invalid";
+            Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync(
+                "/api/v1/teacher-signups", new TeacherSignupRequest(email, Password))).StatusCode);
+            var login = await LoginAsync(client, null, email, Password);
+            Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+            var session = (await login.Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+            sessions.Add(session);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+            var board = Guid.NewGuid();
+            boards.Add(board);
+            Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync(catalog + "/" + board,
+                new { title = $"Synthetic board {index}" })).StatusCode);
+            var rows = await client.GetFromJsonAsync<JsonElement[]>(catalog);
+            Assert.Single(rows!);
+            Assert.Equal(board, rows![0].GetProperty("id").GetGuid());
+            Assert.Equal(HttpStatusCode.OK, (await client.PostAsync(catalog + "/" + board + "/permit", null)).StatusCode);
+        }
+        Assert.NotEqual(sessions[0].WorkspaceId, sessions[1].WorkspaceId);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsync(catalog + "/" + boards[0] + "/permit", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PutAsJsonAsync(catalog + "/" + boards[0],
+            new { title = "Foreign overwrite" })).StatusCode);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", sessions[0].AccessToken);
+        var reopened = await client.GetFromJsonAsync<JsonElement[]>(catalog);
+        Assert.Single(reopened!);
+        Assert.Equal("Synthetic board 0", reopened![0].GetProperty("title").GetString());
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsync(catalog + "/" + boards[1] + "/permit", null)).StatusCode);
     }
 
     private WebApplicationFactory<Program> BoardHost(string environment, string workspaceId, bool enabled = true, bool hosted = false)

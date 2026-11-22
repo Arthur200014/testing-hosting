@@ -83,7 +83,6 @@ internal sealed class HostedBoardPilot(IConfiguration configuration, IWebHostEnv
             start.Environment.Clear();
             start.Environment["PATH"] = "/usr/local/bin:/usr/bin:/bin";
             start.Environment["TAS_BOARD_HOSTED_ORIGIN"] = origin.GetLeftPart(UriPartial.Authority);
-            start.Environment["TAS_BOARD_HOSTED_WORKSPACE"] = Guid.Parse(configuration["BoardPrototype:StagingWorkspaceId"]!).ToString("N");
             var apiPort = configuration.GetValue("BoardPrototype:HostedApiPort", 8080);
             start.Environment["TAS_BOARD_STAGING_API"] = $"http://127.0.0.1:{apiPort}";
             start.Environment["TAS_BOARD_STAGING_SIGNING_KEY"] = configuration["BoardPrototype:SigningKey"]!;

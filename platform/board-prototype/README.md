@@ -374,7 +374,7 @@ The staging API accepts board routes only when all of these settings apply to a 
 - `BoardPrototype__StagingWorkspaceId` is the non-empty GUID of the dedicated test workspace.
 - `BoardPrototype__SigningKey` and `BoardPrototype__SceneRootKey` are distinct server secrets. Preserve the scene root across restarts of the same test store.
 
-The gate covers teacher and pupil board routes, including listings, metadata changes, and permits. Relay access checks apply the same workspace restriction to signed permits. Changing the workspace and restarting the API invalidates access for the previous workspace even before existing permits expire. Set `BoardPrototype__Enabled=false` and restart to remove the routes while preserving saved data. The Production environment rejects enablement.
+The gate covers teacher and pupil board routes, including listings, metadata changes, and permits. Relay access checks apply the same workspace restriction to signed permits. Changing the workspace and restarting the API invalidates access for the previous workspace even before existing permits expire. Set `BoardPrototype__Enabled=false` and restart to remove the routes while preserving saved data. Production requires the hosted relay described below.
 
 #### Closed HTTPS editor and relay
 
@@ -426,19 +426,20 @@ and check the pupil's edit from both sessions. Restart only the staging relay.
 Reopen the share link after a fresh pupil login and verify the saved scene.
 Confirm access is denied for a pupil in a second synthetic workspace.
 
-#### Pilot in the existing Timeweb application
+#### Boards in the existing Timeweb application
 
 The regular API image includes the editor build. With the hosted pilot flags
 off, it starts only the normal API and adds no board routes or journal schema.
-For a controlled pilot, use an existing synthetic teacher workspace and set
+For registered teacher workspaces, set
 `BoardPrototype__Enabled=true`, `BoardPrototype__HostedPilot=true`,
-`BoardPrototype__HostedOrigin` to the existing Timeweb HTTPS origin, and
-`BoardPrototype__StagingWorkspaceId` to the test workspace ID. Set independent
+`BoardPrototype__HostedOrigin` to the existing Timeweb HTTPS origin.
+`StagingWorkspaceId` applies only to Staging deployments. Set independent
 base64 board signing and scene-root secrets as described above.
 
 The pilot cabinet uses `/board-pilot/cabinet/teacher.html`; the student share
-link is under the same prefix. Board API routes accept only the configured
-workspace. The relay stays on container loopback and its permit check requires
+link is under the same prefix. Published Pages cabinet links redirect here,
+preserving share links. Every registered teacher can create boards. API ownership,
+student grants and signed permits scope reads and writes to their workspace and owner. The relay stays on container loopback and its permit check requires
 a startup-generated private header. Scene data lives in schema
 `tas_board_pilot` in the current PostgreSQL database. The existing role needs
 `CREATE` on that database to initialize the schema and a trusted TLS endpoint.
@@ -446,8 +447,8 @@ The relay validates the database certificate; the primary API's settings stay
 as configured. With a private database CA, the configured Npgsql root
 certificate must be readable in the container.
 
-Before enabling on Timeweb, verify that the workspace is synthetic, document
-database headroom and record normal API health. With the pilot enabled, check
+Record database headroom and normal API health. Use dedicated synthetic accounts
+for acceptance. With hosted boards enabled, check
 usual sign-in, workspace rejection, WebSocket upgrade, teacher share, pupil
 save, and fresh-session reopen using two synthetic browser sessions. Watch
 memory on the existing app during this test. Disabling both pilot flags and
