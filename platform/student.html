@@ -57,6 +57,7 @@
       <section class="card"><h2>Файлы от преподавателя</h2><button type="button" data-refresh-files>Обновить файлы</button><div id="studentFiles"></div></section><section class="card"><h2>Записи занятий</h2><p class="muted">Ссылки на внешний источник. Права просмотра у источника настраиваются отдельно.</p><button type="button" data-refresh-recordings>Обновить записи</button><div id="studentRecordings"></div></section><div id="assignments"></div></section>
   </main>
   <script type="module">
+    import {createBrowserSession} from './browser-session.mjs';
     import { boardApiPath, boardIdFromLink, createLessonBoard } from './lesson-board-ui.mjs';
     import { materialAction, saveProtectedFile, fileSize } from './material-file.mjs';
     import { nativeHomeworkDeadlineStatus } from './homework-deadline.mjs';
@@ -64,6 +65,8 @@
     const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/';
     const $ = id => document.getElementById(id);
     let token = '';
+    const browserSession = createBrowserSession(new URL(API).origin, 'student');
+    const classBoards = new Map();
     const sharedBoards = createLessonBoard(new URL(API).origin, () => token, 'student');
     let sharedBoardIds = new Set();
     let pendingBoardId = sharedBoards.enabled ? boardIdFromLink(location.hash) : null;
@@ -79,6 +82,7 @@
     const date = value => new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
     function message(value, error = false) { $('notice').textContent = value; $('notice').classList.toggle('error', error); }
     async function api(path, body, authorized = true) {
+      if (authorized) await browserSession.fresh();
       const response = await fetch(new URL(API).origin + boardApiPath(path), { method: body ? 'POST' : 'GET', cache: 'no-store',
         headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(authorized ? { Authorization: 'Bearer ' + token } : {}) },
         body: body ? JSON.stringify(body) : undefined });
@@ -105,12 +109,17 @@
       const expected = token;
       const version = ++boardLoadVersion;
       try {
-        const boards = await api('student/board-prototype/boards');
+        const [boards, classes] = await Promise.all([api('student/board-prototype/boards'),api('student/board-prototype/classes').catch(error => { if (error.status === 404) return []; throw error; })]);
+        classBoards.clear();
+        for (const item of classes) classBoards.set(item.kind + '/' + item.id, item);
         if (token !== expected || version !== boardLoadVersion) return;
         sharedBoardIds = new Set(boards.map(board => board.id));
         $('studentBoardList').innerHTML = boards.length ? boards.map(board =>
           `<p><button type="button" data-open-independent-board="${safe(board.id)}">${safe(board.title)}</button>${board.role === 'viewer' ? ' · Только просмотр' : ''}</p>`).join('')
           : '<p class="muted">Доступных досок пока нет.</p>';
+        const classLinks = classes.map(item => `<p><strong>${safe(item.title)}</strong> <button type="button" data-open-class-board="${safe(item.kind + '/' + item.id)}">Перейти на доску</button></p>`).join('');
+        $('studentBoardList').insertAdjacentHTML('afterbegin', classLinks);
+        sharedBoards.restoreClass();
         if (pendingBoardId) {
           if (!sharedBoardIds.has(pendingBoardId)) {
             boardLinkMessage('По этой ссылке доска недоступна для вашего аккаунта.');
@@ -135,6 +144,13 @@
       if (pendingBoardId && token) void loadSharedBoards();
     });
     $('dashboard').addEventListener('click',async event=>{
+      const classButton = event.target.closest('[data-open-class-board]');
+      if (classButton) {
+        const item = classBoards.get(classButton.dataset.openClassBoard);
+        if (item) sharedBoards.openClass(item.id, item.kind, 'Назад к классу');
+        return;
+      }
+
       const refreshBoards = event.target.closest('[data-refresh-student-boards]');
       if (refreshBoards) { await loadSharedBoards(); return; }
       const board = event.target.closest('[data-open-independent-board]');
@@ -179,7 +195,8 @@
     $('loginForm').addEventListener('submit', async event => {
       event.preventDefault(); const form = event.currentTarget; const button = form.querySelector('button'); button.disabled = true;
       try {
-        const session = await api('student-sessions', { workspace: form.elements.workspace.value.trim(), code: form.elements.code.value.trim() }, false);
+        const session = await api('student-sessions', { workspace: form.elements.workspace.value.trim(), code: form.elements.code.value.trim(), ...(browserSession.enabled ? {persistent:true} : {}) }, false);
+        browserSession.accept(session);
         token = session.accessToken; $('studentName').textContent = session.student?.displayName || 'Ученик';
         form.elements.code.value = ''; $('login').hidden = true; $('dashboard').hidden = false; $('dashboard').focus();
         await Promise.all([refresh(),loadSharedBoards()]);
@@ -202,7 +219,7 @@
       if (form.id === 'classInvitationForm') {
         const button = form.querySelector('button'); button.disabled = true;
         try { await api('student/classes/invitations/accept', { code: form.elements.code.value.trim() });
-          form.elements.code.value = ''; message('Приглашение в класс подтверждено.'); }
+          form.elements.code.value = ''; message('Приглашение в класс подтверждено.'); await loadSharedBoards(); }
         catch (error) { message(error.message, true); }
         finally { button.disabled = false; }
         return;
@@ -250,7 +267,24 @@
         if (button.isConnected) button.removeAttribute('aria-disabled');
       }
     });
-    $('logout').addEventListener('click', () => { token = ''; sharedBoards.close(); sharedBoardIds.clear(); pendingBoardId = sharedBoards.enabled ? boardIdFromLink(location.hash) : null; boardLinkMessage(''); $('studentBoardList').replaceChildren(); pending.clear(); $('dashboard').hidden = true; $('login').hidden = false; $('assignments').replaceChildren();$('studentFiles').replaceChildren();$('studentRecordings').replaceChildren(); message('Вы вышли.'); $('loginForm').elements.workspace.focus(); });
+    $('logout').addEventListener('click', async () => { if (browserSession.enabled) await fetch(API + 'student-sessions/logout', {method:'POST',credentials:'same-origin'}); browserSession.stop(); token = ''; sharedBoards.close(); sharedBoardIds.clear(); pendingBoardId = sharedBoards.enabled ? boardIdFromLink(location.hash) : null; boardLinkMessage(''); $('studentBoardList').replaceChildren(); pending.clear(); $('dashboard').hidden = true; $('login').hidden = false; $('assignments').replaceChildren();$('studentFiles').replaceChildren();$('studentRecordings').replaceChildren(); message('Вы вышли.'); $('loginForm').elements.workspace.focus(); });
+    browserSession.watch(session => {
+      if (token) { token = session.accessToken; sharedBoards.updateToken(); }
+    }, () => { token = ''; sharedBoards.close(); $('dashboard').hidden = true; $('login').hidden = false; });
+    if (browserSession.enabled) {
+      const controls = [...$('login').querySelectorAll('button,input')];
+      controls.forEach(control => control.disabled = true);
+      try {
+        const session = await browserSession.restore();
+        if (session) {
+          token = session.accessToken;
+          $('studentName').textContent = session.student?.displayName || 'Ученик';
+          $('login').hidden = true; $('dashboard').hidden = false;
+          await Promise.all([refresh(),loadSharedBoards()]);
+        }
+      } catch (error) { message(error.message, true); }
+      finally { controls.forEach(control => control.disabled = false); }
+    }
   </script>
 </body>
 </html>

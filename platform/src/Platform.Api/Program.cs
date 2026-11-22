@@ -64,6 +64,7 @@ builder.Services.AddScoped<TeacherPeriodPlanService>();
 builder.Services.AddScoped<TeacherClassInvitationService>();
 builder.Services.AddSingleton<IPasswordHasher<TeacherUser>, PasswordHasher<TeacherUser>>();
 builder.Services.AddSingleton<TeacherTokenIssuer>();
+builder.Services.AddScoped<BrowserSessions>();
 builder.Services.AddScoped<IAuthorizationHandler, ActiveTeacherSessionHandler>();
 builder.Services.AddScoped<TestAttemptService>();
 builder.Services.AddScoped<HomeworkService>();
@@ -185,10 +186,11 @@ app.UseAuthorization();
 app.MapPost("/api/v1/student-sessions", async (
     StudentSessionRequest request,
     StudentSessionService sessions,
-    StudentTokenIssuer tokenIssuer,
+    StudentTokenIssuer tokenIssuer, BrowserSessions browserSessions, HttpContext http,
     CancellationToken cancellationToken) =>
 {
     var identity = await sessions.ExchangeAsync(request.Workspace, request.Code, cancellationToken);
+    if (identity is not null && request.Persistent) await browserSessions.WriteStudentAsync(http, identity, cancellationToken);
     return identity is null
         ? Results.Json(new { title = "Invalid student credentials.", status = 401 }, statusCode: 401,
             contentType: "application/problem+json")
@@ -196,14 +198,32 @@ app.MapPost("/api/v1/student-sessions", async (
 }).RequireRateLimiting("student-sessions");
 
 app.MapPost("/api/v1/teacher-sessions", async (
-    TeacherLoginRequest request, TeacherSessionService sessions, CancellationToken cancellationToken) =>
+    TeacherLoginRequest request, TeacherSessionService sessions, BrowserSessions browserSessions, HttpContext http, CancellationToken cancellationToken) =>
 {
     var login = await sessions.LoginAsync(request, cancellationToken);
+    if (request.Persistent && login?.Session is {} saved) browserSessions.WriteTeacher(http, saved);
     return login is null
         ? Results.Json(new { title = "Invalid teacher credentials.", status = 401 }, statusCode: 401,
             contentType: "application/problem+json")
         : login.Session is { } session ? Results.Ok(session) : Results.Ok(new { login.Workspaces });
 }).RequireRateLimiting("teacher-sessions");
+
+foreach (var role in new[] { "teacher", "student" })
+{
+    app.MapGet("/api/v1/" + role + "-sessions/current", async (HttpContext http, BrowserSessions browserSessions, CancellationToken ct) =>
+    {
+        http.Response.Headers.CacheControl = "no-store";
+        object? session = role == "teacher" ? await browserSessions.RestoreTeacherAsync(http, ct) : await browserSessions.RestoreStudentAsync(http, ct);
+        if (session is null) { browserSessions.Clear(http, role); return Results.NoContent(); }
+        return Results.Ok(session);
+    });
+}
+app.MapPost("/api/v1/student-sessions/logout", async (HttpContext http, BrowserSessions browserSessions, CancellationToken ct) =>
+{
+    await browserSessions.RevokeStudentAsync(http, ct);
+    browserSessions.Clear(http, "student");
+    return Results.NoContent();
+});
 
 app.MapPost("/api/v1/teacher-signups", (TeacherSignupRequest request, TeacherSignup signup,
     CancellationToken cancellationToken) => signup.RegisterAsync(request, cancellationToken))
@@ -1173,8 +1193,9 @@ app.MapGet("/api/v1/teacher/mocks/sessions", async (
     .RequireAuthorization("teacher");
 
 app.MapPost("/api/v1/teacher-sessions/logout", async (
-    ClaimsPrincipal principal, TeacherSessionService sessions, CancellationToken cancellationToken) =>
+    ClaimsPrincipal principal, TeacherSessionService sessions, BrowserSessions browserSessions, HttpContext http, CancellationToken cancellationToken) =>
 {
+    browserSessions.Clear(http, "teacher");
     await sessions.RevokeCurrentAsync(principal, cancellationToken);
     return Results.NoContent();
 }).RequireAuthorization("teacher");

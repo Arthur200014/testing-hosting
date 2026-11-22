@@ -8,17 +8,18 @@ const signature=e=>`${e.version}:${e.versionNonce}:${e.isDeleted}`;
 const ids=list=>{if(!Array.isArray(list)||list.length>64||list.some(x=>typeof x!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(x)))throw new Error('Invalid file references');return [...new Set(list)].sort();};
 const refs=(elements,attachments=[],includeDeleted=false)=>ids([...new Set([...elements.filter(e=>e.type==='image'&&(includeDeleted||!e.isDeleted)).map(e=>e.fileId),...attachments])]);
 const hash=async b=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',b)),v=>v.toString(16).padStart(2,'0')).join('');
-export async function lessonPermit({apiBase,lessonId,boardId,accessToken,role}){
-  const target = boardId ?? lessonId;
+export async function lessonPermit({apiBase,lessonId,boardId,classId,classKind,accessToken,role}){
+  const target = classId ?? boardId ?? lessonId;
   if (!['teacher','student'].includes(role) ||
       !/^[0-9a-f-]{36}$/i.test(target)) throw new Error('Invalid board target');
   const u=new URL(apiBase);
   if ((!loopback.includes(u.hostname) && !(hostedBoardPrefix() && apiBase === location.origin)) ||
       u.pathname!=='/' || u.search || u.hash || u.username || u.password || u.protocol!==location.protocol)
     throw new Error('Isolated API required');
-  const path = boardApiPath(`${role}/board-prototype/${boardId ? 'boards' : 'lessons'}/${target}/permit`);
+  const targetPath = classId ? `classes/${classKind}/${classId}` : `${boardId ? 'boards' : 'lessons'}/${target}`;
+  const path = boardApiPath(`${role}/board-prototype/${targetPath}/permit`);
   const r=await fetch(u.origin+path,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`},cache:'no-store',signal:AbortSignal.timeout(5000),redirect:'error'});
-  if(!r.ok){const e=new Error([401,403,404].includes(r.status)?'Доступ к занятию отозван':'API временно недоступен');e.denied=[401,403,404].includes(r.status);throw e;}return r.json();
+  if(!r.ok){const e=new Error([401,403,404].includes(r.status)?'Доступ к занятию отозван':'API временно недоступен');e.status=r.status;e.denied=[401,403,404].includes(r.status);throw e;}return r.json();
 }
 export function connectScene({url,permit,sceneKey,api,reconcileElements=reconcileScene,CaptureUpdateAction,convertToExcalidrawElements,renewPermit,status,onReady=()=>{},onRoleInvalidated=()=>{},onAttachments=()=>{},onApplied=()=>{}}){
   const relay=new URL(url);

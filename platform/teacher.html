@@ -367,6 +367,7 @@
   </div>
 
   <script type="module">
+    import {createBrowserSession} from './browser-session.mjs';
     import {pupilFeedbackKey, feedbackEditor, feedbackSave} from './pupil-feedback.mjs';
     import {pupilAllowedSources} from './pupil-history.mjs';
     import {studentProfileKeys, studentProfileSnapshot, studentMemberships, studentClassRelations, studentLessonRows, studentLessonTarget, resolveStudentOrigin, beginStudentCard, studentEditAction, studentHomeworkKey, renderStudentCard} from './student-card.mjs';
@@ -386,9 +387,10 @@
     import { renderLessonMaterials } from './lesson-materials-ui.mjs';
     import { boardApiPath, createLessonBoard, studentBoardLink } from './lesson-board-ui.mjs';
     import { lessonBoardEntries, renderBoardCards } from './board-catalog-ui.mjs';
-    (() => {
+    (async () => {
       'use strict';
       const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
+      const browserSession = createBrowserSession(API, 'teacher');
       const state = { token: '', expiresAt: '', workspace: '', view: 'overview', data: {}, loadedAt: {}, inflight: {}, generation: 0, viewLoadId: 0, pending: {}, inviteCode: '', resultStudent: '', reportStudent: '', editStudent: '', editSnapshot: null, studentCard:null, studentSearch:'', editLesson: null, classSearch: '', classTab: 'classes', classDetailTab: 'summary', topicFilter: 'all', classStatsMonth: new Date().toISOString().slice(0, 7), classStatsType: 'all', classStatsExpanded: '', selectedClass: '', classEdit: '', groupEdit: '', groupCreate: false, lastClassInvitation: null, learningModal: false, classCreate: false, lessonPlan: null, scheduleEdit: null, calendarDate: calendarDay(), calendarMode: 'day', periodPreview: null };
       const lessonBoard = createLessonBoard(API, () => state.token);
       let boardSettings;
@@ -427,6 +429,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
+        browserSession.stop();
         Object.assign(billingFilters, {query:'',status:''});
         ledger = blankLedger();
         teacherInvitation = null;
@@ -448,6 +451,7 @@
         (message ? $('loginError') : $('loginForm').elements.email).focus();
       }
       async function api(path, { method = 'GET', body, token = state.token } = {}) {
+        if (token && token === state.token) { await browserSession.fresh(); token = state.token; }
         let response;
         try {
           response = await fetch(API + boardApiPath(path), {
@@ -840,7 +844,7 @@
       }
       function classBoardShortcut(item) {
         return lessonBoard.enabled && item.persistent && !item.isArchived
-          ? `<button type="button" class="secondary" data-class-board-catalog="${safe(item.id)}">Доски занятий</button>` : '';
+          ? `<button type="button" class="secondary" data-open-class-board="${safe(item.id)}" data-class-kind="${safe(item.kind)}">Перейти на доску</button>` : '';
       }
       function boards() {
         const entries = lessonBoardEntries(state.data);
@@ -873,6 +877,7 @@
           <div data-board-cards style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px">
             ${renderBoardCards(entries, boardFilters, safe, date)}
           </div>
+          ${(state.data.lessons || []).length ? `<details><summary>Доски прежних занятий</summary>${(state.data.lessons || []).filter(lesson => !boardFilters.classId || (lesson.groupClassId || lesson.individualClassId) === boardFilters.classId).map(lesson => `<p><button type="button" class="secondary" data-open-legacy-lesson-board="${safe(lesson.id)}">${safe(lesson.title || 'Занятие')}</button></p>`).join('')}</details>` : ''}
         </section>`;
       }
       function openBoardSettings(record) {
@@ -2318,17 +2323,20 @@
         return programs[0];
       }
       function setBusy(form, value) { form.querySelector('button[type="submit"]').disabled = value; }
-      function enterSession(session) {
+      async function enterSession(session) {
         clearWorkspaceChoice();
         const workspace = session.workspace;
         invalidate();
         state.token = session.accessToken; state.expiresAt = session.expiresAt; state.workspace = workspace;
+        browserSession.accept(session);
         state.studentCard=null;state.studentSearch='';state.editStudent='';state.editSnapshot=null;
         state.library=newLibraryState();state.libraryStorageKey='tas:library-folder:'+session.workspaceId+':'+session.teacherId;
         try { state.library.folderId=sessionStorage.getItem(state.libraryStorageKey) || ''; } catch {}
         $('workspaceName').textContent = workspace; $('loginScreen').hidden = true; $('app').hidden = false;
         const loading = setView('overview');
         $('teacherMain').focus();
+        await loading;
+        lessonBoard.restoreClass();
         return loading;
       }
       function canLeaveStudentEdit() {
@@ -2414,7 +2422,7 @@
         $('loginError').focus();
       }
       function startTeacherSession(email, password, workspace) {
-        return api('teacher-sessions', { method: 'POST', token: '', body: { email, password, workspace } });
+        return api('teacher-sessions', { method: 'POST', token: '', body: { email, password, workspace, ...(browserSession.enabled ? {persistent:true} : {}) } });
       }
       function loginMessage(error) {
         if (error.status === 429) return 'Слишком много попыток. Попробуйте позже.';
@@ -2737,6 +2745,11 @@
         }
       });
       $('content').addEventListener('click', async event => {
+        const legacy = event.target.closest('[data-open-legacy-lesson-board]');
+        if (legacy) { lessonBoard.open(legacy.dataset.openLegacyLessonBoard, 'Назад к доскам'); return; }
+        const classBoard = event.target.closest('[data-open-class-board]');
+        if (classBoard) { lessonBoard.openClass(classBoard.dataset.openClassBoard, classBoard.dataset.classKind, state.view === 'boards' ? 'Назад к доскам' : 'Назад к классу'); return; }
+
         if (event.target.closest('[data-retry-section]')) { await refresh(true); return; }
         const profileSection = event.target.closest('[data-profile-section]');
         if (profileSection) { $(profileSection.dataset.profileSection)?.focus(); return; }
@@ -2873,10 +2886,9 @@
           return;
         }
         if (boardButton && !boardButton.disabled) {
-          const lessonId = boardButton.dataset.openLessonBoard;
-          if (state.view === 'boards') {
-            if (lessonBoardEntries(state.data).some(item => item.lessonId === lessonId)) lessonBoard.open(lessonId, 'Назад к доскам');
-          } else if (lessonId === state.selectedLesson) lessonBoard.open(lessonId);
+          const lesson = (state.data.lessons || []).find(item => item.id === boardButton.dataset.openLessonBoard);
+          const classId = lesson?.groupClassId || lesson?.individualClassId;
+          if (classId) lessonBoard.openClass(classId, lesson.groupClassId ? 'group' : 'individual', 'Назад к занятию');
           return;
         }
         const download=event.target.closest('[data-file-download]');
@@ -4055,6 +4067,21 @@
           }
         });
       });
+      browserSession.watch(session => {
+        if (!state.token) return;
+        state.token = session.accessToken;
+        state.expiresAt = session.expiresAt;
+        lessonBoard.updateToken();
+      }, () => logout('Сессия завершилась. Войдите ещё раз.'));
+      if (browserSession.enabled) {
+        const controls = [...$('loginScreen').querySelectorAll('button,input')];
+        controls.forEach(control => control.disabled = true);
+        try {
+          const session = await browserSession.restore();
+          if (session) await enterSession(session);
+        } catch (error) { showLoginError(error.message); }
+        finally { controls.forEach(control => control.disabled = false); clearWorkspaceChoice(); }
+      }
     })();
   </script>
 </body>

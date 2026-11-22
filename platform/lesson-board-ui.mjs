@@ -45,10 +45,10 @@ export function createLessonBoard(apiBase, accessToken, role = 'teacher') {
     dialog = undefined;
   }
 
-  function open(lessonId, backLabel = 'Назад к занятию', independent = false) {
+  function open(lessonId, backLabel = 'Назад к занятию', independent = false, classTarget = null) {
     if (!enabled || dialog || !accessToken() || !lessonId) return false;
     const opener = document.activeElement;
-    const openerSelector = `[data-open-${independent ? 'independent' : 'lesson'}-board="${CSS.escape(lessonId)}"]`;
+    const openerSelector = classTarget ? `[data-open-class-board="${CSS.escape(lessonId)}"]` : `[data-open-${independent ? 'independent' : 'lesson'}-board="${CSS.escape(lessonId)}"]`;
     dialog = document.createElement('dialog');
     dialog.setAttribute('aria-label', 'Доска занятия');
     dialog.style.cssText = 'box-sizing:border-box;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;background:white;';
@@ -72,7 +72,7 @@ export function createLessonBoard(apiBase, accessToken, role = 'teacher') {
       editor.addEventListener('keydown', exitByShortcut, true);
       frame.contentWindow.postMessage({
         type:'tas:open-lesson-board', relay,
-        session:{ apiBase, accessToken:accessToken(), role, ...(independent ? {boardId:lessonId} : {lessonId}) }
+        session:{ apiBase, accessToken:accessToken(), role, ...(classTarget ? {classId:lessonId,classKind:classTarget} : independent ? {boardId:lessonId} : {lessonId}) }
       }, location.origin);
     });
 
@@ -81,6 +81,7 @@ export function createLessonBoard(apiBase, accessToken, role = 'teacher') {
       if (status && !['Сохранено', 'Загрузка доски', 'Нет доступа к занятию'].includes(status) &&
           !window.confirm('На доске могут быть несохранённые правки. Закрыть доску?')) return;
       close();
+      if (classTarget) history.replaceState(null, '', location.pathname + location.search);
       const focusTargets = [opener?.matches(openerSelector) ? opener : null,
         ...document.querySelectorAll(openerSelector), opener,
         document.getElementById(role === 'student' ? 'dashboard' : 'teacherMain')];
@@ -107,5 +108,18 @@ export function createLessonBoard(apiBase, accessToken, role = 'teacher') {
     return true;
   }
 
-  return { enabled, open, close };
+  function updateToken() {
+    dialog?.querySelector('iframe')?.contentWindow?.postMessage({type:'tas:refresh-board-session', accessToken:accessToken()}, location.origin);
+  }
+  function openClass(id, kind, backLabel = 'Назад к классу') {
+    if (!boardIdPattern.test(id) || !['individual','group'].includes(kind)) return false;
+    const opened = open(id, backLabel, false, kind);
+    if (opened) history.replaceState(null, '', '#class-board=' + kind + '/' + id);
+    return opened;
+  }
+  function restoreClass() {
+    const match = /^#class-board=(individual|group)\/([0-9a-f-]{36})$/i.exec(location.hash);
+    if (match) openClass(match[2], match[1]);
+  }
+  return { enabled, open, openClass, restoreClass, close, updateToken };
 }
