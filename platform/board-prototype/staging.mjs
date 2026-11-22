@@ -37,6 +37,7 @@ async function handler(req, res) {
       const page = body.toString();
       if (!page.includes(publishedApi)) return res.writeHead(503).end();
       body = page.replaceAll(publishedApi, hosted?.origin ?? new URL(apiOrigin).origin);
+      if (hosted) body = body.replaceAll('href="./"', 'href="https://arthur200014.github.io/testing-hosting/platform/"');
     }
     if (kind === 'html' && hosted) body = body.toString().replace(/<meta charset="utf-8">/i,
       tag => tag + `<meta name="tas-board-hosted" content="${hosted.origin}">`);
@@ -50,7 +51,7 @@ async function handler(req, res) {
 }
 
 const journal = hosted
-  ? await openHostedPostgresJournal(process.env.TAS_BOARD_HOSTED_WORKSPACE, process.env.TAS_BOARD_HOSTED_PG_CA)
+  ? await openHostedPostgresJournal(process.env.TAS_BOARD_HOSTED_PG_CA)
   : await openStagingPostgresJournal(process.env.TAS_BOARD_STAGING_DB);
 try {
   const options = {handler, key: signingKey, journal, authorize, port: Number(process.env.TAS_BOARD_STAGING_PORT ?? 18448)};

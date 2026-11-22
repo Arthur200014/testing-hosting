@@ -41,11 +41,11 @@ export function hostedPostgresSsl(host, mode='Prefer', ca) {
   return {rejectUnauthorized: !!ca || !privateIp || policy === 'verifyca' || policy === 'verifyfull', ...(ca && {ca})};
 }
 
-export function openHostedPostgresJournal(workspace, ca) {
-  if (!/^[0-9a-f]{32}$/.test(workspace ?? '') || !process.env.PGDATABASE)
-    throw new Error('A database and isolated board workspace are required');
+export function openHostedPostgresJournal(ca) {
+  if (!process.env.PGDATABASE)
+    throw new Error('A hosted board database is required');
   return openJournal(undefined, {
-    workspace,
+    hostedSchema: true,
     poolOptions: {
       options: '-c search_path=tas_board_pilot,pg_catalog',
       ssl: hostedPostgresSsl(process.env.PGHOST, process.env.TAS_BOARD_HOSTED_PG_SSL_MODE, ca),
@@ -54,9 +54,9 @@ export function openHostedPostgresJournal(workspace, ca) {
   });
 }
 
-async function openJournal(connectionString, {beforeCheckpointCommit=async()=>{}, workspace, poolOptions} = {}) {
+async function openJournal(connectionString, {beforeCheckpointCommit=async()=>{}, workspace, hostedSchema = false, poolOptions} = {}) {
   const pool = new pg.Pool({connectionString, max: 12, connectionTimeoutMillis: 3000, ...poolOptions});
-  if (workspace) await pool.query('CREATE SCHEMA IF NOT EXISTS tas_board_pilot');
+  if (hostedSchema || workspace) await pool.query('CREATE SCHEMA IF NOT EXISTS tas_board_pilot');
   await pool.query(`CREATE TABLE IF NOT EXISTS board_heads (
     workspace text NOT NULL, board text NOT NULL, revision integer NOT NULL DEFAULT 0,
     bytes bigint NOT NULL DEFAULT 0, PRIMARY KEY(workspace,board));

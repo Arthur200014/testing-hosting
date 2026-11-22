@@ -21,14 +21,14 @@ public static class BoardPrototypeEndpoints
         var pilot = app.Services.GetRequiredService<HostedBoardPilot>();
         var hostedPilot = pilot.Enabled ? pilot : null;
         Guid? stagingWorkspace = null;
-        if (app.Environment.IsStaging() || hostedPilot is not null)
+        if (app.Environment.IsStaging())
         {
             if (!Guid.TryParse(app.Configuration["BoardPrototype:StagingWorkspaceId"], out var workspace)
                 || workspace == Guid.Empty)
                 throw new InvalidOperationException("A dedicated board staging workspace is required.");
             stagingWorkspace = workspace;
         }
-        else if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("IntegrationTests"))
+        else if (hostedPilot is null && !app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("IntegrationTests"))
             throw new InvalidOperationException("Board prototype requires an isolated development or staging environment.");
         var key = Convert.FromBase64String(app.Configuration["BoardPrototype:SigningKey"] ?? "");
         var sceneRoot = Convert.FromBase64String(app.Configuration["BoardPrototype:SceneRootKey"] ?? "");

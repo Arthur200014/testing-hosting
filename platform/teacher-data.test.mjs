@@ -200,3 +200,24 @@ test('late failures cannot contaminate another session or replace post-mutation 
     invalidateTeacherKeys(state, ['boardRecords']);
   }
 });
+
+
+test('published cabinet entry keeps share links and uses the hosted same-origin editor', async () => {
+  const {readFile} = await import('node:fs/promises');
+  const {runInNewContext} = await import('node:vm');
+  for (const role of ['teacher', 'student']) {
+    const html = await readFile(new URL('./' + role + '.html', import.meta.url), 'utf8');
+    const entry = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+    for (const origin of ['https://arthur200014.github.io', 'http://127.0.0.1:8766',
+      'https://arthur200014-testing-hosting-8c4e.twc1.net']) {
+      let target;
+      const location = {origin, pathname:'/testing-hosting/platform/' + role + '.html',
+        search:'?source=lesson', hash:'#board=11111111-1111-4111-8111-111111111111',
+        replace(value) { target = value; }};
+      runInNewContext(entry, {location});
+      assert.equal(target, origin === 'https://arthur200014.github.io'
+        ? 'https://arthur200014-testing-hosting-8c4e.twc1.net/board-pilot/cabinet/' + role + '.html' + location.search + location.hash
+        : undefined);
+    }
+  }
+});
