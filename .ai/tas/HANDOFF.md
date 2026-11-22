@@ -1,8 +1,8 @@
 # TEACHER AI STUDENT — HANDOFF
 
 **UPDATED:** 2026-11-22
-**ACTIVE_TASK:** Stage 2 hosted board rollout. Public Timeweb probes PASS. Fresh synthetic teacher signup and API sign-in PASS; the new workspace is outside the hosted-board gate. Browser collaboration and save/reopen remain NOT_RUN.
-**ACTIVE_BRANCH:** `main` for rollout. [PR #113](https://github.com/Arthur200014/testing-hosting/pull/113) TLS fix and [PR #114](https://github.com/Arthur200014/testing-hosting/pull/114) live smoke tests merged. No pending code branch.
+**ACTIVE_TASK:** Fix hosted board catalog failure rendering and bounded GET waits. Uploaded log includes historical relay TLS failure already fixed in main. Fresh live probes and browser acceptance pending.
+**ACTIVE_BRANCH:** `tas/hosted-board-loading-error`. Teacher cache 11/11 PASS locally. Browser regression awaits GitHub Actions because local Chromium socket creation is denied.
 **MERGED_SHA:** [`ba67db5c072a45e8cd803414f580781d24e6cbd4`](https://github.com/Arthur200014/testing-hosting/commit/ba67db5c072a45e8cd803414f580781d24e6cbd4) — read-only Timeweb relay 502 regression probes. Prior TLS fix: `30511b7`.
 **RELEASE_STATE:** [GitHub Pages](https://github.com/Arthur200014/testing-hosting/actions/runs/44632547304) PASS on TLS fix; [Pages workflow after PR #114](https://github.com/Arthur200014/testing-hosting/actions/runs/44635653763) build/deploy PASS. Scripts-only changes do not change the web UI. Native Timeweb auto-deploy configured; actual running commit still UNKNOWN.
 **API_DEPLOYMENT:** Prior owner log confirmed Timeweb `d0b26e0`, but earlier Node relay then exited on `DEPTH_ZERO_SELF_SIGNED_CERT` (502). TLS fix merged in PR #113. [Real Timeweb read-only smoke from GitHub Actions](https://github.com/Arthur200014/testing-hosting/actions/runs/44634979114) now PASS: `/health/live`, `/health/ready`, `/health/migrations` HTTP 200, anonymous APIs 401, `/board-pilot/board/` and `/board-pilot/cabinet/teacher.html` HTTP 200 with expected page HTML. Running server commit remains UNKNOWN, not inferred from HTTP response.
@@ -18,7 +18,7 @@
 
 **LIVE_BOARD_2026-11-22:** [GitHub Actions repeat](https://github.com/Arthur200014/testing-hosting/actions/runs/44636208976) PASS (8 synthetic tests and 7 live read-only probes). A fresh run of the existing probe on 2026-11-22 passed all 7 live checks. Hosted Chromium cabinet loaded; interactive editor rendering was not confirmed from the standalone URL. The teacher session request returned 401 after secure sign-in submission. No live data writes. The normal public API then created an independent synthetic teacher (201), signed in (200), opened the ordinary teacher endpoint (200), received denial (404) at the hosted board catalog outside the configured workspace, and signed out (204). This confirms catalog denial only. Prior supplied logs identify only the earlier `d0b26e0` build; current Timeweb SHA UNKNOWN.
 
-**NEXT_ACTION:** Obtain a successful sign-in to the configured synthetic workspace or have the Timeweb app operator bind the pilot to a designated synthetic workspace. Then open the editor through the hosted cabinet, verify teacher → pupil sync, pupil edit, fresh-session reopen and denial for the shared board from a second synthetic workspace. Confirm current Timeweb SHA from a fresh deployment record. Board LIVE_WRITE_NOT_RUN. Keep load-40 manual/not run.
+**NEXT_ACTION:** Run branch browser/CI checks, merge and verify Pages/Timeweb publication. Then retry hosted board catalog using the dedicated synthetic workspace. Current Timeweb SHA UNKNOWN, authenticated board write acceptance NOT_RUN. Keep load-40 manual.
 
 ## UI-08 cabinet keyboard acceptance
 

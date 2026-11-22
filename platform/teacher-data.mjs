@@ -84,6 +84,7 @@ export function invalidateTeacherData(state) {
   state.generation++;
   state.data = {};
   state.loadedAt = {};
+  state.loadErrors = {};
   state.inflight = {};
   state.keyVersions = {};
 }
@@ -97,6 +98,7 @@ export function invalidateTeacherKeys(state, keys) {
     state.keyVersions[key] = (state.keyVersions[key] || 0) + 1;
     delete state.data[key];
     delete state.loadedAt[key];
+    delete state.loadErrors?.[key];
     delete state.inflight[key];
   }
 }
@@ -108,6 +110,8 @@ export function loadTeacherKey(state, key, request, onUpdate, force = false, now
   // Keep the previous successful value visible while a stale/forced read refreshes.
   // Session changes and successful mutations still clear all cached data via
   // invalidateTeacherData, preventing cross-session or post-write stale data.
+  state.loadErrors ||= {};
+  delete state.loadErrors[key];
   const generation = state.generation;
   const keyVersion = state.keyVersions?.[key] || 0;
   const promise = Promise.resolve().then(() => request(teacherResourcePath(key))).then(value => {
@@ -115,6 +119,12 @@ export function loadTeacherKey(state, key, request, onUpdate, force = false, now
     state.data[key] = value;
     state.loadedAt[key] = now();
     onUpdate(key);
+  }).catch(error => {
+    if (generation === state.generation && keyVersion === (state.keyVersions?.[key] || 0)) {
+      state.loadErrors[key] = error;
+      onUpdate(key);
+    }
+    throw error;
   }).finally(() => { if (state.inflight[key] === promise) delete state.inflight[key]; });
   state.inflight[key] = promise;
   return promise;
