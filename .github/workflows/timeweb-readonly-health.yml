@@ -1,32 +1,62 @@
-name: TAS Timeweb read-only health and latency
+name: Timeweb session deployment diagnosis
 on:
   push:
-    branches: ['tas/**']
-    paths:
-      - 'platform/scripts/timeweb-readonly-check.py'
-      - 'platform/scripts/test_timeweb_readonly_check.py'
-      - '.github/workflows/timeweb-readonly-health.yml'
-  workflow_run:
-    workflows: ['Homework import integration']
-    types: [completed]
-    branches: [main]
-  workflow_dispatch:
-
+    branches: [tas/timeweb-session-diagnosis]
 permissions:
   contents: read
-
-concurrency:
-  group: tas-timeweb-health
-  cancel-in-progress: true
-
 jobs:
-  health:
-    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
+  diagnosis:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 3
+    env:
+      TIMEWEB_API_TOKEN: ${{ secrets.TIMEWEB_API_TOKEN }}
+      TIMEWEB_APP_ID: ${{ vars.TIMEWEB_APP_ID }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Validate probe locally (synthetic HTTP)
-        run: python3 -m unittest discover -s platform/scripts -p 'test_timeweb_readonly_check.py' -v
-      - name: Check live Timeweb hosted board editor and cabinet (read-only)
-        run: python3 platform/scripts/timeweb-readonly-check.py
+      - name: Check deployed cabinet and session routes
+        run: |
+          python3 - <<'PY'
+          from urllib.error import HTTPError, URLError
+          from urllib.request import Request, urlopen
+          origin = 'https://arthur200014-testing-hosting-8c4e.twc1.net'
+          for role in ('teacher', 'student'):
+              path = '/board-pilot/cabinet/' + role + '.html'
+              try:
+                  with urlopen(Request(origin + path, headers={'Cache-Control':'no-cache'}), timeout=12) as response:
+                      body = response.read(1000000).decode('utf-8', errors='replace')
+                      print(role, 'cabinet HTTP', response.status, 'session module:', 'createBrowserSession' in body, 'class-only catalog:', 'Доски классов' in body)
+              except (HTTPError, URLError, TimeoutError):
+                  print(role, 'cabinet unavailable to the probe')
+              try:
+                  with urlopen(origin + '/api/v1/' + role + '-sessions/current', timeout=12) as response:
+                      print(role, 'session restore (anonymous) HTTP', response.status)
+              except HTTPError as error:
+                  print(role, 'session restore (anonymous) HTTP', error.code)
+              except (URLError, TimeoutError):
+                  print(role, 'session restore could not be reached')
+          PY
+      - name: Inspect existing Timeweb deployment connection
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$TIMEWEB_API_TOKEN" || -z "$TIMEWEB_APP_ID" ]]; then
+            [[ -n "$TIMEWEB_API_TOKEN" ]] && token=present || token=missing
+            [[ -n "$TIMEWEB_APP_ID" ]] && app=present || app=missing
+            echo "Existing Timeweb connection: API credential $token, application setting $app."
+            exit 0
+          fi
+          if [[ ! "$TIMEWEB_APP_ID" =~ ^[a-zA-Z0-9-]+$ ]]; then
+            echo "Application setting is invalid."
+            exit 0
+          fi
+          status="$(curl --silent --max-time 20 --output "$RUNNER_TEMP/timeweb-diagnosis.json" --write-out '%{http_code}' --header "Authorization: Bearer $TIMEWEB_API_TOKEN" "https://api.timeweb.cloud/api/v1/apps/$TIMEWEB_APP_ID")" || status=unreachable
+          echo "Timeweb app lookup HTTP $status."
+          if [[ "$status" == 200 ]]; then
+            python3 - "$RUNNER_TEMP/timeweb-diagnosis.json" <<'PY'
+          import json, sys
+          with open(sys.argv[1], encoding='utf-8') as source:
+              app = json.load(source).get('app') or {}
+          print('App tracks main:', app.get('branch_name') == 'main')
+          print('Native autodeploy enabled:', app.get('is_auto_deploy') is True)
+          PY
+            rm "$RUNNER_TEMP/timeweb-diagnosis.json"
+          fi
