@@ -221,3 +221,51 @@ test('published cabinet entry keeps share links and uses the hosted same-origin 
     }
   }
 });
+
+test('board catalog has one entry per class across multiple lessons', async () => {
+  const {lessonBoardEntries, renderBoardCards} = await import('./board-catalog-ui.mjs');
+  const entries = lessonBoardEntries({
+    classes:[{id:'class-a',title:'Class A'}], groups:[{id:'group-b',title:'Group B'}],
+    lessons:[{id:'lesson-1',individualClassId:'class-a'},{id:'lesson-2',individualClassId:'class-a'},
+      {id:'lesson-3',groupClassId:'group-b'}]
+  });
+  assert.equal(entries.length, 2);
+  assert.deepEqual(entries.map(x => [x.classId,x.classKind]), [['class-a','individual'],['group-b','group']]);
+  const cards = renderBoardCards(entries, {search:'',sort:'title'}, String, String);
+  assert.equal((cards.match(/data-open-class-board=/g) || []).length, 2);
+  assert.equal(cards.includes('data-open-lesson-board='), false);
+});
+
+test('browser session restores once and ignores a late response after logout', async () => {
+  const {createBrowserSession} = await import('./browser-session.mjs');
+  const originalFetch = globalThis.fetch, originalLocation = globalThis.location;
+  globalThis.location = {origin:'https://session.example.invalid'};
+  const session = createBrowserSession(globalThis.location.origin, 'teacher');
+  let complete, calls = 0, restored = 0;
+  session.watch(() => restored++, () => {});
+  globalThis.fetch = async () => { calls++; return new Promise(resolve => { complete = resolve; }); };
+  try {
+    const first = session.restore(), same = session.restore();
+    assert.equal(first, same);
+    assert.equal(calls, 1);
+    session.stop();
+    complete({ok:true,status:200,json:async () => ({accessToken:'late',expiresAt:new Date(Date.now()+300000).toISOString()})});
+    assert.equal(await first, null);
+    assert.equal(restored, 0);
+    globalThis.fetch = async (_, options) => {
+      assert.equal(options.credentials, 'same-origin');
+      return {ok:true,status:200,json:async () => ({accessToken:'fresh',expiresAt:new Date(Date.now()+300000).toISOString()})};
+    };
+    assert.equal((await session.restore()).accessToken, 'fresh');
+    assert.equal(restored, 1);
+    session.accept({teacherId:'teacher-a',workspaceId:'a',expiresAt:new Date(Date.now()+300000).toISOString()});
+    let ended = false;
+    session.watch(() => assert.fail('A different account cannot replace the active account'), () => { ended = true; });
+    assert.equal(await session.restore(), null);
+    assert.equal(ended, true);
+  } finally {
+    session.stop();
+    globalThis.fetch = originalFetch;
+    if (originalLocation === undefined) delete globalThis.location; else globalThis.location = originalLocation;
+  }
+});

@@ -23,7 +23,23 @@ function App() {
     const start = async () => {
       // Isolated load harness can supply a token from ordinary API re-login.
       // This never bypasses permit issuance or adds an API/relay credential.
-      const getPermit=async()=>lessonPermit({...config.session,accessToken:config.sessionProvider?await window.__BOARD_SESSION_TOKEN():config.session.accessToken});
+      const getPermit = async () => {
+        const accessToken = config.sessionProvider ? await window.__BOARD_SESSION_TOKEN() : config.session.accessToken;
+        try { return await lessonPermit({...config.session, accessToken}); }
+        catch (error) {
+          if (error.status !== 401 || config.session.apiBase !== location.origin) throw error;
+          const restored = await fetch(config.session.apiBase + '/api/v1/' + config.session.role + '-sessions/current',
+            {credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(10000)});
+          if (restored.status !== 200) throw error;
+          const session = await restored.json();
+          const claims = token => JSON.parse(atob(token.split('.')[1].replaceAll('-', '+').replaceAll('_', '/')));
+          const previous = claims(accessToken);
+          const renewed = claims(session.accessToken);
+          if (['sub', 'workspace_id', 'membership_id', 'role', 'workspace_role'].some(key => previous[key] !== renewed[key])) throw error;
+          config.session.accessToken = session.accessToken;
+          return lessonPermit(config.session);
+        }
+      };
       const permit = config.session ? await getPermit() : config.permit;
       if (config.session && permit.keyVersion !== 1) throw new Error('Unsupported scene key version');
       setReadOnly(permit.role === 'viewer');
@@ -44,7 +60,12 @@ renderEditor();
 const hostedPilot = hostedBoardPrefix();
 if (!config && window.parent !== window && (hostedPilot || location.hostname === '127.0.0.1')) {
   window.addEventListener('message', event => {
-    if (config || event.source !== window.parent || event.origin !== location.origin) return;
+    if (event.source !== window.parent || event.origin !== location.origin) return;
+    if (event.data?.type === 'tas:refresh-board-session' && config?.session && typeof event.data.accessToken === 'string') {
+      config.session.accessToken = event.data.accessToken;
+      return;
+    }
+    if (config) return;
     const { type, relay, session } = event.data ?? {};
     if (type !== 'tas:open-lesson-board' || !['teacher','student'].includes(session?.role) || !session.accessToken) return;
     try {

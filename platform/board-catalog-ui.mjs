@@ -5,17 +5,12 @@ export function lessonBoardEntries({ lessons = [], classes = [], groups = [], bo
   const folders = new Map(boardFolders.map(folder => [folder.id, folder.title]));
   const lessonEntries = lessons.flatMap(lesson => {
     const classId = lesson.groupClassId || lesson.individualClassId || '';
-    const owner = lesson.groupClassId ? group.get(classId) : individual.get(classId);
-    if (classId && (!owner || owner.isArchived)) return [];
-    return [{
-      lessonId: lesson.id,
-      classId,
-      title: lesson.title || 'Занятие',
-      classTitle: owner?.title || 'Без класса',
-      lessonAt: lesson.lessonAt
-    }];
+    return [{lessonId:lesson.id,classId}];
   });
-  return [...lessonEntries, ...boardRecords.map(board => {
+  const classEntries = [...classes.map(item => ({...item,classKind:'individual'})),
+    ...groups.map(item => ({...item,classKind:'group'}))].filter(item => !item.isArchived)
+    .map(item => ({classId:item.id,classKind:item.classKind,title:item.title,classTitle:item.title,lessonAt:''}));
+  return [...classEntries, ...boardRecords.map(board => {
     const classId = board.groupClassId || board.individualClassId || '';
     const owner = board.groupClassId ? group.get(classId) : individual.get(classId);
     return {...board, boardId:board.id, classId, classTitle:owner?.title || (classId ? 'Класс недоступен' : 'Без класса'),
@@ -35,15 +30,15 @@ export function renderBoardCards(entries, filters, safe, date) {
     ? (a, b) => a.title.localeCompare(b.title, 'ru-RU') || byDate(a, b)
     : byDate);
 
-  if (!matches.length) return '<p class="empty">' + (entries.length ? 'Доски по этим условиям не найдены.' : 'Здесь появятся доски ваших занятий.') + '</p>';
+  if (!matches.length) return '<p class="empty">' + (entries.length ? 'Доски по этим условиям не найдены.' : 'Здесь появятся доски ваших классов.') + '</p>';
   return matches.map(item => `<article class="card stack">
-    <div><h2>${safe(item.title)}</h2><p class="muted">${safe(item.classTitle)} · ${safe(date(item.lessonAt))}${item.folderTitle ? ` · ${safe(item.folderTitle)}` : ''}</p></div>
-    <div class="class-banner-buttons"><button type="button" class="primary" ${item.boardId ? `data-open-independent-board="${safe(item.boardId)}"` :
+    <div><h2>${safe(item.title)}</h2><p class="muted">${safe(item.classTitle)}${item.classKind ? '' : ' · ' + safe(date(item.lessonAt))}${item.folderTitle ? ` · ${safe(item.folderTitle)}` : ''}</p></div>
+    <div class="class-banner-buttons"><button type="button" class="primary" ${item.classKind ? `data-open-class-board="${safe(item.classId)}" data-class-kind="${safe(item.classKind)}"` : item.boardId ? `data-open-independent-board="${safe(item.boardId)}"` :
       `data-open-lesson-board="${safe(item.lessonId)}"`}>Открыть доску</button>
     ${item.boardId ? `<button type="button" class="secondary" data-edit-independent-board="${safe(item.boardId)}">Настройки</button>
       <button type="button" class="secondary" data-share-board="${safe(item.boardId)}">Доступ</button>
       <button type="button" class="secondary" data-move-board="${safe(item.boardId)}">В папку</button>
       <button type="button" class="secondary" data-board-favorite="${safe(item.boardId)}" aria-pressed="${!!item.isFavorite}">Избранное</button>` : ''}
-    ${(item.boardId ? item.canOpenLesson : item.classId) ? `<button type="button" class="secondary" data-board-lesson-details="${safe(item.lessonId)}">К занятию</button>` : ''}</div>
+    ${(item.boardId && item.canOpenLesson) ? `<button type="button" class="secondary" data-board-lesson-details="${safe(item.lessonId)}">К занятию</button>` : ''}</div>
   </article>`).join('');
 }

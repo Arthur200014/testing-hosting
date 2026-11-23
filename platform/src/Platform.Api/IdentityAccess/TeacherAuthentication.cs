@@ -10,7 +10,7 @@ using TestingHosting.Platform.Students;
 
 namespace TestingHosting.Platform.IdentityAccess;
 
-public sealed record TeacherLoginRequest(string? Workspace, string? Email, string? Password);
+public sealed record TeacherLoginRequest(string? Workspace, string? Email, string? Password, bool Persistent = false);
 
 public sealed record TeacherLoginResponse(
     string AccessToken, string TokenType, DateTimeOffset ExpiresAt,
@@ -81,7 +81,7 @@ public sealed class TeacherSessionService(
         var session = new TeacherSession
         {
             Id = Guid.NewGuid(), MembershipId = membership.Id,
-            CreatedAt = now, ExpiresAt = now.AddMinutes(tokens.LifetimeMinutes)
+            CreatedAt = now, ExpiresAt = request.Persistent ? now.AddDays(BrowserSessions.LifetimeDays) : now.AddMinutes(tokens.LifetimeMinutes)
         };
         db.TeacherSessions.Add(session);
         await db.SaveChangesAsync(cancellationToken);
@@ -150,12 +150,13 @@ public sealed class TeacherSessionService(
     }
 }
 
-public sealed class TeacherTokenIssuer(JwtOptions options)
+public sealed class TeacherTokenIssuer(JwtOptions options, TimeProvider clock)
 {
     public int LifetimeMinutes => options.LifetimeMinutes;
 
     public TeacherLoginResponse Issue(TeacherSession session, WorkspaceMembership membership)
     {
+        var expiresAt = new[] { session.ExpiresAt, clock.GetUtcNow().AddMinutes(options.LifetimeMinutes) }.Min();
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, membership.TeacherUserId.ToString()),
@@ -169,12 +170,12 @@ public sealed class TeacherTokenIssuer(JwtOptions options)
             issuer: options.Issuer, audience: options.Audience,
             claims: claims,
             notBefore: session.CreatedAt.UtcDateTime,
-            expires: session.ExpiresAt.UtcDateTime,
+            expires: expiresAt.UtcDateTime,
             signingCredentials: new SigningCredentials(
                 new SymmetricSecurityKey(Convert.FromBase64String(options.SigningKey)),
                 SecurityAlgorithms.HmacSha256));
         return new TeacherLoginResponse(
-            new JwtSecurityTokenHandler().WriteToken(token), "Bearer", session.ExpiresAt,
+            new JwtSecurityTokenHandler().WriteToken(token), "Bearer", expiresAt,
             membership.TeacherUserId, membership.WorkspaceId, membership.Role, membership.Workspace.Slug);
     }
 }

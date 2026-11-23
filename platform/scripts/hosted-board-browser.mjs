@@ -26,7 +26,7 @@ let deployed = false;
 for (let attempt = 0; attempt < 48; attempt++) {
   try {
     const response = await fetch(hosted + 'teacher.html', {signal:AbortSignal.timeout(15000), cache:'no-store'});
-    deployed = response.ok && (await response.text()).includes("location.pathname === '/testing-hosting/platform/teacher.html'");
+    deployed = response.ok && (await response.text()).includes("import {createBrowserSession}");
   } catch {}
   if (deployed) break;
   await new Promise(resolve => setTimeout(resolve, 10000));
@@ -118,13 +118,68 @@ try {
   await count(frame, 2);
   await first.page.getByRole('button', {name:'Назад к доскам',exact:true}).click();
   await first.page.reload();
-  await first.page.locator('#loginForm [name="email"]').fill(first.email);
-  await first.page.locator('#loginForm [name="password"]').fill(password);
-  await first.page.locator('#loginForm button[type="submit"]').click();
   await first.page.locator('#app:not([hidden])').waitFor();
   const reopened = await openBoard(first, board);
   await count(reopened, 2);
-  console.log('PASS: published entry, two new teachers, independent boards, cross-workspace denial, teacher/pupil drawing sync and fresh-login persistence on Timeweb');
+  assert.equal(await first.page.locator('#loginForm').isVisible(), false);
+  await first.page.getByRole('button', {name:'Назад к доскам',exact:true}).click();
+  const classroom = await api('/api/v1/teacher/classes', first.session.accessToken, 'POST',
+    {requestId:randomUUID(),studentMembershipId:pupil.membershipId,title:'Synthetic permanent class ' + run.slice(0, 8),durationMinutes:60}, 201);
+  const lessons = [];
+  for (let day = 1; day <= 2; day++) lessons.push(await api('/api/v1/teacher/lessons', first.session.accessToken, 'POST', {
+    requestId:randomUUID(),title:'Synthetic class lesson ' + day,lessonAt:`2030-01-0${day}T10:00:00Z`,individualClassId:classroom.id,
+    participants:[{membershipId:pupil.membershipId,durationMinutes:60,attendanceStatus:'Unknown'}]
+  }, 201));
+  await api('/board-pilot/api/v1/teacher/board-prototype/classes/individual/' + classroom.id + '/permit', second.session.accessToken, 'POST', undefined, 404);
+  await first.page.locator('#refresh').click();
+  await first.page.locator('[data-open-class-board="' + classroom.id + '"]').waitFor();
+  assert.equal(await first.page.locator('[data-open-class-board="' + classroom.id + '"]').count(), 1);
+  await first.page.getByRole('button', {name:'Мои классы',exact:true}).click();
+  await first.page.locator('[data-open-class="' + classroom.id + '"]').click();
+  await first.page.locator('[data-class-detail-tab="schedule"]').click();
+  await first.page.locator('[data-open-class-lesson="' + lessons[0].lessonId + '"]').click();
+  await first.page.getByRole('button', {name:'Перейти к доске',exact:true}).click();
+  await first.page.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
+  const classFrame = first.page.frame({url:origin + '/board-pilot/board/'});
+  await draw(first.page, classFrame);
+  await count(classFrame, 1);
+  await pupilPage.getByRole('button', {name:'Назад к доскам',exact:true}).click();
+  await pupilPage.locator('[data-refresh-student-boards]').click();
+  await pupilPage.locator('[data-open-class-board="individual/' + classroom.id + '"]').click();
+  await pupilPage.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
+  const pupilClassFrame = pupilPage.frame({url:origin + '/board-pilot/board/'});
+  await count(pupilClassFrame, 1);
+  await draw(pupilPage, pupilClassFrame, 150);
+  await count(pupilClassFrame, 2);
+  await count(classFrame, 2);
+  await first.page.getByRole('button', {name:'Назад к занятию',exact:true}).click();
+  await first.page.locator('[data-back-class-lessons]').click();
+  await first.page.locator('[data-open-class-lesson="' + lessons[1].lessonId + '"]').click();
+  await first.page.getByRole('button', {name:'Перейти к доске',exact:true}).click();
+  await first.page.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
+  await count(first.page.frame({url:origin + '/board-pilot/board/'}), 2);
+  await first.page.reload();
+  await first.page.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
+  assert.equal(await first.page.locator('#loginForm').isVisible(), false);
+  await count(first.page.frame({url:origin + '/board-pilot/board/'}), 2);
+  await pupilPage.reload();
+  await pupilPage.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
+  assert.equal(await pupilPage.locator('#loginForm').isVisible(), false);
+  await count(pupilPage.frame({url:origin + '/board-pilot/board/'}), 2);
+  const storage = await first.context.storageState();
+  assert.ok(storage.cookies.some(cookie => cookie.httpOnly && cookie.name === 'tas_teacher_session'));
+  await first.context.close();
+  const restarted = await browser.newContext({storageState:storage,viewport:{width:1348,height:926}});
+  const restartedPage = await restarted.newPage();
+  await restartedPage.goto(published + 'teacher.html#class-board=individual/' + classroom.id);
+  await restartedPage.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
+  await count(restartedPage.frame({url:origin + '/board-pilot/board/'}), 2);
+  await second.page.locator('#logout').click();
+  await second.page.locator('#loginScreen:not([hidden])').waitFor();
+  await second.page.reload();
+  await second.page.locator('#loginForm button[type="submit"]:enabled').waitFor();
+  assert.equal(await second.page.locator('#app').isVisible(), false);
+  console.log('PASS: persistent teacher/pupil login, class board shared across two lessons, joint drawings, reload and new browser context, logout and tenant isolation on Timeweb');
 } catch (error) {
   let message = String(error.message);
   for (const secret of secretValues.filter(Boolean)) message = message.replaceAll(secret, '[redacted]');

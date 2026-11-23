@@ -71,7 +71,7 @@ if [[ "${TAS_BOARD_TEST_ONLY:-0}" == 1 ]]; then
   exit 0
 fi
 mkdir -p "$task_dir/site/platform"
-for file in student.html material-file.mjs lesson-recordings.mjs student-card.mjs pupil-history.mjs pupil-feedback.mjs teacher.html teacher-report.mjs teacher-data.mjs teacher-library.mjs teacher-mutation.mjs teacher-calendar.mjs homework-deadline.mjs class-native-homework.mjs class-materials-ui.mjs lesson-materials-ui.mjs lesson-board-ui.mjs board-catalog-ui.mjs lesson-topics-ui.mjs class-program-ui.mjs meleto-fidelity.css; do
+for file in browser-session.mjs student.html material-file.mjs lesson-recordings.mjs student-card.mjs pupil-history.mjs pupil-feedback.mjs teacher.html teacher-report.mjs teacher-data.mjs teacher-library.mjs teacher-mutation.mjs teacher-calendar.mjs homework-deadline.mjs class-native-homework.mjs class-materials-ui.mjs lesson-materials-ui.mjs lesson-board-ui.mjs board-catalog-ui.mjs lesson-topics-ui.mjs class-program-ui.mjs meleto-fidelity.css; do
   cp "platform/$file" "$task_dir/site/platform/$file"
 done
 # Rewrite ONLY the disposable copy. Published source and production settings stay untouched.

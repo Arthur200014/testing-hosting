@@ -57,13 +57,16 @@
       <section class="card"><h2>Файлы от преподавателя</h2><button type="button" data-refresh-files>Обновить файлы</button><div id="studentFiles"></div></section><section class="card"><h2>Записи занятий</h2><p class="muted">Ссылки на внешний источник. Права просмотра у источника настраиваются отдельно.</p><button type="button" data-refresh-recordings>Обновить записи</button><div id="studentRecordings"></div></section><div id="assignments"></div></section>
   </main>
   <script type="module">
+    import {createBrowserSession} from './browser-session.mjs';
     import { boardApiPath, boardIdFromLink, createLessonBoard } from './lesson-board-ui.mjs';
     import { materialAction, saveProtectedFile, fileSize } from './material-file.mjs';
     import { nativeHomeworkDeadlineStatus } from './homework-deadline.mjs';
     import {renderStudentRecordings,recordingSourceLink} from './lesson-recordings.mjs';
     const API = 'https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/';
     const $ = id => document.getElementById(id);
-    let token = '';
+    let token = '', sessionVersion = 0;
+    const browserSession = createBrowserSession(new URL(API).origin, 'student');
+    const classBoards = new Map();
     const sharedBoards = createLessonBoard(new URL(API).origin, () => token, 'student');
     let sharedBoardIds = new Set();
     let pendingBoardId = sharedBoards.enabled ? boardIdFromLink(location.hash) : null;
@@ -79,6 +82,11 @@
     const date = value => new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
     function message(value, error = false) { $('notice').textContent = value; $('notice').classList.toggle('error', error); }
     async function api(path, body, authorized = true) {
+      if (authorized) {
+        const expected = sessionVersion;
+        await browserSession.fresh();
+        if (sessionVersion !== expected) throw new Error('Сессия завершилась. Войдите ещё раз.');
+      }
       const response = await fetch(new URL(API).origin + boardApiPath(path), { method: body ? 'POST' : 'GET', cache: 'no-store',
         headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(authorized ? { Authorization: 'Bearer ' + token } : {}) },
         body: body ? JSON.stringify(body) : undefined });
@@ -88,29 +96,34 @@
       return data;
     }
     async function loadFiles() {
-      const expected=token;
+      const expected=sessionVersion;
       try {
-        const files=await api('files');if(token!==expected) return;
+        const files=await api('files');if(sessionVersion!==expected) return;
         $('studentFiles').innerHTML=files.length?files.map(x=>`<div class="card"><strong>${safe(x.title)}</strong><p>${safe(x.fileName)} · ${safe(fileSize(x.sizeBytes))}</p>${materialAction(x,safe)}</div>`).join(''):'<p class="muted">Доступных файлов пока нет.</p>';
-      } catch {if(token===expected) $('studentFiles').textContent='Не удалось загрузить список файлов.';}
+      } catch {if(sessionVersion===expected) $('studentFiles').textContent='Не удалось загрузить список файлов.';}
     }
     async function loadRecordings() {
-      const expected=token;
-      try {const rows=await api('recordings');if(token===expected) $('studentRecordings').innerHTML=renderStudentRecordings(rows,safe);}
-      catch {if(token===expected) $('studentRecordings').textContent='Не удалось загрузить записи.';}
+      const expected=sessionVersion;
+      try {const rows=await api('recordings');if(sessionVersion===expected) $('studentRecordings').innerHTML=renderStudentRecordings(rows,safe);}
+      catch {if(sessionVersion===expected) $('studentRecordings').textContent='Не удалось загрузить записи.';}
     }
     async function loadSharedBoards() {
       if (!sharedBoards.enabled) return;
       $('studentBoards').hidden = false;
-      const expected = token;
+      const expected = sessionVersion;
       const version = ++boardLoadVersion;
       try {
-        const boards = await api('student/board-prototype/boards');
-        if (token !== expected || version !== boardLoadVersion) return;
+        const [boards, classes] = await Promise.all([api('student/board-prototype/boards'),api('student/board-prototype/classes').catch(error => { if (error.status === 404) return []; throw error; })]);
+        if (sessionVersion !== expected || version !== boardLoadVersion) return;
+        classBoards.clear();
+        for (const item of classes) classBoards.set(item.kind + '/' + item.id, item);
         sharedBoardIds = new Set(boards.map(board => board.id));
         $('studentBoardList').innerHTML = boards.length ? boards.map(board =>
           `<p><button type="button" data-open-independent-board="${safe(board.id)}">${safe(board.title)}</button>${board.role === 'viewer' ? ' · Только просмотр' : ''}</p>`).join('')
-          : '<p class="muted">Доступных досок пока нет.</p>';
+          : classes.length ? '' : '<p class="muted">Доступных досок пока нет.</p>';
+        const classLinks = classes.map(item => `<p><strong>${safe(item.title)}</strong> <button type="button" data-open-class-board="${safe(item.kind + '/' + item.id)}">Перейти на доску</button></p>`).join('');
+        $('studentBoardList').insertAdjacentHTML('afterbegin', classLinks);
+        sharedBoards.restoreClass();
         if (pendingBoardId) {
           if (!sharedBoardIds.has(pendingBoardId)) {
             boardLinkMessage('По этой ссылке доска недоступна для вашего аккаунта.');
@@ -122,8 +135,9 @@
           }
         }
       } catch {
-        if (token !== expected || version !== boardLoadVersion) return;
+        if (sessionVersion !== expected || version !== boardLoadVersion) return;
         sharedBoardIds.clear();
+        classBoards.clear();
         $('studentBoardList').textContent = 'Не удалось загрузить доски.';
       }
     }
@@ -135,6 +149,13 @@
       if (pendingBoardId && token) void loadSharedBoards();
     });
     $('dashboard').addEventListener('click',async event=>{
+      const classButton = event.target.closest('[data-open-class-board]');
+      if (classButton) {
+        const item = classBoards.get(classButton.dataset.openClassBoard);
+        if (item) sharedBoards.openClass(item.id, item.kind, 'Назад к классу');
+        return;
+      }
+
       const refreshBoards = event.target.closest('[data-refresh-student-boards]');
       if (refreshBoards) { await loadSharedBoards(); return; }
       const board = event.target.closest('[data-open-independent-board]');
@@ -146,9 +167,9 @@
       if(recordingRefresh) {recordingRefresh.disabled=true;try{await loadRecordings();}finally{recordingRefresh.disabled=false;}return;}
       const recordingOpen=event.target.closest('[data-recording-open]');
       if(recordingOpen) {
-        const box=recordingOpen.closest('[data-recording-row]').querySelector('[data-recording-source]'),expected=token;box.replaceChildren();recordingOpen.disabled=true;
-        try {const result=await api('recordings/'+encodeURIComponent(recordingOpen.dataset.recordingOpen)+'/source');if(token===expected && box.isConnected) box.innerHTML=recordingSourceLink(result.url,safe);}
-        catch {if(token===expected) {box.textContent='Ссылка недоступна. Обновите записи.';}}
+        const box=recordingOpen.closest('[data-recording-row]').querySelector('[data-recording-source]'),expected=sessionVersion;box.replaceChildren();recordingOpen.disabled=true;
+        try {const result=await api('recordings/'+encodeURIComponent(recordingOpen.dataset.recordingOpen)+'/source');if(sessionVersion===expected && box.isConnected) box.innerHTML=recordingSourceLink(result.url,safe);}
+        catch {if(sessionVersion===expected) {box.textContent='Ссылка недоступна. Обновите записи.';}}
         finally {if(recordingOpen.isConnected) recordingOpen.disabled=false;}return;
       }
       const refreshButton=event.target.closest('[data-refresh-files]');
@@ -159,9 +180,9 @@
       catch(error) {message(error.message,true);} finally {if(button.isConnected) button.disabled=false;}
     });
     async function refresh() {
-      const expected = token;
+      const expected = sessionVersion;
       const items = await api('homework/native/assignments');
-      if (token !== expected) return false;
+      if (sessionVersion !== expected) return false;
       const drafts = new Map([...$('assignments').querySelectorAll('[data-assignment]')]
         .map(form => [form.dataset.assignment, form.elements.answer.value]));
       $('assignments').innerHTML = items.length ? items.map(x => `<article class="card" data-work-card="${safe(x.id)}" tabindex="-1"><h2>${safe(x.title)}</h2>
@@ -172,14 +193,15 @@
         if (drafts.has(form.dataset.assignment)) form.elements.answer.value = drafts.get(form.dataset.assignment);
       }
       await Promise.all([loadFiles(),loadRecordings()]);
-      if (token !== expected) return false;
+      if (sessionVersion !== expected) return false;
       message('Задания загружены.');
       return true;
     }
     $('loginForm').addEventListener('submit', async event => {
       event.preventDefault(); const form = event.currentTarget; const button = form.querySelector('button'); button.disabled = true;
       try {
-        const session = await api('student-sessions', { workspace: form.elements.workspace.value.trim(), code: form.elements.code.value.trim() }, false);
+        const session = await api('student-sessions', { workspace: form.elements.workspace.value.trim(), code: form.elements.code.value.trim(), ...(browserSession.enabled ? {persistent:true} : {}) }, false);
+        browserSession.accept(session);
         token = session.accessToken; $('studentName').textContent = session.student?.displayName || 'Ученик';
         form.elements.code.value = ''; $('login').hidden = true; $('dashboard').hidden = false; $('dashboard').focus();
         await Promise.all([refresh(),loadSharedBoards()]);
@@ -195,6 +217,7 @@
           message(result.status === 'pending'
             ? 'Заявка на вступление отправлена преподавателю на подтверждение.'
             : 'Вы присоединились к группе.');
+          if (result.status !== 'pending') await loadSharedBoards();
         } catch (error) { message(error.message, true); }
         finally { button.disabled = false; }
         return;
@@ -202,7 +225,7 @@
       if (form.id === 'classInvitationForm') {
         const button = form.querySelector('button'); button.disabled = true;
         try { await api('student/classes/invitations/accept', { code: form.elements.code.value.trim() });
-          form.elements.code.value = ''; message('Приглашение в класс подтверждено.'); }
+          form.elements.code.value = ''; message('Приглашение в класс подтверждено.'); await loadSharedBoards(); }
         catch (error) { message(error.message, true); }
         finally { button.disabled = false; }
         return;
@@ -221,7 +244,7 @@
         message('Предыдущая отправка не подтверждена. Верните прежний ответ или обновите список.', true);
         return;
       }
-      const expected = token;
+      const expected = sessionVersion;
       const button = form.querySelector('button[type="submit"]');
       const submission = previous || {answer, submissionId:crypto.randomUUID()};
       submission.sending = true;
@@ -231,17 +254,17 @@
       try {
         if (!submission.accepted) {
           await api('homework/native/submissions', { assignmentId:id, submissionId:submission.submissionId, answer });
-          if (token !== expected) return;
+          if (sessionVersion !== expected) return;
           submission.accepted = true;
         }
         const wasFocused = form.contains(document.activeElement);
-        if (!await refresh() || token !== expected) return;
+        if (!await refresh() || sessionVersion !== expected) return;
         pending.delete(id);
         message('Ответ отправлен.');
         if (wasFocused && document.activeElement === document.body)
           document.querySelector(`[data-work-card="${CSS.escape(id)}"]`)?.focus();
       } catch (error) {
-        if (token !== expected) return;
+        if (sessionVersion !== expected) return;
         if (!submission.accepted && error.status && error.status < 500) pending.delete(id);
         if (submission.accepted && button.isConnected) button.textContent = 'Обновить результат';
         message(submission.accepted ? 'Ответ отправлен. Не удалось обновить список заданий.' : error.message, true);
@@ -250,7 +273,52 @@
         if (button.isConnected) button.removeAttribute('aria-disabled');
       }
     });
-    $('logout').addEventListener('click', () => { token = ''; sharedBoards.close(); sharedBoardIds.clear(); pendingBoardId = sharedBoards.enabled ? boardIdFromLink(location.hash) : null; boardLinkMessage(''); $('studentBoardList').replaceChildren(); pending.clear(); $('dashboard').hidden = true; $('login').hidden = false; $('assignments').replaceChildren();$('studentFiles').replaceChildren();$('studentRecordings').replaceChildren(); message('Вы вышли.'); $('loginForm').elements.workspace.focus(); });
+    function endSession(text) {
+      browserSession.stop();
+      sessionVersion++;
+      token = '';
+      sharedBoards.close();
+      sharedBoardIds.clear();
+      classBoards.clear();
+      pendingBoardId = sharedBoards.enabled ? boardIdFromLink(location.hash) : null;
+      $('boardLoginHint').hidden = !pendingBoardId;
+      boardLinkMessage('');
+      pending.clear();
+      for (const id of ['studentBoardList','assignments','studentFiles','studentRecordings']) $(id).replaceChildren();
+      $('dashboard').hidden = true;
+      $('login').hidden = false;
+      message(text);
+      $('loginForm').elements.workspace.focus();
+    }
+    $('logout').addEventListener('click', async () => {
+      if (browserSession.enabled) {
+        try {
+          const response = await fetch(API + 'student-sessions/logout', {method:'POST',credentials:'same-origin'});
+          if (!response.ok) throw new Error();
+        } catch {
+          message('Не удалось завершить сессию. Повторите выход.',true);
+          return;
+        }
+      }
+      endSession('Вы вышли.');
+    });
+    browserSession.watch(session => {
+      if (token) { token = session.accessToken; sharedBoards.updateToken(); }
+    }, () => endSession('Сессия завершилась. Войдите ещё раз.'));
+    if (browserSession.enabled) {
+      const controls = [...$('login').querySelectorAll('button,input')];
+      controls.forEach(control => control.disabled = true);
+      try {
+        const session = await browserSession.restore();
+        if (session) {
+          token = session.accessToken;
+          $('studentName').textContent = session.student?.displayName || 'Ученик';
+          $('login').hidden = true; $('dashboard').hidden = false;
+          await Promise.all([refresh(),loadSharedBoards()]);
+        }
+      } catch (error) { message(error.message, true); }
+      finally { controls.forEach(control => control.disabled = false); }
+    }
   </script>
 </body>
 </html>

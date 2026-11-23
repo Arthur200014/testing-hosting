@@ -33,7 +33,7 @@ public sealed class StudentSessionService(PlatformDbContext dbContext, IStudentC
                 membership.StudentId,
                 membership.Student.DisplayName,
                 membership.Program.Code,
-                membership.WorkspaceId))
+                membership.WorkspaceId, membership.CodeHash))
             .SingleOrDefaultAsync(cancellationToken);
 
         return workspaceValid && codeValid ? identity : null;

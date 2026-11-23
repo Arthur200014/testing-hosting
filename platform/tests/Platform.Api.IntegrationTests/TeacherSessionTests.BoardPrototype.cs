@@ -17,6 +17,59 @@ namespace TestingHosting.Platform.IntegrationTests;
 public sealed partial class TeacherSessionTests
 {
     [Fact]
+    public async Task ClassBoardIsStableAcrossLessonsAndSharedWithClassPupilOnly()
+    {
+        await ResetAsync(factory);
+        var owner = await SeedAsync(factory, "class-board-owner", "class-board-owner@example.invalid", "owner");
+        var other = await SeedAsync(factory, "class-board-other", "class-board-other@example.invalid", "owner");
+        using var enabled = BoardHost("IntegrationTests", "");
+        using var client = enabled.CreateClient();
+        var login = await LoginAsync(client, "class-board-owner", "class-board-owner@example.invalid", Password);
+        var session = (await login.Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
+        var pupil = await SeedStudentAsync(factory, owner.WorkspaceId, "Class pupil", true);
+        await SeedHistoryAsync(factory, owner.WorkspaceId, [pupil]);
+        Guid classId;
+        string pupilToken;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var lesson = await db.Lessons.FirstAsync(x => x.WorkspaceId == owner.WorkspaceId);
+            var membership = await db.WorkspaceStudentMemberships.FirstAsync(x => x.WorkspaceId == owner.WorkspaceId);
+            pupilToken = scope.ServiceProvider.GetRequiredService<TestingHosting.Platform.StudentSessions.StudentTokenIssuer>().Issue(
+                new TestingHosting.Platform.StudentSessions.StudentSessionIdentity(membership.Id, membership.StudentId, "Class pupil", "MATH", owner.WorkspaceId)).AccessToken;
+            classId = Guid.NewGuid();
+            db.TeacherClasses.Add(new TestingHosting.Platform.Classes.TeacherClass {
+                Id=classId, WorkspaceId=owner.WorkspaceId, StudentMembershipId=membership.Id,
+                StudentId=membership.StudentId, Title="Persistent class", RequestId=Guid.NewGuid()
+            });
+            lesson.IndividualClassId = classId;
+            await db.SaveChangesAsync();
+        }
+        const string prefix = "/api/v1/teacher/board-prototype/classes/individual/";
+        var one = await client.PostAsync(prefix + classId + "/permit", null);
+        Assert.Equal(HttpStatusCode.OK, one.StatusCode);
+        var first = await one.Content.ReadFromJsonAsync<JsonElement>();
+        var two = await client.PostAsync(prefix + classId + "/permit", null);
+        var second = await two.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(first.GetProperty("board").GetString(), second.GetProperty("board").GetString());
+        Assert.Equal(first.GetProperty("sceneKey").GetString(), second.GetProperty("sceneKey").GetString());
+        Assert.Equal("class-individual-" + classId.ToString("N"), first.GetProperty("board").GetString());
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync("/api/v1/board-prototype/access",
+            new {token=first.GetProperty("token").GetString()})).StatusCode);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", pupilToken);
+        var pupilPermit = await client.PostAsync("/api/v1/student/board-prototype/classes/individual/" + classId + "/permit", null);
+        Assert.Equal(HttpStatusCode.OK, pupilPermit.StatusCode);
+        var pupilScene = await pupilPermit.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(first.GetProperty("board").GetString(), pupilScene.GetProperty("board").GetString());
+        Assert.Equal(first.GetProperty("sceneKey").GetString(), pupilScene.GetProperty("sceneKey").GetString());
+        var otherLogin = await LoginAsync(client, "class-board-other", "class-board-other@example.invalid", Password);
+        var otherSession = (await otherLogin.Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", otherSession.AccessToken);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsync(prefix + classId + "/permit", null)).StatusCode);
+    }
+
+    [Fact]
     public async Task BoardPrototypePermitIsOffByDefault()
     {
         using var client = factory.CreateClient();

@@ -1,6 +1,6 @@
 namespace TestingHosting.Platform.StudentSessions;
 
-public sealed record StudentSessionRequest(string? Workspace, string? Code);
+public sealed record StudentSessionRequest(string? Workspace, string? Code, bool Persistent = false);
 
 public sealed record StudentSessionStudent(Guid Id, string DisplayName, string ProgramId, Guid WorkspaceId);
 
@@ -15,4 +15,4 @@ public sealed record StudentSessionIdentity(
     Guid StudentId,
     string DisplayName,
     string ProgramId,
-    Guid WorkspaceId);
+    Guid WorkspaceId, byte[]? CodeHashSnapshot = null);
