@@ -45,10 +45,10 @@ export function createLessonBoard(apiBase, accessToken, role = 'teacher') {
     dialog = undefined;
   }
 
-  function open(lessonId, backLabel = 'Назад к занятию', independent = false, classTarget = null) {
+  function open(lessonId, backLabel = 'Назад к занятию', independent = false, classTarget = null, sourceSelector = null) {
     if (!enabled || dialog || !accessToken() || !lessonId) return false;
     const opener = document.activeElement;
-    const openerSelector = classTarget ? `[data-open-class-board="${role === 'student' ? classTarget + '/' : ''}${CSS.escape(lessonId)}"]` : `[data-open-${independent ? 'independent' : 'lesson'}-board="${CSS.escape(lessonId)}"]`;
+    const openerSelector = sourceSelector ?? (classTarget ? `[data-open-class-board="${role === 'student' ? classTarget + '/' : ''}${CSS.escape(lessonId)}"]` : `[data-open-${independent ? 'independent' : 'lesson'}-board="${CSS.escape(lessonId)}"]`);
     dialog = document.createElement('dialog');
     dialog.setAttribute('aria-label', 'Доска занятия');
     dialog.style.cssText = 'box-sizing:border-box;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;background:white;';
@@ -111,9 +111,9 @@ export function createLessonBoard(apiBase, accessToken, role = 'teacher') {
   function updateToken() {
     dialog?.querySelector('iframe')?.contentWindow?.postMessage({type:'tas:refresh-board-session', accessToken:accessToken()}, location.origin);
   }
-  function openClass(id, kind, backLabel = 'Назад к классу') {
+  function openClass(id, kind, backLabel = 'Назад к классу', sourceSelector = null) {
     if (!boardIdPattern.test(id) || !['individual','group'].includes(kind)) return false;
-    const opened = open(id, backLabel, false, kind);
+    const opened = open(id, backLabel, false, kind, sourceSelector);
     if (opened) history.replaceState(null, '', '#class-board=' + kind + '/' + id);
     return opened;
   }

@@ -258,6 +258,11 @@ test('browser session restores once and ignores a late response after logout', a
     };
     assert.equal((await session.restore()).accessToken, 'fresh');
     assert.equal(restored, 1);
+    session.accept({teacherId:'teacher-a',workspaceId:'a',expiresAt:new Date(Date.now()+300000).toISOString()});
+    let ended = false;
+    session.watch(() => assert.fail('A different account cannot replace the active account'), () => { ended = true; });
+    assert.equal(await session.restore(), null);
+    assert.equal(ended, true);
   } finally {
     session.stop();
     globalThis.fetch = originalFetch;

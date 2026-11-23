@@ -6,7 +6,10 @@ export function createBrowserSession(apiOrigin, role) {
   const path = apiOrigin + '/api/v1/' + role + '-sessions/';
   function schedule(delay) {
     clearTimeout(timer);
-    timer = setTimeout(() => restore().catch(() => schedule(30000)), delay);
+    const expected = version;
+    timer = setTimeout(() => restore().catch(() => {
+      if (version === expected) schedule(30000);
+    }), delay);
   }
   function accept(session) {
     current = session;
@@ -18,6 +21,11 @@ export function createBrowserSession(apiOrigin, role) {
     current = null;
     pending = null;
   }
+  function account(session) {
+    return role === 'teacher'
+      ? [session.teacherId, session.workspaceId, session.workspaceRole].join('/')
+      : [session.student?.id, session.student?.workspaceId].join('/');
+  }
   function restore() {
     if (!enabled) return Promise.resolve(null);
     if (pending) return pending;
@@ -27,6 +35,11 @@ export function createBrowserSession(apiOrigin, role) {
         if (!response.ok && response.status !== 401) throw new Error('Не удалось восстановить вход. Повторите попытку.');
         const session = response.status === 204 || response.status === 401 ? null : await response.json();
         if (version !== expected) return null;
+        if (session && current && account(session) !== account(current)) {
+          stop();
+          onEnd();
+          return null;
+        }
         if (session) { accept(session); onRenew(session); }
         else if (current) { stop(); onEnd(); }
         return session;

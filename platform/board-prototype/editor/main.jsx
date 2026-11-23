@@ -32,6 +32,10 @@ function App() {
             {credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(10000)});
           if (restored.status !== 200) throw error;
           const session = await restored.json();
+          const claims = token => JSON.parse(atob(token.split('.')[1].replaceAll('-', '+').replaceAll('_', '/')));
+          const previous = claims(accessToken);
+          const renewed = claims(session.accessToken);
+          if (['sub', 'workspace_id', 'membership_id', 'role', 'workspace_role'].some(key => previous[key] !== renewed[key])) throw error;
           config.session.accessToken = session.accessToken;
           return lessonPermit(config.session);
         }

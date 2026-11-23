@@ -22,7 +22,8 @@ public sealed partial class TeacherSessionTests
         await ResetAsync(factory);
         var owner = await SeedAsync(factory, "class-board-owner", "class-board-owner@example.invalid", "owner");
         var other = await SeedAsync(factory, "class-board-other", "class-board-other@example.invalid", "owner");
-        using var client = factory.CreateClient();
+        using var enabled = BoardHost("IntegrationTests", "");
+        using var client = enabled.CreateClient();
         var login = await LoginAsync(client, "class-board-owner", "class-board-owner@example.invalid", Password);
         var session = (await login.Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
@@ -47,8 +48,8 @@ public sealed partial class TeacherSessionTests
         }
         const string prefix = "/api/v1/teacher/board-prototype/classes/individual/";
         var one = await client.PostAsync(prefix + classId + "/permit", null);
-        var first = await one.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(HttpStatusCode.OK, one.StatusCode);
+        var first = await one.Content.ReadFromJsonAsync<JsonElement>();
         var two = await client.PostAsync(prefix + classId + "/permit", null);
         var second = await two.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(first.GetProperty("board").GetString(), second.GetProperty("board").GetString());
