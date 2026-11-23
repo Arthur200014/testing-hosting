@@ -451,7 +451,12 @@
         (message ? $('loginError') : $('loginForm').elements.email).focus();
       }
       async function api(path, { method = 'GET', body, token = state.token } = {}) {
-        if (token && token === state.token) { await browserSession.fresh(); token = state.token; }
+        if (token && token === state.token) {
+          const generation = state.generation;
+          await browserSession.fresh();
+          if (generation !== state.generation) throw new Error('Сессия завершилась. Войдите ещё раз.');
+          token = state.token;
+        }
         let response;
         try {
           response = await fetch(API + boardApiPath(path), {
