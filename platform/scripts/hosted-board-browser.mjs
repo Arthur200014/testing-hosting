@@ -124,7 +124,7 @@ try {
   assert.equal(await first.page.locator('#loginForm').isVisible(), false);
   await first.page.getByRole('button', {name:'Назад к доскам',exact:true}).click();
   const classroom = await api('/api/v1/teacher/classes', first.session.accessToken, 'POST',
-    {requestId:randomUUID(),studentMembershipId:pupil.membershipId,title:'Synthetic permanent class ' + run,durationMinutes:60}, 201);
+    {requestId:randomUUID(),studentMembershipId:pupil.membershipId,title:'Synthetic permanent class ' + run.slice(0, 8),durationMinutes:60}, 201);
   const lessons = [];
   for (let day = 1; day <= 2; day++) lessons.push(await api('/api/v1/teacher/lessons', first.session.accessToken, 'POST', {
     requestId:randomUUID(),title:'Synthetic class lesson ' + day,lessonAt:`2030-01-0${day}T10:00:00Z`,individualClassId:classroom.id,
@@ -137,7 +137,7 @@ try {
   await first.page.getByRole('button', {name:'Мои классы',exact:true}).click();
   await first.page.locator('[data-open-class="' + classroom.id + '"]').click();
   await first.page.locator('[data-class-detail-tab="schedule"]').click();
-  await first.page.locator('[data-open-class-lesson="' + lessons[0].id + '"]').click();
+  await first.page.locator('[data-open-class-lesson="' + lessons[0].lessonId + '"]').click();
   await first.page.getByRole('button', {name:'Перейти к доске',exact:true}).click();
   await first.page.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
   const classFrame = first.page.frame({url:origin + '/board-pilot/board/'});
@@ -154,7 +154,7 @@ try {
   await count(classFrame, 2);
   await first.page.getByRole('button', {name:'Назад к занятию',exact:true}).click();
   await first.page.locator('[data-back-class-lessons]').click();
-  await first.page.locator('[data-open-class-lesson="' + lessons[1].id + '"]').click();
+  await first.page.locator('[data-open-class-lesson="' + lessons[1].lessonId + '"]').click();
   await first.page.getByRole('button', {name:'Перейти к доске',exact:true}).click();
   await first.page.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
   await count(first.page.frame({url:origin + '/board-pilot/board/'}), 2);
