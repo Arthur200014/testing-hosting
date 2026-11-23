@@ -1,7 +1,7 @@
 // Persistent browser credentials stay in an HttpOnly cookie. Access tokens remain in memory.
 export function createBrowserSession(apiOrigin, role) {
   const enabled = apiOrigin === location.origin;
-  let current = null, pending = null, timer, version = 0;
+  let current = null, pending = null, timer, renewAt = 0, version = 0;
   let onRenew = () => {}, onEnd = () => {};
   const path = apiOrigin + '/api/v1/' + role + '-sessions/';
   function schedule(delay) {
@@ -13,7 +13,13 @@ export function createBrowserSession(apiOrigin, role) {
   }
   function accept(session) {
     current = session;
-    if (enabled) schedule(Math.max(1000, new Date(session.expiresAt).getTime() - Date.now() - 60000));
+    if (enabled) {
+      const now = Date.now();
+      const remaining = new Date(session.expiresAt).getTime() - now;
+      const delay = Math.max(1000, remaining - Math.min(30000, remaining * 0.15));
+      renewAt = now + delay;
+      schedule(delay);
+    }
   }
   function stop() {
     version++;
@@ -48,7 +54,7 @@ export function createBrowserSession(apiOrigin, role) {
     return operation;
   }
   async function fresh() {
-    if (enabled && current && new Date(current.expiresAt).getTime() - Date.now() < 60000) await restore();
+    if (enabled && current && Date.now() >= renewAt) await restore();
   }
   function watch(renew, end) { onRenew = renew; onEnd = end; }
   return {enabled, accept, stop, restore, fresh, watch};
