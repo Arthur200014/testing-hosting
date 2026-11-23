@@ -6,7 +6,6 @@ import {chromium} from 'playwright';
 const origin = 'https://arthur200014-testing-hosting-8c4e.twc1.net';
 const published = 'https://arthur200014.github.io/testing-hosting/platform/';
 const hosted = origin + '/board-pilot/cabinet/';
-const boardPath = '/board-pilot/api/v1/teacher/board-prototype/boards';
 const password = 'Synthetic-9!' + randomBytes(24).toString('hex');
 const run = randomUUID();
 const secretValues = [password];
@@ -26,12 +25,13 @@ let deployed = false;
 for (let attempt = 0; attempt < 48; attempt++) {
   try {
     const response = await fetch(hosted + 'teacher.html', {signal:AbortSignal.timeout(15000), cache:'no-store'});
-    deployed = response.ok && (await response.text()).includes("import {createBrowserSession}");
+    const html = await response.text();
+    deployed = response.ok && html.includes('aria-label="Доски классов"') && html.includes('import {createBrowserSession}');
   } catch {}
   if (deployed) break;
   await new Promise(resolve => setTimeout(resolve, 10000));
 }
-assert.ok(deployed, 'Hosted all-teacher cabinet image must be published');
+assert.ok(deployed, 'Waiting for Timeweb deployment: hosted cabinet did not serve the class-only board version');
 const browser = await chromium.launch({headless:true});
 try {
   async function signup(side) {
@@ -54,23 +54,6 @@ try {
     await page.locator('#app:not([hidden])').waitFor();
     return {page,context,email,session};
   }
-  async function createBoard(account, title) {
-    const page = account.page;
-    await page.getByRole('button', {name:'Доски',exact:true}).click();
-    await page.getByRole('button', {name:'Новая доска',exact:true}).click();
-    const dialog = page.getByRole('dialog', {name:'Новая доска',exact:true});
-    await dialog.getByLabel('Название').fill(title);
-    await dialog.getByRole('button', {name:'Сохранить',exact:true}).click();
-    const launch = page.locator('[data-board-cards] article').filter({hasText:title}).locator('[data-open-independent-board]');
-    await launch.waitFor();
-    return {id:await launch.getAttribute('data-open-independent-board'),title};
-  }
-  async function openBoard(account, board) {
-    await account.page.getByRole('button', {name:'Доски',exact:true}).click();
-    await account.page.locator('[data-open-independent-board="' + board.id + '"]').click();
-    await account.page.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
-    return account.page.frame({url:origin + '/board-pilot/board/'});
-  }
   async function count(frame, expected) {
     await frame.waitForFunction(n => window.__BOARD_EDITOR?.getSceneElements().filter(x => !x.isDeleted).length === n, expected);
     await frame.locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
@@ -86,43 +69,10 @@ try {
   const first = await signup('first');
   const second = await signup('second');
   assert.notEqual(first.session.workspaceId, second.session.workspaceId);
-  const board = await createBoard(first, 'Synthetic live board ' + run);
-  await createBoard(second, 'Synthetic separate board ' + run);
-  await api(boardPath + '/' + board.id + '/permit', second.session.accessToken, 'POST', undefined, 404);
-  await api(boardPath + '/' + board.id, second.session.accessToken, 'PUT', {title:'Foreign overwrite'}, 404);
-  const foreignCatalog = await api(boardPath, second.session.accessToken);
-  assert.equal(foreignCatalog.some(x => x.id === board.id), false);
-  const frame = await openBoard(first, board);
-  await draw(first.page, frame);
-  await count(frame, 1);
-
   const [program] = await api('/api/v1/teacher/programs', first.session.accessToken);
   const pupil = await api('/api/v1/teacher/students', first.session.accessToken, 'POST',
     {requestId:randomUUID(),programId:program.id,studentName:'Synthetic live board pupil'}, 201);
   secretValues.push(pupil.inviteCode);
-  await api(boardPath + '/' + board.id + '/members/' + pupil.membershipId,
-    first.session.accessToken, 'PUT', {role:'editor'}, 204);
-  const pupilContext = await browser.newContext({viewport:{width:1348,height:926}});
-  const pupilPage = await pupilContext.newPage();
-  pupilPage.setDefaultTimeout(30000);
-  await pupilPage.goto(published + 'student.html#board=' + board.id);
-  await pupilPage.waitForURL(hosted + 'student.html#board=' + board.id);
-  await pupilPage.locator('#loginForm [name="workspace"]').fill(first.session.workspace);
-  await pupilPage.locator('#loginForm [name="code"]').fill(pupil.inviteCode);
-  await pupilPage.locator('#loginForm button[type="submit"]').click();
-  await pupilPage.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
-  const pupilFrame = pupilPage.frame({url:origin + '/board-pilot/board/'});
-  await count(pupilFrame, 1);
-  await draw(pupilPage, pupilFrame, 150);
-  await count(pupilFrame, 2);
-  await count(frame, 2);
-  await first.page.getByRole('button', {name:'Назад к доскам',exact:true}).click();
-  await first.page.reload();
-  await first.page.locator('#app:not([hidden])').waitFor();
-  const reopened = await openBoard(first, board);
-  await count(reopened, 2);
-  assert.equal(await first.page.locator('#loginForm').isVisible(), false);
-  await first.page.getByRole('button', {name:'Назад к доскам',exact:true}).click();
   const classroom = await api('/api/v1/teacher/classes', first.session.accessToken, 'POST',
     {requestId:randomUUID(),studentMembershipId:pupil.membershipId,title:'Synthetic permanent class ' + run.slice(0, 8),durationMinutes:60}, 201);
   const lessons = [];
@@ -131,31 +81,51 @@ try {
     participants:[{membershipId:pupil.membershipId,durationMinutes:60,attendanceStatus:'Unknown'}]
   }, 201));
   await api('/board-pilot/api/v1/teacher/board-prototype/classes/individual/' + classroom.id + '/permit', second.session.accessToken, 'POST', undefined, 404);
-  await first.page.locator('#refresh').click();
-  await first.page.locator('[data-open-class-board="' + classroom.id + '"]').waitFor();
-  assert.equal(await first.page.locator('[data-open-class-board="' + classroom.id + '"]').count(), 1);
+  await first.page.getByRole('button', {name:'Доски',exact:true}).click();
+  const catalog = first.page.locator('[data-board-cards]');
+  const teacherBoard = '[data-open-class-board="' + classroom.id + '"]';
+  await catalog.locator(teacherBoard).waitFor();
+  assert.equal(await catalog.locator('article').count(), 1);
+  assert.equal(await first.page.getByText('Доски прежних занятий', {exact:true}).count(), 0);
+  assert.equal(await first.page.getByRole('button', {name:'Новая доска',exact:true}).count(), 0);
   await first.page.getByRole('button', {name:'Мои классы',exact:true}).click();
   await first.page.locator('[data-open-class="' + classroom.id + '"]').click();
-  await first.page.locator('[data-class-detail-tab="schedule"]').click();
-  await first.page.locator('[data-open-class-lesson="' + lessons[0].lessonId + '"]').click();
-  await first.page.getByRole('button', {name:'Перейти к доске',exact:true}).click();
+  await first.page.locator('.class-detail-tabs [data-class-detail-tab="schedule"]').click();
+  for (const lesson of lessons) {
+    await first.page.locator('[data-open-class-lesson="' + lesson.lessonId + '"]').click();
+    const detail = first.page.locator('.class-lesson-detail');
+    await detail.locator('h1').waitFor();
+    assert.equal(await detail.getByRole('button', {name:/доск/i}).count(), 0);
+    await first.page.locator('[data-back-class-lessons]').click();
+  }
+  await first.page.locator('.class-detail-banner').locator(teacherBoard).click();
   await first.page.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
   const classFrame = first.page.frame({url:origin + '/board-pilot/board/'});
   await draw(first.page, classFrame);
   await count(classFrame, 1);
-  await pupilPage.getByRole('button', {name:'Назад к доскам',exact:true}).click();
-  await pupilPage.locator('[data-refresh-student-boards]').click();
-  await pupilPage.locator('[data-open-class-board="individual/' + classroom.id + '"]').click();
+
+  const pupilContext = await browser.newContext({viewport:{width:1348,height:926}});
+  const pupilPage = await pupilContext.newPage();
+  pupilPage.setDefaultTimeout(30000);
+  await pupilPage.goto(published + 'student.html');
+  await pupilPage.waitForURL(hosted + 'student.html');
+  await pupilPage.locator('#loginForm [name="workspace"]').fill(first.session.workspace);
+  await pupilPage.locator('#loginForm [name="code"]').fill(pupil.inviteCode);
+  await pupilPage.locator('#loginForm button[type="submit"]').click();
+  const pupilBoards = pupilPage.locator('#studentBoardList');
+  const pupilBoard = pupilBoards.locator('[data-open-class-board="individual/' + classroom.id + '"]');
+  await pupilBoard.waitFor();
+  assert.equal(await pupilBoards.getByRole('button').count(), 1);
+  await pupilBoard.click();
   await pupilPage.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
   const pupilClassFrame = pupilPage.frame({url:origin + '/board-pilot/board/'});
   await count(pupilClassFrame, 1);
   await draw(pupilPage, pupilClassFrame, 150);
   await count(pupilClassFrame, 2);
   await count(classFrame, 2);
-  await first.page.getByRole('button', {name:'Назад к занятию',exact:true}).click();
-  await first.page.locator('[data-back-class-lessons]').click();
-  await first.page.locator('[data-open-class-lesson="' + lessons[1].lessonId + '"]').click();
-  await first.page.getByRole('button', {name:'Перейти к доске',exact:true}).click();
+  await first.page.getByRole('button', {name:'Назад к классу',exact:true}).click();
+  await first.page.getByRole('button', {name:'Доски',exact:true}).click();
+  await catalog.locator(teacherBoard).click();
   await first.page.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
   await count(first.page.frame({url:origin + '/board-pilot/board/'}), 2);
   await first.page.reload();
@@ -179,7 +149,7 @@ try {
   await second.page.reload();
   await second.page.locator('#loginForm button[type="submit"]:enabled').waitFor();
   assert.equal(await second.page.locator('#app').isVisible(), false);
-  console.log('PASS: persistent teacher/pupil login, class board shared across two lessons, joint drawings, reload and new browser context, logout and tenant isolation on Timeweb');
+  console.log('PASS: persistent teacher/pupil login, class-only cabinet and catalog, joint drawings, reload and new browser context, logout and tenant isolation on Timeweb');
 } catch (error) {
   let message = String(error.message);
   for (const secret of secretValues.filter(Boolean)) message = message.replaceAll(secret, '[redacted]');

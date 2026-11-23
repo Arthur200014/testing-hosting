@@ -51,7 +51,7 @@
           <input name="code" maxlength="64" minlength="64" pattern="[A-Fa-f0-9]{64}" autocomplete="off" required></label>
           <button type="submit">Вступить в группу</button></form>
       </section>
-      <section class="card" id="studentBoards" hidden><h2>Доски от преподавателя</h2>
+      <section class="card" id="studentBoards" hidden><h2>Доски классов</h2>
         <button type="button" data-refresh-student-boards>Обновить доски</button><p id="boardLinkStatus" role="status" tabindex="-1" hidden></p><div id="studentBoardList"></div>
       </section>
       <section class="card"><h2>Файлы от преподавателя</h2><button type="button" data-refresh-files>Обновить файлы</button><div id="studentFiles"></div></section><section class="card"><h2>Записи занятий</h2><p class="muted">Ссылки на внешний источник. Права просмотра у источника настраиваются отдельно.</p><button type="button" data-refresh-recordings>Обновить записи</button><div id="studentRecordings"></div></section><div id="assignments"></div></section>
@@ -68,7 +68,6 @@
     const browserSession = createBrowserSession(new URL(API).origin, 'student');
     const classBoards = new Map();
     const sharedBoards = createLessonBoard(new URL(API).origin, () => token, 'student');
-    let sharedBoardIds = new Set();
     let pendingBoardId = sharedBoards.enabled ? boardIdFromLink(location.hash) : null;
     let boardLoadVersion = 0;
     $('boardLoginHint').hidden = !pendingBoardId;
@@ -107,46 +106,52 @@
       try {const rows=await api('recordings');if(sessionVersion===expected) $('studentRecordings').innerHTML=renderStudentRecordings(rows,safe);}
       catch {if(sessionVersion===expected) $('studentRecordings').textContent='Не удалось загрузить записи.';}
     }
+    async function openSharedLink() {
+      const id = pendingBoardId;
+      if (!id || !token) return;
+      const expected = sessionVersion;
+      try {
+        const boards = await api('student/board-prototype/boards');
+        if (sessionVersion !== expected || pendingBoardId !== id) return;
+        if (!boards.some(board => board.id === id)) {
+          pendingBoardId = null;
+          boardLinkMessage('По этой ссылке доска недоступна для вашего аккаунта.');
+          $('boardLinkStatus').focus();
+        } else if (sharedBoards.open(id, 'Назад к доскам', true)) {
+          pendingBoardId = null;
+          boardLinkMessage('');
+        }
+      } catch {
+        if (sessionVersion === expected && pendingBoardId === id) boardLinkMessage('Не удалось открыть доску по ссылке. Обновите доски.');
+      }
+    }
     async function loadSharedBoards() {
       if (!sharedBoards.enabled) return;
       $('studentBoards').hidden = false;
       const expected = sessionVersion;
       const version = ++boardLoadVersion;
       try {
-        const [boards, classes] = await Promise.all([api('student/board-prototype/boards'),api('student/board-prototype/classes').catch(error => { if (error.status === 404) return []; throw error; })]);
+        const classes = await api('student/board-prototype/classes');
         if (sessionVersion !== expected || version !== boardLoadVersion) return;
         classBoards.clear();
         for (const item of classes) classBoards.set(item.kind + '/' + item.id, item);
-        sharedBoardIds = new Set(boards.map(board => board.id));
-        $('studentBoardList').innerHTML = boards.length ? boards.map(board =>
-          `<p><button type="button" data-open-independent-board="${safe(board.id)}">${safe(board.title)}</button>${board.role === 'viewer' ? ' · Только просмотр' : ''}</p>`).join('')
-          : classes.length ? '' : '<p class="muted">Доступных досок пока нет.</p>';
-        const classLinks = classes.map(item => `<p><strong>${safe(item.title)}</strong> <button type="button" data-open-class-board="${safe(item.kind + '/' + item.id)}">Перейти на доску</button></p>`).join('');
-        $('studentBoardList').insertAdjacentHTML('afterbegin', classLinks);
+        $('studentBoardList').innerHTML = classes.length ? classes.map(item =>
+          `<p><strong>${safe(item.title)}</strong> <button type="button" data-open-class-board="${safe(item.kind + '/' + item.id)}">Перейти на доску</button></p>`).join('')
+          : '<p class="muted">Доски ваших классов появятся здесь.</p>';
         sharedBoards.restoreClass();
-        if (pendingBoardId) {
-          if (!sharedBoardIds.has(pendingBoardId)) {
-            boardLinkMessage('По этой ссылке доска недоступна для вашего аккаунта.');
-            $('boardLinkStatus').focus();
-            pendingBoardId = null;
-          } else if (sharedBoards.open(pendingBoardId, 'Назад к доскам', true)) {
-            boardLinkMessage('');
-            pendingBoardId = null;
-          }
-        }
       } catch {
         if (sessionVersion !== expected || version !== boardLoadVersion) return;
-        sharedBoardIds.clear();
         classBoards.clear();
-        $('studentBoardList').textContent = 'Не удалось загрузить доски.';
+        $('studentBoardList').textContent = 'Не удалось загрузить доски классов.';
       }
+      if (sessionVersion === expected && version === boardLoadVersion) await openSharedLink();
     }
     window.addEventListener('hashchange', () => {
       if (!sharedBoards.enabled) return;
       pendingBoardId = boardIdFromLink(location.hash);
       $('boardLoginHint').hidden = !pendingBoardId;
       boardLinkMessage('');
-      if (pendingBoardId && token) void loadSharedBoards();
+      if (pendingBoardId && token) void openSharedLink();
     });
     $('dashboard').addEventListener('click',async event=>{
       const classButton = event.target.closest('[data-open-class-board]');
@@ -158,11 +163,6 @@
 
       const refreshBoards = event.target.closest('[data-refresh-student-boards]');
       if (refreshBoards) { await loadSharedBoards(); return; }
-      const board = event.target.closest('[data-open-independent-board]');
-      if (board && sharedBoardIds.has(board.dataset.openIndependentBoard)) {
-        sharedBoards.open(board.dataset.openIndependentBoard, 'Назад к доскам', true);
-        return;
-      }
       const recordingRefresh=event.target.closest('[data-refresh-recordings]');
       if(recordingRefresh) {recordingRefresh.disabled=true;try{await loadRecordings();}finally{recordingRefresh.disabled=false;}return;}
       const recordingOpen=event.target.closest('[data-recording-open]');
@@ -278,7 +278,6 @@
       sessionVersion++;
       token = '';
       sharedBoards.close();
-      sharedBoardIds.clear();
       classBoards.clear();
       pendingBoardId = sharedBoards.enabled ? boardIdFromLink(location.hash) : null;
       $('boardLoginHint').hidden = !pendingBoardId;
