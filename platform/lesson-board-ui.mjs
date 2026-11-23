@@ -50,7 +50,7 @@ export function createLessonBoard(apiBase, accessToken, role = 'teacher') {
     const opener = document.activeElement;
     const openerSelector = sourceSelector ?? (classTarget ? `[data-open-class-board="${role === 'student' ? classTarget + '/' : ''}${CSS.escape(lessonId)}"]` : `[data-open-${independent ? 'independent' : 'lesson'}-board="${CSS.escape(lessonId)}"]`);
     dialog = document.createElement('dialog');
-    dialog.setAttribute('aria-label', 'Доска занятия');
+    dialog.setAttribute('aria-label', classTarget ? 'Доска класса' : 'Доска');
     dialog.style.cssText = 'box-sizing:border-box;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;background:white;';
     const toolbar = document.createElement('header');
     toolbar.style.cssText = 'display:flex;align-items:center;gap:16px;height:52px;padding:0 16px;border-bottom:1px solid #dedde8;';

@@ -1,7 +1,5 @@
 export const teacherPaths = {
   profile: 'profile', profileSettings: 'profile/settings', workspaceAccess: 'workspace-access', invoices: 'tuition-invoices',
-  boardFolders: 'board-prototype/boards/folders',
-  boardRecords: 'board-prototype/boards',
   classes: 'classes', groups: 'groups', scheduleRules: 'schedule-rules', programs: 'programs', students: 'students', lessons: 'lessons',
   catalog: 'homework/catalog', assignments: 'homework/assignments',
   submissions: 'homework/submissions', subscriptions: 'subscriptions',
@@ -47,7 +45,7 @@ export function teacherResourcePath(key) {
 export const teacherNeeds = {
   profile: ['profile'], workspaceAccess: ['profile','workspaceAccess'],
   invoices: ['students','invoices'],
-  boards: ['classes', 'groups', 'lessons', 'students', 'boardRecords', 'boardFolders'],
+  boards: ['classes', 'groups'],
   overview: ['classes', 'groups', 'students', 'lessons', 'scheduleRules'],
   students: ['students', 'programs'],
   lessons: ['classes', 'groups', 'scheduleRules', 'students', 'programs', 'lessons', 'catalog'],

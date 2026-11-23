@@ -172,32 +172,32 @@ test('initial failed board reads expose an error and a successful retry clears i
   const state = freshState();
   const denied = Object.assign(new Error('Board workspace denied'), {status:404});
   let updates = 0;
-  await assert.rejects(loadTeacherKey(state, 'boardRecords', async () => { throw denied; },
+  await assert.rejects(loadTeacherKey(state, 'classes', async () => { throw denied; },
     () => { updates++; }), /denied/);
-  assert.equal(state.loadErrors.boardRecords, denied);
-  assert.equal(Object.hasOwn(state.data, 'boardRecords'), false);
+  assert.equal(state.loadErrors.classes, denied);
+  assert.equal(Object.hasOwn(state.data, 'classes'), false);
   assert.equal(updates, 1);
-  await loadTeacherKey(state, 'boardRecords', async () => [], () => { updates++; });
-  assert.equal(state.loadErrors.boardRecords, undefined);
-  assert.deepEqual(state.data.boardRecords, []);
+  await loadTeacherKey(state, 'classes', async () => [], () => { updates++; });
+  assert.equal(state.loadErrors.classes, undefined);
+  assert.deepEqual(state.data.classes, []);
   assert.equal(updates, 2);
 });
 
 test('late failures cannot contaminate another session or replace post-mutation results', async () => {
   const state = freshState();
-  for (const reset of [() => invalidateTeacherData(state), () => invalidateTeacherKeys(state, ['boardRecords'])]) {
+  for (const reset of [() => invalidateTeacherData(state), () => invalidateTeacherKeys(state, ['classes'])]) {
     let fail;
-    const pending = loadTeacherKey(state, 'boardRecords', () => new Promise((_, reject) => { fail = reject; }),
+    const pending = loadTeacherKey(state, 'classes', () => new Promise((_, reject) => { fail = reject; }),
       () => { throw new Error('Stale error update'); });
     await Promise.resolve();
     reset();
-    await loadTeacherKey(state, 'boardRecords', async () => [], () => {});
+    await loadTeacherKey(state, 'classes', async () => [], () => {});
     const rejection = assert.rejects(pending, /old request/);
     fail(new Error('old request'));
     await rejection;
-    assert.deepEqual(state.data.boardRecords, []);
-    assert.equal(state.loadErrors.boardRecords, undefined);
-    invalidateTeacherKeys(state, ['boardRecords']);
+    assert.deepEqual(state.data.classes, []);
+    assert.equal(state.loadErrors.classes, undefined);
+    invalidateTeacherKeys(state, ['classes']);
   }
 });
 
@@ -223,17 +223,20 @@ test('published cabinet entry keeps share links and uses the hosted same-origin 
 });
 
 test('board catalog has one entry per class across multiple lessons', async () => {
-  const {lessonBoardEntries, renderBoardCards} = await import('./board-catalog-ui.mjs');
-  const entries = lessonBoardEntries({
-    classes:[{id:'class-a',title:'Class A'}], groups:[{id:'group-b',title:'Group B'}],
+  const {classBoardEntries, renderBoardCards} = await import('./board-catalog-ui.mjs');
+  const entries = classBoardEntries({
+    classes:[{id:'class-a',title:'Class A'},{id:'closed',title:'Archived',isArchived:true}],
+    groups:[{id:'group-b',title:'Group B'}],
+    boardRecords:[{id:'standalone',title:'Standalone'},{id:'lesson-board',lessonId:'lesson-1',title:'Lesson board'}],
     lessons:[{id:'lesson-1',individualClassId:'class-a'},{id:'lesson-2',individualClassId:'class-a'},
       {id:'lesson-3',groupClassId:'group-b'}]
   });
   assert.equal(entries.length, 2);
-  assert.deepEqual(entries.map(x => [x.classId,x.classKind]), [['class-a','individual'],['group-b','group']]);
-  const cards = renderBoardCards(entries, {search:'',sort:'title'}, String, String);
+  assert.deepEqual(entries.map(x => [x.classId,x.kind]), [['class-a','individual'],['group-b','group']]);
+  const cards = renderBoardCards(entries, {search:''}, String);
+  assert.deepEqual(teacherNeeds.boards, ['classes','groups']);
   assert.equal((cards.match(/data-open-class-board=/g) || []).length, 2);
-  assert.equal(cards.includes('data-open-lesson-board='), false);
+  assert.doesNotMatch(cards, /data-open-(?:independent|lesson)-board=|Archived|Standalone|Lesson board/);
 });
 
 test('browser session restores once and ignores a late response after logout', async () => {
