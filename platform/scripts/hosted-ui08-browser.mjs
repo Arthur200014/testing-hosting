@@ -155,7 +155,10 @@ try {
     await menu.press('Enter');
     const trigger = navigation.locator('[data-view="' + section + '"]');
     await trigger.press('Enter');
-    await phone.locator('#viewTitle').filter({hasText:title}).waitFor();
+    const sectionHeading = section === 'overview'
+      ? phone.locator('#content').getByRole('heading',{name:title,exact:true,level:1})
+      : phone.locator('#viewTitle').filter({hasText:title});
+    await sectionHeading.waitFor();
     await phone.locator('#refresh:enabled').waitFor();
     assert.equal(await trigger.getAttribute('aria-current'),'page');
     await navigation.waitFor({state:'hidden'});
@@ -167,7 +170,7 @@ try {
   await phone.locator('#loginForm').waitFor();
   assert.ok(await phone.locator('#loginForm [name=email]').evaluate(node => node === document.activeElement));
   await phone.getByRole('link',{name:'О платформе',exact:true}).press('Enter');
-  await phone.waitForURL(landing);
+  await phone.waitForURL(landing,{waitUntil:'domcontentloaded'});
   await phoneContext.close();
   console.log('PASS: nine live teacher sections at 390px, keyboard menu, current section, Escape/focus return, logout and landing return');
 
@@ -198,7 +201,7 @@ try {
   await form.waitFor();
   assert.ok(await form.locator('[name=workspace]').evaluate(node => node === document.activeElement));
   await student.getByRole('link',{name:'О платформе',exact:true}).press('Enter');
-  await student.waitForURL(landing);
+  await student.waitForURL(landing,{waitUntil:'domcontentloaded'});
   await pupilContext.close();
   console.log('PASS: 390px pupil sign-in, class board keyboard open and close, focus restoration, logout and landing return');
 } catch (error) {
