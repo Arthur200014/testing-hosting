@@ -49,6 +49,9 @@
         <label>Код ученика<input name="code" required autocomplete="off"></label><button type="submit">Войти</button></form>
     </section>
     <section id="dashboard" aria-label="Кабинет ученика" tabindex="-1" hidden><p><span id="studentName"></span> · <button id="refreshStudent" type="button">Обновить данные</button> <button id="logout" type="button">Выйти</button></p>
+      <details class="card" id="studentAnnouncements"><summary>Объявления классов</summary>
+        <div id="studentAnnouncementRows" aria-live="polite"></div>
+      </details>
       <section class="card"><h2>Приглашение в класс</h2><p class="muted">После входа введите полученный от преподавателя код приглашения. Это не код доступа к кабинету.</p><form id="classInvitationForm"><label>Одноразовый код приглашения<input name="code" maxlength="64" minlength="64" pattern="[A-Fa-f0-9]{64}" autocomplete="off" required></label><button type="submit">Подтвердить приглашение</button></form></section>
       <section class="card"><h2>Приглашение в группу</h2>
         <p class="muted">Код группы передаёт преподаватель. Авторизация ученика остаётся прежней; места ограничены настройками группы.</p>
@@ -106,6 +109,24 @@
         $('studentFiles').innerHTML=files.length?files.map(x=>`<div class="card"><strong>${safe(x.title)}</strong><p>${safe(x.fileName)} · ${safe(fileSize(x.sizeBytes))}</p>${materialAction(x,safe)}</div>`).join(''):'<p class="muted">Доступных файлов пока нет.</p>';
       } catch {if(sessionVersion===expected) $('studentFiles').textContent='Не удалось загрузить список файлов.';}
     }
+    async function loadAnnouncements() {
+      const expected = sessionVersion;
+      const list = $('studentAnnouncementRows');
+      list.textContent = 'Загружаем объявления…';
+      try {
+        const rows = await api('class-announcements');
+        if (sessionVersion !== expected) return;
+        list.innerHTML = rows.length ? rows.map(row => `<article class="card">
+          <h3>${safe(row.title)}</h3><small>${safe(row.classTitle)} · ${safe(date(row.publishedAt))}</small>
+          <p style="white-space:pre-wrap;overflow-wrap:anywhere">${safe(row.body)}</p></article>`).join('')
+          : '<p>Объявлений пока нет.</p>';
+      } catch {
+        if (sessionVersion === expected) list.textContent = 'Не удалось загрузить объявления. Обновите данные.';
+      }
+    }
+    $('studentAnnouncements').addEventListener('toggle', event => {
+      if (token && event.currentTarget.open) void loadAnnouncements();
+    });
     async function loadRecordings() {
       const expected=sessionVersion;
       try {const rows=await api('recordings');if(sessionVersion===expected) $('studentRecordings').innerHTML=renderStudentRecordings(rows,safe);}
@@ -197,7 +218,7 @@
       for (const form of $('assignments').querySelectorAll('[data-assignment]')) {
         if (drafts.has(form.dataset.assignment)) form.elements.answer.value = drafts.get(form.dataset.assignment);
       }
-      await Promise.all([loadFiles(),loadRecordings()]);
+      await Promise.all([loadFiles(),loadRecordings(), ...($('studentAnnouncements').open ? [loadAnnouncements()] : [])]);
       if (sessionVersion !== expected) return false;
       message('Задания загружены.');
       return true;
@@ -305,6 +326,8 @@
       boardLinkMessage('');
       pending.clear();
       for (const id of ['studentBoardList','assignments','studentFiles','studentRecordings']) $(id).replaceChildren();
+      $('studentAnnouncements').open = false;
+      $('studentAnnouncementRows').replaceChildren();
       $('dashboard').hidden = true;
       $('login').hidden = false;
       message(text);

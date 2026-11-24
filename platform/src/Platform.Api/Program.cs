@@ -65,6 +65,7 @@ builder.Services.AddScoped<TeacherStudentEditor>();
 builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddScoped<PupilHistoryReader>();
 builder.Services.AddScoped<PupilFeedbackService>();
+builder.Services.AddScoped<ClassAnnouncementService>();
 builder.Services.AddScoped<TeacherClassService>();
 builder.Services.AddScoped<TeacherMaterialService>();
 builder.Services.AddScoped<TeacherFileService>();
@@ -979,6 +980,27 @@ app.MapPost("/api/v1/teacher/materials/{id:guid}/move",async(Guid id,MoveMateria
 app.MapGet("/api/v1/teacher/recordings",async(ClaimsPrincipal principal,HttpResponse response,LessonRecordingService recordings,CancellationToken ct)=> {
     response.Headers.CacheControl="no-store";return Results.Ok(await recordings.TeacherListAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),ct));
 }).RequireAuthorization("teacher");
+var announcements = app.MapGroup("/api/v1/teacher/class-announcements/{kind}/{classId:guid}").RequireAuthorization("teacher");
+announcements.MapGet("", async (string kind, Guid classId, ClaimsPrincipal principal, HttpResponse response,
+    ClassAnnouncementService service, CancellationToken ct) =>
+{
+    response.Headers.CacheControl = "no-store";
+    return await service.TeacherList(Guid.Parse(principal.FindFirstValue("workspace_id")!), kind, classId, ct) is {} rows
+        ? Results.Ok(rows) : Results.NotFound();
+});
+announcements.MapPost("", async (string kind, Guid classId, PublishClassAnnouncement request,
+    ClaimsPrincipal principal, ClassAnnouncementService service, CancellationToken ct) =>
+    NativeWrite(await service.Publish(Guid.Parse(principal.FindFirstValue("workspace_id")!), kind, classId, request, ct)));
+announcements.MapPost("/{id:guid}/withdraw", async (string kind, Guid classId, Guid id,
+    ClaimsPrincipal principal, ClassAnnouncementService service, CancellationToken ct) =>
+    await service.Withdraw(Guid.Parse(principal.FindFirstValue("workspace_id")!), kind, classId, id, ct)
+        ? Results.NoContent() : Results.NotFound());
+app.MapGet("/api/v1/class-announcements", async (ClaimsPrincipal principal, HttpResponse response,
+    ClassAnnouncementService service, CancellationToken ct) =>
+{
+    response.Headers.CacheControl = "no-store";
+    return await service.StudentList(principal, ct) is {} rows ? Results.Ok(rows) : Results.Unauthorized();
+}).RequireAuthorization("student");
 app.MapPost("/api/v1/teacher/recordings",async(RecordingWriteRequest request,ClaimsPrincipal principal,LessonRecordingService recordings,CancellationToken ct)=>
     NativeWrite(await recordings.WriteAsync(Guid.Parse(principal.FindFirstValue("workspace_id")!),null,request,ct))).RequireAuthorization("teacher");
 app.MapPost("/api/v1/teacher/recordings/{id:guid}/edit",async(Guid id,RecordingWriteRequest request,ClaimsPrincipal principal,LessonRecordingService recordings,CancellationToken ct)=>
