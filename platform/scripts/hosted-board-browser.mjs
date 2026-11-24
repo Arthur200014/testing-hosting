@@ -81,6 +81,9 @@ try {
     participants:[{membershipId:pupil.membershipId,durationMinutes:60,attendanceStatus:'Unknown'}]
   }, 201));
   await api('/board-pilot/api/v1/teacher/board-prototype/classes/individual/' + classroom.id + '/permit', second.session.accessToken, 'POST', undefined, 404);
+  // The fixtures were created through the API after the cabinet loaded its class list.
+  await first.page.locator('#refresh').click();
+  await first.page.locator('[data-open-class="' + classroom.id + '"]').waitFor();
   await first.page.getByRole('button', {name:'Доски',exact:true}).click();
   const catalog = first.page.locator('[data-board-cards]');
   const teacherBoard = '[data-open-class-board="' + classroom.id + '"]';
