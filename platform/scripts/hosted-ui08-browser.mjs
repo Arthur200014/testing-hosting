@@ -53,8 +53,25 @@ async function publicPage(page, width) {
   }
 }
 async function enterFromLanding(page, role) {
-  await page.getByRole('link',{name:role === 'teacher' ? 'Войти преподавателю' : 'Войти ученику',exact:true}).press('Enter');
-  await page.waitForURL(cabinet + role + '.html');
+  const link = page.getByRole('link',{name:role === 'teacher' ? 'Войти преподавателю' : 'Войти ученику',exact:true});
+  const navigations = [];
+  const recordLocation = frame => {
+    if (frame === page.mainFrame()) {
+      const url = new URL(frame.url());
+      navigations.push(url.origin + url.pathname);
+    }
+  };
+  page.on('framenavigated',recordLocation);
+  try {
+    await link.press('Enter');
+    await page.waitForURL(url => url.origin + url.pathname === cabinet + role + '.html',{waitUntil:'domcontentloaded'});
+  } catch (error) {
+    const url = new URL(page.url());
+    throw new Error('Opening ' + role + ' via the landing link ended at ' + url.origin + url.pathname +
+      '. Navigation history: ' + JSON.stringify(navigations) + '. ' + error.message);
+  } finally {
+    page.off('framenavigated',recordLocation);
+  }
 }
 
 try {
@@ -62,11 +79,13 @@ try {
   const narrow = await narrowContext.newPage();
   narrow.setDefaultTimeout(25000);
   await publicPage(narrow,320);
+  stage = '320px teacher entry and return';
   await enterFromLanding(narrow,'teacher');
   await narrow.getByRole('button',{name:'Войти',exact:true}).waitFor();
   await fit(narrow,320,'Teacher sign-in');
   await narrow.getByRole('link',{name:'О платформе',exact:true}).press('Enter');
-  await narrow.waitForURL(landing);
+  await narrow.waitForURL(landing,{waitUntil:'domcontentloaded'});
+  stage = '320px pupil entry';
   await enterFromLanding(narrow,'student');
   await narrow.locator('#loginForm [name=code]').waitFor();
   await fit(narrow,320,'Pupil sign-in');
