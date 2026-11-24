@@ -128,15 +128,27 @@ services:
       timeout: 3s
       retries: 30
 
+  test-redis:
+    image: redis:8.2-alpine
+    profiles: ["test"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
   tests:
     build:
       context: ./platform
       target: test-runner
     profiles: ["test"]
     environment:
+      TEST_REDIS_CONNECTION_STRING: test-redis:6379
       TEST_DATABASE_CONNECTION_STRING: Host=test-db;Port=5432;Database=platform_tests;Username=platform_tests;Password=integration-test-password-123
     depends_on:
       test-db:
+        condition: service_healthy
+      test-redis:
         condition: service_healthy
 
 volumes:

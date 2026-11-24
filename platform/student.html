@@ -38,12 +38,17 @@
 </head>
 <body>
   <main><a class="entry-link" href="./">О платформе</a><h1>Мои домашние задания</h1><p id="notice" role="status" tabindex="-1" class="muted"></p>
-    <section id="login" class="card"><h2>Войти по коду ученика</h2>
+    <section id="sessionStartup" class="card" aria-label="Открытие кабинета">
+      <p id="sessionStartupStatus" role="status">Открываем кабинет…</p>
+      <button id="sessionStartupRetry" type="button" hidden>Повторить</button>
+      <noscript><p>Для входа в кабинет включите JavaScript.</p></noscript>
+    </section>
+    <section id="login" class="card" hidden><h2>Войти по коду ученика</h2>
       <p id="boardLoginHint" class="muted" hidden>Войдите по коду ученика, чтобы открыть доску.</p>
       <form id="loginForm"><label>Пространство преподавателя<input name="workspace" required autocomplete="off"></label>
         <label>Код ученика<input name="code" required autocomplete="off"></label><button type="submit">Войти</button></form>
     </section>
-    <section id="dashboard" aria-label="Кабинет ученика" tabindex="-1" hidden><p><span id="studentName"></span> · <button id="logout" type="button">Выйти</button></p>
+    <section id="dashboard" aria-label="Кабинет ученика" tabindex="-1" hidden><p><span id="studentName"></span> · <button id="refreshStudent" type="button">Обновить данные</button> <button id="logout" type="button">Выйти</button></p>
       <section class="card"><h2>Приглашение в класс</h2><p class="muted">После входа введите полученный от преподавателя код приглашения. Это не код доступа к кабинету.</p><form id="classInvitationForm"><label>Одноразовый код приглашения<input name="code" maxlength="64" minlength="64" pattern="[A-Fa-f0-9]{64}" autocomplete="off" required></label><button type="submit">Подтвердить приглашение</button></form></section>
       <section class="card"><h2>Приглашение в группу</h2>
         <p class="muted">Код группы передаёт преподаватель. Авторизация ученика остаётся прежней; места ограничены настройками группы.</p>
@@ -57,7 +62,7 @@
       <section class="card"><h2>Файлы от преподавателя</h2><button type="button" data-refresh-files>Обновить файлы</button><div id="studentFiles"></div></section><section class="card"><h2>Записи занятий</h2><p class="muted">Ссылки на внешний источник. Права просмотра у источника настраиваются отдельно.</p><button type="button" data-refresh-recordings>Обновить записи</button><div id="studentRecordings"></div></section><div id="assignments"></div></section>
   </main>
   <script type="module">
-    import {createBrowserSession} from './browser-session.mjs';
+    import {createBrowserSession, startCabinetSession} from './browser-session.mjs';
     import { boardApiPath, boardIdFromLink, createLessonBoard } from './lesson-board-ui.mjs';
     import { materialAction, saveProtectedFile, fileSize } from './material-file.mjs';
     import { nativeHomeworkDeadlineStatus } from './homework-deadline.mjs';
@@ -197,14 +202,30 @@
       message('Задания загружены.');
       return true;
     }
+    async function enterSession(session, focus = false) {
+      browserSession.accept(session);
+      token = session.accessToken;
+      $('studentName').textContent = session.student?.displayName || 'Ученик';
+      $('login').hidden = true;
+      $('sessionStartup').hidden = true;
+      $('dashboard').hidden = false;
+      if (focus) $('dashboard').focus();
+      try { await Promise.all([refresh(),loadSharedBoards()]); }
+      catch (error) { message(error.message, true); }
+    }
+    $('refreshStudent').addEventListener('click', async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try { await Promise.all([refresh(),loadSharedBoards()]); }
+      catch (error) { message(error.message, true); }
+      finally { button.disabled = false; }
+    });
     $('loginForm').addEventListener('submit', async event => {
       event.preventDefault(); const form = event.currentTarget; const button = form.querySelector('button'); button.disabled = true;
       try {
         const session = await api('student-sessions', { workspace: form.elements.workspace.value.trim(), code: form.elements.code.value.trim(), ...(browserSession.enabled ? {persistent:true} : {}) }, false);
-        browserSession.accept(session);
-        token = session.accessToken; $('studentName').textContent = session.student?.displayName || 'Ученик';
-        form.elements.code.value = ''; $('login').hidden = true; $('dashboard').hidden = false; $('dashboard').focus();
-        await Promise.all([refresh(),loadSharedBoards()]);
+        form.elements.code.value = '';
+        await enterSession(session, true);
       } catch (error) { message(error.message, true); $('notice').focus(); } finally { button.disabled = false; }
     });
     $('dashboard').addEventListener('submit', async event => {
@@ -304,20 +325,10 @@
     browserSession.watch(session => {
       if (token) { token = session.accessToken; sharedBoards.updateToken(); }
     }, () => endSession('Сессия завершилась. Войдите ещё раз.'));
-    if (browserSession.enabled) {
-      const controls = [...$('login').querySelectorAll('button,input')];
-      controls.forEach(control => control.disabled = true);
-      try {
-        const session = await browserSession.restore();
-        if (session) {
-          token = session.accessToken;
-          $('studentName').textContent = session.student?.displayName || 'Ученик';
-          $('login').hidden = true; $('dashboard').hidden = false;
-          await Promise.all([refresh(),loadSharedBoards()]);
-        }
-      } catch (error) { message(error.message, true); }
-      finally { controls.forEach(control => control.disabled = false); }
-    }
+    await startCabinetSession(browserSession, {
+      loading: $('sessionStartup'), status: $('sessionStartupStatus'), retry: $('sessionStartupRetry'),
+      login: $('login'), enter: enterSession
+    });
   </script>
 </body>
 </html>

@@ -272,3 +272,28 @@ test('browser session restores once and ignores a late response after logout', a
     if (originalLocation === undefined) delete globalThis.location; else globalThis.location = originalLocation;
   }
 });
+
+test('cabinet keeps sign-in hidden through initialization and a retry', async () => {
+  const {startCabinetSession} = await import('./browser-session.mjs');
+  const loading = {hidden:false}, status = {textContent:''}, login = {hidden:true};
+  const retry = {hidden:true, addEventListener(_, handler) {this.click = handler;}};
+  const session = {accessToken:'test'};
+  let attempt = 0;
+  let fail;
+  const restore = () => ++attempt === 1
+    ? new Promise((_, reject) => {fail = reject;}) : Promise.resolve(session);
+  const result = [];
+  const startup = startCabinetSession({restore}, {loading,status,retry,login,enter:value=>result.push(value)});
+  assert.equal(login.hidden,true);
+  assert.equal(loading.hidden,false);
+  fail(new Error('Offline'));
+  await startup;
+  assert.equal(login.hidden,true);
+  assert.equal(retry.hidden,false);
+  await retry.click();
+  assert.deepEqual(result,[session]);
+  assert.equal(login.hidden,true);
+  assert.equal(loading.hidden,true);
+  await startCabinetSession({restore:async()=>null}, {loading,status,retry,login,enter:() => assert.fail()});
+  assert.equal(login.hidden,false);
+});

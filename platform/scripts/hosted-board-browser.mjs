@@ -26,7 +26,7 @@ for (let attempt = 0; attempt < 48; attempt++) {
   try {
     const response = await fetch(hosted + 'teacher.html', {signal:AbortSignal.timeout(15000), cache:'no-store'});
     const html = await response.text();
-    deployed = response.ok && html.includes('aria-label="Доски классов"') && html.includes('import {createBrowserSession}');
+    deployed = response.ok && html.includes('aria-label="Доски классов"') && html.includes('id="sessionStartup"');
   } catch {}
   if (deployed) break;
   await new Promise(resolve => setTimeout(resolve, 10000));
@@ -53,6 +53,18 @@ try {
     secretValues.push(session.accessToken);
     await page.locator('#app:not([hidden])').waitFor();
     return {page,context,email,session};
+  }
+  async function watchSignInFlash(page, loginId) {
+    await page.addInitScript(id => {
+      window.loginWasVisible = false;
+      const check = () => {
+        const login = document.getElementById(id);
+        if (login && !login.hidden && login.getClientRects().length) window.loginWasVisible = true;
+      };
+      const observer = new MutationObserver(check);
+      observer.observe(document, {subtree:true, childList:true, attributes:true, attributeFilter:['hidden']});
+      document.addEventListener('DOMContentLoaded', check, {once:true});
+    }, loginId);
   }
   async function count(frame, expected) {
     await frame.waitForFunction(n => window.__BOARD_EDITOR?.getSceneElements().filter(x => !x.isDeleted).length === n, expected);
@@ -131,13 +143,18 @@ try {
   await catalog.locator(teacherBoard).click();
   await first.page.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
   await count(first.page.frame({url:origin + '/board-pilot/board/'}), 2);
+  await watchSignInFlash(first.page, 'loginScreen');
+  await watchSignInFlash(pupilPage, 'login');
   await first.page.reload();
   await first.page.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
   assert.equal(await first.page.locator('#loginForm').isVisible(), false);
+  assert.equal(await first.page.evaluate(() => window.loginWasVisible), false);
+  assert.equal(await first.page.locator('[data-view="boards"]').getAttribute('aria-current'), 'page');
   await count(first.page.frame({url:origin + '/board-pilot/board/'}), 2);
   await pupilPage.reload();
   await pupilPage.frameLocator('dialog iframe').locator('#status').filter({hasText:/^Сохранено$/}).waitFor();
   assert.equal(await pupilPage.locator('#loginForm').isVisible(), false);
+  assert.equal(await pupilPage.evaluate(() => window.loginWasVisible), false);
   await count(pupilPage.frame({url:origin + '/board-pilot/board/'}), 2);
   const storage = await first.context.storageState();
   assert.ok(storage.cookies.some(cookie => cookie.httpOnly && cookie.name === 'tas_teacher_session'));
@@ -152,7 +169,7 @@ try {
   await second.page.reload();
   await second.page.locator('#loginForm button[type="submit"]:enabled').waitFor();
   assert.equal(await second.page.locator('#app').isVisible(), false);
-  console.log('PASS: persistent teacher/pupil login, class-only cabinet and catalog, joint drawings, reload and new browser context, logout and tenant isolation on Timeweb');
+  console.log('PASS: persistent teacher/pupil login without sign-in flash, same teacher section, class-only cabinet and catalog, joint drawings, reload and new browser context, logout and tenant isolation on Timeweb');
 } catch (error) {
   let message = String(error.message);
   for (const secret of secretValues.filter(Boolean)) message = message.replaceAll(secret, '[redacted]');
