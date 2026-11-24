@@ -37,6 +37,7 @@ builder.Services.AddOptions<Microsoft.Extensions.Caching.StackExchangeRedis.Redi
         options.InstanceName = "tas:lookup:v1:";
     });
 builder.Services.AddScoped<WorkspaceLookupCache>();
+builder.Services.AddSingleton<WorkspaceCacheAvailability>();
 
 
 builder.Services.AddSingleton(serviceProvider =>
@@ -289,14 +290,17 @@ WorkspaceAccessEndpoints.Map(app);
 TestingHosting.Platform.Billing.TuitionLedgerEndpoints.Map(app);
 
 app.MapGet("/api/v1/teacher/programs", async (
-    ClaimsPrincipal principal, PlatformDbContext db, WorkspaceLookupCache cache, CancellationToken cancellationToken) =>
+    ClaimsPrincipal principal, PlatformDbContext db, WorkspaceLookupCache cache, HttpResponse response,
+    CancellationToken cancellationToken) =>
 {
     var workspaceId = Guid.Parse(principal.FindFirstValue("workspace_id")!);
-    var programs = await cache.ReadAsync(workspaceId, "programs", () => db.Programs.AsNoTracking()
+    var (programs, cacheStatus) = await cache.ReadAsync(workspaceId, "programs", () => db.Programs.AsNoTracking()
         .Where(x => x.WorkspaceId == workspaceId && x.IsActive)
         .OrderBy(x => x.DisplayName).ThenBy(x => x.Id)
         .Select(x => new ProgramLookup(x.Id, x.Code, x.DisplayName))
         .ToListAsync(cancellationToken), cancellationToken);
+    response.Headers.CacheControl = "no-store";
+    response.Headers["X-TAS-Cache"] = cacheStatus;
     return Results.Ok(programs);
 }).RequireAuthorization("teacher");
 

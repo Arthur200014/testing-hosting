@@ -38,9 +38,11 @@ public sealed partial class TeacherSessionTests
         });
         using var client = app.CreateClient();
         const string path = "/api/v1/teacher/programs";
-        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(path)).StatusCode);
+        using var anonymous = await client.GetAsync(path);
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+        Assert.False(anonymous.Headers.Contains("X-TAS-Cache"));
         await Login("cache-north");
-        var original = Assert.Single((await client.GetFromJsonAsync<ProgramLookup[]>(path))!);
+        var original = await ReadPrograms(client, "miss");
         var cache = app.Services.GetRequiredService<IDistributedCache>();
         var key = $"{first.WorkspaceId:N}:programs";
         Assert.NotNull(await cache.GetStringAsync(key));
@@ -51,24 +53,45 @@ public sealed partial class TeacherSessionTests
             program.DisplayName = "Updated after cache fill";
             await db.SaveChangesAsync();
         }
-        Assert.Equal(original, Assert.Single((await client.GetFromJsonAsync<ProgramLookup[]>(path))!));
+        Assert.Equal(original, await ReadPrograms(client, "hit"));
         await Login("cache-south");
-        var other = Assert.Single((await client.GetFromJsonAsync<ProgramLookup[]>(path))!);
+        var other = await ReadPrograms(client, "miss");
         Assert.NotEqual(original.Id, other.Id);
         client.DefaultRequestHeaders.Authorization = null;
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(path)).StatusCode);
         await cache.RemoveAsync(key);
         await Login("cache-north");
-        Assert.Equal("Updated after cache fill",
-            Assert.Single((await client.GetFromJsonAsync<ProgramLookup[]>(path))!).DisplayName);
+        Assert.Equal("Updated after cache fill", (await ReadPrograms(client, "miss")).DisplayName);
+
+        await cache.SetStringAsync(key, "invalid JSON");
+        var repaired = await ReadPrograms(client, "miss");
+        Assert.Equal("Updated after cache fill", repaired.DisplayName);
+        Assert.Equal(repaired, await ReadPrograms(client, "hit"));
+
+        using var appWithUnreachableRedis = factory.WithWebHostBuilder(builder =>
+            builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(
+                new Dictionary<string, string?> { ["Redis:ConnectionString"] = "127.0.0.1:1" })));
+        using var fallback = appWithUnreachableRedis.CreateClient();
+        fallback.DefaultRequestHeaders.Authorization = client.DefaultRequestHeaders.Authorization;
+        Assert.Equal(repaired, await ReadPrograms(fallback, "fallback"));
+        Assert.True(appWithUnreachableRedis.Services.GetRequiredService<WorkspaceCacheAvailability>().IsCoolingDown);
+        Assert.Equal(repaired, await ReadPrograms(fallback, "fallback"));
 
         using var appWithoutRedis = factory.WithWebHostBuilder(builder =>
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(
-                new Dictionary<string, string?> { ["Redis:ConnectionString"] = "127.0.0.1:1" })));
-        using var fallback = appWithoutRedis.CreateClient();
-        fallback.DefaultRequestHeaders.Authorization = client.DefaultRequestHeaders.Authorization;
-        Assert.Equal("Updated after cache fill",
-            Assert.Single((await fallback.GetFromJsonAsync<ProgramLookup[]>(path))!).DisplayName);
+                new Dictionary<string, string?> { ["Redis:ConnectionString"] = "" })));
+        using var disabled = appWithoutRedis.CreateClient();
+        disabled.DefaultRequestHeaders.Authorization = client.DefaultRequestHeaders.Authorization;
+        Assert.Equal(repaired, await ReadPrograms(disabled, "disabled"));
+
+        async Task<ProgramLookup> ReadPrograms(HttpClient caller, string expectedStatus)
+        {
+            using var response = await caller.GetAsync(path);
+            response.EnsureSuccessStatusCode();
+            Assert.Equal(expectedStatus, Assert.Single(response.Headers.GetValues("X-TAS-Cache")));
+            Assert.True(response.Headers.CacheControl?.NoStore ?? false);
+            return Assert.Single((await response.Content.ReadFromJsonAsync<ProgramLookup[]>())!);
+        }
 
         async Task Login(string slug)
         {
@@ -77,5 +100,27 @@ public sealed partial class TeacherSessionTests
             var session = (await response.Content.ReadFromJsonAsync<TeacherLoginResponse>())!;
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
         }
+    }
+
+    [Fact]
+    public void WorkspaceCacheRetriesAfterCooldown()
+    {
+        var clock = new CacheTestClock();
+        var availability = new WorkspaceCacheAvailability(clock);
+        Assert.False(availability.IsCoolingDown);
+        availability.ReportFailure();
+        clock.Advance(9);
+        Assert.True(availability.IsCoolingDown);
+        clock.Advance(1);
+        Assert.False(availability.IsCoolingDown);
+    }
+
+    private sealed class CacheTestClock : TimeProvider
+    {
+        private long timestamp;
+
+        public override long TimestampFrequency => 1000;
+        public override long GetTimestamp() => timestamp;
+        public void Advance(int seconds) => timestamp += seconds * TimestampFrequency;
     }
 }
