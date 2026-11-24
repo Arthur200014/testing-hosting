@@ -1349,7 +1349,7 @@ try {
   await representatives.waitFor({state:'hidden'});
   assert.deepEqual(await call(representativePath, north.token), []);
   await representativesButton.press('Enter');
-  await representatives.getByLabel('Ученик',{exact:true}).selectOption(north.students[1].membershipId);
+  await representatives.getByRole('combobox',{name:'Ученик',exact:true}).selectOption(north.students[1].membershipId);
   await representatives.getByLabel('Имя представителя').fill('Синтетический представитель');
   await page.screenshot({path:output+'/22_pupil_representative_real.png'});
   await representatives.getByRole('button',{name:'Создать ссылку'}).press('Enter');
