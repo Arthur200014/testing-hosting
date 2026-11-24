@@ -1,0 +1,37 @@
+name: Timeweb UI-08 live acceptance
+on:
+  push:
+    branches: [tas/ui08-timeweb-acceptance]
+    paths:
+      - 'platform/scripts/hosted-ui08-browser.mjs'
+      - '.github/workflows/ui08-live.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: hosted-ui08-live
+  cancel-in-progress: false
+jobs:
+  live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser runner
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Check the live public page and cabinets
+        env:
+          TAS_PUBLIC_CAPTURES: ${{ runner.temp }}/ui08-public
+        run: node platform/scripts/hosted-ui08-browser.mjs
+      - name: Keep public screenshots for visual review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui08-public
+          path: ${{ runner.temp }}/ui08-public/*.png
+          if-no-files-found: ignore
