@@ -48,21 +48,25 @@ async function capture(page, file) {
 
 try {
   if (output) await mkdir(output,{recursive:true});
-  let live = false;
+  let checks;
   const teacherMarkers = ['id="classAnnouncementsDialog"', 'id="classRepresentativesDialog"'];
   const studentMarkers = ['id="studentAnnouncements"', 'id="representativeCabinet"'];
   for (let attempt=0; attempt<60; attempt++) {
-    const checks = await Promise.all([
+    const statuses = await Promise.all([
       current(published + 'teacher.html', teacherMarkers),
       current(published + 'student.html', studentMarkers),
       current(hosted + 'teacher.html', teacherMarkers),
       current(hosted + 'student.html', studentMarkers),
-      current(origin + '/health/migrations', [])
+      current(origin + '/health/migrations', []),
+      current(origin + '/health/ready', []),
+      current(origin + '/board-pilot/board/', ['<title>Изолированный прототип доски</title>'])
     ]);
-    if (checks.every(Boolean)) { live = true; break; }
-    await new Promise(resolve => setTimeout(resolve,8000));
+    checks = Object.fromEntries(['Pages teacher','Pages pupil','Timeweb teacher','Timeweb pupil',
+      'Migrations','PostgreSQL readiness','Board editor'].map((name,index) => [name,statuses[index]]));
+    if (statuses.every(Boolean)) break;
+    if (attempt < 59) await new Promise(resolve => setTimeout(resolve,8000));
   }
-  assert.ok(live, 'The final Pages assets, Timeweb assets and migrations did not become healthy within the deployment window');
+  assert.ok(Object.values(checks).every(Boolean), 'Deployment checks: ' + JSON.stringify(checks));
   console.log('PASS: current GitHub Pages and Timeweb cabinet assets and migration health');
 
   stage = 'synthetic teacher and class';
