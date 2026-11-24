@@ -1282,7 +1282,55 @@ try {
   const archivedGroup=(await call('teacher/groups',north.token)).find(g=>g.id===group.id);await call('teacher/groups/'+group.id+'/restore',north.token,{expectedRevision:archivedGroup.revision});await page.locator('#refresh').click();await page.locator('#notice').waitFor({state:'hidden'});await groupCard.locator('[data-lesson-recording-new]').waitFor();
   await page.reload();await login(north);await openRecordingLesson(group.id,grouped.id);await groupCard.locator('[data-recording-row="'+contextualGroup+'"]').waitFor();assert.equal(await groupCard.locator('[data-recording-row]').count(),2,'group lesson records persist after reload/login');
   await page.screenshot({path:output+'/24_group_lesson_recordings_real.png'});await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'group recording card fits mobile');await page.setViewportSize({width:1348,height:926});
-  await contextStudent.reload();await contextStudent.locator('#loginForm [name="workspace"]').fill(north.workspace);await contextStudent.locator('#loginForm [name="code"]').fill(north.students[0].inviteCode);await contextStudent.locator('#loginForm button[type="submit"]').click();await contextStudent.locator('[data-recording-row="'+contextualGroup+'"]').waitFor();assert.equal(await contextStudent.locator('[data-recording-row="'+contextualIndividual+'"]').count(),0);await contextStudent.close();
+  await contextStudent.reload();await contextStudent.locator('#loginForm [name="workspace"]').fill(north.workspace);await contextStudent.locator('#loginForm [name="code"]').fill(north.students[0].inviteCode);await contextStudent.locator('#loginForm button[type="submit"]').click();await contextStudent.locator('[data-recording-row="'+contextualGroup+'"]').waitFor();assert.equal(await contextStudent.locator('[data-recording-row="'+contextualIndividual+'"]').count(),0);
+  const groupAnnouncementsPath = 'teacher/class-announcements/group/' + group.id;
+  const individualAnnouncementsPath = 'teacher/class-announcements/individual/' + north.item.id;
+  await call(groupAnnouncementsPath, south.token, undefined, 404);
+  await call('class-announcements', null, undefined, 401);
+  const individualAnnouncement = {requestId:randomUUID(), title:'Индивидуальное объявление', body:'Для одного ученика'};
+  await call(individualAnnouncementsPath, north.token, individualAnnouncement, 201);
+  await call(individualAnnouncementsPath, north.token, individualAnnouncement);
+  await call(individualAnnouncementsPath, north.token, {...individualAnnouncement, body:'Не менять'}, 409);
+  assert.equal((await call(individualAnnouncementsPath, north.token)).length, 1);
+
+  await page.locator('[data-back-class-lessons]').click();
+  const announcementsButton = page.locator('[data-class-announcements]');
+  const groupAnnouncements = page.locator('#classAnnouncementsDialog');
+  await announcementsButton.press('Enter');
+  await groupAnnouncements.getByText('Объявлений пока нет.', {exact:true}).waitFor();
+  await groupAnnouncements.getByLabel('Заголовок').fill('Отменённый черновик');
+  await page.keyboard.press('Escape');
+  await groupAnnouncements.waitFor({state:'hidden'});
+  assert.equal(await announcementsButton.evaluate(button => button === document.activeElement), true);
+  assert.deepEqual(await call(groupAnnouncementsPath, north.token), []);
+
+  const announcementTitle = 'Объявление для пары';
+  const announcementBody = 'Принесите тетради. <script>Текст</script>';
+  await announcementsButton.press('Enter');
+  await groupAnnouncements.getByLabel('Заголовок').fill(announcementTitle);
+  await groupAnnouncements.getByLabel('Текст').fill(announcementBody);
+  await page.screenshot({path:output+'/72_class_announcement_real.png'});
+  await groupAnnouncements.getByRole('button',{name:'Опубликовать'}).press('Enter');
+  await groupAnnouncements.getByText('Объявление опубликовано.',{exact:true}).waitFor();
+  await groupAnnouncements.getByRole('button',{name:'Закрыть',exact:true}).press('Enter');
+  await announcementsButton.press('Enter');
+  await groupAnnouncements.getByText(announcementBody,{exact:true}).waitFor();
+  assert.deepEqual((await call('class-announcements', otherLearner.accessToken)).map(row => row.title), [announcementTitle]);
+  assert.deepEqual(await call('class-announcements', outsiderSession.accessToken), []);
+  await contextStudent.locator('#studentAnnouncements summary').click();
+  await contextStudent.getByText(announcementBody,{exact:true}).waitFor();
+  await contextStudent.getByText('Для одного ученика',{exact:true}).waitFor();
+
+  await Promise.all([page.waitForEvent('dialog').then(dialog => dialog.accept()),
+    groupAnnouncements.getByRole('button',{name:'Снять с публикации'}).click()]);
+  await groupAnnouncements.getByText('Объявление снято с публикации.',{exact:true}).waitFor();
+  await groupAnnouncements.getByRole('button',{name:'Закрыть',exact:true}).press('Enter');
+  await contextStudent.locator('#refreshStudent').click();
+  await contextStudent.getByText(announcementBody,{exact:true}).waitFor({state:'detached'});
+  assert.deepEqual(await call('class-announcements', otherLearner.accessToken), []);
+  assert.deepEqual((await call('class-announcements', learner.accessToken)).map(row => row.title), [individualAnnouncement.title]);
+  await contextStudent.close();
+  console.log('PASS: class announcements publish, cancel, reload, withdraw and tenant/student isolation');
   assert.deepEqual(await call('teacher/lessons',north.token),lessonsBeforeRecordingCards,'record management does not change lesson attendance or homework contexts');
   // UI-05: exact pupil identity, class/lesson origin, independent attendance and persisted profile edits.
   const cardProfileKeys=['grade','groupId','targetScore','targetGrade','initialScore','initialPrimaryScore','initialGrade','parentName','notes'];

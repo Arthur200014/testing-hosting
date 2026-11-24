@@ -373,6 +373,20 @@
     </main>
   </div>
 
+  <dialog id="classAnnouncementsDialog" aria-labelledby="classAnnouncementsTitle"
+    style="box-sizing:border-box;width:min(600px,calc(100% - 24px));max-height:calc(100dvh - 24px);border:1px solid #dedde8;border-radius:12px;background:white;color:#302939;padding:20px">
+    <header class="section-head"><h2 id="classAnnouncementsTitle">Объявления класса</h2>
+      <button type="button" class="secondary" id="closeClassAnnouncements" autofocus>Закрыть</button></header>
+    <p id="classAnnouncementsStatus" role="status"></p>
+    <button type="button" class="secondary" id="retryClassAnnouncements" hidden>Повторить загрузку</button>
+    <form id="publishClassAnnouncement" class="stack" style="margin-bottom:16px">
+      <label>Заголовок<input name="title" required maxlength="120"></label>
+      <label>Текст<textarea name="body" required maxlength="4000" rows="4"></textarea></label>
+      <button type="submit" class="primary">Опубликовать</button>
+    </form>
+    <div id="classAnnouncementRows" class="stack"></div>
+  </dialog>
+
   <script type="module">
     import {createBrowserSession, startCabinetSession} from './browser-session.mjs';
     import {pupilFeedbackKey, feedbackEditor, feedbackSave} from './pupil-feedback.mjs';
@@ -445,6 +459,7 @@
         setLoginMode('login');
         $('teacherRoleLabel').textContent = 'Преподаватель';
         lessonBoard.close();
+        $('classAnnouncementsDialog').close();
         Object.assign(boardFilters, { search:'', classId:'' });
         state.library=newLibraryState();state.libraryStorageKey='';state.fileUpload=null;
         state.resultDraft=null;state.studentCard=null;state.studentSearch='';
@@ -825,6 +840,7 @@
                 <button class="primary" type="button" data-class-detail-tab="information">Участники · ${members.length}/${item.capacity}</button>
                 <button class="secondary" type="button" data-class-detail-tab="schedule">Расписание</button>
                 ${classBoardShortcut(item)}
+                ${classAnnouncementShortcut(item)}
               </div></div>
             <div class="class-detail-banner-art" aria-hidden="true"></div>
             <details class="class-detail-menu"><summary aria-label="Действия с классом">⋮</summary>
@@ -846,6 +862,112 @@
         return lessonBoard.enabled && item.persistent && !item.isArchived
           ? `<button type="button" class="secondary" data-open-class-board="${safe(item.id)}" data-class-kind="${item.kind === 'group' ? 'group' : 'individual'}">Перейти на доску</button>` : '';
       }
+      function classAnnouncementShortcut(item) {
+        return item.persistent && !item.isArchived
+          ? '<button type="button" class="secondary" data-class-announcements>Объявления</button>' : '';
+      }
+      const announcementDialog = $('classAnnouncementsDialog');
+      const announcementForm = $('publishClassAnnouncement');
+      const announcementStatus = $('classAnnouncementsStatus');
+      const announcementRows = $('classAnnouncementRows');
+      const retryAnnouncements = $('retryClassAnnouncements');
+      let announcementContext = null;
+
+      function showClassAnnouncements(button) {
+        const item = teacherClasses().find(x => x.id === state.selectedClass && x.persistent && !x.isArchived);
+        if (!item) return;
+        announcementContext = {button, path:'teacher/class-announcements/' + item.kind + '/' + item.id, rows:[]};
+        $('classAnnouncementsTitle').textContent = 'Объявления · ' + item.title;
+        announcementForm.reset();
+        announcementRows.replaceChildren();
+        announcementDialog.showModal();
+        void loadClassAnnouncements(announcementContext);
+      }
+      function renderClassAnnouncements(context) {
+        announcementRows.innerHTML = list(context.rows, 'Объявлений пока нет.', row =>
+          `<article class="card stack"><strong>${safe(row.title)}</strong>
+            <p style="white-space:pre-wrap;overflow-wrap:anywhere">${safe(row.body)}</p>
+            <small>${safe(date(row.publishedAt))}</small>
+            <button type="button" class="secondary" data-withdraw-announcement="${safe(row.id)}">Снять с публикации</button>
+          </article>`);
+      }
+      async function loadClassAnnouncements(context) {
+        retryAnnouncements.hidden = true;
+        announcementForm.hidden = true;
+        announcementStatus.textContent = 'Загружаем объявления…';
+        try {
+          context.rows = await api(context.path);
+          if (announcementContext !== context) return;
+          renderClassAnnouncements(context);
+          announcementForm.hidden = false;
+          announcementStatus.textContent = '';
+        } catch (error) {
+          if (announcementContext !== context) return;
+          announcementStatus.textContent = error.message;
+          retryAnnouncements.hidden = false;
+        }
+      }
+      $('closeClassAnnouncements').addEventListener('click', () => {
+        if (!announcementContext?.busy) announcementDialog.close();
+      });
+      announcementDialog.addEventListener('cancel', event => {
+        if (announcementContext?.busy) event.preventDefault();
+      });
+      announcementDialog.addEventListener('close', () => {
+        if (announcementDialog.open) return;
+        const context = announcementContext;
+        announcementContext = null;
+        if (!state.token || !context) return;
+        if (context.button.isConnected) context.button.focus();
+        else focusCabinetReturn('[data-class-announcements]');
+      });
+      retryAnnouncements.addEventListener('click', () => {
+        if (announcementContext) void loadClassAnnouncements(announcementContext);
+      });
+      announcementForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        const context = announcementContext;
+        if (!context || context.busy) return;
+        const title = announcementForm.elements.title.value.trim();
+        const body = announcementForm.elements.body.value.trim();
+        if (!title || !body) { announcementStatus.textContent = 'Укажите заголовок и текст.'; return; }
+        const request = context.request?.title === title && context.request?.body === body ?
+          context.request : {requestId:crypto.randomUUID(), title, body};
+        context.request = request;
+        context.busy = true;
+        setBusy(announcementForm, true);
+        try {
+          const published = await api(context.path, {method:'POST', body:request});
+          if (announcementContext !== context || !announcementDialog.open) return;
+          context.rows = [published, ...context.rows.filter(row => row.id !== published.id)].slice(0,50);
+          context.request = null;
+          announcementForm.reset();
+          renderClassAnnouncements(context);
+          announcementStatus.textContent = 'Объявление опубликовано.';
+        } catch (error) {
+          if (announcementContext === context) announcementStatus.textContent = error.message;
+        } finally {
+          context.busy = false;
+          setBusy(announcementForm, false);
+        }
+      });
+      announcementRows.addEventListener('click', async event => {
+        const button = event.target.closest('[data-withdraw-announcement]');
+        const context = announcementContext;
+        if (!button || !context || context.busy || !confirm('Снять объявление с публикации?')) return;
+        const id = button.dataset.withdrawAnnouncement;
+        context.busy = button.disabled = true;
+        try {
+          await api(context.path + '/' + id + '/withdraw', {method:'POST'});
+          if (announcementContext !== context || !announcementDialog.open) return;
+          context.rows = context.rows.filter(row => row.id !== id);
+          renderClassAnnouncements(context);
+          announcementStatus.textContent = 'Объявление снято с публикации.';
+          $('closeClassAnnouncements').focus();
+        } catch (error) {
+          if (announcementContext === context) announcementStatus.textContent = error.message;
+        } finally { context.busy = button.disabled = false; }
+      });
       function boards() {
         const entries = classBoardEntries(state.data);
         if (!entries.some(item => item.classId === boardFilters.classId)) boardFilters.classId = '';
@@ -973,6 +1095,7 @@
               <div class="class-banner-buttons">
                 <button type="button" class="primary" data-schedule-class="${safe(item.id)}">＋ Добавить занятие</button>
                 ${classBoardShortcut(item)}
+                ${classAnnouncementShortcut(item)}
               </div>
             </div>
             <div class="class-detail-banner-art" aria-hidden="true"></div>
@@ -2492,6 +2615,8 @@
         }
       });
       $('content').addEventListener('click', async event => {
+        const announcements = event.target.closest('[data-class-announcements]');
+        if (announcements) { showClassAnnouncements(announcements); return; }
         const classBoard = event.target.closest('[data-open-class-board]');
         if (classBoard) { lessonBoard.openClass(classBoard.dataset.openClassBoard, classBoard.dataset.classKind, state.view === 'boards' ? 'Назад к доскам' : 'Назад к классу'); return; }
 
