@@ -1,0 +1,37 @@
+name: TAS transition live acceptance
+on:
+  push:
+    branches: [tas/transition-live-acceptance]
+    paths:
+      - platform/scripts/hosted-release-closeout.mjs
+      - .github/workflows/release-closeout-live.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: hosted-transition-acceptance
+  cancel-in-progress: false
+jobs:
+  live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Chromium
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Verify the live transition on synthetic records
+        env:
+          TAS_CLOSEOUT_CAPTURES: ${{ runner.temp }}/tas-transition
+        run: node platform/scripts/hosted-release-closeout.mjs
+      - name: Keep the form snapshots without credentials
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tas-transition-synthetic-forms
+          path: ${{ runner.temp }}/tas-transition/*.png
+          if-no-files-found: ignore
