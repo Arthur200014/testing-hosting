@@ -47,6 +47,22 @@
       <p id="boardLoginHint" class="muted" hidden>Войдите по коду ученика, чтобы открыть доску.</p>
       <form id="loginForm"><label>Пространство преподавателя<input name="workspace" required autocomplete="off"></label>
         <label>Код ученика<input name="code" required autocomplete="off"></label><button type="submit">Войти</button></form>
+      <p><a href="?view=representative">Вход для представителя ученика</a></p>
+    </section>
+    <section id="representative" class="card" aria-label="Кабинет представителя" hidden>
+      <p id="representativeStatus" role="status"></p>
+      <form id="representativeForm" hidden>
+        <label>Код приглашения<input name="code" required minlength="64" maxlength="64" pattern="[A-Fa-f0-9]{64}" autocomplete="off"></label>
+        <button type="submit">Открыть доступ</button>
+      </form>
+      <div id="representativeCabinet" hidden>
+        <h2 id="representativePupil" tabindex="-1"></h2>
+        <p id="representativeClass"></p>
+        <div id="representativeLessons"></div>
+        <button id="refreshRepresentative" type="button">Обновить данные</button>
+        <button id="logoutRepresentative" type="button">Выйти</button>
+      </div>
+      <p><a href="./student.html">Вход ученика</a></p>
     </section>
     <section id="dashboard" aria-label="Кабинет ученика" tabindex="-1" hidden><p><span id="studentName"></span> · <button id="refreshStudent" type="button">Обновить данные</button> <button id="logout" type="button">Выйти</button></p>
       <details class="card" id="studentAnnouncements"><summary>Объявления классов</summary>
@@ -348,10 +364,104 @@
     browserSession.watch(session => {
       if (token) { token = session.accessToken; sharedBoards.updateToken(); }
     }, () => endSession('Сессия завершилась. Войдите ещё раз.'));
-    await startCabinetSession(browserSession, {
-      loading: $('sessionStartup'), status: $('sessionStartupStatus'), retry: $('sessionStartupRetry'),
-      login: $('login'), enter: enterSession
-    });
+    const representativeCode = /^#representative=([a-f0-9]{64})$/i.exec(location.hash)?.[1];
+    if (representativeCode || new URLSearchParams(location.search).get('view') === 'representative') {
+      const storageKey = 'tas.representative.session';
+      const form = $('representativeForm');
+      const cabinet = $('representativeCabinet');
+      const status = $('representativeStatus');
+      const keyFor = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2,'0')).join('');
+      let sessionKey;
+      let pendingAcceptance;
+      try { sessionKey = sessionStorage.getItem(storageKey); } catch {}
+
+      const request = (path, method = 'GET', body = null) => fetch(API + 'representative/' + path, {
+        method, cache:'no-store', credentials:'omit',
+        headers:{...(sessionKey ? {Authorization:'Bearer ' + sessionKey} : {}),
+          ...(body ? {'Content-Type':'application/json'} : {})},
+        body:body ? JSON.stringify(body) : undefined
+      });
+      function showRepresentativeLogin(message = '') {
+        sessionKey = null;
+        try { sessionStorage.removeItem(storageKey); } catch {}
+        cabinet.hidden = true;
+        $('representativePupil').textContent = '';
+        $('representativeClass').textContent = '';
+        $('representativeLessons').replaceChildren();
+        form.hidden = false;
+        status.textContent = message;
+      }
+      async function readRepresentative() {
+        const readingKey = sessionKey;
+        status.textContent = 'Загружаем класс…';
+        try {
+          const reply = await request('session');
+          if (readingKey !== sessionKey) return;
+          if (reply.status === 401) { showRepresentativeLogin('Доступ закрыт или срок истёк.'); return; }
+          if (!reply.ok) throw new Error();
+          const result = await reply.json();
+          if (readingKey !== sessionKey) return;
+          $('representativePupil').textContent = result.studentName;
+          $('representativeClass').textContent = result.classTitle;
+          const labels = {Unknown:'Не отмечено', Present:'Присутствовал', Absent:'Пропустил', Canceled:'Отменено', Rescheduled:'Перенесено'};
+          $('representativeLessons').innerHTML = '<h3>Последние занятия</h3>' +
+            (result.lessons.length ? result.lessons.map(lesson => `<article class="card">
+              <strong>${safe(lesson.title || 'Занятие')}</strong> · ${safe(date(lesson.lessonAt))}
+              <p>${safe(labels[lesson.attendance] || 'Не отмечено')}</p></article>`).join('')
+              : '<p>Занятий пока нет.</p>');
+          form.hidden = true;
+          cabinet.hidden = false;
+          status.textContent = '';
+          $('representativePupil').focus();
+        } catch { if (readingKey === sessionKey) status.textContent = 'Не удалось загрузить класс. Повторите попытку.'; }
+      }
+
+      history.replaceState(null, '', location.pathname + '?view=representative');
+      document.querySelector('main > h1').textContent = 'Кабинет представителя';
+      $('sessionStartup').hidden = true;
+      $('representative').hidden = false;
+      if (representativeCode) {
+        form.elements.code.value = representativeCode;
+        form.hidden = false;
+      } else if (sessionKey) {
+        cabinet.hidden = false;
+        await readRepresentative();
+      } else form.hidden = false;
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        const button = form.querySelector('button');
+        if (button.disabled) return;
+        const code = form.elements.code.value.trim();
+        pendingAcceptance = pendingAcceptance?.code === code ? pendingAcceptance : {code, sessionKey:keyFor()};
+        button.disabled = true;
+        try {
+          const reply = await request('accept', 'POST', pendingAcceptance);
+          if (reply.status === 404) { status.textContent = 'Приглашение недействительно или уже использовано.'; return; }
+          if (!reply.ok) throw new Error();
+          sessionKey = pendingAcceptance.sessionKey;
+          pendingAcceptance = null;
+          try { sessionStorage.setItem(storageKey, sessionKey); } catch {}
+          form.reset();
+          form.hidden = true;
+          cabinet.hidden = false;
+          await readRepresentative();
+        } catch { status.textContent = 'Не удалось подтвердить приглашение. Повторите попытку.'; }
+        finally { button.disabled = false; }
+      });
+      $('refreshRepresentative').addEventListener('click', readRepresentative);
+      $('logoutRepresentative').addEventListener('click', async () => {
+        try {
+          if (!(await request('logout','POST')).ok) throw new Error();
+          showRepresentativeLogin('Вы вышли.');
+          form.elements.code.focus();
+        } catch { status.textContent = 'Не удалось завершить сессию. Повторите выход.'; }
+      });
+    } else {
+      await startCabinetSession(browserSession, {
+        loading: $('sessionStartup'), status: $('sessionStartupStatus'), retry: $('sessionStartupRetry'),
+        login: $('login'), enter: enterSession
+      });
+    }
   </script>
 </body>
 </html>

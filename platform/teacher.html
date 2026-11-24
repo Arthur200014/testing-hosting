@@ -387,6 +387,25 @@
     <div id="classAnnouncementRows" class="stack"></div>
   </dialog>
 
+  <dialog id="classRepresentativesDialog" aria-labelledby="classRepresentativesTitle"
+    style="box-sizing:border-box;width:min(600px,calc(100% - 24px));max-height:calc(100dvh - 24px);border:1px solid #dedde8;border-radius:12px;background:white;color:#302939;padding:20px">
+    <header class="section-head"><h2 id="classRepresentativesTitle">Представители ученика</h2>
+      <button type="button" class="secondary" id="closeClassRepresentatives" autofocus>Закрыть</button></header>
+    <p id="classRepresentativesStatus" role="status"></p>
+    <button type="button" class="secondary" id="retryClassRepresentatives" hidden>Повторить загрузку</button>
+    <form id="inviteClassRepresentative" class="stack">
+      <div><label for="representativePupilSelect">Ученик</label>
+        <select name="member" id="representativePupilSelect" required></select></div>
+      <label>Имя представителя<input name="name" maxlength="100" required></label>
+      <button type="submit" class="primary">Создать ссылку</button>
+    </form>
+    <div id="classRepresentativeLink" class="card stack" hidden>
+      <label>Одноразовая ссылка<input id="representativeLinkValue" readonly></label>
+      <small>Ссылка действует семь дней. Передайте её только представителю выбранного ученика.</small>
+    </div>
+    <div id="classRepresentativeRows" class="stack"></div>
+  </dialog>
+
   <script type="module">
     import {createBrowserSession, startCabinetSession} from './browser-session.mjs';
     import {pupilFeedbackKey, feedbackEditor, feedbackSave} from './pupil-feedback.mjs';
@@ -460,6 +479,7 @@
         $('teacherRoleLabel').textContent = 'Преподаватель';
         lessonBoard.close();
         $('classAnnouncementsDialog').close();
+        $('classRepresentativesDialog').close();
         Object.assign(boardFilters, { search:'', classId:'' });
         state.library=newLibraryState();state.libraryStorageKey='';state.fileUpload=null;
         state.resultDraft=null;state.studentCard=null;state.studentSearch='';
@@ -811,7 +831,7 @@
                 <button class="secondary" type="button" data-schedule-class="${safe(item.id)}">Запланировать</button>
               </div></section>${roster}`
           : tab === 'information'
-            ? `<section class="class-subsection">${metadata}${roster}${groupInvitePanel(item)}</section>`
+            ? `<section class="class-subsection">${metadata}${roster}${groupInvitePanel(item)}${representativesShortcut(item)}</section>`
           : tab === 'materials'
             ? renderClassMaterials(item, state.data, safe, list)
           : tab === 'program'
@@ -986,6 +1006,120 @@
         const cards = document.querySelector('[data-board-cards]');
         if (cards) cards.innerHTML = renderBoardCards(classBoardEntries(state.data), boardFilters, safe);
       }
+      function representativesShortcut(item) {
+        return item.persistent && !item.isArchived
+          ? '<button type="button" class="secondary" data-class-representatives>Представители</button>' : '';
+      }
+      const representativeDialog = $('classRepresentativesDialog');
+      const representativeForm = $('inviteClassRepresentative');
+      const representativeStatus = $('classRepresentativesStatus');
+      const representativeRows = $('classRepresentativeRows');
+      const representativeLink = $('classRepresentativeLink');
+      const retryRepresentatives = $('retryClassRepresentatives');
+      let representativeContext;
+
+      function showClassRepresentatives(button) {
+        const item = teacherClasses().find(x => x.id === state.selectedClass && x.persistent && !x.isArchived);
+        if (!item) return;
+        const pupils = item.kind === 'group' ? item.members.filter(m => m.isApproved)
+          : [{membershipId:item.studentMembershipId, studentName:item.student.studentName}];
+        representativeContext = {button, path:'teacher/class-representatives/' + item.kind + '/' + item.id, pupils, rows:[]};
+        representativeForm.reset();
+        representativeForm.elements.member.innerHTML = options(pupils, 'membershipId', 'studentName');
+        representativeLink.hidden = true;
+        $('representativeLinkValue').value = '';
+        representativeRows.replaceChildren();
+        representativeDialog.showModal();
+        void loadClassRepresentatives(representativeContext);
+      }
+      function renderClassRepresentatives(context) {
+        const statuses = {pending:'Ожидает входа', active:'Доступ открыт', expired:'Срок истёк', revoked:'Доступ закрыт'};
+        representativeRows.innerHTML = list(context.rows, 'Приглашений пока нет.', row => `<article class="card stack">
+          <strong>${safe(row.name)}</strong><span>${safe(studentName(row.membershipId))} · ${safe(statuses[row.status])}</span>
+          ${['active','pending'].includes(row.status) ? `<small>Действует до ${safe(date(row.expiresAt))}</small>
+            <button class="secondary" type="button" data-revoke-representative="${safe(row.id)}">Закрыть доступ</button>` : ''}
+          </article>`);
+      }
+      async function loadClassRepresentatives(context) {
+        representativeForm.hidden = true;
+        retryRepresentatives.hidden = true;
+        representativeStatus.textContent = 'Загружаем приглашения…';
+        try {
+          context.rows = await api(context.path);
+          if (representativeContext !== context || !representativeDialog.open) return;
+          renderClassRepresentatives(context);
+          representativeForm.hidden = context.pupils.length === 0;
+          representativeStatus.textContent = representativeForm.hidden ? 'В классе пока нет подтверждённых учеников.' : '';
+        } catch (error) {
+          if (representativeContext !== context) return;
+          representativeStatus.textContent = error.message;
+          retryRepresentatives.hidden = false;
+        }
+      }
+      $('closeClassRepresentatives').addEventListener('click', () => {
+        if (!representativeContext?.busy) representativeDialog.close();
+      });
+      representativeDialog.addEventListener('cancel', event => { if (representativeContext?.busy) event.preventDefault(); });
+      representativeDialog.addEventListener('close', () => {
+        if (representativeDialog.open) return;
+        const context = representativeContext;
+        representativeContext = null;
+        representativeLink.hidden = true;
+        $('representativeLinkValue').value = '';
+        if (!state.token || !context) return;
+        if (context.button.isConnected) context.button.focus();
+        else focusCabinetReturn('[data-class-representatives]');
+      });
+      retryRepresentatives.addEventListener('click', () => {
+        if (representativeContext) void loadClassRepresentatives(representativeContext);
+      });
+      representativeForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        const context = representativeContext;
+        if (!context || context.busy) return;
+        const membershipId = representativeForm.elements.member.value;
+        const name = representativeForm.elements.name.value.trim();
+        if (!membershipId || !name) { representativeStatus.textContent = 'Укажите ученика и имя представителя.'; return; }
+        const request = context.request?.name === name && context.request?.membershipId === membershipId ?
+          context.request : {requestId:crypto.randomUUID(), membershipId, name,
+            code:Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2,'0')).join('')};
+        context.request = request;
+        context.busy = true;
+        setBusy(representativeForm, true);
+        try {
+          const issued = await api(context.path, {method:'POST', body:request});
+          if (representativeContext !== context || !representativeDialog.open) return;
+          const link = new URL('student.html', location.href);
+          link.hash = 'representative=' + request.code;
+          $('representativeLinkValue').value = link.href;
+          representativeLink.hidden = false;
+          context.request = null;
+          context.linkId = issued.id;
+          context.rows = [issued, ...context.rows.filter(row => row.id !== issued.id)].slice(0,50);
+          representativeForm.reset();
+          renderClassRepresentatives(context);
+          representativeStatus.textContent = 'Ссылка создана.';
+          $('representativeLinkValue').select();
+        } catch (error) { if (representativeContext === context) representativeStatus.textContent = error.message; }
+        finally { context.busy = false; setBusy(representativeForm, false); }
+      });
+      representativeRows.addEventListener('click', async event => {
+        const button = event.target.closest('[data-revoke-representative]');
+        const context = representativeContext;
+        if (!button || !context || context.busy || !confirm('Закрыть доступ представителю?')) return;
+        const id = button.dataset.revokeRepresentative;
+        context.busy = button.disabled = true;
+        try {
+          await api(context.path + '/' + id + '/revoke', {method:'POST'});
+          if (representativeContext !== context || !representativeDialog.open) return;
+          context.rows = context.rows.map(row => row.id === id ? {...row,status:'revoked'} : row);
+          if (context.linkId === id) { representativeLink.hidden = true; $('representativeLinkValue').value = ''; }
+          renderClassRepresentatives(context);
+          representativeStatus.textContent = 'Доступ закрыт.';
+          $('closeClassRepresentatives').focus();
+        } catch (error) { if (representativeContext === context) representativeStatus.textContent = error.message; }
+        finally { context.busy = button.disabled = false; }
+      });
       function classLessonDetail(item,lesson) {
         const participants=lesson.participants || [];
         const labels={Present:'Присутствовал',Absent:'Отсутствовал',Unknown:'Не отмечено'};
@@ -1085,6 +1219,7 @@
             <button type="button" class="secondary" data-invoices-for="${safe(item.studentMembershipId)}">Счета ученика</button></section>`,
           information: `<section class="class-subsection">${metadata}
             ${item.persistent ? classInvitePanel(item) : '<p class="muted small">Этот класс отображается из существующей карточки ученика.</p>'}
+            ${representativesShortcut(item)}
             <p class="class-archive-note">Архивирование класса не удаляет ученика, занятия и историю.</p></section>`
         };
         return `<div class="class-detail">
@@ -2617,6 +2752,8 @@
       $('content').addEventListener('click', async event => {
         const announcements = event.target.closest('[data-class-announcements]');
         if (announcements) { showClassAnnouncements(announcements); return; }
+        const representatives = event.target.closest('[data-class-representatives]');
+        if (representatives) { showClassRepresentatives(representatives); return; }
         const classBoard = event.target.closest('[data-open-class-board]');
         if (classBoard) { lessonBoard.openClass(classBoard.dataset.openClassBoard, classBoard.dataset.classKind, state.view === 'boards' ? 'Назад к доскам' : 'Назад к классу'); return; }
 

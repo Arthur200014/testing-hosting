@@ -1331,6 +1331,62 @@ try {
   assert.deepEqual((await call('class-announcements', learner.accessToken)).map(row => row.title), [individualAnnouncement.title]);
   await contextStudent.close();
   console.log('PASS: class announcements publish, cancel, reload, withdraw and tenant/student isolation');
+  const representativePath = 'teacher/class-representatives/group/' + group.id;
+  const representativeIndividualPath = 'teacher/class-representatives/individual/' + north.item.id;
+  await call(representativePath, south.token, undefined, 404);
+  const makeKey = () => randomUUID().replaceAll('-','') + randomUUID().replaceAll('-','');
+  await call(representativeIndividualPath, north.token, {
+    requestId:randomUUID(), name:'Чужой участник', membershipId:north.students[1].membershipId, code:makeKey()
+  }, 404);
+  await call('representative/session', fileLearner.accessToken, undefined, 401);
+  await page.locator('.class-detail-tabs [data-class-detail-tab="information"]').click();
+  const representativesButton = page.locator('[data-class-representatives]');
+  const representatives = page.locator('#classRepresentativesDialog');
+  await representativesButton.press('Enter');
+  await representatives.getByText('Приглашений пока нет.',{exact:true}).waitFor();
+  await representatives.getByLabel('Имя представителя').fill('Отменённое приглашение');
+  await page.keyboard.press('Escape');
+  await representatives.waitFor({state:'hidden'});
+  assert.deepEqual(await call(representativePath, north.token), []);
+  await representativesButton.press('Enter');
+  await representatives.getByRole('combobox',{name:'Ученик',exact:true}).selectOption(north.students[1].membershipId);
+  await representatives.getByLabel('Имя представителя').fill('Синтетический представитель');
+  await page.screenshot({path:output+'/22_pupil_representative_real.png'});
+  await representatives.getByRole('button',{name:'Создать ссылку'}).press('Enter');
+  await representatives.getByText('Ссылка создана.',{exact:true}).waitFor();
+  const representativeUrl = await representatives.locator('#representativeLinkValue').inputValue();
+  const invitation = (await call(representativePath, north.token))[0];
+  assert.equal(invitation.status, 'pending');
+  assert.equal(invitation.membershipId, north.students[1].membershipId);
+  assert.equal(Object.hasOwn(invitation,'code'),false);
+  await representatives.getByRole('button',{name:'Закрыть',exact:true}).press('Enter');
+
+  const representativePage = await context.newPage();
+  representativePage.on('pageerror',e=>errors.push(e.message));
+  await representativePage.goto(representativeUrl);
+  await representativePage.getByRole('button',{name:'Открыть доступ'}).press('Enter');
+  const representativeCabinet = representativePage.locator('#representativeCabinet');
+  await representativeCabinet.getByText('Тест north ученик 2',{exact:true}).waitFor();
+  assert.equal(await representativeCabinet.getByText('Тест north ученик 1',{exact:true}).count(),0);
+  assert.equal(await representativePage.locator('#dashboard').isVisible(),false);
+  assert.equal(new URL(representativePage.url()).hash,'');
+  await representativePage.reload();
+  await representativeCabinet.getByText('Тест north ученик 2',{exact:true}).waitFor();
+  await call('representative/accept',null,{
+    code:new URL(representativeUrl).hash.slice('#representative='.length), sessionKey:makeKey()
+  },404);
+  await representativesButton.press('Enter');
+  await representatives.getByText('Доступ открыт',{exact:false}).waitFor();
+  await call(representativePath + '/' + invitation.id + '/revoke', south.token, {}, 404);
+  await Promise.all([page.waitForEvent('dialog').then(dialog => dialog.accept()),
+    representatives.getByRole('button',{name:'Закрыть доступ'}).click()]);
+  await representatives.getByText('Доступ закрыт.',{exact:true}).waitFor();
+  await representativePage.getByRole('button',{name:'Обновить данные'}).click();
+  await representativePage.getByText('Доступ закрыт или срок истёк.',{exact:true}).waitFor();
+  assert.equal(await representativeCabinet.isVisible(),false);
+  await representativePage.close();
+  await representatives.getByRole('button',{name:'Закрыть',exact:true}).press('Enter');
+  console.log('PASS: representative invitation accepts one pupil scope, restores after reload and revokes access');
   assert.deepEqual(await call('teacher/lessons',north.token),lessonsBeforeRecordingCards,'record management does not change lesson attendance or homework contexts');
   // UI-05: exact pupil identity, class/lesson origin, independent attendance and persisted profile edits.
   const cardProfileKeys=['grade','groupId','targetScore','targetGrade','initialScore','initialPrimaryScore','initialGrade','parentName','notes'];

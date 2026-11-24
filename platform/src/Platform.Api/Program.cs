@@ -66,6 +66,7 @@ builder.Services.AddScoped<TeacherResultsReader>();
 builder.Services.AddScoped<PupilHistoryReader>();
 builder.Services.AddScoped<PupilFeedbackService>();
 builder.Services.AddScoped<ClassAnnouncementService>();
+builder.Services.AddScoped<ClassRepresentativeService>();
 builder.Services.AddScoped<TeacherClassService>();
 builder.Services.AddScoped<TeacherMaterialService>();
 builder.Services.AddScoped<TeacherFileService>();
@@ -169,6 +170,15 @@ builder.Services.AddRateLimiter(options =>
         {
             PermitLimit = studentSessionOptions.RateLimitPermitLimit,
             Window = TimeSpan.FromSeconds(studentSessionOptions.RateLimitWindowSeconds),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        }));
+    options.AddPolicy("representative-acceptance", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 15,
+            Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0,
             AutoReplenishment = true
         }));
@@ -434,6 +444,43 @@ app.MapPost("/api/v1/student/groups/invitations/accept", async (
         _ => throw new InvalidOperationException("Unexpected group invitation accept result.")
     };
 }).RequireAuthorization("student");
+var representatives = app.MapGroup("/api/v1/teacher/class-representatives/{kind}/{classId:guid}").RequireAuthorization("teacher");
+representatives.MapGet("", async (string kind, Guid classId, ClaimsPrincipal principal, HttpResponse response,
+    ClassRepresentativeService service, CancellationToken ct) =>
+{
+    response.Headers.CacheControl = "no-store";
+    return await service.List(Guid.Parse(principal.FindFirstValue("workspace_id")!), kind, classId, ct) is {} rows
+        ? Results.Ok(rows) : Results.NotFound();
+});
+representatives.MapPost("", async (string kind, Guid classId, IssueRepresentativeRequest request,
+    ClaimsPrincipal principal, ClassRepresentativeService service, CancellationToken ct) =>
+    NativeWrite(await service.Issue(Guid.Parse(principal.FindFirstValue("workspace_id")!), kind, classId, request, ct)));
+representatives.MapPost("/{id:guid}/revoke", async (string kind, Guid classId, Guid id,
+    ClaimsPrincipal principal, ClassRepresentativeService service, CancellationToken ct) =>
+    await service.Revoke(Guid.Parse(principal.FindFirstValue("workspace_id")!), kind, classId, id, ct)
+        ? Results.NoContent() : Results.NotFound());
+
+static string? RepresentativeKey(HttpRequest request)
+{
+    var authorization = request.Headers.Authorization.ToString();
+    return authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ? authorization[7..] : null;
+}
+app.MapPost("/api/v1/representative/accept", async (AcceptRepresentativeRequest request,
+    ClassRepresentativeService service, CancellationToken ct) =>
+    await service.Accept(request, ct) ? Results.NoContent() : Results.NotFound())
+    .RequireRateLimiting("representative-acceptance");
+app.MapGet("/api/v1/representative/session", async (HttpRequest request, HttpResponse response,
+    ClassRepresentativeService service, CancellationToken ct) =>
+{
+    response.Headers.CacheControl = "no-store";
+    return await service.Read(RepresentativeKey(request), ct) is {} cabinet
+        ? Results.Ok(cabinet) : Results.Unauthorized();
+});
+app.MapPost("/api/v1/representative/logout", async (HttpRequest request, ClassRepresentativeService service, CancellationToken ct) =>
+{
+    await service.Logout(RepresentativeKey(request), ct);
+    return Results.NoContent();
+});
 
 app.MapPost("/api/v1/teacher/schedule-rules/period-plan", async (
     TeacherPeriodPlanRequest request, ClaimsPrincipal principal,
