@@ -22,6 +22,23 @@ using TestingHosting.Platform.TestAttempts;
 var builder = WebApplication.CreateBuilder(args);
 TestingHosting.Platform.Boards.HostedBoardPilot.Register(builder);
 
+builder.Services.AddStackExchangeRedisCache(_ => { });
+builder.Services.AddOptions<Microsoft.Extensions.Caching.StackExchangeRedis.RedisCacheOptions>()
+    .Configure<IConfiguration>((options, configuration) =>
+    {
+        var connection = configuration["Redis:ConnectionString"];
+        if (string.IsNullOrWhiteSpace(connection)) return;
+        var redis = StackExchange.Redis.ConfigurationOptions.Parse(connection);
+        redis.AbortOnConnectFail = false;
+        redis.ConnectTimeout = 1000;
+        redis.ConnectRetry = 0;
+        redis.AsyncTimeout = 750;
+        options.ConfigurationOptions = redis;
+        options.InstanceName = "tas:lookup:v1:";
+    });
+builder.Services.AddScoped<WorkspaceLookupCache>();
+
+
 builder.Services.AddSingleton(serviceProvider =>
     StartupConfiguration.GetJwtOptions(serviceProvider.GetRequiredService<IConfiguration>()));
 builder.Services.AddSingleton(TimeProvider.System);
@@ -261,14 +278,14 @@ WorkspaceAccessEndpoints.Map(app);
 TestingHosting.Platform.Billing.TuitionLedgerEndpoints.Map(app);
 
 app.MapGet("/api/v1/teacher/programs", async (
-    ClaimsPrincipal principal, PlatformDbContext db, CancellationToken cancellationToken) =>
+    ClaimsPrincipal principal, PlatformDbContext db, WorkspaceLookupCache cache, CancellationToken cancellationToken) =>
 {
     var workspaceId = Guid.Parse(principal.FindFirstValue("workspace_id")!);
-    var programs = await db.Programs.AsNoTracking()
+    var programs = await cache.ReadAsync(workspaceId, "programs", () => db.Programs.AsNoTracking()
         .Where(x => x.WorkspaceId == workspaceId && x.IsActive)
         .OrderBy(x => x.DisplayName).ThenBy(x => x.Id)
-        .Select(x => new { x.Id, x.Code, x.DisplayName })
-        .ToListAsync(cancellationToken);
+        .Select(x => new ProgramLookup(x.Id, x.Code, x.DisplayName))
+        .ToListAsync(cancellationToken), cancellationToken);
     return Results.Ok(programs);
 }).RequireAuthorization("teacher");
 

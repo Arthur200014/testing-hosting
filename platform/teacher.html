@@ -293,7 +293,14 @@
   <link rel="stylesheet" href="./meleto-fidelity.css">
 </head>
 <body>
-  <main id="loginScreen" class="login-screen" aria-labelledby="loginTitle">
+  <main id="sessionStartup" class="login-screen">
+    <div class="card login-card">
+      <p id="sessionStartupStatus" role="status">Открываем кабинет…</p>
+      <button id="sessionStartupRetry" type="button" hidden>Повторить</button>
+      <noscript><p>Для входа в кабинет включите JavaScript.</p></noscript>
+    </div>
+  </main>
+  <main id="loginScreen" class="login-screen" aria-labelledby="loginTitle" hidden>
     <div class="card login-card">
       <div class="brand"><span class="brand-mark">✦</span><span>Teacher AI Student<small>КАБИНЕТ ПРЕПОДАВАТЕЛЯ</small></span></div>
       <p class="eyebrow">Новая платформа</p>
@@ -367,7 +374,7 @@
   </div>
 
   <script type="module">
-    import {createBrowserSession} from './browser-session.mjs';
+    import {createBrowserSession, startCabinetSession} from './browser-session.mjs';
     import {pupilFeedbackKey, feedbackEditor, feedbackSave} from './pupil-feedback.mjs';
     import {pupilAllowedSources} from './pupil-history.mjs';
     import {studentProfileKeys, studentProfileSnapshot, studentMemberships, studentClassRelations, studentLessonRows, studentLessonTarget, resolveStudentOrigin, beginStudentCard, studentEditAction, studentHomeworkKey, renderStudentCard} from './student-card.mjs';
@@ -410,6 +417,7 @@
       const billingFilters = {query:'', status:''};
       const blankLedger = () => ({ query:'', status:'', membership:'', selected:'' });
       let ledger = blankLedger();
+      let cabinetPositionKey = "", restoringCabinet = false;
       let teacherInvitation = null;
       const invoicePaymentsKey = id => 'invoicePayments:' + id;
       const moscowToday = () => new Intl.DateTimeFormat('sv-SE', {timeZone:'Europe/Moscow',
@@ -428,6 +436,7 @@
         const element = $('notice'); element.textContent = message; element.classList.toggle('error', error); element.hidden = !message;
       }
       function logout(message = '') {
+        cabinetPositionKey = "";
         browserSession.stop();
         Object.assign(billingFilters, {query:'',status:''});
         ledger = blankLedger();
@@ -1987,6 +1996,12 @@
         return renderLibrary(state.data,state.library,safe,state.fileUpload);
       }
       function render() {
+        if (cabinetPositionKey && !restoringCabinet) {
+          const {view, calendarMode, calendarDate, classTab, selectedClass, selectedLesson, classDetailTab} = state;
+          try { sessionStorage.setItem(cabinetPositionKey, JSON.stringify({
+            view, calendarMode, calendarDate, classTab, selectedClass, selectedLesson, classDetailTab
+          })); } catch {}
+        }
         if (state.data.profile) {
           $('workspaceName').textContent = state.data.profile.displayName || state.data.profile.workspace;
           $('teacherRoleLabel').textContent = teacherRoleLabel(state.data.profile.role);
@@ -2051,7 +2066,7 @@
         return programs[0];
       }
       function setBusy(form, value) { form.querySelector('button[type="submit"]').disabled = value; }
-      async function enterSession(session) {
+      async function enterSession(session, restoring = false) {
         clearWorkspaceChoice();
         const workspace = session.workspace;
         invalidate();
@@ -2060,12 +2075,49 @@
         state.studentCard=null;state.studentSearch='';state.editStudent='';state.editSnapshot=null;
         state.library=newLibraryState();state.libraryStorageKey='tas:library-folder:'+session.workspaceId+':'+session.teacherId;
         try { state.library.folderId=sessionStorage.getItem(state.libraryStorageKey) || ''; } catch {}
-        $('workspaceName').textContent = workspace; $('loginScreen').hidden = true; $('app').hidden = false;
-        const loading = setView('overview');
+        cabinetPositionKey = session.workspaceId && session.teacherId
+          ? 'tas:teacher-position:' + session.workspaceId + ':' + session.teacherId : '';
+        let position;
+        if (restoring && cabinetPositionKey) {
+          try { position = JSON.parse(sessionStorage.getItem(cabinetPositionKey)); } catch {}
+        }
+        restoringCabinet = restoring;
+        const generation = state.generation;
+        const view = position && Object.hasOwn(names, position.view) &&
+          (position.view !== 'boards' || lessonBoard.enabled) ? position.view : 'overview';
+        if (view === 'lessons') {
+          if (['day','week','month'].includes(position.calendarMode)) state.calendarMode = position.calendarMode;
+          if (typeof position.calendarDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(position.calendarDate) &&
+              Number.isFinite(Date.parse(position.calendarDate)))
+            state.calendarDate = position.calendarDate;
+        }
+        if (view === 'overview' && position?.selectedClass) {
+          await Promise.allSettled(needs.overview.map(key => loadKey(key)));
+          if (generation !== state.generation) { restoringCabinet = false; return; }
+          const item = teacherClasses().find(item => item.id === position.selectedClass);
+          if (item) {
+            state.selectedClass = item.id;
+            state.classTab = item.isArchived ? 'archive' : 'classes';
+            state.classDetailTab = classDetailTabs.some(([id]) => id === position.classDetailTab)
+              ? position.classDetailTab : 'summary';
+            const lesson = (state.data.lessons || []).find(x => x.id === position.selectedLesson);
+            if (lesson && (lessonBelongsToClass(lesson, item) ||
+                (!lesson.groupClassId && !lesson.individualClassId && item.kind !== 'group' &&
+                  lesson.participants?.some(p => p.membershipId === item.studentMembershipId)))) state.selectedLesson = lesson.id;
+          }
+        } else if (view === 'overview' && ['archive','statistics'].includes(position?.classTab)) {
+          state.classTab = position.classTab;
+        }
+        $('workspaceName').textContent = workspace;
+        $('loginScreen').hidden = true;
+        await setView(view);
+        restoringCabinet = false;
+        $('sessionStartup').hidden = true;
+        if (generation !== state.generation) return;
+        $('app').hidden = false;
+        render();
         $('teacherMain').focus();
-        await loading;
         lessonBoard.restoreClass();
-        return loading;
       }
       function canLeaveStudentEdit() {
         const form=document.querySelector('#studentEditForm, [data-student-grade], #pupilFeedbackForm');
@@ -3718,15 +3770,10 @@
         state.expiresAt = session.expiresAt;
         lessonBoard.updateToken();
       }, () => logout('Сессия завершилась. Войдите ещё раз.'));
-      if (browserSession.enabled) {
-        const controls = [...$('loginScreen').querySelectorAll('button,input')];
-        controls.forEach(control => control.disabled = true);
-        try {
-          const session = await browserSession.restore();
-          if (session) await enterSession(session);
-        } catch (error) { showLoginError(error.message); }
-        finally { controls.forEach(control => control.disabled = false); clearWorkspaceChoice(); }
-      }
+      await startCabinetSession(browserSession, {
+        loading: $('sessionStartup'), status: $('sessionStartupStatus'), retry: $('sessionStartupRetry'),
+        login: $('loginScreen'), enter: session => enterSession(session, true)
+      });
     })();
   </script>
 </body>

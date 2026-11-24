@@ -59,3 +59,24 @@ export function createBrowserSession(apiOrigin, role) {
   function watch(renew, end) { onRenew = renew; onEnd = end; }
   return {enabled, accept, stop, restore, fresh, watch};
 }
+
+// Keep the sign-in form hidden until the server confirms there is no session.
+export function startCabinetSession(browserSession, {loading, status, retry, login, enter}) {
+  async function start() {
+    retry.hidden = true;
+    status.textContent = 'Открываем кабинет…';
+    let session;
+    try {
+      session = await browserSession.restore();
+    } catch {
+      status.textContent = 'Не удалось проверить вход. Повторите попытку.';
+      retry.hidden = false;
+      return;
+    }
+    if (!session) login.hidden = false;
+    else await enter(session);
+    loading.hidden = true;
+  }
+  retry.addEventListener('click', start);
+  return start();
+}
