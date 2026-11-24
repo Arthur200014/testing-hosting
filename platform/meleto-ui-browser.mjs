@@ -126,6 +126,8 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
     assert.deepEqual(body.memberIds, [students[0].membershipId, students[1].membershipId]);
     assert.equal(body.capacity, 3);
     assert.equal(body.autoApproveInvites, false);
+    assert.equal(body.allowLessonChat, false);
+    assert.equal(body.allowPrivateMessages, false);
     assert.ok(body.requestId);
     const item = { ...body, id:createdGroupId, kind:'group', revision:1, isArchived:false,
       invitationStatus:null, invitationExpiresAt:null, createdAt:new Date().toISOString(),
@@ -185,8 +187,8 @@ await page.route('https://arthur200014-testing-hosting-8c4e.twc1.net/api/v1/**',
     assert.equal(body.priceAmount, 1750.5);
     assert.equal(body.priceCurrency, 'EUR');
     assert.equal(body.priceBasis, 'month');
-    assert.equal(body.allowLessonChat, true);
-    assert.equal(body.allowPrivateMessages, true);
+    assert.equal(body.allowLessonChat, false);
+    assert.equal(body.allowPrivateMessages, false);
     assert.equal(body.coverStyle, 'sky');
     const student = students.find(x => x.membershipId === body.studentMembershipId);
     assert.ok(student);
@@ -317,7 +319,6 @@ try {
   await page.locator('#classForm [name="durationEnabled"]').check();
   await page.locator('#classForm [name="priceEnabled"]').check();
   await page.locator('#classForm [name="priceAmount"]').fill('999');
-  await page.locator('#classForm [name="allowLessonChat"]').check();
   await page.locator('[data-cancel-class]').click();
   assert.equal(classWrites, 0, 'cancel must not create a class');
 
@@ -347,15 +348,14 @@ try {
   await form.locator('[name="priceAmount"]').fill('1750.50');
   await form.locator('[name="priceCurrency"]').selectOption('EUR');
   await form.locator('[name="priceBasis"]').selectOption('month');
-  await form.locator('[name="allowLessonChat"]').check();
-  await form.locator('[name="allowPrivateMessages"]').check();
+  assert.equal(await form.locator('[name="allowLessonChat"],[name="allowPrivateMessages"]').count(), 0);
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: output + '/03_individual_create.png' });
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-  const chats = await page.locator('#classForm .class-chats-section').boundingBox();
+  const actions = await form.locator('.class-create-actions').boundingBox();
   const toolbar = await page.locator('.top').boundingBox();
   const brand = await page.locator('aside .brand').boundingBox();
-  assert.ok(chats && chats.y < 926 && chats.y + chats.height > 0, 'screen 04 must show the bottom chat settings');
+  assert.ok(actions && actions.y < 926 && actions.y + actions.height > 0, 'the bottom of the form must show its actions');
   assert.ok(toolbar && toolbar.y >= -1 && toolbar.y <= 2, 'top toolbar should remain visible while scrolling');
   assert.ok(brand && brand.y >= 0 && brand.y < 70, 'sidebar brand should stay visible while scrolling');
   await page.screenshot({ path: output + '/04_individual_settings.png' });
@@ -374,6 +374,8 @@ try {
   await page.getByText(/90 мин/).waitFor();
   await page.getByText(/EUR/).waitFor();
   await page.locator('[data-back-classes]').click();
+  // Older records can still carry these settings.
+  Object.assign(classes[0], {allowLessonChat:true, allowPrivateMessages:true});
   await page.reload();
   await page.locator('#loginForm [name="email"]').fill('teacher@example.invalid');
   await page.locator('#loginForm [name="password"]').fill('synthetic-password');
@@ -397,7 +399,7 @@ try {
   assert.equal(await edit.locator('[name="priceEnabled"]').isChecked(), true);
   assert.equal(await edit.locator('[name="priceCurrency"]').inputValue(), 'EUR');
   assert.equal(await edit.locator('[name="priceBasis"]').inputValue(), 'month');
-  assert.equal(await edit.locator('[name="allowLessonChat"]').isChecked(), true);
+  assert.equal(await edit.locator('[name="allowLessonChat"],[name="allowPrivateMessages"]').count(), 0);
   assert.equal(await edit.locator('[name="coverStyle"]:checked').inputValue(), 'sky');
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: output + '/31_class_edit.png' });
@@ -417,8 +419,6 @@ try {
   await editAgain.locator('[name="description"]').fill('Настройки обновлены');
   await editAgain.locator('[name="durationMinutes"]').fill('120');
   await editAgain.locator('[name="priceEnabled"]').uncheck();
-  await editAgain.locator('[name="allowLessonChat"]').uncheck();
-  await editAgain.locator('[name="allowPrivateMessages"]').check();
   await editAgain.locator('[data-toggle-covers]').click();
   await editAgain.locator('[name="coverStyle"][value="mint"]').check();
   await page.screenshot({ path: output + '/31_class_edit_changes.png' });
@@ -431,6 +431,8 @@ try {
   assert.equal(classes[0].revision, 2);
   assert.equal(classes[0].priceAmount, null);
   assert.equal(classes[0].coverStyle, 'mint');
+  assert.equal(classes[0].allowLessonChat, true);
+  assert.equal(classes[0].allowPrivateMessages, true);
 
   await page.locator('.class-detail-menu summary').click();
   page.once('dialog', dialog => dialog.dismiss());
@@ -540,6 +542,7 @@ try {
   await page.locator('[data-learning-type="group"]').click();
   const groupForm = page.locator('#groupForm');
   await groupForm.waitFor();
+  assert.equal(await groupForm.locator('[name="allowLessonChat"],[name="allowPrivateMessages"]').count(), 0);
   await groupForm.locator('[name="title"]').fill('Синтетическая группа ЕГЭ');
   await groupForm.locator('[name="description"]').fill('Группа с двумя участниками');
   await groupForm.locator('[name="capacity"]').fill('3');
@@ -559,6 +562,9 @@ try {
   await groupForm.locator('button[type="submit"]').click();
   await page.locator(`[data-open-class="${createdGroupId}"]`).waitFor();
   assert.equal(groupWrites,1);
+  Object.assign(groups[0], {allowLessonChat:true, allowPrivateMessages:true});
+  await page.locator('#refresh').click();
+  await page.locator('#refresh:enabled').waitFor();
   await page.locator(`[data-open-class="${createdGroupId}"]`).click();
   await page.locator('.group-roster-member').first().waitFor();
   assert.equal(await page.locator('.group-roster-member').count(),2);
@@ -573,6 +579,8 @@ try {
   await groupEdit.locator('button[type="submit"]').click();
   await page.getByText('Синтетическая группа обновлена',{exact:true}).first().waitFor();
   assert.equal(groupEdits,1);
+  assert.equal(groups[0].allowLessonChat, true);
+  assert.equal(groups[0].allowPrivateMessages, true);
   assert.deepEqual(groups[0].members.map(x=>x.membershipId),
     [students[0].membershipId,students[2].membershipId]);
   await page.locator('.class-detail-menu summary').click();

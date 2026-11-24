@@ -786,18 +786,8 @@
             <p>Длительность: ${item.durationMinutes != null ? safe(item.durationMinutes) + ' минут' : 'не задана'}</p>
             <p>Стоимость: ${item.priceAmount != null ? safe(item.priceAmount) + ' ' + safe(item.priceCurrency) +
               (item.priceBasis === 'month' ? ' / месяц' : ' / занятие') : 'не задана'}</p>
-            <p>Чат занятия: ${item.allowLessonChat ? 'разрешён в настройках' : 'выключен'}</p>
-            <p>Личные сообщения: ${item.allowPrivateMessages ? 'разрешены в настройках' : 'выключены'}</p>
-            <small class="muted">Реальные чаты, счета и записи занятий пока не подключены.</small>
           </div>
         </div>`;
-        const placeholders = {
-          schedule: ['Расписание', 'Повторяющиеся правила расписания будут доступны отдельно.'],
-          materials: ['Материалы', 'Материалы и библиотека пока не привязаны к группе.'],
-          program: ['Программа', 'Редактор программы для группового класса будет подключён позднее.'],
-          homework: ['Задания', 'Задания ученикам доступны в общем разделе, группового назначения пока нет.'],
-          payment: ['Оплата', 'Счета и поступления доступны в разделе «Оплата».']
-        };
         const body = tab === 'summary'
           ? `<section class="class-summary"><p class="class-caption">Обучение</p>
               <div class="class-nearest"><span class="class-nearest-icon">◯</span>
@@ -824,11 +814,8 @@
                 ${item.isArchived ? '' : `<button type="button" class="primary" data-schedule-class="${safe(item.id)}">＋ Добавить занятие</button>`}
                 <p class="muted small">Правила повторения показаны выше; здесь — только отдельно созданные занятия группы.</p>
               </section>`
-            : `<section class="class-subsection"><h3>${placeholders[tab]?.[0]}</h3>
-                <p class="muted">${placeholders[tab]?.[1]}</p>
-                ${tab === 'schedule' ? '<button type="button" class="secondary" data-view-calendar>Открыть календарь</button>' : ''}
-                ${tab === 'homework' ? '<button type="button" class="secondary" data-class-section="homework">Открыть задания</button>' : ''}
-                ${tab === 'payment' ? '<button type="button" class="secondary" data-class-section="invoices">Открыть счета</button>' : ''}
+            : `<section class="class-subsection"><h3>Оплата</h3>
+                <button type="button" class="secondary" data-class-section="invoices">Открыть счета</button>
               </section>`;
         return `<div class="class-detail group-detail">
           <div class="class-detail-banner cover-${safe(item.coverStyle || 'lavender')}">
@@ -902,7 +889,7 @@
             <section class="card stack lesson-history"><h2>История занятия</h2>
               ${lesson.createdAt?`<div class="lesson-history-event"><strong>Занятие создано</strong><small>${safe(date(lesson.createdAt))}</small></div>`:''}
               ${lesson.completedAt?`<div class="lesson-history-event"><strong>Занятие завершено</strong><small>${safe(date(lesson.completedAt))}</small></div>`:'<p class="muted">Завершение ещё не подтверждено.</p>'}
-              <p class="muted small">Чат занятия недоступен.</p></section></aside></div>
+            </section></aside></div>
         </section>${lessonResultDialog(lesson)}`;
       }
       function lessonResultDialog(lesson) {
@@ -947,9 +934,6 @@
           <div class="class-info-panel"><h3>Настройки класса</h3>
             <p><span class="muted">Длительность:</span> ${item.durationMinutes != null ? safe(item.durationMinutes) + ' мин' : 'не задана'}</p>
             <p><span class="muted">Стоимость (условие):</span> ${item.priceAmount != null ? safe(Number(item.priceAmount).toLocaleString('ru-RU', { maximumFractionDigits: 2 })) + ' ' + safe(item.priceCurrency) + ' / ' + (item.priceBasis === 'month' ? 'месяц' : 'занятие') : 'не задана'}</p>
-            <p><span class="muted">Чат занятия:</span> ${item.allowLessonChat ? 'разрешён в настройках' : 'запрещён'}</p>
-            <p><span class="muted">Личные сообщения:</span> ${item.allowPrivateMessages ? 'разрешены в настройках' : 'запрещены'}</p>
-            <p class="muted small">Оплата и чаты пока не подключены, сохранены только параметры класса.</p>
           </div>
         </div>`;
         const tabs = {
@@ -1079,12 +1063,6 @@
                 <label><span>Минут на занятие</span><input name="durationMinutes" type="number" value="60" min="15" max="240" step="5" required disabled></label>
               </div>
             </section>
-            <section class="class-ref-section class-chats-section">
-              <h3>Настройка чатов</h3>
-              <label class="class-switch"><input type="checkbox" name="allowLessonChat"><span>Разрешить чат занятия</span></label>
-              <p class="class-info">ⓘ Политика чата сохраняется, сам чат будет подключён позже.</p>
-              <label class="class-switch"><input type="checkbox" name="allowPrivateMessages"><span>Разрешить личные сообщения</span></label>
-            </section>
             <p class="muted small class-end-note">Нажатие «Создать» сохранит класс и его настройки. При отмене ни приглашения, ни платежи, ни занятия не создаются.</p>
             <div class="class-create-actions"><button class="primary" type="submit" ${students.length ? '' : 'disabled'}>Создать</button><button class="secondary" type="button" data-cancel-class>Отменить</button></div>
           </form>${students.length ? '' : '<p class="muted small">Сначала добавьте активного ученика.</p>'}</section>`;
@@ -1131,8 +1109,6 @@
                                       [form.elements.priceBasis, item.priceBasis || 'lesson']]) {
           [...select.options].forEach(option => { option.defaultSelected = option.value === value; });
         }
-        form.elements.allowLessonChat.defaultChecked = !!item.allowLessonChat;
-        form.elements.allowPrivateMessages.defaultChecked = !!item.allowPrivateMessages;
         form.querySelector('[type="submit"]').textContent = 'Сохранить изменения';
         const cancel = form.querySelector('[data-cancel-class]');
         cancel.removeAttribute('data-cancel-class');
@@ -1175,8 +1151,8 @@
             </div>
           </div>`;
         const formEl = wrapper.querySelector('#groupForm');
-        const beforeChat = formEl.querySelector('.class-chats-section');
-        beforeChat.insertAdjacentHTML('beforebegin', `<section class="group-settings" aria-label="Настройки участников">
+        const note = formEl.querySelector('.class-end-note');
+        note.insertAdjacentHTML('beforebegin', `<section class="group-settings" aria-label="Настройки участников">
           <h3>Участники</h3><p>Лимит мест в группе — от 1 до 20. Учитываются все заявки, включая ожидающие подтверждения.</p>
           <label class="group-capacity-label">Принимать не больше
             <input type="number" name="capacity" value="20" min="1" max="20" required> учеников</label>
@@ -1186,7 +1162,7 @@
         const capacitySection = formEl.querySelector('.group-settings');
         formEl.insertBefore(invitationSection, capacitySection);
         formEl.querySelector('[type="submit"]').disabled = false;
-        formEl.querySelector('.class-end-note').textContent = 'Группа и выбранные участники сохраняются одновременно. При отмене ничего не создаётся.';
+        note.textContent = 'Группа и выбранные участники сохраняются одновременно. При отмене ничего не создаётся.';
         return wrapper.innerHTML;
       }
       function groupClassEdit(item) {
@@ -1219,8 +1195,6 @@
         for (const [el, value] of [[form.elements.priceCurrency, item.priceCurrency || 'RUB'],
                                     [form.elements.priceBasis, item.priceBasis || 'lesson']])
           [...el.options].forEach(option => { option.defaultSelected = option.value === value; });
-        form.elements.allowLessonChat.defaultChecked = !!item.allowLessonChat;
-        form.elements.allowPrivateMessages.defaultChecked = !!item.allowPrivateMessages;
         form.querySelectorAll('.class-field').forEach(label => {
           const count = label.querySelector('[data-char-count]');
           const input = label.querySelector('input,textarea');
@@ -3420,7 +3394,7 @@
           if (state.view==='overview') { render(); document.querySelector('[data-period-preview-result]')?.focus(); }
           return;
         }
-        const classFields = form => ({
+        const classFields = (form, existingClass) => ({
           title: formValue(form, 'title'),
           coverStyle: form.querySelector('input[name="coverStyle"]:checked')?.value || 'lavender',
           description: formValue(form, 'description'),
@@ -3428,11 +3402,11 @@
           priceAmount: form.elements.priceEnabled.checked ? Number(formValue(form, 'priceAmount')) : null,
           priceCurrency: form.elements.priceEnabled.checked ? formValue(form, 'priceCurrency') : null,
           priceBasis: form.elements.priceEnabled.checked ? formValue(form, 'priceBasis') : null,
-          allowLessonChat: form.elements.allowLessonChat.checked,
-          allowPrivateMessages: form.elements.allowPrivateMessages.checked
+          allowLessonChat: existingClass?.allowLessonChat ?? false,
+          allowPrivateMessages: existingClass?.allowPrivateMessages ?? false
         });
-        const groupFields = form => ({
-          ...classFields(form),
+        const groupFields = (form, existingClass) => ({
+          ...classFields(form, existingClass),
           memberIds: [...form.querySelectorAll('[name="groupMember"]')].map(input => input.value),
           capacity: Number(formValue(form, 'capacity')),
           autoApproveInvites: form.elements.autoApproveInvites.checked
@@ -3446,7 +3420,7 @@
           const revision = Number(form.dataset.revision);
           if (!item || item.isArchived || item.revision !== revision) throw new Error('Группа изменилась. Обновите данные.');
           await api('teacher/groups/' + encodeURIComponent(item.id), {
-            method: 'PATCH', body: { expectedRevision: revision, ...groupFields(form) }
+            method: 'PATCH', body: { expectedRevision: revision, ...groupFields(form, item) }
           });
           state.groupEdit = '';
         });
@@ -3463,7 +3437,7 @@
           const revision = Number(form.dataset.revision);
           if (!item || item.isArchived || item.revision !== revision) throw new Error('Класс изменился. Обновите данные.');
           await api('teacher/classes/' + encodeURIComponent(item.id), {
-            method: 'PATCH', body: { expectedRevision: revision, ...classFields(form) }
+            method: 'PATCH', body: { expectedRevision: revision, ...classFields(form, item) }
           });
           state.classEdit = '';
         });
