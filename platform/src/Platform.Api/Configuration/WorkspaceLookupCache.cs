@@ -4,7 +4,7 @@ using StackExchange.Redis;
 
 namespace TestingHosting.Platform.Configuration;
 
-public sealed class WorkspaceLookupCache(IServiceProvider services, ILogger<WorkspaceLookupCache> log)
+public sealed class WorkspaceLookupCache(IServiceProvider services, IConfiguration configuration, ILogger<WorkspaceLookupCache> log)
 {
     private static readonly DistributedCacheEntryOptions Lifetime = new()
     {
@@ -14,8 +14,8 @@ public sealed class WorkspaceLookupCache(IServiceProvider services, ILogger<Work
     public async Task<T> ReadAsync<T>(Guid workspaceId, string resource, Func<Task<T>> load, CancellationToken ct)
         where T : class
     {
-        var cache = services.GetService<IDistributedCache>();
-        if (cache is null) return await load();
+        if (string.IsNullOrWhiteSpace(configuration["Redis:ConnectionString"])) return await load();
+        var cache = services.GetRequiredService<IDistributedCache>();
 
         var key = $"{workspaceId:N}:{resource}";
         try

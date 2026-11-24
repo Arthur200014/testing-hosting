@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using TestingHosting.Platform.Configuration;
 using TestingHosting.Platform.IdentityAccess;
 using TestingHosting.Platform.Persistence;
@@ -26,11 +27,14 @@ public sealed partial class TeacherSessionTests
         var connection = Environment.GetEnvironmentVariable("TEST_REDIS_CONNECTION_STRING");
         using var app = factory.WithWebHostBuilder(builder =>
         {
+            builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(
+                new Dictionary<string, string?> { ["Redis:ConnectionString"] = connection ?? "127.0.0.1:1" }));
             if (string.IsNullOrWhiteSpace(connection))
-                builder.ConfigureServices(services => services.AddDistributedMemoryCache());
-            else
-                builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(
-                    new Dictionary<string, string?> { ["Redis:ConnectionString"] = connection }));
+                builder.ConfigureServices(services =>
+                {
+                    services.RemoveAll<IDistributedCache>();
+                    services.AddDistributedMemoryCache();
+                });
         });
         using var client = app.CreateClient();
         const string path = "/api/v1/teacher/programs";

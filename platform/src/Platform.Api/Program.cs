@@ -22,19 +22,20 @@ using TestingHosting.Platform.TestAttempts;
 var builder = WebApplication.CreateBuilder(args);
 TestingHosting.Platform.Boards.HostedBoardPilot.Register(builder);
 
-if (builder.Configuration["Redis:ConnectionString"] is { } redis && !string.IsNullOrWhiteSpace(redis))
-{
-    var redisOptions = StackExchange.Redis.ConfigurationOptions.Parse(redis);
-    redisOptions.AbortOnConnectFail = false;
-    redisOptions.ConnectTimeout = 1000;
-    redisOptions.ConnectRetry = 0;
-    redisOptions.AsyncTimeout = 750;
-    builder.Services.AddStackExchangeRedisCache(options =>
+builder.Services.AddStackExchangeRedisCache(_ => { });
+builder.Services.AddOptions<Microsoft.Extensions.Caching.StackExchangeRedis.RedisCacheOptions>()
+    .Configure<IConfiguration>((options, configuration) =>
     {
-        options.ConfigurationOptions = redisOptions;
+        var connection = configuration["Redis:ConnectionString"];
+        if (string.IsNullOrWhiteSpace(connection)) return;
+        var redis = StackExchange.Redis.ConfigurationOptions.Parse(connection);
+        redis.AbortOnConnectFail = false;
+        redis.ConnectTimeout = 1000;
+        redis.ConnectRetry = 0;
+        redis.AsyncTimeout = 750;
+        options.ConfigurationOptions = redis;
         options.InstanceName = "tas:lookup:v1:";
     });
-}
 builder.Services.AddScoped<WorkspaceLookupCache>();
 
 
