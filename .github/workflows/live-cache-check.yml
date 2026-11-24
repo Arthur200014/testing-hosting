@@ -1,0 +1,32 @@
+name: Timeweb Redis cache verification
+on:
+  push:
+    branches: [tas/redis-live-verification]
+    paths:
+      - platform/scripts/live-cache-check.mjs
+      - .github/workflows/live-cache-check.yml
+  workflow_dispatch:
+    inputs:
+      expected:
+        type: choice
+        description: Expected Timeweb cache state
+        options: [enabled, report]
+        default: enabled
+permissions:
+  contents: read
+concurrency:
+  group: timeweb-redis-verification
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check the published API with a synthetic teacher
+        env:
+          TAS_EXPECT_CACHE: ${{ inputs.expected || 'report' }}
+        run: node platform/scripts/live-cache-check.mjs
