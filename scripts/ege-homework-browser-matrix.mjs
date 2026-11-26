@@ -19,7 +19,7 @@ const paths = [
   '/EGA/4/dz.html',
   ...['dz1', 'dz2'].map(name => `/EGA/5/${name}.html`),
   ...[6, 7].flatMap(task => ['dz1', 'dz2', 'dz3'].map(name => `/EGA/${task}/${name}.html`)),
-  ...['dz1', 'dz2'].map(name => `/EGA/8/${name}.html`),
+  ...['dz1', 'dz2', 'dz3'].map(name => `/EGA/8/${name}.html`),
   ...[9, 10, 11].flatMap(task => ['dz1', 'dz2', 'dz3'].map(name => `/EGA/${task}/${name}.html`))
 ].filter(path => !only || path.includes(only));
 

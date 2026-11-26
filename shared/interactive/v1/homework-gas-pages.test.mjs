@@ -20,7 +20,7 @@ async function homeworkPages() {
 
 test('all first-part EGE homework pages in scope use the shared GAS transport boundary', async () => {
   const files = await homeworkPages();
-  assert.equal(files.length, 50, 'Update this inventory if homework pages are added or removed');
+  assert.equal(files.length, 51, 'Update this inventory if homework pages are added or removed');
   let checked = 0;
   let migrated = 0;
   for (const file of files) {
@@ -41,8 +41,8 @@ test('all first-part EGE homework pages in scope use the shared GAS transport bo
     assert.doesNotMatch(source, /https:\/\/script\.google\.com\/macros\/s\//, file);
     assert.doesNotMatch(source, /fetch\(API_URL/, file);
   }
-  assert.equal(checked, 31, 'Update the first-part homework inventory when pages change');
-  assert.equal(migrated, 31, 'Update the first-part policy inventory when pages change');
+  assert.equal(checked, 32, 'Update the first-part homework inventory when pages change');
+  assert.equal(migrated, 32, 'Update the first-part policy inventory when pages change');
 });
 
 test('teacher form uses shared homework diagnostics and checks pending duplicates before writing', async () => {
