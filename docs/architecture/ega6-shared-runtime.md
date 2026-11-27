@@ -116,3 +116,9 @@ transport с GAS/Google Sheets по умолчанию. Общий suite про�
 
 `.ai/tasks/shared-ega6-rollout.md`, `.ai/tasks/ega6-public-runtime-facade.md`,
 `.ai/tasks/shared-interactive-package.md`, `.ai/tasks/ege-homework-gas-rollout.md`.
+
+## Live ink v2 (opt-in)
+
+New drawing consumers should use `runtime.realtime.createDrawing({mode:'live-v2', scope: sessionId, storage: localStorage, storageKey: perClientSessionKey, onChange, onError})`. The existing `createDrawing()` defaults to legacy, preserving all existing paths/codecs. The new protocol uses a distinct `ink-v2/<scope>/<strokeId>` path; never mix it with legacy strokes in the same room without an explicit migration. Use one stable scope per actual lesson and a unique storage key per client/session. The page owns role authorization, surface selection and rendering. The adapter sends new point indices (32 ms, no acknowledgement barrier), retains unacknowledged records, retries complete latest records on failure, and makes erase tombstones monotonic. Call `flush()` at pagehide and navigation and `dispose()` on room exit. Persistence is best-effort at packet flush/finish, not a guarantee against a browser crash between samples.
+
+Use exported `createInkPlayback()` from the drawing module for remote-only animation and `smoothInkPath()` for local/remote SVG paths. Keep one SVG node per stroke and drive playback with requestAnimationFrame; authoritative records (not animated prefixes) are used for PDF/eraser. Coordinates must be normalized consistently by the consuming page. Legacy shared-board.js is not migrated by this additive change. Real Firebase rules, offline recovery, and browser integration require isolated acceptance before adoption. Existing consumers remain unchanged.
