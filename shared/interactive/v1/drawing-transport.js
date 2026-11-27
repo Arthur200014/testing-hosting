@@ -123,7 +123,7 @@ export function createInkPlayback({minMs=32,maxMs=140}={}) {
       if(pos>=t.to&&t.done)tracks.delete(record.id);
       return pts;
     },
-    isAnimating(at){return [...tracks.values()].some(t=>position(t,at)<t.to);},
+    isAnimating(at,id){if(id!==undefined){const t=tracks.get(id);return !!t&&position(t,at)<t.to;}return [...tracks.values()].some(t=>position(t,at)<t.to);},
     clear(){tracks.clear();}
   };
 }
@@ -141,7 +141,7 @@ export function smoothInkPath(points) {
 // Reusable SVG rendering and pointer handling for the opt-in live stream.
 export function createSvgInkLayer({svg,surface=null,clock=()=>performance.now(),requestFrame=fn=>requestAnimationFrame(fn),cancelFrame=id=>cancelAnimationFrame(id)}={}) {
   if(!svg)throw new TypeError('SVG required');
-  const records=new Map(),nodes=new Map(),playback=createInkPlayback();
+  const records=new Map(),nodes=new Map(),playback=createInkPlayback(),animated=new Set();
   let current=surface,frame=null,disposed=false;
   svg.setAttribute('viewBox','0 0 1000 1000');svg.setAttribute('preserveAspectRatio','none');
   function remove(id){nodes.get(id)?.remove();nodes.delete(id);}
@@ -154,8 +154,8 @@ export function createSvgInkLayer({svg,surface=null,clock=()=>performance.now(),
     if(node.getAttribute('d')!==path)node.setAttribute('d',path);
     node.setAttribute('stroke',/^#[0-9a-f]{6}$/i.test(r.color||'')?r.color:'#963f4f');node.setAttribute('stroke-width',String(Math.max(1,Math.min(30,Number(r.width)||4))));
   }
-  function tick(at){frame=null;if(disposed)return;for(const r of records.values())if(r.surface===current&&!r.deleted)draw(r,at);if(playback.isAnimating(at))frame=requestFrame(tick);}
-  function reset(){if(frame!==null)cancelFrame(frame);frame=null;playback.clear();for(const id of [...nodes.keys()])remove(id);}
+  function tick(at){frame=null;if(disposed)return;for(const id of [...animated]){const r=records.get(id);if(r&&r.surface===current&&!r.deleted)draw(r,at);if(!playback.isAnimating(at,id))animated.delete(id);}if(animated.size)frame=requestFrame(tick);}
+  function reset(){if(frame!==null)cancelFrame(frame);frame=null;playback.clear();animated.clear();for(const id of [...nodes.keys()])remove(id);}
   return {
     apply(r,{local=false,history=false}={}){
       if(disposed||!r?.id)return;
@@ -165,7 +165,7 @@ export function createSvgInkLayer({svg,surface=null,clock=()=>performance.now(),
       if(r.surface!==current)return;
       const at=clock();
       playback.push(r,at,{local,history});
-      draw(r,at);if(frame===null&&playback.isAnimating(at))frame=requestFrame(tick);
+      draw(r,at);if(playback.isAnimating(at,r.id))animated.add(r.id);else animated.delete(r.id);if(frame===null&&animated.size)frame=requestFrame(tick);
     },
     setSurface(next){if(next===current||disposed)return;reset();current=next;for(const r of records.values())if(r.surface===current&&!r.deleted)draw(r,clock());},
     clear(){reset();records.clear();},
