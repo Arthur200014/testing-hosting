@@ -54,7 +54,10 @@ export function createLiveInkStream({transport, scope, path='ink-v2', storage, s
     if(r.deleted){Object.assign(patch,{id:r.id,scope,surface:r.surface,deleted:true});}
     else{
       Object.assign(patch,{done:r.done,count:r.points.length});
-      if(full)Object.assign(patch,{id:r.id,scope,surface:r.surface,author:r.author,color:r.color,width:r.width,at:r.at??0});
+      if(full){
+        Object.assign(patch,{id:r.id,scope,surface:r.surface,author:r.author,color:r.color,width:r.width,at:r.at??0});
+        if(r.meta!==undefined)patch.meta=r.meta;
+      }
       for(let i=full?0:e.sentCount;i<r.points.length;i++)patch['points/'+i]=r.points[i].slice();
       e.sentCount=r.points.length;
     }
@@ -91,10 +94,10 @@ export function createLiveInkStream({transport, scope, path='ink-v2', storage, s
   if(typeof transport.subscribeConnection==='function')subscriptions.push(transport.subscribeConnection(s=>{if(!disposed&&s.val()===true)pumpAll(true);}));
   pumpAll(true);
   return {
-    startStroke(surface,{author,color='#963f4f',width=4}={},point){
+    startStroke(surface,{author,meta,color='#963f4f',width=4}={},point){
       if(disposed||typeof surface!=='string'||!surface||typeof author!=='string'||!validPoint(point))throw new TypeError('Invalid stroke');
       const id=transport.newKey(root);
-      enqueue({id,scope,surface,author,color:String(color),width:Math.max(1,Math.min(30,Number(width)||4)),points:[point.slice()],count:1,rev:1,done:false,at:now()},true);return id;
+      enqueue({id,scope,surface,author,color:String(color),width:Math.max(1,Math.min(30,Number(width)||4)),points:[point.slice()],count:1,rev:1,done:false,at:now(),...(meta===undefined?{}:{meta:copy(meta)})},true);return id;
     },
     append(id,points){const r=records.get(id);if(!r||r.deleted||r.done||!Array.isArray(points))return;const add=points.filter(validPoint).map(p=>p.slice());if(!add.length)return;const all=[...r.points,...add];enqueue({...r,points:all,count:all.length,rev:r.rev+1});},
     finish(id){const r=records.get(id);if(r&&!r.deleted&&!r.done)enqueue({...r,done:true,rev:r.rev+1},true);},
@@ -174,7 +177,7 @@ export function createSvgInkLayer({svg,surface=null,clock=()=>performance.now(),
   };
 }
 
-export function createInkPointerController({svg,stream,getSurface,getAuthor,canDraw=()=>true,canErase=()=>true,keyboardTarget=svg?.ownerDocument,initialTool='cursor',color='#963f4f',width=4}={}) {
+export function createInkPointerController({svg,stream,getSurface,getAuthor,getMetadata=()=>undefined,canDraw=()=>true,canErase=()=>true,keyboardTarget=svg?.ownerDocument,initialTool='cursor',color='#963f4f',width=4}={}) {
   if(!svg||!stream||typeof getSurface!=='function'||typeof getAuthor!=='function')throw new TypeError('Ink pointer controller needs SVG, stream, surface, author');
   let tool=initialTool,active=null,erasing=null,disposed=false;
   const valid=()=>!disposed&&canDraw()&&!!getAuthor()&&!!getSurface();
@@ -216,7 +219,7 @@ export function createInkPointerController({svg,stream,getSurface,getAuthor,canD
     if(!valid()||tool==='cursor'||active||erasing||e.button!==0)return;
     e.preventDefault();const rect=svg.getBoundingClientRect(),surface=getSurface();if(!rect.width||!rect.height)return;
     if(tool==='eraser'){erasing={pointerId:e.pointerId,rect,surface,last:null};erase(e);}
-    else{const p=point(e,rect),id=stream.startStroke(surface,{author:getAuthor(),color,width},p);active={id,pointerId:e.pointerId,rect,surface,last:p};}
+    else{const p=point(e,rect),id=stream.startStroke(surface,{author:getAuthor(),color,width,meta:getMetadata()},p);active={id,pointerId:e.pointerId,rect,surface,last:p};}
     try{svg.setPointerCapture(e.pointerId);}catch{}
   }
   function move(e){
@@ -269,10 +272,10 @@ export function createLocalInkStream({scope,storage,storageKey,onChange=()=>{},o
     }
   }catch(e){report(e);}
   return {
-    startStroke(surface,{author,color='#963f4f',width=4}={},point){
+    startStroke(surface,{author,meta,color='#963f4f',width=4}={},point){
       if(disposed||typeof surface!=='string'||!surface||typeof author!=='string'||!valid(point))throw new TypeError('Invalid local stroke');
       const id=newId();if(records.has(id))throw Error('Duplicate stroke id');
-      const r={id,scope,surface,author,color,width:Math.max(1,Math.min(30,Number(width)||4)),at:now(),points:[point.slice()],count:1,rev:1,done:false};records.set(id,r);emit(r);defer();return id;
+      const r={id,scope,surface,author,color,width:Math.max(1,Math.min(30,Number(width)||4)),at:now(),points:[point.slice()],count:1,rev:1,done:false,...(meta===undefined?{}:{meta:copy(meta)})};records.set(id,r);emit(r);defer();return id;
     },
     append(id,points){
       if(disposed)return;
