@@ -111,6 +111,22 @@ try{
   await draw(t,.35);await count(t,2);
   await t.reload();await count(t,2);
   assert.equal(await download(t,'export-pdf'),1);
+  if(picture){
+    await click(t,'next');
+    await draw(t,.4);
+    await count(t,1);
+    const shape=await t.locator(pathSelector).getAttribute('d');
+    const reference=t.locator('.slide.active .free-panel[data-slot="1"] .free-reference');
+    assert.equal(await reference.isVisible(),false);
+    await click(t,'joint-ref-solo');
+    assert.equal(await reference.isVisible(),true);
+    assert.equal(await t.locator('#joint-ref-solo').getAttribute('aria-expanded'),'true');
+    assert.equal(await t.locator(pathSelector).getAttribute('d'),shape);
+    await click(t,'joint-ref-solo');
+    assert.equal(await reference.isVisible(),false);
+    await tool(t,'cursor');
+    await click(t,'prev');
+  }
   await signIn(t,'teacher',teacherCode);await click(t,'j-new');await click(t,'j-two');
   await t.locator('#j-start').waitFor({timeout:8000});
   await waitForDb('state',state=>state?.inkProtocol==='live-v2'&&state.status==='lobby');
@@ -144,6 +160,7 @@ try{
   if(picture){
     assert.equal(await a.locator('.slide.active .free-panel:visible').count(),2);
     assert.equal(await a.locator('#joint-ref-a:visible').count(),0);
+    assert.equal(await a.locator('#joint-ref-solo:visible').count(),0);
     const stroke=await b.locator(pathSelector).getAttribute('d');
     await a.waitForFunction(([selector,shape])=>document.querySelector(selector)?.getAttribute('d')===shape,[pathSelector,stroke]);
     const node=await a.locator(pathSelector).elementHandle();

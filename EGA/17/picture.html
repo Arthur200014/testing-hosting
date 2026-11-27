@@ -142,7 +142,7 @@ body.capture #course-actions,body.capture #joint-theory-hud,body.capture #joint-
 <div aria-label="Совместный урок" aria-modal="true" id="joint-dialog" role="dialog"></div>
 <div id="joint-theory-hud"><span id="joint-theory-label"></span><button id="joint-ref-a" hidden>Эталон А</button><button id="joint-ref-b" hidden>Эталон Б</button><button id="joint-back-kitchen">Кухня</button><button hidden="" id="joint-finish-theory">Завершить игру</button><button id="joint-export-theory" title="Скачать конспект с записями">↓ PDF</button><button id="export-all-hud" class="teacher-export-all" hidden>Все листы PDF</button><button id="joint-exit-theory">Выйти</button></div>
 <svg aria-label="Общая доска" id="joint-ink" preserveaspectratio="none" viewbox="0 0 1000 1000"></svg>
-<div id="joint-tools"><button class="selected" data-jtool="cursor" title="Курсор">↖</button><button data-jtool="pen" title="Карандаш">✎</button><button data-jtool="eraser" title="Ластик">⌫</button><input id="joint-color" title="Цвет" type="color" value="#a33f50"/><input id="joint-width" max="10" min="2" title="Толщина" type="range" value="4"/><button id="joint-clear" title="Очистить доску">Очистить</button><button id="joint-undo" title="Отменить последнюю свою запись (Ctrl+Z / Cmd+Z)">↶</button></div>
+<div id="joint-tools"><button class="selected" data-jtool="cursor" title="Курсор">↖</button><button data-jtool="pen" title="Карандаш">✎</button><button data-jtool="eraser" title="Ластик">⌫</button><input id="joint-color" title="Цвет" type="color" value="#a33f50"/><input id="joint-width" max="10" min="2" title="Толщина" type="range" value="4"/><button id="joint-clear" title="Очистить доску">Очистить</button><button id="joint-undo" title="Отменить последнюю свою запись (Ctrl+Z / Cmd+Z)">↶</button><button id="joint-ref-solo" type="button" aria-expanded="false" hidden>Показать ответ</button></div>
 <script type="module">
 import {createLessonInk,readLessonInk,smoothInkPath} from '../../shared/interactive/v1/drawing-transport.js';
 import {captureWorksheetJpeg,createWorksheetPdfExporter} from '../../shared/interactive/v1/worksheet-pdf.js';
@@ -405,7 +405,33 @@ el('j-finish').onclick=jFinish;el('joint-finish-theory').onclick=jFinish;el('joi
 // Freehand layout and teacher-only reveal. Full-page ink is inherited, never reset on reveal.
 function freeMode(){return jRole&&jState?Number(jState.limit)||1:1;}
 function freeRender(root,limit,reveals,teacher=false,players=jState?.players){if(!root)return;root.classList.toggle('free-two',limit===2);const page=Number(root.dataset.block);for(const p of root.querySelectorAll('.free-panel')){const slot=Number(p.dataset.slot);p.hidden=slot>limit;const show=!!reveals?.['free_'+page+'_'+slot];p.querySelector('.free-reference').hidden=!show;const owner=p.querySelector('.free-owner');const name=Object.values(players||{}).find(x=>Number(x.slot)===slot)?.name;owner.textContent=name||(limit===2?'Ученик '+slot:'Самостоятельная работа');}const tools=root.querySelector('.free-teacher');if(tools){tools.hidden=!teacher;tools.querySelectorAll('button').forEach(b=>{const slot=Number(b.dataset.ref);b.hidden=slot>limit;b.textContent=(reveals?.['free_'+page+'_'+slot]?'Скрыть':'Показать')+' эталон '+(slot===1?'А':'Б');});}}
-const freeOldBoard=jBoard;jBoard=function(){const slide=slides[lessonPage()-1];freeRender(slide,freeMode(),jRole?jState?.reveals:null,jRole==='teacher'&&lessonLive());const teacher=jRole==='teacher'&&lessonLive()&&!kitchenOpen()&&!!slide?.querySelector('.free-panel');for(const [id,slot] of [['joint-ref-a',1],['joint-ref-b',2]]){const b=el(id);b.hidden=!teacher||slot>freeMode();b.textContent=(jState?.reveals?.['free_'+lessonPage()+'_'+slot]?'Скрыть':'Эталон')+' '+(slot===1?'А':'Б');}freeOldBoard();};
+const soloReveals={};
+const soloAnswer=el('joint-ref-solo');
+const answerKey=page=>'free_'+page+'_1';
+const freeOldBoard=jBoard;
+jBoard=function(){
+ const slide=slides[lessonPage()-1],page=Number(slide?.dataset.block);
+ const isWorksheet=!kitchenOpen()&&!!slide?.querySelector('.free-panel');
+ const showSolo=!jRole&&isWorksheet;
+ freeRender(slide,freeMode(),jRole?jState?.reveals:soloReveals,jRole==='teacher'&&lessonLive());
+ const open=showSolo&&!!soloReveals[answerKey(page)];
+ soloAnswer.hidden=!showSolo;
+ soloAnswer.textContent=open?'Скрыть ответ':'Показать ответ';
+ soloAnswer.setAttribute('aria-expanded',String(open));
+ const teacher=jRole==='teacher'&&lessonLive()&&isWorksheet;
+ for(const [id,slot] of [['joint-ref-a',1],['joint-ref-b',2]]){
+  const button=el(id);
+  button.hidden=!teacher||slot>freeMode();
+  button.textContent=(jState?.reveals?.['free_'+page+'_'+slot]?'Скрыть':'Эталон')+' '+(slot===1?'А':'Б');
+ }
+ freeOldBoard();
+};
+soloAnswer.onclick=()=>{
+ if(jRole||soloAnswer.hidden)return;
+ const page=Number(slides[lessonPage()-1].dataset.block);
+ soloReveals[answerKey(page)]=!soloReveals[answerKey(page)];
+ jBoard();
+};
 document.addEventListener('click',async e=>{const b=e.target.closest('.free-reveal');if(!b||jRole!=='teacher'||!lessonLive())return;const page=Number(b.closest('.slide').dataset.block),slot=Number(b.dataset.ref);await flushInk();await jMutate(s=>{if(s.page!==page||s.view!=='theory'||slot>s.limit)return false;s.reveals||={};const key='free_'+page+'_'+slot;s.reveals[key]=!s.reveals[key];return true;});});
 for(const [id,slot] of [['joint-ref-a',1],['joint-ref-b',2]])el(id).onclick=()=>slides[lessonPage()-1]?.querySelector('[data-ref="'+slot+'"]')?.click();
 // Persist the geometry of the layout with every stroke for export after leaving a lesson.
@@ -424,7 +450,7 @@ const worksheetExporter=createWorksheetPdfExporter({
  async getPages(mode){
   await flushInk();
   if(mode==='all'){const limit=freeMode();return slides.map((_,i)=>({number:i+1,limit}));}
-  let source={board:jClone(boardData()),boardMeta:jClone(metaData()),reveals:jRole?jClone(jState?.reveals||{}):null,players:jRole?jClone(jState?.players||{}):{}};
+  let source={board:jClone(boardData()),boardMeta:jClone(metaData()),reveals:jClone(jRole?jState?.reveals||{}:soloReveals),players:jRole?jClone(jState?.players||{}):{}};
   if(!jRole&&!Object.values(source.board).some(x=>Object.keys(x||{}).length)){
    source=archive||jJson(JAPP+':lastNotes',null)||source;
   }
