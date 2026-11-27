@@ -290,3 +290,52 @@ export function createLocalInkStream({scope,storage,storageKey,onChange=()=>{},o
     dispose(){if(disposed)return;persist();disposed=true;}
   };
 }
+
+// Adapter for existing lessons that already own their Firebase room and participant identity.
+export function createLessonInk({svg,scope,storageKey,legacyBoard={},firebase,ref,getSurface,getAuthor,
+  getMetadata,canDraw,tool,color,width,storage={
+    getItem:key=>globalThis.localStorage.getItem(key),
+    setItem:(key,value)=>globalThis.localStorage.setItem(key,value)
+  },onError=error=>console.warn('Drawing storage or transport',error)}={}){
+  const layer=createSvgInkLayer({svg});
+  const options={scope,storage,storageKey,onError,onChange:(record,flags)=>layer.apply(record,flags)};
+  let stream;
+  if(firebase){
+    const transport={
+      newKey:path=>firebase.push(ref(path)).key,
+      update:(path,patch)=>firebase.update(ref(path),patch),
+      subscribeChildAdded:(path,receive,fail)=>firebase.onChildAdded(ref(path),receive,fail),
+      subscribeChildChanged:(path,receive,fail)=>firebase.onChildChanged(ref(path),receive,fail),
+      subscribeChildRemoved:(path,receive,fail)=>firebase.onChildRemoved(ref(path),receive,fail)
+    };
+    stream=createDrawingTransport({...options,transport,mode:'live-v2'});
+  }else{
+    if(storage&&storageKey)try{
+      if(!storage.getItem(storageKey)){
+        const records=Object.entries(legacyBoard).flatMap(([surface,list])=>Object.entries(list||{}).map(([id,stroke])=>({
+          id,scope,surface,author:stroke.by,color:stroke.color,width:stroke.width,at:stroke.at,rev:1,done:true,
+          points:Object.values(stroke.pts||{}).map(point=>[point.x,point.y]).filter(point=>point.every(Number.isFinite))
+        })));
+        storage.setItem(storageKey,JSON.stringify({scope,records}));
+      }
+    }catch(error){onError(error);}
+    stream=createLocalInkStream(options);
+  }
+  const pointer=createInkPointerController({svg,stream,getSurface,getAuthor,getMetadata,canDraw,
+    keyboardTarget:null,initialTool:tool,color,width});
+  return {pointer,stream:{...stream,setSurface:surface=>layer.setSurface(surface),dispose(){stream.dispose();layer.dispose();}}};
+}
+
+// Keep the worksheet snapshot format independent from the incremental wire protocol.
+export function readLessonInk(stream){
+  const board={},metadata={};
+  for(const record of stream?.getRecords()||[]){
+    board[record.surface]??={};
+    board[record.surface][record.id]={
+      by:record.author,at:record.at,color:record.color,width:record.width,
+      pts:record.points.map(([x,y])=>({x,y}))
+    };
+    if(record.meta)metadata[record.surface]=record.meta;
+  }
+  return {board,metadata};
+}

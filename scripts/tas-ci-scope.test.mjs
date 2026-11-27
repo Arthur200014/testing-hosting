@@ -63,7 +63,7 @@ test('board core uses dedicated CI without unrelated backend suite', () => {
 test('guide 17 pilot uses dedicated browser CI and still selects shared unit tests', () => {
   const branch = 'tas/interactive-live-ink';
   const guide = 'EGA/17/formula.html';
-  const result = pick([guide, 'shared/interactive/v1/drawing-transport.js'], branch);
+  const result = pick([guide, 'EGA/17/picture.html', 'shared/interactive/v1/drawing-transport.js'], branch);
   assert.equal(result.run_task, false);
   assert.equal(result.run_shared, true);
   assert.throws(() => pick([guide, 'EGA/13/gaid.html'], branch), /require branch/);
