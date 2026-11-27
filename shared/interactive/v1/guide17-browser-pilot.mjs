@@ -106,6 +106,22 @@ async function waitForDb(path,ready){
 }
 try{
   const t=await page('Teacher',{oldSolo:true}),a=await page('Pupil A'),b=await page('Pupil B');
+  if(picture){
+    const groups=t.locator('.bank-route-group');
+    assert.equal(await groups.count(),4);
+    assert.deepEqual(await groups.evaluateAll(items=>items.map(group=>group.querySelectorAll('button[data-go]').length)),[7,6,7,4]);
+    assert.equal(await t.locator('.slide').count(),25);
+    assert.equal(await t.locator('.slide[data-bank-prototype] [data-bank-diagram]').count(),32);
+    await groups.last().locator('button[data-go="25"]').click();
+    await t.locator('.slide.active[data-block="25"]').waitFor();
+    await click(t,'joint-ref-solo');
+    const diagram=t.locator('.slide.active .free-panel[data-slot="1"] [data-bank-diagram]');
+    assert.equal(await diagram.isVisible(),true);
+    assert.ok(await diagram.evaluate(el=>el.getBBox().width>200&&el.getBBox().height>100),'reference has rendered geometry');
+    await click(t,'joint-ref-solo');
+    await t.locator('.slide.active .bank-return').click();
+    await t.locator('.slide.active[data-block="1"]').waitFor();
+  }
   // Annotations from the old guide and new handwriting survive refreshing.
   await count(t,1);
   await draw(t,.35);await count(t,2);
@@ -177,6 +193,23 @@ try{
   const sheets=await t.locator('.slide').count();
   assert.equal(await download(t,'export-all-hud'),sheets);
   assert.equal((await readDb('state')).page,2,'export does not switch the shared page');
+
+  if(picture){
+    const jump=async pageNumber=>{
+      await t.locator('#page').evaluate((input,n)=>{input.value=String(n);input.dispatchEvent(new Event('change'));},pageNumber);
+      await waitForDb('state',state=>state?.page===pageNumber);
+      await Promise.all([t,a,b].map(p=>p.locator('.slide.active[data-block="'+pageNumber+'"]').waitFor()));
+    };
+    await jump(25);
+    await Promise.all([t,a,b].map(p=>count(p,0)));
+    await draw(b,.42);
+    await count(a,1);
+    await click(t,'joint-ref-a');await click(t,'joint-ref-b');
+    await a.waitForFunction(()=>document.querySelectorAll('.slide.active .free-reference:not([hidden]) [data-bank-diagram]').length===2);
+    await count(a,1);
+    await jump(2);
+    await Promise.all([t,a,b].map(p=>count(p,1)));
+  }
 
   // Pending points survive a disconnected student reload and are sent on reconnect.
   await b.evaluate(()=>window.setTestConnection(false));
