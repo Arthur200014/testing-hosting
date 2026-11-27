@@ -11,7 +11,11 @@ export function selectScopes(paths, branch, forced = 'auto') {
   const backend = files.some(path => (path.startsWith('platform/') && !path.startsWith('platform/board-prototype/')) || path === 'compose.yaml');
   const shared = includes(/^shared\/interactive\/v1\//);
   const web = includes(/^web\//);
-  const taskCode = includes(/^(EGA\/|OGA\/|scripts\/(?!tas-ci-scope(?:\.test)?\.mjs$))/);
+  // The guide 17 migration runs its own Chromium/Firebase workflow on this branch.
+  const taskCode = files.some(path => {
+    if (branch === 'tas/interactive-live-ink' && /^EGA\/17\/(formula|picture)\.html$/.test(path)) return false;
+    return /^(EGA\/|OGA\/|scripts\/(?!tas-ci-scope(?:\.test)?\.mjs$))/.test(path);
+  });
   const taskTests = includes(/^tests\/tas\//);
   const result = {
     run_backend: backend || forced === 'backend',

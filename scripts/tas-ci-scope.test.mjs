@@ -59,3 +59,13 @@ test('board core uses dedicated CI without unrelated backend suite', () => {
   assert.deepEqual([r.run_shared, r.run_backend, r.run_web, r.run_task], [false, false, false, false]);
   assert.equal(pick(['platform/src/Platform.Api/Program.cs', 'platform/board-prototype/access.mjs']).run_backend, true);
 });
+
+test('guide 17 pilot uses dedicated browser CI and still selects shared unit tests', () => {
+  const branch = 'tas/interactive-live-ink';
+  const guide = 'EGA/17/formula.html';
+  const result = pick([guide, 'EGA/17/picture.html', 'shared/interactive/v1/drawing-transport.js'], branch);
+  assert.equal(result.run_task, false);
+  assert.equal(result.run_shared, true);
+  assert.throws(() => pick([guide, 'EGA/13/gaid.html'], branch), /require branch/);
+  assert.equal(pick([guide]).run_task, true);
+});
