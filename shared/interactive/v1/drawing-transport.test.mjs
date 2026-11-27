@@ -10,9 +10,12 @@ async function regressionTests({createLiveInkStream,createInkPlayback,smoothInkP
   const advance=ms=>{time+=ms;for(const [id,t] of [...timers])if(t.at<=time){timers.delete(id);t.fn();}};
   const settle=async()=>{for(let i=0;i<6;i++)await Promise.resolve();};
   const stream=createLiveInkStream(opts);
-  const id=stream.startStroke('page-1',{author:'teacher'},[0,0]);
+  const meta={question:17,options:['a','b']};
+  const id=stream.startStroke('page-1',{author:'teacher',meta},[0,0]);
+  assert(JSON.stringify(writes[0].patch.meta)===JSON.stringify(meta),'first packet carries surface metadata');
   stream.append(id,[[1,1],[2,2]]);advance(32);stream.append(id,[[3,3]]);advance(32);
   assert(writes.length===3,'packets do not wait for previous acknowledgments');
+  assert(!Object.hasOwn(writes[1].patch,'meta'),'point deltas do not resend metadata');
   assert(Object.keys(writes[1].patch).filter(k=>k.startsWith('points/')).join(',')==='points/1,points/2','delta only');
   assert(Object.keys(writes[2].patch).filter(k=>k.startsWith('points/')).join(',')==='points/3','next delta only');
   stream.finish(id);
@@ -29,6 +32,7 @@ async function regressionTests({createLiveInkStream,createInkPlayback,smoothInkP
   assert(!stream.getRecords().some(r=>r.id==='foreign'),'session isolation');
   writes[1].reject(Error('network'));for(const w of [writes[0],writes[2],writes[3],writes[4]])w.resolve();await settle();advance(250);
   assert(writes.length===6&&Object.keys(writes[5].patch).filter(k=>k.startsWith('points/')).length===4,'repair sends complete latest points after failure');
+  assert(JSON.stringify(writes[5].patch.meta)===JSON.stringify(meta),'repair retains surface metadata');
   stream.dispose();const restored=createLiveInkStream(opts);
   assert(restored.getRecords().some(r=>r.id===id&&r.done&&r.points.length===4),'unconfirmed stroke restores');
   restored.dispose();
