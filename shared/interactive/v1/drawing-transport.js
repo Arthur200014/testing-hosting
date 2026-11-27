@@ -62,7 +62,11 @@ export function createLiveInkStream({transport, scope, path='ink-v2', storage, s
     Promise.resolve(result).then(()=>{e.ackedRev=Math.max(e.ackedRev,r.rev);},error=>{e.repair=true;e.retryAt=now()+250;report(error);}).finally(()=>{
       e.inflight--;
       if(disposed||pending.get(r.id)!==e)return;
-      if(!e.inflight&&!e.repair&&e.ackedRev>=e.record.rev){pending.delete(r.id);persist();return;}
+      if(!e.inflight&&!e.repair&&e.ackedRev>=e.record.rev){
+        // Keep append cursor until pen-up, even when every packet is acknowledged quickly.
+        if(e.record.done||e.record.deleted)pending.delete(r.id);
+        persist();return;
+      }
       if(e.repair){arm(Math.max(1,e.retryAt-now()));return;}
       if(e.sentRev!==e.record.rev) pump(e,e.record.done||e.record.deleted);
     });

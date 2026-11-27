@@ -32,6 +32,12 @@ async function regressionTests({createLiveInkStream,createInkPlayback,smoothInkP
   stream.dispose();const restored=createLiveInkStream(opts);
   assert(restored.getRecords().some(r=>r.id===id&&r.done&&r.points.length===4),'unconfirmed stroke restores');
   restored.dispose();
+  // A fresh stroke with fast ACKs must also keep the append cursor.
+  const fast=createLiveInkStream({...opts,storage:null});const fastId=fast.startStroke('page-2',{author:'teacher'},[0,0]);
+  writes.at(-1).resolve();await settle();const before=writes.length;
+  fast.append(fastId,[[1,1]]);advance(32);
+  assert(writes.length===before+1&&Object.keys(writes.at(-1).patch).filter(k=>k.startsWith('points/')).join(',')==='points/1','fast ACK preserves delta cursor');
+  fast.finish(fastId);fast.dispose();
   const play=createInkPlayback(),r={id:'p',points:[[0,0]],done:false};play.push(r,0);const next={...r,points:[[0,0],[10,10],[20,0]]};play.push(next,32);
   const mid=play.sample(next,48);assert(mid.length>=2&&mid.at(-1)[0]>0&&mid.at(-1)[0]<20,'remote intermediate animation');
   assert(play.sample(next,250).at(-1)[0]===20,'remote ends at exact target');
