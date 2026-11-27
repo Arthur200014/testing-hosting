@@ -68,7 +68,7 @@ body.capture #course-actions,body.joint-student-theory #course-actions{display:n
 #joint-theory-label{max-width:48vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 body.joint-student-theory #course-actions{display:flex!important}body.joint-student-theory #formula-launch{display:none!important}
 body.capture #course-actions,body.capture #joint-theory-hud,body.capture #joint-tools{display:none!important}
-#joint-tools{bottom:64px;right:12px;z-index:10010;flex-wrap:wrap;max-width:calc(100vw - 24px);user-select:none;touch-action:none}
+#joint-tools{bottom:var(--joint-palette-bottom,64px);right:12px;z-index:10010;flex-wrap:wrap;max-width:calc(100vw - 24px);user-select:none;touch-action:none}
 #joint-ink{z-index:10008}#joint-ink.draw{cursor:crosshair}#joint-ink.erase{cursor:cell}
 #fq.lesson-fixed{padding:0;overflow:hidden;display:none}#fq.lesson-fixed.open{display:block}
 #fq.lesson-fixed .k-shell{position:absolute;top:50%;left:50%;width:1440px!important;max-width:none!important;height:920px;max-height:none!important;margin:0!important;transform:translate(-50%,-50%) scale(var(--lesson-scale,1));transform-origin:center;overflow:hidden;padding:15px 20px 10px!important;display:flex;flex-direction:column;gap:0}
@@ -442,6 +442,12 @@ function freeMode(){return jRole&&jState?Number(jState.limit)||1:1;}
 function freeRender(root,limit,reveals,teacher=false,players=jState?.players){if(!root)return;root.classList.toggle('free-two',limit===2);const page=Number(root.dataset.block);for(const p of root.querySelectorAll('.free-panel')){const slot=Number(p.dataset.slot);p.hidden=slot>limit;const show=!!reveals?.['free_'+page+'_'+slot];p.querySelector('.free-reference').hidden=!show;p.querySelector('.free-condition').hidden=show;const owner=p.querySelector('.free-owner');const name=Object.values(players||{}).find(x=>Number(x.slot)===slot)?.name;owner.textContent=name||(limit===2?'Ученик '+slot:'Самостоятельная работа');}const tools=root.querySelector('.free-teacher');if(tools){tools.hidden=!teacher;tools.querySelectorAll('button').forEach(b=>{const slot=Number(b.dataset.ref);b.hidden=slot>limit;b.textContent=(reveals?.['free_'+page+'_'+slot]?'Скрыть':'Проверить')+' '+(slot===1?'А':'Б');});}}
 const personalRevealsByRoom=new Map();
 const checkDrawing=el('joint-ref-solo');
+const lessonHud=el('joint-theory-hud');
+new ResizeObserver(()=>{
+ const box=lessonHud.getBoundingClientRect();
+ if(box.height)jTools.style.setProperty('--joint-palette-bottom',Math.ceil(innerHeight-box.top)+8+'px');
+ else jTools.style.removeProperty('--joint-palette-bottom');
+}).observe(lessonHud);
 const answerKey=(page,slot)=>'free_'+page+'_'+slot;
 function personalReveals(){
  const scope=jRole==='student'?jSession:'solo';
