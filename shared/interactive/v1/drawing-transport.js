@@ -2,6 +2,7 @@
 // The adapter never invents stroke fields: encode/decode default to identity.
 export function createDrawingTransport({ transport, path = 'strokes', encodeStroke = value => value,
   encodePatch = value => value, decodeCollection = value => value || {}, mode = 'legacy', ...options }) {
+  if (mode === 'solo') return createLocalInkStream(options);
   if (mode === 'live-v2') return createLiveInkStream({ transport, path: path === 'strokes' ? 'ink-v2' : path, ...options });
   if (mode !== 'legacy') throw new TypeError('Unknown drawing mode');
   const child = (id = '') => id ? `${path}/${id}` : path;
@@ -243,5 +244,46 @@ export function createInkPointerController({svg,stream,getSurface,getAuthor,canD
     setColor(next){color=next;},setWidth(next){width=Math.max(1,Math.min(30,Number(next)||4));},
     flush:end,undo,
     dispose(){if(disposed)return;end();disposed=true;for(const [type,handler] of Object.entries(handlers))svg.removeEventListener(type,handler);keyboardTarget?.removeEventListener('keydown',key);svg.style.pointerEvents='none';}
+  };
+}
+
+
+// Offline mode uses the same board/controller contract, without Firebase.
+export function createLocalInkStream({scope,storage,storageKey,onChange=()=>{},onError=()=>{},now=()=>Date.now(),newId=()=>globalThis.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(36).slice(2)}`,schedule=(fn,ms)=>setTimeout(fn,ms),cancel=id=>clearTimeout(id)}={}) {
+  if(typeof scope!=='string'||!scope)throw new TypeError('Local ink requires an app-specific scope');
+  const records=new Map(),copy=v=>JSON.parse(JSON.stringify(v)),valid=p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite);
+  let disposed=false,timer=null;
+  const report=e=>{try{onError(e);}catch{}};
+  const emit=(r,history=false)=>{try{onChange(copy(r),{local:true,history});}catch(e){report(e);}};
+  function persist(){
+    if(timer!==null){cancel(timer);timer=null;}
+    if(!storage||!storageKey)return;
+    try{storage.setItem(storageKey,JSON.stringify({scope,records:[...records.values()]}));}catch(e){report(e);}
+  }
+  function defer(){if(timer===null)timer=schedule(()=>{timer=null;persist();},150);}
+  if(storage&&storageKey)try{
+    const saved=JSON.parse(storage.getItem(storageKey)||'null');
+    if(saved?.scope===scope)for(const r of saved.records||[]){
+      if(r?.scope!==scope||typeof r.id!=='string'||typeof r.surface!=='string'||!Array.isArray(r.points)||!r.points.length||!r.points.every(valid)||r.deleted)continue;
+      const recovered={...r,done:true};records.set(r.id,recovered);emit(recovered,true);
+    }
+  }catch(e){report(e);}
+  return {
+    startStroke(surface,{author,color='#963f4f',width=4}={},point){
+      if(disposed||typeof surface!=='string'||!surface||typeof author!=='string'||!valid(point))throw new TypeError('Invalid local stroke');
+      const id=newId();if(records.has(id))throw Error('Duplicate stroke id');
+      const r={id,scope,surface,author,color,width:Math.max(1,Math.min(30,Number(width)||4)),at:now(),points:[point.slice()],count:1,rev:1,done:false};records.set(id,r);emit(r);defer();return id;
+    },
+    append(id,points){
+      if(disposed)return;
+      const r=records.get(id);if(!r||r.done||!Array.isArray(points))return;
+      const add=points.filter(valid).map(p=>p.slice());if(!add.length)return;
+      r.points.push(...add);r.count=r.points.length;r.rev++;emit(r);defer();
+    },
+    finish(id){if(disposed)return;const r=records.get(id);if(r&&!r.done){r.done=true;r.rev++;emit(r);persist();}},
+    erase(id){if(disposed)return;const r=records.get(id);if(r){records.delete(id);emit({...r,rev:r.rev+1,deleted:true,points:[]});persist();}},
+    getRecords(surface){return [...records.values()].filter(r=>surface===undefined||r.surface===surface).map(copy);},
+    flush(){if(!disposed)persist();},
+    dispose(){if(disposed)return;persist();disposed=true;}
   };
 }

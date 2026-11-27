@@ -46,3 +46,8 @@ async function regressionTests({createLiveInkStream,createInkPlayback,smoothInkP
 }
 test('live ink: delta packets, latency, tombstones, restoration, playback',async()=>regressionTests(api,assert.ok));
 test('legacy drawing API remains intact',()=>{const t={set:(p,v)=>[p,v]};const a=api.createDrawingTransport({transport:t,path:'legacy',encodeStroke:v=>({wrapped:v})});assert.deepEqual(a.set('a',1),['legacy/a',{wrapped:1}]);});
+
+test('solo ink stores surfaces and recovers an interrupted local stroke without transport',()=>{
+ let seq=0;const data=new Map(),opts={scope:'app',storage:{getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v)},storageKey:'local',newId:()=>String(++seq),schedule:()=>1,cancel:()=>{}};
+ const local=api.createDrawingTransport({...opts,mode:'solo'});const one=local.startStroke('p1',{author:'solo'},[1,2]);local.append(one,[[3,4]]);local.finish(one);local.startStroke('p2',{author:'solo'},[4,5]);local.flush();local.dispose();const restored=api.createDrawingTransport({...opts,mode:'solo'});assert.equal(restored.getRecords('p1')[0].points.length,2);assert.equal(restored.getRecords('p2')[0].done,true);restored.erase(one);assert.equal(restored.getRecords('p1').length,0);assert.equal(restored.getRecords('p2').length,1);restored.dispose();assert.equal(api.createDrawingTransport({...opts,mode:'solo',scope:'other'}).getRecords().length,0);
+});

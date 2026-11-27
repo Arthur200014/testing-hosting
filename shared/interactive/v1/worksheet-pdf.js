@@ -22,9 +22,9 @@ export function buildJpegPdf(images) {
   return new Blob(parts,{type:'application/pdf'});
 }
 
-export async function captureWorksheetJpeg({node,width,height,css='',scale=2,background='#fff',quality=.94}={}) {
+export async function captureWorksheetJpeg({node,width,height,css='',scale=2,background='#fff',quality=.94,clean=false,rootCss=''}={}) {
   if(!node||!Number.isInteger(width)||!Number.isInteger(height)||width<=0||height<=0||!Number.isFinite(scale)||scale<=0||width*height*scale*scale>32000000)throw new TypeError('Invalid capture size');
-  const root=document.createElement('div');root.setAttribute('xmlns','http://www.w3.org/1999/xhtml');root.className='capture';root.style.cssText=`position:relative;width:${width}px;height:${height}px;overflow:hidden;background:${background};`;
+  const root=document.createElement('div');root.setAttribute('xmlns','http://www.w3.org/1999/xhtml');if(clean)root.className='capture';root.style.cssText=`position:relative;width:${width}px;height:${height}px;overflow:hidden;background:${background};${rootCss}`;
   const style=document.createElement('style');style.textContent=css;const clone=node.cloneNode(true);root.append(style,clone);
   const markup=new XMLSerializer().serializeToString(root),svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><foreignObject width="${width}" height="${height}">${markup}</foreignObject></svg>`;
   const img=new Image();img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);await img.decode();
