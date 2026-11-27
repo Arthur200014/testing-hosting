@@ -133,13 +133,21 @@ try{
     await count(t,1);
     const shape=await t.locator(pathSelector).getAttribute('d');
     const reference=t.locator('.slide.active .free-panel[data-slot="1"] .free-reference');
+    const paper=t.locator('.slide.active .free-panel[data-slot="1"] .free-paper');
+    const condition=t.locator('.slide.active .free-panel[data-slot="1"] .free-condition');
+    const beforePaper=await paper.boundingBox();
     assert.equal(await reference.isVisible(),false);
     await click(t,'joint-ref-solo');
     assert.equal(await reference.isVisible(),true);
+    assert.equal(await condition.isVisible(),false);
+    const referenceBox=await reference.boundingBox();
+    assert.ok(referenceBox.x+referenceBox.width<=beforePaper.x,'reference beside the drawing');
+    assert.deepEqual(await paper.boundingBox(),beforePaper,'drawing area remains in place');
     assert.equal(await t.locator('#joint-ref-solo').getAttribute('aria-expanded'),'true');
     assert.equal(await t.locator(pathSelector).getAttribute('d'),shape);
     await click(t,'joint-ref-solo');
     assert.equal(await reference.isVisible(),false);
+    assert.equal(await condition.isVisible(),true);
     await tool(t,'cursor');
     await click(t,'prev');
   }
@@ -176,7 +184,16 @@ try{
   if(picture){
     assert.equal(await a.locator('.slide.active .free-panel:visible').count(),2);
     assert.equal(await a.locator('#joint-ref-a:visible').count(),0);
-    assert.equal(await a.locator('#joint-ref-solo:visible').count(),0);
+    const visibleReferences='.slide.active .free-reference:visible';
+    const sharedBefore=(await readDb('state')).reveals;
+    assert.equal(await a.locator('#joint-ref-solo:visible').count(),1);
+    await click(a,'joint-ref-solo');
+    assert.equal(await a.locator(visibleReferences).count(),1);
+    assert.equal(await b.locator(visibleReferences).count(),0);
+    assert.equal(await t.locator(visibleReferences).count(),0);
+    assert.deepEqual((await readDb('state')).reveals,sharedBefore);
+    await click(a,'joint-ref-solo');
+    assert.equal(await a.locator(visibleReferences).count(),0);
     const stroke=await b.locator(pathSelector).getAttribute('d');
     await a.waitForFunction(([selector,shape])=>document.querySelector(selector)?.getAttribute('d')===shape,[pathSelector,stroke]);
     const node=await a.locator(pathSelector).elementHandle();
