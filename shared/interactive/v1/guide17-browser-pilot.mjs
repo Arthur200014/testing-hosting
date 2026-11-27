@@ -92,6 +92,14 @@ async function download(p,id){
   return Number(bytes.toString('latin1').match(/\/Type \/Pages \/Count (\d+)/)[1]);
 }
 async function readDb(path){const res=await fetch(database(path));assert.ok(res.ok);return res.json();}
+async function waitForDb(path,ready){
+  for(let i=0;i<80;i++){
+    const data=await readDb(path);
+    if(ready(data))return data;
+    await sleep(100);
+  }
+  assert.fail('Database state did not reach the expected condition for '+path);
+}
 try{
   const t=await page('Teacher',{oldSolo:true}),a=await page('Pupil A'),b=await page('Pupil B');
   // Annotations from the old guide and new handwriting survive refreshing.
@@ -101,6 +109,7 @@ try{
   assert.equal(await download(t,'export-pdf'),1);
   await signIn(t,'teacher',teacherCode);await click(t,'j-new');await click(t,'j-two');
   await t.locator('#j-start').waitFor({timeout:8000});
+  await waitForDb('state',state=>state?.inkProtocol==='live-v2'&&state.status==='lobby');
   await Promise.all([signIn(a,'student','synthetic-a'),signIn(b,'student','synthetic-b')]);
   await click(t,'j-start');
   await Promise.all([t,a,b].map(p=>p.locator('#joint-theory-hud.active').waitFor({timeout:8000})));
@@ -136,7 +145,7 @@ try{
   await b.reload();await signIn(b,'student','synthetic-b');
   await Promise.all([t,a,b].map(p=>count(p,2)));
   await click(t,'joint-back-kitchen');await click(t,'j-recipe-start');
-  await t.locator('#fq.open').waitFor({timeout:8000});
+  await Promise.all([t,a,b].map(p=>p.locator('#fq.open').waitFor({timeout:8000})));
   await draw(t,.43);await count(a,1);
   const kitchenRecords=Object.values(await readDb('ink-v2/'+(await readDb('state')).sessionId));
   assert.ok(kitchenRecords.some(r=>r.surface.startsWith('k_')&&r.meta?.options?.length===4),'kitchen annotation saves card context');
@@ -163,7 +172,7 @@ try{
   await count(legacyPage,1,'#joint-ink path[data-stroke]');
   await draw(legacyPage,.5);
   await count(legacyPage,2,'#joint-ink path[data-stroke]');
-  assert.equal(Object.keys(await readDb('ink/'+sid)).length,2);
+  await waitForDb('ink/'+sid,records=>Object.keys(records||{}).length===2);
   assert.deepEqual(errors,[]);
   console.log('PASS: guide 17, three Chromium contexts + Firebase emulator; live playback, erase/undo, worksheet navigation, reconnect/reload, legacy room, PDF, and result outbox.');
 }catch(error){console.error('Browser errors:',errors);
