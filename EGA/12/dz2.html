@@ -107,6 +107,12 @@
       .topbar{top:4px}.topbar .mini{display:none}.task{padding:15px 13px}.question{font-size:18px}.panel-pad{padding:13px}
     }
     @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+    .screenshot-mode .hero,.screenshot-mode .topbar,.screenshot-mode .panel,.screenshot-mode .answer-row,.screenshot-mode .solutions,.screenshot-mode footer{display:none!important}
+    .screenshot-mode .app{width:calc(100% - 16px);padding:8px 0}
+    .screenshot-mode .tasks{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:8px 0}
+    .screenshot-mode .task{padding:10px;box-shadow:none;overflow:visible}
+    .screenshot-mode .task-head{margin-bottom:4px}
+    @media(max-width:700px){.screenshot-mode .tasks{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -160,12 +166,14 @@
       <h2 id="routeTitle" style="margin-top:0">Маршрут атаки</h2>
       <div class="map" id="prototypeMap"></div>
       <div class="progress-row"><div class="progress-shell"><div class="progress-fill" id="progressFill"></div></div><div id="progressText">0/8</div></div>
-      <div class="status" id="statusBox" role="status">Проверяем, можно ли отправить работу в этом месяце…</div>
+      <div class="status" id="statusBox" role="status">Нажмите «Начать работу».</div>
     </section>
 
-    <section class="tasks" id="tasks"></section>
+    <button class="btn green" id="startHomeworkBtn" type="button">Начать работу</button>
+    <button class="btn dark hidden" id="screenshotBtn" type="button">📸 Режим скриншота</button>
+    <section class="tasks hidden" id="tasks"></section>
 
-    <section class="panel submit-zone">
+    <section class="panel submit-zone hidden" id="submitZone">
       <div class="slingshot" aria-hidden="true"></div>
       <h2>Рогатка заряжена?</h2>
       <p>До отправки ответы и решения не показываются. Проверьте, что заполнены все поля.</p>
@@ -271,12 +279,12 @@ function quadraticLogMin(){return quadraticLog("min")}];
 
   const $=s=>document.querySelector(s);
   const els={
-    gate:$("#loginGate"),app:$("#app"),loginForm:$("#loginForm"),code:$("#codeInput"),loginBtn:$("#loginBtn"),loginMsg:$("#loginMsg"),
+    start:$("#startHomeworkBtn"),screenshot:$("#screenshotBtn"),submitZone:$("#submitZone"),gate:$("#loginGate"),app:$("#app"),loginForm:$("#loginForm"),code:$("#codeInput"),loginBtn:$("#loginBtn"),loginMsg:$("#loginMsg"),
     studentName:$("#studentName"),timer:$("#timer"),sound:$("#soundBtn"),change:$("#changeStudentBtn"),map:$("#prototypeMap"),
     tasks:$("#tasks"),progressFill:$("#progressFill"),progressText:$("#progressText"),status:$("#statusBox"),submit:$("#submitBtn"),
     result:$("#resultPanel"),score:$("#scorePercent"),correct:$("#correctStat"),time:$("#timeStat"),solutionsBtn:$("#solutionsBtn"),solutions:$("#solutions")
   };
-  let student=null,tasks=[],startedAt=0,timerId=0,checkVerified=false,alreadySubmitted=false,submitting=false;
+  let student=null,tasks=[],startedAt=0,timerId=0,alreadySubmitted=false,submitting=false,pendingAttempt=null;
   let audioCtx=null,master=null,musicTimer=0,soundOn=true,musicIndex=0;
 
   function ri(a,b){return Math.floor(Math.random()*(b-a+1))+a}
@@ -322,9 +330,7 @@ function quadraticLogMin(){return quadraticLog("min")}];
   function answerEqual(a,b){return Number.isFinite(a)&&Math.abs(a-b)<=1e-8*Math.max(1,Math.abs(b))}
   function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
   function timeText(sec){const s=Math.max(0,Math.floor(sec));return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")}
-  function eventId(){return crypto&&crypto.randomUUID?crypto.randomUUID():"hw-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2)}
-  function monthKey(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`}
-  function localSubmitKey(){return `egeHomeworkSubmitted:${HOMEWORK_META.assignmentId}:${student.id}:${monthKey()}`}
+  function eventId(){return globalThis.crypto?.randomUUID?.()||"hw-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2)}
 
   function jsonp(payload,timeout=14000){
     return new Promise((resolve,reject)=>{
@@ -338,19 +344,20 @@ function quadraticLogMin(){return quadraticLog("min")}];
       window[cb]=data=>finish(resolve,data);
       script.onerror=()=>finish(reject,new Error("Сервер недоступен"));
       script.src=API_URL+"?"+params.toString();
-      document.head.appendChild(script);
       const t=setTimeout(()=>finish(reject,new Error("Сервер не ответил вовремя")),timeout);
+      document.head.appendChild(script);
     });
   }
   function normalizeStudent(data,code){
-    const source=data&&data.student?data.student:(data||{});
+    const source=data?.student||data?.result?.student||data?.data?.student||data?.result||data?.data||data||{};
     const id=source.studentId||source.id||(data&&data.studentId)||(data&&data.id);
     const name=source.studentName||source.name||(data&&data.studentName)||(data&&data.name);
-    const rejected=data&&(data.success===false||data.valid===false||data.ok===false);
+    const rejected=bodies(data).some(x=>x.success===false||x.valid===false||x.ok===false||x.error);
     if(rejected||!id)throw new Error((data&&(data.message||data.error))||"Код не найден");
     return{id:String(id),name:String(name||"Ученик"),code};
   }
   async function validateStudent(code){
+    code=String(code).trim().toUpperCase();
     const data=await jsonp({action:"validateStudent",code});
     return normalizeStudent(data,code);
   }
@@ -369,30 +376,48 @@ function quadraticLogMin(){return quadraticLog("min")}];
   function setStatus(text,type=""){
     els.status.textContent=text;els.status.className="status"+(type?" "+type:"");
   }
-  function readSubmitted(data){
-    const s=(data&&data.result)||(data&&data.data)||data||{};
-    if(s.canSubmit===false)return true;
-    return Boolean(s.submitted??s.hasSubmitted??s.alreadySubmitted??s.exists??false);
-  }
-  async function checkMonthly(){
-    checkVerified=false;els.submit.disabled=true;lockInputs(true);
-    setStatus("Проверяем отправку за текущий календарный месяц…");
-    try{
-      const data=await jsonp({action:"checkHomeworkSubmission",studentId:student.id,assignmentId:HOMEWORK_META.assignmentId});
-      checkVerified=true;
-      alreadySubmitted=readSubmitted(data)||localStorage.getItem(localSubmitKey())==="1";
-      if(alreadySubmitted){
-        setStatus("Эта работа уже отправлена в текущем месяце. Задания можно просматривать, повторная отправка заблокирована.","warn");
-        lockInputs(true);els.submit.disabled=true;els.submit.textContent="Уже отправлено в этом месяце";
-      }else{
-        setStatus("Попытка доступна. Заполните все 8 ответов и отправьте работу один раз.","good");
-        lockInputs(false);updateProgress();
-      }
-    }catch(err){
-      setStatus("Не удалось проверить месячную попытку. Задания доступны, но отправка временно заблокирована. Нажмите сюда, чтобы повторить проверку.","bad");
-      els.status.tabIndex=0;els.status.style.cursor="pointer";els.status.onclick=()=>checkMonthly();
+
+  function bodies(data){return [data,data?.data,data?.result,data?.data?.result,data?.result?.data].filter(x=>x&&typeof x==="object"&&!Array.isArray(x))}
+  function errorBody(data){return bodies(data).find(x=>x.ok===false||x.success===false||x.error)}
+  function receipt(data,payload,check=false){
+    const b=bodies(data),repeat=b.some(x=>x.alreadySubmitted===true||x.duplicate===true||x.canSubmit===false);
+    const ids=b.flatMap(x=>[x.homeworkEventId,x.submissionEventId,x.eventId]).filter(Boolean).map(String);
+    if(!check){
+      if(repeat)return ids.includes(payload.eventId)?"saved":"repeat";
+      if(errorBody(data))return null;
+      return b.some(x=>x.ok===true&&x.saved===true&&(!x.assignmentId||x.assignmentId===payload.assignmentId))?"saved":null;
     }
+    if(errorBody(data))return null;
+    const exists=repeat||b.some(x=>[x.submitted,x.hasSubmitted,x.hasSubmission,x.exists,x.found,x.isSubmitted,x.submittedThisMonth].includes(true)||["submitted","submitted_late"].includes(x.status));
+    if(!exists)return null;
+    return ids.includes(payload.eventId)?"saved":ids.length?"repeat":"unconfirmed";
   }
+  async function verifyAfterSend(payload){
+    for(let i=0;i<3;i++){
+      if(i)await new Promise(resolve=>setTimeout(resolve,700*i));
+      try{
+        const data=await jsonp({action:"checkHomeworkSubmission",studentId:payload.studentId,assignmentId:payload.assignmentId});
+        const state=receipt(data,payload,true);if(state)return state;
+      }catch(_){}
+    }
+    throw new Error("Сервер пока не подтвердил сохранение");
+  }
+  async function sendResult(payload){
+    const options={method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload),redirect:"follow"};
+    let response;
+    try{response=await fetch(API_URL,options)}catch(err){
+      if(!(err instanceof TypeError)&&err?.name!=="NetworkError")throw err;
+      try{await fetch(API_URL,{...options,mode:"no-cors"})}catch(_){}
+      return verifyAfterSend(payload);
+    }
+    if(!response.ok)throw new Error("HTTP "+response.status);
+    let data;try{data=JSON.parse(await response.text())}catch(_){return verifyAfterSend(payload)}
+    const state=receipt(data,payload);if(state)return state;
+    const rejected=errorBody(data);
+    if(rejected)throw new Error(rejected.message||rejected.error||"Сервер отклонил результат");
+    return verifyAfterSend(payload);
+  }
+
   function lockInputs(locked){document.querySelectorAll(".answer").forEach(i=>i.disabled=locked)}
 
   function renderMap(){
@@ -416,7 +441,7 @@ function quadraticLogMin(){return quadraticLog("min")}];
   function updateProgress(){
     const inputs=[...document.querySelectorAll(".answer")],filled=inputs.filter(i=>i.value.trim()!=="").length;
     els.progressFill.style.width=(filled/inputs.length*100)+"%";els.progressText.textContent=`${filled}/${inputs.length}`;
-    els.submit.disabled=!(checkVerified&&!alreadySubmitted&&!submitting&&filled===inputs.length);
+    els.submit.disabled=!(startedAt&&!alreadySubmitted&&!submitting&&inputs.length>0&&filled===inputs.length);
   }
   function resultMarkup(values){
     return tasks.map((t,i)=>{
@@ -433,46 +458,54 @@ function quadraticLogMin(){return quadraticLog("min")}];
       </article>`;
     }).join("");
   }
+
   async function submitHomework(){
-    if(submitting||alreadySubmitted||!checkVerified)return;
+    if(submitting||alreadySubmitted||!startedAt)return;
     const inputs=[...document.querySelectorAll(".answer")];
-    const firstEmpty=inputs.find(i=>i.value.trim()==="");
-    if(firstEmpty){setStatus("Заполните все ответы перед отправкой.","bad");firstEmpty.focus();return}
-    const values=inputs.map(i=>normalizeAnswer(i.value));
-    const correct=values.reduce((n,v,i)=>n+(answerEqual(v,tasks[i].answer)?1:0),0);
-    const percent=Math.round(correct/tasks.length*100);
-    const duration=Math.max(1,Math.round((Date.now()-startedAt)/1000));
-    const payload={
-      action:"submitHomework",
-      eventId:eventId(),
-      studentId:student.id,
-      assignmentId:HOMEWORK_META.assignmentId,
-      taskNumber:HOMEWORK_META.taskNumber,
-      topicId:HOMEWORK_META.topicId,
-      topicName:HOMEWORK_META.topicName,
-      scorePercent:percent,
-      durationSeconds:duration,
-      schemaVersion:1
-    };
-    submitting=true;updateProgress();els.submit.textContent="Отправляем…";setStatus("Отправляем итоговый процент и время. Ответы и решения на сервер не передаются.");
+    const invalid=inputs.find(i=>!Number.isFinite(normalizeAnswer(i.value)));
+    if(invalid){setStatus("Введите числовой ответ в каждое поле.","bad");invalid.focus();return}
+    if(!pendingAttempt){
+      const values=inputs.map(i=>normalizeAnswer(i.value)),correct=values.reduce((n,v,i)=>n+(answerEqual(v,tasks[i].answer)?1:0),0);
+      const percent=Math.round(correct/tasks.length*100),duration=Math.max(1,Math.round((Date.now()-startedAt)/1000));
+      pendingAttempt={values,correct,percent,duration,payload:{
+        action:"submitHomework",programId:"EGE_MATH",eventId:eventId(),studentId:student.id,
+        assignmentId:HOMEWORK_META.assignmentId,taskNumber:HOMEWORK_META.taskNumber,topicId:HOMEWORK_META.topicId,
+        topicName:HOMEWORK_META.topicName,scorePercent:percent,durationSeconds:duration,schemaVersion:1}};
+    }
+    const {values,correct,percent,duration,payload}=pendingAttempt;
+    submitting=true;lockInputs(true);clearInterval(timerId);els.timer.textContent=timeText(duration);
+    updateProgress();els.submit.textContent="Отправляем…";setStatus("Отправляем итоговый процент и время.");
     try{
-      const data=await jsonp(payload);
-      if(data&&(data.success===false||data.ok===false))throw new Error(data.message||data.error||"Результат не принят");
-      localStorage.setItem(localSubmitKey(),"1");alreadySubmitted=true;clearInterval(timerId);lockInputs(true);
-      els.submit.disabled=true;els.submit.textContent="Работа отправлена";
-      els.score.textContent=percent+"%";els.correct.textContent=`${correct} из ${tasks.length} верно`;els.time.textContent="Время "+timeText(duration);
-      els.solutions.innerHTML=resultMarkup(values);els.result.classList.remove("hidden");setStatus("Результат успешно отправлен. Теперь можно открыть подробный разбор.","good");
-      celebration();els.result.scrollIntoView({behavior:"smooth",block:"center"});
+      const state=await sendResult(payload);
+      alreadySubmitted=true;els.submit.disabled=true;els.submit.textContent=state==="saved"?"Работа отправлена":"Попытка завершена";
+      els.score.textContent=percent+"%";els.correct.textContent=correct+" из "+tasks.length+" верно";els.time.textContent="Время "+timeText(duration);
+      els.solutions.innerHTML=resultMarkup(values);els.result.classList.remove("hidden");
+      const notice=state==="saved"?"Результат успешно отправлен. Теперь можно открыть подробный разбор.":state==="repeat"?"Эта домашняя работа уже была отправлена в этом календарном месяце. В таблице сохранена первая попытка. Текущая попытка не учитывается. Теперь можно посмотреть разбор задач.":"Сервер сообщает, что сдача существует, но не подтвердил сохранение именно текущей попытки. Текущий результат не считается подтверждённым. Можно посмотреть разбор.";
+      els.result.querySelector("h2").textContent=state==="saved"?"Крепость взята!":"Тренировочный результат";
+      setStatus(notice,state==="saved"?"good":"warn");
+      if(correct===tasks.length)celebration();else errorTone();
+      els.result.scrollIntoView({behavior:"smooth",block:"center"});
     }catch(err){
-      submitting=false;els.submit.textContent="Повторить отправку";setStatus("Не удалось отправить результат: "+err.message+". Ответы сохранены на экране — попробуйте ещё раз.","bad");updateProgress();errorTone();
+      submitting=false;els.submit.textContent="Повторить отправку";setStatus("Не удалось подтвердить результат: "+err.message+". Ответы сохранены на экране. Повторите отправку.","bad");updateProgress();errorTone();
     }
   }
-
-  async function boot(s){
+  function boot(s){
     student=s;saveStudent(s);els.studentName.textContent=s.name;els.gate.classList.add("hidden");els.app.classList.remove("hidden");
-    renderMap();renderTasks();startedAt=Date.now();timerId=setInterval(()=>els.timer.textContent=timeText((Date.now()-startedAt)/1000),1000);
-    await checkMonthly();
+    renderMap();setStatus("Нажмите «Начать работу». Результат проверяется только после отправки.");
   }
+  function startHomework(){
+    if(startedAt)return;
+    renderTasks();startedAt=Date.now();
+    els.start.classList.add("hidden");els.tasks.classList.remove("hidden");els.submitZone.classList.remove("hidden");els.screenshot.classList.remove("hidden");
+    timerId=setInterval(()=>els.timer.textContent=timeText((Date.now()-startedAt)/1000),1000);
+    setStatus("Заполните все "+tasks.length+" ответов и отправьте работу.","good");updateProgress();
+  }
+  els.start.addEventListener("click",startHomework);
+  els.screenshot.addEventListener("click",()=>{
+    const enabled=document.body.classList.toggle("screenshot-mode");
+    els.screenshot.textContent=enabled?"Выйти из режима скриншота":"📸 Режим скриншота";
+  });
+
   els.loginForm.addEventListener("submit",async e=>{
     e.preventDefault();const code=els.code.value.trim();if(!code){els.loginMsg.textContent="Введите личный код.";return}
     els.loginBtn.disabled=true;els.loginMsg.textContent="Проверяем код…";startAudio();softTone(520,.12,.08);
@@ -488,10 +521,11 @@ function quadraticLogMin(){return quadraticLog("min")}];
   function startAudio(){
     if(!soundOn)return;
     if(!audioCtx){
-      audioCtx=new (window.AudioContext||window.webkitAudioContext)();master=audioCtx.createGain();master.gain.value=.14;master.connect(audioCtx.destination);
+      const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;
+      audioCtx=new Audio();master=audioCtx.createGain();master.gain.value=.14;master.connect(audioCtx.destination);
       scheduleMusic();musicTimer=setInterval(scheduleMusic,600);
     }
-    if(audioCtx.state==="suspended")audioCtx.resume();
+    if(audioCtx.state==="suspended")audioCtx.resume().catch(()=>{});
   }
   function scheduleMusic(){
     if(!soundOn||!audioCtx)return;
